@@ -78,7 +78,7 @@ HELP
     fi
 
     local missing='' tool
-    for tool in curl tar gzip sha256sum flock openssl; do
+    for tool in curl tar gzip sha256sum flock openssl jq; do
         command -v "$tool" >/dev/null 2>&1 || missing="$missing $tool"
     done
     if ! { command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; }; then
@@ -93,7 +93,7 @@ or follow https://docs.docker.com/engine/install/$os_id/ and run this installer 
     elif [ "$install_docker" = true ]; then
         echo 'Docker Engine and Compose are already installed; --install-docker changes nothing.'
     fi
-    [ -z "$missing" ] || fail "Missing required tools:$missing. Install them with: apt-get install -y ca-certificates curl tar gzip coreutils util-linux openssl"
+    [ -z "$missing" ] || fail "Missing required tools:$missing. Install them with: apt-get install -y ca-certificates curl tar gzip coreutils util-linux openssl jq"
 
     if [ -z "$version" ]; then
         version=$(curl -fsSL "$release_api/releases/latest" | grep -o '"tag_name": *"[^"]*"' | head -n 1 | sed 's/.*"\([^"]*\)"$/\1/') ||
@@ -142,7 +142,7 @@ install_docker_engine() {
     [ -n "$codename" ] || fail 'VERSION_CODENAME is missing from /etc/os-release; cannot select the Docker apt repository.'
     echo "Installing Docker Engine and Compose from https://download.docker.com/linux/$os_id ($codename)"
     apt-get update
-    apt-get install -y ca-certificates curl tar gzip coreutils util-linux openssl
+    apt-get install -y ca-certificates curl tar gzip coreutils util-linux openssl jq
     install -m 0755 -d /etc/apt/keyrings
     curl -fsSL "https://download.docker.com/linux/$os_id/gpg" -o /etc/apt/keyrings/docker.asc
     chmod a+r /etc/apt/keyrings/docker.asc
