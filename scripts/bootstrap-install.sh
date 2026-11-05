@@ -66,15 +66,17 @@ HELP
     esac
     [ "$(uname -m)" = x86_64 ] || fail "Unsupported architecture $(uname -m): published Heptapod images are amd64-only. Source builds are described in docs/deploy/operations.md."
 
+    local quoted_dir
+    printf -v quoted_dir %q "$dir"
+    # A read-only look first: a foreign directory gets no lock file. Rechecked under the lock below.
+    check_destination "$dir"
     # An existing installation is never downloaded over. Its own installer validates it and prints the next step.
-    if [ -f "$dir/.env.prod" ]; then
-        [ -f "$dir/REVISION" ] && [ -f "$dir/scripts/install.sh" ] || fail "$dir has a .env.prod but is not a release bundle installation; nothing was changed."
-        echo "Heptapod is already installed in $dir (revision $(cat "$dir/REVISION")). To upgrade, run: cd $dir && sudo ./scripts/upgrade.sh"
+    if [ "$installed" = true ]; then
+        lock_destination "$dir"
+        check_destination "$dir"
+        echo "Heptapod is already installed in $dir (revision $(cat "$dir/REVISION")). To upgrade, run: cd $quoted_dir && sudo ./scripts/upgrade.sh"
         echo 'Validating the existing configuration; no services are started:'
-        exec "$dir/scripts/install.sh" --revision "$(cat "$dir/REVISION")" "${install_args[@]}" < /dev/null
-    fi
-    if [ -d "$dir" ] && [ -n "$(ls -A "$dir")" ] && { [ ! -f "$dir/REVISION" ] || [ ! -f "$dir/compose.prod.yaml" ]; }; then
-        fail "$dir is not empty and is not an earlier Heptapod release bundle; choose an empty --dir. Nothing was changed."
+        HEPTAPOD_LIFECYCLE_LOCK_FD=9 exec "$dir/scripts/install.sh" --revision "$(cat "$dir/REVISION")" "${install_args[@]}" < /dev/null
     fi
 
     local missing='' tool
@@ -102,9 +104,14 @@ or follow https://docs.docker.com/engine/install/$os_id/ and run this installer 
     fi
     echo "Installing Heptapod $version into $dir"
 
+    # Hold the destination's lifecycle lock from publication through the installer, which takes it over.
+    lock_destination "$dir"
+    check_destination "$dir"
+    [ "$installed" = false ] || fail "$dir was installed while this installer waited; nothing was changed. Run the installer again to validate that installation."
+
     local name=heptapod-$version.tar.gz file
-    # Global: the EXIT trap runs after main has returned.
-    stage=$(mktemp -d)
+    # Staged on the destination filesystem so that publication is a rename. Global: the EXIT trap runs after main has returned.
+    stage=$(mktemp -d "$dir/.heptapod/bundle.XXXXXX")
     trap 'rm -rf "$stage"' EXIT
     for file in "$name" "$name.sha256"; do
         curl -fsSL -o "$stage/$file" "$release_download/$version/$file" || fail "Cannot download $release_download/$version/$file"
@@ -118,17 +125,42 @@ or follow https://docs.docker.com/engine/install/$os_id/ and run this installer 
     local bundle=$stage/heptapod-$version revision
     revision=$(cat "$bundle/REVISION")
     [[ "$revision" =~ ^[a-f0-9]{40}$ ]] || fail "$name has no valid REVISION. Nothing was installed."
+    [ "$(cat "$bundle/RELEASE")" = "$version" ] || fail "$name has no RELEASE file for $version. Nothing was installed."
     [ ! -e "$bundle/.env.prod" ] && [ ! -e "$bundle/.heptapod" ] || fail "$name contains installation state. Nothing was installed."
-    mkdir -p "$dir"
-    cp -R "$bundle/." "$dir/"
+    # Renames, never writes into existing files; REVISION last, so a partial publication is not a release.
+    local bundle_file
+    while IFS= read -r bundle_file; do
+        mkdir -p "$dir/$(dirname -- "$bundle_file")"
+        mv "$bundle/$bundle_file" "$dir/$bundle_file"
+    done < <(cd "$bundle" && find . -type f ! -name REVISION | LC_ALL=C sort && echo ./REVISION)
 
     # The owner prompt reads the terminal; stdin is this piped script.
     if (exec < /dev/tty) 2>/dev/null; then
-        "$dir/scripts/install.sh" --revision "$revision" "${install_args[@]}" < /dev/tty
+        HEPTAPOD_LIFECYCLE_LOCK_FD=9 "$dir/scripts/install.sh" --revision "$revision" "${install_args[@]}" < /dev/tty
     else
-        "$dir/scripts/install.sh" --revision "$revision" "${install_args[@]}" < /dev/null
+        HEPTAPOD_LIFECYCLE_LOCK_FD=9 "$dir/scripts/install.sh" --revision "$revision" "${install_args[@]}" < /dev/null
     fi
-    echo "Heptapod $version is installed in $dir. Upgrade later with: cd $dir && sudo ./scripts/upgrade.sh"
+    echo "Heptapod $version is installed in $dir. Upgrade later with: cd $quoted_dir && sudo ./scripts/upgrade.sh"
+}
+
+# Sets installed=true for an earlier bundle installation; refuses any directory that is neither empty nor ours.
+check_destination() {
+    installed=false
+    [ -d "$1" ] || return 0
+    if [ -f "$1/.env.prod" ]; then
+        [ -f "$1/REVISION" ] && [ -f "$1/scripts/install.sh" ] || fail "$1 has a .env.prod but is not a release bundle installation; nothing was changed."
+        installed=true
+    elif [ -n "$(find "$1" -mindepth 1 -maxdepth 1 ! -name .heptapod -print -quit)" ] && { [ ! -f "$1/REVISION" ] || [ ! -f "$1/compose.prod.yaml" ]; }; then
+        fail "$1 is not empty and is not an earlier Heptapod release bundle; choose an empty --dir. Nothing was changed."
+    fi
+}
+
+# The lock file of scripts/lifecycle-lock.sh, on fd 9: install, upgrade and rollback of this directory wait for us.
+lock_destination() {
+    mkdir -p "$1/.heptapod"
+    chmod 700 "$1/.heptapod"
+    exec 9> "$1/.heptapod/lifecycle.lock"
+    flock -n 9 || fail "Another Heptapod install, upgrade or rollback is running in $1; nothing was changed."
 }
 
 fail() {
