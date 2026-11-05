@@ -29,6 +29,11 @@ validate_release_tag() {
     printf '%s\n' "$1" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "Invalid release tag: $1 (expected e.g. v0.2.0)" >&2; exit 1; }
 }
 
+# SemVer precedence via GNU version sort: "~" orders a pre-release before its release.
+release_tag_older() {
+    [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "${1#v}" "${2#v}" | sed 's/-/~/' | sort -V | head -n 1)" = "$(printf '%s\n' "${1#v}" | sed 's/-/~/')" ]
+}
+
 latest_release_tag() {
     latest_json=$(curl -fsSL "$release_api/releases/latest") || { echo "Cannot read the latest release from $release_api/releases/latest; pass --to <tag>." >&2; exit 1; }
     latest_tag=$(printf '%s\n' "$latest_json" | grep -o '"tag_name": *"[^"]*"' | head -n 1 | sed 's/.*"\([^"]*\)"$/\1/')
@@ -53,6 +58,7 @@ fetch_release_bundle() {
     bundle_root=$2/heptapod-$bundle_tag
     bundle_revision=$(cat "$bundle_root/REVISION")
     printf '%s\n' "$bundle_revision" | grep -Eq '^[a-f0-9]{40}$' || { echo "$bundle_name has no valid REVISION. Nothing was changed." >&2; exit 1; }
+    [ "$(cat "$bundle_root/RELEASE")" = "$bundle_tag" ] || { echo "$bundle_name has no RELEASE file for $bundle_tag. Nothing was changed." >&2; exit 1; }
     if [ -e "$bundle_root/.env.prod" ] || [ -e "$bundle_root/.heptapod" ]; then
         echo "$bundle_name contains installation state. Nothing was changed." >&2
         exit 1

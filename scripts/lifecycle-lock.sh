@@ -51,6 +51,14 @@ acquire_lifecycle_lock() {
     umask 077
     mkdir -p "$lifecycle_dir"
     chmod 700 "$lifecycle_dir"
+    # Handoff: the hosted installer and upgrade.sh's re-exec pass this lock already held on fd 9.
+    # Reopening fd 9 would release it, and a child holding a second descriptor would block on its parent.
+    lock_handoff=${HEPTAPOD_LIFECYCLE_LOCK_FD:-}
+    unset HEPTAPOD_LIFECYCLE_LOCK_FD
+    if [ "$lock_handoff" = 9 ] && [ "$(readlink -f "/proc/$$/fd/9")" = "$(readlink -f "$lifecycle_dir/lifecycle.lock")" ]; then
+        flock -n 9 || { echo 'Another install/upgrade/rollback is running; lifecycle lock held.' >&2; exit 1; }
+        return 0
+    fi
     exec 9>"$lifecycle_dir/lifecycle.lock"
     flock -n 9 || { echo 'Another install/upgrade/rollback is running; lifecycle lock held.' >&2; exit 1; }
 }

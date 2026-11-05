@@ -4,6 +4,26 @@
 set -eu
 cd "$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)"
 dc() { docker compose --env-file .env.prod "$@"; }
+# An interrupted bundle replacement (below) leaves files of two releases. Restore the recorded previous
+# files before sourcing any of them, then continue with the restored release's upgrade.sh.
+if [ -f .heptapod/upgrade/host-replacement ]; then
+    exec 9>.heptapod/lifecycle.lock
+    flock -n 9 || { echo 'Another install/upgrade/rollback is running; lifecycle lock held.' >&2; exit 1; }
+    while read -r replaced replaced_file; do
+        case "$replaced" in
+            # A missing copy was already moved back by an earlier, interrupted restore.
+            old) if [ -f ".heptapod/upgrade/host-previous/$replaced_file" ]; then mv ".heptapod/upgrade/host-previous/$replaced_file" "$replaced_file"; fi ;;
+            new) rm -f "$replaced_file" ;;
+            *) echo "Invalid bundle replacement record line: $replaced $replaced_file" >&2; exit 1 ;;
+        esac
+    done < .heptapod/upgrade/host-replacement
+    sync
+    rm .heptapod/upgrade/host-replacement
+    sync
+    echo "Restored the files of revision $(cat REVISION) after an interrupted bundle replacement."
+    export HEPTAPOD_LIFECYCLE_LOCK_FD=9
+    exec ./scripts/upgrade.sh "$@"
+fi
 # shellcheck source=scripts/lifecycle-lock.sh
 . ./scripts/lifecycle-lock.sh
 # shellcheck source=scripts/release-image.sh
@@ -21,7 +41,9 @@ Usage: ./scripts/upgrade.sh [--to TAG|--build|--resume]
 Release bundle installs (no Git): without arguments, upgrade to the latest
 release; --to TAG selects one. Both download and verify the release bundle,
 replace the Compose files and scripts (never .env.prod or volumes), then
-continue with the new release's upgrade.sh --staged REVISION.
+continue with the new release's upgrade.sh --staged REVISION. An installed
+release is a no-op; an older one is refused (downgrades restore a backup).
+A rerun first restores the previous files of an interrupted replacement.
 
 Git checkouts: run git fetch --tags && git checkout TAG first; HEAD selects the
 release. --build makes a source build of the checkout instead.
@@ -111,19 +133,49 @@ fi
 if [ "$bundle_install" = true ] && [ "$resume" = false ] && [ -z "$staged_revision" ]; then
     command -v curl >/dev/null 2>&1 || { echo 'curl is required to download the release bundle.' >&2; exit 1; }
     [ -n "$target_tag" ] || target_tag=$(latest_release_tag)
+    [ -f RELEASE ] || { echo 'The release bundle installation has no RELEASE file; cannot compare it with the target release.' >&2; exit 1; }
+    installed_tag=$(cat RELEASE)
+    validate_release_tag "$installed_tag"
+    if [ "$target_tag" = "$installed_tag" ]; then
+        echo "Release $installed_tag is already installed; nothing to upgrade."
+        exit 0
+    fi
+    # Migrations only run forward: older code on the current schema is not a supported state.
+    if release_tag_older "$target_tag" "$installed_tag"; then
+        echo "Refusing to downgrade from $installed_tag to $target_tag. Returning to an older release means restoring a backup taken with it; see docs/deploy/operations.md." >&2
+        exit 1
+    fi
+    mkdir -p "$state"
     # Stage on the installation filesystem: each rename leaves this running script's open file intact.
     bundle_stage=$(mktemp -d "$lifecycle_dir/bundle.XXXXXX")
-    trap 'rm -rf "$bundle_stage"' EXIT
+    trap 'rm -rf "$bundle_stage"; if [ -f "$state/host-replacement" ]; then echo "Bundle replacement interrupted. Rerun ./scripts/upgrade.sh: it first restores the previous release files." >&2; fi' EXIT
     fetch_release_bundle "$target_tag" "$bundle_stage"
-    (cd "$bundle_root" && find . -type f ! -name REVISION) | while IFS= read -r bundle_file; do
+    # Keep a copy of every file about to be replaced and record the replacement durably before the first rename.
+    host_previous=$state/host-previous
+    rm -rf "$host_previous"
+    { (cd "$bundle_root" && find . -type f ! -name REVISION | LC_ALL=C sort); echo ./REVISION; } > "$bundle_stage/files"
+    while IFS= read -r bundle_file; do
+        if [ -e "$bundle_file" ]; then
+            mkdir -p "$host_previous/$(dirname -- "$bundle_file")"
+            cp -p "$bundle_file" "$host_previous/$bundle_file"
+            printf 'old %s\n' "$bundle_file"
+        else
+            printf 'new %s\n' "$bundle_file"
+        fi
+    done < "$bundle_stage/files" > "$state/host-replacement.tmp"
+    sync
+    persist_lifecycle_file "$state/host-replacement"
+    while IFS= read -r bundle_file; do
         mkdir -p "$(dirname -- "$bundle_file")"
         mv "$bundle_root/$bundle_file" "$bundle_file"
-    done
-    # REVISION last: an interrupted replacement never claims the new release.
-    mv "$bundle_root/REVISION" REVISION
-    rm -rf "$bundle_stage"
+    done < "$bundle_stage/files"
+    sync
+    rm "$state/host-replacement"
+    sync
+    rm -rf "$host_previous" "$bundle_stage"
     trap - EXIT
     echo "Staged $target_tag ($bundle_revision); continuing with its upgrade.sh."
+    export HEPTAPOD_LIFECYCLE_LOCK_FD=9
     exec ./scripts/upgrade.sh --staged "$bundle_revision"
 fi
 if [ "$resume" = true ]; then
