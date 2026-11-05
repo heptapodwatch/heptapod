@@ -1,0 +1,37 @@
+{
+	frankenphp {
+		num_threads {$FRANKENPHP_NUM_THREADS:4}
+		# Coverage belongs to CLI tests, not the multithreaded dev HTTP server.
+		php_ini {
+			pcov.enabled 0
+		}
+	}
+	auto_https off
+	admin off
+}
+
+:80 {
+	root * /workspace/public
+	encode zstd gzip
+	header X-Content-Type-Options nosniff
+
+	@reverb path /app/*
+	handle @reverb {
+		reverse_proxy reverb:8080
+	}
+
+	# Laravel's font middleware runs before Vite strips its base path.
+	handle_path /vite/__laravel_vite_plugin__/* {
+		rewrite * /__laravel_vite_plugin__{uri}
+		reverse_proxy vite:5173
+	}
+
+	# Same-origin assets and WebSockets work through both localhost and Compose DNS.
+	handle /vite/* {
+		reverse_proxy vite:5173
+	}
+
+	handle {
+		php_server
+	}
+}

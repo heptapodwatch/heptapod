@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# The registry is an external seam. Unexpected Docker operations fail, especially builds.
+set -euo pipefail
+registry="$PHP_BASE_FIXTURE_RESPONSE/registry.json"
+if [ "$#" -eq 6 ] && [ "$1 $2 $3" = 'buildx imagetools inspect' ] && [ "$5" = --format ] && [ "$6" = '{{json .Manifest}}' ]; then
+    reference=$4
+    if [[ "$reference" == *@* ]]; then
+        digest=${reference##*@}
+        jq -e --arg digest "$digest" '.manifests[$digest] != null' "$registry" > /dev/null
+    else
+        tag=${reference##*:}
+        digest=$(jq -er --arg tag "$tag" '.tags[$tag]' "$registry")
+    fi
+    jq -n --arg digest "$digest" '{digest: $digest}'
+elif [ "$#" -eq 5 ] && [ "$1 $2 $3" = 'buildx imagetools inspect' ] && [ "$5" = --raw ]; then
+    digest=${4##*@}
+    jq -e --arg digest "$digest" '.manifests[$digest]' "$registry"
+elif [ "$#" -eq 6 ] && [ "$1 $2 $3 $4" = 'buildx imagetools create --tag' ]; then
+    tag=${5##*:}
+    digest=${6##*@}
+    printf '%s %s\n' "$tag" "$digest" >> "$PHP_BASE_FIXTURE_RESPONSE/retags"
+    jq --arg tag "$tag" --arg digest "$digest" '.tags[$tag] = $digest' "$registry" > "$registry.tmp"
+    mv "$registry.tmp" "$registry"
+else
+    printf 'Unexpected fixture Docker invocation:' >&2
+    printf ' %q' "$@" >&2
+    printf '\n' >&2
+    exit 1
+fi

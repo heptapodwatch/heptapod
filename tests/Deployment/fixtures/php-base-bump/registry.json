@@ -1,0 +1,56 @@
+{
+    "tags": {
+        "20261022-aaaaaaaaaaaa": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "ci-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "20261022-aaaaaaaaaaaa-coverage": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "ci-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-coverage": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "manifests": {
+        "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb": {
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "manifests": [
+                {
+                    "platform": { "os": "linux", "architecture": "amd64" },
+                    "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                },
+                {
+                    "platform": { "os": "linux", "architecture": "arm64" },
+                    "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+                }
+            ]
+        },
+        "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc": {
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "manifests": [
+                {
+                    "platform": { "os": "linux", "architecture": "amd64" },
+                    "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                },
+                {
+                    "platform": { "os": "linux", "architecture": "arm64" },
+                    "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+                }
+            ]
+        },
+        "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd": {
+            "config": {
+                "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            }
+        },
+        "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee": {
+            "config": {
+                "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            }
+        },
+        "sha256:2222222222222222222222222222222222222222222222222222222222222222": {
+            "config": {
+                "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+            }
+        },
+        "sha256:3333333333333333333333333333333333333333333333333333333333333333": {
+            "config": {
+                "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+            }
+        }
+    }
+}

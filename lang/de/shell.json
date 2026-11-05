@@ -1,0 +1,20 @@
+{
+    "Pagination Navigation": "Seiten-Navigation",
+    "Toggle navigation": "Navigation umschalten",
+    "Displays the mobile sidebar.": "Zeigt die mobile Seitenleiste.",
+    "Sidebar": "Seitenleiste",
+    "Toggle sidebar": "Seitenleiste umschalten",
+    "Search from sidebar": "Suche in der Seitenleiste",
+    "brand.down_sites_one": "{{count}} Website ausgefallen",
+    "brand.down_sites_other": "{{count}} Websites ausgefallen",
+    "Go to": "Gehe zu",
+    "Go to :page": "Gehe zu :page",
+    "Keyboard shortcuts": "Tastenkürzel",
+    "Single-key shortcuts work when no text field has focus.": "Einzeltasten-Kürzel funktionieren, wenn kein Textfeld den Fokus hat.",
+    "then": "dann",
+    "Navigation": "Navigation",
+    "Lists": "Listen",
+    "Create on this page": "Auf dieser Seite anlegen",
+    "Next site": "Nächste Website",
+    "Previous site": "Vorherige Website"
+}

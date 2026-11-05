@@ -1,0 +1,17 @@
+dns.fixture.test:53 {
+    errors
+    file /zones/dns.fixture.test.zone
+}
+example.test:53 {
+    errors
+    file /zones/example.test.zone
+}
+provider.test:53 {
+    errors
+    file /zones/provider.test.zone
+}
+servfail.dns.fixture.test:53 {
+    template IN ANY {
+        rcode SERVFAIL
+    }
+}

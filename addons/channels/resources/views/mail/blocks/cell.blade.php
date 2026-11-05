@@ -1,0 +1,3 @@
+@php($color = $cell->tone?->color() ?? 'fg')
+<span class="c-{{ $color }}" style="color:{{ $light[$color] }};{{ $cell->mono ? "font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;font-size:12px;" : 'font-size:13px;' }}{{ $cell->keepOnOneLine ? 'white-space:nowrap;' : 'word-break:break-word;' }}">{{ $cell->text }}</span>@if ($cell->badge !== null)&nbsp;<span class="chip-{{ $color }}" style="display:inline-block;white-space:nowrap;border:1px solid {{ $light[$color] }};border-radius:8px;padding:0 6px;font-size:11px;font-weight:600;line-height:16px;color:{{ $light[$color] }};">{{ $cell->badge }}</span>@endif
+

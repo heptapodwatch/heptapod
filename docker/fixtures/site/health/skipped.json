@@ -1,0 +1,15 @@
+{
+    "finishedAt": 1790870400,
+    "checkResults": [
+        {
+            "name": "FixtureCheck",
+            "label": "Fixture check",
+            "notificationMessage": "Fixture status: skipped",
+            "shortSummary": "skipped",
+            "status": "skipped",
+            "meta": {
+                "fixture": true
+            }
+        }
+    ]
+}

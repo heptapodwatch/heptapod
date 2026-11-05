@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Verify the actual argument list in an isolated real repository, then return
+# fixed lineage so collection does not depend on the CI checkout's fetch depth.
+set -euo pipefail
+if [ "$#" -ne 3 ] || [ "$1" != rev-list ] || [ "$2" != --first-parent ] || [ "$3" != origin/main ]; then
+    printf 'Unexpected fixture git invocation:' >&2
+    printf ' %q' "$@" >&2
+    printf '\n' >&2
+    exit 1
+fi
+unset GIT_COMMON_DIR GIT_INDEX_FILE
+GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null \
+    GIT_DIR="$RETENTION_TEST_TEMP/git/.git" GIT_WORK_TREE="$RETENTION_TEST_TEMP/git" \
+    "$REAL_GIT" "$@" > "$RETENTION_TEST_TEMP/real-main-shas.txt"
+if [ "$(wc -l < "$RETENTION_TEST_TEMP/real-main-shas.txt")" -ne 2 ]; then
+    echo 'Real git must return both first-parent commits' >&2
+    exit 1
+fi
+cat "$RETENTION_FIXTURE/main-shas.txt"

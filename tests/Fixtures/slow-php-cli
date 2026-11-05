@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+printf '%s' "$$" > "$HEPTAPOD_DNS_TEST_PID"
+exec sleep 5

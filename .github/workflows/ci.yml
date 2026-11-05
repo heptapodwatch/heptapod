@@ -1,0 +1,525 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'ci/**']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') && 'ci-trains' || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+
+jobs:
+  candidate:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      tested: ${{ steps.lookup.outputs.tested }}
+    steps:
+      - name: Find a successful CI gate for this exact commit
+        id: lookup
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            core.setOutput('tested', 'false');
+            if (context.eventName !== 'push' || context.ref !== 'refs/heads/main') return;
+            try {
+              const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+                ...context.repo,
+                workflow_id: 'ci.yml',
+                head_sha: context.sha,
+                event: 'push',
+                status: 'success',
+                per_page: 100,
+              });
+              const gate = runs.find(run => run.head_sha === context.sha &&
+                run.head_branch?.startsWith('ci/') && run.conclusion === 'success');
+              if (gate) {
+                core.info(`Reusing successful candidate CI: ${gate.html_url}`);
+                core.setOutput('tested', 'true');
+              }
+            } catch (error) {
+              // Lookup failure is a documented run-tests state, never a skipped gate.
+              core.warning(`Candidate lookup failed; running CI: ${error.message}`);
+            }
+
+  changes:
+    needs: candidate
+    if: always() && needs.candidate.outputs.tested != 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      dev-image: ${{ steps.paths.outputs.dev-image }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Select development image gate
+        id: paths
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          dev_image=false
+          if [ -n "$PR_BASE" ]; then
+            base=$(git merge-base "$PR_BASE" "$HEAD")
+          elif [ "$GITHUB_REF" = refs/heads/main ]; then
+            base=$BEFORE
+          elif git rev-parse --verify --quiet refs/remotes/origin/main >/dev/null; then
+            # Revalidate the whole candidate delta. A candidate without history in common with main (a fresh history) runs every gate; any other merge-base failure stays fatal.
+            status=0
+            base=$(git merge-base origin/main "$HEAD") || status=$?
+            if [ "$status" -eq 1 ]; then
+              base=$(git hash-object -t tree /dev/null)
+              echo 'Candidate shares no history with origin/main; comparing against the empty tree so every gate runs.' >> "$GITHUB_STEP_SUMMARY"
+            elif [ "$status" -ne 0 ]; then
+              exit "$status"
+            fi
+          else
+            ref_status=0
+            git show-ref --exists refs/remotes/origin/main || ref_status=$?
+            if [ "$ref_status" -ne 2 ]; then
+              echo 'Cannot resolve origin/main; refusing an invalid comparison base.' >&2
+              exit 1
+            fi
+            base=$(git hash-object -t tree /dev/null)
+            echo 'No origin/main ref yet; comparing the initial candidate against the empty tree so every gate runs.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -z "$base" ] || ! git cat-file -e "$base^{tree}" 2>/dev/null; then
+            dev_image=true
+            echo 'No usable comparison base; running the development image gate.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            git diff --name-only "$base" "$HEAD" > "$RUNNER_TEMP/changed-paths"
+            while IFS= read -r path; do
+              case "$path" in
+                # Docker COPY inputs plus the validators that can change this gate's outcome.
+                docker/dev/*|docker/php-extensions.txt|package.json|package-lock.json|.dockerignore|addons/*/composer.json|.hadolint.yaml|.hadolint.yml|.trivyignore|trivy.yaml|.github/workflows/ci.yml|scripts/ci-summary.sh|scripts/with-heavy-slot.sh) dev_image=true ;;
+              esac
+            done < "$RUNNER_TEMP/changed-paths"
+          fi
+          echo "dev-image=$dev_image" >> "$GITHUB_OUTPUT"
+          if [ "$dev_image" = false ]; then
+            echo 'Development image build, Dockerfile lint, addon binaries and vulnerability report skipped: no image or validation inputs changed.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  checks:
+    needs: candidate
+    if: always() && needs.candidate.outputs.tested != 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [php-static, php-rector, php-analyse, frontend, generated]
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+        env:
+          POSTGRES_DB: heptapod_test
+          POSTGRES_USER: heptapod
+          POSTGRES_PASSWORD: secret
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U heptapod -d heptapod_test"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      redis:
+        image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: heptapod_test
+      DB_USERNAME: heptapod
+      DB_PASSWORD: secret
+      REDIS_HOST: 127.0.0.1
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-ci
+      - name: Image retention fixture contracts
+        if: matrix.group == 'frontend'
+        run: bash tests/Deployment/image-retention.sh
+      - name: Image retention collection contracts
+        if: matrix.group == 'frontend'
+        run: bash tests/Deployment/image-retention-collection.sh
+      - name: PHP base lint and security pin parity
+        if: matrix.group == 'frontend'
+        run: bash tests/Deployment/php-base-pins.sh
+      - name: PHP base bump fixture contracts
+        if: matrix.group == 'frontend'
+        run: bash tests/Deployment/php-base-bump.sh
+      - name: Static checks
+        env:
+          CHECK_GROUP: ${{ matrix.group }}
+        run: bash scripts/ci-checks.sh "$CHECK_GROUP"
+      - name: PHP dependency audit
+        if: matrix.group == 'php-static'
+        run: composer audit
+      # Fails on every high/critical advisory except the package+ID exceptions in .github/npm-audit-exceptions.json,
+      # each with a reason, an owner and an expiry after which it fails again by itself.
+      - name: Node dependency audit
+        if: matrix.group == 'frontend'
+        run: node scripts/npm-audit-gate.mjs
+
+  vitest:
+    needs: candidate
+    if: always() && needs.candidate.outputs.tested != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Run Vitest once in random order
+        id: tests
+        run: |
+          set -euo pipefail
+          seed=$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')
+          printf 'Vitest random seed: %s\n' "$seed" | tee -a "$GITHUB_STEP_SUMMARY"
+          node_modules/.bin/vitest run --sequence.shuffle --sequence.seed="$seed" --retry=0 --reporter=verbose
+      - name: Report Vitest outcome
+        if: always()
+        env:
+          OUTCOME: ${{ steps.tests.outcome }}
+        run: |
+          printf 'Vitest outcome (blocking, no retries): %s\n' "$OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+
+  # Blocking since the 20x seeded proof on f1cd861c (2026-10-20). No retries: a failure without a code cause is quarantined.
+  php-gate:
+    needs: candidate
+    if: always() && needs.candidate.outputs.tested != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+        env:
+          POSTGRES_DB: heptapod_test
+          POSTGRES_USER: heptapod
+          POSTGRES_PASSWORD: secret
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U heptapod -d heptapod_test"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      redis:
+        image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: heptapod_test
+      DB_USERNAME: heptapod
+      DB_PASSWORD: secret
+      REDIS_HOST: 127.0.0.1
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/cache@v5
+        with:
+          path: vendor
+          key: gate-composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+      - uses: ./.github/actions/setup-ci
+      - uses: actions/cache@v5
+        id: assets
+        with:
+          path: public/build
+          key: gate-assets-${{ runner.os }}-${{ hashFiles('package-lock.json', 'composer.lock', 'vite.config.*', 'resources/**', 'lang/**', 'app/**', 'routes/**', 'config/**', 'addons/**') }}
+      - name: Build normal assets
+        if: steps.assets.outputs.cache-hit != 'true'
+        run: npm run build
+      - name: Run the explicit Gate once in random order
+        id: tests
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/gate-results"
+          php scripts/check-gate-tests.php
+          seed=$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')
+          printf 'Gate random seed: %s\n' "$seed" | tee "$RUNNER_TEMP/gate-results/seed.txt"
+          php artisan config:clear --ansi
+          vendor/bin/pest --testsuite=Gate --list-tests --colors=never > "$RUNNER_TEMP/gate-results/selection.txt"
+          started=$(date +%s)
+          result=0
+          vendor/bin/pest --testsuite=Gate --order-by=random --random-order-seed="$seed" --colors=never \
+            --log-junit "$RUNNER_TEMP/gate-results/gate.xml" 2>&1 | tee "$RUNNER_TEMP/gate-results/output.txt" || result=$?
+          elapsed=$(( $(date +%s) - started ))
+          printf 'Gate runtime: %ss; seed: %s; exit: %s\n' "$elapsed" "$seed" "$result" | tee "$RUNNER_TEMP/gate-results/runtime.txt" >> "$GITHUB_STEP_SUMMARY"
+          test -s "$RUNNER_TEMP/gate-results/gate.xml"
+          php -r '$xml = simplexml_load_file($argv[1]); $cases = $xml->xpath("//testcase"); if (count($cases) < 29) { fwrite(STDERR, "Gate ran fewer than 29 cases.\n"); exit(1); } $quiet = count($xml->xpath("//testcase[skipped or incomplete]")); if ($quiet !== 0) { fwrite(STDERR, "Gate has {$quiet} skipped or incomplete cases; quarantine by removal, never by skip.\n"); exit(1); }' "$RUNNER_TEMP/gate-results/gate.xml"
+          exit "$result"
+      - name: Report Gate outcome
+        if: always()
+        env:
+          OUTCOME: ${{ steps.tests.outcome }}
+        run: |
+          printf 'Gate outcome (blocking, no retries): %s\n' "$OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+      # TODO: remove continue-on-error once the account storage quota is resolved.
+      # The seed is printed in the test step's log before the tests run, so a red Gate stays reproducible without this artifact.
+      - name: Retain Gate seed, selection, runtime and raw results
+        id: retain
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: php-gate-${{ github.run_id }}
+          path: ${{ runner.temp }}/gate-results/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Report Gate evidence upload
+        if: always()
+        env:
+          OUTCOME: ${{ steps.retain.outcome }}
+        run: |
+          printf 'Gate evidence upload (non-blocking): %s\n' "$OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$OUTCOME" != success ]; then
+            echo "::warning title=Gate evidence not retained::The Gate artifact upload ended with '$OUTCOME'. The Gate result is decided by the test step; the seed is in its log."
+          fi
+
+  # Blocking since test-hygiene T1 (2026-10-29): Feature+Unit minus tests/Quarantine.php, plus the Arch suite on shard 1.
+  # No retries: a failure without a code cause is quarantined in its own commit.
+  php-tests:
+    needs: candidate
+    if: always() && needs.candidate.outputs.tested != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+        env:
+          POSTGRES_DB: heptapod_test
+          POSTGRES_USER: heptapod
+          POSTGRES_PASSWORD: secret
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U heptapod -d heptapod_test"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      redis:
+        image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      gotenberg:
+        image: gotenberg/gotenberg:8.37.0@sha256:f29984bd1e226bf1b93ba90af06000afa8b315853e99d27b9aaa41b93f15c769
+        options: >-
+          --shm-size=1g --cap-drop=ALL --security-opt=no-new-privileges
+          --health-cmd="curl -fsS http://localhost:3000/health"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: heptapod_test
+      DB_USERNAME: heptapod
+      DB_PASSWORD: secret
+      REDIS_HOST: 127.0.0.1
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-ci
+        with:
+          fixtures: 'true'
+      - name: Build normal assets
+        run: npm run build
+      - name: Verify native shard selection
+        if: matrix.shard == 1
+        run: |
+          mkdir -p "$RUNNER_TEMP/test-results"
+          bash scripts/run-tests.sh focused --testsuite=Feature,Unit --list-tests --colors=never > "$RUNNER_TEMP/test-results/php-all.txt"
+          for shard in 1 2 3 4; do
+            bash scripts/run-tests.sh focused --testsuite=Feature,Unit --shard="$shard/4" --list-tests --colors=never > "$RUNNER_TEMP/test-results/php-selection-$shard.txt"
+          done
+          php scripts/ci-test-summary.php selection "$RUNNER_TEMP/test-results/php-all.txt" "$RUNNER_TEMP/test-results"/php-selection-*.txt > "$RUNNER_TEMP/test-results/selection.json"
+          jq . "$RUNNER_TEMP/test-results/selection.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: Arch suite (serial, own memory limit)
+        if: matrix.shard == 1
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/test-results"
+          bash scripts/run-tests.sh ci-arch --colors=never --log-junit "$RUNNER_TEMP/test-results/arch.xml"
+      - name: Native PHP shard
+        id: tests
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/test-results"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          php artisan config:clear --ansi
+          seed=$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')
+          printf 'PHP shard %s random seed: %s\n' "$SHARD" "$seed" | tee "$RUNNER_TEMP/test-results/seed-$SHARD.txt" >> "$GITHUB_STEP_SUMMARY"
+          bash scripts/run-tests.sh ci-php --shard="$SHARD/4" --order-by=random --random-order-seed="$seed" --log-junit "$RUNNER_TEMP/test-results/php-$SHARD.xml"
+      - name: Summarize PHP counts
+        if: always()
+        env:
+          SHARD: ${{ matrix.shard }}
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
+        run: bash scripts/ci-summary.sh tests "PHP shard $SHARD/4" "$TEST_OUTCOME" "$RUNNER_TEMP/test-results/php-$SHARD.xml"
+      - name: Retain PHP results and selection proof
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: php-results-${{ matrix.shard }}
+          path: ${{ runner.temp }}/test-results/
+          if-no-files-found: error
+          retention-days: 7
+
+  # Test-free trial: disabled, not deleted. Original condition: always() && needs.candidate.outputs.tested != 'true'
+  browser-tests:
+    needs: candidate
+    if: false
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+        env:
+          POSTGRES_DB: heptapod_test
+          POSTGRES_USER: heptapod
+          POSTGRES_PASSWORD: secret
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U heptapod -d heptapod_test"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      redis:
+        image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      gotenberg:
+        image: gotenberg/gotenberg:8.37.0@sha256:f29984bd1e226bf1b93ba90af06000afa8b315853e99d27b9aaa41b93f15c769
+        options: >-
+          --shm-size=1g --cap-drop=ALL --security-opt=no-new-privileges
+          --health-cmd="curl -fsS http://localhost:3000/health"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: heptapod_test
+      DB_USERNAME: heptapod
+      DB_PASSWORD: secret
+      REDIS_HOST: 127.0.0.1
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-ci
+        with:
+          fixtures: 'true'
+      - name: Build normal assets before Browser
+        run: npm run build
+      - name: Install test browser
+        run: npx playwright install --with-deps --only-shell chromium
+      - name: Serial Browser tests
+        id: tests
+        env:
+          HEPTAPOD_API_TOKEN_DIAGNOSTICS_DIR: ${{ runner.temp }}/test-results/api-token-diagnostics
+        run: |
+          mkdir -p "$RUNNER_TEMP/test-results"
+          bash scripts/run-tests.sh focused --testsuite=Browser --list-tests --colors=never > "$RUNNER_TEMP/test-results/browser-selection.txt"
+          php artisan config:clear --ansi
+          bash scripts/run-tests.sh ci-browser --log-junit "$RUNNER_TEMP/test-results/browser.xml"
+      - name: Summarize Browser counts
+        if: always()
+        env:
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
+        run: bash scripts/ci-summary.sh tests Browser "$TEST_OUTCOME" "$RUNNER_TEMP/test-results/browser.xml"
+      - name: Retain Browser results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: browser-results
+          path: ${{ runner.temp }}/test-results/
+          if-no-files-found: error
+
+  dev-image:
+    needs: [candidate, changes]
+    if: always() && needs.candidate.outputs.tested != 'true' && needs.changes.result == 'success' && needs.changes.outputs.dev-image == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Build development image
+        run: scripts/with-heavy-slot.sh docker build -f docker/dev/Dockerfile -t heptapod-dev:ci .
+      - name: Verify addon system requirements
+        id: binaries
+        timeout-minutes: 2
+        run: |
+          jq -r '.extra.heptapod["system-requirements"] // [] | .[]' addons/*/composer.json > "$RUNNER_TEMP/addon-system-requirements"
+          while IFS= read -r binary; do
+            docker run --rm --entrypoint sh heptapod-dev:ci -c 'command -v "$1"' sh "$binary"
+          done < "$RUNNER_TEMP/addon-system-requirements"
+          docker run --rm --entrypoint sh heptapod-dev:ci -c 'dig -v'
+      - name: Dockerfile lint
+        id: hadolint
+        run: >-
+          docker run --rm -v "$PWD:/repo:ro" -w /repo
+          ghcr.io/hadolint/hadolint:v2.15.1-debian@sha256:9a3944b7fddcb947d1ffd90829ac1a6e5c30479223358f249d8b96c7d0019e27
+          hadolint --format json docker/dev/Dockerfile > "$RUNNER_TEMP/hadolint-dev.json"
+      # Production images have a separate HARD gate for each configured architecture.
+      - name: Development image vulnerability report
+        id: trivy
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          version: v0.75.0
+          image-ref: heptapod-dev:ci
+          format: json
+          output: ${{ runner.temp }}/trivy-dev.json
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
+      - name: Summarize development image reports
+        if: always()
+        env:
+          LINT_OUTCOME: ${{ steps.hadolint.outcome }}
+          BINARY_OUTCOME: ${{ steps.binaries.outcome }}
+          SCAN_OUTCOME: ${{ steps.trivy.outcome }}
+        run: |
+          bash scripts/ci-summary.sh hadolint 'Development Dockerfile lint' "$LINT_OUTCOME" "$RUNNER_TEMP/hadolint-dev.json"
+          bash scripts/ci-summary.sh status 'Development addon binaries' "$BINARY_OUTCOME"
+          bash scripts/ci-summary.sh trivy 'Development vulnerabilities (report-only)' "$SCAN_OUTCOME" "$RUNNER_TEMP/trivy-dev.json"
+
+  gate:
+    if: always()
+    needs: [candidate, changes, checks, dev-image, php-gate, php-tests, vitest]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every gate or exact-SHA candidate reuse
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          jq -e --arg event "$GITHUB_EVENT_NAME" --arg ref "$GITHUB_REF" '
+            if .candidate.outputs.tested == "true" then
+              $event == "push" and $ref == "refs/heads/main" and
+              .candidate.result == "success" and
+              ([.changes, .checks, .["dev-image"], .["php-gate"], .["php-tests"], .vitest] | all(.result == "skipped"))
+            else
+              (.candidate.result == "success" or .candidate.result == "skipped") and
+              ([.changes, .checks, .["php-gate"], .["php-tests"], .vitest] | all(.result == "success")) and
+              (if .changes.outputs["dev-image"] == "true" then .["dev-image"].result == "success"
+               elif .changes.outputs["dev-image"] == "false" then .["dev-image"].result == "skipped"
+               else false end)
+            end
+          ' <<< "$NEEDS"

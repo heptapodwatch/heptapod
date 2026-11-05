@@ -1,0 +1,190 @@
+/* Shapes carry status independently of colour. Strip cells share the vocabulary. */
+.status-ring {
+    position: relative;
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    flex: none;
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+.status-ring[data-strip] {
+    width: 11px;
+    height: 11px;
+}
+
+.status-ring[data-state='warning'] {
+    background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+}
+
+.status-ring[data-state='failed'],
+.status-ring[data-state='down'] {
+    background: currentColor;
+}
+
+.status-ring[data-state='down']:not([data-strip]) {
+    box-shadow:
+        0 0 0 1.5px var(--background),
+        0 0 0 2.75px currentColor;
+}
+
+.status-ring[data-state='down']:not([data-strip])::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    animation: status-ring-pulse 2.4s ease-out infinite;
+}
+
+.status-ring[data-state='check-error'] {
+    background: linear-gradient(
+        135deg,
+        transparent 43%,
+        currentColor 43% 57%,
+        transparent 57%
+    );
+}
+
+.status-ring[data-state='pending'] {
+    box-shadow: none;
+    border: 1.5px dotted currentColor;
+}
+
+.status-ring[data-state='paused'] {
+    background:
+        linear-gradient(currentColor, currentColor) 30% 50% / 1.5px 45%
+            no-repeat,
+        linear-gradient(currentColor, currentColor) 70% 50% / 1.5px 45%
+            no-repeat;
+}
+
+.status-ring[data-state='maintenance'] {
+    background: radial-gradient(circle, currentColor 30%, transparent 32%);
+}
+
+.status-ring[data-state='disabled'],
+.status-ring[data-state='unavailable'] {
+    background: linear-gradient(currentColor, currentColor) center / 70% 1.5px
+        no-repeat;
+    box-shadow: none;
+}
+
+.status-ring[data-state='running'] {
+    box-shadow: inset 0 0 0 1.5px
+        color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.status-ring[data-state='running']::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(currentColor 0 90deg, transparent 90deg);
+    mask: radial-gradient(circle, transparent 45%, #000 47%);
+    animation: status-ring-sweep 1.1s linear infinite;
+}
+
+.status-ring[data-strip][data-state='ok'] {
+    background: radial-gradient(circle, currentColor 0 2px, transparent 2.1px);
+    box-shadow: none;
+}
+
+.status-ring[data-strip][data-state='failed'],
+.status-ring[data-strip][data-state='down'] {
+    box-shadow: none;
+}
+
+.status-badge {
+    color: var(--status-color);
+    border-color: color-mix(in srgb, var(--status-color) 28%, var(--border));
+    background: color-mix(in srgb, var(--status-color) 6%, var(--card));
+}
+
+.status-badge[data-state='ok'],
+.status-badge[data-state='pending'],
+.status-badge[data-state='paused'],
+.status-badge[data-state='disabled'],
+.status-badge[data-state='unavailable'] {
+    background: transparent;
+}
+
+/* Neutral words need text contrast; their rings keep the status colour. */
+.status-badge[data-state='pending'],
+.status-badge[data-state='paused'],
+.status-badge[data-state='disabled'],
+.status-badge[data-state='unavailable'] {
+    color: var(--muted-foreground);
+}
+
+.status-badge[data-state='down'] {
+    background: var(--status-down);
+    border-color: var(--status-down);
+    color: var(--status-down-foreground);
+}
+
+@keyframes status-ring-pulse {
+    0% {
+        box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 50%, transparent);
+    }
+    70%,
+    100% {
+        box-shadow: 0 0 0 5px transparent;
+    }
+}
+
+@keyframes status-ring-sweep {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .status-ring[data-state='down']:not([data-strip])::after,
+    .status-ring[data-state='running']::after {
+        animation: none;
+    }
+}
+
+/* Sites state ring: while a site is Down, a halo behind the ring scales and fades (compositor only). */
+.sites-state-ring {
+    position: relative;
+    display: inline-block;
+    flex: none;
+}
+
+.sites-state-ring[data-down]::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1.5px
+        color-mix(in oklab, var(--status-down) 55%, transparent);
+    opacity: 0;
+    animation: sites-state-ring-halo 2.4s cubic-bezier(0.23, 1, 0.32, 1)
+        infinite;
+}
+
+.sites-state-ring[data-tab-hidden]::after {
+    animation-play-state: paused;
+}
+
+@keyframes sites-state-ring-halo {
+    0% {
+        opacity: 0.9;
+        transform: scale(1);
+    }
+
+    70%,
+    100% {
+        opacity: 0;
+        transform: scale(1.35);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sites-state-ring[data-down]::after {
+        animation: none;
+    }
+}

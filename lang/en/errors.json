@@ -1,0 +1,21 @@
+{
+    "No uptime check": "No uptime check",
+    "Try again": "Try again",
+    "Go to Sites": "Go to Sites",
+    "Mail transport": "Mail transport",
+    "From name": "From name",
+    "From address": "From address",
+    "Mails are not sent": "Mails are not sent",
+    "The active mail transport only stores messages locally. Configure SMTP or an API transport to send mail.": "The active mail transport only stores messages locally. Configure SMTP or an API transport to send mail.",
+    "Until then, generate a sign-in link on the server with:": "Until then, generate a sign-in link on the server with:",
+    "errors.403.title": "Access denied",
+    "errors.403.description": "You do not have permission to open this page.",
+    "errors.404.title": "Page not found",
+    "errors.404.description": "This page does not exist or is no longer available.",
+    "errors.419.title": "Session expired",
+    "errors.419.description": "Your session has expired. Open a fresh page before trying again.",
+    "errors.500.title": "Something went wrong",
+    "errors.500.description": "Heptapod could not complete this request. Please try again later.",
+    "errors.503.title": "Temporarily unavailable",
+    "errors.503.description": "Heptapod is temporarily unavailable. Please try again later."
+}

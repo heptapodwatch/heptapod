@@ -1,0 +1,22 @@
+{
+  "name": "heptapod/addon-channels",
+  "version": "0.1.0",
+  "type": "library",
+  "license": "AGPL-3.0-or-later",
+  "require": {
+    "php": "^8.5",
+    "guzzlehttp/guzzle": "^7.9",
+    "illuminate/http": "^13.34",
+    "illuminate/mail": "^13.34",
+    "illuminate/notifications": "^13.34",
+    "illuminate/support": "^13.34",
+    "laravel/slack-notification-channel": "^3.10",
+    "laravel-notification-channels/telegram": "^8.0",
+    "psr/http-message": "^2.0",
+    "spatie/laravel-webhook-server": "^3.11",
+    "symfony/mailer": "^8.1",
+    "symfony/mime": "^8.1"
+  },
+  "autoload": {"psr-4": {"Heptapod\\Addons\\Channels\\": "src/"}},
+  "extra": {"laravel": {"providers": ["Heptapod\\Addons\\Channels\\ChannelsServiceProvider"]}}
+}

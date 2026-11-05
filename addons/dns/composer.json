@@ -1,0 +1,33 @@
+{
+  "name": "heptapod/addon-dns",
+  "description": "DNS record monitoring for Heptapod",
+  "license": "AGPL-3.0-or-later",
+  "type": "library",
+  "version": "0.1.0",
+  "require": {
+    "php": "^8.5",
+    "illuminate/database": "^13.34",
+    "illuminate/support": "^13.34",
+    "illuminate/validation": "^13.34",
+    "jeremykendall/php-domain-parser": "^6.4",
+    "nesbot/carbon": "^3.14",
+    "spatie/dns": "^2.8",
+    "spatie/laravel-data": "^4.23",
+    "spatie/typescript-transformer": "^3.3",
+    "symfony/http-foundation": "^8.1",
+    "symfony/process": "^8.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "Heptapod\\Addons\\Dns\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": ["Heptapod\\Addons\\Dns\\DnsServiceProvider"]
+    },
+    "heptapod": {
+      "system-requirements": ["dig"]
+    }
+  }
+}

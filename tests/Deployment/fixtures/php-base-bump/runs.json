@@ -1,0 +1,22 @@
+[
+    {
+        "workflow_runs": [
+            {
+                "id": 101,
+                "head_branch": "main",
+                "event": "schedule",
+                "conclusion": "success"
+            }
+        ]
+    },
+    {
+        "workflow_runs": [
+            {
+                "id": 202,
+                "head_branch": "main",
+                "event": "schedule",
+                "conclusion": "success"
+            }
+        ]
+    }
+]

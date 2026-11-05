@@ -1,0 +1,7 @@
+# Compose v5: remove both TLS-mode published ports, not merge with them.
+services:
+    app:
+        ports: !override
+            - '127.0.0.1:${HTTP_PORT:-8380}:8080'
+        environment:
+            SERVER_NAME: ${SERVER_NAME:?Set SERVER_NAME to http://your-domain:8080}

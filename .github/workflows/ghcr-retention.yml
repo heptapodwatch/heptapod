@@ -1,0 +1,59 @@
+name: GHCR retention dry run
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  packages: read
+
+concurrency:
+  group: ghcr-retention
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Skip while production images are queued or running
+        id: production
+        run: bash .github/actions/image-retention/skip-check.sh
+      - name: Collect package versions and verified manifests
+        if: steps.production.outputs.busy == 'false'
+        run: |
+          set -euo pipefail
+          for image in app lighthouse; do
+            bash .github/actions/image-retention/collect.sh "$image" "$RUNNER_TEMP/retention"
+          done
+      - name: Plan and report without deleting
+        if: steps.production.outputs.busy == 'false'
+        run: |
+          set -euo pipefail
+          now=$(date +%s)
+          result=0
+          for image in app lighthouse; do
+            reference=$(bash scripts/image-reference.sh "$image")
+            package=${reference##*/}
+            bash .github/actions/image-retention/plan.sh "$RUNNER_TEMP/retention/$package" "$now" \
+              > "$RUNNER_TEMP/retention/$package-plan.json" || result=$?
+          done
+          bash .github/actions/image-retention/report.sh "$RUNNER_TEMP/retention" "$RUNNER_TEMP/retention-plan.json"
+          bash .github/actions/image-retention/consumers.sh
+          exit "$result"
+      - name: Retain dry-run plan
+        if: always() && steps.production.outputs.busy == 'false'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: retention-plan.json
+          path: ${{ runner.temp }}/retention-plan.json
+          if-no-files-found: error
+          retention-days: 7

@@ -1,0 +1,25 @@
+# Persistence and retention
+
+`checks.config` is JSONB with redacted secret leaves. Hidden `config_secrets` uses Laravel's `encrypted:array` cast. The custom config cast refuses unvalidated writes and stores the split together. `Check::executionConfig()` reconstructs ordered arrays and duplicate name/value pairs. Only execution and authorized API settings serialization may use it. Site crawler headers use a hidden encrypted-array cast too.
+
+`RunPersistence::stage()` receives context, an addon-owned dataset name and batches of 1..1000 rows. Addon implementations validate batch bounds and allowed dataset names. Tables are addon-owned; stage by reserved run ID AND attempt token. Stable sub-item identities and run provenance belong here, not in unbounded metrics.
+
+The recorder locks the check, validates the claim token and inserts the accepted run. Only then may it call `finalize(RunReference, claimToken)`, in the same transaction as snapshot, incidents and outbox writes. A stale worker cannot finalize or clear another claim. `discard(runId, claimToken)` deletes only that attempt's unpublished data; claim replacement calls it for dead attempts. Absent staging is a valid no-op for finalize and discard. Repeated finalize calls for the same physical `(RunReference, claimToken)` and repeated discard calls for `(runId, claimToken)` are idempotent. The core null-persistence execution path is tested; addon implementations must prove absent staging, repeated calls, wrong-token isolation and rollback against their own Postgres tables. `prune(before)` runs in the partition-drop transaction with an exclusive ended-at bound, retaining stable component identities and incident evidence. It leaves deletion policy to the addon so baselines can survive the cutoff.
+
+Addons keep their own last accepted baseline snapshot; the retention hook must never delete it. `PreviousResult` may point to a pruned raw run or an engine error, so it is not a durable comparison baseline. DNS, certificate, domain and finding-set checks compare their retained accepted snapshots. Errors/no observation do not replace that baseline. Performance uses its bounded recent uptime window instead.
+
+`check_runs` is partitioned monthly on UTC `ended_at`, with physical PK `(id, ended_at)` and a shared bigint sequence. Use `CheckRun::forRun(RunReference)` for exact reads; ordinary DateTime query bindings lose microseconds. Snapshot pointers intentionally have no run FK: `latest_run_id` pairs with `latest_run_ended_at`; `active_run_id` is a reservation before completion exists.
+
+The initial migration creates previous/current/next monthly partitions. History maintenance handles continued partition creation and pruning. Drop whole monthly partitions only after rollups finish; raw retention is at least 30 days, up to roughly 60. Incident evidence and check snapshots survive pruning. Addon datasets must follow raw retention without blocking partition deletion.
+
+Hourly/daily rollups hold counts for each completed result, metric sums/counts, exact per-bucket p95 and computation time. Recompute/upsert by `(check_id, bucket_start)`. Uptime is `(succeeded + warning) / completed`; zero observations means no data. Never average p95 or percentages across buckets.
+
+The event outbox records suppression status, reason and evaluation time, including suppressed events. Use `NotificationSuppression::isSuppressed(SuppressionSubject, at)` inside the recorder transaction for each event. Core `check_snoozes` is the single store: null `component_type`/`component_id` covers a whole check and every component; `cron` or `application_health` plus a component ID covers only that subject. Addons own their component identities, not snooze logic. Snoozes use `[starts_at, ends_at)` and preserve actor/history on unsnooze. Bind event times as timezone-bearing microsecond strings; default Laravel date bindings truncate precision. Delivery must use the stored decision, not current snooze state.
+
+Location/continent settings are preserved for import and executed by one local probe. There is no remote-region guarantee. Report URLs are local Heptapod URLs under the required `ohdear_url` field.
+
+## Immediate ingress versus accepted observations
+
+Definitions, component identities and cron ping history write to addon-owned tables immediately in their own transactions. They are not staged run results. Machine ingress uses addon routes, machine-to-machine middleware, bounded metadata, bearer UUID validation, throttling and retained ping history. Cron accepts GET/POST. Evaluation snapshots stage separately and publish only after recorder acceptance.
+
+Claim fencing is not observation-revision fencing. An accepted outcome describes evaluation-time observations. A newer ingress/component update can arrive before finalization: an addon may fence its own mutable snapshot with an observation revision, but void finalize cannot rewrite the aggregate outcome or events. The next evaluation reconciles them. No strict-freshness contract or event-rewriting mechanism exists.

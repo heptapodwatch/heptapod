@@ -1,0 +1,532 @@
+@import 'tailwindcss';
+
+@import 'tw-animate-css';
+
+@import './status-rings.css';
+
+@import './heptapod-mark.css';
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Motion tokens (heptapod-ui-rules Motion). Every overlay, press and arrival uses these; WAAPI callers import the same values from
+ * resources/js/lib/motion.ts. Overriding Tailwind's ease-out/ease-in-out makes the `ease-out` utilities use the strong curve too.
+ */
+@theme static {
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+:root {
+    --motion-press: 120ms;
+    --motion-enter: 160ms;
+    --motion-exit: 120ms;
+    --motion-sheet: 240ms;
+}
+
+/* Geist and Geist Mono from Vercel's geist package with ss01 ("No tail a") frozen in; see scripts/build-fonts.sh. */
+@font-face {
+    font-family: 'Geist Variable';
+    src: url('../fonts/Geist-Variable.woff2') format('woff2');
+    font-weight: 100 900;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Geist Mono Variable';
+    src: url('../fonts/GeistMono-Variable.woff2') format('woff2');
+    font-weight: 100 900;
+    font-display: swap;
+}
+
+@theme {
+    --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+
+    /* Type scale (heptapod-ui-rules Foundation). Callers use these names; never text-[Npx] or the default text-base…9xl. */
+    --text-page-title: 26px;
+    --text-page-title--line-height: 1.15;
+    --text-page-title--font-weight: 550;
+    --text-page-title--letter-spacing: -0.025em;
+    --text-headline: 20px;
+    --text-headline--line-height: 1.3;
+    --text-headline--font-weight: 550;
+    --text-headline--letter-spacing: -0.015em;
+    --text-stat: 20px;
+    --text-stat--line-height: 1.25;
+    --text-section: 14px;
+    --text-section--line-height: 20px;
+    --text-section--font-weight: 550;
+    --text-sm: 13.5px;
+    --text-cell: 13px;
+    --text-xs: 12px;
+    --text-label: 11.5px;
+    --text-micro: 10px;
+    --text-mark: 9px;
+
+    --radius-lg: var(--radius);
+    --radius-md: 7px;
+    --radius-sm: 7px;
+
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+
+    --color-tooltip-surface: var(--tooltip-surface);
+    --color-tooltip-border: var(--tooltip-border);
+    --color-tooltip-subject: var(--tooltip-subject);
+    --color-tooltip-muted: var(--tooltip-muted);
+
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+
+    --color-border: var(--border);
+    --color-border-strong: var(--border-strong);
+    --color-status-down-foreground: var(--status-down-foreground);
+    --color-input: var(--input);
+    --color-control-border: var(--control-border);
+    --color-ring: var(--ring);
+
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+    /* Tooltips stay dark in both themes, including their status colours. */
+    --tooltip-surface: #13171b;
+    --tooltip-border: #262c33;
+    --tooltip-subject: #e6e9ec;
+    --tooltip-muted: #a2abb4;
+    --tooltip-status-ok: #79ad95;
+    --tooltip-status-warn: #dd8a43;
+    --tooltip-status-down: #e6574d;
+    --tooltip-status-info: #7f9fc0;
+    --tooltip-status-error: #8b96a1;
+
+    --background: #e8ebed;
+    --foreground: #101418;
+    --card: #f5f6f7;
+    --popover: #ffffff;
+    --secondary: #ffffff;
+    --muted: #eef0f1;
+    --accent: #dfe3e6;
+    --foreground-secondary: #2a3138;
+    --muted-foreground: #3f4952;
+    --foreground-faint: #5c6771;
+    --border: #d3d8dc;
+    --border-soft: #e1e5e8;
+    --border-strong: #b7bec4;
+    --ring: #4b555e;
+    --primary: #101418;
+    --primary-foreground: #f5f6f7;
+    --primary-soft: rgb(16 20 24 / 0.06);
+    --sidebar: #e8ebed;
+    --status-down: #b42f28;
+    --status-down-foreground: #ffffff;
+    --status-ok: #2c6a4e;
+    --status-warn: #94490a;
+    --status-info: #3e6a96;
+    --status-error: #5c6771;
+    --status-pending: #78838e;
+    --status-paused: #78838e;
+    --status-disabled: #78838e;
+    --chart-1: #101418;
+    --radius: 0.625rem;
+    --card-foreground: #101418;
+    --popover-foreground: #101418;
+    --accent-foreground: #101418;
+    --secondary-foreground: #101418;
+    --sidebar-foreground: #101418;
+    --sidebar-accent-foreground: #101418;
+    --input: #d3d8dc;
+    /* Unselected radio and checkbox borders: >= 3:1 on every surface they sit on (WCAG 1.4.11; scripts/contrast.mjs). */
+    --control-border: #6f7983;
+    --sidebar-border: #d3d8dc;
+    --sidebar-accent: #dfe3e6;
+    --sidebar-ring: #4b555e;
+    --sidebar-primary: #101418;
+    --sidebar-primary-foreground: #f5f6f7;
+    --destructive: #b42f28;
+    --destructive-foreground: #ffffff;
+    --chart-2: #3f4952;
+    --chart-3: #5c6771;
+    --chart-4: #b7bec4;
+    --chart-5: #d3d8dc;
+}
+
+.dark {
+    --background: #0d1013;
+    --foreground: #e6e9ec;
+    --card: #13171b;
+    --popover: #181d22;
+    --secondary: #1a1f24;
+    --muted: #0f1215;
+    --accent: #1a1f24;
+    --foreground-secondary: #c5ccd3;
+    --muted-foreground: #a2abb4;
+    --foreground-faint: #848e99;
+    --border: #262c33;
+    --border-soft: #1c2127;
+    --border-strong: #37404a;
+    --ring: #a9b7c4;
+    --primary: #e6e9ec;
+    --primary-foreground: #0d1013;
+    --primary-soft: rgb(223 229 234 / 0.07);
+    --sidebar: #0d1013;
+    --status-down: #e6574d;
+    --status-down-foreground: #160807;
+    --status-ok: #79ad95;
+    --status-warn: #dd8a43;
+    --status-info: #7f9fc0;
+    --status-error: #8b96a1;
+    --status-pending: #68737e;
+    --status-paused: #68737e;
+    --status-disabled: #636d78;
+    --chart-1: #c9d3dc;
+    --radius: 0.625rem;
+    --card-foreground: #e6e9ec;
+    --popover-foreground: #e6e9ec;
+    --accent-foreground: #e6e9ec;
+    --secondary-foreground: #e6e9ec;
+    --sidebar-foreground: #e6e9ec;
+    --sidebar-accent-foreground: #e6e9ec;
+    --input: #262c33;
+    --control-border: #707a85;
+    --sidebar-border: #262c33;
+    --sidebar-accent: #1a1f24;
+    --sidebar-ring: #a9b7c4;
+    --sidebar-primary: #e6e9ec;
+    --sidebar-primary-foreground: #0d1013;
+    --destructive: #e6574d;
+    --destructive-foreground: #160807;
+    --chart-2: #a2abb4;
+    --chart-3: #848e99;
+    --chart-4: #37404a;
+    --chart-5: #262c33;
+}
+
+@layer base {
+    :is(
+        a[href],
+        button,
+        summary,
+        [role='button'],
+        [role='tab'],
+        [role='switch'],
+        [role='checkbox'],
+        [role='radio'],
+        [role='combobox'],
+        [role='menuitem'],
+        [role='menuitemcheckbox'],
+        [role='menuitemradio'],
+        [role='option'],
+        input[type='checkbox'],
+        input[type='radio'],
+        input[type='submit'],
+        input[type='button'],
+        label[for],
+        label:has(input[type='checkbox'], input[type='radio'])
+    ) {
+        @apply cursor-pointer;
+    }
+
+    :is(
+        :disabled,
+        [aria-disabled='true'],
+        [data-disabled]:not([data-disabled='false']),
+        label:has(:disabled),
+        label[for]:has(+ :disabled)
+    ) {
+        @apply cursor-not-allowed;
+    }
+
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-background font-sans text-sm text-foreground;
+        line-height: 1.45;
+        -webkit-font-smoothing: antialiased;
+    }
+}
+
+/* Scope legacy content colours to the dark panel without changing the page theme. */
+.tooltip-panel {
+    --muted-foreground: var(--tooltip-muted);
+    --color-muted-foreground: var(--tooltip-muted);
+    --color-foreground: var(--tooltip-subject);
+    --status-ok: var(--tooltip-status-ok);
+    --status-warn: var(--tooltip-status-warn);
+    --status-down: var(--tooltip-status-down);
+    --status-info: var(--tooltip-status-info);
+    --status-error: var(--tooltip-status-error);
+    font-feature-settings: 'ss01' on;
+    overflow-wrap: anywhere;
+    transform-origin: var(--radix-tooltip-content-transform-origin);
+    animation: motion-pop-in var(--motion-enter) var(--ease-out);
+}
+
+/* A standalone hint value made focusable by TooltipHint/TruncatedText gets the one keyboard focus ring. */
+[data-hint-focus]:focus-visible {
+    border-radius: 0.25rem;
+    outline: none;
+    box-shadow: 0 0 0 2px var(--ring);
+}
+
+/* A history mark has its own description; do not show the chart tooltip behind it. */
+[data-slot='chart']:has(.recharts-reference-line-line:is(:hover, :focus))
+    .recharts-tooltip-wrapper {
+    visibility: hidden !important;
+}
+
+.tooltip-panel [data-slot='tooltip-details'] {
+    color: var(--tooltip-muted);
+}
+
+.tooltip-panel [data-tooltip-status] {
+    color: var(--tooltip-muted);
+}
+
+.tooltip-panel [data-tooltip-status='ok'] {
+    color: var(--tooltip-status-ok);
+}
+
+.tooltip-panel [data-tooltip-status='warning'] {
+    color: var(--tooltip-status-warn);
+}
+
+.tooltip-panel [data-tooltip-status='down'],
+.tooltip-panel [data-tooltip-status='failed'] {
+    color: var(--tooltip-status-down);
+}
+
+.tooltip-panel [data-tooltip-status='check-error'] {
+    color: var(--tooltip-status-error);
+}
+
+.tooltip-panel [data-tooltip-status='maintenance'] {
+    color: var(--tooltip-status-info);
+}
+
+/* Radix distinguishes focus and subsequent instant opens from hover entrances. */
+.tooltip-panel[data-state='closed'],
+.tooltip-panel[data-state='instant-open'] {
+    animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tooltip-panel {
+        animation: none;
+    }
+}
+
+@utility shadow-overlay {
+    box-shadow:
+        0 24px 48px rgb(16 20 24 / 0.12),
+        0 2px 6px rgb(16 20 24 / 0.06);
+
+    &:is(.dark *) {
+        box-shadow:
+            0 24px 48px rgb(0 0 0 / 0.45),
+            0 2px 6px rgb(0 0 0 / 0.3);
+    }
+}
+
+@layer base {
+    ::selection {
+        background: var(--primary-soft);
+    }
+
+    code,
+    pre,
+    kbd,
+    input[type='url'],
+    input[type='number'] {
+        @apply font-mono tabular-nums;
+    }
+}
+
+/*
+ * Overlay recipes. Radix sets data-state on the content; an exit keyframe keeps it mounted until the animation ends.
+ * Anchored popovers scale out of their trigger (Radix transform-origin); the centred dialog scales from its centre; sheets
+ * slide from their edge on the drawer curve and leave the same way.
+ */
+@keyframes motion-pop-in {
+    from {
+        opacity: 0;
+        transform: scale(0.97);
+    }
+}
+
+@keyframes motion-pop-out {
+    to {
+        opacity: 0;
+        transform: scale(0.97);
+    }
+}
+
+@keyframes motion-fade-in {
+    from {
+        opacity: 0;
+    }
+}
+
+@keyframes motion-fade-out {
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes motion-sheet-in {
+    from {
+        transform: var(--motion-sheet-from);
+    }
+}
+
+@keyframes motion-sheet-out {
+    to {
+        transform: var(--motion-sheet-from);
+    }
+}
+
+@keyframes motion-row-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+}
+
+.motion-popover,
+.motion-dialog {
+    &[data-state='open'] {
+        animation: motion-pop-in var(--motion-enter) var(--ease-out);
+    }
+
+    &[data-state='closed'] {
+        animation: motion-pop-out var(--motion-exit) var(--ease-out);
+    }
+}
+
+.motion-overlay {
+    &[data-state='open'] {
+        animation: motion-fade-in var(--motion-enter) var(--ease-out);
+    }
+
+    &[data-state='closed'] {
+        animation: motion-fade-out var(--motion-exit) var(--ease-out);
+    }
+}
+
+/* The command palette opens from a shortcut many times a day: no motion (heptapod-ui-rules Motion). */
+.motion-dialog.motion-instant,
+.motion-overlay:has(+ .motion-instant) {
+    animation: none;
+}
+
+.motion-sheet {
+    &[data-side='right'] {
+        --motion-sheet-from: translateX(100%);
+    }
+
+    &[data-side='left'] {
+        --motion-sheet-from: translateX(-100%);
+    }
+
+    &[data-side='top'] {
+        --motion-sheet-from: translateY(-100%);
+    }
+
+    &[data-side='bottom'] {
+        --motion-sheet-from: translateY(100%);
+    }
+
+    &[data-state='open'] {
+        animation: motion-sheet-in var(--motion-sheet) var(--ease-drawer);
+    }
+
+    &[data-state='closed'] {
+        animation: motion-sheet-out var(--motion-exit) var(--ease-out);
+    }
+}
+
+.motion-row-in {
+    animation: motion-row-in var(--motion-enter) var(--ease-out);
+}
+
+/* Sonner keeps its own toast durations (stacking and swipe depend on them); the curve is the shared one. */
+[data-sonner-toast] {
+    transition-timing-function: var(--ease-out) !important;
+}
+
+.alert-sensitivity-pin,
+.alert-sensitivity-pin-label {
+    transition:
+        transform 520ms var(--ease-out),
+        opacity 260ms var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .alert-sensitivity-pin,
+    .alert-sensitivity-pin-label {
+        transition: none;
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .run-arrival {
+        animation: run-arrival 900ms var(--ease-out);
+    }
+
+    @keyframes run-arrival {
+        from {
+            background-color: var(--accent);
+        }
+        to {
+            background-color: transparent;
+        }
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

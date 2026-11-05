@@ -1,0 +1,23 @@
+{
+  "name": "heptapod/addon-sitemap",
+  "description": "Bounded sitemap monitoring for Heptapod",
+  "license": "AGPL-3.0-or-later",
+  "type": "library",
+  "version": "0.1.0",
+  "require": {
+    "php": "^8.5",
+    "ext-dom": "*",
+    "ext-libxml": "^8.5",
+    "ext-zlib": "*",
+    "illuminate/database": "^13.34",
+    "illuminate/support": "^13.34",
+    "illuminate/validation": "^13.34",
+    "league/uri": "^7.8",
+    "nesbot/carbon": "^3.14",
+    "spatie/crawler": "^9.4.2",
+    "spatie/laravel-data": "^4.23",
+    "spatie/typescript-transformer": "^3.3"
+  },
+  "autoload": {"psr-4": {"Heptapod\\Addons\\Sitemap\\": "src/"}},
+  "extra": {"laravel": {"providers": ["Heptapod\\Addons\\Sitemap\\SitemapServiceProvider"]}}
+}

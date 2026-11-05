@@ -1,0 +1,21 @@
+{
+    "No uptime check": "Keine Erreichbarkeitsprüfung",
+    "Try again": "Erneut versuchen",
+    "Go to Sites": "Websites öffnen",
+    "Mail transport": "Mail-Transport",
+    "From name": "Absendername",
+    "From address": "Absenderadresse",
+    "Mails are not sent": "E-Mails werden nicht versendet",
+    "The active mail transport only stores messages locally. Configure SMTP or an API transport to send mail.": "Der aktive Mail-Transport speichert Nachrichten nur lokal. Konfigurieren Sie SMTP oder einen API-Transport, um E-Mails zu versenden.",
+    "Until then, generate a sign-in link on the server with:": "Erzeugen Sie bis dahin einen Anmeldelink auf dem Server mit:",
+    "errors.403.title": "Zugriff verweigert",
+    "errors.403.description": "Sie haben keine Berechtigung, diese Seite zu öffnen.",
+    "errors.404.title": "Seite nicht gefunden",
+    "errors.404.description": "Diese Seite existiert nicht oder ist nicht mehr verfügbar.",
+    "errors.419.title": "Sitzung abgelaufen",
+    "errors.419.description": "Ihre Sitzung ist abgelaufen. Öffnen Sie eine neue Seite, bevor Sie es erneut versuchen.",
+    "errors.500.title": "Ein Fehler ist aufgetreten",
+    "errors.500.description": "Heptapod konnte diese Anfrage nicht abschließen. Bitte versuchen Sie es später erneut.",
+    "errors.503.title": "Vorübergehend nicht verfügbar",
+    "errors.503.description": "Heptapod ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut."
+}

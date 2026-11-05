@@ -1,0 +1,388 @@
+{
+    "host": "name0.example",
+    "zone": "name0.example",
+    "recursive": {
+        "A": [
+            {
+                "host": "name0.example",
+                "ttl": 377,
+                "class": "IN",
+                "type": "A",
+                "ip": "192.0.2.1"
+            },
+            {
+                "host": "name0.example",
+                "ttl": 377,
+                "class": "IN",
+                "type": "A",
+                "ip": "192.0.2.2"
+            }
+        ],
+        "AAAA": [
+            {
+                "host": "name0.example",
+                "ttl": 377,
+                "class": "IN",
+                "type": "AAAA",
+                "ipv6": "2001:db8::3"
+            },
+            {
+                "host": "name0.example",
+                "ttl": 377,
+                "class": "IN",
+                "type": "AAAA",
+                "ipv6": "2001:db8::4"
+            }
+        ],
+        "CNAME": [],
+        "MX": [
+            {
+                "host": "name0.example",
+                "ttl": 377,
+                "class": "IN",
+                "type": "MX",
+                "pri": 1,
+                "target": "name1.example"
+            },
+            {
+                "host": "name0.example",
+                "ttl": 377,
+                "class": "IN",
+                "type": "MX",
+                "pri": 10,
+                "target": "name2.example"
+            },
+            {
+                "host": "name0.example",
+                "ttl": 377,
+                "class": "IN",
+                "type": "MX",
+                "pri": 10,
+                "target": "name3.example"
+            },
+            {
+                "host": "name0.example",
+                "ttl": 377,
+                "class": "IN",
+                "type": "MX",
+                "pri": 5,
+                "target": "name4.example"
+            },
+            {
+                "host": "name0.example",
+                "ttl": 377,
+                "class": "IN",
+                "type": "MX",
+                "pri": 5,
+                "target": "name5.example"
+            }
+        ],
+        "TXT": [
+            {
+                "host": "name0.example",
+                "ttl": 377,
+                "class": "IN",
+                "type": "TXT",
+                "txt": "value6.example"
+            },
+            {
+                "host": "name0.example",
+                "ttl": 377,
+                "class": "IN",
+                "type": "TXT",
+                "txt": "value7.example"
+            }
+        ],
+        "NS": [
+            {
+                "host": "name0.example",
+                "ttl": 4502,
+                "class": "IN",
+                "type": "NS",
+                "target": "name8.example"
+            },
+            {
+                "host": "name0.example",
+                "ttl": 4502,
+                "class": "IN",
+                "type": "NS",
+                "target": "name9.example"
+            }
+        ],
+        "CAA": []
+    },
+    "zone_ns": [
+        {
+            "host": "name0.example",
+            "ttl": 4502,
+            "class": "IN",
+            "type": "NS",
+            "target": "name8.example"
+        },
+        {
+            "host": "name0.example",
+            "ttl": 4502,
+            "class": "IN",
+            "type": "NS",
+            "target": "name9.example"
+        }
+    ],
+    "authoritative": [
+        {
+            "nameserver": "name8.example",
+            "answers": {
+                "A": [
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "A",
+                        "ip": "192.0.2.2"
+                    },
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "A",
+                        "ip": "192.0.2.1"
+                    }
+                ],
+                "AAAA": [
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "AAAA",
+                        "ipv6": "2001:db8::5"
+                    },
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "AAAA",
+                        "ipv6": "2001:db8::6"
+                    }
+                ],
+                "CNAME": [],
+                "MX": [
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "MX",
+                        "pri": 1,
+                        "target": "name1.example"
+                    },
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "MX",
+                        "pri": 10,
+                        "target": "name2.example"
+                    },
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "MX",
+                        "pri": 10,
+                        "target": "name3.example"
+                    },
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "MX",
+                        "pri": 5,
+                        "target": "name4.example"
+                    },
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "MX",
+                        "pri": 5,
+                        "target": "name5.example"
+                    }
+                ],
+                "TXT": [
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "TXT",
+                        "txt": "value6.example"
+                    },
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "TXT",
+                        "txt": "value7.example"
+                    }
+                ],
+                "NS": [
+                    {
+                        "host": "name0.example",
+                        "ttl": 86400,
+                        "class": "IN",
+                        "type": "NS",
+                        "target": "name8.example"
+                    },
+                    {
+                        "host": "name0.example",
+                        "ttl": 86400,
+                        "class": "IN",
+                        "type": "NS",
+                        "target": "name9.example"
+                    }
+                ],
+                "CAA": []
+            },
+            "soa": [
+                {
+                    "host": "name0.example",
+                    "ttl": 1800,
+                    "class": "IN",
+                    "type": "SOA",
+                    "mname": "name8.example",
+                    "rname": "dns.name8.example",
+                    "serial": 2026100201,
+                    "refresh": 10000,
+                    "retry": 2400,
+                    "expire": 604800,
+                    "minimum_ttl": 1800
+                }
+            ]
+        },
+        {
+            "nameserver": "name9.example",
+            "answers": {
+                "A": [
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "A",
+                        "ip": "192.0.2.7"
+                    },
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "A",
+                        "ip": "192.0.2.8"
+                    }
+                ],
+                "AAAA": [
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "AAAA",
+                        "ipv6": "2001:db8::5"
+                    },
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "AAAA",
+                        "ipv6": "2001:db8::6"
+                    }
+                ],
+                "CNAME": [],
+                "MX": [
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "MX",
+                        "pri": 1,
+                        "target": "name1.example"
+                    },
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "MX",
+                        "pri": 10,
+                        "target": "name2.example"
+                    },
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "MX",
+                        "pri": 10,
+                        "target": "name3.example"
+                    },
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "MX",
+                        "pri": 5,
+                        "target": "name4.example"
+                    },
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "MX",
+                        "pri": 5,
+                        "target": "name5.example"
+                    }
+                ],
+                "TXT": [
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "TXT",
+                        "txt": "value6.example"
+                    },
+                    {
+                        "host": "name0.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "TXT",
+                        "txt": "value7.example"
+                    }
+                ],
+                "NS": [
+                    {
+                        "host": "name0.example",
+                        "ttl": 86400,
+                        "class": "IN",
+                        "type": "NS",
+                        "target": "name8.example"
+                    },
+                    {
+                        "host": "name0.example",
+                        "ttl": 86400,
+                        "class": "IN",
+                        "type": "NS",
+                        "target": "name9.example"
+                    }
+                ],
+                "CAA": []
+            },
+            "soa": [
+                {
+                    "host": "name0.example",
+                    "ttl": 1800,
+                    "class": "IN",
+                    "type": "SOA",
+                    "mname": "name8.example",
+                    "rname": "dns.name8.example",
+                    "serial": 2026100201,
+                    "refresh": 10000,
+                    "retry": 2400,
+                    "expire": 604800,
+                    "minimum_ttl": 1800
+                }
+            ]
+        }
+    ]
+}

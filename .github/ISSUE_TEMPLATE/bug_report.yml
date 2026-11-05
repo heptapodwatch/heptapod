@@ -1,0 +1,46 @@
+name: Bug report
+description: Report a reproducible problem in Heptapod.
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Report vulnerabilities privately through the Security tab, not here.
+        Remove credentials, customer data and private addresses from all examples.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Include the image tag or digest if available.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Deployment environment
+      description: OS, architecture, deployment mode and relevant browser version. Do not include private hostnames or addresses.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Use a minimal example with synthetic data.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Redacted logs or screenshots
+      description: Inspect attachments for secrets and personal data before submitting.

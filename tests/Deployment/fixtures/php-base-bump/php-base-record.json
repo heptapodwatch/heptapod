@@ -1,0 +1,84 @@
+{
+    "schema": 1,
+    "reference": "ghcr.io/heptapodwatch/heptapod-php-base",
+    "run": {
+        "id": 202,
+        "attempt": 1,
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "event": "schedule",
+        "branch": "main"
+    },
+    "build": {
+        "id": 202,
+        "attempt": 1,
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "event": "schedule",
+        "branch": "main"
+    },
+    "indexes": [
+        {
+            "target": "runtime",
+            "index_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "tags": [
+                {
+                    "tag": "20261022-aaaaaaaaaaaa",
+                    "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                },
+                {
+                    "tag": "latest-main",
+                    "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                }
+            ],
+            "cells": [
+                {
+                    "architecture": "amd64",
+                    "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                    "scanned_config": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                    "pushed_config": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                    "hard_gate": "success",
+                    "push": "success"
+                },
+                {
+                    "architecture": "arm64",
+                    "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                    "scanned_config": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                    "pushed_config": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                    "hard_gate": "success",
+                    "push": "success"
+                }
+            ]
+        },
+        {
+            "target": "coverage",
+            "index_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "tags": [
+                {
+                    "tag": "20261022-aaaaaaaaaaaa-coverage",
+                    "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                },
+                {
+                    "tag": "latest-main-coverage",
+                    "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                }
+            ],
+            "cells": [
+                {
+                    "architecture": "amd64",
+                    "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                    "scanned_config": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+                    "pushed_config": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+                    "hard_gate": "success",
+                    "push": "success"
+                },
+                {
+                    "architecture": "arm64",
+                    "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+                    "scanned_config": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+                    "pushed_config": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+                    "hard_gate": "success",
+                    "push": "success"
+                }
+            ]
+        }
+    ]
+}

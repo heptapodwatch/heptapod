@@ -1,0 +1,3 @@
+# Fixture comment must survive the atomic update.
+runtime=ghcr.io/heptapodwatch/heptapod-php-base@sha256:6666666666666666666666666666666666666666666666666666666666666666
+coverage=ghcr.io/heptapodwatch/heptapod-php-base@sha256:7777777777777777777777777777777777777777777777777777777777777777

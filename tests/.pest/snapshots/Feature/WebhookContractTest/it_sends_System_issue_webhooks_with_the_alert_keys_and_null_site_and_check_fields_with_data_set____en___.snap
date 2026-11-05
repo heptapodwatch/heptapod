@@ -1,0 +1,29 @@
+opened
+{
+    "body": "{\"event_id\":{event_id},\"destination_id\":{destination_id},\"severity\":\"warning\",\"cause\":null,\"title\":\"[System] The last backup failed\",\"summary\":\"Check the backup disk and its credentials, then start a backup in Settings \\u203a Updates.\\nSince: 2026-10-30 09:15 CET\\nBackup disk: backups\\nFailed at: 2026-10-30 09:15 CET\",\"headline\":\"Check the backup disk and its credentials, then start a backup in Settings \\u203a Updates.\",\"changes\":[],\"details\":[],\"site_id\":null,\"site_label\":null,\"site_url\":null,\"check_type\":null,\"also_affected\":[],\"rechecking\":[],\"since\":\"2026-10-30T08:15:00+00:00\",\"downtime_seconds\":null,\"link\":\"http:\\/\\/monitor.example.test\\/settings\\/system\",\"is_test\":false}",
+    "headers": {
+        "Content-Length": "{body length}",
+        "Content-Type": "application/json",
+        "Host": "receiver.example.test",
+        "Idempotency-Key": "{event_id}:{destination_id}",
+        "Signature": "{valid signature}",
+        "User-Agent": "GuzzleHttp/7",
+        "X-Heptapod-Delivery": "{event_id}:{destination_id}",
+        "X-Heptapod-Timestamp": "1793351700"
+    }
+}
+=====
+resolved
+{
+    "body": "{\"event_id\":{event_id},\"destination_id\":{destination_id},\"severity\":\"recovered\",\"cause\":null,\"title\":\"[System recovered] The last backup failed\",\"summary\":\"A backup completed successfully.\\nSince: 2026-10-30 09:15 CET\\nResolved: 2026-10-30 10:15 CET\\nBackup disk: backups\\nFailed at: 2026-10-30 09:15 CET\",\"headline\":\"A backup completed successfully.\",\"changes\":[],\"details\":[],\"site_id\":null,\"site_label\":null,\"site_url\":null,\"check_type\":null,\"also_affected\":[],\"rechecking\":[],\"since\":\"2026-10-30T08:15:00+00:00\",\"downtime_seconds\":null,\"link\":\"http:\\/\\/monitor.example.test\\/settings\\/system\",\"is_test\":false}",
+    "headers": {
+        "Content-Length": "{body length}",
+        "Content-Type": "application/json",
+        "Host": "receiver.example.test",
+        "Idempotency-Key": "{event_id}:{destination_id}",
+        "Signature": "{valid signature}",
+        "User-Agent": "GuzzleHttp/7",
+        "X-Heptapod-Delivery": "{event_id}:{destination_id}",
+        "X-Heptapod-Timestamp": "1793351700"
+    }
+}

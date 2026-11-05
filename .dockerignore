@@ -1,0 +1,25 @@
+.git
+.pi
+.worktrees
+**/*.local.md
+**/evidence
+/auth.json
+**/.npmrc
+**/.env*
+public/hot
+public/storage
+.phpunit.cache
+.pest
+node_modules
+vendor
+storage
+public/build
+/vitest.config.ts
+# CI reports belong in RUNNER_TEMP, never in a shipped image.
+hadolint*.json
+trivy-*.json
+php-tests.log
+missing-snapshot.log
+addon-system-requirements
+
+/.heptapod/

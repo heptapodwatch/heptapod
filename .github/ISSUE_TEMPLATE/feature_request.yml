@@ -1,0 +1,27 @@
+name: Feature request
+description: Propose an improvement to Heptapod.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What monitoring, reporting or notification task is difficult? Use synthetic examples.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe the user-visible result, not only an implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Include existing features or workarounds, if relevant.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and verification
+      description: What should stay unchanged, and how could a contributor verify the result?

@@ -1,0 +1,10 @@
+[
+    {
+        "artifacts": [{ "id": 302, "name": "php-base-record", "expired": true }]
+    },
+    {
+        "artifacts": [
+            { "id": 303, "name": "php-base-record", "expired": false }
+        ]
+    }
+]

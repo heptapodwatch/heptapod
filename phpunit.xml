@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         defaultTestSuite="Arch,Unit,Feature"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Gate">
+            <file>tests/Feature/AddSiteAvailabilityTest.php</file>
+            <file>tests/Feature/FirstOwnerAlertsTest.php</file>
+            <file>tests/Feature/ClientInlineCreateTest.php</file>
+            <file>tests/Feature/MoveSiteToClientTest.php</file>
+            <file>tests/Feature/AlertSensitivitySettingsTest.php</file>
+            <file>addons/lighthouse/tests/Feature/LighthouseFailureCauseTest.php</file>
+            <file>addons/dns/tests/Feature/DnsAcceptTest.php</file>
+            <file>tests/Feature/CrawlEvaluationTest.php</file>
+            <file>tests/Feature/CheckFreshnessTest.php</file>
+            <file>tests/Feature/CheckFreshnessClockTest.php</file>
+            <file>tests/Feature/ChecksNotRunningTest.php</file>
+            <file>tests/Feature/DiskSpaceIssuesTest.php</file>
+            <file>tests/Feature/SystemIssueDeliveryTest.php</file>
+            <file>tests/Feature/HistoryRetentionTest.php</file>
+            <file>tests/Feature/LandingRedirectTest.php</file>
+            <file>tests/Feature/ReminderNotificationsTest.php</file>
+            <file>tests/Feature/RecoveryMailTest.php</file>
+            <file>tests/Feature/MailDeliveryTruthTest.php</file>
+            <file>tests/Feature/ShellHealthCausesTest.php</file>
+            <file>tests/Feature/SaveNotificationRuleTest.php</file>
+            <file>tests/Feature/NotificationMigrationTest.php</file>
+            <file>tests/Feature/NotificationPlanningTest.php</file>
+            <file>tests/Feature/NotificationCategoryTest.php</file>
+            <file>tests/Feature/NotificationArchiveTest.php</file>
+            <file>tests/Feature/WebhookContractTest.php</file>
+            <file>tests/Feature/ChannelOutcomeTest.php</file>
+            <file>tests/Feature/ClientContactMigrationTest.php</file>
+            <file>tests/Feature/RecipientSettingsTest.php</file>
+            <file>tests/Feature/NotificationExplainTest.php</file>
+            <file>tests/Feature/ClientMessageTest.php</file>
+            <file>tests/Feature/MailDesignTest.php</file>
+            <file>tests/Feature/OutboundProfileTest.php</file>
+            <file>tests/Feature/ReclassifyLinksUpgradeTest.php</file>
+            <file>tests/Feature/MorphAliasMigrationTest.php</file>
+            <file>tests/Feature/BackupImportTest.php</file>
+            <file>tests/Feature/ScheduledBackupFailureTest.php</file>
+            <file>tests/Feature/WorkerMemoryBudgetTest.php</file>
+            <file>tests/Feature/UptimeEvidenceReasonsTest.php</file>
+            <file>tests/Feature/CountHeadlinePluralTest.php</file>
+            <file>tests/Feature/IncidentEpisodePageTest.php</file>
+            <file>tests/Feature/IncidentsDefaultStatusTest.php</file>
+            <file>tests/Feature/EventPayloadRedactionTest.php</file>
+            <file>tests/Feature/OhDearClientFactoryTest.php</file>
+            <file>tests/Feature/Api/MonitorCheckOrderTest.php</file>
+            <file>tests/Feature/ImportOhDearControllerTest.php</file>
+            <file>tests/Feature/ExactRateLimitTest.php</file>
+            <file>tests/Unit/SecretRedactorTest.php</file>
+        </testsuite>
+        <testsuite name="Arch">
+            <directory>tests/Arch</directory>
+        </testsuite>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+            <directory>addons/uptime/tests</directory>
+            <directory>addons/performance/tests</directory>
+            <directory>addons/certificate_health/tests</directory>
+            <directory>addons/cron/tests</directory>
+            <directory>addons/dns/tests</directory>
+            <directory>addons/application_health/tests</directory>
+            <directory>addons/domain/tests</directory>
+            <directory>addons/sitemap/tests</directory>
+            <directory>addons/crawl/tests</directory>
+            <directory>addons/lighthouse/tests/Feature</directory>
+            <!-- T1 quarantine: mirrors tests/Quarantine.php (cause and owner per file); QuarantineTest keeps both equal. -->
+            <exclude>tests/Feature/CheckJourneyTest.php</exclude>
+            <exclude>tests/Feature/DemoScenarioTest.php</exclude>
+            <exclude>tests/Feature/MonitoringRoutesTest.php</exclude>
+            <exclude>tests/Feature/SeederDomainsTest.php</exclude>
+        </testsuite>
+        <testsuite name="Browser">
+            <directory>tests/Browser</directory>
+        </testsuite>
+    </testsuites>
+    <groups>
+        <exclude>
+            <group>benchmark</group>
+        </exclude>
+    </groups>
+    <source>
+        <include>
+            <directory>app</directory>
+            <directory>addons/uptime/src</directory>
+            <directory>addons/performance/src</directory>
+            <directory>addons/certificate_health/src</directory>
+            <directory>addons/cron/src</directory>
+            <directory>addons/channels/src</directory>
+            <directory>addons/dns/src</directory>
+            <directory>addons/application_health/src</directory>
+            <directory>addons/domain/src</directory>
+            <directory>addons/sitemap/src</directory>
+            <directory>addons/crawl/src</directory>
+            <directory>addons/lighthouse/src</directory>
+        </include>
+        <exclude>
+            <directory>.worktrees</directory>
+        </exclude>
+    </source>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="array"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="BROADCAST_CONNECTION" value="null"/>
+        <env name="CACHE_STORE" value="array"/>
+        <env name="DB_CONNECTION" value="pgsql" force="true"/>
+        <env name="DB_DATABASE" value="heptapod_test" force="true"/>
+        <env name="DB_TEST_STATEMENT_TIMEOUT" value="30s" force="true"/>
+        <env name="DB_URL" value="" force="true"/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="PULSE_ENABLED" value="false"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="NIGHTWATCH_ENABLED" value="false"/>
+    </php>
+</phpunit>

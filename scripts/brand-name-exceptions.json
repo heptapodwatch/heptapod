@@ -1,0 +1,25 @@
+{
+    "history": "The morph-alias and default-instance-name migrations contain stored-data literals. Their bytes are frozen.",
+    "import": "The legacy source map retains historical source identifiers; its PHP identity uses the current namespace.",
+    "files": {
+        "database/migrations/2026_10_16_150000_replace_class_names_with_morph_aliases.php": "b1b583b8d69e06af02682923fde1692620c6cae200cfb8225ad1ad830c1d5294",
+        "database/settings/2026_10_16_090000_rename_default_instance_name_to_heptapod.php": "b0149611b752bf9959351dd010f00f44a27ffb69c9d568cfa87b593050f4d2d0",
+        "app/Import/LegacySourceMap.php": "d0c7af6498ff43d67a5097603089212623dfe9d68316bab7056e6f7ba53b9250"
+    },
+    "strings": {
+        "tests/Feature/MorphAliasMigrationTest.php": [
+            "Lynkeus\\Models\\User",
+            "Lynkeus\\Models\\Site",
+            "Lynkeus\\Models\\Client",
+            "Lynkeus\\Models\\Check",
+            "Lynkeus\\Models\\CheckSnooze",
+            "Lynkeus\\Models\\Incident",
+            "Lynkeus\\Models\\Invitation",
+            "Lynkeus\\Models\\MaintenancePeriod",
+            "Lynkeus\\Models\\RecurringMaintenancePeriod",
+            "Lynkeus\\Models\\MaintenanceSiteExclusion",
+            "Lynkeus\\Models\\NotificationDestination",
+            "Lynkeus\\Models\\RemovedModel"
+        ]
+    }
+}

@@ -1,0 +1,63 @@
+{
+    admin off
+    http_port 8080
+    https_port 8443
+    auto_https disable_redirects
+    frankenphp
+    # Capability URLs (invitations, password resets, email verification, cron pings) carry their secret in a
+    # path segment or query value, in any percent-encoding. Both loggers keep query keys and
+    # path segments shorter than 24 characters only; the Referer is dropped.
+    log default {
+        output stdout
+        format filter {
+            wrap json
+            fields {
+                request>uri regexp "([?&][^=&#]*=)[^&#]*|[^/?&=#]{24,}" "$1[redacted]"
+                request>headers>Referer delete
+                resp_headers>Location regexp "([?&][^=&#]*=)[^&#]*|[^/?&=#]{24,}" "$1[redacted]"
+            }
+        }
+    }
+}
+
+# Loopback-only health endpoint works before DNS/ACME and does not redirect to TLS.
+http://:8080 {
+    header X-Content-Type-Options nosniff
+    @health {
+        path /up
+        remote_ip 127.0.0.1 ::1
+    }
+    handle @health {
+        root * /app/public
+        php_server
+    }
+    # External 443 maps to internal 8443; never leak the container port in redirects.
+    handle {
+        redir https://{host}{uri} permanent
+    }
+}
+
+{$SERVER_NAME} {
+    root * /app/public
+    encode zstd gzip
+    header X-Content-Type-Options nosniff
+    @reverb path /app/*
+    handle @reverb {
+        reverse_proxy reverb:8080
+    }
+    handle {
+        php_server
+    }
+    # Same filter as the global error logger above.
+    log {
+        output stdout
+        format filter {
+            wrap json
+            fields {
+                request>uri regexp "([?&][^=&#]*=)[^&#]*|[^/?&=#]{24,}" "$1[redacted]"
+                request>headers>Referer delete
+                resp_headers>Location regexp "([?&][^=&#]*=)[^&#]*|[^/?&=#]{24,}" "$1[redacted]"
+            }
+        }
+    }
+}

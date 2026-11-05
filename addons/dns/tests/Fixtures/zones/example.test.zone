@@ -1,0 +1,5 @@
+$ORIGIN example.test.
+$TTL 300
+@ IN SOA ns.dns.fixture.test. admin.example.test. (1 3600 600 86400 300)
+@ IN NS ns.dns.fixture.test.
+www IN CNAME provider.test.

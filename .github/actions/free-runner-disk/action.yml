@@ -1,0 +1,14 @@
+name: Free runner disk
+description: Remove preinstalled toolchains Heptapod never uses, so the deployment suites meet the upgrade disk preflight
+runs:
+  using: composite
+  steps:
+    - name: Remove unused hosted toolchains
+      shell: bash
+      run: |
+        set -euo pipefail
+        # GitHub-hosted runners start with ~14 GiB free; the upgrade preflight (scripts/check-disk.sh) requires 12 GiB
+        # after the candidate image is pulled. The threshold protects real servers, so CI frees space instead of lowering it.
+        df -h / /var/lib/docker
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+        df -h / /var/lib/docker

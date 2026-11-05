@@ -1,0 +1,95 @@
+#!/bin/sh
+set -eu
+
+# External-process fixture only. Production still executes the installed dig binary.
+if [ "${1:-}" = '-v' ]; then
+    printf 'dig process-boundary fixture\n'
+    exit 0
+fi
+
+case "${DNS_PROCESS_SCENARIO:?}" in
+    delegated-child)
+        domain=''
+        type=''
+        server=''
+        while [ "$#" -gt 0 ]; do
+            case "$1" in
+                -q) shift; domain="$1" ;;
+                -t) shift; type="$1" ;;
+                @*) server="${1#@}" ;;
+            esac
+            shift
+        done
+        case "${DNS_DELEGATION_MODE:-baseline}" in
+            unresolved*|empty*)
+                if [ "$domain" = 'example' ] && [ "$type" = 'NS' ] && [ -z "$server" ]; then
+                    case "$DNS_DELEGATION_MODE" in
+                        empty-last-timeout-live) exit 9 ;;
+                        empty-last-servfail-live)
+                            printf ';; status: SERVFAIL,\n;; flags: qr rd; QUERY: 1, ANSWER: 0, AUTHORITY: 0\n'
+                            exit 0
+                            ;;
+                    esac
+                fi
+                if [ "${DNS_DELEGATION_MODE#unresolved}" != "$DNS_DELEGATION_MODE" ] && [ "$domain" = 'child.delegation.example' ] && [ "$type" = 'NS' ] && [ -z "$server" ] && [ ! -f "${DNS_DISCOVERY_MARKER:?}" ]; then
+                    : > "$DNS_DISCOVERY_MARKER"
+                    exit 9
+                fi
+                if [ "$DNS_DELEGATION_MODE" = 'unresolved-failed' ] && [ "$type" = 'A' ]; then
+                    printf ';; status: SERVFAIL,\n;; flags: qr rd; QUERY: 1, ANSWER: 0, AUTHORITY: 0\n'
+                    exit 0
+                fi
+                # Discovery exhausts every label; recursive liveness is a separate observation.
+                if [ "${DNS_DELEGATION_MODE%-live}" != "$DNS_DELEGATION_MODE" ] && [ "$type" = 'A' ]; then
+                    printf ';; status: NOERROR,\n;; flags: qr rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0\n'
+                    printf '%s 300 IN A 192.0.2.2\n' "$domain"
+                else
+                    printf ';; status: NOERROR,\n;; flags: qr rd; QUERY: 1, ANSWER: 0, AUTHORITY: 0\n'
+                fi
+                exit 0
+                ;;
+        esac
+        if [ "$domain" = 'child.delegation.example' ] && [ "$type" = 'NS' ] && [ -z "$server" ] && [ "${DNS_DELEGATION_MODE:-baseline}" = 'referral' ]; then
+            exit 9
+        fi
+        if [ "$server" = 'ns.parent.example' ]; then
+            # Parent referral: delegation records are in the suppressed authority section.
+            printf ';; status: NOERROR,\n;; flags: qr rd; QUERY: 1, ANSWER: 0, AUTHORITY: 1\n'
+            exit 0
+        fi
+        if [ "${DNS_DELEGATION_MODE:-baseline}" = 'negative' ] && [ "$type" != 'NS' ] && [ "$type" != 'SOA' ]; then
+            printf ';; status: NXDOMAIN,\n;; flags: qr aa; QUERY: 1, ANSWER: 0, AUTHORITY: 1\n'
+            exit 0
+        fi
+        printf ';; status: NOERROR,\n;; flags: qr aa; QUERY: 1, ANSWER: 1, AUTHORITY: 0\n'
+        case "$type:$domain" in
+            NS:child.delegation.example) printf '%s 300 IN NS ns.child.example.\n' "$domain" ;;
+            NS:delegation.example) printf '%s 300 IN NS ns.parent.example.\n' "$domain" ;;
+            A:child.delegation.example) printf '%s 300 IN A 192.0.2.1\n' "$domain" ;;
+            SOA:child.delegation.example) printf '%s 300 IN SOA ns.child.example. hostmaster.child.delegation.example. 1 3600 600 86400 300\n' "$domain" ;;
+        esac
+        ;;
+    truncated-servfail)
+        printf ';; status: SERVFAIL,\n;; flags: qr tc; QUERY: 1, ANSWER: 0, AUTHORITY: 0\n'
+        ;;
+    process-error)
+        printf 'https://user:untrusted-dns-token@example.invalid/response\n' >&2
+        exit 10
+        ;;
+    parser-error)
+        printf ';; status: NOERROR,\nexample.com. 300 IN untrusted-dns-token value\n'
+        ;;
+    oversized-stdout|oversized-stderr)
+        printf ';; status: NOERROR,\nexample.com. 300 IN A 192.0.2.1\n'
+        i=0
+        while [ "$i" -lt 250 ]; do
+            if [ "$DNS_PROCESS_SCENARIO" = oversized-stderr ]; then
+                printf ';%01024d\n' "$i" >&2
+            else
+                printf ';%01024d\n' "$i"
+            fi
+            i=$((i + 1))
+        done
+        ;;
+    *) exit 1 ;;
+esac

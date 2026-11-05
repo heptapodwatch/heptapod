@@ -1,0 +1,60 @@
+{
+    "finishedAt": 1900000000,
+    "checkResults": {
+        "0": {
+            "name": "Component0",
+            "label": "Component 0",
+            "notificationMessage": "",
+            "shortSummary": "Healthy",
+            "status": "ok",
+            "meta": {
+                "driver": "fixture.example"
+            }
+        },
+        "4": {
+            "name": "Component4",
+            "label": "Component 4",
+            "notificationMessage": "",
+            "shortSummary": "Healthy",
+            "status": "ok",
+            "meta": {
+                "actual": false,
+                "expected": false
+            }
+        },
+        "5": {
+            "name": "Component5",
+            "label": "Component 5",
+            "notificationMessage": "",
+            "shortSummary": "Healthy",
+            "status": "ok",
+            "meta": []
+        },
+        "1": {
+            "name": "Component1",
+            "label": "Component 1",
+            "notificationMessage": "",
+            "shortSummary": "Healthy",
+            "status": "ok",
+            "meta": []
+        },
+        "2": {
+            "name": "Component2",
+            "label": "Component 2",
+            "notificationMessage": "",
+            "shortSummary": "Healthy",
+            "status": "ok",
+            "meta": {
+                "connection_name": "fixture.example"
+            }
+        },
+        "3": {
+            "name": "Component3",
+            "label": "Component 3",
+            "notificationMessage": "",
+            "shortSummary": "Healthy",
+            "status": "ok",
+            "meta": []
+        }
+    }
+}

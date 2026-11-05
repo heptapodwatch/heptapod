@@ -1,0 +1,32 @@
+{
+    "name": "heptapod/addon-cron",
+    "description": "Push-based cron deadline monitoring for Heptapod",
+    "version": "0.1.0",
+    "type": "library",
+    "license": "AGPL-3.0-or-later",
+    "require": {
+        "php": "^8.5",
+        "dragonmantank/cron-expression": "^3.6",
+        "illuminate/cache": "^13.34",
+        "illuminate/database": "^13.34",
+        "illuminate/http": "^13.34",
+        "illuminate/routing": "^13.34",
+        "illuminate/support": "^13.34",
+        "illuminate/validation": "^13.34",
+        "nesbot/carbon": "^3.14",
+        "spatie/laravel-data": "^4.22",
+        "spatie/typescript-transformer": "^3.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "Heptapod\\Addons\\Cron\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Heptapod\\Addons\\Cron\\CronServiceProvider"
+            ]
+        }
+    }
+}

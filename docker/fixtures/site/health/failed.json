@@ -1,0 +1,15 @@
+{
+    "finishedAt": 1790870400,
+    "checkResults": [
+        {
+            "name": "FixtureCheck",
+            "label": "Fixture check",
+            "notificationMessage": "Fixture status: failed",
+            "shortSummary": "failed",
+            "status": "failed",
+            "meta": {
+                "fixture": true
+            }
+        }
+    ]
+}

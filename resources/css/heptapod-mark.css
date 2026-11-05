@@ -1,0 +1,172 @@
+/* The Heptapod lockup (mark + outlined wordmark) and the mark's states. Brand kit: wordmark-ui.svg, mark.svg. */
+:root {
+    /* The brand accent. Only the mark uses it (the hover glow); never a button, link or status colour. */
+    --mark-accent: #9fd6ff;
+}
+
+.hp-brand {
+    --mark-h: var(--brand-mark-h, 21px);
+    display: inline-flex;
+    align-items: center;
+    /* The h is as tall as the lit H: 63 of the tight mark's 81 units. Gap = 0.47 × the h. */
+    gap: calc(var(--mark-h) * 63 / 81 * 0.47);
+}
+
+.hp-mark {
+    display: block;
+    flex: none;
+    height: var(--mark-h);
+    width: calc(var(--mark-h) * 53 / 81);
+    overflow: visible;
+    /* Match the hover filters at zero strength so interpolation keeps the glow's colour. */
+    filter: drop-shadow(
+            0 0 0 color-mix(in srgb, var(--mark-accent) 0%, transparent)
+        )
+        drop-shadow(
+            0 0 0 color-mix(in srgb, var(--mark-accent) 0%, transparent)
+        );
+    transition: filter 320ms ease-out;
+}
+
+/* The element also holds the p's descender (21.13 of 100 units below the baseline);
+   the matching negative bottom margin keeps the ascender block centred on the H. */
+.hp-word {
+    --asc: calc(var(--mark-h) * 63 / 81);
+    flex: none;
+    height: calc(var(--asc) * 1.2113);
+    margin-bottom: calc(var(--asc) * -0.2113);
+    aspect-ratio: 604.79 / 121.13;
+    background: currentColor;
+    mask: url('../js/images/wordmark.svg') left top / 100% 100% no-repeat;
+    filter: drop-shadow(
+        0 0 0 color-mix(in srgb, var(--mark-accent) 0%, transparent)
+    );
+    transition: filter 320ms ease-out;
+}
+
+.hp-seg {
+    fill: currentColor;
+    opacity: 0.16;
+    transform-box: fill-box;
+    transition:
+        opacity 180ms ease-out,
+        fill 180ms ease-out,
+        transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.hp-seg[data-lit] {
+    opacity: 1;
+}
+
+.hp-mark:is([data-state='down'], [data-state='over']) .hp-seg {
+    fill: var(--status-down);
+}
+
+/* Ten or more: the 9 alternates with the top bar ("over"), as the mark library defines it. */
+.hp-mark[data-state='over'] .hp-seg[data-lit]:not(.hp-a) {
+    animation: hp-over 1.62s step-end infinite;
+}
+
+@keyframes hp-over {
+    0% {
+        opacity: 1;
+    }
+    68% {
+        opacity: 0.16;
+    }
+}
+
+/* A hidden tab runs no mark animation. */
+.hp-mark[data-paused] .hp-seg {
+    animation-play-state: paused !important;
+}
+
+/* Recovered, once: green washes through left to right, holds, and gives the H back. */
+.hp-mark[data-state='recovered'] .hp-seg {
+    animation: hp-recovered 2.02s both;
+}
+
+.hp-mark[data-state='recovered'] :is(.hp-a, .hp-g, .hp-d) {
+    animation-delay: 90ms;
+}
+
+.hp-mark[data-state='recovered'] :is(.hp-b, .hp-c) {
+    animation-delay: 180ms;
+}
+
+@keyframes hp-recovered {
+    0% {
+        fill: var(--status-down);
+        animation-timing-function: ease-out;
+    }
+    19%,
+    62% {
+        fill: var(--status-ok);
+        animation-timing-function: ease-in-out;
+    }
+    100% {
+        fill: currentColor;
+    }
+}
+
+/* Hover and keyboard focus: the pills step apart with a spring, the mark glows ice,
+   and the wordmark takes a faint share of the glow without moving.
+   No other rule gives the wordmark the accent glow. */
+@media (hover: hover) {
+    .hp-brand-link:is(:hover, :focus-visible) .hp-mark {
+        filter: drop-shadow(
+                0 0 4px color-mix(in srgb, var(--mark-accent) 55%, transparent)
+            )
+            drop-shadow(
+                0 0 12px color-mix(in srgb, var(--mark-accent) 25%, transparent)
+            );
+    }
+
+    .hp-brand-link:is(:hover, :focus-visible) .hp-word {
+        filter: drop-shadow(
+            0 0 6px color-mix(in srgb, var(--mark-accent) 20%, transparent)
+        );
+    }
+
+    .hp-brand-link:is(:hover, :focus-visible) .hp-a {
+        transform: translateY(-3px);
+    }
+
+    .hp-brand-link:is(:hover, :focus-visible) .hp-d {
+        transform: translateY(3px);
+    }
+
+    .hp-brand-link:is(:hover, :focus-visible) .hp-f {
+        transform: translate(-3px, -1.5px);
+    }
+
+    .hp-brand-link:is(:hover, :focus-visible) .hp-e {
+        transform: translate(-3px, 1.5px);
+    }
+
+    .hp-brand-link:is(:hover, :focus-visible) .hp-b {
+        transform: translate(3px, -1.5px);
+    }
+
+    .hp-brand-link:is(:hover, :focus-visible) .hp-c {
+        transform: translate(3px, 1.5px);
+    }
+}
+
+/* Reduced motion: the still mark. The Down count stays visible because it carries information. */
+@media (prefers-reduced-motion: reduce) {
+    .hp-mark .hp-seg {
+        animation: none !important;
+        transform: none !important;
+    }
+}
+
+/* The sidebar menu button clips its last span (truncate) and itself (overflow hidden); the lockup must not be
+   clipped: the p descender, the hover step-apart and the glow extend past the box. */
+.hp-brand-link {
+    overflow: visible !important;
+}
+
+.hp-brand-link > span.hp-brand:last-child {
+    overflow: visible;
+}

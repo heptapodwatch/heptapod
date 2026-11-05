@@ -1,0 +1,28 @@
+{
+  "name": "heptapod/addon-uptime",
+  "description": "HTTP uptime check addon for Heptapod",
+  "license": "AGPL-3.0-or-later",
+  "type": "library",
+  "version": "0.1.0",
+  "require": {
+    "php": "^8.5",
+    "guzzlehttp/guzzle": "^7.9",
+    "illuminate/http": "^13.34",
+    "illuminate/support": "^13.34",
+    "spatie/laravel-data": "^4.22",
+    "spatie/typescript-transformer": "^3.3",
+    "symfony/http-foundation": "^8.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "Heptapod\\Addons\\Uptime\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Heptapod\\Addons\\Uptime\\UptimeServiceProvider"
+      ]
+    }
+  }
+}

@@ -1,0 +1,183 @@
+{
+    "host": "www.publisher.example",
+    "zone": "publisher.example",
+    "recursive": {
+        "A": [
+            {
+                "host": "www.publisher.example",
+                "ttl": 377,
+                "class": "IN",
+                "type": "A",
+                "ip": "192.0.2.2"
+            },
+            {
+                "host": "www.publisher.example",
+                "ttl": 377,
+                "class": "IN",
+                "type": "A",
+                "ip": "192.0.2.1"
+            }
+        ],
+        "AAAA": [
+            {
+                "host": "www.publisher.example",
+                "ttl": 377,
+                "class": "IN",
+                "type": "AAAA",
+                "ipv6": "2001:db8::3"
+            },
+            {
+                "host": "www.publisher.example",
+                "ttl": 377,
+                "class": "IN",
+                "type": "AAAA",
+                "ipv6": "2001:db8::4"
+            }
+        ],
+        "CNAME": [],
+        "MX": {
+            "error": "timeout"
+        },
+        "TXT": {
+            "error": "timeout"
+        },
+        "NS": {
+            "error": "timeout"
+        },
+        "CAA": {
+            "error": "timeout"
+        }
+    },
+    "zone_ns": [
+        {
+            "host": "publisher.example",
+            "ttl": 4502,
+            "class": "IN",
+            "type": "NS",
+            "target": "name8.example"
+        },
+        {
+            "host": "publisher.example",
+            "ttl": 4502,
+            "class": "IN",
+            "type": "NS",
+            "target": "name9.example"
+        }
+    ],
+    "authoritative": [
+        {
+            "nameserver": "name8.example",
+            "answers": {
+                "A": [
+                    {
+                        "host": "www.publisher.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "A",
+                        "ip": "192.0.2.1"
+                    },
+                    {
+                        "host": "www.publisher.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "A",
+                        "ip": "192.0.2.2"
+                    }
+                ],
+                "AAAA": [
+                    {
+                        "host": "www.publisher.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "AAAA",
+                        "ipv6": "2001:db8::4"
+                    },
+                    {
+                        "host": "www.publisher.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "AAAA",
+                        "ipv6": "2001:db8::3"
+                    }
+                ],
+                "CNAME": [],
+                "MX": [],
+                "TXT": [],
+                "NS": [],
+                "CAA": []
+            },
+            "soa": [
+                {
+                    "host": "publisher.example",
+                    "ttl": 1800,
+                    "class": "IN",
+                    "type": "SOA",
+                    "mname": "name8.example",
+                    "rname": "dns.name8.example",
+                    "serial": 2026100201,
+                    "refresh": 10000,
+                    "retry": 2400,
+                    "expire": 604800,
+                    "minimum_ttl": 1800
+                }
+            ]
+        },
+        {
+            "nameserver": "name9.example",
+            "answers": {
+                "A": [
+                    {
+                        "host": "www.publisher.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "A",
+                        "ip": "192.0.2.9"
+                    },
+                    {
+                        "host": "www.publisher.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "A",
+                        "ip": "192.0.2.10"
+                    }
+                ],
+                "AAAA": [
+                    {
+                        "host": "www.publisher.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "AAAA",
+                        "ipv6": "2001:db8::3"
+                    },
+                    {
+                        "host": "www.publisher.example",
+                        "ttl": 300,
+                        "class": "IN",
+                        "type": "AAAA",
+                        "ipv6": "2001:db8::4"
+                    }
+                ],
+                "CNAME": [],
+                "MX": [],
+                "TXT": [],
+                "NS": [],
+                "CAA": []
+            },
+            "soa": [
+                {
+                    "host": "publisher.example",
+                    "ttl": 1800,
+                    "class": "IN",
+                    "type": "SOA",
+                    "mname": "name8.example",
+                    "rname": "dns.name8.example",
+                    "serial": 2026100201,
+                    "refresh": 10000,
+                    "retry": 2400,
+                    "expire": 604800,
+                    "minimum_ttl": 1800
+                }
+            ]
+        }
+    ]
+}

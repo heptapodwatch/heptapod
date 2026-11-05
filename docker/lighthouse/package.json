@@ -1,0 +1,13 @@
+{
+    "name": "heptapod-lighthouse",
+    "version": "0.1.0",
+    "private": true,
+    "license": "AGPL-3.0-or-later",
+    "type": "module",
+    "dependencies": {
+        "lighthouse": "^13.5.0",
+        "lighthouse-logger": "2.0.2",
+        "proxy-chain": "^3.0.1",
+        "puppeteer-core": "^25.9.0"
+    }
+}

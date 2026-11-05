@@ -1,0 +1,8 @@
+{
+    "service": "heptapod-fixture",
+    "ready": true,
+    "count": 3,
+    "nested": {
+        "message": "HEPTAPOD_FIXTURE_READY"
+    }
+}

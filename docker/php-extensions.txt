@@ -1,0 +1,52 @@
+# Full PHP module surface: base-image modules and installed extensions.
+# Lowercase names; Zend OPcache is named opcache for both installers.
+apcu # igbinary's optional cache integration, enabled by setup-php.
+bcmath
+core
+ctype
+curl
+date
+dom
+exif
+fileinfo
+filter
+gd
+hash
+iconv
+igbinary # Redis serializer.
+intl
+json
+lexbor
+libxml
+mbstring
+msgpack # Redis serializer.
+mysqlnd # Baked into the base image, unused.
+opcache
+openssl
+pcntl
+pcov
+pcre
+pdo
+pdo_pgsql
+pdo_sqlite # Baked into the base image, unused.
+pgsql # Enabled alongside pdo_pgsql by setup-php.
+phar
+posix
+random
+readline
+redis
+reflection
+session
+simplexml
+sockets
+sodium
+spl
+sqlite3 # Baked into the base image, unused.
+standard
+tokenizer
+uri
+xml
+xmlreader
+xmlwriter
+zip
+zlib

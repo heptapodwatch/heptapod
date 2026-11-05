@@ -1,0 +1,6 @@
+{
+    "tooltip.sites_one": "{{count}} site",
+    "tooltip.sites_other": "{{count}} sites",
+    "tooltip.above_usual": "Warning · above the usual response-time range",
+    "tooltip.check_navigation": "Use Left and Right to inspect checks."
+}

@@ -1,0 +1,52 @@
+{
+    "id": 1,
+    "team_id": 1,
+    "type": "http",
+    "url": "https://example.com",
+    "uses_https": true,
+    "sort_url": "example.com",
+    "label": "example.com",
+    "group_name": "",
+    "tags": [],
+    "description": null,
+    "notes": null,
+    "latest_run_date": "2026-10-01 07:29:02",
+    "summarized_check_result": "succeeded",
+    "checks": [
+        {
+            "id": 100,
+            "type": "uptime",
+            "label": "Uptime",
+            "enabled": true,
+            "latest_run_ended_at": "2026-10-01 07:29:02",
+            "latest_run_result": "succeeded",
+            "summary": "Up",
+            "settings": {
+                "uptime_check_settings": { "uptime_check_location": "paris" }
+            },
+            "active_snooze": null
+        }
+    ],
+    "uptime_check_settings": {
+        "location": "paris",
+        "look_for_string": "",
+        "absent_string": null,
+        "expected_response_headers": [],
+        "response_body_assertions": [],
+        "failed_notification_threshold": 2,
+        "http_verb": "get",
+        "payload": [],
+        "raw_payload": null,
+        "timeout": 5,
+        "frequency_value": 1,
+        "frequency_unit": "minute",
+        "valid_status_codes": ["2*"],
+        "max_redirect_count": 5,
+        "expected_final_redirect_url": null,
+        "http_client_headers": []
+    },
+    "badge_id": "00000000-0000-4000-8000-000000000123",
+    "marked_for_deletion_at": null,
+    "created_at": "2026-10-01 07:25:00",
+    "updated_at": "2026-10-01 07:25:00"
+}

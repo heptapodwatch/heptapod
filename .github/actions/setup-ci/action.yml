@@ -1,0 +1,57 @@
+name: Set up CI application
+description: Install the pinned CI runtime, dependencies and isolated test schema
+inputs:
+  coverage:
+    description: Enable PCOV instrumentation when set to pcov
+    default: none
+  fixtures:
+    description: Start the offline network fixtures
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - name: Read PHP extension list
+      id: php-extensions
+      shell: bash
+      run: |
+        echo "extensions=$(awk 'NF && $1 !~ /^#/ { printf "%s%s", separator, $1; separator=", " }' docker/php-extensions.txt)" >> "$GITHUB_OUTPUT"
+    - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2.37.2
+      env:
+        fail-fast: 'true'
+      with:
+        php-version: '8.5.12'
+        extensions: none, ${{ steps.php-extensions.outputs.extensions }}
+        # Keep the image's PCOV module parity; instrument only nightly coverage.
+        coverage: pcov
+        ini-values: pcov.directory=., pcov.enabled=${{ inputs.coverage == 'pcov' && '1' || '0' }}
+        tools: composer:v2
+    - name: Verify PHP extension parity
+      shell: bash
+      run: sh scripts/check-php-extensions.sh
+    - uses: actions/setup-node@v7
+      with:
+        node-version: '24'
+        cache: npm
+    - name: Install dependencies and prepare schema
+      shell: bash
+      run: |
+        cp .env.example .env
+        composer install --no-interaction --prefer-dist
+        npm ci
+        php artisan key:generate
+        # Wayfinder reads binding types from the schema during Vite builds.
+        php artisan migrate --force --no-interaction
+    - name: Install spelling and DNS check tools
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y aspell aspell-en
+        command -v dig >/dev/null || sudo apt-get install -y dnsutils
+    - name: Start offline check fixtures
+      if: inputs.fixtures == 'true'
+      shell: bash
+      run: |
+        docker volume create heptapod-heavy-locks >/dev/null
+        FIXTURES_HTTP_PORT=80 FIXTURES_HTTPS_PORT=443 FIXTURES_HTTPS_ALT_PORT=444 FIXTURES_ALT_HTTP_PORT=80 DNS_FIXTURES_PORT=53 docker compose --profile fixtures up -d --wait fixtures fixtures-alt dns-fixtures
+        echo '127.0.0.1 dns-fixtures ns.dns.fixture.test ns.provider.test fixtures.test external.fixtures.test expired.fixtures.test wrong-host.fixtures.test names.fixtures.test wildcard.fixtures.test www.wildcard.fixtures.test nested.www.wildcard.fixtures.test alt.fixtures.test self-signed.fixtures.test' | sudo tee -a /etc/hosts
+        echo '127.0.0.2 second.fixtures.test' | sudo tee -a /etc/hosts

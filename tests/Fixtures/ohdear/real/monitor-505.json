@@ -1,0 +1,299 @@
+{
+    "id": 505,
+    "team_id": 42,
+    "type": "http",
+    "url": "https://site-5.example/",
+    "uses_https": true,
+    "sort_url": "site-5.example",
+    "label": "Fifth Magazine",
+    "group_name": "",
+    "tags": [],
+    "description": null,
+    "notes": null,
+    "real_ip_address": null,
+    "latest_run_date": "2026-10-02 11:00:23",
+    "summarized_check_result": "failed",
+    "checks": [
+        {
+            "id": 50500,
+            "type": "uptime",
+            "label": "Uptime",
+            "enabled": true,
+            "latest_run_ended_at": "2026-10-02 11:00:23",
+            "latest_run_result": "succeeded",
+            "summary": "Up",
+            "settings": {
+                "location": "frankfurt",
+                "look_for_string": "",
+                "absent_string": null,
+                "expected_response_headers": [],
+                "failed_notification_threshold": 2,
+                "http_verb": "get",
+                "payload": [],
+                "raw_payload": null,
+                "timeout": 5,
+                "valid_status_codes": ["2*"],
+                "max_redirect_count": 5,
+                "expected_final_redirect_url": null,
+                "http_client_headers": []
+            },
+            "active_snooze": null
+        },
+        {
+            "id": 50501,
+            "type": "performance",
+            "label": "Performance",
+            "enabled": true,
+            "latest_run_ended_at": "2026-10-02 10:52:51",
+            "latest_run_result": "succeeded",
+            "summary": "Ok",
+            "settings": {
+                "performance_check_settings": {
+                    "threshold_in_ms": 3500,
+                    "change_percentage": 50,
+                    "failed_notification_threshold": 0
+                }
+            },
+            "active_snooze": null,
+            "average_response_time_in_ms": 339
+        },
+        {
+            "id": 50502,
+            "type": "certificate_health",
+            "label": "Certificate health",
+            "enabled": true,
+            "latest_run_ended_at": "2026-10-02 10:48:18",
+            "latest_run_result": "succeeded",
+            "summary": "Ok",
+            "settings": {
+                "expires_soon_threshold_in_days": null
+            },
+            "active_snooze": null
+        },
+        {
+            "id": 50503,
+            "type": "broken_links",
+            "label": "Broken links",
+            "enabled": true,
+            "latest_run_ended_at": "2026-10-02 02:18:42",
+            "latest_run_result": "failed",
+            "summary": "3 found",
+            "settings": {
+                "crawler_headers": [],
+                "crawler_speed": "default",
+                "respect_robots": true,
+                "whitelisted_urls": [],
+                "check_include_external_links": false,
+                "types": ["link", "image", "script", "stylesheet", "og:image"],
+                "do_not_crawl_urls": [],
+                "force_crawl_urls": [],
+                "new_links_only": false
+            },
+            "active_snooze": null
+        },
+        {
+            "id": 50504,
+            "type": "mixed_content",
+            "label": "Mixed content",
+            "enabled": true,
+            "latest_run_ended_at": "2026-10-02 02:18:43",
+            "latest_run_result": "succeeded",
+            "summary": "None",
+            "settings": [],
+            "active_snooze": null
+        },
+        {
+            "id": 50505,
+            "type": "lighthouse",
+            "label": "Lighthouse",
+            "enabled": true,
+            "latest_run_ended_at": "2026-10-01 01:30:13",
+            "latest_run_result": "succeeded",
+            "summary": "Error",
+            "settings": {
+                "continent": "europe",
+                "device_emulation": "desktop",
+                "notification_settings": null,
+                "http_client_headers": []
+            },
+            "active_snooze": null
+        },
+        {
+            "id": 50506,
+            "type": "cron",
+            "label": "Scheduled tasks",
+            "enabled": false,
+            "latest_run_ended_at": null,
+            "latest_run_result": "pending",
+            "summary": "Disabled",
+            "settings": [],
+            "active_snooze": null
+        },
+        {
+            "id": 50507,
+            "type": "application_health",
+            "label": "Application health",
+            "enabled": false,
+            "latest_run_ended_at": null,
+            "latest_run_result": "pending",
+            "summary": "Disabled",
+            "settings": {
+                "result_url": null,
+                "secret": "fake-health-secret-505",
+                "headers": []
+            },
+            "active_snooze": null
+        },
+        {
+            "id": 50508,
+            "type": "sitemap",
+            "label": "Sitemap",
+            "enabled": true,
+            "latest_run_ended_at": "2026-10-01 22:02:02",
+            "latest_run_result": "succeeded",
+            "summary": "Error",
+            "settings": {
+                "sitemap_path": "/fixture-sitemap.xml",
+                "sitemap_speed": "default"
+            },
+            "active_snooze": null
+        },
+        {
+            "id": 50509,
+            "type": "dns",
+            "label": "DNS",
+            "enabled": true,
+            "latest_run_ended_at": "2026-10-02 09:26:01",
+            "latest_run_result": "succeeded",
+            "summary": "Ok",
+            "settings": {
+                "extra_cnames": [],
+                "monitor_main_domain": false,
+                "ignored_record_types": ["SOA"],
+                "check_nameservers_in_sync": true
+            },
+            "active_snooze": null
+        },
+        {
+            "id": 50510,
+            "type": "domain",
+            "label": "Domain",
+            "enabled": true,
+            "latest_run_ended_at": "2026-09-27 20:09:10",
+            "latest_run_result": "succeeded",
+            "summary": "Ok",
+            "settings": {
+                "not_supported_reason": null,
+                "expires_soon_threshold_in_days": null
+            },
+            "active_snooze": null
+        },
+        {
+            "id": 50511,
+            "type": "dns_blocklist",
+            "label": "DNS blocklist",
+            "enabled": true,
+            "latest_run_ended_at": "2026-10-02 00:03:42",
+            "latest_run_result": "succeeded",
+            "summary": "Error",
+            "settings": [],
+            "active_snooze": null
+        }
+    ],
+    "uptime_check_settings": {
+        "location": "frankfurt",
+        "look_for_string": "",
+        "absent_string": null,
+        "expected_response_headers": [],
+        "response_body_assertions": null,
+        "failed_notification_threshold": 2,
+        "http_verb": "get",
+        "payload": [],
+        "raw_payload": null,
+        "timeout": 5,
+        "valid_status_codes": ["2*"],
+        "max_redirect_count": 5,
+        "expected_final_redirect_url": null,
+        "http_client_headers": [],
+        "frequency_value": 1,
+        "frequency_unit": "minute"
+    },
+    "certificate_health_check_settings": {
+        "expires_soon_threshold_in_days": null,
+        "frequency_value": 30,
+        "frequency_unit": "minute"
+    },
+    "broken_links_check_settings": {
+        "whitelisted_urls": [],
+        "check_include_external_links": false,
+        "types": ["link", "image", "script", "stylesheet", "og:image"],
+        "do_not_crawl_urls": [],
+        "force_crawl_urls": [],
+        "new_links_only": false,
+        "frequency_value": 1,
+        "frequency_unit": "day"
+    },
+    "dns_check_settings": {
+        "extra_cnames": [],
+        "monitor_main_domain": false,
+        "ignored_record_types": ["SOA"],
+        "check_nameservers_in_sync": true,
+        "frequency_value": 2,
+        "frequency_unit": "hour"
+    },
+    "lighthouse_check_settings": {
+        "continent": "europe",
+        "notification_settings": null,
+        "http_client_headers": [],
+        "frequency_value": 1,
+        "frequency_unit": "day",
+        "device_emulation": "desktop"
+    },
+    "application_health_check_settings": {
+        "result_url": null,
+        "secret": "fake-health-secret-505",
+        "headers": [],
+        "failed_notification_threshold": 0
+    },
+    "domain_check_settings": {
+        "not_supported_reason": null,
+        "expires_soon_threshold_in_days": null,
+        "frequency_value": 4,
+        "frequency_unit": "hour"
+    },
+    "performance_check_settings": {
+        "threshold_in_ms": 3500,
+        "change_percentage": 50,
+        "failed_notification_threshold": 0
+    },
+    "sitemap_check_settings": {
+        "path": "fixture-sitemap.xml",
+        "speed": "default",
+        "failed_notification_threshold": 0,
+        "frequency_value": 1,
+        "frequency_unit": "day"
+    },
+    "ports_check_settings": {
+        "expected_open_ports": [80, 443],
+        "failed_notification_threshold": 0,
+        "continent": "europe",
+        "frequency_value": 1,
+        "frequency_unit": "hour",
+        "baseline_confirmed": false,
+        "behind_cloudflare": false
+    },
+    "dns_blocklist_check_settings": {
+        "use_all_blocklists": true,
+        "enabled_blocklists": [],
+        "frequency_value": 1,
+        "frequency_unit": "day"
+    },
+    "ai_check_settings": null,
+    "crawler_headers": [],
+    "send_report_to_emails": [],
+    "include_check_types_in_report": [],
+    "badge_id": "01SANITIZEDMONITOR505",
+    "marked_for_deletion_at": null,
+    "created_at": "2026-04-08 19:37:33",
+    "updated_at": "2026-04-08 19:37:33"
+}

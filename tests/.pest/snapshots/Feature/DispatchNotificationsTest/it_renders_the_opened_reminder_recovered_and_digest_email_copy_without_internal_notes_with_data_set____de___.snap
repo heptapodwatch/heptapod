@@ -1,0 +1,219 @@
+[Ausgefallen] api.example.test — HTTP 503 seit 00:29 UTC
+-- PLAIN --
+Example Agency · api.example.test
+api.example.test ist ausgefallen: HTTP 503 Service Unavailable.
+Ausgefallen · seit 00:29 UTC · #{id}
+
+Letzter Versuch
+Zeit | Ergebnis | Antwort
+00:30:00 UTC | HTTP 503 Service Unavailable | Keine Antwort
+
+Störung #{id} öffnen: https://monitor.example.test/incidents/{id}
+Prüfung öffnen: https://monitor.example.test/sites/{site}/checks/{check}
+
+Sie erhalten diese E-Mail, weil Ops (ops@example.test) Ausfälle erhält.
+Benachrichtigungen ändern: https://monitor.example.test/settings/notifications/team
+Heptapod · localhost
+
+-- HTML --
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[Ausgefallen] api.example.test — HTTP 503 seit 00:29 UTC</title>
+<style>
+body{margin:0;padding:0}a{color:inherit}
+@media (max-width:480px){.px{padding-left:20px!important;padding-right:20px!important}.h1{font-size:19px!important;line-height:25px!important}}
+@media (prefers-color-scheme:dark){ .bg-bg{background:#0d1013!important}.bg-card{background:#13171b!important;border-color:#262c33!important}.bg-sunken{background:#0f1215!important;border-color:#1c2127!important}.bd-soft{border-color:#1c2127!important}.btn-primary{background:#e6e9ec!important}.btn-primary a{color:#0d1013!important}.c-bg{color:#0d1013!important}.chip-bg{color:#0d1013!important;border-color:#0d1013!important}.c-card{color:#13171b!important}.chip-card{color:#13171b!important;border-color:#13171b!important}.c-line{color:#262c33!important}.chip-line{color:#262c33!important;border-color:#262c33!important}.c-soft{color:#1c2127!important}.chip-soft{color:#1c2127!important;border-color:#1c2127!important}.c-sunken{color:#0f1215!important}.chip-sunken{color:#0f1215!important;border-color:#0f1215!important}.c-fg{color:#e6e9ec!important}.chip-fg{color:#e6e9ec!important;border-color:#e6e9ec!important}.c-fg2{color:#a2abb4!important}.chip-fg2{color:#a2abb4!important;border-color:#a2abb4!important}.c-fg3{color:#848e99!important}.chip-fg3{color:#848e99!important;border-color:#848e99!important}.c-down{color:#e6574d!important}.chip-down{color:#e6574d!important;border-color:#e6574d!important}.c-warn{color:#dd8a43!important}.chip-warn{color:#dd8a43!important;border-color:#dd8a43!important}.c-ok{color:#79ad95!important}.chip-ok{color:#79ad95!important;border-color:#79ad95!important}.c-info{color:#7f9fc0!important}.chip-info{color:#7f9fc0!important;border-color:#7f9fc0!important}.c-error{color:#8b96a1!important}.chip-error{color:#8b96a1!important;border-color:#8b96a1!important}.bar-down{background:#e6574d!important}.avatar-letter{background:#4B4B57!important;color:#ffffff!important} }
+[data-ogsc] .bg-bg{background:#0d1013!important}[data-ogsc] .bg-card{background:#13171b!important;border-color:#262c33!important}[data-ogsc] .bg-sunken{background:#0f1215!important;border-color:#1c2127!important}[data-ogsc] .bd-soft{border-color:#1c2127!important}[data-ogsc] .btn-primary{background:#e6e9ec!important}[data-ogsc] .btn-primary a{color:#0d1013!important}[data-ogsc] .c-bg{color:#0d1013!important}[data-ogsc] .chip-bg{color:#0d1013!important;border-color:#0d1013!important}[data-ogsc] .c-card{color:#13171b!important}[data-ogsc] .chip-card{color:#13171b!important;border-color:#13171b!important}[data-ogsc] .c-line{color:#262c33!important}[data-ogsc] .chip-line{color:#262c33!important;border-color:#262c33!important}[data-ogsc] .c-soft{color:#1c2127!important}[data-ogsc] .chip-soft{color:#1c2127!important;border-color:#1c2127!important}[data-ogsc] .c-sunken{color:#0f1215!important}[data-ogsc] .chip-sunken{color:#0f1215!important;border-color:#0f1215!important}[data-ogsc] .c-fg{color:#e6e9ec!important}[data-ogsc] .chip-fg{color:#e6e9ec!important;border-color:#e6e9ec!important}[data-ogsc] .c-fg2{color:#a2abb4!important}[data-ogsc] .chip-fg2{color:#a2abb4!important;border-color:#a2abb4!important}[data-ogsc] .c-fg3{color:#848e99!important}[data-ogsc] .chip-fg3{color:#848e99!important;border-color:#848e99!important}[data-ogsc] .c-down{color:#e6574d!important}[data-ogsc] .chip-down{color:#e6574d!important;border-color:#e6574d!important}[data-ogsc] .c-warn{color:#dd8a43!important}[data-ogsc] .chip-warn{color:#dd8a43!important;border-color:#dd8a43!important}[data-ogsc] .c-ok{color:#79ad95!important}[data-ogsc] .chip-ok{color:#79ad95!important;border-color:#79ad95!important}[data-ogsc] .c-info{color:#7f9fc0!important}[data-ogsc] .chip-info{color:#7f9fc0!important;border-color:#7f9fc0!important}[data-ogsc] .c-error{color:#8b96a1!important}[data-ogsc] .chip-error{color:#8b96a1!important;border-color:#8b96a1!important}[data-ogsc] .bar-down{background:#e6574d!important}[data-ogsc] .avatar-letter{background:#4B4B57!important;color:#ffffff!important}
+</style></head>
+<body class="bg-bg" style="margin:0;padding:0;background:#e8ebed;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">HTTP 503 Service Unavailable</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-bg" style="background:#e8ebed;"><tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;"><tr><td>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-card" style="background:#ffffff;border:1px solid #d3d8dc;border-radius:10px;">
+<tr><td class="bar-down" style="height:3px;line-height:3px;font-size:0;background:#b42f28;border-radius:10px 10px 0 0;">&nbsp;</td></tr>
+<tr><td class="px" style="padding:20px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="font-size:13px;">
+<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+<td class="avatar-letter" aria-hidden="true" align="center" valign="middle" style="width:20px;height:20px;line-height:20px;border-radius:10px;background:#4B4B57;color:#ffffff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;font-weight:600;">EA</td><td style="width:5px;"></td>
+<td><span class="c-fg2" style="color:#3f4952;vertical-align:middle;">Example Agency · api.example.test</span></td></tr></table>
+</td><td align="right" valign="middle"><img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="border:0;display:inline-block;"></td></tr></table></td></tr>
+<tr><td class="px" style="padding:22px 28px 28px;">
+<h1 class="h1 c-fg" style="margin:0 0 12px;font-size:21px;line-height:28px;font-weight:600;letter-spacing:-0.2px;color:#101418;">api.example.test ist ausgefallen: HTTP 503 Service Unavailable.</h1>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;"><tr><td class="chip-down" style="border:1px solid #b42f28;border-radius:11px;padding:1px 9px;font-size:12px;font-weight:600;color:#b42f28;white-space:nowrap;">Ausgefallen</td><td class="c-fg3" style="padding-left:10px;font-size:12.5px;color:#5c6771;">seit 00:29 UTC · #{id}</td></tr></table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr><td style="padding:0 0 16px;"><p class="c-fg3" style="margin:0 0 8px;color:#5c6771;font-size:12px;">Letzter Versuch</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-sunken" style="background:#f5f6f7;border:1px solid #e1e5e8;border-radius:8px;"><tr><td style="padding:12px 14px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td class="c-fg3" style="color:#5c6771;font-size:11px;padding:0 10px 6px 0;">Zeit</td>
+<td class="c-fg3" style="color:#5c6771;font-size:11px;padding:0 10px 6px 0;">Ergebnis</td>
+<td class="c-fg3" style="color:#5c6771;font-size:11px;padding:0 10px 6px 0;">Antwort</td>
+</tr>
+<tr>
+<td valign="top" class="bd-soft" style="padding:6px 10px 6px 0;border-top:1px solid #e1e5e8;"><span class="c-fg" style="color:#101418;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:12px;word-break:break-word;">00:30:00 UTC</span>
+</td>
+<td valign="top" class="bd-soft" style="padding:6px 10px 6px 0;border-top:1px solid #e1e5e8;"><span class="c-down" style="color:#b42f28;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:12px;word-break:break-word;">HTTP 503 Service Unavailable</span>
+</td>
+<td valign="top" class="bd-soft" style="padding:6px 10px 6px 0;border-top:1px solid #e1e5e8;"><span class="c-fg" style="color:#101418;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:12px;word-break:break-word;">Keine Antwort</span>
+</td>
+</tr>
+</table>
+</td></tr></table>
+</td></tr>
+</table>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 0;"><tr><td class="btn-primary" style="background:#101418;border-radius:16px;"><a href="https://monitor.example.test/incidents/{id}" style="display:inline-block;padding:8px 18px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">Störung #{id} öffnen</a></td>
+<td style="padding-left:16px;font-size:14px;"><a href="https://monitor.example.test/sites/{site}/checks/{check}" class="c-fg2" style="color:#3f4952;text-decoration:underline;">Prüfung öffnen</a></td>
+</tr></table>
+</td></tr></table></td></tr>
+<tr><td class="px" style="padding:16px 28px 0;font-size:12px;line-height:18px;"><p class="c-fg3" style="margin:0 0 6px;color:#5c6771;">Sie erhalten diese E-Mail, weil Ops (ops@example.test) Ausfälle erhält. <a href="https://monitor.example.test/settings/notifications/team" class="c-fg2" style="color:#3f4952;text-decoration:underline;">Benachrichtigungen ändern</a></p><p class="c-fg3" style="margin:0;color:#5c6771;">Heptapod · localhost</p></td></tr>
+</table></td></tr></table></body></html>
+
+---
+[Ausgefallen] api.example.test — nach 1 Std. 1 Min. weiter ausgefallen, seit 00:29 UTC
+-- PLAIN --
+Example Agency · api.example.test
+api.example.test ist seit 1 Std. 1 Min. weiter ausgefallen.
+Ausgefallen · seit 00:29 UTC · #{id}
+
+Störung #{id} ist weiter offen. Öffnen Sie die Störung, um die aktuellen Prüfergebnisse zu sehen.
+
+Störung #{id} öffnen: https://monitor.example.test/incidents/{id}
+Erinnerungen pausieren: https://monitor.example.test/incidents/{id}#snooze
+
+Sie erhalten diese E-Mail, weil Ops (ops@example.test) Ausfälle erhält.
+Benachrichtigungen ändern: https://monitor.example.test/settings/notifications/team
+Heptapod · localhost
+
+-- HTML --
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[Ausgefallen] api.example.test — nach 1 Std. 1 Min. weiter ausgefallen, seit 00:29 UTC</title>
+<style>
+body{margin:0;padding:0}a{color:inherit}
+@media (max-width:480px){.px{padding-left:20px!important;padding-right:20px!important}.h1{font-size:19px!important;line-height:25px!important}}
+@media (prefers-color-scheme:dark){ .bg-bg{background:#0d1013!important}.bg-card{background:#13171b!important;border-color:#262c33!important}.bg-sunken{background:#0f1215!important;border-color:#1c2127!important}.bd-soft{border-color:#1c2127!important}.btn-primary{background:#e6e9ec!important}.btn-primary a{color:#0d1013!important}.c-bg{color:#0d1013!important}.chip-bg{color:#0d1013!important;border-color:#0d1013!important}.c-card{color:#13171b!important}.chip-card{color:#13171b!important;border-color:#13171b!important}.c-line{color:#262c33!important}.chip-line{color:#262c33!important;border-color:#262c33!important}.c-soft{color:#1c2127!important}.chip-soft{color:#1c2127!important;border-color:#1c2127!important}.c-sunken{color:#0f1215!important}.chip-sunken{color:#0f1215!important;border-color:#0f1215!important}.c-fg{color:#e6e9ec!important}.chip-fg{color:#e6e9ec!important;border-color:#e6e9ec!important}.c-fg2{color:#a2abb4!important}.chip-fg2{color:#a2abb4!important;border-color:#a2abb4!important}.c-fg3{color:#848e99!important}.chip-fg3{color:#848e99!important;border-color:#848e99!important}.c-down{color:#e6574d!important}.chip-down{color:#e6574d!important;border-color:#e6574d!important}.c-warn{color:#dd8a43!important}.chip-warn{color:#dd8a43!important;border-color:#dd8a43!important}.c-ok{color:#79ad95!important}.chip-ok{color:#79ad95!important;border-color:#79ad95!important}.c-info{color:#7f9fc0!important}.chip-info{color:#7f9fc0!important;border-color:#7f9fc0!important}.c-error{color:#8b96a1!important}.chip-error{color:#8b96a1!important;border-color:#8b96a1!important}.bar-down{background:#e6574d!important}.avatar-letter{background:#4B4B57!important;color:#ffffff!important} }
+[data-ogsc] .bg-bg{background:#0d1013!important}[data-ogsc] .bg-card{background:#13171b!important;border-color:#262c33!important}[data-ogsc] .bg-sunken{background:#0f1215!important;border-color:#1c2127!important}[data-ogsc] .bd-soft{border-color:#1c2127!important}[data-ogsc] .btn-primary{background:#e6e9ec!important}[data-ogsc] .btn-primary a{color:#0d1013!important}[data-ogsc] .c-bg{color:#0d1013!important}[data-ogsc] .chip-bg{color:#0d1013!important;border-color:#0d1013!important}[data-ogsc] .c-card{color:#13171b!important}[data-ogsc] .chip-card{color:#13171b!important;border-color:#13171b!important}[data-ogsc] .c-line{color:#262c33!important}[data-ogsc] .chip-line{color:#262c33!important;border-color:#262c33!important}[data-ogsc] .c-soft{color:#1c2127!important}[data-ogsc] .chip-soft{color:#1c2127!important;border-color:#1c2127!important}[data-ogsc] .c-sunken{color:#0f1215!important}[data-ogsc] .chip-sunken{color:#0f1215!important;border-color:#0f1215!important}[data-ogsc] .c-fg{color:#e6e9ec!important}[data-ogsc] .chip-fg{color:#e6e9ec!important;border-color:#e6e9ec!important}[data-ogsc] .c-fg2{color:#a2abb4!important}[data-ogsc] .chip-fg2{color:#a2abb4!important;border-color:#a2abb4!important}[data-ogsc] .c-fg3{color:#848e99!important}[data-ogsc] .chip-fg3{color:#848e99!important;border-color:#848e99!important}[data-ogsc] .c-down{color:#e6574d!important}[data-ogsc] .chip-down{color:#e6574d!important;border-color:#e6574d!important}[data-ogsc] .c-warn{color:#dd8a43!important}[data-ogsc] .chip-warn{color:#dd8a43!important;border-color:#dd8a43!important}[data-ogsc] .c-ok{color:#79ad95!important}[data-ogsc] .chip-ok{color:#79ad95!important;border-color:#79ad95!important}[data-ogsc] .c-info{color:#7f9fc0!important}[data-ogsc] .chip-info{color:#7f9fc0!important;border-color:#7f9fc0!important}[data-ogsc] .c-error{color:#8b96a1!important}[data-ogsc] .chip-error{color:#8b96a1!important;border-color:#8b96a1!important}[data-ogsc] .bar-down{background:#e6574d!important}[data-ogsc] .avatar-letter{background:#4B4B57!important;color:#ffffff!important}
+</style></head>
+<body class="bg-bg" style="margin:0;padding:0;background:#e8ebed;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Eine Erinnerung für denselben offenen Ausfall.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-bg" style="background:#e8ebed;"><tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;"><tr><td>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-card" style="background:#ffffff;border:1px solid #d3d8dc;border-radius:10px;">
+<tr><td class="bar-down" style="height:3px;line-height:3px;font-size:0;background:#b42f28;border-radius:10px 10px 0 0;">&nbsp;</td></tr>
+<tr><td class="px" style="padding:20px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="font-size:13px;">
+<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+<td class="avatar-letter" aria-hidden="true" align="center" valign="middle" style="width:20px;height:20px;line-height:20px;border-radius:10px;background:#4B4B57;color:#ffffff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;font-weight:600;">EA</td><td style="width:5px;"></td>
+<td><span class="c-fg2" style="color:#3f4952;vertical-align:middle;">Example Agency · api.example.test</span></td></tr></table>
+</td><td align="right" valign="middle"><img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="border:0;display:inline-block;"></td></tr></table></td></tr>
+<tr><td class="px" style="padding:22px 28px 28px;">
+<h1 class="h1 c-fg" style="margin:0 0 12px;font-size:21px;line-height:28px;font-weight:600;letter-spacing:-0.2px;color:#101418;">api.example.test ist seit 1 Std. 1 Min. weiter ausgefallen.</h1>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;"><tr><td class="chip-down" style="border:1px solid #b42f28;border-radius:11px;padding:1px 9px;font-size:12px;font-weight:600;color:#b42f28;white-space:nowrap;">Ausgefallen</td><td class="c-fg3" style="padding-left:10px;font-size:12.5px;color:#5c6771;">seit 00:29 UTC · #{id}</td></tr></table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr><td style="padding:0 0 16px;"><p class="c-fg2" style="margin:0;color:#3f4952;font-size:13px;line-height:20px;">Störung #{id} ist weiter offen. Öffnen Sie die Störung, um die aktuellen Prüfergebnisse zu sehen.</p>
+</td></tr>
+</table>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 0;"><tr><td class="btn-primary" style="background:#101418;border-radius:16px;"><a href="https://monitor.example.test/incidents/{id}" style="display:inline-block;padding:8px 18px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">Störung #{id} öffnen</a></td>
+<td style="padding-left:16px;font-size:14px;"><a href="https://monitor.example.test/incidents/{id}#snooze" class="c-fg2" style="color:#3f4952;text-decoration:underline;">Erinnerungen pausieren</a></td>
+</tr></table>
+</td></tr></table></td></tr>
+<tr><td class="px" style="padding:16px 28px 0;font-size:12px;line-height:18px;"><p class="c-fg3" style="margin:0 0 6px;color:#5c6771;">Sie erhalten diese E-Mail, weil Ops (ops@example.test) Ausfälle erhält. <a href="https://monitor.example.test/settings/notifications/team" class="c-fg2" style="color:#3f4952;text-decoration:underline;">Benachrichtigungen ändern</a></p><p class="c-fg3" style="margin:0;color:#5c6771;">Heptapod · localhost</p></td></tr>
+</table></td></tr></table></body></html>
+
+---
+[Entwarnung] api.example.test nach 1 Std. 1 Min.
+-- PLAIN --
+Example Agency · api.example.test
+api.example.test ist nach 1 Std. 1 Min. wieder erreichbar.
+Entwarnung · ausgefallen 00:29 UTC – 01:30 UTC · #{id} behoben
+
+Behoben: HTTP 503 Service Unavailable, Beginn 00:29 UTC.
+
+Was sich geändert hat
+Bei Eröffnung: HTTP 503 Service Unavailable · 00:30 UTC
+Bei Wiederherstellung: Website ist erreichbar · 01:30 UTC
+
+Störung #{id} öffnen: https://monitor.example.test/incidents/{id}
+
+Sie erhalten diese E-Mail, weil Ops (ops@example.test) Entwarnungen erhält.
+Benachrichtigungen ändern: https://monitor.example.test/settings/notifications/team
+Heptapod · localhost
+
+-- HTML --
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[Entwarnung] api.example.test nach 1 Std. 1 Min.</title>
+<style>
+body{margin:0;padding:0}a{color:inherit}
+@media (max-width:480px){.px{padding-left:20px!important;padding-right:20px!important}.h1{font-size:19px!important;line-height:25px!important}}
+@media (prefers-color-scheme:dark){ .bg-bg{background:#0d1013!important}.bg-card{background:#13171b!important;border-color:#262c33!important}.bg-sunken{background:#0f1215!important;border-color:#1c2127!important}.bd-soft{border-color:#1c2127!important}.btn-primary{background:#e6e9ec!important}.btn-primary a{color:#0d1013!important}.c-bg{color:#0d1013!important}.chip-bg{color:#0d1013!important;border-color:#0d1013!important}.c-card{color:#13171b!important}.chip-card{color:#13171b!important;border-color:#13171b!important}.c-line{color:#262c33!important}.chip-line{color:#262c33!important;border-color:#262c33!important}.c-soft{color:#1c2127!important}.chip-soft{color:#1c2127!important;border-color:#1c2127!important}.c-sunken{color:#0f1215!important}.chip-sunken{color:#0f1215!important;border-color:#0f1215!important}.c-fg{color:#e6e9ec!important}.chip-fg{color:#e6e9ec!important;border-color:#e6e9ec!important}.c-fg2{color:#a2abb4!important}.chip-fg2{color:#a2abb4!important;border-color:#a2abb4!important}.c-fg3{color:#848e99!important}.chip-fg3{color:#848e99!important;border-color:#848e99!important}.c-down{color:#e6574d!important}.chip-down{color:#e6574d!important;border-color:#e6574d!important}.c-warn{color:#dd8a43!important}.chip-warn{color:#dd8a43!important;border-color:#dd8a43!important}.c-ok{color:#79ad95!important}.chip-ok{color:#79ad95!important;border-color:#79ad95!important}.c-info{color:#7f9fc0!important}.chip-info{color:#7f9fc0!important;border-color:#7f9fc0!important}.c-error{color:#8b96a1!important}.chip-error{color:#8b96a1!important;border-color:#8b96a1!important}.bar-down{background:#e6574d!important}.avatar-letter{background:#4B4B57!important;color:#ffffff!important} }
+[data-ogsc] .bg-bg{background:#0d1013!important}[data-ogsc] .bg-card{background:#13171b!important;border-color:#262c33!important}[data-ogsc] .bg-sunken{background:#0f1215!important;border-color:#1c2127!important}[data-ogsc] .bd-soft{border-color:#1c2127!important}[data-ogsc] .btn-primary{background:#e6e9ec!important}[data-ogsc] .btn-primary a{color:#0d1013!important}[data-ogsc] .c-bg{color:#0d1013!important}[data-ogsc] .chip-bg{color:#0d1013!important;border-color:#0d1013!important}[data-ogsc] .c-card{color:#13171b!important}[data-ogsc] .chip-card{color:#13171b!important;border-color:#13171b!important}[data-ogsc] .c-line{color:#262c33!important}[data-ogsc] .chip-line{color:#262c33!important;border-color:#262c33!important}[data-ogsc] .c-soft{color:#1c2127!important}[data-ogsc] .chip-soft{color:#1c2127!important;border-color:#1c2127!important}[data-ogsc] .c-sunken{color:#0f1215!important}[data-ogsc] .chip-sunken{color:#0f1215!important;border-color:#0f1215!important}[data-ogsc] .c-fg{color:#e6e9ec!important}[data-ogsc] .chip-fg{color:#e6e9ec!important;border-color:#e6e9ec!important}[data-ogsc] .c-fg2{color:#a2abb4!important}[data-ogsc] .chip-fg2{color:#a2abb4!important;border-color:#a2abb4!important}[data-ogsc] .c-fg3{color:#848e99!important}[data-ogsc] .chip-fg3{color:#848e99!important;border-color:#848e99!important}[data-ogsc] .c-down{color:#e6574d!important}[data-ogsc] .chip-down{color:#e6574d!important;border-color:#e6574d!important}[data-ogsc] .c-warn{color:#dd8a43!important}[data-ogsc] .chip-warn{color:#dd8a43!important;border-color:#dd8a43!important}[data-ogsc] .c-ok{color:#79ad95!important}[data-ogsc] .chip-ok{color:#79ad95!important;border-color:#79ad95!important}[data-ogsc] .c-info{color:#7f9fc0!important}[data-ogsc] .chip-info{color:#7f9fc0!important;border-color:#7f9fc0!important}[data-ogsc] .c-error{color:#8b96a1!important}[data-ogsc] .chip-error{color:#8b96a1!important;border-color:#8b96a1!important}[data-ogsc] .bar-down{background:#e6574d!important}[data-ogsc] .avatar-letter{background:#4B4B57!important;color:#ffffff!important}
+</style></head>
+<body class="bg-bg" style="margin:0;padding:0;background:#e8ebed;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Die Erreichbarkeitsprüfung bestätigt, dass die Website wieder erreichbar ist.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-bg" style="background:#e8ebed;"><tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;"><tr><td>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-card" style="background:#ffffff;border:1px solid #d3d8dc;border-radius:10px;">
+<tr><td class="px" style="padding:20px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="font-size:13px;">
+<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+<td class="avatar-letter" aria-hidden="true" align="center" valign="middle" style="width:20px;height:20px;line-height:20px;border-radius:10px;background:#4B4B57;color:#ffffff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;font-weight:600;">EA</td><td style="width:5px;"></td>
+<td><span class="c-fg2" style="color:#3f4952;vertical-align:middle;">Example Agency · api.example.test</span></td></tr></table>
+</td><td align="right" valign="middle"><img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="border:0;display:inline-block;"></td></tr></table></td></tr>
+<tr><td class="px" style="padding:22px 28px 28px;">
+<h1 class="h1 c-fg" style="margin:0 0 12px;font-size:21px;line-height:28px;font-weight:600;letter-spacing:-0.2px;color:#101418;">api.example.test ist nach 1 Std. 1 Min. wieder erreichbar.</h1>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;"><tr><td class="chip-ok" style="border:1px solid #2c6a4e;border-radius:11px;padding:1px 9px;font-size:12px;font-weight:600;color:#2c6a4e;white-space:nowrap;">Entwarnung</td><td class="c-fg3" style="padding-left:10px;font-size:12.5px;color:#5c6771;">ausgefallen 00:29 UTC – 01:30 UTC · #{id} behoben</td></tr></table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr><td style="padding:0 0 16px;"><p class="c-fg2" style="margin:0;color:#3f4952;font-size:13px;line-height:20px;">Behoben: HTTP 503 Service Unavailable, Beginn 00:29 UTC.</p>
+</td></tr>
+<tr><td style="padding:0 0 16px;"><p class="c-fg3" style="margin:0 0 8px;color:#5c6771;font-size:12px;">Was sich geändert hat</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-sunken" style="background:#f5f6f7;border:1px solid #e1e5e8;border-radius:8px;"><tr><td style="padding:12px 14px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr><td valign="top" class="c-fg3" style="color:#5c6771;font-size:12px;padding:3px 12px 3px 0;width:38%;">Bei Eröffnung</td><td valign="top" style="padding:3px 0;"><span class="c-fg" style="color:#101418;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:12px;word-break:break-word;">HTTP 503 Service Unavailable · 00:30 UTC</span>
+</td></tr>
+<tr><td valign="top" class="c-fg3" style="color:#5c6771;font-size:12px;padding:3px 12px 3px 0;width:38%;">Bei Wiederherstellung</td><td valign="top" style="padding:3px 0;"><span class="c-ok" style="color:#2c6a4e;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:12px;word-break:break-word;">Website ist erreichbar · 01:30 UTC</span>
+</td></tr>
+</table></td></tr></table>
+</td></tr>
+</table>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 0;"><tr><td class="btn-primary" style="background:#101418;border-radius:16px;"><a href="https://monitor.example.test/incidents/{id}" style="display:inline-block;padding:8px 18px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">Störung #{id} öffnen</a></td>
+</tr></table>
+</td></tr></table></td></tr>
+<tr><td class="px" style="padding:16px 28px 0;font-size:12px;line-height:18px;"><p class="c-fg3" style="margin:0 0 6px;color:#5c6771;">Sie erhalten diese E-Mail, weil Ops (ops@example.test) Entwarnungen erhält. <a href="https://monitor.example.test/settings/notifications/team" class="c-fg2" style="color:#3f4952;text-decoration:underline;">Benachrichtigungen ändern</a></p><p class="c-fg3" style="margin:0;color:#5c6771;">Heptapod · localhost</p></td></tr>
+</table></td></tr></table></body></html>
+
+---
+Tägliche Zusammenfassung
+-- PLAIN --
+Tägliche Zusammenfassung
+1 Alarm ist weiterhin offen.
+
+Offen, Stand 5. Okt 2026, 08:00 CEST
+- api.example.test · Erreichbarkeit · Warnung
+
+Websites öffnen: https://monitor.example.test/sites
+
+Sie erhalten diese E-Mail, weil Ops (ops@example.test) die tägliche Zusammenfassung erhält.
+Benachrichtigungen ändern: https://monitor.example.test/settings/notifications/team
+Heptapod · localhost
+
+-- HTML --
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Tägliche Zusammenfassung</title>
+<style>
+body{margin:0;padding:0}a{color:inherit}
+@media (max-width:480px){.px{padding-left:20px!important;padding-right:20px!important}.h1{font-size:19px!important;line-height:25px!important}}
+@media (prefers-color-scheme:dark){ .bg-bg{background:#0d1013!important}.bg-card{background:#13171b!important;border-color:#262c33!important}.bg-sunken{background:#0f1215!important;border-color:#1c2127!important}.bd-soft{border-color:#1c2127!important}.btn-primary{background:#e6e9ec!important}.btn-primary a{color:#0d1013!important}.c-bg{color:#0d1013!important}.chip-bg{color:#0d1013!important;border-color:#0d1013!important}.c-card{color:#13171b!important}.chip-card{color:#13171b!important;border-color:#13171b!important}.c-line{color:#262c33!important}.chip-line{color:#262c33!important;border-color:#262c33!important}.c-soft{color:#1c2127!important}.chip-soft{color:#1c2127!important;border-color:#1c2127!important}.c-sunken{color:#0f1215!important}.chip-sunken{color:#0f1215!important;border-color:#0f1215!important}.c-fg{color:#e6e9ec!important}.chip-fg{color:#e6e9ec!important;border-color:#e6e9ec!important}.c-fg2{color:#a2abb4!important}.chip-fg2{color:#a2abb4!important;border-color:#a2abb4!important}.c-fg3{color:#848e99!important}.chip-fg3{color:#848e99!important;border-color:#848e99!important}.c-down{color:#e6574d!important}.chip-down{color:#e6574d!important;border-color:#e6574d!important}.c-warn{color:#dd8a43!important}.chip-warn{color:#dd8a43!important;border-color:#dd8a43!important}.c-ok{color:#79ad95!important}.chip-ok{color:#79ad95!important;border-color:#79ad95!important}.c-info{color:#7f9fc0!important}.chip-info{color:#7f9fc0!important;border-color:#7f9fc0!important}.c-error{color:#8b96a1!important}.chip-error{color:#8b96a1!important;border-color:#8b96a1!important}.bar-down{background:#e6574d!important} }
+[data-ogsc] .bg-bg{background:#0d1013!important}[data-ogsc] .bg-card{background:#13171b!important;border-color:#262c33!important}[data-ogsc] .bg-sunken{background:#0f1215!important;border-color:#1c2127!important}[data-ogsc] .bd-soft{border-color:#1c2127!important}[data-ogsc] .btn-primary{background:#e6e9ec!important}[data-ogsc] .btn-primary a{color:#0d1013!important}[data-ogsc] .c-bg{color:#0d1013!important}[data-ogsc] .chip-bg{color:#0d1013!important;border-color:#0d1013!important}[data-ogsc] .c-card{color:#13171b!important}[data-ogsc] .chip-card{color:#13171b!important;border-color:#13171b!important}[data-ogsc] .c-line{color:#262c33!important}[data-ogsc] .chip-line{color:#262c33!important;border-color:#262c33!important}[data-ogsc] .c-soft{color:#1c2127!important}[data-ogsc] .chip-soft{color:#1c2127!important;border-color:#1c2127!important}[data-ogsc] .c-sunken{color:#0f1215!important}[data-ogsc] .chip-sunken{color:#0f1215!important;border-color:#0f1215!important}[data-ogsc] .c-fg{color:#e6e9ec!important}[data-ogsc] .chip-fg{color:#e6e9ec!important;border-color:#e6e9ec!important}[data-ogsc] .c-fg2{color:#a2abb4!important}[data-ogsc] .chip-fg2{color:#a2abb4!important;border-color:#a2abb4!important}[data-ogsc] .c-fg3{color:#848e99!important}[data-ogsc] .chip-fg3{color:#848e99!important;border-color:#848e99!important}[data-ogsc] .c-down{color:#e6574d!important}[data-ogsc] .chip-down{color:#e6574d!important;border-color:#e6574d!important}[data-ogsc] .c-warn{color:#dd8a43!important}[data-ogsc] .chip-warn{color:#dd8a43!important;border-color:#dd8a43!important}[data-ogsc] .c-ok{color:#79ad95!important}[data-ogsc] .chip-ok{color:#79ad95!important;border-color:#79ad95!important}[data-ogsc] .c-info{color:#7f9fc0!important}[data-ogsc] .chip-info{color:#7f9fc0!important;border-color:#7f9fc0!important}[data-ogsc] .c-error{color:#8b96a1!important}[data-ogsc] .chip-error{color:#8b96a1!important;border-color:#8b96a1!important}[data-ogsc] .bar-down{background:#e6574d!important}
+</style></head>
+<body class="bg-bg" style="margin:0;padding:0;background:#e8ebed;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">1 Alarm ist weiterhin offen.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-bg" style="background:#e8ebed;"><tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;"><tr><td>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-card" style="background:#ffffff;border:1px solid #d3d8dc;border-radius:10px;">
+<tr><td class="px" style="padding:20px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="font-size:13px;">
+</td><td align="right" valign="middle"><img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="border:0;display:inline-block;"></td></tr></table></td></tr>
+<tr><td class="px" style="padding:22px 28px 28px;">
+<h1 class="h1 c-fg" style="margin:0 0 8px;font-size:21px;line-height:28px;font-weight:600;letter-spacing:-0.2px;color:#101418;">Tägliche Zusammenfassung</h1>
+<p class="c-fg2" style="margin:0 0 14px;font-size:14px;line-height:21px;color:#3f4952;">1 Alarm ist weiterhin offen.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr><td style="padding:0 0 16px;"><p class="c-fg3" style="margin:0 0 8px;color:#5c6771;font-size:12px;">Offen, Stand 5. Okt 2026, 08:00 CEST</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-sunken" style="background:#f5f6f7;border:1px solid #e1e5e8;border-radius:8px;"><tr><td style="padding:12px 14px;">
+<div style="font-size:13px;line-height:22px;overflow-wrap:anywhere;word-break:break-word;"><span class="c-fg" style="color:#101418;">api.example.test</span> <span class="c-fg3" style="color:#5c6771;">· Erreichbarkeit · Warnung</span></div>
+</td></tr></table>
+</td></tr>
+</table>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 0;"><tr><td class="btn-primary" style="background:#101418;border-radius:16px;"><a href="https://monitor.example.test/sites" style="display:inline-block;padding:8px 18px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">Websites öffnen</a></td>
+</tr></table>
+</td></tr></table></td></tr>
+<tr><td class="px" style="padding:16px 28px 0;font-size:12px;line-height:18px;"><p class="c-fg3" style="margin:0 0 6px;color:#5c6771;">Sie erhalten diese E-Mail, weil Ops (ops@example.test) die tägliche Zusammenfassung erhält. <a href="https://monitor.example.test/settings/notifications/team" class="c-fg2" style="color:#3f4952;text-decoration:underline;">Benachrichtigungen ändern</a></p><p class="c-fg3" style="margin:0;color:#5c6771;">Heptapod · localhost</p></td></tr>
+</table></td></tr></table></body></html>

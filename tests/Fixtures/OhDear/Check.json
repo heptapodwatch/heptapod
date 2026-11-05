@@ -1,0 +1,13 @@
+{
+    "id": 100,
+    "type": "uptime",
+    "label": "Uptime",
+    "enabled": true,
+    "latest_run_ended_at": "2026-10-01 07:29:02",
+    "latest_run_result": "succeeded",
+    "summary": "Up",
+    "settings": {
+        "uptime_check_settings": { "uptime_check_location": "paris" }
+    },
+    "active_snooze": null
+}

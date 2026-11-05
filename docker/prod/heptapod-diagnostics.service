@@ -1,0 +1,16 @@
+[Unit]
+Description=Heptapod retained worker diagnostics
+
+[Service]
+Type=simple
+# Change both paths to the production checkout; use its existing Docker access.
+WorkingDirectory=/srv/heptapod
+ExecStart=/usr/bin/env bash /srv/heptapod/scripts/retain-diagnostics.sh watch
+UMask=0077
+Restart=on-failure
+RestartSec=10
+StandardOutput=null
+StandardError=journal
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,196 @@
+{
+    "me": {
+        "id": 12,
+        "name": "Example Operator",
+        "email": "operator@example.com",
+        "photo_url": "https://example.com/avatar.jpg",
+        "teams": [
+            {
+                "id": 48,
+                "name": "Example team",
+                "timezone": "Europe/Berlin",
+                "created_at": "2024-01-10 12:00:00"
+            }
+        ]
+    },
+    "monitors": [
+        {
+            "id": 101,
+            "team_id": 48,
+            "type": "http",
+            "url": "https://import.example.com",
+            "uses_https": true,
+            "sort_url": "import.example.com",
+            "label": "Storefront",
+            "group_name": "Production",
+            "description": "Customer storefront",
+            "notes": "Imported monitor",
+            "tags": ["production", "shop"],
+            "checks": [
+                {
+                    "id": 1001,
+                    "type": "uptime",
+                    "label": "Uptime",
+                    "enabled": true
+                },
+                {
+                    "id": 1002,
+                    "type": "performance",
+                    "label": "Performance",
+                    "enabled": true
+                },
+                {
+                    "id": 1003,
+                    "type": "certificate_health",
+                    "label": "Certificate health",
+                    "enabled": false
+                },
+                { "id": 1004, "type": "dns", "label": "DNS", "enabled": true },
+                {
+                    "id": 1005,
+                    "type": "cron",
+                    "label": "Cron",
+                    "enabled": true
+                },
+                {
+                    "id": 1006,
+                    "type": "application_health",
+                    "label": "Application health",
+                    "enabled": true
+                }
+            ],
+            "uptime_check_settings": {
+                "location": "paris",
+                "http_verb": "get",
+                "look_for_string": "Store",
+                "absent_string": null,
+                "valid_status_codes": ["2*"],
+                "timeout": 15,
+                "frequency_value": 5,
+                "frequency_unit": "minute",
+                "failed_notification_threshold": 3,
+                "http_client_headers": [
+                    {
+                        "name": "Authorization",
+                        "value": "fixture-uptime-secret"
+                    },
+                    { "name": "X-Trace", "value": "first" },
+                    { "name": "X-Trace", "value": "second" }
+                ],
+                "payload": [],
+                "raw_payload": null,
+                "expected_response_headers": [
+                    {
+                        "name": "Content-Type",
+                        "condition": "contains",
+                        "value": "text/html"
+                    }
+                ],
+                "response_body_assertions": [],
+                "max_redirect_count": 4,
+                "expected_final_redirect_url": null
+            },
+            "performance_check_settings": {
+                "threshold_in_ms": 750,
+                "change_percentage": 30
+            },
+            "certificate_health_check_settings": {
+                "expires_soon_threshold_in_days": 14
+            },
+            "dns_check_settings": {
+                "extra_cnames": ["www.import.example.com"],
+                "monitor_main_domain": true,
+                "ignored_record_types": ["TXT"],
+                "check_nameservers_in_sync": false
+            },
+            "application_health_check_settings": {
+                "result_url": "https://import.example.com/health",
+                "secret": "fixture-health-secret",
+                "headers": [
+                    {
+                        "name": "X-Service-Token",
+                        "value": "fixture-health-header-secret"
+                    }
+                ]
+            },
+            "crawler_headers": [
+                { "name": "Authorization", "value": "fixture-crawler-secret" }
+            ],
+            "send_report_to_emails": ["reports@example.com"],
+            "include_check_types_in_report": ["uptime", "application_health"],
+            "badge_id": "upstream-badge",
+            "created_at": "2024-01-10 12:00:00",
+            "updated_at": "2026-01-10 12:00:00"
+        },
+        {
+            "id": 102,
+            "team_id": 48,
+            "type": "tcp",
+            "url": "tcp.example.com",
+            "checks": []
+        },
+        {
+            "id": 103,
+            "team_id": 48,
+            "type": "http",
+            "url": "https://duplicate.example.com",
+            "checks": []
+        }
+    ],
+    "cron": [
+        {
+            "id": 201,
+            "uuid": "8b1f8d12-7e60-4a65-a764-8d1b3f59a46b",
+            "name": "nightly-backup",
+            "type": "cron",
+            "description": "Nightly backup",
+            "frequency_in_minutes": null,
+            "grace_time_in_minutes": 10,
+            "cron_expression": "0 2 * * *",
+            "server_timezone": "Europe/Berlin",
+            "ping_url": "https://ping.ohdear.app/fixture-ping-secret",
+            "created_at": "2024-01-10 12:00:00",
+            "latest_result": "pingFinished",
+            "latest_ping_at": "2026-01-10 02:00:00"
+        },
+        {
+            "id": 202,
+            "uuid": "7e21b398-6f36-4aba-84f1-16a5b616ae1a",
+            "name": "heartbeat",
+            "type": "simple",
+            "description": null,
+            "frequency_in_minutes": 5,
+            "grace_time_in_minutes": 1,
+            "cron_expression": null,
+            "server_timezone": "UTC",
+            "ping_url": "https://ping.ohdear.app/fixture-ping-secret-2",
+            "created_at": "2024-01-10 12:00:00",
+            "latest_result": "pingFinished"
+        }
+    ],
+    "maintenance": [
+        {
+            "id": 301,
+            "monitor_id": 101,
+            "name": "Release",
+            "starts_at": "2030-01-10 12:00:00",
+            "ends_at": "2030-01-10 13:00:00"
+        }
+    ],
+    "recurring": [
+        {
+            "id": 401,
+            "monitor_id": 101,
+            "name": "Weekly backup",
+            "recurrence_type": "weekly",
+            "days_of_week": [1, 3],
+            "day_of_month": null,
+            "start_time": "02:00",
+            "end_time": "03:00",
+            "human_readable_schedule": "Monday and Wednesday",
+            "last_generated_until": "2030-01-31",
+            "created_at": "2024-01-10 12:00:00",
+            "updated_at": "2026-01-10 12:00:00"
+        }
+    ]
+}

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url><loc>http://fixtures.test/</loc></url>
+    <url><loc>http://fixtures.test/docs/</loc></url>
+    <url><loc>http://fixtures.test/docs/level-two/</loc></url>
+    <url><loc>http://fixtures.test/docs/level-two/level-three/</loc></url>
+</urlset>

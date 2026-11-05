@@ -1,0 +1,8 @@
+{
+    "schemaVersion": 2,
+    "config": {
+        "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "size": 20
+    },
+    "layers": []
+}

@@ -1,0 +1,13 @@
+[
+    {
+        "total_count": 3,
+        "artifacts": [
+            { "id": 301, "expired": false, "size_in_bytes": 123 },
+            { "id": 302, "expired": true, "size_in_bytes": 9000 }
+        ]
+    },
+    {
+        "total_count": 3,
+        "artifacts": [{ "id": 303, "expired": false, "size_in_bytes": 456 }]
+    }
+]

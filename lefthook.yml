@@ -1,0 +1,44 @@
+rc: ./scripts/hooks-rc.sh
+assert_lefthook_installed: true
+
+pre-commit:
+    commands:
+        pint:
+            glob: '*.php'
+            exclude: '.worktrees/**'
+            run: vendor/bin/pint {staged_files}
+            stage_fixed: true
+        frontend:
+            glob: '*.{js,jsx,ts,tsx,json,css,yml,yaml,html,md}'
+            exclude: '.worktrees/**'
+            run: node_modules/.bin/vp check --fix --no-lint {staged_files}
+            stage_fixed: true
+        frontend-lint:
+            glob: '*.{js,jsx,ts,tsx}'
+            exclude:
+                - '.worktrees/**'
+                - 'vendor/**'
+                - 'node_modules/**'
+                - 'public/**'
+                - 'bootstrap/ssr/**'
+                - 'tailwind.config.js'
+                - 'resources/js/actions/**'
+                - 'resources/js/components/ui/*'
+                - 'resources/js/routes/**'
+                - 'resources/js/wayfinder/**'
+                - 'resources/js/types/generated*'
+            run: node_modules/.bin/vp lint {staged_files}
+        larastan:
+            glob: '*.php'
+            exclude: '.worktrees/**'
+            run: vendor/bin/phpstan analyse --no-progress
+
+pre-push:
+    commands:
+        checks:
+            run: bash scripts/pre-push-step.sh checks 1200 bash scripts/ci-checks.sh
+
+commit-msg:
+    commands:
+        conventional:
+            run: node_modules/.bin/commitlint --edit {1}

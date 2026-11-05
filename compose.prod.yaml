@@ -1,0 +1,255 @@
+# Run with: docker compose --env-file .env.prod -f compose.prod.yaml …
+name: heptapod
+x-app-image: &app-image ${APP_IMAGE:-ghcr.io/heptapodwatch/heptapod-app:main}
+x-lighthouse-image: &lighthouse-image ${LIGHTHOUSE_IMAGE:-ghcr.io/heptapodwatch/heptapod-lighthouse:main}
+x-runtime: &runtime
+    restart: unless-stopped
+    logging:
+        driver: json-file
+        options:
+            max-size: '10m'
+            max-file: '3'
+
+x-app: &app
+    <<: *runtime
+    image: *app-image
+    build:
+        context: .
+        dockerfile: docker/prod/Dockerfile
+        args:
+            HEPTAPOD_VERSION: ${HEPTAPOD_VERSION_BUILD:-unknown}
+            APT_SNAPSHOT_DATE: ${APT_SNAPSHOT_DATE:-}
+    env_file: .env.prod
+    environment: &app-environment
+        APP_ENV: production
+        APP_DEBUG: 'false'
+        LOG_CHANNEL: stderr
+        LOG_STDERR_FORMATTER: ${LOG_STDERR_FORMATTER:-Monolog\Formatter\JsonFormatter}
+        BROADCAST_CONNECTION: reverb
+        REVERB_HOST: reverb
+        REVERB_PORT: 8080
+        REVERB_SCHEME: http
+        SERVER_NAME: ${SERVER_NAME:?Set SERVER_NAME to your public DNS name}
+        DB_CONNECTION: pgsql
+        DB_HOST: postgres
+        REDIS_HOST: redis
+        RUN_MIGRATIONS: '0'
+    init: true
+    dns_opt: ['timeout:2', 'attempts:2']
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes:
+        - storage:/app/storage
+        - backups:/backups
+    networks: [backend, browser, lighthouse-control]
+    depends_on:
+        app:
+            condition: service_healthy
+        postgres:
+            condition: service_healthy
+        redis:
+            condition: service_healthy
+    healthcheck:
+        test: ['CMD', 'sh', '/app/docker/prod/healthcheck.sh']
+        interval: 30s
+        timeout: 5s
+        retries: 3
+        start_period: 30s
+
+services:
+    app:
+        <<: *app
+        mem_limit: 384m
+        memswap_limit: 384m
+        environment:
+            <<: *app-environment
+            RUN_MIGRATIONS: ${HEPTAPOD_APP_RUN_MIGRATIONS:-1}
+            HEPTAPOD_ROLE: web
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        networks: [backend, browser, lighthouse-control]
+        ports:
+            - '${HTTP_PORT:-80}:8080'
+            - '${HTTPS_PORT:-443}:8443'
+        volumes:
+            - storage:/app/storage
+            - backups:/backups
+            - caddy_data:/data
+            - caddy_config:/config
+        healthcheck:
+            test: ['CMD', 'sh', '/app/docker/prod/healthcheck.sh']
+            interval: 30s
+            timeout: 5s
+            retries: 3
+            start_period: 30s
+
+    horizon:
+        <<: *app
+        mem_limit: ${HORIZON_MEMORY_LIMIT:-1990m}
+        memswap_limit: ${HORIZON_MEMORY_LIMIT:-1990m}
+        environment:
+            <<: *app-environment
+            HEPTAPOD_ROLE: worker
+        stop_grace_period: 1245s
+
+    dispatcher:
+        <<: *app
+        mem_limit: 96m
+        memswap_limit: 96m
+        environment:
+            <<: *app-environment
+            HEPTAPOD_ROLE: dispatcher
+        stop_grace_period: 15s
+
+    scheduler:
+        <<: *app
+        mem_limit: 320m
+        memswap_limit: 320m
+        environment:
+            <<: *app-environment
+            HEPTAPOD_ROLE: scheduler
+        stop_grace_period: 150s
+
+    reverb:
+        <<: *app
+        mem_limit: 192m
+        memswap_limit: 192m
+        environment:
+            <<: *app-environment
+            HEPTAPOD_ROLE: reverb
+        networks: [backend]
+
+    postgres:
+        <<: *runtime
+        mem_limit: 384m
+        memswap_limit: 384m
+        image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+        environment:
+            POSTGRES_DB: ${DB_DATABASE:-heptapod}
+            POSTGRES_USER: ${DB_USERNAME:-heptapod}
+            POSTGRES_PASSWORD: ${DB_PASSWORD:?Set a strong DB_PASSWORD}
+        networks: [backend]
+        volumes:
+            - postgres:/var/lib/postgresql/data
+        healthcheck:
+            test:
+                [
+                    'CMD-SHELL',
+                    'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"',
+                ]
+            interval: 10s
+            timeout: 5s
+            retries: 10
+
+    redis:
+        <<: *runtime
+        mem_limit: 80m
+        memswap_limit: 80m
+        # Redis 8 offers the OSI-approved AGPLv3 option; do not use RSAL/SSPL-only Redis 7.4.
+        image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+        command: ['redis-server', '--appendonly', 'yes']
+        networks: [backend]
+        volumes:
+            - redis:/data
+        healthcheck:
+            test: ['CMD', 'redis-cli', 'ping']
+            interval: 10s
+            timeout: 5s
+            retries: 10
+
+    lighthouse:
+        <<: *runtime
+        profiles: [browser]
+        mem_limit: 1536m
+        memswap_limit: 1536m
+        image: *lighthouse-image
+        build:
+            context: .
+            dockerfile: docker/lighthouse/Dockerfile
+            args:
+                APT_SNAPSHOT_DATE: ${APT_SNAPSHOT_DATE:-}
+        init: true
+        shm_size: 1gb
+        cap_drop: [ALL]
+        security_opt: [no-new-privileges:true]
+        networks: [browser]
+        depends_on:
+            lighthouse-proxy:
+                condition: service_healthy
+
+    lighthouse-proxy:
+        <<: *runtime
+        profiles: [browser]
+        image: *lighthouse-image
+        command: ['/usr/local/bin/lighthouse-proxy']
+        mem_limit: 128m
+        memswap_limit: 128m
+        cap_drop: [ALL]
+        security_opt: [no-new-privileges:true]
+        networks:
+            browser:
+            egress:
+            lighthouse-control:
+                aliases: [lighthouse-proxy-control]
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'node',
+                    '-e',
+                    "fetch('http://localhost:3128/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+                ]
+            interval: 10s
+            timeout: 3s
+            retries: 10
+
+    gotenberg:
+        <<: *runtime
+        profiles: [browser]
+        mem_limit: 768m
+        memswap_limit: 768m
+        image: gotenberg/gotenberg:8.37.0@sha256:f29984bd1e226bf1b93ba90af06000afa8b315853e99d27b9aaa41b93f15c769
+        command:
+            [
+                'gotenberg',
+                '--chromium-max-concurrency=1',
+                '--chromium-max-queue-size=2',
+                '--chromium-start-timeout=60s',
+                '--api-timeout=120s',
+                '--chromium-deny-list=^(?!data:|file:///tmp/).*',
+                '--chromium-disable-javascript',
+                '--api-disable-download-from',
+                '--webhook-disable',
+                '--libreoffice-disable-routes',
+            ]
+        init: true
+        shm_size: 1gb
+        cap_drop: [ALL]
+        security_opt: [no-new-privileges:true]
+        networks: [browser]
+        healthcheck:
+            test: ['CMD', 'curl', '-fsS', 'http://localhost:3000/health']
+            interval: 30s
+            timeout: 5s
+            retries: 3
+            start_period: 30s
+
+networks:
+    backend:
+    browser:
+        internal: true
+    lighthouse-control:
+        internal: true
+    # Only the authenticated Lighthouse proxy has browser egress.
+    egress:
+
+volumes:
+    storage:
+    backups:
+    postgres:
+    redis:
+    caddy_data:
+    caddy_config:

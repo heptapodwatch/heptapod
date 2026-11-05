@@ -1,0 +1,30 @@
+{
+  "name": "heptapod/addon-certificate_health",
+  "description": "TLS certificate health monitoring for Heptapod",
+  "license": "AGPL-3.0-or-later",
+  "type": "library",
+  "version": "0.1.0",
+  "require": {
+    "php": "^8.5",
+    "ext-openssl": "^8.5",
+    "illuminate/database": "^13.34",
+    "illuminate/support": "^13.34",
+    "illuminate/validation": "^13.34",
+    "nesbot/carbon": "^3.14",
+    "spatie/laravel-data": "^4.23",
+    "spatie/ssl-certificate": "^2.7",
+    "spatie/typescript-transformer": "^3.3"
+  },
+  "autoload": {
+    "psr-4": {
+      "Heptapod\\Addons\\CertificateHealth\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Heptapod\\Addons\\CertificateHealth\\CertificateHealthServiceProvider"
+      ]
+    }
+  }
+}

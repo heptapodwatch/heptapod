@@ -1,0 +1,67 @@
+name: Push the scanned native image
+description: Publish the loaded image without rebuilding and verify its config identity
+inputs:
+  image:
+    required: true
+    description: Production image name
+  architecture:
+    required: true
+    description: Native architecture
+outputs:
+  digest-app-amd64:
+    value: ${{ steps.push.outputs.digest-app-amd64 }}
+    description: digest for app/amd64
+  scanned-config-app-amd64:
+    value: ${{ steps.push.outputs.scanned-config-app-amd64 }}
+    description: scanned-config for app/amd64
+  digest-app-arm64:
+    value: ${{ steps.push.outputs.digest-app-arm64 }}
+    description: digest for app/arm64
+  scanned-config-app-arm64:
+    value: ${{ steps.push.outputs.scanned-config-app-arm64 }}
+    description: scanned-config for app/arm64
+  digest-lighthouse-amd64:
+    value: ${{ steps.push.outputs.digest-lighthouse-amd64 }}
+    description: digest for lighthouse/amd64
+  scanned-config-lighthouse-amd64:
+    value: ${{ steps.push.outputs.scanned-config-lighthouse-amd64 }}
+    description: scanned-config for lighthouse/amd64
+  digest-lighthouse-arm64:
+    value: ${{ steps.push.outputs.digest-lighthouse-arm64 }}
+    description: digest for lighthouse/arm64
+  scanned-config-lighthouse-arm64:
+    value: ${{ steps.push.outputs.scanned-config-lighthouse-arm64 }}
+    description: scanned-config for lighthouse/arm64
+runs:
+  using: composite
+  steps:
+    - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+    - id: push
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        ARCHITECTURE: ${{ inputs.architecture }}
+      run: |
+        configuration=$(bash .github/actions/image-promotion/architectures.sh)
+        if ! jq -e --arg architecture "$ARCHITECTURE" '.architectures | index($architecture) != null' <<< "$configuration" >/dev/null; then
+          echo "::error::Cannot push unconfigured architecture $ARCHITECTURE"
+          exit 1
+        fi
+        native_platform=$(docker image inspect "heptapod-$IMAGE:ci" --format '{{.Os}}/{{.Architecture}}')
+        test "$native_platform" = "linux/$ARCHITECTURE"
+        image_reference=$(bash scripts/image-reference.sh "$IMAGE")
+        reference="$image_reference:ci-$GITHUB_SHA-$ARCHITECTURE"
+        scanned_config=$(bash scripts/image-config-digest.sh "heptapod-$IMAGE:ci")
+        docker tag "heptapod-$IMAGE:ci" "$reference"
+        docker push "$reference" | tee "$RUNNER_TEMP/push.log"
+        digest=$(sed -nE 's/.*digest: (sha256:[a-f0-9]{64}).*/\1/p' "$RUNNER_TEMP/push.log" | tail -n 1)
+        : "${digest:?Missing digest from image push}"
+        pushed_config=$(docker buildx imagetools inspect "$image_reference@$digest" --raw | jq -er '.config.digest')
+        test "$scanned_config" = "$pushed_config"
+        printf '| Scanned config | Pushed digest | Pushed config |\n| --- | --- | --- |\n| %s | %s | %s |\n' "$scanned_config" "$digest" "$pushed_config" >> "$GITHUB_STEP_SUMMARY"
+        echo "digest-$IMAGE-$ARCHITECTURE=$digest" >> "$GITHUB_OUTPUT"
+        echo "scanned-config-$IMAGE-$ARCHITECTURE=$scanned_config" >> "$GITHUB_OUTPUT"

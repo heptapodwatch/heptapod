@@ -1,0 +1,376 @@
+# No fixed project/container names: Compose derives isolation from the checkout directory.
+x-dev: &dev
+    build:
+        context: .
+        dockerfile: docker/dev/Dockerfile
+        # Set by scripts/dev-image-hash.sh; scripts/dev-up.sh compares it with the image label before any reset.
+        args:
+            DEV_IMAGE_INPUT_HASH: ${DEV_IMAGE_INPUT_HASH:-}
+    volumes:
+        - .:/workspace
+        # Linked worktrees point outside their checkout; hooks need the common index.
+        - ${GIT_COMMON_DIR:-./.git}:/git-common
+        # Pest's TIA subprocesses can lose Git exports; let their .git file resolve in worktrees.
+        - ${GIT_COMMON_DIR:-./.git}:${GIT_COMMON_DIR:-/git-common-alias}:ro
+        - node_modules:/workspace/node_modules
+        # Keep dependency and atomic Laravel manifest writes off the host bind mount.
+        - vendor:/workspace/vendor
+        - bootstrap_cache:/workspace/bootstrap/cache
+        - heavy_locks:/heavy-locks
+    init: true
+    dns_opt: ['timeout:2', 'attempts:2']
+
+x-live: &live
+    BROADCAST_CONNECTION: reverb
+    REVERB_APP_ID: ${REVERB_APP_ID:-heptapod-dev}
+    REVERB_APP_KEY: ${REVERB_APP_KEY:-heptapod-dev-key}
+    REVERB_APP_SECRET: ${REVERB_APP_SECRET:-heptapod-dev-secret}
+    REVERB_HOST: reverb
+    REVERB_PORT: 8080
+    REVERB_SCHEME: http
+    REVERB_APP_ALLOWED_ORIGINS: ${REVERB_APP_ALLOWED_ORIGINS:-}
+
+services:
+    dns-fixtures:
+        image: coredns/coredns:1.13.1@sha256:9b9128672209474da07c91439bf15ed704ae05ad918dd6454e5b6ae14e35fee6
+        profiles: [fixtures]
+        command: ['-conf', '/zones/Corefile']
+        volumes:
+            - ./addons/dns/tests/Fixtures/zones:/zones:ro
+        networks:
+            default:
+                aliases: [ns.dns.fixture.test, ns.provider.test]
+        ports:
+            - '127.0.0.1:${DNS_FIXTURES_PORT:-0}:53/udp'
+            - '127.0.0.1:${DNS_FIXTURES_PORT:-0}:53/tcp'
+
+    fixtures:
+        image: openresty/openresty:1.27.1.2-0-alpine
+        profiles: [fixtures]
+        command:
+            [
+                '/usr/local/openresty/bin/openresty',
+                '-g',
+                'daemon off;',
+                '-c',
+                '/fixtures/nginx.conf',
+            ]
+        volumes:
+            - ./docker/fixtures:/fixtures:ro
+        networks:
+            default:
+                aliases:
+                    - fixtures.test
+                    - external.fixtures.test
+                    - alert-quality-robots.fixtures.test
+                    - alert-quality-missing.fixtures.test
+                    - expired.fixtures.test
+                    - wrong-host.fixtures.test
+                    - names.fixtures.test
+                    - wildcard.fixtures.test
+                    - www.wildcard.fixtures.test
+                    - nested.www.wildcard.fixtures.test
+                    - alt.fixtures.test
+                    - self-signed.fixtures.test
+        ports:
+            - '127.0.0.1:${FIXTURES_HTTP_PORT:-8480}:80'
+            - '127.0.0.1:${FIXTURES_HTTPS_PORT:-8481}:443'
+            - '127.0.0.1:${FIXTURES_HTTPS_ALT_PORT:-444}:444'
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'wget',
+                    '-q',
+                    '-O',
+                    '/dev/null',
+                    'http://127.0.0.1/status/200',
+                ]
+            interval: 5s
+            timeout: 3s
+            retries: 5
+
+    fixtures-alt:
+        image: openresty/openresty:1.27.1.2-0-alpine
+        profiles: [fixtures]
+        command:
+            [
+                '/usr/local/openresty/bin/openresty',
+                '-g',
+                'daemon off;',
+                '-c',
+                '/fixtures/nginx.conf',
+            ]
+        volumes:
+            - ./docker/fixtures:/fixtures:ro
+        networks:
+            default:
+                aliases: [second.fixtures.test]
+        ports:
+            - '127.0.0.2:${FIXTURES_ALT_HTTP_PORT:-0}:80'
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'wget',
+                    '-q',
+                    '-O',
+                    '/dev/null',
+                    'http://127.0.0.1/status/200',
+                ]
+            interval: 5s
+            timeout: 3s
+            retries: 5
+
+    app:
+        <<: *dev
+        cpus: ${APP_CPUS:-4}
+        environment:
+            <<: *live
+            INSTALL_DEPENDENCIES: '1'
+            FRANKENPHP_NUM_THREADS: ${FRANKENPHP_NUM_THREADS:-4}
+            HEPTAPOD_HEAVY_SLOTS: ${HEPTAPOD_HEAVY_SLOTS:-3}
+        networks:
+            default:
+                aliases: [heptapod-app]
+            lighthouse-browser:
+                aliases: [heptapod-app]
+            lighthouse-control:
+        ports:
+            - '127.0.0.1:${APP_PORT:-8088}:80'
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD', 'curl', '-fsS', 'http://localhost/up']
+            interval: 5s
+            timeout: 3s
+            retries: 30
+            start_period: 120s
+
+    postgres:
+        image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+        environment:
+            POSTGRES_DB: ${DB_DATABASE:-heptapod}
+            POSTGRES_USER: ${DB_USERNAME:-heptapod}
+            POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+            POSTGRES_TEST_DB: heptapod_test
+        volumes:
+            - postgres:/var/lib/postgresql/data
+            - ./docker/postgres/init-test-db.sh:/docker-entrypoint-initdb.d/init-test-db.sh:ro
+        healthcheck:
+            test:
+                [
+                    'CMD-SHELL',
+                    'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"',
+                ]
+            interval: 5s
+            timeout: 3s
+            retries: 20
+
+    redis:
+        image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+        command: ['redis-server', '--appendonly', 'yes']
+        volumes:
+            - redis:/data
+        healthcheck:
+            test: ['CMD', 'redis-cli', 'ping']
+            interval: 5s
+            timeout: 3s
+            retries: 20
+
+    lighthouse:
+        profiles: [browser]
+        image: heptapod-lighthouse:local
+        build:
+            context: .
+            dockerfile: docker/lighthouse/Dockerfile
+            args:
+                APT_SNAPSHOT_DATE: ${APT_SNAPSHOT_DATE:-}
+        init: true
+        shm_size: 1gb
+        mem_limit: 1536m
+        cap_drop: [ALL]
+        security_opt: [no-new-privileges:true]
+        networks: [lighthouse-browser]
+        depends_on:
+            lighthouse-proxy:
+                condition: service_healthy
+
+    lighthouse-proxy:
+        profiles: [browser]
+        image: heptapod-lighthouse:local
+        command: ['/usr/local/bin/lighthouse-proxy']
+        init: true
+        mem_limit: 128m
+        cap_drop: [ALL]
+        security_opt: [no-new-privileges:true]
+        networks:
+            lighthouse-browser:
+            default:
+            lighthouse-control:
+                aliases: [lighthouse-proxy-control]
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'node',
+                    '-e',
+                    "fetch('http://localhost:3128/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+                ]
+            interval: 10s
+            timeout: 3s
+            retries: 10
+
+    gotenberg:
+        image: gotenberg/gotenberg:8.37.0@sha256:f29984bd1e226bf1b93ba90af06000afa8b315853e99d27b9aaa41b93f15c769
+        command:
+            [
+                'gotenberg',
+                '--chromium-max-concurrency=1',
+                '--chromium-max-queue-size=2',
+                '--api-timeout=120s',
+            ]
+        init: true
+        shm_size: 1gb
+        cap_drop: [ALL]
+        security_opt: [no-new-privileges:true]
+        healthcheck:
+            test: ['CMD', 'curl', '-fsS', 'http://localhost:3000/health']
+            interval: 30s
+            timeout: 5s
+            retries: 3
+            start_period: 30s
+
+    horizon:
+        <<: *dev
+        cpus: ${HORIZON_CPUS:-2}
+        environment: *live
+        networks: [default, lighthouse-browser, lighthouse-control]
+        command: ['php', 'artisan', 'horizon']
+        stop_grace_period: 1245s
+        depends_on:
+            app:
+                condition: service_healthy
+        healthcheck:
+            test:
+                [
+                    'CMD-SHELL',
+                    'kill -0 1 && php artisan db:show --database=pgsql >/dev/null',
+                ]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+
+    dispatcher:
+        <<: *dev
+        command: ['php', 'artisan', 'heptapod:dispatch']
+        depends_on:
+            app:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD-SHELL', 'kill -0 1']
+            interval: 30s
+            timeout: 3s
+            retries: 3
+
+    scheduler:
+        <<: *dev
+        command: ['php', 'artisan', 'schedule:work']
+        depends_on:
+            app:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD-SHELL', 'kill -0 1']
+            interval: 30s
+            timeout: 3s
+            retries: 3
+
+    reverb:
+        <<: *dev
+        command:
+            ['php', 'artisan', 'reverb:start', '--host=0.0.0.0', '--port=8080']
+        environment: *live
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'php',
+                    '-r',
+                    'exit((int) !@fsockopen("127.0.0.1", 8080));',
+                ]
+            interval: 10s
+            timeout: 3s
+            retries: 5
+        depends_on:
+            app:
+                condition: service_healthy
+
+    vite:
+        <<: *dev
+        command: ['npm', 'run', 'dev']
+        ports:
+            - '127.0.0.1:${VITE_PORT:-5188}:5173'
+        depends_on:
+            app:
+                condition: service_healthy
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'curl',
+                    '-fsS',
+                    'http://localhost:5173/vite/@vite/client',
+                ]
+            interval: 5s
+            timeout: 3s
+            retries: 20
+            start_period: 20s
+
+    mailpit:
+        image: axllent/mailpit:latest
+        ports:
+            - '127.0.0.1:${MAILPIT_PORT:-8028}:8025'
+        healthcheck:
+            test: ['CMD', '/mailpit', 'readyz']
+            interval: 5s
+            timeout: 3s
+            retries: 20
+
+    browser:
+        image: ghcr.io/browserless/chromium:latest
+        shm_size: 1gb
+        environment:
+            # Browserless defaults to 30 seconds, shorter than a manual dev session.
+            TIMEOUT: '3600000'
+        ports:
+            - '127.0.0.1:${BROWSER_PORT:-9334}:3000'
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'node',
+                    '-e',
+                    "fetch('http://localhost:3000/pressure').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+                ]
+            interval: 10s
+            timeout: 5s
+            retries: 20
+
+networks:
+    lighthouse-browser:
+        internal: true
+    lighthouse-control:
+        internal: true
+
+volumes:
+    node_modules:
+    vendor:
+    bootstrap_cache:
+    postgres:
+    redis:
+    heavy_locks:
+        external: true
+        name: heptapod-heavy-locks

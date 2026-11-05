@@ -1,0 +1,6 @@
+$ORIGIN provider.test.
+$TTL 300
+@ IN SOA ns.provider.test. admin.provider.test. (1 3600 600 86400 300)
+@ IN NS ns.provider.test.
+@ IN A 192.0.2.40
+ns IN A 192.0.2.41

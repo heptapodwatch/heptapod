@@ -1,0 +1,224 @@
+{
+  "name": "heptapodwatch/heptapod",
+  "description": "Heptapod is a self-hosted website and application monitoring suite.",
+  "license": "AGPL-3.0-or-later",
+  "type": "project",
+  "keywords": [
+    "monitoring",
+    "self-hosted",
+    "uptime",
+    "website-monitoring"
+  ],
+  "require": {
+    "php": "^8.5",
+    "ext-ctype": "*",
+    "ext-curl": "^8.5",
+    "ext-dom": "*",
+    "ext-filter": "^8.5",
+    "ext-gd": "*",
+    "ext-intl": "^8.5",
+    "ext-libxml": "*",
+    "ext-mbstring": "^8.5",
+    "ext-openssl": "^8.5",
+    "ext-pcntl": "^8.5",
+    "ext-sockets": "^8.5",
+    "ext-uri": "*",
+    "ext-zip": "^1.14",
+    "composer/semver": "^3.5",
+    "dedoc/scramble": "^0.13.47",
+    "guzzlehttp/guzzle": "^7.9",
+    "guzzlehttp/promises": "^2.5",
+    "guzzlehttp/psr7": "^2.6",
+    "heptapod/addon-application_health": "^0.1",
+    "heptapod/addon-certificate_health": "^0.1",
+    "heptapod/addon-channels": "^0.1",
+    "heptapod/addon-crawl": "^0.1",
+    "heptapod/addon-cron": "^0.1",
+    "heptapod/addon-dns": "^0.1",
+    "heptapod/addon-domain": "^0.1",
+    "heptapod/addon-lighthouse": "^0.1",
+    "heptapod/addon-performance": "^0.1",
+    "heptapod/addon-sitemap": "^0.1",
+    "heptapod/addon-uptime": "^0.1",
+    "inertiajs/inertia-laravel": "^3.5",
+    "jeremykendall/php-domain-parser": "^6.4",
+    "laravel/fortify": "^1.37.2",
+    "laravel/framework": "^13.34",
+    "laravel/horizon": "^5.50",
+    "laravel/passkeys": "^0.2",
+    "laravel/reverb": "^1.12",
+    "laravel/sanctum": "^4.3",
+    "laravel/tinker": "^3.0",
+    "laravel/wayfinder": "^0.1.14",
+    "league/flysystem": "^3.0",
+    "league/flysystem-aws-s3-v3": "^3.0",
+    "monolog/monolog": "^3.10",
+    "nesbot/carbon": "^3.14",
+    "ohdearapp/ohdear-php-sdk": "^4.7",
+    "psr/http-client": "^1.0",
+    "psr/http-message": "^2.0",
+    "psr/log": "^3.0",
+    "pusher/pusher-php-server": "^7.2",
+    "rlanvin/php-rrule": "^3.0",
+    "saloonphp/saloon": "^4.3",
+    "spatie/image": "^3.9",
+    "spatie/laravel-activitylog": "^5.1",
+    "spatie/laravel-backup": "^10.3",
+    "spatie/laravel-data": "^4.22",
+    "spatie/laravel-medialibrary": "^11.23",
+    "spatie/laravel-permission": "^8.3",
+    "spatie/laravel-query-builder": "^7.0",
+    "spatie/laravel-settings": "^3.9",
+    "spatie/laravel-tags": "^4.12",
+    "spatie/laravel-typescript-transformer": "^3.3",
+    "spatie/typescript-transformer": "^3.3",
+    "symfony/console": "^8.1",
+    "symfony/http-foundation": "^8.1",
+    "symfony/http-kernel": "^8.1",
+    "symfony/mailer": "^8.1",
+    "symfony/process": "^8.0"
+  },
+  "require-dev": {
+    "ext-posix": "^8.5",
+    "ext-tokenizer": "^8.5",
+    "amphp/amp": "^3.1",
+    "devizzent/cebe-php-openapi": "^1.1",
+    "driftingly/rector-laravel": "^2.3",
+    "ergebnis/composer-normalize": "^2.48",
+    "fakerphp/faker": "^1.24",
+    "hotmeteor/spectator": "^3.0.4",
+    "larastan/larastan": "^3.12",
+    "laravel-lang/common": "^6.7",
+    "laravel/boost": "^2.10",
+    "laravel/pail": "^1.2.5",
+    "laravel/pao": "^1.0.6",
+    "laravel/pint": "^1.27",
+    "mockery/mockery": "^1.6",
+    "nunomaduro/collision": "^8.9.3",
+    "peckphp/peck": "^0.3",
+    "pestphp/pest": "^5.0",
+    "pestphp/pest-plugin-arch": "^5.0",
+    "pestphp/pest-plugin-browser": "^5.1",
+    "pestphp/pest-plugin-laravel": "^5.0",
+    "pestphp/pest-plugin-type-coverage": "^5.0",
+    "phpstan/phpstan-deprecation-rules": "^2.0",
+    "phpstan/phpstan-strict-rules": "^2.0",
+    "pragmarx/google2fa": "^9.0",
+    "rector/rector": "^2.4",
+    "shipmonk/composer-dependency-analyser": "^1.8",
+    "spatie/laravel-login-link": "^1.6",
+    "spatie/laravel-schedule-monitor": "^4.0",
+    "symfony/mime": "^8.1",
+    "symfony/yaml": "^8.1"
+  },
+  "repositories": [
+    {
+      "type": "path",
+      "url": "addons/*"
+    }
+  ],
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "autoload": {
+    "psr-4": {
+      "Database\\Factories\\": "database/factories/",
+      "Database\\Seeders\\": "database/seeders/",
+      "Heptapod\\": "app/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "allow-plugins": {
+      "ergebnis/composer-normalize": true,
+      "pestphp/pest-plugin": true,
+      "php-http/discovery": true
+    },
+    "audit": {
+      "ignore-abandoned": [
+        "symplify/rule-doc-generator-contracts"
+      ]
+    },
+    "optimize-autoloader": true,
+    "platform": {
+      "php": "8.5.11"
+    },
+    "preferred-install": "dist",
+    "sort-packages": true
+  },
+  "extra": {
+    "laravel": {
+      "dont-discover": [
+        "spatie/laravel-schedule-monitor"
+      ],
+      "installer": {
+        "post-create-project": []
+      }
+    }
+  },
+  "scripts": {
+    "post-update-cmd": [
+      "@php artisan vendor:publish --tag=laravel-assets --ansi --force",
+      "@php artisan boost:update"
+    ],
+    "pre-package-uninstall": [
+      "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
+    ],
+    "post-autoload-dump": [
+      "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+      "@php artisan package:discover --ansi"
+    ],
+    "post-root-package-install": [
+      "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+    ],
+    "post-create-project-cmd": [
+      "@php artisan key:generate --ansi",
+      "@php artisan migrate --graceful --ansi"
+    ],
+    "analyse": "phpstan analyse",
+    "ci:check": [
+      "Composer\\Config::disableProcessTimeout",
+      "npm run check",
+      "npm run types:check",
+      "@peck",
+      "@test"
+    ],
+    "deps:check": "composer-dependency-analyser",
+    "dev": [
+      "Composer\\Config::disableProcessTimeout",
+      "@php artisan dev"
+    ],
+    "fmt": "pint --parallel",
+    "fmt:check": "pint --parallel --test",
+    "lint": "@fmt",
+    "lint:check": "@fmt:check",
+    "normalize:check": "composer normalize --dry-run",
+    "peck": "peck --no-interaction",
+    "rector:check": "rector process --dry-run",
+    "setup": [
+      "composer install",
+      "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
+      "@php artisan key:generate",
+      "@php artisan migrate --force",
+      "npm install",
+      "npm run build"
+    ],
+    "test": [
+      "Composer\\Config::disableProcessTimeout",
+      "@php artisan config:clear --ansi",
+      "bash scripts/run-tests.sh test"
+    ],
+    "test:tia": [
+      "Composer\\Config::disableProcessTimeout",
+      "@php artisan config:clear --ansi",
+      "bash scripts/run-tests.sh tia"
+    ],
+    "test:types": "pest --type-coverage --min=100",
+    "types:check": "@analyse",
+    "types:generate": "@php artisan typescript:transform --no-interaction"
+  },
+  "$schema": "https://getcomposer.org/schema.json"
+}

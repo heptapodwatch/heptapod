@@ -1,0 +1,12 @@
+{
+    "id": 202,
+    "run_attempt": 1,
+    "path": ".github/workflows/php-base.yml",
+    "name": "PHP base image",
+    "workflow_id": 392312195,
+    "status": "completed",
+    "conclusion": "success",
+    "head_branch": "main",
+    "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "event": "schedule"
+}

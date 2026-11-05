@@ -1,0 +1,19 @@
+{
+    "id": 1,
+    "name": "Fixture Owner",
+    "email": "Fixture Owner",
+    "photo_url": "https://avatar.example/fixture-owner",
+    "teams": [
+        {
+            "id": 42,
+            "name": "Fixture Owner",
+            "timezone": "Europe/Berlin",
+            "created_at": "2022-07-13 11:57:02"
+        }
+    ],
+    "capabilities": {
+        "full_access": true,
+        "monitor_ids": [],
+        "status_page_ids": []
+    }
+}

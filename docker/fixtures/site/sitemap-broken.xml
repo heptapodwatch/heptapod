@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url><loc>http://fixtures.test/status/200</loc></url>
+    <url><loc>http://fixtures.test/missing-internal</loc></url>
+    <url><loc>http://fixtures.test/status/500</loc></url>
+    <url><loc>http://external.fixtures.test/missing</loc></url>
+</urlset>

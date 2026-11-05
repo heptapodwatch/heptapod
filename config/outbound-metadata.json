@@ -1,0 +1,13 @@
+{
+    "hosts": [
+        "metadata.google.internal",
+        "metadata.goog",
+        "instance-data",
+        "instance-data.ec2.internal",
+        "metadata.azure.internal",
+        "metadata.tencentyun.com",
+        "metadata.platformequinix.com",
+        "metadata.packet.net"
+    ],
+    "addresses": ["fd00:ec2::254", "100.100.100.200"]
+}

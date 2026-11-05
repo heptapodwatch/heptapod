@@ -1,0 +1,11 @@
+{
+    "identities": [
+        {
+            "name": "ops-acceptance",
+            "credentials": [
+                { "accessKey": "ops-test-key", "secretKey": "ops-test-secret" }
+            ],
+            "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+        }
+    ]
+}

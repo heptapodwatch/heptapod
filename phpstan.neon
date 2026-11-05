@@ -1,0 +1,21 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/nesbot/carbon/extension.neon
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
+    - vendor/phpstan/phpstan-deprecation-rules/rules.neon
+
+parameters:
+    configDirectories:
+        - config
+        - addons/*/config
+    paths:
+        - app/
+        - addons/
+        - bootstrap/
+        - config/
+        - database/
+        - routes/
+    excludePaths:
+        - .worktrees/*
+        - addons/*/tests/*
+    level: max

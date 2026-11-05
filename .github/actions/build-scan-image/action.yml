@@ -1,0 +1,238 @@
+name: Build and scan native image
+description: Build a native production image and enforce its security and runtime gates
+inputs:
+  image:
+    description: Production image name
+    required: true
+  architecture:
+    description: Native runner architecture
+    required: true
+  dockerfile:
+    description: Production Dockerfile path
+    required: true
+  acceptance:
+    description: inline runs the app's installer, ops and rollback suites here; separate leaves them to the parallel image-acceptance jobs
+    default: inline
+outputs:
+  apt-snapshot-date:
+    description: Debian security snapshot date used for the Lighthouse build
+    value: ${{ steps.apt-snapshot.outputs.date }}
+runs:
+  using: composite
+  steps:
+  - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+  - name: Dockerfile lint
+    id: hadolint
+    shell: bash
+    env:
+      DOCKERFILE: ${{ inputs.dockerfile }}
+    run: >-
+      docker run --rm -v "$PWD:/repo:ro" -w /repo
+      ghcr.io/hadolint/hadolint:v2.15.1-debian@sha256:9a3944b7fddcb947d1ffd90829ac1a6e5c30479223358f249d8b96c7d0019e27
+      hadolint --format json "$DOCKERFILE" > "$RUNNER_TEMP/hadolint.json"
+  - name: Lighthouse HTTP boundary tests (includes 120 second deadline)
+    if: inputs.image == 'lighthouse'
+    shell: bash
+    run: >-
+      docker run --rm -v "$PWD:/repo:ro" -w /repo/docker/lighthouse
+      node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
+      node --test server.test.mjs diagnostics.test.mjs
+  - name: Require a security snapshot date for Lighthouse source builds
+    if: inputs.image == 'lighthouse'
+    shell: bash
+    run: |
+      if docker build -f docker/lighthouse/Dockerfile --build-arg APT_SNAPSHOT_DATE= -t heptapod-lighthouse:missing-snapshot . > "$RUNNER_TEMP/missing-snapshot.log" 2>&1; then
+        cat "$RUNNER_TEMP/missing-snapshot.log"
+        exit 1
+      fi
+      grep -F 'APT_SNAPSHOT_DATE is required; set it to the current UTC date (YYYY-MM-DD)' "$RUNNER_TEMP/missing-snapshot.log"
+  - name: Select the current Debian security snapshot day
+    id: apt-snapshot
+    shell: bash
+    run: |
+      echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+      echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+  - name: Select the baked image version
+    id: version
+    shell: bash
+    run: |
+      if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+        version=${GITHUB_REF#refs/tags/}
+      else
+        version="sha-$(git rev-parse --short=12 HEAD)"
+      fi
+      echo "value=$version" >> "$GITHUB_OUTPUT"
+  - name: Select the shared registry build cache
+    id: cache
+    shell: bash
+    env:
+      IMAGE: ${{ inputs.image }}
+      ARCHITECTURE: ${{ inputs.architecture }}
+    run: echo "ref=$(bash scripts/image-reference.sh "$IMAGE"):buildcache-$ARCHITECTURE" >> "$GITHUB_OUTPUT"
+  - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+    with:
+      registry: ghcr.io
+      username: ${{ github.actor }}
+      password: ${{ github.token }}
+  - name: Prepare a checkout with restrictive file modes
+    shell: bash
+    run: bash tests/Deployment/image-modes.sh prepare "$RUNNER_TEMP/image-modes-context"
+  - name: Build native production image
+    id: build
+    uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+    with:
+      context: ${{ runner.temp }}/image-modes-context
+      file: ${{ runner.temp }}/image-modes-context/${{ inputs.dockerfile }}
+      platforms: linux/${{ inputs.architecture }}
+      load: true
+      push: false
+      provenance: false
+      tags: heptapod-${{ inputs.image }}:ci
+      build-args: |
+        APT_SNAPSHOT_DATE=${{ steps.apt-snapshot.outputs.date }}
+        HEPTAPOD_VERSION=${{ steps.version.outputs.value }}
+        OCI_SOURCE=https://github.com/${{ github.repository }}
+        OCI_REVISION=${{ github.sha }}
+        OCI_CREATED=${{ steps.apt-snapshot.outputs.created }}
+      # Registry cache, not gha: main never builds (it promotes the candidate), so a branch-scoped
+      # Actions cache was never shared between ci/* branches and every candidate rebuilt from scratch.
+      cache-from: type=registry,ref=${{ steps.cache.outputs.ref }}
+      # The cache only saves time: a failed cache upload must not fail the build; the image, scan and tests stay gates.
+      cache-to: type=registry,ref=${{ steps.cache.outputs.ref }},mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true
+  - name: Lighthouse stage mapping matches shipped dependencies
+    if: inputs.image == 'lighthouse'
+    shell: bash
+    run: >-
+      docker run --rm --network none --entrypoint node
+      -v "$PWD/docker/lighthouse/audit.test.mjs:/service/audit.test.mjs:ro" -w /service
+      heptapod-lighthouse:ci --test audit.test.mjs
+  - name: Report build cache export
+    if: always()
+    # Cache reporting is advisory; a reporting failure must not fail the image job.
+    continue-on-error: true
+    shell: bash
+    env:
+      BUILD_METADATA: ${{ steps.build.outputs.metadata }}
+    run: bash scripts/report-build-cache.sh
+  - name: Verify file access as the production runtime user
+    shell: bash
+    env:
+      IMAGE: ${{ inputs.image }}
+    run: bash tests/Deployment/image-modes.sh "$IMAGE" "heptapod-$IMAGE:ci"
+  - name: Verify OCI image labels
+    shell: bash
+    env:
+      IMAGE: ${{ inputs.image }}
+      EXPECTED_VERSION: ${{ steps.version.outputs.value }}
+      EXPECTED_CREATED: ${{ steps.apt-snapshot.outputs.created }}
+    run: |
+      docker inspect "heptapod-$IMAGE:ci" | jq -e \
+        --arg source "https://github.com/$GITHUB_REPOSITORY" --arg revision "$GITHUB_SHA" \
+        --arg version "$EXPECTED_VERSION" --arg created "$EXPECTED_CREATED" '
+        .[0].Config.Labels | .["org.opencontainers.image.source"] == $source and
+        .["org.opencontainers.image.revision"] == $revision and
+        .["org.opencontainers.image.version"] == $version and
+        .["org.opencontainers.image.created"] == $created and
+        .["org.opencontainers.image.licenses"] == "AGPL-3.0-or-later" and
+        (.["org.opencontainers.image.title"] | length > 0) and
+        (.["org.opencontainers.image.description"] | length > 0)'
+  - name: Native Lighthouse network-boundary tests
+    if: inputs.image == 'lighthouse'
+    shell: bash
+    run: |
+      set -euo pipefail
+      cleanup() {
+        docker rm -f lighthouse-native lighthouse-proxy-native lighthouse-fixture-native >/dev/null
+        docker network rm lighthouse-native-internal lighthouse-native-egress lighthouse-native-control >/dev/null
+      }
+      trap cleanup EXIT
+      docker network create --internal lighthouse-native-internal
+      docker network create lighthouse-native-egress
+      docker network create --internal lighthouse-native-control
+      docker create -v "$PWD:/repo:ro" --name lighthouse-proxy-native --network lighthouse-native-control --network-alias lighthouse-proxy-control --cap-drop ALL --security-opt no-new-privileges --memory 128m heptapod-lighthouse:ci /usr/local/bin/lighthouse-proxy
+      docker network connect --alias lighthouse-proxy lighthouse-native-internal lighthouse-proxy-native
+      docker network connect lighthouse-native-egress lighthouse-proxy-native
+      docker start lighthouse-proxy-native
+      docker run -d -v "$PWD:/repo:ro" --name lighthouse-native --network lighthouse-native-internal --network-alias lighthouse --init --shm-size 1gb --cap-drop ALL --security-opt no-new-privileges --memory 1536m heptapod-lighthouse:ci
+      for attempt in $(seq 1 60); do
+        if docker exec lighthouse-native node -e "fetch('http://localhost:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"; then break; fi
+        sleep 1
+      done
+      docker create --name lighthouse-fixture-native --network lighthouse-native-control -v "$PWD:/repo:ro" -w /repo heptapod-lighthouse:ci node --test docker/lighthouse/network.test.mjs
+      docker network connect --alias fixture.test lighthouse-native-internal lighthouse-fixture-native
+      docker start -a lighthouse-fixture-native
+      docker exec -d lighthouse-proxy-native node /repo/docker/lighthouse/worker-server.mjs
+      tokens=$(docker exec lighthouse-proxy-native node /repo/docker/lighthouse/scope-tokens.mjs create)
+      printf '%s' "$tokens" | docker exec -i lighthouse-native node /repo/docker/lighthouse/control-isolation.test.mjs
+      printf '%s' "$tokens" | docker exec -i lighthouse-native node /repo/docker/lighthouse/worker-network.test.mjs
+      printf '%s' "$tokens" | docker exec -i lighthouse-proxy-native node /repo/docker/lighthouse/scope-tokens.mjs revoke
+  - name: Verify the baked version in the runtime image
+    if: inputs.image == 'app'
+    shell: bash
+    env:
+      EXPECTED_VERSION: ${{ steps.version.outputs.value }}
+    run: docker run --rm --entrypoint sh heptapod-app:ci -c 'test "$HEPTAPOD_VERSION" = "$1"' sh "$EXPECTED_VERSION"
+  - name: Verify addon system requirements
+    id: binaries
+    if: inputs.image == 'app'
+    shell: bash
+    run: |
+      timeout 120s bash -euo pipefail <<'CHECK_BINARIES'
+      jq -r '.extra.heptapod["system-requirements"] // [] | .[]' addons/*/composer.json > "$RUNNER_TEMP/addon-system-requirements"
+      while IFS= read -r binary; do
+        docker run --rm --entrypoint sh heptapod-app:ci -c 'command -v "$1"' sh "$binary"
+      done < "$RUNNER_TEMP/addon-system-requirements"
+      docker run --rm --entrypoint sh heptapod-app:ci -c 'dig -v'
+      CHECK_BINARIES
+  - uses: ./.github/actions/free-runner-disk
+    if: inputs.image == 'app' && inputs.acceptance == 'inline'
+  - name: Installer configuration and upgrade mode matrices
+    if: inputs.image == 'app' && inputs.acceptance == 'inline'
+    shell: bash
+    run: bash tests/Deployment/acceptance.sh config
+  - uses: actions/setup-node@v7
+    if: inputs.image == 'app' && inputs.acceptance == 'inline'
+    with:
+      node-version: '24'
+      cache: npm
+  - name: Cold proxy and PaaS acceptance
+    if: inputs.image == 'app' && inputs.acceptance == 'inline'
+    shell: bash
+    run: bash tests/Deployment/acceptance.sh ops
+  - name: Release pull and rollback acceptance
+    if: inputs.image == 'app' && inputs.acceptance == 'inline'
+    shell: bash
+    run: bash tests/Deployment/acceptance.sh rollback
+  - name: Production vulnerability HARD gate
+    id: trivy
+    uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+    env:
+      # Scan the loaded daemon image, never a registry image with the same tag.
+      TRIVY_IMAGE_SRC: docker
+    with:
+      version: v0.75.0
+      image-ref: heptapod-${{ inputs.image }}:ci
+      scanners: vuln
+      severity: HIGH,CRITICAL
+      ignore-unfixed: true
+      exit-code: '1'
+      trivyignores: .trivyignore
+      format: json
+      output: ${{ runner.temp }}/trivy-${{ inputs.image }}-${{ inputs.architecture }}.json
+  - name: Summarize native image gates
+    if: always()
+    shell: bash
+    env:
+      IMAGE: ${{ inputs.image }}
+      ARCHITECTURE: ${{ inputs.architecture }}
+      LINT_OUTCOME: ${{ steps.hadolint.outcome }}
+      BINARY_OUTCOME: ${{ steps.binaries.outcome }}
+      SCAN_OUTCOME: ${{ steps.trivy.outcome }}
+    run: |
+      bash scripts/ci-summary.sh hadolint "$IMAGE/$ARCHITECTURE Dockerfile lint" "$LINT_OUTCOME" "$RUNNER_TEMP/hadolint.json"
+      bash scripts/ci-summary.sh status "$IMAGE/$ARCHITECTURE addon binaries" "$BINARY_OUTCOME"
+      bash scripts/ci-summary.sh trivy "$IMAGE/$ARCHITECTURE vulnerability gate" "$SCAN_OUTCOME" "$RUNNER_TEMP/trivy-$IMAGE-$ARCHITECTURE.json"
+      # The scan writes JSON only; name the findings in the job log too, so a red gate is diagnosable from the log.
+      if [ "$SCAN_OUTCOME" = failure ]; then
+        jq -r '.Results[]? | .Target as $target | .Vulnerabilities[]? | "::error title=\(.VulnerabilityID)::\(.Severity) \(.PkgName) \(.InstalledVersion) -> \(.FixedVersion // "no fix") in \($target)"' "$RUNNER_TEMP/trivy-$IMAGE-$ARCHITECTURE.json"
+      fi

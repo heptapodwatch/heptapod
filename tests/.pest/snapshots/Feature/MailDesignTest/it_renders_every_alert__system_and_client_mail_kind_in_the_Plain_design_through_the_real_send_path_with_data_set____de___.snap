@@ -1,0 +1,464 @@
+alert opened
+To: ops@golden.example
+Subject: [Ausgefallen] Golden shop =?utf-8?Q?=E2=80=94?= HTTP 503 seit 10:10 CET
+-- PARTS --
+
+-- PLAIN --
+Golden client · Golden shop
+Golden shop ist ausgefallen: HTTP 503 Service Unavailable.
+Ausgefallen · seit 10:10 CET · #{id}
+
+Letzter Versuch
+Zeit | Ergebnis | Antwort
+10:11:00 CET | HTTP 503 Service Unavailable | Keine Antwort
+
+Störung #{id} öffnen: http://monitor.example.test/incidents/{id}
+Prüfung öffnen: http://monitor.example.test/sites/{id}/checks/{id}
+
+Sie erhalten diese E-Mail, weil Golden inbox (ops@golden.example) Ausfälle erhält.
+Benachrichtigungen ändern: http://monitor.example.test/settings/notifications/team
+Golden Monitor · monitor.example.test
+
+-- HTML --
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[Ausgefallen] Golden shop — HTTP 503 seit 10:10 CET</title></head>
+<body style="margin:0;padding:0;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">HTTP 503 Service Unavailable</div>
+<div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
+<p style="margin:0 0 12px;">Golden client · Golden shop</p>
+<p style="margin:0 0 12px;"><strong>Golden shop ist ausgefallen: HTTP 503 Service Unavailable.</strong></p>
+<p style="margin:0 0 12px;">Ausgefallen · seit 10:10 CET · #{id}</p>
+<div style="margin:0 0 12px;"><p style="margin:0 0 4px;"><strong>Letzter Versuch</strong></p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;line-height:20px;">
+<tr>
+<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Zeit</th>
+<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Ergebnis</th>
+<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Antwort</th>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">10:11:00 CET</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">HTTP 503 Service Unavailable</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">Keine Antwort</span></td>
+</tr>
+</table>
+</div>
+<p style="margin:16px 0 12px;"><a href="http://monitor.example.test/incidents/{id}">Störung #{id} öffnen →</a><br><a href="http://monitor.example.test/sites/{id}/checks/{id}">Prüfung öffnen</a></p>
+<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Sie erhalten diese E-Mail, weil Golden inbox (ops@golden.example) Ausfälle erhält. <a href="http://monitor.example.test/settings/notifications/team" style="color:#6b7580;">Benachrichtigungen ändern</a></p>
+</div>
+</body></html>
+
+=====
+recovery
+To: ops@golden.example
+Subject: [Entwarnung] Golden shop nach 5 Min.
+-- PARTS --
+
+-- PLAIN --
+Golden client · Golden shop
+Golden shop ist nach 5 Min. wieder erreichbar.
+Entwarnung · ausgefallen 10:10 CET – 10:15 CET · #{id} behoben
+
+Behoben: HTTP 503 Service Unavailable, Beginn 10:10 CET.
+
+Was sich geändert hat
+Bei Eröffnung: HTTP 503 Service Unavailable · 10:11 CET
+Bei Wiederherstellung: Website ist erreichbar · 10:15 CET
+
+Störung #{id} öffnen: http://monitor.example.test/incidents/{id}
+
+Sie erhalten diese E-Mail, weil Golden inbox (ops@golden.example) Entwarnungen erhält.
+Benachrichtigungen ändern: http://monitor.example.test/settings/notifications/team
+Golden Monitor · monitor.example.test
+
+-- HTML --
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[Entwarnung] Golden shop nach 5 Min.</title></head>
+<body style="margin:0;padding:0;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Die Erreichbarkeitsprüfung bestätigt, dass die Website wieder erreichbar ist.</div>
+<div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
+<p style="margin:0 0 12px;">Golden client · Golden shop</p>
+<p style="margin:0 0 12px;"><strong>Golden shop ist nach 5 Min. wieder erreichbar.</strong></p>
+<p style="margin:0 0 12px;">Entwarnung · ausgefallen 10:10 CET – 10:15 CET · #{id} behoben</p>
+<div style="margin:0 0 12px;"><p style="margin:0;">Behoben: HTTP 503 Service Unavailable, Beginn 10:10 CET.</p>
+</div>
+<div style="margin:0 0 12px;"><p style="margin:0 0 4px;"><strong>Was sich geändert hat</strong></p>
+<div>Bei Eröffnung: <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">HTTP 503 Service Unavailable · 10:11 CET</span></div>
+<div>Bei Wiederherstellung: <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">Website ist erreichbar · 10:15 CET</span></div>
+</div>
+<p style="margin:16px 0 12px;"><a href="http://monitor.example.test/incidents/{id}">Störung #{id} öffnen →</a></p>
+<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Sie erhalten diese E-Mail, weil Golden inbox (ops@golden.example) Entwarnungen erhält. <a href="http://monitor.example.test/settings/notifications/team" style="color:#6b7580;">Benachrichtigungen ändern</a></p>
+</div>
+</body></html>
+
+=====
+digest
+To: ops@golden.example
+Subject: =?utf-8?Q?T=C3=A4gliche?= Zusammenfassung
+-- PARTS --
+
+-- PLAIN --
+Tägliche Zusammenfassung
+2 Alarme sind weiterhin offen.
+
+Offen, Stand 30. Okt 2026, 10:15 CET
+- Golden shop (Golden client · shop.golden.example/digest-a) · Leistung · Warnung
+- Golden shop (Golden client · shop.golden.example/digest-b) · Leistung · Warnung
+
+Websites öffnen: http://monitor.example.test/sites
+
+Sie erhalten diese E-Mail, weil Golden inbox (ops@golden.example) die tägliche Zusammenfassung erhält.
+Benachrichtigungen ändern: http://monitor.example.test/settings/notifications/team
+Golden Monitor · monitor.example.test
+
+-- HTML --
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Tägliche Zusammenfassung</title></head>
+<body style="margin:0;padding:0;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">2 Alarme sind weiterhin offen.</div>
+<div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
+<p style="margin:0 0 12px;"><strong>Tägliche Zusammenfassung</strong></p>
+<p style="margin:0 0 12px;">2 Alarme sind weiterhin offen.</p>
+<div style="margin:0 0 12px;"><p style="margin:0 0 4px;"><strong>Offen, Stand 30. Okt 2026, 10:15 CET</strong></p>
+<div style="overflow-wrap:anywhere;word-break:break-word;">Golden shop (Golden client · shop.golden.example/digest-a) · Leistung · Warnung</div>
+<div style="overflow-wrap:anywhere;word-break:break-word;">Golden shop (Golden client · shop.golden.example/digest-b) · Leistung · Warnung</div>
+</div>
+<p style="margin:16px 0 12px;"><a href="http://monitor.example.test/sites">Websites öffnen →</a></p>
+<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Sie erhalten diese E-Mail, weil Golden inbox (ops@golden.example) die tägliche Zusammenfassung erhält. <a href="http://monitor.example.test/settings/notifications/team" style="color:#6b7580;">Benachrichtigungen ändern</a></p>
+</div>
+</body></html>
+
+=====
+catch-up
+To: ops@golden.example
+Subject: [Nach Wartung] Golden shop meldet weiterhin Fehler
+-- PARTS --
+
+-- PLAIN --
+Golden client · Golden shop
+Die Wartung ist beendet. Golden shop meldet weiterhin Fehler.
+1 Prüfung meldet weiterhin Fehler.
+
+Nach der Wartung weiterhin offen
+- Zertifikat · Fehlgeschlagen · seit 30. Okt 2026, 09:15 CET
+
+Website öffnen: http://monitor.example.test/sites/{id}
+
+Sie erhalten diese E-Mail, weil Golden inbox (ops@golden.example) fehlgeschlagene Prüfungen erhält.
+Benachrichtigungen ändern: http://monitor.example.test/settings/notifications/team
+Golden Monitor · monitor.example.test
+
+-- HTML --
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[Nach Wartung] Golden shop meldet weiterhin Fehler</title></head>
+<body style="margin:0;padding:0;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">1 Prüfung meldet weiterhin Fehler.</div>
+<div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
+<p style="margin:0 0 12px;">Golden client · Golden shop</p>
+<p style="margin:0 0 12px;"><strong>Die Wartung ist beendet. Golden shop meldet weiterhin Fehler.</strong></p>
+<p style="margin:0 0 12px;">1 Prüfung meldet weiterhin Fehler.</p>
+<div style="margin:0 0 12px;"><p style="margin:0 0 4px;"><strong>Nach der Wartung weiterhin offen</strong></p>
+<div style="overflow-wrap:anywhere;word-break:break-word;">Zertifikat · Fehlgeschlagen · seit 30. Okt 2026, 09:15 CET</div>
+</div>
+<p style="margin:16px 0 12px;"><a href="http://monitor.example.test/sites/{id}">Website öffnen →</a></p>
+<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Sie erhalten diese E-Mail, weil Golden inbox (ops@golden.example) fehlgeschlagene Prüfungen erhält. <a href="http://monitor.example.test/settings/notifications/team" style="color:#6b7580;">Benachrichtigungen ändern</a></p>
+</div>
+</body></html>
+
+=====
+system issue
+To: ops@golden.example
+Subject: [System] Die letzte Sicherung ist fehlgeschlagen
+-- PARTS --
+
+-- PLAIN --
+Die letzte Sicherung ist fehlgeschlagen
+Prüfen Sie den Sicherungsspeicher und seine Zugangsdaten und starten Sie dann eine Sicherung unter Einstellungen › Updates & Sicherungen.
+
+Details
+Seit: 2026-10-30 09:15 CET
+Sicherungsspeicher: backups
+Fehlgeschlagen am: 2026-10-30 09:15 CET
+
+Systemzustand öffnen: http://monitor.example.test/settings/system
+
+Dieser Kanal erhält diese Nachricht, weil für ihn in den Benachrichtigungseinstellungen des Teams Systemwarnungen eingeschaltet sind.
+Golden Monitor · monitor.example.test
+
+-- HTML --
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[System] Die letzte Sicherung ist fehlgeschlagen</title></head>
+<body style="margin:0;padding:0;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Prüfen Sie den Sicherungsspeicher und seine Zugangsdaten und starten Sie dann eine Sicherung unter Einstellungen › Updates &amp; Sicherungen.</div>
+<div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
+<p style="margin:0 0 12px;"><strong>Die letzte Sicherung ist fehlgeschlagen</strong></p>
+<p style="margin:0 0 12px;">Prüfen Sie den Sicherungsspeicher und seine Zugangsdaten und starten Sie dann eine Sicherung unter Einstellungen › Updates &amp; Sicherungen.</p>
+<div style="margin:0 0 12px;"><p style="margin:0 0 4px;"><strong>Details</strong></p>
+<div>Seit: <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">2026-10-30 09:15 CET</span></div>
+<div>Sicherungsspeicher: <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">backups</span></div>
+<div>Fehlgeschlagen am: <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">2026-10-30 09:15 CET</span></div>
+</div>
+<p style="margin:16px 0 12px;"><a href="http://monitor.example.test/settings/system">Systemzustand öffnen →</a></p>
+<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Dieser Kanal erhält diese Nachricht, weil für ihn in den Benachrichtigungseinstellungen des Teams Systemwarnungen eingeschaltet sind.</p>
+</div>
+</body></html>
+
+=====
+system recovery
+To: ops@golden.example
+Subject: [System wiederhergestellt] Die letzte Sicherung ist fehlgeschlagen
+-- PARTS --
+
+-- PLAIN --
+Behoben: Die letzte Sicherung ist fehlgeschlagen
+Eine Sicherung wurde erfolgreich abgeschlossen.
+
+Details
+Seit: 2026-10-30 09:15 CET
+Behoben: 2026-10-30 10:15 CET
+Sicherungsspeicher: backups
+Fehlgeschlagen am: 2026-10-30 09:15 CET
+
+Systemzustand öffnen: http://monitor.example.test/settings/system
+
+Dieser Kanal erhält diese Nachricht, weil für ihn in den Benachrichtigungseinstellungen des Teams Systemwarnungen eingeschaltet sind.
+Golden Monitor · monitor.example.test
+
+-- HTML --
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[System wiederhergestellt] Die letzte Sicherung ist fehlgeschlagen</title></head>
+<body style="margin:0;padding:0;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Eine Sicherung wurde erfolgreich abgeschlossen.</div>
+<div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
+<p style="margin:0 0 12px;"><strong>Behoben: Die letzte Sicherung ist fehlgeschlagen</strong></p>
+<p style="margin:0 0 12px;">Eine Sicherung wurde erfolgreich abgeschlossen.</p>
+<div style="margin:0 0 12px;"><p style="margin:0 0 4px;"><strong>Details</strong></p>
+<div>Seit: <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">2026-10-30 09:15 CET</span></div>
+<div>Behoben: <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">2026-10-30 10:15 CET</span></div>
+<div>Sicherungsspeicher: <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">backups</span></div>
+<div>Fehlgeschlagen am: <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">2026-10-30 09:15 CET</span></div>
+</div>
+<p style="margin:16px 0 12px;"><a href="http://monitor.example.test/settings/system">Systemzustand öffnen →</a></p>
+<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Dieser Kanal erhält diese Nachricht, weil für ihn in den Benachrichtigungseinstellungen des Teams Systemwarnungen eingeschaltet sind.</p>
+</div>
+</body></html>
+
+=====
+test send
+To: ops@golden.example
+Subject: Test-E-Mail von Heptapod
+-- PARTS --
+
+-- PLAIN --
+Diese Adresse erhält Heptapod-Alarme.
+Golden Owner hat diesen Test unter Einstellungen › Kanäle gesendet. Kanal: Golden inbox. Adresse: ops@golden.example. Gesendet: 2026-10-30 10:15 CET. Sie müssen nichts tun.
+
+
+Sie erhalten diese E-Mail, weil jemand diese Adresse als Alarmkanal eingetragen hat.
+Golden Monitor · monitor.example.test
+
+-- HTML --
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Test-E-Mail von Heptapod</title></head>
+<body style="margin:0;padding:0;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Diese Adresse erhält Heptapod-Alarme.</div>
+<div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
+<p style="margin:0 0 12px;"><strong>Diese Adresse erhält Heptapod-Alarme.</strong></p>
+<p style="margin:0 0 12px;">Golden Owner hat diesen Test unter Einstellungen › Kanäle gesendet. Kanal: Golden inbox. Adresse: ops@golden.example. Gesendet: 2026-10-30 10:15 CET. Sie müssen nichts tun.</p>
+<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Sie erhalten diese E-Mail, weil jemand diese Adresse als Alarmkanal eingetragen hat.</p>
+</div>
+</body></html>
+
+=====
+client findings with CSV
+To: office@client.test
+Reply-To: Anna Berger <anna@studio.test>
+Subject: Defekte Links auf shop.example.test: 22 gefunden
+-- PARTS --
+attachment text/csv defekte-links-shop-example-test-2026-10-28.csv
+-- PLAIN --
+Guten Tag,
+Bei unserer Prüfung am 28.10.2026 um 22:40 Uhr haben wir auf shop.example.test 22 Links gefunden, die nicht mehr funktionieren.
+
+Please look at these by Friday.
+
+Adresse | Ergebnis | Gefunden auf
+https://shop.example.test/products/old-1?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-2?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-3?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-4?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-5?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-6?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-7?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-8?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-9?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-10?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-11?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-12?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-13?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-14?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-15?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-16?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-17?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-18?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-19?ref=nav | 404 | https://shop.example.test/catalog
+https://shop.example.test/products/old-20?ref=nav | 404 | https://shop.example.test/catalog
+und 2 weitere; alle finden Sie in der angehängten CSV-Datei.
+
+Mit freundlichen Grüßen, Anna Berger (Golden Monitor)
+
+
+Anna Berger hat Ihnen diese Nachricht über Golden Monitor gesendet. Antworten Sie auf diese E-Mail, um Anna Berger zu erreichen.
+Golden Monitor
+
+-- HTML --
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Defekte Links auf shop.example.test: 22 gefunden</title></head>
+<body style="margin:0;padding:0;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Bei unserer Prüfung am 28.10.2026 um 22:40 Uhr haben wir auf shop.example.test 22 Links gefunden, die nicht mehr funktionieren.</div>
+<div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
+<p style="margin:0 0 12px;"><strong>Guten Tag,</strong></p>
+<p style="margin:0 0 12px;">Bei unserer Prüfung am 28.10.2026 um 22:40 Uhr haben wir auf shop.example.test 22 Links gefunden, die nicht mehr funktionieren.</p>
+<div style="margin:0 0 12px;"><p style="margin:0;">Please look at these by Friday.</p>
+</div>
+<div style="margin:0 0 12px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;line-height:20px;">
+<tr>
+<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Adresse</th>
+<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Ergebnis</th>
+<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Gefunden auf</th>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-1?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-2?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-3?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-4?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-5?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-6?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-7?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-8?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-9?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-10?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-11?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-12?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-13?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-14?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-15?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-16?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-17?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-18?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-19?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+<tr>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-20?ref=nav</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+</tr>
+</table>
+<p style="margin:4px 0 0;">und 2 weitere; alle finden Sie in der angehängten CSV-Datei.</p>
+</div>
+<div style="margin:0 0 12px;"><p style="margin:0;">Mit freundlichen Grüßen, Anna Berger (Golden Monitor)</p>
+</div>
+<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Anna Berger hat Ihnen diese Nachricht über Golden Monitor gesendet. Antworten Sie auf diese E-Mail, um Anna Berger zu erreichen.</p>
+</div>
+</body></html>
+
+=====
+client incident
+To: office@client.test
+Reply-To: Anna Berger <anna@studio.test>
+Subject: Problem auf www.client.test: Erreichbarkeit
+-- PARTS --
+
+-- PLAIN --
+Guten Tag,
+Wir haben ein Problem auf www.client.test bemerkt und möchten Sie darüber informieren.
+
+Was wir festgestellt haben: Die Prüfung hat ein Problem gemeldet.
+Seit: 28.10.2026 um 21:00 Uhr
+
+Mit freundlichen Grüßen, Anna Berger (Golden Monitor)
+
+
+Anna Berger hat Ihnen diese Nachricht über Golden Monitor gesendet. Antworten Sie auf diese E-Mail, um Anna Berger zu erreichen.
+Golden Monitor
+
+-- HTML --
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Problem auf www.client.test: Erreichbarkeit</title></head>
+<body style="margin:0;padding:0;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Wir haben ein Problem auf www.client.test bemerkt und möchten Sie darüber informieren.</div>
+<div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
+<p style="margin:0 0 12px;"><strong>Guten Tag,</strong></p>
+<p style="margin:0 0 12px;">Wir haben ein Problem auf www.client.test bemerkt und möchten Sie darüber informieren.</p>
+<div style="margin:0 0 12px;"><div>Was wir festgestellt haben: <span style="overflow-wrap:anywhere;word-break:break-word;">Die Prüfung hat ein Problem gemeldet.</span></div>
+<div>Seit: <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">28.10.2026 um 21:00 Uhr</span></div>
+</div>
+<div style="margin:0 0 12px;"><p style="margin:0;">Mit freundlichen Grüßen, Anna Berger (Golden Monitor)</p>
+</div>
+<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Anna Berger hat Ihnen diese Nachricht über Golden Monitor gesendet. Antworten Sie auf diese E-Mail, um Anna Berger zu erreichen.</p>
+</div>
+</body></html>

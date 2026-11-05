@@ -1,0 +1,9 @@
+{
+    "id": 200,
+    "check_id": 100,
+    "check_type": "uptime",
+    "result": "succeeded",
+    "started_at": "2026-10-01T07:29:01Z",
+    "ended_at": "2026-10-01T07:29:02Z",
+    "ohdear_url": "https://dashboard.example/checks/100/runs/200"
+}

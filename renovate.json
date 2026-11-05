@@ -1,0 +1,26 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": ["config:recommended"],
+    "ignorePaths": [".worktrees/**", "vendor/**", "node_modules/**"],
+    "ignoreDeps": ["ghcr.io/heptapodwatch/heptapod-php-base"],
+    "separateMajorMinor": true,
+    "packageRules": [
+        {
+            "matchUpdateTypes": ["minor", "patch"],
+            "groupName": "minor and patch dependencies"
+        },
+        {
+            "matchPackageNames": ["vite-plus", "vite", "vitest", "/^@vitest//"],
+            "groupName": "vite-plus ecosystem"
+        },
+        {
+            "matchPackageNames": [
+                "dunglas/frankenphp",
+                "postgres",
+                "redis",
+                "gotenberg/gotenberg"
+            ],
+            "pinDigests": true
+        }
+    ]
+}

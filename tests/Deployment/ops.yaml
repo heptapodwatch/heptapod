@@ -1,0 +1,185 @@
+# Disposable acceptance stack. Only the nginx port is published; no browser profile.
+x-image-health: &image-health
+    test: !reset null
+    interval: 2s
+    timeout: 5s
+    retries: 1
+    start_period: 0s
+services:
+    app:
+        image: ${APP_IMAGE:?Set APP_IMAGE}
+        networks: [backend, browser, lighthouse-control, outbound-fixture]
+        build: !reset null
+        pull_policy: never
+        read_only: true
+        tmpfs: ['/tmp:uid=33,gid=33,mode=1777']
+        volumes: !override ['backups:/backups']
+        ports: !reset []
+        env_file: !reset []
+        environment: &url-environment
+            APP_ENV: production
+            APP_DEBUG: 'false'
+            APP_KEY: ${APP_KEY}
+            APP_URL: https://monitor.example.com:8443
+            SERVER_NAME: http://monitor.example.com:8080
+            HEPTAPOD_ROLE: web
+            RUN_MIGRATIONS: ${HEPTAPOD_APP_RUN_MIGRATIONS:-1}
+            DB_CONNECTION: pgsql
+            DB_HOST: !reset null
+            DB_PORT: !reset null
+            DB_DATABASE: !reset null
+            DB_USERNAME: !reset null
+            DB_PASSWORD: !reset null
+            DB_URL: postgres://heptapod:ops-test-password@postgres:5432/heptapod
+            REDIS_HOST: !reset null
+            REDIS_PORT: !reset null
+            REDIS_URL: redis://redis:6379/0
+            SESSION_DRIVER: redis
+            CACHE_STORE: redis
+            QUEUE_CONNECTION: redis
+            LOG_CHANNEL: stderr
+            BROADCAST_CONNECTION: reverb
+            REVERB_APP_ID: ops-test
+            REVERB_APP_KEY: ops-test-key
+            REVERB_APP_SECRET: ops-test-secret
+            REVERB_HOST: reverb
+            REVERB_PORT: 8080
+            REVERB_SCHEME: http
+            TRUSTED_PROXIES: 172.31.106.0/24
+            HEPTAPOD_BROWSER_ENABLED: 'false'
+            HEPTAPOD_STORAGE_DISK: s3
+            BACKUP_ARCHIVE_PASSWORD: ops-test-backup-password
+            AWS_ACCESS_KEY_ID: ops-test-key
+            AWS_SECRET_ACCESS_KEY: ops-test-secret
+            AWS_DEFAULT_REGION: us-east-1
+            AWS_BUCKET: heptapod
+            AWS_ENDPOINT: http://s3:8333
+            AWS_USE_PATH_STYLE_ENDPOINT: 'true'
+            XDG_DATA_HOME: /tmp/heptapod/data
+            XDG_CONFIG_HOME: /tmp/heptapod/config
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            s3:
+                condition: service_started
+    reverb:
+        env_file: !reset []
+        image: ${APP_IMAGE}
+        build: !reset null
+        pull_policy: never
+        read_only: true
+        tmpfs: ['/tmp:uid=33,gid=33,mode=1777']
+        volumes: !reset []
+        environment:
+            <<: *url-environment
+            RUN_MIGRATIONS: '0'
+            HEPTAPOD_ROLE: reverb
+        networks: [backend]
+    horizon:
+        healthcheck: *image-health
+        env_file: !reset []
+        image: ${APP_IMAGE}
+        build: !reset null
+        pull_policy: never
+        read_only: true
+        tmpfs: ['/tmp:uid=33,gid=33,mode=1777']
+        volumes: !reset []
+        environment:
+            <<: *url-environment
+            RUN_MIGRATIONS: '0'
+            HEPTAPOD_ROLE: worker
+    dispatcher:
+        healthcheck: *image-health
+        env_file: !reset []
+        image: ${APP_IMAGE}
+        build: !reset null
+        pull_policy: never
+        read_only: true
+        tmpfs: ['/tmp:uid=33,gid=33,mode=1777']
+        volumes: !reset []
+        environment:
+            <<: *url-environment
+            RUN_MIGRATIONS: '0'
+            HEPTAPOD_ROLE: dispatcher
+    scheduler:
+        healthcheck: *image-health
+        env_file: !reset []
+        image: ${APP_IMAGE}
+        build: !reset null
+        pull_policy: never
+        read_only: true
+        tmpfs: ['/tmp:uid=33,gid=33,mode=1777']
+        volumes: !reset []
+        environment:
+            <<: *url-environment
+            RUN_MIGRATIONS: '0'
+            HEPTAPOD_ROLE: scheduler
+    all-in-one-worker:
+        extends:
+            service: horizon
+        profiles: [worker-recovery]
+        stop_grace_period: 1275s
+        restart: unless-stopped
+        init: true
+        networks: [backend, browser]
+        cap_drop: [ALL]
+        security_opt: [no-new-privileges:true]
+        mem_limit: 2200m
+        memswap_limit: 2200m
+        environment:
+            HEPTAPOD_ROLE: all-in-one-worker
+            REDIS_MAX_RETRIES: '0'
+    outbound-fixture:
+        image: openresty/openresty:1.27.1.2-0-alpine
+        command:
+            [
+                '/usr/local/openresty/bin/openresty',
+                '-g',
+                'daemon off;',
+                '-c',
+                '/fixtures/nginx.conf',
+            ]
+        volumes: ['./docker/fixtures:/fixtures:ro']
+        networks:
+            outbound-fixture:
+                ipv4_address: 11.123.197.2
+                aliases: [outbound.fixture.test]
+    nginx:
+        image: nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
+        mem_limit: 32m
+        volumes: ['./tests/Deployment/ops-nginx.conf:/etc/nginx/nginx.conf:ro']
+        ports: ['127.0.0.1:${OPS_PORT:-10680}:80']
+        networks: [backend]
+        depends_on:
+            app:
+                condition: service_healthy
+    s3:
+        image: chrislusf/seaweedfs:4.17@sha256:186de7ef977a20343ee9a5544073f081976a29e2d29ecf8379891e7bf177fbe9
+        command:
+            [
+                'server',
+                '-s3',
+                '-dir=/data',
+                '-ip=s3',
+                '-volume.max=8',
+                '-master.volumeSizeLimitMB=32',
+                '-s3.config=/etc/ops-s3.json',
+            ]
+        mem_limit: 192m
+        networks: [backend]
+        volumes:
+            ['s3:/data', './tests/Deployment/ops-s3.json:/etc/ops-s3.json:ro']
+networks:
+    # Public-only probes need a globally classified address without public network traffic.
+    # This fixture network is isolated, has no published ports and never changes SSRF policy.
+    outbound-fixture:
+        internal: true
+        ipam:
+            config: [{ subnet: 11.123.197.0/29 }]
+    backend:
+        ipam:
+            config: [{ subnet: 172.31.106.0/24 }]
+volumes:
+    s3:

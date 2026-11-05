@@ -1,0 +1,194 @@
+uptime opened
+{
+    "body": "{\"event_id\":{event_id},\"destination_id\":{destination_id},\"severity\":\"down\",\"cause\":\"failed\",\"title\":\"Golden shop is down\",\"summary\":\"HTTP 503\\nCheck: uptime\\nSite: https:\\/\\/shop.golden.example\\/opened?[redacted]\\nSince: 2026-10-30T09:10:00+00:00\",\"headline\":\"Uptime: HTTP 503 Service Unavailable.\",\"changes\":[],\"details\":[],\"site_id\":{site_id},\"site_label\":\"Golden shop\",\"site_url\":\"https:\\/\\/shop.golden.example\\/opened?[redacted]\",\"check_type\":\"uptime\",\"also_affected\":[],\"rechecking\":[],\"since\":\"2026-10-30T09:10:00+00:00\",\"downtime_seconds\":null,\"link\":\"http:\\/\\/monitor.example.test\\/incidents\\/{id}\",\"is_test\":false}",
+    "headers": {
+        "Content-Length": "{body length}",
+        "Content-Type": "application/json",
+        "Host": "receiver.example.test",
+        "Idempotency-Key": "{event_id}:{destination_id}",
+        "Signature": "{valid signature}",
+        "User-Agent": "GuzzleHttp/7",
+        "X-Heptapod-Delivery": "{event_id}:{destination_id}",
+        "X-Heptapod-Timestamp": "1793351700"
+    }
+}
+=====
+uptime reminder
+{
+    "body": "{\"event_id\":{event_id},\"destination_id\":{destination_id},\"severity\":\"down\",\"cause\":\"failed\",\"title\":\"[Still down \\u00b7 5 h] Golden shop\",\"summary\":\"The check is failing.\\nCheck: uptime\\nSite: https:\\/\\/shop.golden.example\\/reminder?[redacted]\\nSince: 2026-10-30T04:14:00+00:00\",\"headline\":\"Uptime: The check is failing.\",\"changes\":[],\"details\":[],\"site_id\":{site_id},\"site_label\":\"Golden shop\",\"site_url\":\"https:\\/\\/shop.golden.example\\/reminder?[redacted]\",\"check_type\":\"uptime\",\"also_affected\":[],\"rechecking\":[],\"since\":\"2026-10-30T04:14:00+00:00\",\"downtime_seconds\":null,\"link\":\"http:\\/\\/monitor.example.test\\/incidents\\/{id}\",\"is_test\":false}",
+    "headers": {
+        "Content-Length": "{body length}",
+        "Content-Type": "application/json",
+        "Host": "receiver.example.test",
+        "Idempotency-Key": "{event_id}:{destination_id}",
+        "Signature": "{valid signature}",
+        "User-Agent": "GuzzleHttp/7",
+        "X-Heptapod-Delivery": "{event_id}:{destination_id}",
+        "X-Heptapod-Timestamp": "1793351700"
+    }
+}
+=====
+uptime resolved
+{
+    "body": "{\"event_id\":{event_id},\"destination_id\":{destination_id},\"severity\":\"recovered\",\"cause\":null,\"title\":\"Golden shop has recovered\",\"summary\":\"The check has recovered.\\nCheck: uptime\\nSite: https:\\/\\/shop.golden.example\\/resolved?[redacted]\\nSince: 2026-10-30T08:33:00+00:00\\nTotal downtime: 2520 seconds\",\"headline\":\"Uptime: The check has recovered.\",\"changes\":[],\"details\":[],\"site_id\":{site_id},\"site_label\":\"Golden shop\",\"site_url\":\"https:\\/\\/shop.golden.example\\/resolved?[redacted]\",\"check_type\":\"uptime\",\"also_affected\":[],\"rechecking\":[],\"since\":\"2026-10-30T08:33:00+00:00\",\"downtime_seconds\":2520,\"link\":\"http:\\/\\/monitor.example.test\\/incidents\\/{id}\",\"is_test\":false}",
+    "headers": {
+        "Content-Length": "{body length}",
+        "Content-Type": "application/json",
+        "Host": "receiver.example.test",
+        "Idempotency-Key": "{event_id}:{destination_id}",
+        "Signature": "{valid signature}",
+        "User-Agent": "GuzzleHttp/7",
+        "X-Heptapod-Delivery": "{event_id}:{destination_id}",
+        "X-Heptapod-Timestamp": "1793351700"
+    }
+}
+=====
+check errored
+{
+    "body": "{\"event_id\":{event_id},\"destination_id\":{destination_id},\"severity\":\"error\",\"cause\":\"errored\",\"title\":\"Golden shop \\u2014 domain could not run (error)\",\"summary\":\"Check could not run (error)\\nCheck: domain\\nSite: https:\\/\\/shop.golden.example\\/errored?[redacted]\\nSince: 2026-10-30T09:05:00+00:00\",\"headline\":\"Domain: Check could not run (error)\",\"changes\":[],\"details\":[],\"site_id\":{site_id},\"site_label\":\"Golden shop\",\"site_url\":\"https:\\/\\/shop.golden.example\\/errored?[redacted]\",\"check_type\":\"domain\",\"also_affected\":[],\"rechecking\":[],\"since\":\"2026-10-30T09:05:00+00:00\",\"downtime_seconds\":null,\"link\":\"http:\\/\\/monitor.example.test\\/incidents\\/{id}\",\"is_test\":false}",
+    "headers": {
+        "Content-Length": "{body length}",
+        "Content-Type": "application/json",
+        "Host": "receiver.example.test",
+        "Idempotency-Key": "{event_id}:{destination_id}",
+        "Signature": "{valid signature}",
+        "User-Agent": "GuzzleHttp/7",
+        "X-Heptapod-Delivery": "{event_id}:{destination_id}",
+        "X-Heptapod-Timestamp": "1793351700"
+    }
+}
+=====
+warning
+{
+    "body": "{\"event_id\":{event_id},\"destination_id\":{destination_id},\"severity\":\"warning\",\"cause\":null,\"title\":\"Golden shop: performance warning\",\"summary\":\"The check needs attention.\\nCheck: performance\\nSite: https:\\/\\/shop.golden.example\\/warning?[redacted]\\nSince: 2026-10-30T09:15:00+00:00\",\"headline\":\"Performance: The check needs attention.\",\"changes\":[],\"details\":[],\"site_id\":{site_id},\"site_label\":\"Golden shop\",\"site_url\":\"https:\\/\\/shop.golden.example\\/warning?[redacted]\",\"check_type\":\"performance\",\"also_affected\":[],\"rechecking\":[],\"since\":\"2026-10-30T09:15:00+00:00\",\"downtime_seconds\":null,\"link\":\"http:\\/\\/monitor.example.test\\/sites\\/{id}\",\"is_test\":false}",
+    "headers": {
+        "Content-Length": "{body length}",
+        "Content-Type": "application/json",
+        "Host": "receiver.example.test",
+        "Idempotency-Key": "{event_id}:{destination_id}",
+        "Signature": "{valid signature}",
+        "User-Agent": "GuzzleHttp/7",
+        "X-Heptapod-Delivery": "{event_id}:{destination_id}",
+        "X-Heptapod-Timestamp": "1793351700"
+    }
+}
+=====
+warning recovered
+{
+    "body": "{\"event_id\":{event_id},\"destination_id\":{destination_id},\"severity\":\"recovered\",\"cause\":null,\"title\":\"Golden shop: performance resolved\",\"summary\":\"The check has recovered.\\nCheck: performance\\nSite: https:\\/\\/shop.golden.example\\/warning-recovered?[redacted]\\nSince: 2026-10-30T09:15:00+00:00\",\"headline\":\"Performance: The check has recovered.\",\"changes\":[],\"details\":[],\"site_id\":{site_id},\"site_label\":\"Golden shop\",\"site_url\":\"https:\\/\\/shop.golden.example\\/warning-recovered?[redacted]\",\"check_type\":\"performance\",\"also_affected\":[],\"rechecking\":[],\"since\":\"2026-10-30T09:15:00+00:00\",\"downtime_seconds\":null,\"link\":\"http:\\/\\/monitor.example.test\\/sites\\/{id}\",\"is_test\":false}",
+    "headers": {
+        "Content-Length": "{body length}",
+        "Content-Type": "application/json",
+        "Host": "receiver.example.test",
+        "Idempotency-Key": "{event_id}:{destination_id}",
+        "Signature": "{valid signature}",
+        "User-Agent": "GuzzleHttp/7",
+        "X-Heptapod-Delivery": "{event_id}:{destination_id}",
+        "X-Heptapod-Timestamp": "1793351700"
+    }
+}
+=====
+expiring certificate
+{
+    "body": "{\"event_id\":{event_id},\"destination_id\":{destination_id},\"severity\":\"warning\",\"cause\":null,\"title\":\"Golden shop: certificate_health warning\",\"summary\":\"The check needs attention.\\nCheck: certificate_health\\nSite: https:\\/\\/shop.golden.example\\/expiring?[redacted]\\nSince: 2026-10-30T09:15:00+00:00\",\"headline\":\"Certificate: The check needs attention.\",\"changes\":[],\"details\":[],\"site_id\":{site_id},\"site_label\":\"Golden shop\",\"site_url\":\"https:\\/\\/shop.golden.example\\/expiring?[redacted]\",\"check_type\":\"certificate_health\",\"also_affected\":[],\"rechecking\":[],\"since\":\"2026-10-30T09:15:00+00:00\",\"downtime_seconds\":null,\"link\":\"http:\\/\\/monitor.example.test\\/sites\\/{id}\",\"is_test\":false}",
+    "headers": {
+        "Content-Length": "{body length}",
+        "Content-Type": "application/json",
+        "Host": "receiver.example.test",
+        "Idempotency-Key": "{event_id}:{destination_id}",
+        "Signature": "{valid signature}",
+        "User-Agent": "GuzzleHttp/7",
+        "X-Heptapod-Delivery": "{event_id}:{destination_id}",
+        "X-Heptapod-Timestamp": "1793351700"
+    }
+}
+=====
+component failure
+{
+    "body": "{\"event_id\":{event_id},\"destination_id\":{destination_id},\"severity\":\"warning\",\"cause\":null,\"title\":\"Golden shop \\u2014 Nightly export warning\",\"summary\":\"Nightly export changed at 2026-10-30T09:15:00+00:00.\\nCheck: cron\\nSite: https:\\/\\/shop.golden.example\\/component?[redacted]\\nSince: 2026-10-30T09:00:00+00:00\",\"headline\":\"Scheduled tasks: Nightly export changed at 2026-10-30T09:15:00+00:00.\",\"changes\":[],\"details\":[],\"site_id\":{site_id},\"site_label\":\"Golden shop\",\"site_url\":\"https:\\/\\/shop.golden.example\\/component?[redacted]\",\"check_type\":\"cron\",\"also_affected\":[],\"rechecking\":[],\"since\":\"2026-10-30T09:00:00+00:00\",\"downtime_seconds\":null,\"link\":\"http:\\/\\/monitor.example.test\\/sites\\/{id}\",\"is_test\":false}",
+    "headers": {
+        "Content-Length": "{body length}",
+        "Content-Type": "application/json",
+        "Host": "receiver.example.test",
+        "Idempotency-Key": "{event_id}:{destination_id}",
+        "Signature": "{valid signature}",
+        "User-Agent": "GuzzleHttp/7",
+        "X-Heptapod-Delivery": "{event_id}:{destination_id}",
+        "X-Heptapod-Timestamp": "1793351700"
+    }
+}
+=====
+component recovered
+{
+    "body": "{\"event_id\":{event_id},\"destination_id\":{destination_id},\"severity\":\"recovered\",\"cause\":null,\"title\":\"Golden shop \\u2014 Hourly import succeeded\",\"summary\":\"Hourly import completed successfully at 2026-10-30T09:10:00+00:00.\\nCheck: cron\\nSite: https:\\/\\/shop.golden.example\\/component-recovered?[redacted]\\nSince: 2026-10-30T08:00:00+00:00\\nTotal downtime: 4200 seconds\",\"headline\":\"Scheduled tasks: Hourly import completed successfully at 2026-10-30T09:10:00+00:00.\",\"changes\":[],\"details\":[],\"site_id\":{site_id},\"site_label\":\"Golden shop\",\"site_url\":\"https:\\/\\/shop.golden.example\\/component-recovered?[redacted]\",\"check_type\":\"cron\",\"also_affected\":[],\"rechecking\":[],\"since\":\"2026-10-30T08:00:00+00:00\",\"downtime_seconds\":4200,\"link\":\"http:\\/\\/monitor.example.test\\/sites\\/{id}\",\"is_test\":false}",
+    "headers": {
+        "Content-Length": "{body length}",
+        "Content-Type": "application/json",
+        "Host": "receiver.example.test",
+        "Idempotency-Key": "{event_id}:{destination_id}",
+        "Signature": "{valid signature}",
+        "User-Agent": "GuzzleHttp/7",
+        "X-Heptapod-Delivery": "{event_id}:{destination_id}",
+        "X-Heptapod-Timestamp": "1793351700"
+    }
+}
+=====
+addon change
+{
+    "body": "{\"event_id\":{event_id},\"destination_id\":{destination_id},\"severity\":\"warning\",\"cause\":null,\"title\":\"Golden shop: dns warning\",\"summary\":\"DNS records have changed.\\nCheck: dns\\nSite: https:\\/\\/shop.golden.example\\/change?[redacted]\\nSince: 2026-10-30T09:15:00+00:00\",\"headline\":\"DNS records have changed.\",\"changes\":[\"A and MX records changed: 1 removed, 2 added.\"],\"details\":[],\"site_id\":{site_id},\"site_label\":\"Golden shop\",\"site_url\":\"https:\\/\\/shop.golden.example\\/change?[redacted]\",\"check_type\":\"dns\",\"also_affected\":[],\"rechecking\":[],\"since\":\"2026-10-30T09:15:00+00:00\",\"downtime_seconds\":null,\"link\":\"http:\\/\\/monitor.example.test\\/sites\\/{id}\",\"is_test\":false}",
+    "headers": {
+        "Content-Length": "{body length}",
+        "Content-Type": "application/json",
+        "Host": "receiver.example.test",
+        "Idempotency-Key": "{event_id}:{destination_id}",
+        "Signature": "{valid signature}",
+        "User-Agent": "GuzzleHttp/7",
+        "X-Heptapod-Delivery": "{event_id}:{destination_id}",
+        "X-Heptapod-Timestamp": "1793351700"
+    }
+}
+=====
+maintenance catch-up
+{
+    "body": "{\"event_id\":{event_id},\"destination_id\":{destination_id},\"severity\":\"down\",\"cause\":\"failed\",\"title\":\"[After maintenance] Golden shop is still failing\",\"summary\":\"2 checks still failing: certificate_health, uptime\\nSite: https:\\/\\/shop.golden.example\\/catch-up?[redacted]\\nSince: 2026-10-30T08:15:00+00:00\",\"headline\":\"2 checks still failing: \",\"changes\":[],\"details\":[],\"site_id\":{site_id},\"site_label\":\"Golden shop\",\"site_url\":\"https:\\/\\/shop.golden.example\\/catch-up?[redacted]\",\"check_type\":null,\"also_affected\":[],\"rechecking\":[],\"since\":\"2026-10-30T08:15:00+00:00\",\"downtime_seconds\":null,\"link\":\"http:\\/\\/monitor.example.test\\/sites\\/{id}\",\"is_test\":false}",
+    "headers": {
+        "Content-Length": "{body length}",
+        "Content-Type": "application/json",
+        "Host": "receiver.example.test",
+        "Idempotency-Key": "{event_id}:{destination_id}",
+        "Signature": "{valid signature}",
+        "User-Agent": "GuzzleHttp/7",
+        "X-Heptapod-Delivery": "{event_id}:{destination_id}",
+        "X-Heptapod-Timestamp": "1793351700"
+    }
+}
+=====
+digest
+{
+    "body": "{\"event_id\":{event_id},\"destination_id\":{destination_id},\"severity\":\"info\",\"cause\":null,\"title\":\"Daily summary\",\"summary\":\"3 open items; and 1 more sites.\\nGolden shop, Other shop\\nSite: https:\\/\\/monitor.example.test\\nSince: 2026-10-30T09:15:00+00:00\",\"headline\":\"3 open items; and 1 more sites.\\nGolden shop, Other shop\",\"changes\":[],\"details\":[],\"site_id\":0,\"site_label\":\"Heptapod\",\"site_url\":\"https:\\/\\/monitor.example.test\",\"check_type\":null,\"also_affected\":[],\"rechecking\":[],\"since\":\"2026-10-30T09:15:00+00:00\",\"downtime_seconds\":null,\"link\":\"http:\\/\\/monitor.example.test\\/sites\",\"is_test\":false}",
+    "headers": {
+        "Content-Length": "{body length}",
+        "Content-Type": "application/json",
+        "Host": "receiver.example.test",
+        "Idempotency-Key": "{event_id}:{destination_id}",
+        "Signature": "{valid signature}",
+        "User-Agent": "GuzzleHttp/7",
+        "X-Heptapod-Delivery": "{event_id}:{destination_id}",
+        "X-Heptapod-Timestamp": "1793351700"
+    }
+}
+=====
+test send
+{
+    "body": "{\"event_id\":0,\"destination_id\":{destination_id},\"severity\":\"info\",\"cause\":null,\"title\":\"[Test] Heptapod test notification\",\"summary\":\"Your channel is working.\\nSite: https:\\/\\/monitor.example.test\\nSince: 2026-10-30T09:15:00+00:00\",\"headline\":\"Your channel is working.\",\"changes\":[],\"details\":[],\"site_id\":0,\"site_label\":\"Heptapod\",\"site_url\":\"https:\\/\\/monitor.example.test\",\"check_type\":null,\"also_affected\":[],\"rechecking\":[],\"since\":\"2026-10-30T09:15:00+00:00\",\"downtime_seconds\":null,\"link\":\"http:\\/\\/monitor.example.test\\/sites\",\"is_test\":true}",
+    "headers": {
+        "Content-Length": "{body length}",
+        "Content-Type": "application/json",
+        "Host": "receiver.example.test",
+        "Idempotency-Key": "test:{uuid}",
+        "Signature": "{valid signature}",
+        "User-Agent": "GuzzleHttp/7",
+        "X-Heptapod-Delivery": "{event_id}:{destination_id}",
+        "X-Heptapod-Timestamp": "1793351700"
+    }
+}

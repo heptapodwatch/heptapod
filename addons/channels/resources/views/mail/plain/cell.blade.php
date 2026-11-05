@@ -1,0 +1,1 @@
+<span style="{{ $cell->mono ? "font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;font-size:13px;" : '' }}{{ $cell->keepOnOneLine ? 'white-space:nowrap;' : 'overflow-wrap:anywhere;word-break:break-word;' }}">{{ $cell->plainHtmlText ?? $cell->text }}</span>@if ($cell->badge !== null) ({{ $cell->badge }})@endif

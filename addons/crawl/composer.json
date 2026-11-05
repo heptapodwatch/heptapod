@@ -1,0 +1,33 @@
+{
+  "name": "heptapod/addon-crawl",
+  "description": "Plain HTTP crawling for Heptapod",
+  "license": "AGPL-3.0-or-later",
+  "type": "library",
+  "version": "0.1.0",
+  "require": {
+    "php": "^8.5",
+    "ext-dom": "^20031129",
+    "ext-uri": "*",
+    "illuminate/database": "^13.34",
+    "illuminate/support": "^13.34",
+    "illuminate/validation": "^13.34",
+    "league/uri": "^7.8",
+    "nesbot/carbon": "^3.14",
+    "spatie/crawler": "^9.4.2",
+    "spatie/laravel-data": "^4.23",
+    "spatie/typescript-transformer": "^3.3",
+    "symfony/dom-crawler": "^8.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "Heptapod\\Addons\\Crawl\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Heptapod\\Addons\\Crawl\\CrawlServiceProvider"
+      ]
+    }
+  }
+}

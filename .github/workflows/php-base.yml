@@ -1,0 +1,304 @@
+name: PHP base image
+
+on:
+  push:
+    branches: [main, 'ci/**']
+    paths: ['docker/php-base/**', 'docker/php-extensions.txt', 'scripts/image-config-digest.sh', '.github/workflows/php-base.yml', '.trivyignore']
+  schedule:
+    - cron: '23 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: php-base-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PHP_BASE_REFERENCE: ghcr.io/heptapodwatch/heptapod-php-base
+
+jobs:
+  inputs:
+    if: (github.event_name != 'schedule' || github.ref == 'refs/heads/main') && !(github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.inputs.outputs.tag }}
+      date: ${{ steps.inputs.outputs.date }}
+      created: ${{ steps.inputs.outputs.created }}
+      hash: ${{ steps.inputs.outputs.hash }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - id: inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          day=$(date -u +%F)
+          {
+            echo "tag=${day//-/}-${GITHUB_SHA:0:12}"
+            echo "date=$day"
+            echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "hash=$(cat docker/php-base/Dockerfile docker/php-extensions.txt | sha256sum | cut -d ' ' -f 1)"
+          } >> "$GITHUB_OUTPUT"
+
+  native:
+    name: native (${{ matrix.target }}, ${{ matrix.architecture }})
+    needs: inputs
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    env:
+      DOCKER_BUILD_RECORD_UPLOAD: 'false'
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [runtime, coverage]
+        include:
+          - architecture: amd64
+            runner: ubuntu-latest
+          - architecture: arm64
+            runner: ubuntu-24.04-arm
+        architecture: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - name: Dockerfile lint
+        id: hadolint
+        shell: bash
+        run: >-
+          docker run --rm -v "$PWD:/repo:ro" -w /repo
+          ghcr.io/hadolint/hadolint:v2.15.1-debian@sha256:9a3944b7fddcb947d1ffd90829ac1a6e5c30479223358f249d8b96c7d0019e27
+          hadolint --format json docker/php-base/Dockerfile > "$RUNNER_TEMP/hadolint.json"
+      - name: Build native PHP base
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: docker/php-base/Dockerfile
+          target: ${{ matrix.target }}
+          platforms: linux/${{ matrix.architecture }}
+          load: true
+          push: false
+          provenance: false
+          tags: heptapod-php-base:${{ matrix.target }}
+          build-args: |
+            APT_SNAPSHOT_DATE=${{ needs.inputs.outputs.date }}
+            PHP_BASE_INPUTS=${{ needs.inputs.outputs.hash }}
+            OCI_SOURCE=https://github.com/${{ github.repository }}
+            OCI_REVISION=${{ github.sha }}
+            OCI_CREATED=${{ needs.inputs.outputs.created }}
+          cache-from: type=gha,scope=php-base-${{ matrix.target }}-${{ matrix.architecture }}
+          cache-to: type=gha,mode=max,scope=php-base-${{ matrix.target }}-${{ matrix.architecture }},ignore-error=true
+      - name: Verify offline PHP modules and image labels
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          INPUTS_HASH: ${{ needs.inputs.outputs.hash }}
+          CREATED: ${{ needs.inputs.outputs.created }}
+        run: |
+          set -euo pipefail
+          export LC_ALL=C
+          awk -v target="$TARGET" 'NF && $1 !~ /^#/ && (target == "coverage" || $1 != "pcov") { print $1 }' docker/php-extensions.txt | sort > "$RUNNER_TEMP/php-expected"
+          docker run --rm --network none "heptapod-php-base:$TARGET" php -m > "$RUNNER_TEMP/php-modules"
+          awk '/^\[Zend Modules\]/ { exit } /^\[/ || !NF { next } { sub(/^Zend /, ""); print tolower($0) }' "$RUNNER_TEMP/php-modules" | sort > "$RUNNER_TEMP/php-actual"
+          diff -u "$RUNNER_TEMP/php-expected" "$RUNNER_TEMP/php-actual"
+          docker image inspect "heptapod-php-base:$TARGET" | jq -e \
+            --arg hash "$INPUTS_HASH" --arg source "https://github.com/$GITHUB_REPOSITORY" \
+            --arg revision "$GITHUB_SHA" --arg created "$CREATED" '
+            .[0].Config.Labels | .["com.heptapod.php-base-inputs"] == $hash and
+            .["org.opencontainers.image.source"] == $source and
+            .["org.opencontainers.image.revision"] == $revision and
+            .["org.opencontainers.image.created"] == $created'
+      - name: PHP base vulnerability HARD gate
+        id: trivy
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        env:
+          TRIVY_IMAGE_SRC: docker
+        with:
+          version: v0.75.0
+          image-ref: heptapod-php-base:${{ matrix.target }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          trivyignores: .trivyignore
+          format: json
+          output: ${{ runner.temp }}/trivy-php-base.json
+      - name: Summarize native gates
+        if: always()
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          ARCHITECTURE: ${{ matrix.architecture }}
+          LINT_OUTCOME: ${{ steps.hadolint.outcome }}
+          SCAN_OUTCOME: ${{ steps.trivy.outcome }}
+        run: |
+          bash scripts/ci-summary.sh hadolint "php-base/$TARGET/$ARCHITECTURE Dockerfile lint" "$LINT_OUTCOME" "$RUNNER_TEMP/hadolint.json"
+          bash scripts/ci-summary.sh trivy "php-base/$TARGET/$ARCHITECTURE vulnerability gate" "$SCAN_OUTCOME" "$RUNNER_TEMP/trivy-php-base.json"
+          if [ "$SCAN_OUTCOME" = failure ]; then
+            jq -r '.Results[]? | .Target as $target | .Vulnerabilities[]? | "::error title=\(.VulnerabilityID)::\(.Severity) \(.PkgName) \(.InstalledVersion) -> \(.FixedVersion // "no fix") in \($target)"' "$RUNNER_TEMP/trivy-php-base.json"
+          fi
+      - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Push scanned bytes and verify config identity
+        id: push
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          ARCHITECTURE: ${{ matrix.architecture }}
+          BUILD_TAG: ${{ needs.inputs.outputs.tag }}
+        run: |
+          set -euo pipefail
+          suffix=
+          if [ "$TARGET" = coverage ]; then suffix=-coverage; fi
+          image="heptapod-php-base:$TARGET"
+          native_platform=$(docker image inspect "$image" --format '{{.Os}}/{{.Architecture}}')
+          test "$native_platform" = "linux/$ARCHITECTURE"
+          scanned_config=$(bash scripts/image-config-digest.sh "$image")
+          reference="$PHP_BASE_REFERENCE:$BUILD_TAG$suffix-$ARCHITECTURE"
+          docker tag "$image" "$reference"
+          docker push "$reference" | tee "$RUNNER_TEMP/push.log"
+          digest=$(sed -nE 's/.*digest: (sha256:[a-f0-9]{64}).*/\1/p' "$RUNNER_TEMP/push.log" | tail -n 1)
+          : "${digest:?Missing digest from image push}"
+          pushed_config=$(docker buildx imagetools inspect "$PHP_BASE_REFERENCE@$digest" --raw | jq -er '.config.digest')
+          test "$scanned_config" = "$pushed_config"
+          printf '| Target/architecture | Scanned config | Pushed digest | Pushed config |\n| --- | --- | --- | --- |\n| %s/%s | %s | %s | %s |\n' "$TARGET" "$ARCHITECTURE" "$scanned_config" "$digest" "$pushed_config" >> "$GITHUB_STEP_SUMMARY"
+          jq -n --arg target "$TARGET" --arg architecture "$ARCHITECTURE" --arg digest "$digest" \
+            --arg scanned "$scanned_config" --arg pushed "$pushed_config" \
+            '{target: $target, architecture: $architecture, digest: $digest, scanned_config: $scanned, pushed_config: $pushed}' \
+            > "$RUNNER_TEMP/$TARGET-$ARCHITECTURE.json"
+      - name: Record native gate conclusions
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          ARCHITECTURE: ${{ matrix.architecture }}
+          HARD_GATE: ${{ steps.trivy.outcome }}
+          PUSH: ${{ steps.push.outcome }}
+        run: |
+          set -euo pipefail
+          test "$HARD_GATE" = success
+          test "$PUSH" = success
+          file="$RUNNER_TEMP/$TARGET-$ARCHITECTURE.json"
+          jq --arg gate "$HARD_GATE" --arg push "$PUSH" '. + {hard_gate: $gate, push: $push}' "$file" > "$file.tmp"
+          mv "$file.tmp" "$file"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: php-base-${{ matrix.target }}-${{ matrix.architecture }}
+          path: ${{ runner.temp }}/${{ matrix.target }}-${{ matrix.architecture }}.json
+          if-no-files-found: error
+          overwrite: true
+
+  publish:
+    needs: [inputs, native]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: php-base-*-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/digests
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Create and verify both two-platform indexes
+        shell: bash
+        env:
+          BUILD_TAG: ${{ needs.inputs.outputs.tag }}
+        run: |
+          set -euo pipefail
+          for target in runtime coverage; do
+            suffix=
+            if [ "$target" = coverage ]; then suffix=-coverage; fi
+            sources=()
+            for arch in amd64 arm64; do
+              record="$RUNNER_TEMP/digests/$target-$arch.json"
+              jq -e --arg target "$target" --arg arch "$arch" '
+                .target == $target and .architecture == $arch and
+                .hard_gate == "success" and .push == "success" and
+                .scanned_config == .pushed_config' "$record"
+              digest=$(jq -er '.digest' "$record")
+              config=$(jq -er '.scanned_config' "$record")
+              pushed_config=$(docker buildx imagetools inspect "$PHP_BASE_REFERENCE@$digest" --raw | jq -er '.config.digest')
+              test "$config" = "$pushed_config"
+              sources+=("$PHP_BASE_REFERENCE@$digest")
+            done
+            tags=("$BUILD_TAG$suffix")
+            if [[ "$GITHUB_REF" == refs/heads/ci/* ]]; then tags+=("ci-$GITHUB_SHA$suffix"); fi
+            if [ "$GITHUB_REF" = refs/heads/main ]; then tags+=("latest-main$suffix"); fi
+            tag_args=()
+            for tag in "${tags[@]}"; do tag_args+=(--tag "$PHP_BASE_REFERENCE:$tag"); done
+            docker buildx imagetools create --prefer-index=true "${tag_args[@]}" "${sources[@]}"
+            index_digest=$(docker buildx imagetools inspect "$PHP_BASE_REFERENCE:$BUILD_TAG$suffix" --format '{{json .Manifest}}' | jq -er '.digest')
+            : > "$RUNNER_TEMP/tags-$target.jsonl"
+            for tag in "${tags[@]}"; do
+              observed=$(docker buildx imagetools inspect "$PHP_BASE_REFERENCE:$tag" --format '{{json .Manifest}}' | jq -er '.digest')
+              test "$observed" = "$index_digest"
+              jq -n --arg tag "$tag" --arg digest "$observed" '{tag: $tag, digest: $digest}' >> "$RUNNER_TEMP/tags-$target.jsonl"
+              printf '%s@%s (%s)\n' "$PHP_BASE_REFERENCE" "$index_digest" "$tag" >> "$GITHUB_STEP_SUMMARY"
+            done
+            jq -n --arg target "$target" --arg digest "$index_digest" \
+              --slurpfile tags "$RUNNER_TEMP/tags-$target.jsonl" \
+              --slurpfile amd64 "$RUNNER_TEMP/digests/$target-amd64.json" \
+              --slurpfile arm64 "$RUNNER_TEMP/digests/$target-arm64.json" \
+              '{target: $target, index_digest: $digest, tags: $tags, cells: [$amd64[0], $arm64[0]]}' \
+              > "$RUNNER_TEMP/index-$target.json"
+          done
+          jq -n --arg reference "$PHP_BASE_REFERENCE" --argjson id "$GITHUB_RUN_ID" \
+            --argjson attempt "$GITHUB_RUN_ATTEMPT" --arg sha "$GITHUB_SHA" \
+            --arg event "$GITHUB_EVENT_NAME" --arg branch "$GITHUB_REF_NAME" \
+            --slurpfile runtime "$RUNNER_TEMP/index-runtime.json" \
+            --slurpfile coverage "$RUNNER_TEMP/index-coverage.json" '
+            {id: $id, attempt: $attempt, sha: $sha, event: $event, branch: $branch} as $run |
+            {schema: 1, reference: $reference, run: $run, build: $run, indexes: [$runtime[0], $coverage[0]]}' \
+            > "$RUNNER_TEMP/php-base-record.json"
+          bash scripts/php-base-verify-index.sh "$RUNNER_TEMP/php-base-record.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: php-base-record
+          path: ${{ runner.temp }}/php-base-record.json
+          if-no-files-found: error
+          overwrite: true
+
+  reuse:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Reuse the exact green candidate indexes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/php-base-reuse.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: php-base-record
+          path: ${{ runner.temp }}/php-base-record.json
+          if-no-files-found: error
+          overwrite: true

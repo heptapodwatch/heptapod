@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# shellcheck source=tests/Deployment/fixtures/gh-offline-validate.sh
+source "$(dirname -- "$0")/../../gh-offline-validate.sh"
+case "$endpoint" in
+    "repos/$GITHUB_REPOSITORY/actions/workflows/production-images.yml/runs?status="*)
+        status=${endpoint#*?status=}
+        status=${status%%&*}
+        case "$status" in
+            queued|in_progress|pending|waiting|requested) ;;
+            *) echo "Unexpected run status: $status" >&2; exit 1 ;;
+        esac
+        file=runs-idle.json
+        if [ "$status" = "${RETENTION_BUSY_STATUS:-}" ]; then file=runs-busy.json; fi
+        ;;
+    "repos/$GITHUB_REPOSITORY/actions/cache/usage")
+        cat "$RETENTION_FIXTURE/cache-usage.json"
+        exit 0
+        ;;
+    "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100") file=artifacts.json ;;
+    "/users/$RETENTION_TEST_OWNER")
+        test "$paginate" = false
+        jq -n --arg type "$RETENTION_TEST_OWNER_TYPE" '{type: $type}'
+        exit 0
+        ;;
+    "/$RETENTION_TEST_OWNER_ENDPOINT/$RETENTION_TEST_OWNER/packages/container/$RETENTION_TEST_PACKAGE/versions?per_page=100") file=versions.json ;;
+    *) echo "No gh fixture for endpoint: $endpoint" >&2; exit 1 ;;
+esac
+if [ "$paginate" = false ]; then
+    jq '.[0]' "$RETENTION_FIXTURE/$file"
+elif [ "$slurp" = true ]; then
+    cat "$RETENTION_FIXTURE/$file"
+else
+    jq -c '.[]' "$RETENTION_FIXTURE/$file"
+fi
