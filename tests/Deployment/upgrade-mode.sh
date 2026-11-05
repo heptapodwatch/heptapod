@@ -364,9 +364,18 @@ printf '%064d  heptapod-v9.9.9.tar.gz\n' 0 > "$fresh/release/v9.9.9/heptapod-v9.
 if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-mismatch.log 2>&1; then exit 1; fi
 grep -Fq 'Checksum mismatch for heptapod-v9.9.9.tar.gz' bundle-mismatch.log
 mv bundle.sha256 "$fresh/release/v9.9.9/heptapod-v9.9.9.tar.gz.sha256"
+# A bundle carrying a file its MANIFEST does not list.
+sh "$root/scripts/build-release-bundle.sh" v9.9.11 "$bundle_revision" "$fresh/build" > /dev/null
+tar -xzf "$fresh/build/heptapod-v9.9.11.tar.gz" -C "$fresh/build"
+printf 'APP_KEY=planted\n' > "$fresh/build/heptapod-v9.9.11/.env.prod"
+mkdir -p "$fresh/release/v9.9.11"
+tar -C "$fresh/build" -czf "$fresh/release/v9.9.11/heptapod-v9.9.11.tar.gz" heptapod-v9.9.11
+(cd "$fresh/release/v9.9.11" && sha256sum heptapod-v9.9.11.tar.gz > heptapod-v9.9.11.tar.gz.sha256)
+if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.11 > bundle-manifest.log 2>&1; then exit 1; fi
+grep -Fq 'heptapod-v9.9.11.tar.gz does not match its MANIFEST. Nothing was changed.' bundle-manifest.log
 installed_unchanged
 [ ! -e reexec.log ] && [ ! -s docker-operations.log ]
-printf 'PASS: Git checkouts, a stale --staged, --build and a checksum mismatch refuse before any file or service change\n'
+printf 'PASS: Git checkouts, a stale --staged, --build, a checksum mismatch and an unlisted bundle file refuse before any file or service change\n'
 # Only vX.Y.Z releases exist; fields compare as numbers. The fixture has no older bundle: refusals precede any download.
 for invalid in v9.9.10-rc.1 v1.0.0-alpha10 v1.0.0-alpha2; do
     if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to "$invalid" > bundle-tag.log 2>&1; then exit 1; fi
@@ -545,6 +554,12 @@ cmp "$fresh/build/heptapod-v9.9.10/docs/deploy/operations.md" docs/deploy/operat
 : > reexec.log
 STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh > bundle-latest-again.log
 grep -Fxq 'Release v9.9.10 is already deployed; nothing to upgrade.' bundle-latest-again.log
+# The same running revision after an aborted upgrade that resumed the old stack is not a completed deployment.
+printf 'resumed\n' > "$lifecycle_state/phase"
+STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh > bundle-resumed.log
+grep -Fq 'Release v9.9.10 is in place but not deployed' bundle-resumed.log
+[ "$(cat "$lifecycle_state/phase")" = committed ]
+: > reexec.log
 if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-downgrade.log 2>&1; then exit 1; fi
 grep -Fq 'Refusing to downgrade from v9.9.10 to v9.9.9' bundle-downgrade.log
 [ "$(grep -vc '^bundle upgrade.sh' reexec.log)" = 0 ] && [ "$(grep -c -- '--staged' reexec.log)" = 0 ]
