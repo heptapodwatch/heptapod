@@ -1,8 +1,8 @@
 # Heptapod
 
-Release images are `ghcr.io/heptapodwatch/heptapod-app` and `ghcr.io/heptapodwatch/heptapod-lighthouse`. The release's `compose.prod.yaml` defines the image defaults.
+Self-hosted website monitoring for freelancers and small agencies, built with Laravel and React. Website and documentation: [heptapod.watch](https://heptapod.watch).
 
-Self-hosted monitoring, built with Laravel and React.
+Release images are `ghcr.io/heptapodwatch/heptapod-app` and `ghcr.io/heptapodwatch/heptapod-lighthouse`. The release's `compose.prod.yaml` defines the image defaults.
 
 ## Instance documentation
 
