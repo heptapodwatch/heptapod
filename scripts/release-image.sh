@@ -21,6 +21,44 @@ release_checkout() {
     fi
 }
 
+# Release bundles are GitHub release assets. The overrides select a mirror or a test fixture (file:// works).
+release_api=${HEPTAPOD_RELEASE_API:-https://api.github.com/repos/heptapodwatch/heptapod}
+release_download=${HEPTAPOD_RELEASE_DOWNLOAD:-https://github.com/heptapodwatch/heptapod/releases/download}
+
+validate_release_tag() {
+    printf '%s\n' "$1" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "Invalid release tag: $1 (expected e.g. v0.2.0)" >&2; exit 1; }
+}
+
+latest_release_tag() {
+    latest_json=$(curl -fsSL "$release_api/releases/latest") || { echo "Cannot read the latest release from $release_api/releases/latest; pass --to <tag>." >&2; exit 1; }
+    latest_tag=$(printf '%s\n' "$latest_json" | grep -o '"tag_name": *"[^"]*"' | head -n 1 | sed 's/.*"\([^"]*\)"$/\1/')
+    validate_release_tag "$latest_tag"
+    printf '%s\n' "$latest_tag"
+}
+
+# Download, verify and unpack heptapod-<tag>.tar.gz into $2. Sets bundle_root and bundle_revision.
+fetch_release_bundle() {
+    bundle_tag=$1
+    bundle_name=heptapod-$bundle_tag.tar.gz
+    for bundle_file in "$bundle_name" "$bundle_name.sha256"; do
+        curl -fsSL -o "$2/$bundle_file" "$release_download/$bundle_tag/$bundle_file" || { echo "Cannot download $release_download/$bundle_tag/$bundle_file" >&2; exit 1; }
+    done
+    bundle_expected=$(awk 'NR == 1 { print $1 }' "$2/$bundle_name.sha256")
+    bundle_actual=$(sha256sum "$2/$bundle_name" | awk '{ print $1 }')
+    if ! printf '%s\n' "$bundle_expected" | grep -Eq '^[a-f0-9]{64}$' || [ "$bundle_actual" != "$bundle_expected" ]; then
+        echo "Checksum mismatch for $bundle_name: expected $bundle_expected, got $bundle_actual. Nothing was changed." >&2
+        exit 1
+    fi
+    tar -xzf "$2/$bundle_name" -C "$2" --no-same-owner
+    bundle_root=$2/heptapod-$bundle_tag
+    bundle_revision=$(cat "$bundle_root/REVISION")
+    printf '%s\n' "$bundle_revision" | grep -Eq '^[a-f0-9]{40}$' || { echo "$bundle_name has no valid REVISION. Nothing was changed." >&2; exit 1; }
+    if [ -e "$bundle_root/.env.prod" ] || [ -e "$bundle_root/.heptapod" ]; then
+        echo "$bundle_name contains installation state. Nothing was changed." >&2
+        exit 1
+    fi
+}
+
 resolve_release_images() {
     release_browser=${1:?Pass the browser selection}
     default_app_repository=$(bash ./scripts/image-reference.sh app) || return 1

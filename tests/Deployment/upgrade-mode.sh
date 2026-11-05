@@ -54,6 +54,7 @@ fi
 SH
 cat > "$fresh/bin/git" <<'SH'
 #!/bin/sh
+[ "${STUB_NO_GIT:-false}" = false ] || exit 128
 case "$1" in
     rev-parse) printf '%040d\n' 1 ;;
     describe) echo fixture ;;
@@ -317,6 +318,54 @@ grep -q 'Another install/upgrade/rollback is running' locked.log
 cat locked.log
 wait "$lock_pid"
 printf 'PASS: image failure never freezes; immutable pins, one-shot preparation, writer ordering and lifecycle lock\n'
+# A bundle install (no Git) stages the verified release bundle, then re-executes that bundle's upgrade.sh
+# with --staged REVISION. The fake bundle's upgrade.sh records the hand-off; the stub images carry revision 000...001.
+bundle_revision=$(printf '%040d' 1)
+sh "$root/scripts/build-release-bundle.sh" v9.9.9 "$bundle_revision" "$fresh/build" > /dev/null
+tar -xzf "$fresh/build/heptapod-v9.9.9.tar.gz" -C "$fresh/build"
+sed -i "2i printf 'bundle upgrade.sh %s\\\\n' \"\$*\" >> '$fresh/reexec.log'" "$fresh/build/heptapod-v9.9.9/scripts/upgrade.sh"
+mkdir -p "$fresh/release/v9.9.9" "$fresh/api/releases"
+tar -C "$fresh/build" -czf "$fresh/release/v9.9.9/heptapod-v9.9.9.tar.gz" heptapod-v9.9.9
+(cd "$fresh/release/v9.9.9" && sha256sum heptapod-v9.9.9.tar.gz > heptapod-v9.9.9.tar.gz.sha256)
+printf '{"tag_name": "v9.9.9"}' > "$fresh/api/releases/latest"
+export HEPTAPOD_RELEASE_API="file://$fresh/api" HEPTAPOD_RELEASE_DOWNLOAD="file://$fresh/release"
+printf '%040d\n' 9 > REVISION
+cp .env.prod bundle-before.env
+: > docker-operations.log
+if env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-git.log 2>&1; then exit 1; fi
+grep -Fq 'This is a Git checkout: run git fetch --tags && git checkout <tag> first' bundle-git.log
+if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --staged "$bundle_revision" > bundle-staged.log 2>&1; then exit 1; fi
+grep -Fq "does not match REVISION $(printf '%040d' 9)" bundle-staged.log
+if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --build > bundle-build.log 2>&1; then exit 1; fi
+grep -Fq -- '--build needs a Git checkout' bundle-build.log
+cp "$fresh/release/v9.9.9/heptapod-v9.9.9.tar.gz.sha256" bundle.sha256
+printf '%064d  heptapod-v9.9.9.tar.gz\n' 0 > "$fresh/release/v9.9.9/heptapod-v9.9.9.tar.gz.sha256"
+if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-mismatch.log 2>&1; then exit 1; fi
+grep -Fq 'Checksum mismatch for heptapod-v9.9.9.tar.gz' bundle-mismatch.log
+mv bundle.sha256 "$fresh/release/v9.9.9/heptapod-v9.9.9.tar.gz.sha256"
+[ "$(cat REVISION)" = "$(printf '%040d' 9)" ] && [ ! -e docs ] && [ ! -e reexec.log ] && [ ! -s docker-operations.log ]
+cmp bundle-before.env .env.prod
+[ -z "$(find "$lifecycle_dir" -name 'bundle.*')" ]
+printf 'PASS: Git checkouts, a stale --staged, --build and a checksum mismatch refuse before any file or service change\n'
+: > all-operations.log
+STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-upgrade.log
+grep -Fq "Staged v9.9.9 ($bundle_revision); continuing with its upgrade.sh." bundle-upgrade.log
+[ "$(cat reexec.log)" = "bundle upgrade.sh --staged $bundle_revision" ]
+[ "$(cat REVISION)" = "$bundle_revision" ]
+cmp "$fresh/build/heptapod-v9.9.9/scripts/upgrade.sh" scripts/upgrade.sh
+cmp "$root/docs/deploy/operations.md" docs/deploy/operations.md
+grep -q "| pull ghcr.io/heptapodwatch/heptapod-app:$bundle_revision |" all-operations.log
+[ "$(cat "$lifecycle_state/phase")" = committed ]
+cmp bundle-before.env .env.prod
+[ -z "$(find "$lifecycle_dir" -name 'bundle.*')" ]
+printf 'PASS: --to replaces the bundle files, keeps .env.prod and runs the new upgrade.sh --staged REVISION to commit\n'
+: > reexec.log
+STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh > bundle-latest.log
+grep -Fq "Staged v9.9.9 ($bundle_revision)" bundle-latest.log
+[ "$(tail -n 1 reexec.log)" = "bundle upgrade.sh --staged $bundle_revision" ]
+rm -r REVISION docs reexec.log
+cp "$root/scripts/upgrade.sh" scripts/upgrade.sh
+printf 'PASS: without arguments a bundle install upgrades to the latest release\n'
 : > all-operations.log
 STUB_DIRTY=true env -u COMPOSE_FILE ./scripts/upgrade.sh --build
 awk '

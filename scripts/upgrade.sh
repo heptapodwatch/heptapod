@@ -10,22 +10,60 @@ dc() { docker compose --env-file .env.prod "$@"; }
 . ./scripts/release-image.sh
 build=false
 resume=false
+target_tag=
+staged_revision=
+usage='Usage: ./scripts/upgrade.sh [--to TAG|--build|--resume]'
 case "${1:-}" in
     --help|-h)
         cat <<'HELP'
-Usage: ./scripts/upgrade.sh [--build|--resume]
+Usage: ./scripts/upgrade.sh [--to TAG|--build|--resume]
 
-Upgrade to the checkout's published release, or use --build for a source build.
+Release bundle installs (no Git): without arguments, upgrade to the latest
+release; --to TAG selects one. Both download and verify the release bundle,
+replace the Compose files and scripts (never .env.prod or volumes), then
+continue with the new release's upgrade.sh --staged REVISION.
+
+Git checkouts: run git fetch --tags && git checkout TAG first; HEAD selects the
+release. --build makes a source build of the checkout instead.
+
 --resume finishes the recorded interrupted upgrade without preparing it again.
-Requires Docker Compose v5, flock, jq and Linux coreutils sync.
+Requires Docker Compose v5, flock, jq and Linux coreutils sync; bundle
+downloads also need curl and tar.
 HELP
         exit 0 ;;
     '') ;;
     --build) build=true ;;
     --resume) resume=true ;;
-    *) echo 'Usage: ./scripts/upgrade.sh [--build|--resume]' >&2; exit 1 ;;
+    --to)
+        [ "$#" -eq 2 ] || { echo "$usage" >&2; exit 1; }
+        validate_release_tag "$2"
+        target_tag=$2; shift ;;
+    --staged)
+        if [ "$#" -ne 2 ] || ! printf '%s\n' "$2" | grep -Eq '^[a-f0-9]{40}$'; then
+            echo '--staged requires the full 40-character REVISION of the bundle files in place' >&2; exit 1
+        fi
+        staged_revision=$2; shift ;;
+    *) echo "$usage" >&2; exit 1 ;;
 esac
 [ "$#" -le 1 ] || { echo 'Too many arguments' >&2; exit 1; }
+bundle_install=false
+if command -v git >/dev/null 2>&1 && git rev-parse HEAD >/dev/null 2>&1; then
+    if [ -n "$target_tag" ] || [ -n "$staged_revision" ]; then
+        echo 'This is a Git checkout: run git fetch --tags && git checkout <tag> first, then ./scripts/upgrade.sh without arguments.' >&2
+        exit 1
+    fi
+    [ "$resume" = true ] || echo 'Git checkout: upgrading to HEAD. To select a release, run git fetch --tags && git checkout <tag> first.'
+elif [ -f REVISION ]; then
+    bundle_install=true
+    [ "$build" = false ] || { echo '--build needs a Git checkout; release bundle installs upgrade to published images.' >&2; exit 1; }
+    if [ -n "$staged_revision" ] && [ "$(cat REVISION)" != "$staged_revision" ]; then
+        echo "--staged $staged_revision does not match REVISION $(cat REVISION); rerun ./scripts/upgrade.sh to stage the release again." >&2
+        exit 1
+    fi
+else
+    echo 'Upgrades need a Git checkout of the release or a release bundle install (REVISION file). See docs/deploy/operations.md.' >&2
+    exit 1
+fi
 acquire_lifecycle_lock
 state="$PWD/$lifecycle_dir/upgrade"
 previous="$state/previous"
@@ -68,6 +106,25 @@ if [ -f "$state/phase" ]; then
     esac
 elif [ "$resume" = true ]; then
     echo 'No interrupted upgrade to resume.' >&2; exit 1
+fi
+# Bundle installs replace their files like a Git checkout of the tag, then run that release's own upgrade.
+if [ "$bundle_install" = true ] && [ "$resume" = false ] && [ -z "$staged_revision" ]; then
+    command -v curl >/dev/null 2>&1 || { echo 'curl is required to download the release bundle.' >&2; exit 1; }
+    [ -n "$target_tag" ] || target_tag=$(latest_release_tag)
+    # Stage on the installation filesystem: each rename leaves this running script's open file intact.
+    bundle_stage=$(mktemp -d "$lifecycle_dir/bundle.XXXXXX")
+    trap 'rm -rf "$bundle_stage"' EXIT
+    fetch_release_bundle "$target_tag" "$bundle_stage"
+    (cd "$bundle_root" && find . -type f ! -name REVISION) | while IFS= read -r bundle_file; do
+        mkdir -p "$(dirname -- "$bundle_file")"
+        mv "$bundle_root/$bundle_file" "$bundle_file"
+    done
+    # REVISION last: an interrupted replacement never claims the new release.
+    mv "$bundle_root/REVISION" REVISION
+    rm -rf "$bundle_stage"
+    trap - EXIT
+    echo "Staged $target_tag ($bundle_revision); continuing with its upgrade.sh."
+    exec ./scripts/upgrade.sh --staged "$bundle_revision"
 fi
 if [ "$resume" = true ]; then
     COMPOSE_PROJECT_NAME=$(cat "$previous/project")
@@ -274,12 +331,7 @@ capture_diagnostics() {
 }
 if [ "$resume" = false ]; then
     guard_preparation_container "$state" "$PWD/scripts/upgrade.sh" --resume
-    # release_checkout's export hint names install.sh's --revision, which upgrade.sh does not have.
-    if ! command -v git >/dev/null 2>&1 || ! git rev-parse HEAD >/dev/null 2>&1; then
-        echo 'Upgrades need a Git checkout of the release. See docs/deploy/operations.md.' >&2
-        exit 1
-    fi
-    release_checkout
+    release_checkout "$staged_revision"
     # Replace the last completed generation only while holding the host lock.
     mkdir -p "$previous"
     for component in app lighthouse; do
