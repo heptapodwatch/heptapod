@@ -13,6 +13,7 @@ name=heptapod-$tag
 stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
 mkdir -p "$stage/$name" "$output"
+output=$(CDPATH='' cd -- "$output" && pwd)
 cd "$root"
 # Host-side files only. scripts/restore-backup.php runs inside the app image and is not needed here.
 for file in LICENSE compose.prod.yaml compose.proxy.yaml .env.prod.example \
@@ -25,6 +26,8 @@ for file in LICENSE compose.prod.yaml compose.proxy.yaml .env.prod.example \
     cp -p "$file" "$stage/$name/$file"
 done
 printf '%s\n' "$revision" > "$stage/$name/REVISION"
+# upgrade.sh compares the installed RELEASE with the target tag and refuses downgrades.
+printf '%s\n' "$tag" > "$stage/$name/RELEASE"
 tar -C "$stage" --sort=name --owner=0 --group=0 --numeric-owner -czf "$output/$name.tar.gz" "$name"
 (cd "$output" && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
 printf '%s\n' "$output/$name.tar.gz"

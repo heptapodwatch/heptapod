@@ -22,7 +22,8 @@ if grep -v '^heptapod-v1.2.3-rc.1/' members; then echo 'Bundle members escape th
 tar -xzf heptapod-v1.2.3-rc.1.tar.gz
 bundle=$work/out/heptapod-v1.2.3-rc.1
 [ "$(cat "$bundle/REVISION")" = "$revision" ]
-printf 'PASS: REVISION holds the full commit SHA\n'
+[ "$(cat "$bundle/RELEASE")" = v1.2.3-rc.1 ]
+printf 'PASS: REVISION holds the full commit SHA and RELEASE the tag\n'
 for file in compose.prod.yaml compose.proxy.yaml .env.prod.example scripts/install.sh scripts/upgrade.sh scripts/rollback.sh scripts/retain-diagnostics.sh docs/deploy/operations.md docs/deploy/hetzner.md; do
     cmp "$root/$file" "$bundle/$file"
 done
@@ -38,3 +39,7 @@ if grep -E '/(\.env\.prod$|\.heptapod/|app/|tests/|vendor/|node_modules/|resourc
 size=$(wc -c < heptapod-v1.2.3-rc.1.tar.gz)
 [ "$size" -lt 262144 ] || { echo "Bundle is $size bytes; expected under 256 KiB" >&2; exit 1; }
 printf 'PASS: no installation state, tests or application source; %s bytes\n' "$size"
+mkdir "$work/caller"
+(cd "$work/caller" && sh "$root/scripts/build-release-bundle.sh" v1.2.4 "$revision" relative/out > /dev/null)
+(cd "$work/caller/relative/out" && sha256sum -c heptapod-v1.2.4.tar.gz.sha256 > /dev/null)
+printf 'PASS: a relative output directory resolves against the caller, not the repository\n'
