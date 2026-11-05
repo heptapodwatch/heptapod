@@ -26,11 +26,17 @@ cat > "$work/bin/flock" <<'SH'
 if [ -n "${STUB_RACE_FILE:-}" ]; then printf 'foreign\n' > "$STUB_RACE_FILE"; fi
 exec "$REAL_FLOCK" "$@"
 SH
-chmod +x "$work/bin/id" "$work/bin/uname" "$work/bin/docker" "$work/bin/flock"
+# Ownership as the root installer sees it: root-owned, or STUB_STATE_OWNER.
+cat > "$work/bin/stat" <<'SH'
+#!/bin/sh
+if [ "$1 $2" = '-c %u' ]; then echo "${STUB_STATE_OWNER:-0}"; else exec "$REAL_STAT" "$@"; fi
+SH
+chmod +x "$work/bin/id" "$work/bin/uname" "$work/bin/docker" "$work/bin/flock" "$work/bin/stat"
 printf 'ID=ubuntu\nVERSION_CODENAME=noble\n' > "$work/ubuntu"
 printf 'ID=fedora\n' > "$work/fedora"
 REAL_FLOCK=$(command -v flock)
-export REAL_FLOCK PATH="$work/bin:$PATH" HEPTAPOD_OS_RELEASE="$work/ubuntu" INSTALL_LOG="$work/install.log"
+REAL_STAT=$(command -v stat)
+export REAL_FLOCK REAL_STAT PATH="$work/bin:$PATH" HEPTAPOD_OS_RELEASE="$work/ubuntu" INSTALL_LOG="$work/install.log"
 export HEPTAPOD_RELEASE_API="file://$work/api" HEPTAPOD_RELEASE_DOWNLOAD="file://$work/release"
 
 # A fake bundle in the release format. Its installer takes the real lifecycle lock, then records
@@ -59,12 +65,18 @@ fi
 printf '%s %s %s\n' "$(basename "$PWD")" "$lock" "$*" >> "$INSTALL_LOG"
 SH
     chmod +x "$work/build/heptapod-$tag/scripts/install.sh"
+    : > "$work/build/heptapod-$tag/MANIFEST"
+    (cd "$work/build/heptapod-$tag" && find . -type f ! -name REVISION | LC_ALL=C sort && echo ./REVISION) > "$work/manifest"
+    mv "$work/manifest" "$work/build/heptapod-$tag/MANIFEST"
+    # A file the MANIFEST does not list.
+    if [ -n "${4:-}" ]; then printf 'extra\n' > "$work/build/heptapod-$tag/$4"; fi
     tar -C "$work/build" -czf "$work/release/$tag/heptapod-$tag.tar.gz" "heptapod-$tag"
     (cd "$work/release/$tag" && sha256sum "heptapod-$tag.tar.gz" > "heptapod-$tag.tar.gz.sha256")
 }
 publish v1.0.0 1111111111111111111111111111111111111111
 publish v2.0.0 2222222222222222222222222222222222222222
 publish v3.0.0 3333333333333333333333333333333333333333 v1.0.0
+publish v4.0.0 4444444444444444444444444444444444444444 v4.0.0 .env.prod
 printf '{\n  "url": "fixture",\n  "tag_name": "v2.0.0",\n  "name": "Heptapod v2.0.0"\n}\n' > "$work/api/releases/latest"
 
 bootstrap() { bash "$root/scripts/bootstrap-install.sh" "$@"; }
@@ -84,6 +96,7 @@ refuses 'Usage: curl -fsSL' --dir "$work/a"
 refuses 'Unknown argument: --revision' --domain a.example.com --revision 1111111111111111111111111111111111111111
 refuses '--owner-email requires a value' --domain a.example.com --owner-email
 refuses 'Invalid --version main' --domain a.example.com --version main
+refuses 'Invalid --version v2.0.0-rc.1: Heptapod publishes only vX.Y.Z release tags' --domain a.example.com --version v2.0.0-rc.1
 refuses '--dir must be an absolute path' --domain a.example.com --dir relative
 STUB_UID=1000 refuses 'Run as root' --domain a.example.com --dir "$work/a"
 HEPTAPOD_OS_RELEASE="$work/fedora" refuses "Unsupported operating system 'fedora'" --domain a.example.com --dir "$work/a"
@@ -169,9 +182,27 @@ refuses 'Checksum mismatch for heptapod-v1.0.0.tar.gz' --domain d.example.com --
 unpublished "$work/d"
 refuses "heptapod-v3.0.0.tar.gz has no RELEASE file for v3.0.0" --domain d.example.com --version v3.0.0 --dir "$work/d"
 unpublished "$work/d"
+refuses 'heptapod-v4.0.0.tar.gz does not match its MANIFEST' --domain d.example.com --version v4.0.0 --dir "$work/d"
+unpublished "$work/d"
+[ ! -e "$work/d/.env.prod" ]
 refuses "Cannot download file://$work/release/v9.9.9/heptapod-v9.9.9.tar.gz" --domain d.example.com --version v9.9.9 --dir "$work/d"
 printf '{"tag_name": "main"}' > "$work/api/releases/latest"
 refuses "The latest release has an unexpected tag 'main'" --domain d.example.com --dir "$work/d"
+printf '{"tag_name": "v2.0.1-alpha10"}' > "$work/api/releases/latest"
+refuses "The latest release has an unexpected tag 'v2.0.1-alpha10' (expected vX.Y.Z)" --domain d.example.com --dir "$work/d"
 unpublished "$work/d"
 [ "$(wc -l < "$work/install.log")" = "$lines" ]
-printf 'PASS: a checksum mismatch, a mismatched RELEASE, a missing asset or an invalid latest tag publishes nothing\n'
+printf 'PASS: a checksum mismatch, a mismatched RELEASE or MANIFEST, a missing asset or an invalid or pre-release latest tag publishes nothing\n'
+
+# A planted .heptapod or lock-file symlink, or state owned by another user: refused before chmod, open or staging.
+mkdir -p "$work/sentinel" "$work/g" "$work/h/.heptapod" "$work/i/.heptapod"
+printf 'keep\n' > "$work/sentinel/lifecycle.lock"
+chmod 755 "$work/sentinel"
+ln -s "$work/sentinel" "$work/g/.heptapod"
+ln -s "$work/sentinel/lifecycle.lock" "$work/h/.heptapod/lifecycle.lock"
+refuses "$work/g/.heptapod is a symlink or owned by another user; nothing was changed." --domain g.example.com --dir "$work/g"
+refuses "$work/h/.heptapod/lifecycle.lock is a symlink or owned by another user; nothing was changed." --domain h.example.com --dir "$work/h"
+STUB_STATE_OWNER=1234 refuses "$work/i/.heptapod is a symlink or owned by another user; nothing was changed." --domain i.example.com --dir "$work/i"
+[ "$(stat -c %a "$work/sentinel")" = 755 ] && [ "$(cat "$work/sentinel/lifecycle.lock")" = keep ] && [ "$(ls -A "$work/sentinel")" = lifecycle.lock ]
+[ "$(ls -A "$work/g")" = .heptapod ] && [ "$(ls -A "$work/h/.heptapod")" = lifecycle.lock ] && [ -z "$(ls -A "$work/i/.heptapod")" ]
+printf 'PASS: a symlinked .heptapod or lock file and foreign-owned state are refused; the outside directory keeps its mode and contents\n'

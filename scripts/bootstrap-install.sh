@@ -11,7 +11,7 @@ main() {
     local release_api=${HEPTAPOD_RELEASE_API:-https://api.github.com/repos/heptapodwatch/heptapod}
     local release_download=${HEPTAPOD_RELEASE_DOWNLOAD:-https://github.com/heptapodwatch/heptapod/releases/download}
     local os_release=${HEPTAPOD_OS_RELEASE:-/etc/os-release}
-    local tag_pattern='^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+    local tag_pattern='^v[0-9]+\.[0-9]+\.[0-9]+$'
     local version='' dir=/opt/heptapod install_docker=false domain_given=false
     local -a install_args=() given_args=("$@")
 
@@ -49,7 +49,7 @@ HELP
         esac
     done
     [ "$domain_given" = true ] || fail 'Usage: curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --domain monitor.example.com'
-    [ -z "$version" ] || [[ "$version" =~ $tag_pattern ]] || fail "Invalid --version $version (expected e.g. v0.1.0)"
+    [ -z "$version" ] || [[ "$version" =~ $tag_pattern ]] || fail "Invalid --version $version: Heptapod publishes only vX.Y.Z release tags, e.g. v0.1.0."
     case "$dir" in /*) ;; *) fail '--dir must be an absolute path' ;; esac
 
     [ "$(id -u)" -eq 0 ] || fail 'Run as root: curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- …'
@@ -100,7 +100,7 @@ or follow https://docs.docker.com/engine/install/$os_id/ and run this installer 
     if [ -z "$version" ]; then
         version=$(curl -fsSL "$release_api/releases/latest" | grep -o '"tag_name": *"[^"]*"' | head -n 1 | sed 's/.*"\([^"]*\)"$/\1/') ||
             fail "Cannot read the latest release from $release_api/releases/latest; pass --version."
-        [[ "$version" =~ $tag_pattern ]] || fail "The latest release has an unexpected tag '$version'; pass --version."
+        [[ "$version" =~ $tag_pattern ]] || fail "The latest release has an unexpected tag '$version' (expected vX.Y.Z); pass --version."
     fi
     echo "Installing Heptapod $version into $dir"
 
@@ -126,13 +126,21 @@ or follow https://docs.docker.com/engine/install/$os_id/ and run this installer 
     revision=$(cat "$bundle/REVISION")
     [[ "$revision" =~ ^[a-f0-9]{40}$ ]] || fail "$name has no valid REVISION. Nothing was installed."
     [ "$(cat "$bundle/RELEASE")" = "$version" ] || fail "$name has no RELEASE file for $version. Nothing was installed."
-    [ ! -e "$bundle/.env.prod" ] && [ ! -e "$bundle/.heptapod" ] || fail "$name contains installation state. Nothing was installed."
-    # Renames, never writes into existing files; REVISION last, so a partial publication is not a release.
+    # The same check as validate_bundle_manifest in scripts/release-image.sh: exactly the listed regular files,
+    # REVISION last, no installation state, no absolute or parent paths.
+    if ! { [ -f "$bundle/MANIFEST" ] && [ "$(tail -n 1 "$bundle/MANIFEST")" = ./REVISION ] &&
+        [ "$(cd "$bundle" && find . -type f | LC_ALL=C sort)" = "$(LC_ALL=C sort "$bundle/MANIFEST")" ] &&
+        [ -z "$(cd "$bundle" && find . ! -type f ! -type d)" ] &&
+        ! grep -Ev '^\./[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$' "$bundle/MANIFEST" > /dev/null &&
+        ! grep -E '^\./(.*/)?\.\.?(/|$)|^\./\.env\.prod$|^\./\.heptapod(/|$)' "$bundle/MANIFEST" > /dev/null; }; then
+        fail "$name does not match its MANIFEST. Nothing was installed."
+    fi
+    # Renames in MANIFEST order, never writes into existing files; REVISION last, so a partial publication is not a release.
     local bundle_file
     while IFS= read -r bundle_file; do
         mkdir -p "$dir/$(dirname -- "$bundle_file")"
         mv "$bundle/$bundle_file" "$dir/$bundle_file"
-    done < <(cd "$bundle" && find . -type f ! -name REVISION | LC_ALL=C sort && echo ./REVISION)
+    done < "$bundle/MANIFEST"
 
     # The owner prompt reads the terminal; stdin is this piped script.
     if (exec < /dev/tty) 2>/dev/null; then
@@ -147,6 +155,7 @@ or follow https://docs.docker.com/engine/install/$os_id/ and run this installer 
 check_destination() {
     installed=false
     [ -d "$1" ] || return 0
+    refuse_unsafe_state "$1"
     if [ -f "$1/.env.prod" ]; then
         [ -f "$1/REVISION" ] && [ -f "$1/scripts/install.sh" ] || fail "$1 has a .env.prod but is not a release bundle installation; nothing was changed."
         installed=true
@@ -157,10 +166,21 @@ check_destination() {
 
 # The lock file of scripts/lifecycle-lock.sh, on fd 9: install, upgrade and rollback of this directory wait for us.
 lock_destination() {
+    refuse_unsafe_state "$1"
     mkdir -p "$1/.heptapod"
     chmod 700 "$1/.heptapod"
     exec 9> "$1/.heptapod/lifecycle.lock"
     flock -n 9 || fail "Another Heptapod install, upgrade or rollback is running in $1; nothing was changed."
+}
+
+# A planted .heptapod or lock symlink would redirect chmod, the lock and staging outside the installation.
+refuse_unsafe_state() {
+    local state_path
+    for state_path in "$1/.heptapod" "$1/.heptapod/lifecycle.lock"; do
+        if [ -L "$state_path" ] || { [ -e "$state_path" ] && [ "$(stat -c %u "$state_path")" != 0 ] && [ "$(stat -c %u "$state_path")" != "$(id -u)" ]; }; then
+            fail "$state_path is a symlink or owned by another user; nothing was changed."
+        fi
+    done
 }
 
 fail() {
