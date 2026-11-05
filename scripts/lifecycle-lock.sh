@@ -49,9 +49,16 @@ validate_backup_name() {
 acquire_lifecycle_lock() {
     command -v flock >/dev/null 2>&1 || { echo 'flock (util-linux) is required for install/upgrade/rollback.' >&2; exit 1; }
     umask 077
+    # A planted symlink would redirect chmod and the lock file outside the installation. upgrade.sh repeats this.
+    for state_path in "$lifecycle_dir" "$lifecycle_dir/lifecycle.lock"; do
+        if [ -L "$state_path" ] || { [ -e "$state_path" ] && [ "$(stat -c %u "$state_path")" != 0 ] && [ "$(stat -c %u "$state_path")" != "$(id -u)" ]; }; then
+            echo "Refusing $PWD/$state_path: it is a symlink or owned by another user. Nothing was changed." >&2
+            exit 1
+        fi
+    done
     mkdir -p "$lifecycle_dir"
     chmod 700 "$lifecycle_dir"
-    # Handoff: the hosted installer and upgrade.sh's re-exec pass this lock already held on fd 9.
+    # Handoff: the hosted installer passes this lock already held on fd 9.
     # Reopening fd 9 would release it, and a child holding a second descriptor would block on its parent.
     lock_handoff=${HEPTAPOD_LIFECYCLE_LOCK_FD:-}
     unset HEPTAPOD_LIFECYCLE_LOCK_FD

@@ -26,6 +26,7 @@ case "$*" in
     'pull '*) [ "${FAIL_PULL:-false}" = false ] || exit 42 ;;
     'image inspect --format {{range .RepoDigests}}{{println .}}{{end}} '*) printf '%s@sha256:%064d\n' "${5%:*}" 1 ;;
     'image inspect --format {{index .Config.Labels "org.opencontainers.image.revision"}} '*) if [ "${STUB_BAD_REVISION:-false}" = true ]; then printf '%040d\n' 2; else printf '%040d\n' 1; fi ;;
+    'inspect --format {{index .Config.Labels "org.opencontainers.image.revision"}} '*) echo "${STUB_RUNNING_REVISION:-}" ;;
     'inspect --format {{index .Config.Labels "com.docker.compose.project"}} '*) echo upgrade-mode-test ;;
     'image inspect --format {{.Id}} '*) printf 'sha256:%064d\n' 2 ;;
     'inspect --format {{.Image}} '*) printf 'sha256:%064d\n' 2 ;;
@@ -320,8 +321,9 @@ wait "$lock_pid"
 printf 'PASS: image failure never freezes; immutable pins, one-shot preparation, writer ordering and lifecycle lock\n'
 # A bundle install (no Git) stages the verified release bundle, then re-executes that bundle's upgrade.sh
 # with --staged REVISION. Each fake bundle's upgrade.sh records its starts and its operations.md carries a
-# marker line; the stub images carry revision 000...001.
+# marker line; the stub images carry revision 000...001. STUB_RUNNING_REVISION is the running app's label.
 bundle_revision=$(printf '%040d' 1)
+installed_revision=$(printf '%040d' 9)
 publish_bundle() {
     sh "$root/scripts/build-release-bundle.sh" "$1" "$bundle_revision" "$fresh/build" > /dev/null
     tar -xzf "$fresh/build/heptapod-$1.tar.gz" -C "$fresh/build"
@@ -333,27 +335,28 @@ publish_bundle() {
 }
 publish_bundle v9.9.9
 publish_bundle v9.9.10
-mkdir -p "$fresh/api/releases"
+mkdir -p "$fresh/api/releases" "$fresh/outside/deploy"
 printf '{"tag_name": "v9.9.9"}' > "$fresh/api/releases/latest"
 export HEPTAPOD_RELEASE_API="file://$fresh/api" HEPTAPOD_RELEASE_DOWNLOAD="file://$fresh/release"
-printf '%040d\n' 9 > REVISION
+printf '%s\n' "$installed_revision" > REVISION
 printf 'v9.9.8\n' > RELEASE
 cp .env.prod bundle-before.env
 mkdir installed-before
-cp -pR REVISION RELEASE compose.prod.yaml compose.proxy.yaml .env.prod.example scripts installed-before/
+cp -pR REVISION RELEASE compose.prod.yaml compose.proxy.yaml compose.rc.yaml .env.prod.example scripts installed-before/
 # The whole installed release is still the one before any bundle replacement, configuration included.
 installed_unchanged() {
     diff -r installed-before/scripts scripts
-    for file in REVISION RELEASE compose.prod.yaml compose.proxy.yaml .env.prod.example; do cmp "installed-before/$file" "$file"; done
-    [ ! -e LICENSE ] && [ ! -e docs/deploy/operations.md ]
+    for file in REVISION RELEASE compose.prod.yaml compose.proxy.yaml compose.rc.yaml .env.prod.example; do cmp "installed-before/$file" "$file"; done
+    [ ! -e LICENSE ] && [ ! -e MANIFEST ] && [ ! -e docs/deploy/operations.md ]
     cmp bundle-before.env .env.prod
-    [ ! -f "$lifecycle_state/host-replacement" ] && [ -z "$(find "$lifecycle_dir" -name 'bundle.*')" ]
+    for file in host-replacement host-previous host-manifest; do [ ! -e "$lifecycle_state/$file" ]; done
+    [ -z "$(find "$lifecycle_dir" -name 'bundle.*')" ]
 }
 : > docker-operations.log
 if env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-git.log 2>&1; then exit 1; fi
 grep -Fq 'This is a Git checkout: run git fetch --tags && git checkout <tag> first' bundle-git.log
 if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --staged "$bundle_revision" > bundle-staged.log 2>&1; then exit 1; fi
-grep -Fq "does not match REVISION $(printf '%040d' 9)" bundle-staged.log
+grep -Fq "does not match REVISION $installed_revision" bundle-staged.log
 if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --build > bundle-build.log 2>&1; then exit 1; fi
 grep -Fq -- '--build needs a Git checkout' bundle-build.log
 cp "$fresh/release/v9.9.9/heptapod-v9.9.9.tar.gz.sha256" bundle.sha256
@@ -364,37 +367,70 @@ mv bundle.sha256 "$fresh/release/v9.9.9/heptapod-v9.9.9.tar.gz.sha256"
 installed_unchanged
 [ ! -e reexec.log ] && [ ! -s docker-operations.log ]
 printf 'PASS: Git checkouts, a stale --staged, --build and a checksum mismatch refuse before any file or service change\n'
-# The release fixture has no bundle older than the installed v9.9.8: refusals happen before any download.
-for older in v9.9.7 v9.9.8-rc.1 v0.9.99; do
+# Only vX.Y.Z releases exist; fields compare as numbers. The fixture has no older bundle: refusals precede any download.
+for invalid in v9.9.10-rc.1 v1.0.0-alpha10 v1.0.0-alpha2; do
+    if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to "$invalid" > bundle-tag.log 2>&1; then exit 1; fi
+    grep -Fq "Invalid release tag: $invalid. Heptapod publishes only vX.Y.Z release tags" bundle-tag.log
+done
+printf '{"tag_name": "v9.9.11-rc.1"}' > "$fresh/api/releases/latest"
+if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh > bundle-tag.log 2>&1; then exit 1; fi
+grep -Fq 'Invalid release tag: v9.9.11-rc.1. Heptapod publishes only vX.Y.Z release tags' bundle-tag.log
+printf '{"tag_name": "v9.9.9"}' > "$fresh/api/releases/latest"
+for older in v9.9.7 v0.9.99; do
     if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to "$older" > bundle-downgrade.log 2>&1; then cat bundle-downgrade.log >&2; exit 1; fi
     grep -Fq "Refusing to downgrade from v9.9.8 to $older. Returning to an older release means restoring a backup taken with it" bundle-downgrade.log
 done
-STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.8 > bundle-same.log
-grep -Fxq 'Release v9.9.8 is already installed; nothing to upgrade.' bundle-same.log
+printf 'v0.10.0\n' > RELEASE
+if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v0.9.0 > bundle-downgrade.log 2>&1; then exit 1; fi
+grep -Fq 'Refusing to downgrade from v0.10.0 to v0.9.0' bundle-downgrade.log
+printf 'v0.9.0\n' > RELEASE
+if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v0.10.0 > bundle-newer.log 2>&1; then exit 1; fi
+grep -Fq "Cannot download file://$fresh/release/v0.10.0/heptapod-v0.10.0.tar.gz" bundle-newer.log
+if grep -q Refusing bundle-newer.log; then exit 1; fi
+printf 'v9.9.8\n' > RELEASE
+STUB_RUNNING_REVISION=$installed_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.8 > bundle-same.log
+grep -Fxq 'Release v9.9.8 is already deployed; nothing to upgrade.' bundle-same.log
 installed_unchanged
 [ ! -e reexec.log ] && [ ! -s docker-operations.log ]
-printf 'PASS: an older or pre-release target is refused and the installed release is a no-op, before any download or service change\n'
-# Interrupted replacement: one rename fails as if the host stopped there, once while the old upgrade.sh
-# is in place (rollback.sh sorts before it) and once with every new file but REVISION in place.
+printf 'PASS: pre-release tags are refused, v0.10.0 is newer than v0.9.0, older targets are refused and the deployed release is a no-op\n'
+# Seams: STUB_FAIL_MV fails one rename onto that installation path (a bundle replacement or a restore);
+# STUB_RACE_UPGRADE runs one interrupted upgrade just before this run's lock is granted;
+# STUB_STATE_OWNER reports another owner for the lifecycle state.
 REAL_MV=$(command -v mv)
-export REAL_MV
+REAL_FLOCK=$(command -v flock)
+REAL_STAT=$(command -v stat)
+export REAL_MV REAL_FLOCK REAL_STAT
 cat > "$fresh/bin/mv" <<'SH'
 #!/bin/sh
-# STUB_FAIL_MV: the bundle replacement's rename onto this installation path fails.
 if [ -n "${STUB_FAIL_MV:-}" ] && [ "$2" = "$STUB_FAIL_MV" ]; then
-    case "$1" in */heptapod-v9.9.9/*) echo "stub: rename onto $2 failed" >&2; exit 1 ;; esac
+    case "$1" in */heptapod-v9.9.9/*|*.restore) echo "stub: rename onto $2 failed" >&2; exit 1 ;; esac
 fi
 exec "$REAL_MV" "$@"
 SH
-chmod +x "$fresh/bin/mv"
+cat > "$fresh/bin/flock" <<'SH'
+#!/bin/sh
+if [ -n "${STUB_RACE_UPGRADE:-}" ] && [ ! -e race-done ]; then
+    : > race-done
+    STUB_RACE_UPGRADE='' STUB_FAIL_MV=./REVISION ./scripts/upgrade.sh --to v9.9.9 > race-inner.log 2>&1 || true
+fi
+exec "$REAL_FLOCK" "$@"
+SH
+cat > "$fresh/bin/stat" <<'SH'
+#!/bin/sh
+if [ -n "${STUB_STATE_OWNER:-}" ] && [ "$1 $2" = '-c %u' ]; then echo "$STUB_STATE_OWNER"; else exec "$REAL_STAT" "$@"; fi
+SH
+chmod +x "$fresh/bin/mv" "$fresh/bin/flock" "$fresh/bin/stat"
+# Interrupted replacement: one rename fails as if the host stopped there, once while the old upgrade.sh
+# is in place (rollback.sh sorts before it) and once with every new file but REVISION in place.
 for fail_at in ./scripts/rollback.sh ./REVISION; do
     rm -f reexec.log
     if STUB_FAIL_MV=$fail_at STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-interrupted.log 2>&1; then exit 1; fi
     grep -Fq 'Bundle replacement interrupted. Rerun ./scripts/upgrade.sh: it first restores the previous release files.' bundle-interrupted.log
-    [ -f "$lifecycle_state/host-replacement" ] && grep -Fxq 'fake v9.9.9' docs/deploy/operations.md && [ "$(cat REVISION)" = "$(printf '%040d' 9)" ]
+    [ -f "$lifecycle_state/host-replacement" ] && grep -Fxq 'fake v9.9.9' docs/deploy/operations.md && [ "$(cat REVISION)" = "$installed_revision" ]
+    [ "$(tail -n 1 "$lifecycle_state/host-replacement")" = end ]
     # Whichever upgrade.sh is now in place restores the previous release first; the downgrade target then stops it.
     if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.7 > bundle-restored.log 2>&1; then exit 1; fi
-    grep -Fq "Restored the files of revision $(printf '%040d' 9) after an interrupted bundle replacement." bundle-restored.log
+    grep -Fq "Restored the files of revision $installed_revision after an interrupted bundle replacement." bundle-restored.log
     grep -Fq 'Refusing to downgrade from v9.9.8 to v9.9.7' bundle-restored.log
     case "$fail_at" in
         ./scripts/rollback.sh) [ ! -e reexec.log ] ;;
@@ -403,34 +439,117 @@ for fail_at in ./scripts/rollback.sh ./REVISION; do
     installed_unchanged
     [ ! -s docker-operations.log ]
 done
-printf 'PASS: an interrupted bundle replacement is restored to the previous release by the next run, from the old or the new upgrade.sh\n'
+# The restore itself is interrupted: the record and every previous copy stay until a rerun has restored them all.
+if STUB_FAIL_MV=./REVISION STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-interrupted.log 2>&1; then exit 1; fi
+if STUB_FAIL_MV=./compose.prod.yaml STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.7 > bundle-restore-failed.log 2>&1; then exit 1; fi
+grep -Fq 'Restoring ./compose.prod.yaml failed' bundle-restore-failed.log
+[ -f "$lifecycle_state/host-replacement" ] && [ -f "$lifecycle_state/host-previous/RELEASE" ] && [ -f "$lifecycle_state/host-previous/compose.prod.yaml" ]
+if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.7 > bundle-restored.log 2>&1; then exit 1; fi
+grep -Fq "Restored the files of revision $installed_revision after an interrupted bundle replacement." bundle-restored.log
+installed_unchanged
+# Another updater crashes mid-replacement after this run started but before it holds the lock: the record is read under the lock.
+rm -f race-done
+if STUB_RACE_UPGRADE=1 STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.7 > bundle-race.log 2>&1; then exit 1; fi
+grep -Fq 'Bundle replacement interrupted.' race-inner.log
+grep -Fq "Restored the files of revision $installed_revision after an interrupted bundle replacement." bundle-race.log
+grep -Fq 'Refusing to downgrade from v9.9.8 to v9.9.7' bundle-race.log
+installed_unchanged
+[ ! -s docker-operations.log ]
+printf 'PASS: an interrupted replacement or restore, also one racing this run, is restored to the previous release under the lock\n'
+# A damaged record changes nothing and stays for inspection; an incomplete one (no end line) means no rename happened.
+printf 'outside\n' > "$fresh/outside/sentinel"
+printf 'outside\n' > "$fresh/outside/deploy/operations.md"
+damaged_record() {
+    expected=$1
+    shift
+    mkdir -p "$lifecycle_state"
+    cp "$fresh/build/heptapod-v9.9.9/MANIFEST" "$lifecycle_state/host-manifest"
+    # shellcheck disable=SC2059 # the record text is a printf format with \n escapes
+    printf "$@" > "$lifecycle_state/host-replacement"
+    if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.7 > bundle-record.log 2>&1; then cat bundle-record.log >&2; exit 1; fi
+    grep -Fq "Invalid bundle replacement record $fresh/.heptapod/upgrade/host-replacement: $expected. Nothing was changed" bundle-record.log || { cat bundle-record.log >&2; exit 1; }
+    [ -f "$lifecycle_state/host-replacement" ] && [ "$(cat "$fresh/outside/sentinel")" = outside ] && [ "$(cat "$fresh/outside/deploy/operations.md")" = outside ]
+    rm -f "$lifecycle_state/host-replacement" "$lifecycle_state/host-manifest"
+    cmp bundle-before.env .env.prod
+}
+damaged_record 'line 1 is not old/new PATH' 'bogus ./LICENSE\nend\n'
+damaged_record 'line 2 is not old/new PATH' 'new ./LICENSE\nend\nnew ./MANIFEST\nend\n'
+damaged_record "unsafe path $fresh/outside/sentinel" "new $fresh/outside/sentinel\nend\n"
+damaged_record 'unsafe path ./../outside/sentinel' 'new ./../outside/sentinel\nend\n'
+damaged_record 'unsafe path ./.env.prod' 'new ./.env.prod\nend\n'
+damaged_record './compose.rc.yaml is not in the bundle MANIFEST' 'new ./compose.rc.yaml\nend\n'
+damaged_record 'the previous copy of ./compose.prod.yaml is missing' 'old ./compose.prod.yaml\nend\n'
+# A restore removes new files, not the directories created for them.
+rmdir docs/deploy docs
+ln -s "$fresh/outside" docs
+damaged_record './docs is a symlink' 'new ./docs/deploy/operations.md\nend\n'
+rm docs
+installed_unchanged
+for incomplete in 'new ./LICENSE\n' 'new ./LICENSE\nend' ''; do
+    mkdir -p "$lifecycle_state/host-previous"
+    # shellcheck disable=SC2059 # the record text is a printf format with \n escapes
+    printf "$incomplete" > "$lifecycle_state/host-replacement"
+    if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.7 > bundle-record.log 2>&1; then exit 1; fi
+    grep -Fq 'Removed an incomplete bundle replacement record; no file had been replaced.' bundle-record.log
+    grep -Fq 'Refusing to downgrade from v9.9.8 to v9.9.7' bundle-record.log
+    installed_unchanged
+done
+[ ! -s docker-operations.log ]
+printf 'PASS: malformed, outside, unlisted, symlinked or unbacked record entries refuse untouched; a record without its end line is discarded\n'
+# A symlinked lock file or lifecycle state owned by another user: install and upgrade refuse before opening it.
+printf 'keep\n' > "$fresh/outside/lifecycle.lock"
+chmod 644 "$fresh/outside/lifecycle.lock"
+rm "$lifecycle_dir/lifecycle.lock"
+ln -s "$fresh/outside/lifecycle.lock" "$lifecycle_dir/lifecycle.lock"
+if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh > bundle-state.log 2>&1; then exit 1; fi
+grep -Fq "Refusing $fresh/.heptapod/lifecycle.lock: it is a symlink or owned by another user. Nothing was changed." bundle-state.log
+if env -u COMPOSE_FILE ./scripts/install.sh --domain extra.example.com --behind-proxy --port 8387 > bundle-state.log 2>&1; then exit 1; fi
+grep -Fq "Refusing $fresh/.heptapod/lifecycle.lock: it is a symlink or owned by another user. Nothing was changed." bundle-state.log
+[ "$(cat "$fresh/outside/lifecycle.lock")" = keep ] && [ "$(stat -c %a "$fresh/outside/lifecycle.lock")" = 644 ]
+rm "$lifecycle_dir/lifecycle.lock"
+if STUB_STATE_OWNER=1234 STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh > bundle-state.log 2>&1; then exit 1; fi
+grep -Fq "Refusing $fresh/.heptapod: it is a symlink or owned by another user. Nothing was changed." bundle-state.log
+if STUB_STATE_OWNER=1234 env -u COMPOSE_FILE ./scripts/install.sh --domain extra.example.com --behind-proxy --port 8387 > bundle-state.log 2>&1; then exit 1; fi
+grep -Fq "Refusing $fresh/.heptapod: it is a symlink or owned by another user. Nothing was changed." bundle-state.log
+installed_unchanged
+[ ! -s docker-operations.log ]
+printf 'PASS: a symlinked lock file or foreign-owned lifecycle state is refused by upgrade and install; the outside file is unchanged\n'
+# Publication without deployment: the image pull fails after the bundle files are in place. A retry of the
+# same target continues with the published revision instead of reporting it as deployed.
 rm -f reexec.log
 : > all-operations.log
-STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-upgrade.log
-grep -Fq "Staged v9.9.9 ($bundle_revision); continuing with its upgrade.sh." bundle-upgrade.log
-[ "$(cat reexec.log)" = "bundle upgrade.sh --staged $bundle_revision" ]
-[ "$(cat REVISION)" = "$bundle_revision" ] && [ "$(cat RELEASE)" = v9.9.9 ]
+if FAIL_PULL=true STUB_RUNNING_REVISION=$installed_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-pull-failed.log 2>&1; then exit 1; fi
+grep -Fq 'Cannot pull' bundle-pull-failed.log
+[ "$(cat RELEASE)" = v9.9.9 ] && [ "$(cat REVISION)" = "$bundle_revision" ]
+if grep -q 'php artisan down' all-operations.log; then exit 1; fi
+STUB_RUNNING_REVISION=$installed_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-upgrade.log
+grep -Fq "Release v9.9.9 is in place but not deployed (running revision $installed_revision); continuing its upgrade." bundle-upgrade.log
+[ "$(cat reexec.log)" = "$(printf 'bundle upgrade.sh --staged %s\nbundle upgrade.sh --to v9.9.9\nbundle upgrade.sh --staged %s' "$bundle_revision" "$bundle_revision")" ]
 cmp "$fresh/build/heptapod-v9.9.9/scripts/upgrade.sh" scripts/upgrade.sh
 cmp "$fresh/build/heptapod-v9.9.9/docs/deploy/operations.md" docs/deploy/operations.md
 grep -q "| pull ghcr.io/heptapodwatch/heptapod-app:$bundle_revision |" all-operations.log
 [ "$(cat "$lifecycle_state/phase")" = committed ]
 cmp bundle-before.env .env.prod
 [ -z "$(find "$lifecycle_dir" -name 'bundle.*')" ] && [ ! -e "$lifecycle_state/host-replacement" ] && [ ! -e "$lifecycle_state/host-previous" ]
-printf 'PASS: --to replaces the bundle files, keeps .env.prod and runs the new upgrade.sh --staged REVISION to commit\n'
+: > reexec.log
+STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-same.log
+grep -Fxq 'Release v9.9.9 is already deployed; nothing to upgrade.' bundle-same.log
+printf 'PASS: --to replaces the bundle files and keeps .env.prod; after a failed image pull the same target continues to commit, then is a no-op\n'
 printf '{"tag_name": "v9.9.10"}' > "$fresh/api/releases/latest"
 : > reexec.log
-STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh > bundle-latest.log
+STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh > bundle-latest.log
 grep -Fq "Staged v9.9.10 ($bundle_revision)" bundle-latest.log
 [ "$(tail -n 1 reexec.log)" = "bundle upgrade.sh --staged $bundle_revision" ]
 [ "$(cat RELEASE)" = v9.9.10 ] && [ "$(cat "$lifecycle_state/phase")" = committed ]
 cmp "$fresh/build/heptapod-v9.9.10/docs/deploy/operations.md" docs/deploy/operations.md
 : > reexec.log
-STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh > bundle-latest-again.log
-grep -Fxq 'Release v9.9.10 is already installed; nothing to upgrade.' bundle-latest-again.log
+STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh > bundle-latest-again.log
+grep -Fxq 'Release v9.9.10 is already deployed; nothing to upgrade.' bundle-latest-again.log
 if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-downgrade.log 2>&1; then exit 1; fi
 grep -Fq 'Refusing to downgrade from v9.9.10 to v9.9.9' bundle-downgrade.log
 [ "$(grep -vc '^bundle upgrade.sh' reexec.log)" = 0 ] && [ "$(grep -c -- '--staged' reexec.log)" = 0 ]
-rm -r REVISION RELEASE LICENSE docs docker reexec.log
+rm -r REVISION RELEASE LICENSE MANIFEST docs docker reexec.log
+rm "$fresh/bin/mv" "$fresh/bin/flock" "$fresh/bin/stat"
 cp "$root/scripts/upgrade.sh" scripts/upgrade.sh
 printf 'PASS: without arguments a bundle install upgrades to the latest release; then it is a no-op, and v9.9.9 is older than v9.9.10\n'
 : > all-operations.log

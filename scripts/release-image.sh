@@ -25,13 +25,18 @@ release_checkout() {
 release_api=${HEPTAPOD_RELEASE_API:-https://api.github.com/repos/heptapodwatch/heptapod}
 release_download=${HEPTAPOD_RELEASE_DOWNLOAD:-https://github.com/heptapodwatch/heptapod/releases/download}
 
+# Heptapod publishes only vMAJOR.MINOR.PATCH releases; pre-release tags are refused, not ordered.
 validate_release_tag() {
-    printf '%s\n' "$1" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "Invalid release tag: $1 (expected e.g. v0.2.0)" >&2; exit 1; }
+    printf '%s\n' "$1" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || { echo "Invalid release tag: $1. Heptapod publishes only vX.Y.Z release tags, e.g. v0.2.0." >&2; exit 1; }
 }
 
-# SemVer precedence via GNU version sort: "~" orders a pre-release before its release.
+# True when release tag $1 is older than $2, comparing major, minor and patch as numbers.
 release_tag_older() {
-    [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "${1#v}" "${2#v}" | sed 's/-/~/' | sort -V | head -n 1)" = "$(printf '%s\n' "${1#v}" | sed 's/-/~/')" ]
+    awk -v older="${1#v}" -v newer="${2#v}" 'BEGIN {
+        split(older, a, "."); split(newer, b, ".")
+        for (i = 1; i <= 3; i++) { if (a[i] + 0 != b[i] + 0) exit !(a[i] + 0 < b[i] + 0) }
+        exit 1
+    }'
 }
 
 latest_release_tag() {
@@ -59,10 +64,17 @@ fetch_release_bundle() {
     bundle_revision=$(cat "$bundle_root/REVISION")
     printf '%s\n' "$bundle_revision" | grep -Eq '^[a-f0-9]{40}$' || { echo "$bundle_name has no valid REVISION. Nothing was changed." >&2; exit 1; }
     [ "$(cat "$bundle_root/RELEASE")" = "$bundle_tag" ] || { echo "$bundle_name has no RELEASE file for $bundle_tag. Nothing was changed." >&2; exit 1; }
-    if [ -e "$bundle_root/.env.prod" ] || [ -e "$bundle_root/.heptapod" ]; then
-        echo "$bundle_name contains installation state. Nothing was changed." >&2
-        exit 1
-    fi
+    validate_bundle_manifest "$bundle_root" || { echo "$bundle_name does not match its MANIFEST. Nothing was changed." >&2; exit 1; }
+}
+
+# The bundle holds exactly the regular files its MANIFEST lists, REVISION last; no installation state,
+# no absolute or parent paths. bootstrap-install.sh repeats this check.
+validate_bundle_manifest() {
+    [ -f "$1/MANIFEST" ] && [ "$(tail -n 1 "$1/MANIFEST")" = ./REVISION ] &&
+        [ "$(cd "$1" && find . -type f | LC_ALL=C sort)" = "$(LC_ALL=C sort "$1/MANIFEST")" ] &&
+        [ -z "$(cd "$1" && find . ! -type f ! -type d)" ] &&
+        ! grep -Ev '^\./[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$' "$1/MANIFEST" > /dev/null &&
+        ! grep -E '^\./(.*/)?\.\.?(/|$)|^\./\.env\.prod$|^\./\.heptapod(/|$)' "$1/MANIFEST" > /dev/null
 }
 
 resolve_release_images() {
