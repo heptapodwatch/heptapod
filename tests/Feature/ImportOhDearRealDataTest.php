@@ -448,6 +448,8 @@ test('rejects sitemap traversal while preserving valid monitor checks', function
 })->with(['../sitemap.xml', '/a/../sitemap.xml', '//other.example/sitemap.xml', 'http://other.example/sitemap.xml']);
 
 test('imported full-URL whitelist suppresses matching findings after fragment and origin normalization', function (): void {
+    // The crawler budgets against microtime(), so the run deadline must be wall-clock based, not the file's fixed date.
+    $this->travelTo(CarbonImmutable::createFromTimestamp(microtime(true), 'UTC'));
     config(['certificate_health.ca_file' => base_path('docker/fixtures/tls/ca.crt')]);
     $account = realOhDearAccount();
     $account['monitors'] = [$account['monitors'][0]];
