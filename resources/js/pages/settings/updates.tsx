@@ -589,8 +589,13 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                 </code>
                 <p className="text-xs text-muted-foreground">
                     {t(
-                        'Read the runbook first, then run ./scripts/upgrade.sh from the installation checkout (add --build only for source-built installs).',
-                    )}
+                        'Read the runbook first, then run sudo ./scripts/upgrade.sh in the installation directory.',
+                    )}{' '}
+                    <InfoTooltip>
+                        {t(
+                            'This applies to installations from the one-line installer. In a Git checkout, run git fetch --tags && git checkout <tag> first, then ./scripts/upgrade.sh (add --build only for source-built installs).',
+                        )}
+                    </InfoTooltip>
                 </p>
             </FormSection>
         </PageContainer>
