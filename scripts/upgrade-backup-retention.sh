@@ -37,7 +37,8 @@ expire_upgrade_backups() (
         fi
     }
     retention_php() {
-        docker compose --env-file .env.prod exec -T app php -- "$@" < scripts/upgrade-backup-retention.php
+        # shellcheck disable=SC2154 # release_dir: set by the sourcing script
+        docker compose --env-file .env.prod exec -T app php -- "$@" < "$release_dir/scripts/upgrade-backup-retention.php"
     }
     load_references
     retention_plan=$(mktemp "$retention_state/expiry-plan.XXXXXX")

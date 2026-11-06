@@ -1,4 +1,6 @@
 #!/bin/sh
+# The sourcing script sets release_dir (scripts/lifecycle-lock.sh).
+# shellcheck disable=SC2154
 # Resolve a published commit, from Git or an explicit export revision. Never deploy a moving tag.
 release_checkout() {
     release_revision=${1:-}
@@ -46,41 +48,80 @@ latest_release_tag() {
     printf '%s\n' "$latest_tag"
 }
 
-# Download, verify and unpack heptapod-<tag>.tar.gz into $2. Sets bundle_root and bundle_revision.
-fetch_release_bundle() {
-    bundle_tag=$1
-    bundle_name=heptapod-$bundle_tag.tar.gz
+# Publish release $1 as releases/$1 and point current at it: bundle installs, from the instance root, with the
+# lifecycle lock held. An interrupted run leaves current unchanged, plus at worst a releases/.<tag>.tmp folder
+# or an unswapped releases/$1, which the next run deletes and unpacks again from the verified archive.
+publish_release() {
+    mkdir -p releases
+    find releases -mindepth 1 -maxdepth 1 -name '.*.tmp' -exec rm -rf {} +
+    # Never current or the previous release: upgrades only publish a newer tag than current.
+    rm -rf "releases/$1"
+    bundle_name=heptapod-$1.tar.gz
+    mkdir "releases/.$1.tmp"
+    publish_tag=$1
+    trap 'rm -rf "releases/.$publish_tag.tmp"' EXIT
     for bundle_file in "$bundle_name" "$bundle_name.sha256"; do
-        curl -fsSL -o "$2/$bundle_file" "$release_download/$bundle_tag/$bundle_file" || { echo "Cannot download $release_download/$bundle_tag/$bundle_file" >&2; exit 1; }
+        curl -fsSL -o "releases/.$1.tmp/$bundle_file" "$release_download/$1/$bundle_file" || { echo "Cannot download $release_download/$1/$bundle_file" >&2; exit 1; }
     done
-    bundle_expected=$(awk 'NR == 1 { print $1 }' "$2/$bundle_name.sha256")
-    bundle_actual=$(sha256sum "$2/$bundle_name" | awk '{ print $1 }')
+    bundle_expected=$(awk 'NR == 1 { print $1 }' "releases/.$1.tmp/$bundle_name.sha256")
+    bundle_actual=$(sha256sum "releases/.$1.tmp/$bundle_name" | awk '{ print $1 }')
     if ! printf '%s\n' "$bundle_expected" | grep -Eq '^[a-f0-9]{64}$' || [ "$bundle_actual" != "$bundle_expected" ]; then
         echo "Checksum mismatch for $bundle_name: expected $bundle_expected, got $bundle_actual. Nothing was changed." >&2
         exit 1
     fi
-    tar -xzf "$2/$bundle_name" -C "$2" --no-same-owner
-    bundle_root=$2/heptapod-$bundle_tag
-    bundle_revision=$(cat "$bundle_root/REVISION")
-    printf '%s\n' "$bundle_revision" | grep -Eq '^[a-f0-9]{40}$' || { echo "$bundle_name has no valid REVISION. Nothing was changed." >&2; exit 1; }
-    [ "$(cat "$bundle_root/RELEASE")" = "$bundle_tag" ] || { echo "$bundle_name has no RELEASE file for $bundle_tag. Nothing was changed." >&2; exit 1; }
-    validate_bundle_manifest "$bundle_root" || { echo "$bundle_name does not match its MANIFEST. Nothing was changed." >&2; exit 1; }
+    tar -xzf "releases/.$1.tmp/$bundle_name" -C "releases/.$1.tmp" --no-same-owner
+    publish_release_dir "releases/.$1.tmp/heptapod-$1" "$1"
+    rm -rf "releases/.$1.tmp"
+    trap - EXIT
 }
 
-# The bundle holds exactly the regular files its newline-terminated MANIFEST lists (an unterminated last
-# line would be skipped by the publication loops), REVISION last; no installation state,
-# no absolute or parent paths. bootstrap-install.sh repeats this check.
+# Publish the unpacked bundle $1 of release $2 as releases/$2, then swap current to it. Creating the root
+# symlinks before the swap keeps every entry reachable through current. Sets bundle_revision.
+# The hosted installer calls this from the bundle it unpacked: keep its name and arguments.
+publish_release_dir() {
+    bundle_revision=$(cat "$1/REVISION")
+    printf '%s\n' "$bundle_revision" | grep -Eq '^[a-f0-9]{40}$' || { echo "heptapod-$2.tar.gz has no valid REVISION. Nothing was changed." >&2; exit 1; }
+    [ "$(cat "$1/RELEASE")" = "$2" ] || { echo "heptapod-$2.tar.gz has no RELEASE file for $2. Nothing was changed." >&2; exit 1; }
+    validate_bundle_manifest "$1" || { echo "heptapod-$2.tar.gz does not match its MANIFEST. Nothing was changed." >&2; exit 1; }
+    for release_entry in $(release_entries "$1"); do
+        if [ -e "$release_entry" ] || [ -L "$release_entry" ]; then
+            if ! [ -L "$release_entry" ] || ! owned_by_us "$release_entry" || [ "$(readlink "$release_entry")" != "current/$release_entry" ]; then
+                echo "Refusing $PWD/$release_entry: expected a symlink to current/$release_entry owned by root or you. current is unchanged." >&2
+                exit 1
+            fi
+        else
+            ln -s "current/$release_entry" "$release_entry"
+        fi
+    done
+    # The unpacked files are durable before the rename publishes them.
+    sync
+    mv -T "$1" "releases/$2"
+    rm -f .current.tmp
+    ln -s "releases/$2" .current.tmp
+    sync releases .
+    mv -T .current.tmp current
+    sync .
+    # Root symlinks of entries the new release no longer ships.
+    for release_link in * .[!.]*; do
+        if [ -L "$release_link" ] && [ "$(readlink "$release_link")" = "current/$release_link" ] && [ ! -e "$release_link" ]; then
+            rm "$release_link"
+        fi
+    done
+}
+
+# The bundle holds exactly the regular files its newline-terminated MANIFEST lists, REVISION last; no
+# installation state or names the instance root reserves, no absolute or parent paths.
 validate_bundle_manifest() {
     [ -f "$1/MANIFEST" ] && [ -z "$(tail -c 1 "$1/MANIFEST")" ] && [ "$(tail -n 1 "$1/MANIFEST")" = ./REVISION ] &&
         [ "$(cd "$1" && find . -type f | LC_ALL=C sort)" = "$(LC_ALL=C sort "$1/MANIFEST")" ] &&
         [ -z "$(cd "$1" && find . ! -type f ! -type d)" ] &&
         ! grep -Ev '^\./[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$' "$1/MANIFEST" > /dev/null &&
-        ! grep -E '^\./(.*/)?\.\.?(/|$)|^\./\.env\.prod$|^\./\.heptapod(/|$)' "$1/MANIFEST" > /dev/null
+        ! grep -E '^\./(.*/)?\.\.?(/|$)|^\./(\.env\.prod|\.heptapod|releases|current|\.current\.tmp)(/|$)' "$1/MANIFEST" > /dev/null
 }
 
 resolve_release_images() {
     release_browser=${1:?Pass the browser selection}
-    default_app_repository=$(bash ./scripts/image-reference.sh app) || return 1
+    default_app_repository=$(bash "$release_dir/scripts/image-reference.sh" app) || return 1
     registry=${HEPTAPOD_IMAGE_REGISTRY:-${default_app_repository%/*}}
     registry_host=${registry%%/*}
     case "$registry" in
@@ -90,7 +131,7 @@ resolve_release_images() {
     candidate_lighthouse=
     for component in app lighthouse; do
         [ "$component" != lighthouse ] || [ "$release_browser" = true ] || continue
-        default_repository=$(bash ./scripts/image-reference.sh "$component") || return 1
+        default_repository=$(bash "$release_dir/scripts/image-reference.sh" "$component") || return 1
         repository="$registry/${default_repository##*/}"
         if ! docker pull "$repository:$release_sha"; then
             echo "Cannot pull $repository:$release_sha: check registry access (docker login $registry_host for private packages), network/disk errors, and whether CI has published this main commit. Old stack untouched." >&2

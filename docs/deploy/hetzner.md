@@ -54,7 +54,7 @@ INSTALL_DIR="$HOME/heptapod"
 git clone --depth 1 --branch "$RELEASE_TAG" "$REPOSITORY_URL" "$INSTALL_DIR" && cd "$INSTALL_DIR" && ./scripts/install.sh --domain monitor.example.com --owner-email owner@example.com --without-browser
 ```
 
-For a release bundle without Git, extract it into an empty directory and use the [export installation command](operations.md#install-a-release-export-without-git) with the commit SHA from its `REVISION` file. To upgrade the Git checkout later, run `git fetch --tags && git checkout <tag>`, then `./scripts/upgrade.sh`.
+For a release bundle without Git, create its release folder layout and use the [export installation command](operations.md#install-a-release-export-without-git) with the commit SHA from its `REVISION` file. To upgrade the Git checkout later, run `git fetch --tags && git checkout <tag>`, then `./scripts/upgrade.sh`.
 
 If the first clone failed, remove its partial destination directory before cloning again. Do not remove an existing installation or its data.
 

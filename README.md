@@ -22,7 +22,7 @@ Use an Ubuntu or Debian amd64 host, a domain pointing to it, inbound TCP 80/443,
 curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --domain monitor.example.com --owner-email owner@example.com --without-browser
 ```
 
-The installer downloads the latest release bundle (`--version v0.1.1` pins one), verifies its SHA-256 checksum, unpacks it into `/opt/heptapod` (`--dir` changes that) and runs the bundle's `scripts/install.sh`. No Git is needed. Docker Engine with Compose v5 must be installed; if it is missing, the installer stops and prints the same command with `--install-docker`, which installs Docker from Docker's apt repository. Replace the domain and email. The browser-disabled path targets 4 GB hosts; see the [Hetzner guide](docs/deploy/hetzner.md) for browser-enabled sizing. A rerun on an existing installation starts nothing and prints the upgrade command.
+The installer downloads the latest release bundle (`--version <tag>` pins one), verifies its SHA-256 checksum, publishes it as a release folder in `/opt/heptapod` (`--dir` changes that) and runs the bundle's `scripts/install.sh`. No Git is needed. Docker Engine with Compose v5 must be installed; if it is missing, the installer stops and prints the same command with `--install-docker`, which installs Docker from Docker's apt repository. Replace the domain and email. The browser-disabled path targets 4 GB hosts; see the [Hetzner guide](docs/deploy/hetzner.md) for browser-enabled sizing. A rerun on an existing installation starts nothing and prints the upgrade command.
 
 Upgrade to the latest release, or to a chosen tag with `--to <tag>`:
 

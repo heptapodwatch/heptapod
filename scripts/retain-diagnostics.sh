@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 # Host-only collector: Docker access stays on the host; no raw output reaches disk.
 set -euo pipefail
-root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
-cd "$root"
+# Rerun by the canonical path first: through current, a concurrent swap could mix this body with another release's helpers.
+script=$(readlink -f -- "$0")
+[ "$0" = "$script" ] || exec bash "$script" "$@"
+release_dir=${script%/scripts/*}
+# shellcheck source=scripts/lifecycle-lock.sh
+. "$release_dir/scripts/lifecycle-lock.sh"
+enter_instance_root
+root=$PWD
 mode=${1:-snapshot}
 case "$mode" in snapshot|watch) ;; *) echo 'Usage: scripts/retain-diagnostics.sh [snapshot|watch]' >&2; exit 2 ;; esac
 if ! command -v jq >/dev/null; then
@@ -30,6 +36,7 @@ if [ "$mode" = watch ]; then
     trap 'exit 130' INT
     trap 'exit 143' TERM
     while true; do
+        # Through the instance root: after an upgrade the watcher captures with the current release.
         "$root/scripts/retain-diagnostics.sh" snapshot || echo 'WARNING: diagnostics capture failed; this window may be incomplete.' >&2
         sleep 5
     done
@@ -110,7 +117,7 @@ else
     since=$(jq -nr 'now - 86400 | floor | todateiso8601')
 fi
 printf '%s\n' "$since" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$' || { echo 'Invalid diagnostics cursor' >&2; exit 1; }
-filter="$root/scripts/diagnostics-filter.jq"
+filter="$release_dir/scripts/diagnostics-filter.jq"
 # No platform fingerprinting or guessed fallback: hosts without /proc report unknown.
 load1=source_unavailable load5=source_unavailable load15=source_unavailable
 if [ -e /proc/loadavg ]; then

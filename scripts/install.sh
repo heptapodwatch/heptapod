@@ -2,7 +2,13 @@
 # Printed recovery fragments expand in the operator's recovery shell.
 # shellcheck disable=SC2016
 set -eu
-cd "$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)"
+# Rerun by the canonical path first: through current, a concurrent swap could mix this body with another release's helpers.
+script=$(readlink -f -- "$0")
+[ "$0" = "$script" ] || exec sh "$script" "$@"
+release_dir=${script%/scripts/*}
+# shellcheck source=scripts/lifecycle-lock.sh
+. "$release_dir/scripts/lifecycle-lock.sh"
+enter_instance_root
 umask 077
 
 domain=
@@ -105,22 +111,20 @@ fi
 case "$compose_files" in
     *[!A-Za-z0-9_./:+-]*) echo 'COMPOSE_FILE contains unsupported characters; use only letters, digits, _, ., /, :, + and -' >&2; exit 1 ;;
 esac
-# shellcheck source=scripts/lifecycle-lock.sh
-. ./scripts/lifecycle-lock.sh
 if ! compose_help=$(docker compose config --help) || ! printf '%s\n' "$compose_help" | grep -q -- '--environment'; then
     echo 'Docker Compose v5 (tested 5.1.2) with config --environment is required; upgrade Compose before installation' >&2
     exit 1
 fi
 # Parse the existing file (or fresh template) before creating state or writing configuration.
 name_env_file=.env.prod
-[ -f "$name_env_file" ] || name_env_file=.env.prod.example
+[ -f "$name_env_file" ] || name_env_file=$release_dir/.env.prod.example
 name_environment=$(printf 'services:\n  environment:\n    image: scratch\n' | docker compose --env-file "$name_env_file" -f - config --environment)
 validate_backup_name \
     "$(printf '%s\n' "$name_environment" | awk '/^APP_NAME=/ {sub(/^APP_NAME=/, ""); print; found=1} END {if (!found) print "Heptapod"}')" \
     "$(printf '%s\n' "$name_environment" | awk '/^BACKUP_PATH=/ {sub(/^BACKUP_PATH=/, ""); print; found=1} END {if (!found) print "/backups"}')"
 acquire_lifecycle_lock
 # shellcheck source=scripts/worker-memory-preflight.sh
-. ./scripts/worker-memory-preflight.sh
+. "$release_dir/scripts/worker-memory-preflight.sh"
 command -v openssl >/dev/null
 case "${COMPOSE_PROFILES:-}" in
     *'*'*) echo 'Wildcard COMPOSE_PROFILES is not supported; select browser or disabled explicitly.' >&2; exit 1 ;;
@@ -138,10 +142,10 @@ if [ -f .env.prod ]; then
     existing_config=1
 else
     # shellcheck source=scripts/check-disk.sh
-    . ./scripts/check-disk.sh
+    . "$release_dir/scripts/check-disk.sh"
     require_deployment_disk
     # Shipped placeholders are not operator configuration. Start without managed keys.
-    grep -v -e APP_KEY -e DB_PASSWORD -e BACKUP_ARCHIVE_PASSWORD -e REVERB_APP_ID -e REVERB_APP_KEY -e REVERB_APP_SECRET -e APP_URL -e SERVER_NAME -e HTTP_PORT -e COMPOSE_PROFILES -e HEPTAPOD_BROWSER_ENABLED -e COMPOSE_FILE .env.prod.example > .env.prod
+    grep -v -e APP_KEY -e DB_PASSWORD -e BACKUP_ARCHIVE_PASSWORD -e REVERB_APP_ID -e REVERB_APP_KEY -e REVERB_APP_SECRET -e APP_URL -e SERVER_NAME -e HTTP_PORT -e COMPOSE_PROFILES -e HEPTAPOD_BROWSER_ENABLED -e COMPOSE_FILE "$release_dir/.env.prod.example" > .env.prod
     # Fresh configuration only: an existing .env.prod keeps the operator's memory values.
     select_memory_profile
 fi
@@ -230,9 +234,11 @@ print_install_recovery() {
         echo 'unset APP_IMAGE LIGHTHOUSE_IMAGE COMPOSE_FILE'
         recovery_project=$(printf '%s\n' "$resolved" | sed -n 's/^COMPOSE_PROJECT_NAME=//p')
         printf 'export COMPOSE_PROJECT_NAME=%s\n' "$(shell_quote "$recovery_project")"
-        printf '. %s\nacquire_lifecycle_lock\n' "$(shell_quote "$PWD/scripts/lifecycle-lock.sh")"
-        printf '. %s\n' "$(shell_quote "$PWD/scripts/release-image.sh")"
-        recovery_app_repository=$(bash ./scripts/image-reference.sh app) || return 1
+        printf 'release_dir=%s\n' "$(shell_quote "$release_dir")"
+        echo '. "$release_dir/scripts/lifecycle-lock.sh"'
+        echo 'acquire_lifecycle_lock'
+        echo '. "$release_dir/scripts/release-image.sh"'
+        recovery_app_repository=$(bash "$release_dir/scripts/image-reference.sh" app) || return 1
         printf 'browser=%s\nHEPTAPOD_IMAGE_REGISTRY=%s\n' "$browser" "$(shell_quote "${HEPTAPOD_IMAGE_REGISTRY:-${recovery_app_repository%/*}}")"
         echo 'validate_image_keys'
         if [ -n "$revision" ]; then
@@ -245,7 +251,8 @@ print_install_recovery() {
         fi
         echo 'resolve_release_images "$browser"'
         echo 'pin_release_images'
-        printf '. %s\nrequire_worker_memory\n' "$(shell_quote "$PWD/scripts/worker-memory-preflight.sh")"
+        echo '. "$release_dir/scripts/worker-memory-preflight.sh"'
+        echo 'require_worker_memory'
         printf 'docker compose --env-file %s up -d --wait --wait-timeout 300\n' "$(shell_quote "$PWD/.env.prod")"
         if [ -n "$owner_email" ]; then
             printf 'docker compose --env-file %s exec -T app php artisan heptapod:user:create-owner --email=%s --if-missing --no-interaction\n' "$(shell_quote "$PWD/.env.prod")" "$(shell_quote "$owner_email")"
@@ -297,7 +304,7 @@ fresh_install_failed() {
 }
 trap fresh_install_failed EXIT
 # shellcheck source=scripts/release-image.sh
-. ./scripts/release-image.sh
+. "$release_dir/scripts/release-image.sh"
 validate_image_keys
 release_checkout "$revision"
 resolve_release_images "$browser"
