@@ -430,7 +430,7 @@ export REAL_MV REAL_FLOCK REAL_STAT
 cat > "$fresh/bin/mv" <<'SH'
 #!/bin/sh
 if [ -n "${STUB_FAIL_MV:-}" ] && [ "$2" = "$STUB_FAIL_MV" ]; then
-    case "$1" in */heptapod-v9.9.9/*|*/.restore.*) echo "stub: rename onto $2 failed" >&2; exit 1 ;; esac
+    case "$1" in */heptapod-v9.9.9/*|*/.restore.*|*.restore) echo "stub: rename onto $2 failed" >&2; exit 1 ;; esac
 fi
 exec "$REAL_MV" "$@"
 SH
