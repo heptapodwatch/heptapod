@@ -22,9 +22,9 @@ Use an Ubuntu or Debian amd64 host, a domain pointing to it, inbound TCP 80/443,
 curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --domain monitor.example.com --owner-email owner@example.com --without-browser
 ```
 
-The installer downloads the latest release bundle (`--version v0.1.0` pins one), verifies its SHA-256 checksum, unpacks it into `/opt/heptapod` (`--dir` changes that) and runs the bundle's `scripts/install.sh`. No Git is needed. Docker Engine with Compose v5 must be installed; if it is missing, the installer stops and prints the same command with `--install-docker`, which installs Docker from Docker's apt repository. Replace the domain and email. The browser-disabled path targets 4 GB hosts; see the [Hetzner guide](docs/deploy/hetzner.md) for browser-enabled sizing. A rerun on an existing installation starts nothing and prints the upgrade command.
+The installer downloads the latest release bundle (`--version v0.1.1` pins one), verifies its SHA-256 checksum, unpacks it into `/opt/heptapod` (`--dir` changes that) and runs the bundle's `scripts/install.sh`. No Git is needed. Docker Engine with Compose v5 must be installed; if it is missing, the installer stops and prints the same command with `--install-docker`, which installs Docker from Docker's apt repository. Replace the domain and email. The browser-disabled path targets 4 GB hosts; see the [Hetzner guide](docs/deploy/hetzner.md) for browser-enabled sizing. A rerun on an existing installation starts nothing and prints the upgrade command.
 
-Upgrade to the latest release, or to a chosen tag with `--to v0.2.0`:
+Upgrade to the latest release, or to a chosen tag with `--to <tag>`:
 
 ```sh
 cd /opt/heptapod && sudo ./scripts/upgrade.sh
@@ -44,20 +44,20 @@ Continue only when this succeeds without sudo.
 
 ```sh
 REPOSITORY_URL='https://github.com/heptapodwatch/heptapod.git'
-RELEASE_TAG='v0.1.0'
+RELEASE_TAG='v0.1.1'
 INSTALL_DIR="$HOME/heptapod"
 git clone --depth 1 --branch "$RELEASE_TAG" "$REPOSITORY_URL" "$INSTALL_DIR" && cd "$INSTALL_DIR" && ./scripts/install.sh --domain monitor.example.com --owner-email owner@example.com --without-browser
 ```
 
 If the first clone failed, remove its partial destination directory before cloning again; never remove an existing installation or its data.
 
-Use an exact published release tag, not a moving branch. The clone fetches the installer and its configuration before running it. Rerunning the installer preserves existing secrets and does not start or restart an instance with `.env.prod`; follow its printed first-start or upgrade instructions. To upgrade a Git checkout, check out the new tag first (`git fetch --tags && git checkout v0.2.0`), then run `./scripts/upgrade.sh`.
+Use an exact published release tag, not a moving branch. The clone fetches the installer and its configuration before running it. Rerunning the installer preserves existing secrets and does not start or restart an instance with `.env.prod`; follow its printed first-start or upgrade instructions. To upgrade a Git checkout, check out the new tag first (`git fetch --tags && git checkout <tag>`), then run `./scripts/upgrade.sh`.
 
 ## Development
 
 Inertia DevTools: set `INERTIA_DEVTOOLS_ENABLED=true` in your `.env`.
 
-Install Docker with Compose. PHP 8.5.11 (FrankenPHP), Composer, Node 24 and aspell run in the containers; no host PHP or Node installation is needed.
+Install Docker with Compose. PHP 8.5.12 (FrankenPHP), Composer, Node 24 and aspell run in the containers; no host PHP or Node installation is needed.
 
 ```sh
 cp .env.example .env
@@ -84,11 +84,11 @@ The `horizon` service runs Laravel Horizon; `dispatcher` runs `heptapod:dispatch
 
 ### Offline check fixtures
 
-The optional `fixtures` Compose profile serves offline HTTP, crawl, health JSON and TLS scenarios. See the [fixture URL table and smoke-test command](docker/fixtures/README.md). Set `FIXTURES_HTTP_PORT` and `FIXTURES_HTTPS_PORT` in `.env` to override the default loopback ports 8480 and 8481.
+The `fixtures` Compose profile serves offline HTTP, crawl, health JSON, TLS and DNS scenarios. PHP tests require it; start it before the first test run with `docker compose --profile fixtures up -d --wait fixtures fixtures-alt dns-fixtures`. See the [fixture URL table and smoke-test command](docker/fixtures/README.md). Set `FIXTURES_HTTP_PORT` and `FIXTURES_HTTPS_PORT` in `.env` to override the default loopback ports 8480 and 8481. The default `FIXTURES_HTTPS_ALT_PORT` 444 is privileged: rootless Docker and Podman need a value of 1024 or above.
 
 ### Tooling
 
-Run project commands through the app container. CI runs static checks on PHP 8.5.11, Node 24, Postgres 17, Redis and aspell. The PHP Gate, non-quarantined Feature/Unit tests, architecture tests and Vitest run in CI and block merges. Browser, mutation and coverage suites remain disabled. Run affected PHP tests with `docker compose exec app bash scripts/run-tests.sh focused <test-file>` or the non-quarantined Feature/Unit suites with `docker compose exec app bash scripts/run-tests.sh ci-php`; use random order and record the seed as shown in [operations](docs/deploy/operations.md#development-test-hooks). The type-coverage check remains part of the static gate.
+Run project commands through the app container. CI runs static checks on PHP 8.5.12, Node 24, Postgres 17, Redis and aspell. The PHP Gate, non-quarantined Feature/Unit tests, architecture tests and Vitest run in CI and block merges. Browser, mutation and coverage suites remain disabled. Run affected PHP tests with `docker compose exec app bash scripts/run-tests.sh focused <test-file>` or the non-quarantined Feature/Unit suites with `docker compose exec app bash scripts/run-tests.sh ci-php`; use random order and record the seed as shown in [operations](docs/deploy/operations.md#development-test-hooks). The type-coverage check remains part of the static gate.
 
 ```sh
 docker compose exec app composer fmt             # Pint, write fixes
