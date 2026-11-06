@@ -126,9 +126,9 @@ or follow https://docs.docker.com/engine/install/$os_id/ and run this installer 
     revision=$(cat "$bundle/REVISION")
     [[ "$revision" =~ ^[a-f0-9]{40}$ ]] || fail "$name has no valid REVISION. Nothing was installed."
     [ "$(cat "$bundle/RELEASE")" = "$version" ] || fail "$name has no RELEASE file for $version. Nothing was installed."
-    # The same check as validate_bundle_manifest in scripts/release-image.sh: exactly the listed regular files,
-    # REVISION last, no installation state, no absolute or parent paths.
-    if ! { [ -f "$bundle/MANIFEST" ] && [ "$(tail -n 1 "$bundle/MANIFEST")" = ./REVISION ] &&
+    # The same check as validate_bundle_manifest in scripts/release-image.sh: exactly the listed regular files
+    # in a newline-terminated MANIFEST, REVISION last, no installation state, no absolute or parent paths.
+    if ! { [ -f "$bundle/MANIFEST" ] && [ -z "$(tail -c 1 "$bundle/MANIFEST")" ] && [ "$(tail -n 1 "$bundle/MANIFEST")" = ./REVISION ] &&
         [ "$(cd "$bundle" && find . -type f | LC_ALL=C sort)" = "$(LC_ALL=C sort "$bundle/MANIFEST")" ] &&
         [ -z "$(cd "$bundle" && find . ! -type f ! -type d)" ] &&
         ! grep -Ev '^\./[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$' "$bundle/MANIFEST" > /dev/null &&

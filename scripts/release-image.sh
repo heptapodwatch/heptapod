@@ -67,10 +67,11 @@ fetch_release_bundle() {
     validate_bundle_manifest "$bundle_root" || { echo "$bundle_name does not match its MANIFEST. Nothing was changed." >&2; exit 1; }
 }
 
-# The bundle holds exactly the regular files its MANIFEST lists, REVISION last; no installation state,
+# The bundle holds exactly the regular files its newline-terminated MANIFEST lists (an unterminated last
+# line would be skipped by the publication loops), REVISION last; no installation state,
 # no absolute or parent paths. bootstrap-install.sh repeats this check.
 validate_bundle_manifest() {
-    [ -f "$1/MANIFEST" ] && [ "$(tail -n 1 "$1/MANIFEST")" = ./REVISION ] &&
+    [ -f "$1/MANIFEST" ] && [ -z "$(tail -c 1 "$1/MANIFEST")" ] && [ "$(tail -n 1 "$1/MANIFEST")" = ./REVISION ] &&
         [ "$(cd "$1" && find . -type f | LC_ALL=C sort)" = "$(LC_ALL=C sort "$1/MANIFEST")" ] &&
         [ -z "$(cd "$1" && find . ! -type f ! -type d)" ] &&
         ! grep -Ev '^\./[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$' "$1/MANIFEST" > /dev/null &&

@@ -68,15 +68,26 @@ SH
     : > "$work/build/heptapod-$tag/MANIFEST"
     (cd "$work/build/heptapod-$tag" && find . -type f ! -name REVISION | LC_ALL=C sort && echo ./REVISION) > "$work/manifest"
     mv "$work/manifest" "$work/build/heptapod-$tag/MANIFEST"
-    # A file the MANIFEST does not list.
-    if [ -n "${4:-}" ]; then printf 'extra\n' > "$work/build/heptapod-$tag/$4"; fi
+    # A hostile bundle: this shell command changes the bundle directory after its MANIFEST is written.
+    if [ -n "${4:-}" ]; then (cd "$work/build/heptapod-$tag" && eval "$4"); fi
     tar -C "$work/build" -czf "$work/release/$tag/heptapod-$tag.tar.gz" "heptapod-$tag"
     (cd "$work/release/$tag" && sha256sum "heptapod-$tag.tar.gz" > "heptapod-$tag.tar.gz.sha256")
 }
 publish v1.0.0 1111111111111111111111111111111111111111
 publish v2.0.0 2222222222222222222222222222222222222222
 publish v3.0.0 3333333333333333333333333333333333333333 v1.0.0
-publish v4.0.0 4444444444444444444444444444444444444444 v4.0.0 .env.prod
+# Rewrites the MANIFEST so that it lists every file in the bundle directory, REVISION last.
+relist() {
+    { find . -type f ! -name REVISION | LC_ALL=C sort; echo ./REVISION; } > ../MANIFEST.new
+    mv ../MANIFEST.new MANIFEST
+}
+publish v4.0.0 4444444444444444444444444444444444444444 v4.0.0 "printf 'extra\n' > .env.prod"
+publish v5.0.0 5555555555555555555555555555555555555555 v5.0.0 "printf 'APP_KEY=planted\n' > .env.prod && relist"
+publish v6.0.0 6666666666666666666666666666666666666666 v6.0.0 'mkdir .heptapod && printf planted > .heptapod/lifecycle.lock && relist'
+publish v7.0.0 7777777777777777777777777777777777777777 v7.0.0 'truncate -s -1 MANIFEST'
+# The fixtures are what they claim: v5 and v6 list their state file, v7's MANIFEST lacks its final newline.
+grep -Fxq ./.env.prod "$work/build/heptapod-v5.0.0/MANIFEST" && grep -Fxq ./.heptapod/lifecycle.lock "$work/build/heptapod-v6.0.0/MANIFEST"
+[ -n "$(tail -c 1 "$work/build/heptapod-v7.0.0/MANIFEST")" ] && [ "$(tail -n 1 "$work/build/heptapod-v7.0.0/MANIFEST")" = ./REVISION ]
 printf '{\n  "url": "fixture",\n  "tag_name": "v2.0.0",\n  "name": "Heptapod v2.0.0"\n}\n' > "$work/api/releases/latest"
 
 bootstrap() { bash "$root/scripts/bootstrap-install.sh" "$@"; }
@@ -182,9 +193,12 @@ refuses 'Checksum mismatch for heptapod-v1.0.0.tar.gz' --domain d.example.com --
 unpublished "$work/d"
 refuses "heptapod-v3.0.0.tar.gz has no RELEASE file for v3.0.0" --domain d.example.com --version v3.0.0 --dir "$work/d"
 unpublished "$work/d"
-refuses 'heptapod-v4.0.0.tar.gz does not match its MANIFEST' --domain d.example.com --version v4.0.0 --dir "$work/d"
-unpublished "$work/d"
-[ ! -e "$work/d/.env.prod" ]
+# An unlisted .env.prod, a listed .env.prod or .heptapod file, and a MANIFEST whose last line (REVISION) lacks its newline.
+for hostile in v4.0.0 v5.0.0 v6.0.0 v7.0.0; do
+    refuses "heptapod-$hostile.tar.gz does not match its MANIFEST" --domain d.example.com --version "$hostile" --dir "$work/d"
+    unpublished "$work/d"
+    [ ! -e "$work/d/.env.prod" ] && [ ! -s "$work/d/.heptapod/lifecycle.lock" ]
+done
 refuses "Cannot download file://$work/release/v9.9.9/heptapod-v9.9.9.tar.gz" --domain d.example.com --version v9.9.9 --dir "$work/d"
 printf '{"tag_name": "main"}' > "$work/api/releases/latest"
 refuses "The latest release has an unexpected tag 'main'" --domain d.example.com --dir "$work/d"
