@@ -517,11 +517,13 @@ jobs:
         env:
           NEEDS: ${{ toJSON(needs) }}
         run: |
-          jq -e --arg ref "$GITHUB_REF" '
+          jq -e --arg ref "$GITHUB_REF" --arg event "$GITHUB_EVENT_NAME" '
             def selected($job; $flag):
               if $flag == "true" then .[$job].result == "success"
               elif $flag == "false" then .[$job].result == "skipped"
               else false end;
+            # Only ci/* pushes run the split acceptance suites and record the candidate manifests.
+            (($event == "push" and ($ref | startswith("refs/heads/ci/"))) | tostring) as $candidate |
             .architectures.result == "success" and
             if $ref == "refs/heads/main" then
               # A failed candidate lookup is the annotated full-build fallback, not a failure.
@@ -531,6 +533,6 @@ jobs:
               .changes.result == "success" and
               selected("image-validate"; .changes.outputs.images) and
               selected("runtime-report"; .changes.outputs.runtime) and
-              ([.["image-acceptance"], .["candidate-manifest"]] | all(.result == "success" or .result == "skipped"))
+              selected("image-acceptance"; $candidate) and selected("candidate-manifest"; $candidate)
             end
           ' <<< "$NEEDS"
