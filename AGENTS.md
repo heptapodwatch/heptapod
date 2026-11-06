@@ -39,7 +39,7 @@ These rules take precedence over generated guidance below. Keep private machine 
 - Done means proven: changed files, actual commands and output, deviations, open issues.
 
 ## Verification gates
-- Merge gate: green required CI (static + production image/OPS/security) on the exact candidate SHA. A changed SHA needs fresh CI; local success never substitutes. Fix real failures; never dismiss them as pre-existing.
+- Merge gate: the required checks `gate` (CI: static, PHP, architecture, Vitest, development image) and `production-gate` (Production images: production image/OPS/security, skipped only where the changed paths select no production job) green on the exact candidate SHA. A changed SHA needs fresh CI; local success never substitutes. Fix real failures; never dismiss them as pre-existing.
 - Route, login or landing changes update the `tests/Deployment` OPS contracts in the same change. Assert the canonical HTTPS origin and raw headers, not normalized URLs.
 
 ## Tests

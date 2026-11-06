@@ -505,3 +505,32 @@ jobs:
           ARCHITECTURE: ${{ matrix.architecture }}
           SCAN_OUTCOME: ${{ steps.trivy.outcome }}
         run: bash scripts/ci-summary.sh trivy "$SERVICE/$ARCHITECTURE upstream vulnerabilities (report-only)" "$SCAN_OUTCOME" "$RUNNER_TEMP/trivy-runtime-$SERVICE-$ARCHITECTURE.json"
+
+  production-gate:
+    # The stable required check: it runs on every event, accepts path-based skips only when the
+    # selector chose them, and fails when any selected production job fails or is cancelled.
+    if: always()
+    needs: [architectures, changes, image-validate, image-acceptance, candidate-manifest, runtime-report, candidate, image, publish]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every selected production job
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          jq -e --arg ref "$GITHUB_REF" '
+            def selected($job; $flag):
+              if $flag == "true" then .[$job].result == "success"
+              elif $flag == "false" then .[$job].result == "skipped"
+              else false end;
+            .architectures.result == "success" and
+            if $ref == "refs/heads/main" then
+              # A failed candidate lookup is the annotated full-build fallback, not a failure.
+              .publish.result == "success" and
+              ([.image, .["runtime-report"]] | all(.result == "success" or .result == "skipped"))
+            else
+              .changes.result == "success" and
+              selected("image-validate"; .changes.outputs.images) and
+              selected("runtime-report"; .changes.outputs.runtime) and
+              ([.["image-acceptance"], .["candidate-manifest"]] | all(.result == "success" or .result == "skipped"))
+            end
+          ' <<< "$NEEDS"
