@@ -208,12 +208,22 @@ refuses "$work/flat is not empty and is not an earlier Heptapod installation" --
 mkdir -p "$work/foreign-link"
 ln -s /etc "$work/foreign-link/scripts"
 refuses "$work/foreign-link is not empty and is not an earlier Heptapod installation" --domain c.example.com --dir "$work/foreign-link"
-mkdir -p "$work/git-install/.git"
-printf 'APP_KEY=kept\n' > "$work/git-install/.env.prod"
+# With .env.prod and an installer: a Git checkout beside a complete release folder layout, and a flat file layout.
+mkdir -p "$work/git-install/.git" "$work/git-install/releases" "$work/flat-install"
+cp -R "$work/build/heptapod-v1.0.0" "$work/git-install/releases/v1.0.0"
 ln -s releases/v1.0.0 "$work/git-install/current"
-refuses 'has a .env.prod but is not a release folder installation' --domain c.example.com --dir "$work/git-install"
-[ "$(LC_ALL=C ls -A "$work/git-install" | tr '\n' ' ')" = '.env.prod .git current ' ]
-printf 'PASS: foreign directories, a flat file layout, a foreign root symlink and a Git checkout with current are refused untouched, without a lock file\n'
+for entry in REVISION scripts; do ln -s "current/$entry" "$work/git-install/$entry"; done
+cp "$work/build/heptapod-v1.0.0/REVISION" "$work/flat-install/"
+cp -R "$work/build/heptapod-v1.0.0/scripts" "$work/flat-install/"
+lines=$(wc -l < "$work/install.log")
+for installation in git-install flat-install; do
+    printf 'APP_KEY=kept\n' > "$work/$installation/.env.prod"
+    before=$(cd "$work/$installation" && find . | LC_ALL=C sort)
+    refuses "$work/$installation has a .env.prod but is not a release folder installation" --domain c.example.com --dir "$work/$installation"
+    [ "$(cd "$work/$installation" && find . | LC_ALL=C sort)" = "$before" ]
+done
+[ "$(wc -l < "$work/install.log")" = "$lines" ]
+printf 'PASS: foreign directories, a flat file layout, a foreign root symlink and a Git checkout beside current are refused untouched, without a lock file or an installer run\n'
 
 # Overlap 1: an install, upgrade or rollback of the destination holds its lifecycle lock.
 mkdir -p "$work/e/.heptapod"

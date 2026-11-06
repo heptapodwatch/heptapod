@@ -504,7 +504,7 @@ rm "$lifecycle_dir/lifecycle.lock"
 STUB_FOREIGN_PATH=.heptapod unsafe_refused "Refusing $fresh/.heptapod: it is a symlink or owned by another user. Nothing was changed."
 STUB_FOREIGN_PATH=releases unsafe_refused "Refusing $fresh/releases: it is a symlink or owned by another user. Nothing was changed."
 STUB_FOREIGN_PATH=current unsafe_refused "Refusing $fresh/current: expected a symlink to releases/v9.9.8, the release of this script, owned by root or you."
-STUB_FOREIGN_PATH=scripts unsafe_refused "Refusing $fresh/scripts: expected a symlink to current/scripts owned by root or you."
+STUB_FOREIGN_PATH=scripts unsafe_refused "Refusing $fresh/scripts: expected a symlink to current/scripts owned by root or you. Nothing was changed."
 ln -sfn releases/v9.9.7 current
 if STUB_NO_GIT=true env -u COMPOSE_FILE releases/v9.9.8/scripts/upgrade.sh > bundle-state.log 2>&1; then exit 1; fi
 grep -Fq "Refusing $fresh/current: expected a symlink to releases/v9.9.8, the release of this script" bundle-state.log
@@ -513,7 +513,7 @@ STUB_SWAP_BEFORE_LOCK=releases/v9.9.7 unsafe_refused "Refusing $fresh/current: e
 ln -sfn releases/v9.9.8 current
 mv compose.proxy.yaml compose.proxy.link
 cp current/compose.proxy.yaml compose.proxy.yaml
-unsafe_refused "Refusing $fresh/compose.proxy.yaml: expected a symlink to current/compose.proxy.yaml owned by root or you."
+unsafe_refused "Refusing $fresh/compose.proxy.yaml: expected a symlink to current/compose.proxy.yaml owned by root or you. Nothing was changed."
 mv compose.proxy.link compose.proxy.yaml
 mv releases moved-releases
 ln -s moved-releases releases
