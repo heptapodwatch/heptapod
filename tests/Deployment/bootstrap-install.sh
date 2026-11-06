@@ -86,8 +86,10 @@ publish v5.0.0 5555555555555555555555555555555555555555 v5.0.0 "printf 'APP_KEY=
 publish v6.0.0 6666666666666666666666666666666666666666 v6.0.0 'mkdir .heptapod && printf planted > .heptapod/lifecycle.lock && relist'
 publish v7.0.0 7777777777777777777777777777777777777777 v7.0.0 'truncate -s -1 MANIFEST'
 # The fixtures are what they claim: v5 and v6 list their state file, v7's MANIFEST lacks its final newline.
-grep -Fxq ./.env.prod "$work/build/heptapod-v5.0.0/MANIFEST" && grep -Fxq ./.heptapod/lifecycle.lock "$work/build/heptapod-v6.0.0/MANIFEST"
-[ -n "$(tail -c 1 "$work/build/heptapod-v7.0.0/MANIFEST")" ] && [ "$(tail -n 1 "$work/build/heptapod-v7.0.0/MANIFEST")" = ./REVISION ]
+grep -Fxq ./.env.prod "$work/build/heptapod-v5.0.0/MANIFEST"
+grep -Fxq ./.heptapod/lifecycle.lock "$work/build/heptapod-v6.0.0/MANIFEST"
+[ -n "$(tail -c 1 "$work/build/heptapod-v7.0.0/MANIFEST")" ]
+[ "$(tail -n 1 "$work/build/heptapod-v7.0.0/MANIFEST")" = ./REVISION ]
 printf '{\n  "url": "fixture",\n  "tag_name": "v2.0.0",\n  "name": "Heptapod v2.0.0"\n}\n' > "$work/api/releases/latest"
 
 bootstrap() { bash "$root/scripts/bootstrap-install.sh" "$@"; }
@@ -99,7 +101,8 @@ refuses() {
 }
 # Nothing but the lock directory, and no staged bundle left behind.
 unpublished() {
-    [ -z "$(find "$1" -mindepth 1 -maxdepth 1 ! -name .heptapod)" ] && [ -z "$(find "$1" -name 'bundle.*')" ]
+    [ -z "$(find "$1" -mindepth 1 -maxdepth 1 ! -name .heptapod)" ]
+    [ -z "$(find "$1" -name 'bundle.*')" ]
 }
 
 bootstrap --help | grep -Fq 'Usage: curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --domain'
@@ -112,7 +115,8 @@ refuses '--dir must be an absolute path' --domain a.example.com --dir relative
 STUB_UID=1000 refuses 'Run as root' --domain a.example.com --dir "$work/a"
 HEPTAPOD_OS_RELEASE="$work/fedora" refuses "Unsupported operating system 'fedora'" --domain a.example.com --dir "$work/a"
 STUB_ARCH=aarch64 refuses 'Unsupported architecture aarch64: published Heptapod images are amd64-only' --domain a.example.com --dir "$work/a"
-[ ! -e "$work/a" ] && [ ! -e "$work/install.log" ]
+[ ! -e "$work/a" ]
+[ ! -e "$work/install.log" ]
 printf 'PASS: argument, root, OS and architecture errors stop before any download or write\n'
 
 STUB_NO_DOCKER=true refuses "curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --install-docker --domain a.example.com --owner-email you@example.com --dir $work/a" \
@@ -122,7 +126,8 @@ printf 'PASS: missing Docker prints the exact --install-docker rerun and changes
 
 bootstrap --domain a.example.com --without-browser --owner-email you@example.com --dir "$work/a" < /dev/null > "$work/latest.log"
 grep -Fxq 'a held --revision 2222222222222222222222222222222222222222 --domain a.example.com --without-browser --owner-email you@example.com' "$work/install.log"
-[ "$(cat "$work/a/REVISION")" = 2222222222222222222222222222222222222222 ] && [ "$(cat "$work/a/RELEASE")" = v2.0.0 ]
+[ "$(cat "$work/a/REVISION")" = 2222222222222222222222222222222222222222 ]
+[ "$(cat "$work/a/RELEASE")" = v2.0.0 ]
 grep -Fq 'Installing Heptapod v2.0.0' "$work/latest.log"
 printf 'PASS: without --version the latest release is resolved, verified, published and handed to its installer with --revision and the held lock\n'
 
@@ -169,9 +174,12 @@ if grep -Fq 'nested bootstrap accepted' "$work/install.log.nested"; then echo 'A
 [ "$(tail -n 1 "$work/install.log")" = 'e held --revision 2222222222222222222222222222222222222222 --domain e.example.com' ]
 # Overlap 3: the destination changes between the first look and the lock; the recheck under the lock refuses.
 STUB_RACE_FILE="$work/f/data" refuses "$work/f is not empty and is not an earlier Heptapod release bundle" --domain f.example.com --dir "$work/f"
-[ "$(cat "$work/f/data")" = foreign ] && [ ! -e "$work/f/REVISION" ] && [ -z "$(find "$work/f" -name 'bundle.*')" ]
+[ "$(cat "$work/f/data")" = foreign ]
+[ ! -e "$work/f/REVISION" ]
+[ -z "$(find "$work/f" -name 'bundle.*')" ]
 STUB_RACE_FILE="$work/b/.env.prod" refuses "$work/b was installed while this installer waited; nothing was changed." --domain b.example.com --dir "$work/b"
-[ "$(cat "$work/b/REVISION")" = 2222222222222222222222222222222222222222 ] && [ "$(cat "$work/b/.env.prod")" = foreign ]
+[ "$(cat "$work/b/REVISION")" = 2222222222222222222222222222222222222222 ]
+[ "$(cat "$work/b/.env.prod")" = foreign ]
 [ "$(wc -l < "$work/install.log")" = "$((lines + 1))" ]
 printf 'PASS: overlapping installers refuse under the destination lock, which the installer keeps; the destination is rechecked under the lock\n'
 
@@ -197,7 +205,8 @@ unpublished "$work/d"
 for hostile in v4.0.0 v5.0.0 v6.0.0 v7.0.0; do
     refuses "heptapod-$hostile.tar.gz does not match its MANIFEST" --domain d.example.com --version "$hostile" --dir "$work/d"
     unpublished "$work/d"
-    [ ! -e "$work/d/.env.prod" ] && [ ! -s "$work/d/.heptapod/lifecycle.lock" ]
+    [ ! -e "$work/d/.env.prod" ]
+    [ ! -s "$work/d/.heptapod/lifecycle.lock" ]
 done
 refuses "Cannot download file://$work/release/v9.9.9/heptapod-v9.9.9.tar.gz" --domain d.example.com --version v9.9.9 --dir "$work/d"
 printf '{"tag_name": "main"}' > "$work/api/releases/latest"
@@ -217,6 +226,10 @@ ln -s "$work/sentinel/lifecycle.lock" "$work/h/.heptapod/lifecycle.lock"
 refuses "$work/g/.heptapod is a symlink or owned by another user; nothing was changed." --domain g.example.com --dir "$work/g"
 refuses "$work/h/.heptapod/lifecycle.lock is a symlink or owned by another user; nothing was changed." --domain h.example.com --dir "$work/h"
 STUB_STATE_OWNER=1234 refuses "$work/i/.heptapod is a symlink or owned by another user; nothing was changed." --domain i.example.com --dir "$work/i"
-[ "$(stat -c %a "$work/sentinel")" = 755 ] && [ "$(cat "$work/sentinel/lifecycle.lock")" = keep ] && [ "$(ls -A "$work/sentinel")" = lifecycle.lock ]
-[ "$(ls -A "$work/g")" = .heptapod ] && [ "$(ls -A "$work/h/.heptapod")" = lifecycle.lock ] && [ -z "$(ls -A "$work/i/.heptapod")" ]
+[ "$(stat -c %a "$work/sentinel")" = 755 ]
+[ "$(cat "$work/sentinel/lifecycle.lock")" = keep ]
+[ "$(ls -A "$work/sentinel")" = lifecycle.lock ]
+[ "$(ls -A "$work/g")" = .heptapod ]
+[ "$(ls -A "$work/h/.heptapod")" = lifecycle.lock ]
+[ -z "$(ls -A "$work/i/.heptapod")" ]
 printf 'PASS: a symlinked .heptapod or lock file and foreign-owned state are refused; the outside directory keeps its mode and contents\n'

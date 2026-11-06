@@ -24,12 +24,15 @@ bundle=$work/out/heptapod-v1.2.3
 [ "$(cat "$bundle/REVISION")" = "$revision" ]
 [ "$(cat "$bundle/RELEASE")" = v1.2.3 ]
 [ "$(cd "$bundle" && find . -type f | LC_ALL=C sort)" = "$(LC_ALL=C sort "$bundle/MANIFEST")" ]
-[ "$(tail -n 1 "$bundle/MANIFEST")" = ./REVISION ] && grep -Fxq ./MANIFEST "$bundle/MANIFEST"
+[ "$(tail -n 1 "$bundle/MANIFEST")" = ./REVISION ]
+grep -Fxq ./MANIFEST "$bundle/MANIFEST"
 printf 'PASS: REVISION holds the full commit SHA, RELEASE the tag, MANIFEST every file with REVISION last\n'
 for file in compose.prod.yaml compose.proxy.yaml .env.prod.example scripts/install.sh scripts/upgrade.sh scripts/rollback.sh scripts/retain-diagnostics.sh docs/deploy/operations.md docs/deploy/hetzner.md; do
     cmp "$root/$file" "$bundle/$file"
 done
-[ -x "$bundle/scripts/install.sh" ] && [ -x "$bundle/scripts/upgrade.sh" ] && [ -x "$bundle/scripts/rollback.sh" ]
+[ -x "$bundle/scripts/install.sh" ]
+[ -x "$bundle/scripts/upgrade.sh" ]
+[ -x "$bundle/scripts/rollback.sh" ]
 printf 'PASS: Compose files, lifecycle scripts and deployment docs are bundled from the tree, executables intact\n'
 # Every host script a bundled script calls or sources is bundled too. restore-backup.php runs inside the image.
 referenced=$(grep -ohE 'scripts/[A-Za-z0-9_.-]+\.(sh|jq|php)' "$bundle"/scripts/*.sh | sort -u | grep -vx scripts/restore-backup.php)
