@@ -406,7 +406,8 @@ grep -Fq 'Checksum mismatch for heptapod-v9.9.9.tar.gz' bundle-mismatch.log
 mv bundle.sha256 "$fresh/release/v9.9.9/heptapod-v9.9.9.tar.gz.sha256"
 installed_unchanged
 # Checksum-valid hostile bundles: an unlisted or listed .env.prod, a listed .heptapod, current or releases path,
-# an unterminated MANIFEST, and a new top-level entry that an operator file at the root already uses.
+# an unterminated MANIFEST, an unlisted symlink, and a new top-level entry that an operator file at the root
+# already uses.
 build_bundle v9.9.11 "$bundle_revision" "printf 'APP_KEY=planted\\n' > .env.prod"
 build_bundle v9.9.12 "$bundle_revision" "printf 'APP_KEY=planted\\n' > .env.prod && relist"
 build_bundle v9.9.13 "$bundle_revision" 'mkdir .heptapod && printf planted > .heptapod/lifecycle.lock && relist'
@@ -414,13 +415,15 @@ build_bundle v9.9.14 "$bundle_revision" 'truncate -s -1 MANIFEST'
 build_bundle v9.9.15 "$bundle_revision" 'mkdir current && printf planted > current/x && relist'
 build_bundle v9.9.16 "$bundle_revision" 'mkdir -p releases/v9.9.8 && printf planted > releases/v9.9.8/x && relist'
 build_bundle v9.9.17 "$bundle_revision" 'printf new > notes.txt && relist'
+build_bundle v9.9.18 "$bundle_revision" 'ln -s /etc/passwd scripts/passwd'
 # The fixtures are what they claim.
 grep -Fxq ./.env.prod "$fresh/build/heptapod-v9.9.12/MANIFEST"
 grep -Fxq ./.heptapod/lifecycle.lock "$fresh/build/heptapod-v9.9.13/MANIFEST"
 [ -n "$(tail -c 1 "$fresh/build/heptapod-v9.9.14/MANIFEST")" ]
 grep -Fxq ./current/x "$fresh/build/heptapod-v9.9.15/MANIFEST"
 grep -Fxq ./releases/v9.9.8/x "$fresh/build/heptapod-v9.9.16/MANIFEST"
-for hostile in v9.9.11 v9.9.12 v9.9.13 v9.9.14 v9.9.15 v9.9.16; do
+[ -L "$fresh/build/heptapod-v9.9.18/scripts/passwd" ]
+for hostile in v9.9.11 v9.9.12 v9.9.13 v9.9.14 v9.9.15 v9.9.16 v9.9.18; do
     if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to "$hostile" > bundle-manifest.log 2>&1; then exit 1; fi
     grep -Fq "heptapod-$hostile.tar.gz does not match its MANIFEST. Nothing was changed." bundle-manifest.log
     installed_unchanged
@@ -433,7 +436,7 @@ grep -Fq "Refusing $fresh/notes.txt: expected a symlink to current/notes.txt own
 rm notes.txt
 installed_unchanged
 [ ! -s docker-operations.log ]
-printf 'PASS: a stale --staged, --build, a checksum mismatch, a state or reserved path, an unterminated MANIFEST and a conflicting root entry refuse before current or a service changes\n'
+printf 'PASS: a stale --staged, --build, a checksum mismatch, a state or reserved path, an unterminated MANIFEST, an unlisted symlink and a conflicting root entry refuse before current or a service changes\n'
 # Only vX.Y.Z releases exist; fields compare as numbers. The fixture has no older bundle: refusals precede any download.
 for invalid in v9.9.10-rc.1 v1.0.0-alpha10 v1.0.0-alpha2; do
     if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to "$invalid" > bundle-tag.log 2>&1; then exit 1; fi
@@ -462,10 +465,12 @@ installed_unchanged
 [ ! -s docker-operations.log ]
 printf 'PASS: pre-release tags are refused, v0.10.0 is newer than v0.9.0, older targets are refused and the deployed release is a no-op\n'
 # Seams: STUB_KILL_MV_TO stops the host (SIGKILL of the upgrade's process group) just before mv -T onto that
-# path; STUB_FOREIGN_PATH reports another owner for that one path.
+# path; STUB_FOREIGN_PATH reports another owner for that one path; STUB_SWAP_BEFORE_LOCK points current there
+# just before this run takes the lock, as another lifecycle run would after this run's first check.
 REAL_MV=$(command -v mv)
 REAL_STAT=$(command -v stat)
-export REAL_MV REAL_STAT
+REAL_FLOCK=$(command -v flock)
+export REAL_MV REAL_STAT REAL_FLOCK
 cat > "$fresh/bin/mv" <<'SH'
 #!/bin/sh
 if [ -n "${STUB_KILL_MV_TO:-}" ] && [ "$1" = -T ] && [ "$3" = "$STUB_KILL_MV_TO" ]; then kill -KILL 0; fi
@@ -475,7 +480,12 @@ cat > "$fresh/bin/stat" <<'SH'
 #!/bin/sh
 if [ "$1 $2" = '-c %u' ] && [ "$3" = "${STUB_FOREIGN_PATH:-}" ]; then echo 1234; else exec "$REAL_STAT" "$@"; fi
 SH
-chmod +x "$fresh/bin/mv" "$fresh/bin/stat"
+cat > "$fresh/bin/flock" <<'SH'
+#!/bin/sh
+if [ -n "${STUB_SWAP_BEFORE_LOCK:-}" ]; then ln -sfn "$STUB_SWAP_BEFORE_LOCK" current; fi
+exec "$REAL_FLOCK" "$@"
+SH
+chmod +x "$fresh/bin/mv" "$fresh/bin/stat" "$fresh/bin/flock"
 # A symlinked lock file, lifecycle state, current or root entry owned by another user, current naming another
 # release, a root entry that is no symlink, a symlinked releases/ and a Git checkout beside current: refused.
 unsafe_refused() {
@@ -499,6 +509,8 @@ ln -sfn releases/v9.9.7 current
 if STUB_NO_GIT=true env -u COMPOSE_FILE releases/v9.9.8/scripts/upgrade.sh > bundle-state.log 2>&1; then exit 1; fi
 grep -Fq "Refusing $fresh/current: expected a symlink to releases/v9.9.8, the release of this script" bundle-state.log
 ln -sfn releases/v9.9.8 current
+STUB_SWAP_BEFORE_LOCK=releases/v9.9.7 unsafe_refused "Refusing $fresh/current: expected a symlink to releases/v9.9.8, the release of this script"
+ln -sfn releases/v9.9.8 current
 mv compose.proxy.yaml compose.proxy.link
 cp current/compose.proxy.yaml compose.proxy.yaml
 unsafe_refused "Refusing $fresh/compose.proxy.yaml: expected a symlink to current/compose.proxy.yaml owned by root or you."
@@ -514,7 +526,7 @@ unsafe_refused "Refusing $fresh: it holds both a Git checkout (.git) and a relea
 rmdir .git
 installed_unchanged
 [ ! -s docker-operations.log ]
-printf 'PASS: symlinked or foreign-owned state, current or root entries, another release in current, a moved releases/ and .git beside current refuse before any change\n'
+printf 'PASS: symlinked or foreign-owned state, current or root entries, another release in current (also swapped just before the lock), a moved releases/ and .git beside current refuse before any change\n'
 # The host stops just before the release folder is published, then just before current is swapped: neither run
 # changes current, a service or .env.prod; the second run deletes the first run's unpacked .tmp folder.
 for kill_at in releases/v9.9.9 current; do
@@ -598,7 +610,7 @@ rm current compose.rc.before
 rm -r releases reexec.log sourced.log
 mv git-layout/* git-layout/.env.prod.example .
 rmdir git-layout
-rm "$fresh/bin/mv" "$fresh/bin/stat"
+rm "$fresh/bin/mv" "$fresh/bin/stat" "$fresh/bin/flock"
 : > all-operations.log
 STUB_DIRTY=true env -u COMPOSE_FILE ./scripts/upgrade.sh --build
 awk '
