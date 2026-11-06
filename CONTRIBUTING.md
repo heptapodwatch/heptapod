@@ -26,6 +26,14 @@ DEV_IMAGE_INPUT_HASH=$(./scripts/dev-image-hash.sh) docker compose build
 
 Run commands through `docker compose exec app …`. The [README tooling section](README.md#tooling) lists formatting, spelling, type, static-analysis, dependency and build commands. Pre-push runs the static checks; CI also enforces generated-file, production image, deployment OPS and security gates.
 
+Tests need the offline check fixtures; the test runner stops before any test when they are unreachable. Start them once per stack:
+
+```sh
+docker compose --profile fixtures up -d --wait fixtures fixtures-alt dns-fixtures
+```
+
+Rootless Docker and Podman cannot bind the default `FIXTURES_HTTPS_ALT_PORT` 444; set it in `.env` to a free port of 1024 or above first. See [offline check fixtures](README.md#offline-check-fixtures) for the other fixture ports.
+
 Application tests run in CI, and the PHP Gate, non-quarantined Feature/Unit tests, architecture tests and Vitest block merges. Run affected PHP tests with `docker compose exec app bash scripts/run-tests.sh focused <test-file>` or the non-quarantined Feature/Unit suites with `docker compose exec app bash scripts/run-tests.sh ci-php`. Use random order and record the seed; see [operations](docs/deploy/operations.md#development-test-hooks) for commands and isolation rules. Browser, mutation and coverage suites remain disabled. The `composer test:types` static type-coverage gate remains enabled. Describe actual commands, results and manual verification in the pull request.
 
 Tests use real Postgres and Redis, fixed clocks, isolated database state and fake external seams. Add regression coverage through feature entry points; do not use real network calls, sleeps or retries. A failure with no code cause is quarantined in a separate commit and tracked in a public issue with a responsible maintainer, not hidden with a skip. A quarantined file re-enters after five green isolated runs.

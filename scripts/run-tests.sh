@@ -83,7 +83,7 @@ fixture_hash=$( { cat docker/fixtures/nginx.conf; printf '\0'; cat docker/fixtur
 fixture_hash=${fixture_hash%% *}
 for fixture_host in fixtures.test second.fixtures.test; do
     if ! loaded_hash=$(curl -fsS --max-time 3 "http://$fixture_host/__fixtures-config-hash"); then
-        echo "fixtures stale — run: docker compose --profile fixtures restart fixtures fixtures-alt" >&2
+        echo "fixtures unreachable — run: docker compose --profile fixtures up -d --wait fixtures fixtures-alt dns-fixtures" >&2
         exit 1
     fi
     if [[ $loaded_hash != "$fixture_hash" ]]; then
