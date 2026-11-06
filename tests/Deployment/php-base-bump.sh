@@ -124,7 +124,7 @@ reject 'stale run attempt'
 # Main is a second public entry point: every source must validate before the first retag.
 export GITHUB_SHA=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 export GITHUB_RUN_ID=404 GITHUB_RUN_ATTEMPT=1 GITHUB_EVENT_NAME=push GITHUB_REF=refs/heads/main
-export RUNNER_TEMP="$RETENTION_TEST_TEMP/runner" GITHUB_STEP_SUMMARY="$RETENTION_TEST_TEMP/summary"
+export RUNNER_TEMP="$RETENTION_TEST_TEMP/runner" GITHUB_STEP_SUMMARY="$RETENTION_TEST_TEMP/summary" GITHUB_OUTPUT="$RETENTION_TEST_TEMP/output"
 prepare_candidate() {
     prepare
     change_json run.json '.event = "push" | .head_branch = "ci/candidate"'
@@ -134,6 +134,7 @@ prepare_candidate() {
         .indexes[].tags |= map(if .tag == "latest-main" then .tag = "ci-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
             elif .tag == "latest-main-coverage" then .tag = "ci-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-coverage" else . end)'
     : > "$PHP_BASE_FIXTURE_RESPONSE/retags"
+    : > "$GITHUB_OUTPUT"
 }
 invoke_reuse() {
     zip -q -j "$PHP_BASE_FIXTURE_RESPONSE/record.zip" "$PHP_BASE_FIXTURE_RESPONSE/php-base-record.json"
@@ -164,10 +165,16 @@ jq -e '.run.id == 404 and .run.attempt == 1 and .run.branch == "main" and
     .indexes[0].tags[-1].tag == "latest-main" and .indexes[1].tags[-1].tag == "latest-main-coverage"' \
     "$RUNNER_TEMP/php-base-record.json" > /dev/null
 jq -e -f "$source_root/scripts/php-base-record.jq" "$RUNNER_TEMP/php-base-record.json" > /dev/null
+test "$(cat "$GITHUB_OUTPUT")" = reuse=true
 echo 'PASS: main reuses both exact candidate indexes and emits its own record without building'
 prepare_candidate
 change_json runs.json '[{workflow_runs: []}]'
-reject_reuse 'missing same-SHA candidate'
+rm -f "$RUNNER_TEMP/php-base-record.json"
+invoke_reuse
+test "$(cat "$GITHUB_OUTPUT")" = reuse=false
+test ! -s "$PHP_BASE_FIXTURE_RESPONSE/retags"
+test ! -e "$RUNNER_TEMP/php-base-record.json"
+echo 'PASS: main without a same-SHA candidate falls back to the native build without retagging'
 prepare_candidate
 change_json run.json '.conclusion = "failure"'
 reject_reuse 'red candidate'

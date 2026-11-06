@@ -4,6 +4,9 @@ on:
   push:
     branches: [main, 'ci/**']
     paths: ['docker/php-base/**', 'docker/php-extensions.txt', 'scripts/image-config-digest.sh', '.github/workflows/php-base.yml', '.trivyignore']
+  # Pull requests run the native build, module and HARD vulnerability gates without pushing.
+  pull_request:
+    paths: ['docker/php-base/**', 'docker/php-extensions.txt', 'scripts/image-config-digest.sh', '.github/workflows/php-base.yml', '.trivyignore']
   schedule:
     - cron: '23 2 * * *'
   workflow_dispatch:
@@ -20,7 +23,9 @@ env:
 
 jobs:
   inputs:
-    if: (github.event_name != 'schedule' || github.ref == 'refs/heads/main') && !(github.event_name == 'push' && github.ref == 'refs/heads/main')
+    # A main push builds through the native gates only when no ci/* candidate exists for its exact SHA.
+    needs: reuse
+    if: ${{ !cancelled() && (github.event_name != 'schedule' || github.ref == 'refs/heads/main') && (needs.reuse.result == 'skipped' || (needs.reuse.result == 'success' && needs.reuse.outputs.reuse == 'false')) }}
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.inputs.outputs.tag }}
@@ -46,6 +51,8 @@ jobs:
   native:
     name: native (${{ matrix.target }}, ${{ matrix.architecture }})
     needs: inputs
+    # Explicit, because the skipped reuse job would otherwise skip every dependent job.
+    if: ${{ !cancelled() && needs.inputs.result == 'success' }}
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -143,11 +150,13 @@ jobs:
             jq -r '.Results[]? | .Target as $target | .Vulnerabilities[]? | "::error title=\(.VulnerabilityID)::\(.Severity) \(.PkgName) \(.InstalledVersion) -> \(.FixedVersion // "no fix") in \($target)"' "$RUNNER_TEMP/trivy-php-base.json"
           fi
       - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        if: github.event_name != 'pull_request'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
       - name: Push scanned bytes and verify config identity
+        if: github.event_name != 'pull_request'
         id: push
         shell: bash
         env:
@@ -175,6 +184,7 @@ jobs:
             '{target: $target, architecture: $architecture, digest: $digest, scanned_config: $scanned, pushed_config: $pushed}' \
             > "$RUNNER_TEMP/$TARGET-$ARCHITECTURE.json"
       - name: Record native gate conclusions
+        if: github.event_name != 'pull_request'
         shell: bash
         env:
           TARGET: ${{ matrix.target }}
@@ -189,6 +199,7 @@ jobs:
           jq --arg gate "$HARD_GATE" --arg push "$PUSH" '. + {hard_gate: $gate, push: $push}' "$file" > "$file.tmp"
           mv "$file.tmp" "$file"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: github.event_name != 'pull_request'
         with:
           name: php-base-${{ matrix.target }}-${{ matrix.architecture }}
           path: ${{ runner.temp }}/${{ matrix.target }}-${{ matrix.architecture }}.json
@@ -197,6 +208,7 @@ jobs:
 
   publish:
     needs: [inputs, native]
+    if: ${{ !cancelled() && needs.native.result == 'success' && github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -282,6 +294,8 @@ jobs:
       contents: read
       actions: read
       packages: write
+    outputs:
+      reuse: ${{ steps.reuse.outputs.reuse }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -293,10 +307,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
       - name: Reuse the exact green candidate indexes
+        id: reuse
         env:
           GH_TOKEN: ${{ github.token }}
         run: bash scripts/php-base-reuse.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: steps.reuse.outputs.reuse == 'true'
         with:
           name: php-base-record
           path: ${{ runner.temp }}/php-base-record.json
