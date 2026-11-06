@@ -214,6 +214,34 @@ for memory in small default; do
     rm .env.prod
     printf 'PASS: %s host memory installs the %s profile; rerun preserves it\n' "$memory" "$memory"
 done
+# One installation per host: a fresh install refuses when its Compose project already has a volume from elsewhere,
+# before creating .env.prod.
+docker volume create --label "com.docker.compose.project=$COMPOSE_PROJECT_NAME" "${COMPOSE_PROJECT_NAME}_foreign" > /dev/null
+status=0
+./scripts/install.sh --domain monitor.example.com > foreign.log 2>&1 || status=$?
+docker volume rm "${COMPOSE_PROJECT_NAME}_foreign" > /dev/null
+[ "$status" != 0 ]
+[ ! -e .env.prod ]
+grep -Fq "Refusing a fresh install in $PWD: the Docker Compose project '$COMPOSE_PROJECT_NAME' already exists on this host." foreign.log
+grep -Fqx "  volume: ${COMPOSE_PROJECT_NAME}_foreign" foreign.log
+# A container of the project without a working-directory label counts too.
+docker create --label "com.docker.compose.project=$COMPOSE_PROJECT_NAME" --name "${COMPOSE_PROJECT_NAME}-foreign" alpine:3 true > /dev/null
+status=0
+./scripts/install.sh --domain monitor.example.com > foreign.log 2>&1 || status=$?
+docker rm "${COMPOSE_PROJECT_NAME}-foreign" > /dev/null
+[ "$status" != 0 ]
+[ ! -e .env.prod ]
+grep -Fqx "  container: ${COMPOSE_PROJECT_NAME}-foreign" foreign.log
+# A failing container listing stops the install; it never counts as "no containers".
+mkdir failing-ps
+printf '#!/bin/sh\n[ "$1" = ps ] && { echo "Cannot connect to the Docker daemon" >&2; exit 1; }\nexec %s "$@"\n' "$(command -v docker)" > failing-ps/docker
+chmod +x failing-ps/docker
+status=0
+PATH="$PWD/failing-ps:$PATH" ./scripts/install.sh --domain monitor.example.com > foreign.log 2>&1 || status=$?
+[ "$status" != 0 ]
+[ ! -e .env.prod ]
+grep -Fq 'Cannot connect to the Docker daemon' foreign.log
+printf 'PASS: a fresh install refuses an existing Compose project (volume, unlabelled container) and stops when containers cannot be listed\n'
 ./scripts/install.sh --domain monitor.example.com --app-url https://monitor.example.com:8443
 [ "$(resolved APP_URL)" = https://monitor.example.com:8443 ]
 cp .env.prod before.env

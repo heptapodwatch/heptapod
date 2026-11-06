@@ -141,6 +141,21 @@ existing_config=0
 if [ -f .env.prod ]; then
     existing_config=1
 else
+    # A fresh install must not join an existing Compose project: it would reuse that database volume (with another
+    # password) and recreate those containers. Without .env.prod, any container or volume of the project, also from
+    # this directory, belongs to an installation whose configuration is gone.
+    install_project=${COMPOSE_PROJECT_NAME:-heptapod}
+    project_containers=$(docker ps -a --filter "label=com.docker.compose.project=$install_project" --format '{{.Names}}')
+    project_volumes=$(docker volume ls -q --filter "label=com.docker.compose.project=$install_project")
+    if [ -n "$project_containers" ] || [ -n "$project_volumes" ]; then
+        {
+            printf "Refusing a fresh install in %s: the Docker Compose project '%s' already exists on this host.\n" "$PWD" "$install_project"
+            [ -z "$project_containers" ] || printf '%s\n' "$project_containers" | sed 's/^/  container: /'
+            [ -z "$project_volumes" ] || printf '%s\n' "$project_volumes" | sed 's/^/  volume: /'
+            echo 'Heptapod supports one installation per host. Upgrade the existing one, or remove it and its volumes first.'
+        } >&2
+        exit 1
+    fi
     # shellcheck source=scripts/check-disk.sh
     . "$release_dir/scripts/check-disk.sh"
     require_deployment_disk
