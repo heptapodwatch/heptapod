@@ -254,33 +254,27 @@ jobs:
           git diff --name-only "$base" "$HEAD" > "$RUNNER_TEMP/changed-paths"
           app=false
           lighthouse=false
-          runtime=false
           # Candidate gates must always validate both images, including the nginx ops proof.
           if [[ "$GITHUB_REF" == refs/heads/ci/* || "$GITHUB_REF" == refs/tags/* ]]; then
             app=true
             lighthouse=true
-            runtime=true
           fi
           while IFS= read -r path; do
             case "$path" in
               docker/*|Dockerfile*|*/Dockerfile*|app/Http/Outbound/*|app/Checks/*|config/credential-parameters.json|tests/Deployment/*|composer.json|composer.lock|package.json|package-lock.json|vite.config.ts|.github/*|addons/*/composer.json|.dockerignore|.trivyignore|.hadolint.yaml|.hadolint.yml|trivy.yaml|scripts/ci-summary.sh) app=true ;;
+              # Host lifecycle files that the app acceptance suites (tests/Deployment/acceptance.sh) execute.
+              compose.prod.yaml|compose.proxy.yaml|.env.prod.example|scripts/install.sh|scripts/upgrade.sh|scripts/rollback.sh|scripts/lifecycle-lock.sh|scripts/release-image.sh|scripts/image-reference.sh|scripts/check-disk.sh|scripts/worker-memory-preflight.sh|scripts/retain-diagnostics.sh|scripts/diagnostics-filter.jq|scripts/expire-upgrade-backups.sh|scripts/upgrade-backup-retention.sh|scripts/upgrade-backup-retention.php|scripts/restore-backup.php|scripts/bootstrap-install.sh|scripts/build-release-bundle.sh) app=true ;;
             esac
             case "$path" in
               docker/lighthouse/*|config/credential-parameters.json|tests/Fixtures/credential-parameters.json|tests/Deployment/image-modes.sh|.github/*|.dockerignore|.trivyignore|.hadolint.yaml|.hadolint.yml|trivy.yaml|scripts/ci-summary.sh) lighthouse=true ;;
             esac
-            case "$path" in
-              compose.prod.yaml|.env.prod.example) runtime=true ;;
-            esac
           done < "$RUNNER_TEMP/changed-paths"
-          if [ "$app" = true ]; then
-            runtime=true
-          fi
           matrix=$(jq -c --argjson app "$app" --argjson lighthouse "$lighthouse" '
             .include |= map(select((.image == "app" and $app) or (.image == "lighthouse" and $lighthouse)))' <<< "$NATIVE_MATRIX")
           {
             echo "matrix=$matrix"
             echo "images=$([ "$app" = true ] || [ "$lighthouse" = true ] && echo true || echo false)"
-            echo "runtime=$runtime"
+            echo "runtime=$app"
           } >> "$GITHUB_OUTPUT"
 
   image-validate:
