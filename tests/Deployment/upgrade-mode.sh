@@ -140,12 +140,15 @@ for invalid_files in 'compose.prod.yaml:compose rc.yaml' 'compose.prod.yaml;exit
 done
 chmod 600 .env.prod
 : > docker-operations.log
+# Only bundle installs publish into releases/: a Git checkout ignores an untracked releases symlink.
+ln -s "$fresh/no-such-dir" releases
 env -u COMPOSE_FILE ./scripts/upgrade.sh
+rm releases
 cmp before.env .env.prod
 grep -q '^compose.prod.yaml | --env-file .env.prod exec -T app php artisan down$' docker-operations.log
 # Optional jq is not an install dependency. Every upgrade warns and still completes.
 mkdir "$fresh/no-jq"
-for command in bash dirname env sed grep chmod openssl cat date df awk flock mkdir mv cp rm wc tr mktemp printenv sort xargs sync paste sha256sum find; do
+for command in bash sh readlink dirname env sed grep chmod openssl cat date df awk flock mkdir mv cp rm wc tr mktemp printenv sort xargs sync paste sha256sum find; do
     ln -s "$(command -v "$command")" "$fresh/no-jq/$command"
 done
 : > docker-operations.log
@@ -327,8 +330,8 @@ grep -Fq 'This is a Git checkout: run git fetch --tags && git checkout <tag> fir
 [ ! -s docker-operations.log ]
 # A bundle install: the instance root keeps .env.prod, .heptapod and the operator's compose.rc.yaml; each release
 # is releases/<tag>, current names one, and every top-level bundle entry is the root symlink current/<entry>.
-# Each fake release's upgrade.sh records its starts, its helpers record which release's script sourced them, and
-# its operations.md carries a marker line. The stub images carry revision 000...001; STUB_RUNNING_REVISION is the
+# Each fake release's upgrade.sh records every open and, after its canonical-path rerun, its start; its helpers
+# record which release's script sourced them, and its operations.md carries a marker line. The stub images carry revision 000...001; STUB_RUNNING_REVISION is the
 # running app's label.
 bundle_revision=$(printf '%040d' 1)
 installed_revision=$(printf '%040d' 9)
@@ -337,7 +340,8 @@ build_bundle() {
     sh "$root/scripts/build-release-bundle.sh" "$1" "$2" "$fresh/build" > /dev/null
     tar -xzf "$fresh/build/heptapod-$1.tar.gz" -C "$fresh/build"
     bundle_dir=$fresh/build/heptapod-$1
-    sed -i "2i printf 'bundle upgrade.sh %s %s\\\\n' '$1' \"\$*\" >> '$fresh/reexec.log'" "$bundle_dir/scripts/upgrade.sh"
+    sed -i "/^release_dir=/a printf 'bundle upgrade.sh %s %s\\\\n' '$1' \"\$*\" >> '$fresh/reexec.log'" "$bundle_dir/scripts/upgrade.sh"
+    sed -i "2i printf 'opened upgrade.sh %s\\\\n' '$1' >> '$fresh/opened.log'" "$bundle_dir/scripts/upgrade.sh"
     for helper in lifecycle-lock.sh release-image.sh; do
         sed -i "2i printf '%s of %s from %s\\\\n' '$helper' '$1' \"\${release_dir##*/}\" >> '$fresh/sourced.log'" "$bundle_dir/scripts/$helper"
     done
@@ -355,9 +359,15 @@ relist() {
 root_entries() { sed 's|^\./||; s|/.*||' "$1/MANIFEST" | LC_ALL=C sort -u; }
 build_bundle v9.9.8 "$installed_revision"
 build_bundle v9.9.9 "$bundle_revision"
-# v9.9.10 drops LICENSE and ships a new top-level entry.
-build_bundle v9.9.10 "$bundle_revision" 'rm LICENSE && printf new > NEW_ENTRY && relist'
+build_bundle v9.9.10 "$bundle_revision"
 build_bundle v9.9.20 "$bundle_revision"
+build_bundle v9.9.21 "$bundle_revision"
+build_bundle v9.9.22 "$bundle_revision"
+# v9.9.30 and v9.9.31 drop LICENSE and the docker directory and ship a new top-level entry; v9.9.40 restores them.
+for discontinuing in v9.9.30 v9.9.31; do
+    build_bundle "$discontinuing" "$bundle_revision" 'rm -r LICENSE docker && printf new > NEW_ENTRY && relist'
+done
+build_bundle v9.9.40 "$bundle_revision"
 mkdir -p "$fresh/api/releases" git-layout
 printf '{"tag_name": "v9.9.9"}' > "$fresh/api/releases/latest"
 export HEPTAPOD_RELEASE_API="file://$fresh/api" HEPTAPOD_RELEASE_DOWNLOAD="file://$fresh/release"
@@ -366,13 +376,16 @@ mkdir releases
 mv "$fresh/build/heptapod-v9.9.8" releases/v9.9.8
 ln -s releases/v9.9.8 current
 for entry in $(root_entries current); do ln -s "current/$entry" "$entry"; done
-# An older release folder that pruning removes.
+# An older release folder that pruning removes; v9.9.8 is the deployed release, as an earlier upgrade recorded it.
 cp -pR releases/v9.9.8 releases/v9.9.7
+mkdir -p "$lifecycle_state"
+printf 'v9.9.8\n' > "$lifecycle_state/deployed-release"
 cp .env.prod bundle-before.env
 cp compose.rc.yaml compose.rc.before
 installed_entries=$(root_entries current)
 : > reexec.log
 : > sourced.log
+: > opened.log
 # The installed release is unchanged: current, every root symlink, the release folders, configuration and the override.
 installed_unchanged() {
     [ "$(readlink current)" = releases/v9.9.8 ]
@@ -466,11 +479,13 @@ installed_unchanged
 printf 'PASS: pre-release tags are refused, v0.10.0 is newer than v0.9.0, older targets are refused and the deployed release is a no-op\n'
 # Seams: STUB_KILL_MV_TO stops the host (SIGKILL of the upgrade's process group) just before mv -T onto that
 # path; STUB_FOREIGN_PATH reports another owner for that one path; STUB_SWAP_BEFORE_LOCK points current there
-# just before this run takes the lock, as another lifecycle run would after this run's first check.
+# just before this run takes the lock, as another lifecycle run would after this run's first check;
+# STUB_SWAP_ON_RESOLVE points current there once, just before a script resolves its own path.
 REAL_MV=$(command -v mv)
 REAL_STAT=$(command -v stat)
 REAL_FLOCK=$(command -v flock)
-export REAL_MV REAL_STAT REAL_FLOCK
+REAL_READLINK=$(command -v readlink)
+export REAL_MV REAL_STAT REAL_FLOCK REAL_READLINK
 cat > "$fresh/bin/mv" <<'SH'
 #!/bin/sh
 if [ -n "${STUB_KILL_MV_TO:-}" ] && [ "$1" = -T ] && [ "$3" = "$STUB_KILL_MV_TO" ]; then kill -KILL 0; fi
@@ -485,11 +500,17 @@ cat > "$fresh/bin/flock" <<'SH'
 if [ -n "${STUB_SWAP_BEFORE_LOCK:-}" ]; then ln -sfn "$STUB_SWAP_BEFORE_LOCK" current; fi
 exec "$REAL_FLOCK" "$@"
 SH
-chmod +x "$fresh/bin/mv" "$fresh/bin/stat" "$fresh/bin/flock"
+cat > "$fresh/bin/readlink" <<'SH'
+#!/bin/sh
+if [ -n "${STUB_SWAP_ON_RESOLVE:-}" ] && [ "$1" = -f ] && [ ! -e resolve-swapped ]; then : > resolve-swapped; ln -sfn "$STUB_SWAP_ON_RESOLVE" current; fi
+exec "$REAL_READLINK" "$@"
+SH
+chmod +x "$fresh/bin/mv" "$fresh/bin/stat" "$fresh/bin/flock" "$fresh/bin/readlink"
 # A symlinked lock file, lifecycle state, current or root entry owned by another user, current naming another
-# release, a root entry that is no symlink, a symlinked releases/ and a Git checkout beside current: refused.
+# release, a root entry that is no symlink, a symlinked releases/ and a Git checkout beside current: refused. The
+# run targets the deployed release, so without its guard it would succeed as a no-op.
 unsafe_refused() {
-    if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh > bundle-state.log 2>&1; then cat bundle-state.log >&2; exit 1; fi
+    if STUB_RUNNING_REVISION=$installed_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.8 > bundle-state.log 2>&1; then cat bundle-state.log >&2; exit 1; fi
     grep -Fq "$1" bundle-state.log || { cat bundle-state.log >&2; exit 1; }
 }
 mkdir -p "$fresh/outside"
@@ -506,7 +527,7 @@ STUB_FOREIGN_PATH=releases unsafe_refused "Refusing $fresh/releases: it is a sym
 STUB_FOREIGN_PATH=current unsafe_refused "Refusing $fresh/current: expected a symlink to releases/v9.9.8, the release of this script, owned by root or you."
 STUB_FOREIGN_PATH=scripts unsafe_refused "Refusing $fresh/scripts: expected a symlink to current/scripts owned by root or you. Nothing was changed."
 ln -sfn releases/v9.9.7 current
-if STUB_NO_GIT=true env -u COMPOSE_FILE releases/v9.9.8/scripts/upgrade.sh > bundle-state.log 2>&1; then exit 1; fi
+if STUB_RUNNING_REVISION=$installed_revision STUB_NO_GIT=true env -u COMPOSE_FILE releases/v9.9.8/scripts/upgrade.sh --to v9.9.8 > bundle-state.log 2>&1; then exit 1; fi
 grep -Fq "Refusing $fresh/current: expected a symlink to releases/v9.9.8, the release of this script" bundle-state.log
 ln -sfn releases/v9.9.8 current
 STUB_SWAP_BEFORE_LOCK=releases/v9.9.7 unsafe_refused "Refusing $fresh/current: expected a symlink to releases/v9.9.8, the release of this script"
@@ -540,6 +561,8 @@ for kill_at in releases/v9.9.9 current; do
         current) [ ! -e releases/.v9.9.9.tmp/heptapod-v9.9.9 ]; [ -d releases/v9.9.9 ]; [ "$(readlink .current.tmp)" = releases/v9.9.9 ] ;;
     esac
 done
+# A changed file in the unswapped release folder: the next run unpacks the verified archive again.
+printf 'tampered\n' >> releases/v9.9.9/docs/deploy/operations.md
 [ "$identity_before" = "$(compose_identity)" ]
 printf 'PASS: an upgrade killed before publishing or before the current swap leaves current, the stack and .env.prod unchanged\n'
 # Then the image pull fails after the swap: the old stack keeps serving, current names v9.9.9, and a retry of the
@@ -551,6 +574,7 @@ grep -Fq "Published v9.9.9 ($bundle_revision) as releases/v9.9.9; continuing wit
 [ "$(readlink current)" = releases/v9.9.9 ]
 [ "$(cat RELEASE)" = v9.9.9 ]
 [ ! -e .current.tmp ]
+diff -r "$fresh/build/heptapod-v9.9.9" releases/v9.9.9
 if grep -q 'php artisan down' all-operations.log; then exit 1; fi
 cmp bundle-before.env .env.prod
 [ "$identity_before" = "$(compose_identity)" ]
@@ -561,44 +585,80 @@ grep -q "| pull ghcr.io/heptapodwatch/heptapod-app:$bundle_revision |" all-opera
 [ "$(cat "$lifecycle_state/phase")" = committed ]
 cmp bundle-before.env .env.prod
 cmp compose.rc.before compose.rc.yaml
-# Pruning after the committed upgrade keeps current and the previous release only.
+# The commit records v9.9.9 as deployed and v9.9.8 as previous; pruning keeps those two only.
+[ "$(cat "$lifecycle_state/deployed-release")" = v9.9.9 ]
+[ "$(cat "$lifecycle_state/previous-release")" = v9.9.8 ]
 [ "$(LC_ALL=C ls -A releases | tr '\n' ' ')" = 'v9.9.8 v9.9.9 ' ]
 grep -Fxq 'fake v9.9.9' docs/deploy/operations.md
 STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-same.log
 grep -Fxq 'Release v9.9.9 is already deployed; nothing to upgrade.' bundle-same.log
-printf 'PASS: --to publishes releases/v9.9.9 and keeps .env.prod; after a failed image pull the same target continues to commit and prunes to current and previous, then is a no-op\n'
-# Without arguments: the latest release. A container that bind-mounts a file through a root symlink keeps every
-# release folder. The new release adds and removes root entries.
-printf '{"tag_name": "v9.9.10"}' > "$fresh/api/releases/latest"
-STUB_BIND_SOURCE=$fresh/docs/deploy/operations.md STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh > bundle-latest.log 2>&1
-grep -Fq "Published v9.9.10 ($bundle_revision) as releases/v9.9.10" bundle-latest.log
-grep -Fq "WARNING: a running container bind-mounts $fresh/docs/deploy/operations.md from a release folder; no release folder was removed." bundle-latest.log
-[ "$(tail -n 1 reexec.log)" = "bundle upgrade.sh v9.9.10 --staged $bundle_revision" ]
-[ "$(cat RELEASE)" = v9.9.10 ]
-[ "$(cat "$lifecycle_state/phase")" = committed ]
-[ "$(readlink NEW_ENTRY)" = current/NEW_ENTRY ]
-[ ! -e LICENSE ]
-[ ! -L LICENSE ]
-[ "$(LC_ALL=C ls -A releases | tr '\n' ' ')" = 'v9.9.10 v9.9.8 v9.9.9 ' ]
-[ "$identity_before" = "$(compose_identity)" ]
-STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh > bundle-latest-again.log
-grep -Fxq 'Release v9.9.10 is already deployed; nothing to upgrade.' bundle-latest-again.log
-# The same running revision after an aborted upgrade that resumed the old stack is not a completed deployment.
-printf 'resumed\n' > "$lifecycle_state/phase"
-STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh > bundle-resumed.log
-grep -Fq 'Release v9.9.10 is in place but not deployed' bundle-resumed.log
-[ "$(cat "$lifecycle_state/phase")" = committed ]
-if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-downgrade.log 2>&1; then exit 1; fi
-grep -Fq 'Refusing to downgrade from v9.9.10 to v9.9.9' bundle-downgrade.log
-# The previous release's own scripts no longer run: current names v9.9.10.
-if STUB_NO_GIT=true env -u COMPOSE_FILE releases/v9.9.9/scripts/upgrade.sh > bundle-previous.log 2>&1; then exit 1; fi
-grep -Fq "Refusing $fresh/current: expected a symlink to releases/v9.9.9, the release of this script" bundle-previous.log
+printf 'PASS: --to publishes releases/v9.9.9 from the verified archive and keeps .env.prod; after a failed image pull the same target continues to commit and prunes to current and previous, then is a no-op\n'
+# A run opened through the root path while another run swaps current before the path is resolved: the opened
+# v9.9.9 body only reruns the file its path names now, so v9.9.8's body runs with v9.9.8's helpers. A swap after
+# resolution is refused under the lock (above).
+: > opened.log
+STUB_SWAP_ON_RESOLVE=releases/v9.9.8 STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --help > bundle-swap-on-resolve.log
+rm resolve-swapped
+[ "$(cat opened.log)" = "$(printf 'opened upgrade.sh v9.9.9\nopened upgrade.sh v9.9.8')" ]
+[ "$(tail -n 1 reexec.log)" = 'bundle upgrade.sh v9.9.8 --help' ]
+[ "$(tail -n 2 sourced.log)" = "$(printf 'lifecycle-lock.sh of v9.9.8 from v9.9.8\nrelease-image.sh of v9.9.8 from v9.9.8')" ]
+ln -sfn releases/v9.9.9 current
+printf 'PASS: a run whose current is swapped before it resolves its own path runs one release entirely\n'
+# The publication of v9.9.10 stops before its swap, then v9.9.20 is the target: pruning keeps the previously
+# deployed v9.9.9, not the never-deployed v9.9.10 that directory order would pick.
+if STUB_KILL_MV_TO=current STUB_NO_GIT=true setsid -w env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.10 > bundle-killed.log 2>&1; then exit 1; fi
+[ -d releases/v9.9.10 ]
 STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.20 > bundle-prune.log 2>&1
 [ "$(readlink current)" = releases/v9.9.20 ]
-[ "$(LC_ALL=C ls -A releases | tr '\n' ' ')" = 'v9.9.10 v9.9.20 ' ]
+[ "$(cat "$lifecycle_state/previous-release")" = v9.9.9 ]
+[ "$(LC_ALL=C ls -A releases | tr '\n' ' ')" = 'v9.9.20 v9.9.9 ' ]
+# The image pull of v9.9.21 fails after its swap, then v9.9.22 is the target: pruning keeps v9.9.20, not v9.9.21.
+if FAIL_PULL=true STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.21 > bundle-pull-failed.log 2>&1; then exit 1; fi
+[ "$(readlink current)" = releases/v9.9.21 ]
+STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.22 > bundle-prune.log 2>&1
+[ "$(cat "$lifecycle_state/previous-release")" = v9.9.20 ]
+[ "$(LC_ALL=C ls -A releases | tr '\n' ' ')" = 'v9.9.20 v9.9.22 ' ]
+printf 'PASS: pruning keeps the previously deployed release after an interrupted publication or a failed pull of a release in between\n'
+# Without arguments: the latest release, v9.9.30, which discontinues LICENSE and docker. A running container
+# bind-mounts docker/prod, resolved into v9.9.22 when it was created: across two upgrades, also once the docker
+# root link is gone, no release folder is removed.
+printf '{"tag_name": "v9.9.30"}' > "$fresh/api/releases/latest"
+STUB_BIND_SOURCE=$fresh/docker/prod STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh > bundle-latest.log 2>&1
+grep -Fq "Published v9.9.30 ($bundle_revision) as releases/v9.9.30" bundle-latest.log
+grep -Fq "WARNING: a running container bind-mounts $fresh/docker/prod from the installation directory, possibly from a release folder; no release folder was removed." bundle-latest.log
+[ "$(tail -n 1 reexec.log)" = "bundle upgrade.sh v9.9.30 --staged $bundle_revision" ]
+[ "$(cat RELEASE)" = v9.9.30 ]
+[ "$(cat "$lifecycle_state/phase")" = committed ]
+[ "$(readlink NEW_ENTRY)" = current/NEW_ENTRY ]
+for discontinued in LICENSE docker; do [ ! -e "$discontinued" ]; [ ! -L "$discontinued" ]; done
+[ "$(LC_ALL=C ls -A releases | tr '\n' ' ')" = 'v9.9.20 v9.9.22 v9.9.30 ' ]
+[ "$identity_before" = "$(compose_identity)" ]
+STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh > bundle-latest-again.log
+grep -Fxq 'Release v9.9.30 is already deployed; nothing to upgrade.' bundle-latest-again.log
+STUB_BIND_SOURCE=$fresh/docker/prod STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.31 > bundle-bound.log 2>&1
+grep -Fq "WARNING: a running container bind-mounts $fresh/docker/prod" bundle-bound.log
+[ "$(cat "$lifecycle_state/previous-release")" = v9.9.30 ]
+[ "$(LC_ALL=C ls -A releases | tr '\n' ' ')" = 'v9.9.20 v9.9.22 v9.9.30 v9.9.31 ' ]
+# The same running revision after an aborted upgrade that resumed the old stack is not a completed deployment;
+# its commit, with the container gone, prunes to current and the recorded previous release.
+printf 'resumed\n' > "$lifecycle_state/phase"
+STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.31 > bundle-resumed.log 2>&1
+grep -Fq 'Release v9.9.31 is in place but not deployed' bundle-resumed.log
+[ "$(cat "$lifecycle_state/phase")" = committed ]
+[ "$(cat "$lifecycle_state/previous-release")" = v9.9.30 ]
+[ "$(LC_ALL=C ls -A releases | tr '\n' ' ')" = 'v9.9.30 v9.9.31 ' ]
+if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-downgrade.log 2>&1; then exit 1; fi
+grep -Fq 'Refusing to downgrade from v9.9.31 to v9.9.9' bundle-downgrade.log
+# The previous release's own scripts no longer run: current names v9.9.31.
+if STUB_NO_GIT=true env -u COMPOSE_FILE releases/v9.9.30/scripts/upgrade.sh > bundle-previous.log 2>&1; then exit 1; fi
+grep -Fq "Refusing $fresh/current: expected a symlink to releases/v9.9.30, the release of this script" bundle-previous.log
+STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.40 > bundle-prune.log 2>&1
+[ "$(readlink current)" = releases/v9.9.40 ]
+[ "$(LC_ALL=C ls -A releases | tr '\n' ' ')" = 'v9.9.31 v9.9.40 ' ]
 [ "$(readlink LICENSE)" = current/LICENSE ]
+[ "$(readlink docker)" = current/docker ]
 [ ! -L NEW_ENTRY ]
-printf 'PASS: without arguments a bundle install upgrades to the latest release, then is a no-op; root entries follow the release; a bind-mounted release blocks pruning; v9.9.20 prunes to current and previous\n'
+printf 'PASS: without arguments a bundle install upgrades to the latest release, then is a no-op; root entries follow the release; a container bind-mounting from the installation directory blocks pruning across two upgrades, also through a discontinued entry\n'
 # No run mixed releases: every helper was sourced by a script of its own release, also right after a swap.
 grep -Fxq 'lifecycle-lock.sh of v9.9.9 from v9.9.9' sourced.log
 grep -Fxq 'release-image.sh of v9.9.20 from v9.9.20' sourced.log
@@ -607,10 +667,10 @@ awk '$3 != $5 { print "mixed generation: " $0; bad=1 } END { exit bad }' sourced
 printf 'PASS: each run sources only its own release'"'"'s helpers; compose name, project directory, volumes and env_file stay the same across swaps\n'
 for entry in $(root_entries current); do rm "$entry"; done
 rm current compose.rc.before
-rm -r releases reexec.log sourced.log
+rm -r releases reexec.log sourced.log opened.log
 mv git-layout/* git-layout/.env.prod.example .
 rmdir git-layout
-rm "$fresh/bin/mv" "$fresh/bin/stat" "$fresh/bin/flock"
+rm "$fresh/bin/mv" "$fresh/bin/stat" "$fresh/bin/flock" "$fresh/bin/readlink"
 : > all-operations.log
 STUB_DIRTY=true env -u COMPOSE_FILE ./scripts/upgrade.sh --build
 awk '

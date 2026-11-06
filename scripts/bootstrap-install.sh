@@ -114,26 +114,25 @@ or follow https://docs.docker.com/engine/install/$os_id/ and run this installer 
     [ "$installed" = false ] || fail "$dir was installed while this installer waited; nothing was changed. Run the installer again to validate that installation."
 
     cd "$dir"
-    # An interrupted earlier run left no current, or a release folder this run publishes again; never a partial file set.
+    # An interrupted earlier run left at most stray .tmp folders and release folders, which never reach .env.prod:
+    # unpack this release again from the verified archive.
     mkdir -p releases
     find releases -mindepth 1 -maxdepth 1 -name '.*.tmp' -exec rm -rf {} +
-    local name=heptapod-$version.tar.gz file bundle=releases/$version revision
+    rm -rf "releases/$version"
+    local name=heptapod-$version.tar.gz file bundle=releases/.$version.tmp/heptapod-$version revision
     # Global: the EXIT trap runs after main has returned.
     stage=$dir/releases/.$version.tmp
     trap 'rm -rf "$stage"' EXIT
-    if [ ! -d "$bundle" ]; then
-        mkdir "$stage"
-        for file in "$name" "$name.sha256"; do
-            curl -fsSL -o "$stage/$file" "$release_download/$version/$file" || fail "Cannot download $release_download/$version/$file"
-        done
-        local expected actual
-        expected=$(awk 'NR == 1 { print $1 }' "$stage/$name.sha256")
-        actual=$(sha256sum "$stage/$name" | awk '{ print $1 }')
-        [[ "$expected" =~ ^[a-f0-9]{64}$ ]] && [ "$actual" = "$expected" ] ||
-            fail "Checksum mismatch for $name: expected $expected, got $actual. Nothing was installed."
-        tar -xzf "$stage/$name" -C "$stage" --no-same-owner
-        bundle=$stage/heptapod-$version
-    fi
+    mkdir "$stage"
+    for file in "$name" "$name.sha256"; do
+        curl -fsSL -o "$stage/$file" "$release_download/$version/$file" || fail "Cannot download $release_download/$version/$file"
+    done
+    local expected actual
+    expected=$(awk 'NR == 1 { print $1 }' "$stage/$name.sha256")
+    actual=$(sha256sum "$stage/$name" | awk '{ print $1 }')
+    [[ "$expected" =~ ^[a-f0-9]{64}$ ]] && [ "$actual" = "$expected" ] ||
+        fail "Checksum mismatch for $name: expected $expected, got $actual. Nothing was installed."
+    tar -xzf "$stage/$name" -C "$stage" --no-same-owner
     # The verified bundle is the release whose installer runs next: its own helpers validate it against its
     # MANIFEST, publish it as releases/<tag> and point current at it.
     sh -ec '. "$1/scripts/lifecycle-lock.sh"; . "$1/scripts/release-image.sh"; publish_release_dir "$1" "$2"' sh "$bundle" "$version" ||

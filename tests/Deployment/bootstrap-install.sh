@@ -184,10 +184,12 @@ for kill_at in releases/v2.0.0 current; do
     [ ! -e "$work/k/current" ]
     case "$kill_at" in
         releases/v2.0.0) [ -d "$work/k/releases/.v2.0.0.tmp/heptapod-v2.0.0" ]; [ ! -e "$work/k/releases/v2.0.0" ] ;;
-        current) [ -d "$work/k/releases/v2.0.0" ]; [ -L "$work/k/.current.tmp" ] ;;
+        # A changed file in the unswapped release folder: the rerun unpacks the verified archive again.
+        current) [ -d "$work/k/releases/v2.0.0" ]; [ -L "$work/k/.current.tmp" ]; printf 'tampered\n' >> "$work/k/releases/v2.0.0/scripts/install.sh" ;;
     esac
     bootstrap --domain k.example.com --version v2.0.0 --dir "$work/k" < /dev/null > /dev/null
     published "$work/k" v2.0.0
+    diff -r "$work/build/heptapod-v2.0.0" "$work/k/releases/v2.0.0"
     [ "$(tail -n 1 "$work/install.log")" = 'k held --revision 2222222222222222222222222222222222222222 --domain k.example.com' ]
     lines=$((lines + 1))
 done
@@ -196,7 +198,7 @@ bootstrap --domain b.example.com --version v1.0.0 --dir "$work/b" < /dev/null > 
 bootstrap --domain b.example.com --version v2.0.0 --dir "$work/b" < /dev/null > /dev/null
 published "$work/b" v2.0.0
 [ -d "$work/b/releases/v1.0.0" ]
-printf 'PASS: a bootstrap killed before or after publishing its release folder leaves current unset; the rerun converges\n'
+printf 'PASS: a bootstrap killed before or after publishing its release folder leaves current unset; the rerun converges and unpacks the archive again\n'
 mkdir "$work/other"
 printf 'keep\n' > "$work/other/data"
 refuses "$work/other is not empty and is not an earlier Heptapod installation" --domain c.example.com --dir "$work/other"
@@ -219,10 +221,12 @@ lines=$(wc -l < "$work/install.log")
 for installation in git-install flat-install; do
     printf 'APP_KEY=kept\n' > "$work/$installation/.env.prod"
     before=$(cd "$work/$installation" && find . | LC_ALL=C sort)
-    refuses "$work/$installation has a .env.prod but is not a release folder installation" --domain c.example.com --dir "$work/$installation"
+    if bootstrap --domain c.example.com --dir "$work/$installation" > "$work/out.log" 2>&1; then cat "$work/out.log" >&2; exit 1; fi
+    # What the refusal prevents first: the lock file and the installer run; then which refusal it was.
     [ "$(cd "$work/$installation" && find . | LC_ALL=C sort)" = "$before" ]
+    [ "$(wc -l < "$work/install.log")" = "$lines" ]
+    grep -Fq "$work/$installation has a .env.prod but is not a release folder installation" "$work/out.log"
 done
-[ "$(wc -l < "$work/install.log")" = "$lines" ]
 printf 'PASS: foreign directories, a flat file layout, a foreign root symlink and a Git checkout beside current are refused untouched, without a lock file or an installer run\n'
 
 # Overlap 1: an install, upgrade or rollback of the destination holds its lifecycle lock.

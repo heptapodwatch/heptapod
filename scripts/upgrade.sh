@@ -2,7 +2,10 @@
 # Container shell fragments expand their variables inside the container.
 # shellcheck disable=SC2016
 set -eu
-release_dir=$(CDPATH='' cd -P -- "$(dirname -- "$0")/.." && pwd)
+# Rerun by the canonical path first: through current, a concurrent swap could mix this body with another release's helpers.
+script=$(readlink -f -- "$0")
+[ "$0" = "$script" ] || exec sh "$script" "$@"
+release_dir=${script%/scripts/*}
 dc() { docker compose --env-file .env.prod "$@"; }
 # shellcheck source=scripts/lifecycle-lock.sh
 . "$release_dir/scripts/lifecycle-lock.sh"
@@ -142,7 +145,7 @@ if [ "$bundle_install" = true ] && [ "$resume" = false ] && [ -z "$staged_revisi
     publish_release "$target_tag"
     echo "Published $target_tag ($bundle_revision) as releases/$target_tag; continuing with its upgrade.sh."
     export HEPTAPOD_LIFECYCLE_LOCK_FD=9
-    exec "releases/$target_tag/scripts/upgrade.sh" --staged "$bundle_revision"
+    exec "$PWD/releases/$target_tag/scripts/upgrade.sh" --staged "$bundle_revision"
 fi
 if [ "$resume" = true ]; then
     COMPOSE_PROJECT_NAME=$(cat "$previous/project")
@@ -481,6 +484,16 @@ printf 'releasing\n' > "$state/release-intent.tmp"
 persist_lifecycle_file "$state/release-intent"
 write_phase releasing
 dc exec -T app php artisan up
+# Pruning keeps the release deployed before this one, which neither directory order nor current can tell.
+current_tag=${release_dir##*/}
+if [ "$bundle_install" = true ] && [ "$(cat "$state/deployed-release" 2>/dev/null || true)" != "$current_tag" ]; then
+    if [ -f "$state/deployed-release" ]; then
+        cp "$state/deployed-release" "$state/previous-release.tmp"
+        persist_lifecycle_file "$state/previous-release"
+    fi
+    printf '%s\n' "$current_tag" > "$state/deployed-release.tmp"
+    persist_lifecycle_file "$state/deployed-release"
+fi
 write_phase committed
 mv "$state/candidate.env" "$state/current.env"
 # Cleanup cannot turn an accepted, healthy upgrade into a failure.
@@ -531,32 +544,24 @@ if [ "$build" = true ]; then
         echo 'WARNING: build-cache pruning failed (Docker error above); upgrade succeeded, but disk space was not fully reclaimed.' >&2
     fi
 fi
-# Keep the current release and the newest older one (the previous); remove older and unswapped ones. A container
-# bind-mounting a path inside the instance root through releases/, current or a root entry symlink resolved it
-# when it was created, possibly into an older release: then nothing is removed.
+# Keep the current and the previously deployed release; remove every other release and .tmp folder. Until a
+# second upgrade has recorded a previous release, nothing is removed. A container bind-mounting any path in the
+# instance root may have resolved it through a root symlink, current or a since-removed entry into any release
+# when it was created: then nothing is removed either.
 prune_releases() {
-    current_tag=${release_dir##*/}
-    previous_tag=
-    for release_path in releases/v*; do
-        release_tag=${release_path#releases/}
-        printf '%s\n' "$release_tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || continue
-        if release_tag_older "$release_tag" "$current_tag" && { [ -z "$previous_tag" ] || release_tag_older "$previous_tag" "$release_tag"; }; then
-            previous_tag=$release_tag
-        fi
-    done
+    [ -f "$state/previous-release" ] || return 0
+    previous_tag=$(cat "$state/previous-release")
     container_ids=$(docker ps -q) || return 1
     bind_sources=
     if [ -n "$container_ids" ]; then
         bind_sources=$(printf '%s\n' "$container_ids" | xargs docker inspect --format '{{range .Mounts}}{{if eq .Type "bind"}}{{println .Source}}{{end}}{{end}}') || return 1
     fi
     while IFS= read -r bind_source; do
-        case "$bind_source" in "$PWD"/*) ;; *) continue ;; esac
-        bind_entry=${bind_source#"$PWD"/}
-        bind_entry=${bind_entry%%/*}
-        if [ "$bind_entry" = releases ] || [ -L "$bind_entry" ]; then
-            echo "WARNING: a running container bind-mounts $bind_source from a release folder; no release folder was removed. Recreate that container; the next upgrade removes them." >&2
-            return 0
-        fi
+        case "$bind_source" in
+            "$PWD"/*)
+                echo "WARNING: a running container bind-mounts $bind_source from the installation directory, possibly from a release folder; no release folder was removed. Recreate or stop that container; the next upgrade removes them." >&2
+                return 0 ;;
+        esac
     done <<EOF
 $bind_sources
 EOF

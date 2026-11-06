@@ -50,14 +50,12 @@ latest_release_tag() {
 
 # Publish release $1 as releases/$1 and point current at it: bundle installs, from the instance root, with the
 # lifecycle lock held. An interrupted run leaves current unchanged, plus at worst a releases/.<tag>.tmp folder
-# that the next run deletes; a published but unswapped releases/$1 is validated again and reused.
+# or an unswapped releases/$1, which the next run deletes and unpacks again from the verified archive.
 publish_release() {
     mkdir -p releases
     find releases -mindepth 1 -maxdepth 1 -name '.*.tmp' -exec rm -rf {} +
-    if [ -d "releases/$1" ]; then
-        publish_release_dir "releases/$1" "$1"
-        return 0
-    fi
+    # Never current or the previous release: upgrades only publish a newer tag than current.
+    rm -rf "releases/$1"
     bundle_name=heptapod-$1.tar.gz
     mkdir "releases/.$1.tmp"
     publish_tag=$1
@@ -95,11 +93,9 @@ publish_release_dir() {
             ln -s "current/$release_entry" "$release_entry"
         fi
     done
-    if [ "$1" != "releases/$2" ]; then
-        # The unpacked files are durable before the rename publishes them.
-        sync
-        mv -T "$1" "releases/$2"
-    fi
+    # The unpacked files are durable before the rename publishes them.
+    sync
+    mv -T "$1" "releases/$2"
     rm -f .current.tmp
     ln -s "releases/$2" .current.tmp
     sync releases .

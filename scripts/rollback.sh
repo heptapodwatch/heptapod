@@ -3,7 +3,10 @@
 # shellcheck disable=SC2016
 # Restore the recorded generation, never run migration down() methods.
 set -eu
-release_dir=$(CDPATH='' cd -P -- "$(dirname -- "$0")/.." && pwd)
+# Rerun by the canonical path first: through current, a concurrent swap could mix this body with another release's helpers.
+script=$(readlink -f -- "$0")
+[ "$0" = "$script" ] || exec sh "$script" "$@"
+release_dir=${script%/scripts/*}
 # shellcheck source=scripts/lifecycle-lock.sh
 . "$release_dir/scripts/lifecycle-lock.sh"
 enter_instance_root

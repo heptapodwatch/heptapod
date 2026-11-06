@@ -48,8 +48,8 @@ validate_backup_name() {
 
 # A release bundle install keeps .env.prod and .heptapod in its instance root, each release in releases/<tag>,
 # current -> releases/<tag>, and one root symlink <entry> -> current/<entry> per top-level bundle entry.
-# A Git checkout is its own instance root. Callers set release_dir to their own release, resolved once
-# (cd -P), and source helpers only from it, so one run never mixes the files of two releases.
+# A Git checkout is its own instance root. Callers set release_dir to their own release, resolved once from
+# their canonical path, and source helpers only from it, so one run never mixes the files of two releases.
 enter_instance_root() {
     instance_root=$release_dir
     if [ -f "$release_dir/RELEASE" ]; then
@@ -94,8 +94,10 @@ check_release_links() {
 acquire_lifecycle_lock() {
     command -v flock >/dev/null 2>&1 || { echo 'flock (util-linux) is required for install/upgrade/rollback.' >&2; exit 1; }
     umask 077
-    # A planted symlink would redirect chmod, the lock file or a publication outside the installation.
-    for state_path in "$lifecycle_dir" "$lifecycle_dir/lifecycle.lock" releases; do
+    # A planted symlink would redirect chmod, the lock file or a bundle publication outside the installation.
+    state_paths="$lifecycle_dir $lifecycle_dir/lifecycle.lock"
+    if [ "$release_dir" != "$PWD" ]; then state_paths="$state_paths releases"; fi
+    for state_path in $state_paths; do
         if [ -L "$state_path" ] || { [ -e "$state_path" ] && ! owned_by_us "$state_path"; }; then
             echo "Refusing $PWD/$state_path: it is a symlink or owned by another user. Nothing was changed." >&2
             exit 1

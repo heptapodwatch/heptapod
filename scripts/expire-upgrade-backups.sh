@@ -1,7 +1,10 @@
 #!/bin/sh
 # Dry-run is the default. --apply relocates referenced legacy archives and deletes only expired lifecycle archives.
 set -eu
-release_dir=$(CDPATH='' cd -P -- "$(dirname -- "$0")/.." && pwd)
+# Rerun by the canonical path first: through current, a concurrent swap could mix this body with another release's helpers.
+script=$(readlink -f -- "$0")
+[ "$0" = "$script" ] || exec sh "$script" "$@"
+release_dir=${script%/scripts/*}
 case "${1:---dry-run}" in
     --help|-h) echo 'Usage: scripts/expire-upgrade-backups.sh [--dry-run|--apply]'; exit 0 ;;
     --dry-run|--apply) ;;
