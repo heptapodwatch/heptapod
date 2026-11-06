@@ -35,7 +35,10 @@ final class CrawlResponseHandler extends CrawlRequestFulfilled
             $parser->incomplete($block === AutomatedCheckBlockReason::RateLimited ? CrawlDiscoveryReason::RateLimited : CrawlDiscoveryReason::BotProtection);
             $parser->observer->notVerifiable($crawlUrl->url, $this->createCrawlResponse($response, $crawlUrl, ''), $block);
             if ($crawlUrl->depth === 0) {
-                $parser->observer->notCrawlableReason = NotCrawlableReason::from($block->value);
+                $parser->observer->notCrawlableReason = match ($block) {
+                    AutomatedCheckBlockReason::BotProtection => NotCrawlableReason::BotProtection,
+                    AutomatedCheckBlockReason::RateLimited => NotCrawlableReason::RateLimited,
+                };
             }
             $this->crawler->recordCrawled();
 
@@ -68,7 +71,7 @@ final class CrawlResponseHandler extends CrawlRequestFulfilled
                 $parser->incomplete(CrawlDiscoveryReason::Nofollow);
                 $reason = 'nofollow';
             }
-            if ($reason !== null && $reason !== 'http_status') {
+            if ($reason !== null) {
                 if ($reason === 'authentication_required') {
                     $parser->observer->authenticationRequired($response->getStatusCode());
                 } else {
