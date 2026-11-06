@@ -32,7 +32,7 @@ jobs:
       # The installer's own check: pull both images for the tag commit and verify their revision labels.
       - name: Require the published images of the tag commit
         run: |
-          if ! sh -ec '. ./scripts/release-image.sh; release_checkout; resolve_release_images true'; then
+          if ! sh -ec 'release_dir=$PWD; . ./scripts/release-image.sh; release_checkout; resolve_release_images true'; then
             echo "::error::Images for $TAG ($(git rev-parse HEAD)) are not published. Wait for Production images on main to publish this commit, then run this workflow manually for $TAG."
             exit 1
           fi
