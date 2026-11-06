@@ -350,6 +350,7 @@ installed_unchanged() {
     [ ! -e LICENSE ] && [ ! -e MANIFEST ] && [ ! -e docs/deploy/operations.md ]
     cmp bundle-before.env .env.prod
     for file in host-replacement host-previous host-manifest; do [ ! -e "$lifecycle_state/$file" ]; done
+    [ -z "$(find . -name '.restore.*')" ]
     [ -z "$(find "$lifecycle_dir" -name 'bundle.*')" ]
 }
 : > docker-operations.log
@@ -364,18 +365,35 @@ printf '%064d  heptapod-v9.9.9.tar.gz\n' 0 > "$fresh/release/v9.9.9/heptapod-v9.
 if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-mismatch.log 2>&1; then exit 1; fi
 grep -Fq 'Checksum mismatch for heptapod-v9.9.9.tar.gz' bundle-mismatch.log
 mv bundle.sha256 "$fresh/release/v9.9.9/heptapod-v9.9.9.tar.gz.sha256"
-# A bundle carrying a file its MANIFEST does not list.
-sh "$root/scripts/build-release-bundle.sh" v9.9.11 "$bundle_revision" "$fresh/build" > /dev/null
-tar -xzf "$fresh/build/heptapod-v9.9.11.tar.gz" -C "$fresh/build"
-printf 'APP_KEY=planted\n' > "$fresh/build/heptapod-v9.9.11/.env.prod"
-mkdir -p "$fresh/release/v9.9.11"
-tar -C "$fresh/build" -czf "$fresh/release/v9.9.11/heptapod-v9.9.11.tar.gz" heptapod-v9.9.11
-(cd "$fresh/release/v9.9.11" && sha256sum heptapod-v9.9.11.tar.gz > heptapod-v9.9.11.tar.gz.sha256)
-if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.11 > bundle-manifest.log 2>&1; then exit 1; fi
-grep -Fq 'heptapod-v9.9.11.tar.gz does not match its MANIFEST. Nothing was changed.' bundle-manifest.log
-installed_unchanged
+# Checksum-valid hostile bundles: the shell command $2 changes the built bundle directory before packing.
+hostile_bundle() {
+    sh "$root/scripts/build-release-bundle.sh" "$1" "$bundle_revision" "$fresh/build" > /dev/null
+    tar -xzf "$fresh/build/heptapod-$1.tar.gz" -C "$fresh/build"
+    (cd "$fresh/build/heptapod-$1" && eval "$2")
+    mkdir -p "$fresh/release/$1"
+    tar -C "$fresh/build" -czf "$fresh/release/$1/heptapod-$1.tar.gz" "heptapod-$1"
+    (cd "$fresh/release/$1" && sha256sum "heptapod-$1.tar.gz" > "heptapod-$1.tar.gz.sha256")
+}
+# Rewrites the MANIFEST so that it lists every file in the bundle directory, REVISION last.
+relist() {
+    { find . -type f ! -name REVISION | LC_ALL=C sort; echo ./REVISION; } > ../MANIFEST.new
+    mv ../MANIFEST.new MANIFEST
+}
+hostile_bundle v9.9.11 "printf 'APP_KEY=planted\\n' > .env.prod"
+hostile_bundle v9.9.12 "printf 'APP_KEY=planted\\n' > .env.prod && relist"
+hostile_bundle v9.9.13 'mkdir .heptapod && printf planted > .heptapod/lifecycle.lock && relist'
+hostile_bundle v9.9.14 'truncate -s -1 MANIFEST'
+# The fixtures are what they claim: v9.9.12 and v9.9.13 list their state file, v9.9.14's MANIFEST lacks its final newline.
+grep -Fxq ./.env.prod "$fresh/build/heptapod-v9.9.12/MANIFEST" && grep -Fxq ./.heptapod/lifecycle.lock "$fresh/build/heptapod-v9.9.13/MANIFEST"
+[ -n "$(tail -c 1 "$fresh/build/heptapod-v9.9.14/MANIFEST")" ] && [ "$(tail -n 1 "$fresh/build/heptapod-v9.9.14/MANIFEST")" = ./REVISION ]
+for hostile in v9.9.11 v9.9.12 v9.9.13 v9.9.14; do
+    if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to "$hostile" > bundle-manifest.log 2>&1; then exit 1; fi
+    grep -Fq "heptapod-$hostile.tar.gz does not match its MANIFEST. Nothing was changed." bundle-manifest.log
+    installed_unchanged
+    [ "$(cat "$lifecycle_dir/lifecycle.lock")" = '' ]
+done
 [ ! -e reexec.log ] && [ ! -s docker-operations.log ]
-printf 'PASS: Git checkouts, a stale --staged, --build, a checksum mismatch and an unlisted bundle file refuse before any file or service change\n'
+printf 'PASS: Git checkouts, a stale --staged, --build, a checksum mismatch, an unlisted or listed state file and an unterminated MANIFEST refuse before any file or service change\n'
 # Only vX.Y.Z releases exist; fields compare as numbers. The fixture has no older bundle: refusals precede any download.
 for invalid in v9.9.10-rc.1 v1.0.0-alpha10 v1.0.0-alpha2; do
     if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to "$invalid" > bundle-tag.log 2>&1; then exit 1; fi
@@ -412,7 +430,7 @@ export REAL_MV REAL_FLOCK REAL_STAT
 cat > "$fresh/bin/mv" <<'SH'
 #!/bin/sh
 if [ -n "${STUB_FAIL_MV:-}" ] && [ "$2" = "$STUB_FAIL_MV" ]; then
-    case "$1" in */heptapod-v9.9.9/*|*.restore) echo "stub: rename onto $2 failed" >&2; exit 1 ;; esac
+    case "$1" in */heptapod-v9.9.9/*|*/.restore.*) echo "stub: rename onto $2 failed" >&2; exit 1 ;; esac
 fi
 exec "$REAL_MV" "$@"
 SH
@@ -456,6 +474,15 @@ grep -Fq 'Restoring ./compose.prod.yaml failed' bundle-restore-failed.log
 if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.7 > bundle-restored.log 2>&1; then exit 1; fi
 grep -Fq "Restored the files of revision $installed_revision after an interrupted bundle replacement." bundle-restored.log
 installed_unchanged
+# The restore writes through a fresh temporary file: a planted symlink at a predictable name redirects nothing.
+printf 'outside\n' > "$fresh/outside/sentinel"
+if STUB_FAIL_MV=./REVISION STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-interrupted.log 2>&1; then exit 1; fi
+ln -s "$fresh/outside/sentinel" compose.prod.yaml.restore
+if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.7 > bundle-restored.log 2>&1; then exit 1; fi
+grep -Fq "Restored the files of revision $installed_revision after an interrupted bundle replacement." bundle-restored.log
+[ "$(cat "$fresh/outside/sentinel")" = outside ] && [ -L compose.prod.yaml.restore ]
+rm compose.prod.yaml.restore
+installed_unchanged
 # Another updater crashes mid-replacement after this run started but before it holds the lock: the record is read under the lock.
 rm -f race-done
 if STUB_RACE_UPGRADE=1 STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.7 > bundle-race.log 2>&1; then exit 1; fi
@@ -465,20 +492,27 @@ grep -Fq 'Refusing to downgrade from v9.9.8 to v9.9.7' bundle-race.log
 installed_unchanged
 [ ! -s docker-operations.log ]
 printf 'PASS: an interrupted replacement or restore, also one racing this run, is restored to the previous release under the lock\n'
-# A damaged record changes nothing and stays for inspection; an incomplete one (no end line) means no rename happened.
+# A damaged or incomplete record changes nothing and keeps every recovery artifact for the manual path.
 printf 'outside\n' > "$fresh/outside/sentinel"
 printf 'outside\n' > "$fresh/outside/deploy/operations.md"
+release_manifest=$fresh/build/heptapod-v9.9.9/MANIFEST
+# damaged_record EXPECTED RECORD [MANIFEST|none]: the recovery MANIFEST defaults to the record's own paths.
 damaged_record() {
-    expected=$1
-    shift
-    mkdir -p "$lifecycle_state"
-    cp "$fresh/build/heptapod-v9.9.9/MANIFEST" "$lifecycle_state/host-manifest"
-    # shellcheck disable=SC2059 # the record text is a printf format with \n escapes
-    printf "$@" > "$lifecycle_state/host-replacement"
+    mkdir -p "$lifecycle_state/host-previous"
+    : > "$lifecycle_state/host-previous/kept"
+    printf '%b' "$2" > "$lifecycle_state/host-replacement"
+    case "${3:-}" in
+        '') printf '%b' "$2" | sed '$d; s/^[^ ]* //' > "$lifecycle_state/host-manifest" ;;
+        none) rm -f "$lifecycle_state/host-manifest" ;;
+        *) cp "$3" "$lifecycle_state/host-manifest" ;;
+    esac
+    cp "$lifecycle_state/host-replacement" damaged-record.before
     if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.7 > bundle-record.log 2>&1; then cat bundle-record.log >&2; exit 1; fi
-    grep -Fq "Invalid bundle replacement record $fresh/.heptapod/upgrade/host-replacement: $expected. Nothing was changed" bundle-record.log || { cat bundle-record.log >&2; exit 1; }
-    [ -f "$lifecycle_state/host-replacement" ] && [ "$(cat "$fresh/outside/sentinel")" = outside ] && [ "$(cat "$fresh/outside/deploy/operations.md")" = outside ]
-    rm -f "$lifecycle_state/host-replacement" "$lifecycle_state/host-manifest"
+    grep -Fq "Invalid bundle replacement record $fresh/.heptapod/upgrade/host-replacement: $1. Nothing was changed. Restore the files it lists from $fresh/.heptapod/upgrade/host-previous by hand" bundle-record.log || { cat bundle-record.log >&2; exit 1; }
+    cmp damaged-record.before "$lifecycle_state/host-replacement" && [ -f "$lifecycle_state/host-previous/kept" ]
+    [ "${3:-}" = none ] || [ -f "$lifecycle_state/host-manifest" ]
+    [ "$(cat "$fresh/outside/sentinel")" = outside ] && [ "$(cat "$fresh/outside/deploy/operations.md")" = outside ]
+    rm -rf "$lifecycle_state/host-replacement" "$lifecycle_state/host-manifest" "$lifecycle_state/host-previous"
     cmp bundle-before.env .env.prod
 }
 damaged_record 'line 1 is not old/new PATH' 'bogus ./LICENSE\nend\n'
@@ -486,25 +520,43 @@ damaged_record 'line 2 is not old/new PATH' 'new ./LICENSE\nend\nnew ./MANIFEST\
 damaged_record "unsafe path $fresh/outside/sentinel" "new $fresh/outside/sentinel\nend\n"
 damaged_record 'unsafe path ./../outside/sentinel' 'new ./../outside/sentinel\nend\n'
 damaged_record 'unsafe path ./.env.prod' 'new ./.env.prod\nend\n'
-damaged_record './compose.rc.yaml is not in the bundle MANIFEST' 'new ./compose.rc.yaml\nend\n'
+damaged_record 'unsafe path ./.heptapod/lifecycle.lock' 'new ./.heptapod/lifecycle.lock\nend\n'
 damaged_record 'the previous copy of ./compose.prod.yaml is missing' 'old ./compose.prod.yaml\nend\n'
+# Incomplete: under the final name a record without its end line is never trusted, whatever happened before.
+damaged_record 'it has no final end line' 'new ./LICENSE\n' "$release_manifest"
+damaged_record 'it has no final end line' 'new ./LICENSE\nend' "$release_manifest"
+damaged_record 'it has no final end line' '' "$release_manifest"
+# Complete records must match the recovery MANIFEST: present, regular, without duplicates, one line per path in order.
+damaged_record "the recovery MANIFEST .heptapod/upgrade/host-manifest is missing, incomplete or has duplicates" 'new ./LICENSE\nend\n' none
+damaged_record "the recovery MANIFEST .heptapod/upgrade/host-manifest is missing, incomplete or has duplicates" 'new ./LICENSE\nnew ./LICENSE\nend\n'
+damaged_record 'its paths differ from the recovery MANIFEST' 'end\n' "$release_manifest"
+damaged_record 'its paths differ from the recovery MANIFEST' "$(sed '$d; s/^/new /' "$release_manifest")\nend\n" "$release_manifest"
+damaged_record 'its paths differ from the recovery MANIFEST' "$(sed 's/^/new /' "$release_manifest")\nnew ./LICENSE\nend\n" "$release_manifest"
 # A restore removes new files, not the directories created for them.
 rmdir docs/deploy docs
 ln -s "$fresh/outside" docs
 damaged_record './docs is a symlink' 'new ./docs/deploy/operations.md\nend\n'
 rm docs
 installed_unchanged
-for incomplete in 'new ./LICENSE\n' 'new ./LICENSE\nend' ''; do
-    mkdir -p "$lifecycle_state/host-previous"
-    # shellcheck disable=SC2059 # the record text is a printf format with \n escapes
-    printf "$incomplete" > "$lifecycle_state/host-replacement"
-    if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.7 > bundle-record.log 2>&1; then exit 1; fi
-    grep -Fq 'Removed an incomplete bundle replacement record; no file had been replaced.' bundle-record.log
-    grep -Fq 'Refusing to downgrade from v9.9.8 to v9.9.7' bundle-record.log
-    installed_unchanged
-done
+# A real interrupted replacement whose record lost its end line stays mixed and refused; restoring the line recovers it.
+if STUB_FAIL_MV=./REVISION STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-interrupted.log 2>&1; then exit 1; fi
+sed -i '$d' "$lifecycle_state/host-replacement"
+if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.7 > bundle-record.log 2>&1; then exit 1; fi
+grep -Fq 'it has no final end line. Nothing was changed.' bundle-record.log
+grep -Fxq 'fake v9.9.9' docs/deploy/operations.md && [ -f "$lifecycle_state/host-previous/RELEASE" ] && [ -f "$lifecycle_state/host-manifest" ]
+echo end >> "$lifecycle_state/host-replacement"
+if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.7 > bundle-restored.log 2>&1; then exit 1; fi
+grep -Fq "Restored the files of revision $installed_revision after an interrupted bundle replacement." bundle-restored.log
+installed_unchanged
+# Only an unpublished .tmp record is unfinished preparation: the run continues past it.
+mkdir -p "$lifecycle_state"
+printf 'new ./LICENSE\n' > "$lifecycle_state/host-replacement.tmp"
+if STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.7 > bundle-record.log 2>&1; then exit 1; fi
+grep -Fq 'Refusing to downgrade from v9.9.8 to v9.9.7' bundle-record.log
+rm "$lifecycle_state/host-replacement.tmp"
+installed_unchanged
 [ ! -s docker-operations.log ]
-printf 'PASS: malformed, outside, unlisted, symlinked or unbacked record entries refuse untouched; a record without its end line is discarded\n'
+printf 'PASS: malformed, outside, incomplete, unmatched or unbacked records refuse untouched and keep every recovery artifact\n'
 # A symlinked lock file or lifecycle state owned by another user: install and upgrade refuse before opening it.
 printf 'keep\n' > "$fresh/outside/lifecycle.lock"
 chmod 644 "$fresh/outside/lifecycle.lock"

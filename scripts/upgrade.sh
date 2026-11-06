@@ -25,26 +25,28 @@ flock -n 9 || { echo 'Another install/upgrade/rollback is running; lifecycle loc
 record=.heptapod/upgrade/host-replacement
 record_previous=.heptapod/upgrade/host-previous
 record_manifest=.heptapod/upgrade/host-manifest
-if [ -f "$record" ] && { [ "$(tail -n 1 "$record")" != end ] || [ -n "$(tail -c 1 "$record")" ]; }; then
-    # The record is complete before the first rename: without its end line, no file was replaced.
-    rm -rf "$record" "$record_previous" "$record_manifest"
-    sync
-    echo 'Removed an incomplete bundle replacement record; no file had been replaced.'
-elif [ -f "$record" ]; then
+# Preparation writes the complete record as $record.tmp, ending in "end", and publishes it by rename before
+# the first file rename. An unpublished .tmp is unfinished preparation, which the next preparation overwrites.
+if [ -e "$record" ] || [ -L "$record" ]; then
     record_invalid() {
-        echo "Invalid bundle replacement record $PWD/$record: $1. Nothing was changed; inspect it and $record_previous." >&2
+        echo "Invalid bundle replacement record $PWD/$record: $1. Nothing was changed. Restore the files it lists from $PWD/$record_previous by hand (old: copy back, new: delete), then remove $record, $record_previous and $record_manifest." >&2
         exit 1
     }
+    # Validate the whole record before touching any file: complete, one line per recovery MANIFEST path in
+    # its order, only bundle paths inside this directory, and a previous copy for every replaced file.
+    { [ -f "$record" ] && [ ! -L "$record" ] && [ "$(tail -n 1 "$record")" = end ] && [ -z "$(tail -c 1 "$record")" ]; } ||
+        record_invalid 'it has no final end line'
+    { [ -f "$record_manifest" ] && [ ! -L "$record_manifest" ] && [ -s "$record_manifest" ] && [ -z "$(tail -c 1 "$record_manifest")" ] &&
+        [ -z "$(sort "$record_manifest" | uniq -d)" ]; } || record_invalid "the recovery MANIFEST $record_manifest is missing, incomplete or has duplicates"
     record_lines=$(wc -l < "$record")
     record_line=0
-    # Validate the whole record before touching any file: only bundle paths, inside this directory.
-    while read -r replaced replaced_file; do
+    while IFS=' ' read -r replaced replaced_file; do
         record_line=$((record_line + 1))
         [ "$record_line" -lt "$record_lines" ] || break
         case "$replaced" in old|new) ;; *) record_invalid "line $record_line is not old/new PATH" ;; esac
         case "$replaced_file" in
             ./.env.prod|./.heptapod|./.heptapod/*|*/../*|*/..|*/./*|*//*|*[!A-Za-z0-9._/-]*) record_invalid "unsafe path $replaced_file" ;;
-            ./*) grep -Fxq -- "$replaced_file" "$record_manifest" || record_invalid "$replaced_file is not in the bundle MANIFEST" ;;
+            ./*) ;;
             *) record_invalid "unsafe path $replaced_file" ;;
         esac
         record_parent=${replaced_file%/*}
@@ -54,13 +56,22 @@ elif [ -f "$record" ]; then
         done
         [ "$replaced" = new ] || [ -f "$record_previous/$replaced_file" ] || record_invalid "the previous copy of $replaced_file is missing"
     done < "$record"
-    # Copy back through a rename: the running script may be one of these files. The copies stay until the end.
-    while read -r replaced replaced_file; do
+    [ "$(sed '$d; s/^[^ ]* //' "$record")" = "$(cat "$record_manifest")" ] || record_invalid 'its paths differ from the recovery MANIFEST'
+    # Copy back through a fresh temporary file and a rename: the running script may be one of these files.
+    # The copies stay until every file is verified.
+    while IFS=' ' read -r replaced replaced_file; do
+        restore_tmp=
         case "$replaced" in
-            old) cp -p "$record_previous/$replaced_file" "$replaced_file.restore" && mv "$replaced_file.restore" "$replaced_file" &&
+            old) restore_tmp=$(mktemp "$(dirname -- "$replaced_file")/.restore.XXXXXX") &&
+                cp -p "$record_previous/$replaced_file" "$restore_tmp" && mv "$restore_tmp" "$replaced_file" &&
                 cmp -s "$record_previous/$replaced_file" "$replaced_file" ;;
             new) rm -f "$replaced_file" && [ ! -e "$replaced_file" ] ;;
-        esac || { echo "Restoring $replaced_file failed; $record and $record_previous are kept. Fix the error above, then rerun ./scripts/upgrade.sh." >&2; exit 1; }
+            *) true ;;
+        esac || {
+            if [ -n "$restore_tmp" ]; then rm -f "$restore_tmp"; fi
+            echo "Restoring $replaced_file failed; $record and $record_previous are kept. Fix the error above, then rerun ./scripts/upgrade.sh." >&2
+            exit 1
+        }
     done < "$record"
     sync
     rm "$record"
