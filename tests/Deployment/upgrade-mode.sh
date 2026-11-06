@@ -39,6 +39,8 @@ if [ "$1" = compose ]; then
         if [ "$arg" = ps ]; then [ "${STUB_RUNNING:-true}" = false ] || echo stub-container; exit 0; fi
     done
     printf '%s | %s\n' "${COMPOSE_FILE:-unset}" "$*" >> docker-operations.log
+    # Like real "compose exec -T", the stub drains the caller's stdin.
+    case " $* " in *" exec "*) cat > /dev/null ;; esac
     case "$*" in
         *'php artisan backup:run'*) [ "${FAIL_BACKUP:-false}" = false ] || exit 42 ;;
         *'run --rm --no-deps -T --entrypoint sh horizon'*'heptapod:worker-memory'*)
@@ -636,7 +638,11 @@ for discontinued in LICENSE docker; do [ ! -e "$discontinued" ]; [ ! -L "$discon
 [ "$identity_before" = "$(compose_identity)" ]
 STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh > bundle-latest-again.log
 grep -Fxq 'Release v9.9.30 is already deployed; nothing to upgrade.' bundle-latest-again.log
-STUB_BIND_SOURCE=$fresh/docker/prod STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.31 > bundle-bound.log 2>&1
+# An upgrade inside a script piped to sh leaves the rest of that script to sh (ssh host sh -s < script).
+printf 'STUB_RUNNING_REVISION=%s STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.31 > bundle-bound.log 2>&1\necho after-upgrade > piped-tail.log\n' "$bundle_revision" | STUB_BIND_SOURCE=$fresh/docker/prod sh -s
+[ "$(cat piped-tail.log)" = after-upgrade ]
+rm piped-tail.log
+grep -Fq 'Upgrade committed.' bundle-bound.log
 grep -Fq "WARNING: a running container bind-mounts $fresh/docker/prod" bundle-bound.log
 [ "$(cat "$lifecycle_state/previous-release")" = v9.9.30 ]
 [ "$(LC_ALL=C ls -A releases | tr '\n' ' ')" = 'v9.9.20 v9.9.22 v9.9.30 v9.9.31 ' ]

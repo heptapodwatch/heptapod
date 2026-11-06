@@ -6,6 +6,9 @@ set -eu
 # Rerun by the canonical path first: through current, a concurrent swap could mix this body with another release's helpers.
 script=$(readlink -f -- "$0")
 [ "$0" = "$script" ] || exec sh "$script" "$@"
+# Nothing here reads stdin, but "docker compose exec -T" passes it on: a script piped in by the caller
+# (ssh host sh -s < script) would lose its remaining lines to a container.
+exec < /dev/null
 release_dir=${script%/scripts/*}
 # shellcheck source=scripts/lifecycle-lock.sh
 . "$release_dir/scripts/lifecycle-lock.sh"
