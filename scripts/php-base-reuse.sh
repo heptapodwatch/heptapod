@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Main promotes the candidate's exact scanned indexes. Without any ci/ candidate run for its exact SHA,
-# it reports reuse=false so the workflow builds through the native gates; an existing candidate must validate.
+# Main promotes the candidate's exact scanned indexes. Without a ci/ candidate run for its exact SHA whose
+# evidence fully validates, it reports reuse=false before any retag so the workflow builds through the native gates.
 set -euo pipefail
 : "${GITHUB_SHA:?}" "${GITHUB_REPOSITORY:?}" "${GITHUB_RUN_ID:?}" "${GITHUB_RUN_ATTEMPT:?}" "${RUNNER_TEMP:?}"
 : "${GITHUB_EVENT_NAME:?}" "${GITHUB_REF:?}" "${GITHUB_OUTPUT:?}" "${GITHUB_STEP_SUMMARY:?}"
@@ -16,25 +16,30 @@ gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/workflows/php-base.y
 run_id=$(jq -r --arg sha "$GITHUB_SHA" '[.[].workflow_runs[] |
     select(.head_sha == $sha and .event == "push" and (.head_branch | startswith("ci/")))] |
     sort_by(.id) | last | .id // empty' "$work/runs.json")
-if [ -z "$run_id" ]; then
-    echo "::warning::FALLBACK: no php-base ci/ candidate run for $GITHUB_SHA; building through the native gates"
-    echo "FALLBACK: no php-base ci/ candidate run for $GITHUB_SHA; building through the native gates." >> "$GITHUB_STEP_SUMMARY"
+fallback() {
+    echo "::warning::FALLBACK: $1; building through the native gates"
+    echo "FALLBACK: $1; building through the native gates." >> "$GITHUB_STEP_SUMMARY"
     echo 'reuse=false' >> "$GITHUB_OUTPUT"
     exit 0
-fi
-bash "$root/scripts/php-base-record.sh" "$run_id" "$work/source"
+}
+[ -n "$run_id" ] || fallback "no php-base ci/ candidate run for $GITHUB_SHA"
 record="$work/source/php-base-record.json"
-jq -e --arg sha "$GITHUB_SHA" '
-    .run == .build and .run.sha == $sha and .run.event == "push" and
-    (.run.branch | startswith("ci/")) and
-    all(.indexes[]; .target as $target |
-        any(.tags[]; .tag == ("ci-" + $sha + (if $target == "coverage" then "-coverage" else "" end))))' "$record" > /dev/null
-bash "$root/scripts/php-base-verify-index.sh" "$record"
-# Recheck run state after registry validation, before changing either moving tag.
-gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" > "$work/rechecked-run.json"
-jq -e --slurpfile record "$record" '
-    .status == "completed" and .conclusion == "success" and
-    .run_attempt == $record[0].run.attempt and .head_sha == $record[0].run.sha' "$work/rechecked-run.json" > /dev/null
+# Unfinished, red, stale-attempt, expired or registry-mismatched evidence is not reusable. The && chain keeps
+# every check fatal to reuse, because set -e does not apply inside an if condition.
+if ! { bash "$root/scripts/php-base-record.sh" "$run_id" "$work/source" &&
+    jq -e --arg sha "$GITHUB_SHA" '
+        .run == .build and .run.sha == $sha and .run.event == "push" and
+        (.run.branch | startswith("ci/")) and
+        all(.indexes[]; .target as $target |
+            any(.tags[]; .tag == ("ci-" + $sha + (if $target == "coverage" then "-coverage" else "" end))))' "$record" > /dev/null &&
+    bash "$root/scripts/php-base-verify-index.sh" "$record" &&
+    # Recheck run state after registry validation, before changing either moving tag.
+    gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" > "$work/rechecked-run.json" &&
+    jq -e --slurpfile record "$record" '
+        .status == "completed" and .conclusion == "success" and
+        .run_attempt == $record[0].run.attempt and .head_sha == $record[0].run.sha' "$work/rechecked-run.json" > /dev/null; }; then
+    fallback "php-base ci/ candidate run $run_id for $GITHUB_SHA is not reusable"
+fi
 reference=$(jq -er '.reference' "$record")
 for target in runtime coverage; do
     suffix=

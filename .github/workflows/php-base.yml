@@ -23,7 +23,8 @@ env:
 
 jobs:
   inputs:
-    # A main push builds through the native gates only when no ci/* candidate exists for its exact SHA.
+    # A main push builds through the native gates only when no ci/* candidate for its exact SHA is reusable;
+    # a failed reuse job (for example a failed retag) stays fatal and skips this build.
     needs: reuse
     if: ${{ !cancelled() && (github.event_name != 'schedule' || github.ref == 'refs/heads/main') && (needs.reuse.result == 'skipped' || (needs.reuse.result == 'success' && needs.reuse.outputs.reuse == 'false')) }}
     runs-on: ubuntu-latest
