@@ -1,7 +1,7 @@
 #!/bin/sh
-# Shared names are consumed by the scripts that source this file.
+# Shared names are consumed by the scripts that source this file, which set release_dir.
 # Container shell fragments expand in the container.
-# shellcheck disable=SC2034,SC2016
+# shellcheck disable=SC2034,SC2016,SC2154
 # All host lifecycle entry points use the same kernel-held lock, including after a crash.
 lifecycle_prefix=heptapod
 lifecycle_dir=.$lifecycle_prefix
@@ -46,12 +46,57 @@ validate_backup_name() {
     fi
 }
 
+# A release bundle install keeps .env.prod and .heptapod in its instance root, each release in releases/<tag>,
+# current -> releases/<tag>, and one root symlink <entry> -> current/<entry> per top-level bundle entry.
+# A Git checkout is its own instance root. Callers set release_dir to their own release, resolved once
+# (cd -P), and source helpers only from it, so one run never mixes the files of two releases.
+enter_instance_root() {
+    instance_root=$release_dir
+    if [ -f "$release_dir/RELEASE" ]; then
+        if [ "$(basename -- "$(dirname -- "$release_dir")")" != releases ]; then
+            echo "Refusing $release_dir: a release bundle runs from releases/<tag> below its installation directory, as the one-line installer publishes it (see docs/deploy/operations.md). Nothing was changed." >&2
+            exit 1
+        fi
+        instance_root=$(dirname -- "$(dirname -- "$release_dir")")
+    fi
+    cd "$instance_root" || exit 1
+    if [ -e .git ] && { [ -e current ] || [ -L current ]; }; then
+        echo "Refusing $PWD: it holds both a Git checkout (.git) and a release folder link (current). Remove the one this installation does not use. Nothing was changed." >&2
+        exit 1
+    fi
+    # Read-only before any write; acquire_lifecycle_lock checks again under the lock.
+    if [ "$release_dir" != "$PWD" ]; then check_release_links; fi
+}
+
+owned_by_us() {
+    [ "$(stat -c %u "$1")" = 0 ] || [ "$(stat -c %u "$1")" = "$(id -u)" ]
+}
+
+release_entries() {
+    sed 's|^\./||; s|/.*||' "$1/MANIFEST" | LC_ALL=C sort -u
+}
+
+# Under the lock: current names this script's release, and every top-level entry of its MANIFEST is reached
+# through a root symlink current/<entry> owned by root or this user.
+check_release_links() {
+    if ! [ -L current ] || ! owned_by_us current || [ "$(readlink current)" != "releases/${release_dir##*/}" ]; then
+        echo "Refusing $PWD/current: expected a symlink to releases/${release_dir##*/}, the release of this script, owned by root or you. Run the lifecycle scripts as $PWD/scripts/<name>.sh. Nothing was changed." >&2
+        exit 1
+    fi
+    for release_entry in $(release_entries "$release_dir"); do
+        if ! [ -L "$release_entry" ] || ! owned_by_us "$release_entry" || [ "$(readlink "$release_entry")" != "current/$release_entry" ]; then
+            echo "Refusing $PWD/$release_entry: expected a symlink to current/$release_entry owned by root or you. Nothing was changed." >&2
+            exit 1
+        fi
+    done
+}
+
 acquire_lifecycle_lock() {
     command -v flock >/dev/null 2>&1 || { echo 'flock (util-linux) is required for install/upgrade/rollback.' >&2; exit 1; }
     umask 077
-    # A planted symlink would redirect chmod and the lock file outside the installation. upgrade.sh repeats this.
-    for state_path in "$lifecycle_dir" "$lifecycle_dir/lifecycle.lock"; do
-        if [ -L "$state_path" ] || { [ -e "$state_path" ] && [ "$(stat -c %u "$state_path")" != 0 ] && [ "$(stat -c %u "$state_path")" != "$(id -u)" ]; }; then
+    # A planted symlink would redirect chmod, the lock file or a publication outside the installation.
+    for state_path in "$lifecycle_dir" "$lifecycle_dir/lifecycle.lock" releases; do
+        if [ -L "$state_path" ] || { [ -e "$state_path" ] && ! owned_by_us "$state_path"; }; then
             echo "Refusing $PWD/$state_path: it is a symlink or owned by another user. Nothing was changed." >&2
             exit 1
         fi
@@ -62,12 +107,12 @@ acquire_lifecycle_lock() {
     # Reopening fd 9 would release it, and a child holding a second descriptor would block on its parent.
     lock_handoff=${HEPTAPOD_LIFECYCLE_LOCK_FD:-}
     unset HEPTAPOD_LIFECYCLE_LOCK_FD
-    if [ "$lock_handoff" = 9 ] && [ "$(readlink -f "/proc/$$/fd/9")" = "$(readlink -f "$lifecycle_dir/lifecycle.lock")" ]; then
-        flock -n 9 || { echo 'Another install/upgrade/rollback is running; lifecycle lock held.' >&2; exit 1; }
-        return 0
+    if ! [ "$lock_handoff" = 9 ] || [ "$(readlink -f "/proc/$$/fd/9")" != "$(readlink -f "$lifecycle_dir/lifecycle.lock")" ]; then
+        exec 9>"$lifecycle_dir/lifecycle.lock"
     fi
-    exec 9>"$lifecycle_dir/lifecycle.lock"
     flock -n 9 || { echo 'Another install/upgrade/rollback is running; lifecycle lock held.' >&2; exit 1; }
+    # Only a lock holder swaps current, so from here on it stays this release.
+    if [ "$release_dir" != "$PWD" ]; then check_release_links; fi
 }
 
 shell_quote() {

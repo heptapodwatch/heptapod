@@ -3,9 +3,10 @@
 # shellcheck disable=SC2016
 # Restore the recorded generation, never run migration down() methods.
 set -eu
-cd "$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)"
+release_dir=$(CDPATH='' cd -P -- "$(dirname -- "$0")/.." && pwd)
 # shellcheck source=scripts/lifecycle-lock.sh
-. ./scripts/lifecycle-lock.sh
+. "$release_dir/scripts/lifecycle-lock.sh"
+enter_instance_root
 case "${1:-}" in
     --help|-h)
         cat <<'HELP'
