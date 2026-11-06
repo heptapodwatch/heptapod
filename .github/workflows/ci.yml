@@ -157,6 +157,12 @@ jobs:
       - name: PHP base bump fixture contracts
         if: matrix.group == 'frontend'
         run: bash tests/Deployment/php-base-bump.sh
+      - name: Release bundle builder contracts
+        if: matrix.group == 'frontend'
+        run: sh tests/Deployment/build-release-bundle.sh
+      - name: Hosted installer contracts
+        if: matrix.group == 'frontend'
+        run: sh tests/Deployment/bootstrap-install.sh
       - name: Static checks
         env:
           CHECK_GROUP: ${{ matrix.group }}

@@ -1,0 +1,54 @@
+name: Release bundle
+
+# Runs only for published releases (and manual re-attachment), never for pushes or pull requests.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published release tag to build and attach the bundle for
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-bundle-${{ github.event.release.tag_name || inputs.tag }}
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          persist-credentials: false
+      # The installer's own check: pull both images for the tag commit and verify their revision labels.
+      - name: Require the published images of the tag commit
+        run: |
+          if ! sh -ec '. ./scripts/release-image.sh; release_checkout; resolve_release_images true'; then
+            echo "::error::Images for $TAG ($(git rev-parse HEAD)) are not published. Wait for Production images on main to publish this commit, then run this workflow manually for $TAG."
+            exit 1
+          fi
+      - name: Build the bundle
+        run: bash scripts/build-release-bundle.sh "$TAG" "$(git rev-parse HEAD)" "$RUNNER_TEMP/bundle"
+      - name: Attach the bundle and its checksum to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" "$RUNNER_TEMP/bundle/heptapod-$TAG.tar.gz" "$RUNNER_TEMP/bundle/heptapod-$TAG.tar.gz.sha256" --clobber --repo "$GITHUB_REPOSITORY"
+      # Optional integration: without the secret the website keeps its docs until its next build.
+      - name: Trigger the website docs build
+        env:
+          WEBSITE_DISPATCH_TOKEN: ${{ secrets.WEBSITE_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$WEBSITE_DISPATCH_TOKEN" ]; then
+            echo "::notice::WEBSITE_DISPATCH_TOKEN is not set; the website docs build was not triggered for $TAG."
+            exit 0
+          fi
+          GH_TOKEN=$WEBSITE_DISPATCH_TOKEN gh api repos/heptapodwatch/heptapod.website/dispatches -f event_type=app-docs -f "client_payload[ref]=$TAG"

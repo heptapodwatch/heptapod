@@ -4,6 +4,18 @@ Release images are `ghcr.io/heptapodwatch/heptapod-app` and `ghcr.io/heptapodwat
 
 Ubuntu 24.04. For a browser-disabled prebuilt installation, start with CX23 (amd64, 2 vCPU / 4 GB RAM / 40 GB disk). For Lighthouse, use CX33 (amd64, 4 vCPU / 8 GB RAM / 80 GB disk). The arm64 alternatives, CAX11 (2 / 4 / 40) and CAX21 (4 / 8 / 80), require source builds while prebuilt images are amd64-only. The default installer enables browser services; pass `--without-browser` on a 4 GB host. Capacity depends on check mix and target latency, not site count alone; see the [capacity table and measured limits](operations.md#installation-and-capacity). PDF reports are not part of this release. Prebuilt application and Lighthouse images are amd64-only by default. Use an amd64 host for the prebuilt installation below; arm64 prebuilt installations require published arm64 images. Existing source-built arm64 instances can use `./scripts/upgrade.sh --build`. The repository variable `HEPTAPOD_IMAGE_ARCHES` enables `amd64,arm64` publication; it is not an installer setting. See [operations](operations.md) for image selection. Keep at least 12 GiB free on the Docker data filesystem: the installer reserves 6 GiB for downloading/unpacking images and 6 GiB for backup headroom. Larger databases or storage need more backup space.
 
+## Install with the one-line installer
+
+Point DNS at the VPS and open the firewall first (see the end of this page). On a fresh Ubuntu 24.04 amd64 VPS, run as a sudo-capable user:
+
+```sh
+curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --install-docker --domain monitor.example.com --owner-email owner@example.com --without-browser
+```
+
+`--install-docker` installs Docker Engine and the Compose plugin from Docker's apt repository, as in the prerequisites below, plus curl, jq and OpenSSL; it changes nothing if Docker is already installed. Without it, a missing Docker stops the installer with the exact command. The installer verifies the release bundle's checksum, installs into `/opt/heptapod` and starts the pinned release. Upgrade later with `cd /opt/heptapod && sudo ./scripts/upgrade.sh`. See [operations](operations.md#installation-and-capacity) for every step and option.
+
+The rest of this page describes the manual installation from a Git checkout.
+
 ## Fresh VPS prerequisites
 
 Use a fresh Ubuntu 24.04 amd64 VPS with a sudo-capable account. Install Docker Engine and the Compose plugin from Docker's apt repository (https://docs.docker.com/engine/install/ubuntu/):
@@ -42,7 +54,7 @@ INSTALL_DIR="$HOME/heptapod"
 git clone --depth 1 --branch "$RELEASE_TAG" "$REPOSITORY_URL" "$INSTALL_DIR" && cd "$INSTALL_DIR" && ./scripts/install.sh --domain monitor.example.com --owner-email owner@example.com --without-browser
 ```
 
-For a release archive without Git, extract it into an empty directory and use the [export installation command](operations.md#install-a-release-export-without-git) with the full published commit SHA supplied by the release publisher.
+For a release bundle without Git, extract it into an empty directory and use the [export installation command](operations.md#install-a-release-export-without-git) with the commit SHA from its `REVISION` file. To upgrade the Git checkout later, run `git fetch --tags && git checkout <tag>`, then `./scripts/upgrade.sh`.
 
 If the first clone failed, remove its partial destination directory before cloning again. Do not remove an existing installation or its data.
 

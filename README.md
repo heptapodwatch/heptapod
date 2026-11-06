@@ -16,7 +16,23 @@ The app does not serve an API guide at `/docs/api`. Operators distributing these
 
 ## Installation
 
-First install Docker Engine, Docker Compose v5 (tested 5.1.2), Git and OpenSSL using the [fresh Ubuntu VPS prerequisites](docs/deploy/hetzner.md#fresh-vps-prerequisites). Use an amd64 host, a domain pointing to it, inbound TCP 80/443, and at least 12 GiB free on the Docker data filesystem (6 GiB for image download/unpacking and 6 GiB for backup headroom).
+Use an Ubuntu or Debian amd64 host, a domain pointing to it, inbound TCP 80/443, and at least 12 GiB free on the Docker data filesystem (6 GiB for image download/unpacking and 6 GiB for backup headroom). Then run:
+
+```sh
+curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --domain monitor.example.com --owner-email owner@example.com --without-browser
+```
+
+The installer downloads the latest release bundle (`--version v0.1.0` pins one), verifies its SHA-256 checksum, unpacks it into `/opt/heptapod` (`--dir` changes that) and runs the bundle's `scripts/install.sh`. No Git is needed. Docker Engine with Compose v5 must be installed; if it is missing, the installer stops and prints the same command with `--install-docker`, which installs Docker from Docker's apt repository. Replace the domain and email. The browser-disabled path targets 4 GB hosts; see the [Hetzner guide](docs/deploy/hetzner.md) for browser-enabled sizing. A rerun on an existing installation starts nothing and prints the upgrade command.
+
+Upgrade to the latest release, or to a chosen tag with `--to v0.2.0`:
+
+```sh
+cd /opt/heptapod && sudo ./scripts/upgrade.sh
+```
+
+### Manual installation from a Git checkout
+
+First install Docker Engine, Docker Compose v5 (tested 5.1.2), Git and OpenSSL using the [fresh Ubuntu VPS prerequisites](docs/deploy/hetzner.md#fresh-vps-prerequisites).
 
 After adding your account to the Docker group, **log out and log back in**. In the new session, confirm access before cloning:
 
@@ -35,7 +51,7 @@ git clone --depth 1 --branch "$RELEASE_TAG" "$REPOSITORY_URL" "$INSTALL_DIR" && 
 
 If the first clone failed, remove its partial destination directory before cloning again; never remove an existing installation or its data.
 
-Use an exact published release tag, not a moving branch. The clone fetches the installer and its configuration before running it. Replace the domain and email. The browser-disabled path targets 4 GB hosts; see the [Hetzner guide](docs/deploy/hetzner.md) for browser-enabled sizing and full prerequisites. Rerunning the installer preserves existing secrets and does not start or restart an instance with `.env.prod`; follow its printed first-start or upgrade instructions.
+Use an exact published release tag, not a moving branch. The clone fetches the installer and its configuration before running it. Rerunning the installer preserves existing secrets and does not start or restart an instance with `.env.prod`; follow its printed first-start or upgrade instructions. To upgrade a Git checkout, check out the new tag first (`git fetch --tags && git checkout v0.2.0`), then run `./scripts/upgrade.sh`.
 
 ## Development
 

@@ -4,29 +4,146 @@
 set -eu
 cd "$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)"
 dc() { docker compose --env-file .env.prod "$@"; }
+# The lifecycle lock, then the bundle replacement record (below), before sourcing any helper: an interrupted
+# replacement leaves files of two releases. This block is self-contained; it and the record format stay
+# compatible across releases, because either release's upgrade.sh may run it.
+umask 077
+for state_path in .heptapod .heptapod/lifecycle.lock; do
+    if [ -L "$state_path" ] || { [ -e "$state_path" ] && [ "$(stat -c %u "$state_path")" != 0 ] && [ "$(stat -c %u "$state_path")" != "$(id -u)" ]; }; then
+        echo "Refusing $PWD/$state_path: it is a symlink or owned by another user. Nothing was changed." >&2
+        exit 1
+    fi
+done
+mkdir -p .heptapod
+chmod 700 .heptapod
+# Handoff: the re-exec below passes this lock already held on fd 9; reopening fd 9 would release it.
+if [ "${HEPTAPOD_LIFECYCLE_LOCK_FD:-}" != 9 ] || [ "$(readlink -f "/proc/$$/fd/9")" != "$(readlink -f .heptapod/lifecycle.lock)" ]; then
+    exec 9>.heptapod/lifecycle.lock
+fi
+unset HEPTAPOD_LIFECYCLE_LOCK_FD
+flock -n 9 || { echo 'Another install/upgrade/rollback is running; lifecycle lock held.' >&2; exit 1; }
+record=.heptapod/upgrade/host-replacement
+record_previous=.heptapod/upgrade/host-previous
+record_manifest=.heptapod/upgrade/host-manifest
+# Preparation writes the complete record as $record.tmp, ending in "end", and publishes it by rename before
+# the first file rename. An unpublished .tmp is unfinished preparation, which the next preparation overwrites.
+if [ -e "$record" ] || [ -L "$record" ]; then
+    record_invalid() {
+        echo "Invalid bundle replacement record $PWD/$record: $1. Nothing was changed. Restore the files it lists from $PWD/$record_previous by hand (old: copy back, new: delete), then remove $record, $record_previous and $record_manifest." >&2
+        exit 1
+    }
+    # Validate the whole record before touching any file: complete, one line per recovery MANIFEST path in
+    # its order, only bundle paths inside this directory, and a previous copy for every replaced file.
+    { [ -f "$record" ] && [ ! -L "$record" ] && [ "$(tail -n 1 "$record")" = end ] && [ -z "$(tail -c 1 "$record")" ]; } ||
+        record_invalid 'it has no final end line'
+    { [ -f "$record_manifest" ] && [ ! -L "$record_manifest" ] && [ -s "$record_manifest" ] && [ -z "$(tail -c 1 "$record_manifest")" ] &&
+        [ -z "$(sort "$record_manifest" | uniq -d)" ]; } || record_invalid "the recovery MANIFEST $record_manifest is missing, incomplete or has duplicates"
+    record_lines=$(wc -l < "$record")
+    record_line=0
+    while IFS=' ' read -r replaced replaced_file; do
+        record_line=$((record_line + 1))
+        [ "$record_line" -lt "$record_lines" ] || break
+        case "$replaced" in old|new) ;; *) record_invalid "line $record_line is not old/new PATH" ;; esac
+        case "$replaced_file" in
+            ./.env.prod|./.heptapod|./.heptapod/*|*/../*|*/..|*/./*|*//*|*[!A-Za-z0-9._/-]*) record_invalid "unsafe path $replaced_file" ;;
+            ./*) ;;
+            *) record_invalid "unsafe path $replaced_file" ;;
+        esac
+        record_parent=${replaced_file%/*}
+        while [ "$record_parent" != . ]; do
+            [ ! -L "$record_parent" ] || record_invalid "$record_parent is a symlink"
+            record_parent=${record_parent%/*}
+        done
+        [ "$replaced" = new ] || [ -f "$record_previous/$replaced_file" ] || record_invalid "the previous copy of $replaced_file is missing"
+    done < "$record"
+    [ "$(sed '$d; s/^[^ ]* //' "$record")" = "$(cat "$record_manifest")" ] || record_invalid 'its paths differ from the recovery MANIFEST'
+    # Copy back through a fresh temporary file and a rename: the running script may be one of these files.
+    # The copies stay until every file is verified.
+    while IFS=' ' read -r replaced replaced_file; do
+        restore_tmp=
+        case "$replaced" in
+            old) restore_tmp=$(mktemp "$(dirname -- "$replaced_file")/.restore.XXXXXX") &&
+                cp -p "$record_previous/$replaced_file" "$restore_tmp" && mv "$restore_tmp" "$replaced_file" &&
+                cmp -s "$record_previous/$replaced_file" "$replaced_file" ;;
+            new) rm -f "$replaced_file" && [ ! -e "$replaced_file" ] ;;
+            *) true ;;
+        esac || {
+            if [ -n "$restore_tmp" ]; then rm -f "$restore_tmp"; fi
+            echo "Restoring $replaced_file failed; $record and $record_previous are kept. Fix the error above, then rerun ./scripts/upgrade.sh." >&2
+            exit 1
+        }
+    done < "$record"
+    sync
+    rm "$record"
+    sync
+    rm -rf "$record_previous" "$record_manifest"
+    echo "Restored the files of revision $(cat REVISION) after an interrupted bundle replacement."
+    export HEPTAPOD_LIFECYCLE_LOCK_FD=9
+    exec ./scripts/upgrade.sh "$@"
+fi
 # shellcheck source=scripts/lifecycle-lock.sh
 . ./scripts/lifecycle-lock.sh
 # shellcheck source=scripts/release-image.sh
 . ./scripts/release-image.sh
 build=false
 resume=false
+target_tag=
+staged_revision=
+usage='Usage: ./scripts/upgrade.sh [--to TAG|--build|--resume]'
 case "${1:-}" in
     --help|-h)
         cat <<'HELP'
-Usage: ./scripts/upgrade.sh [--build|--resume]
+Usage: ./scripts/upgrade.sh [--to TAG|--build|--resume]
 
-Upgrade to the checkout's published release, or use --build for a source build.
+Release bundle installs (no Git): without arguments, upgrade to the latest
+release; --to TAG selects one. Both download and verify the release bundle,
+replace the Compose files and scripts (never .env.prod or volumes), then
+continue with the new release's upgrade.sh --staged REVISION. TAG is vX.Y.Z.
+The deployed release is a no-op; an installed but undeployed one continues its
+upgrade; an older one is refused (downgrades restore a backup).
+A rerun first restores the previous files of an interrupted replacement.
+
+Git checkouts: run git fetch --tags && git checkout TAG first; HEAD selects the
+release. --build makes a source build of the checkout instead.
+
 --resume finishes the recorded interrupted upgrade without preparing it again.
-Requires Docker Compose v5, flock, jq and Linux coreutils sync.
+Requires Docker Compose v5, flock, jq and Linux coreutils sync; bundle
+downloads also need curl and tar.
 HELP
         exit 0 ;;
     '') ;;
     --build) build=true ;;
     --resume) resume=true ;;
-    *) echo 'Usage: ./scripts/upgrade.sh [--build|--resume]' >&2; exit 1 ;;
+    --to)
+        [ "$#" -eq 2 ] || { echo "$usage" >&2; exit 1; }
+        validate_release_tag "$2"
+        target_tag=$2; shift ;;
+    --staged)
+        if [ "$#" -ne 2 ] || ! printf '%s\n' "$2" | grep -Eq '^[a-f0-9]{40}$'; then
+            echo '--staged requires the full 40-character REVISION of the bundle files in place' >&2; exit 1
+        fi
+        staged_revision=$2; shift ;;
+    *) echo "$usage" >&2; exit 1 ;;
 esac
 [ "$#" -le 1 ] || { echo 'Too many arguments' >&2; exit 1; }
-acquire_lifecycle_lock
+bundle_install=false
+if command -v git >/dev/null 2>&1 && git rev-parse HEAD >/dev/null 2>&1; then
+    if [ -n "$target_tag" ] || [ -n "$staged_revision" ]; then
+        echo 'This is a Git checkout: run git fetch --tags && git checkout <tag> first, then ./scripts/upgrade.sh without arguments.' >&2
+        exit 1
+    fi
+    [ "$resume" = true ] || echo 'Git checkout: upgrading to HEAD. To select a release, run git fetch --tags && git checkout <tag> first.'
+elif [ -f REVISION ]; then
+    bundle_install=true
+    [ "$build" = false ] || { echo '--build needs a Git checkout; release bundle installs upgrade to published images.' >&2; exit 1; }
+    if [ -n "$staged_revision" ] && [ "$(cat REVISION)" != "$staged_revision" ]; then
+        echo "--staged $staged_revision does not match REVISION $(cat REVISION); rerun ./scripts/upgrade.sh to stage the release again." >&2
+        exit 1
+    fi
+else
+    echo 'Upgrades need a Git checkout of the release or a release bundle install (REVISION file). See docs/deploy/operations.md.' >&2
+    exit 1
+fi
 state="$PWD/$lifecycle_dir/upgrade"
 previous="$state/previous"
 phase=
@@ -68,6 +185,69 @@ if [ -f "$state/phase" ]; then
     esac
 elif [ "$resume" = true ]; then
     echo 'No interrupted upgrade to resume.' >&2; exit 1
+fi
+# Bundle installs replace their files like a Git checkout of the tag, then run that release's own upgrade.
+if [ "$bundle_install" = true ] && [ "$resume" = false ] && [ -z "$staged_revision" ]; then
+    command -v curl >/dev/null 2>&1 || { echo 'curl is required to download the release bundle.' >&2; exit 1; }
+    [ -n "$target_tag" ] || target_tag=$(latest_release_tag)
+    [ -f RELEASE ] || { echo 'The release bundle installation has no RELEASE file; cannot compare it with the target release.' >&2; exit 1; }
+    installed_tag=$(cat RELEASE)
+    validate_release_tag "$installed_tag"
+    if [ "$target_tag" = "$installed_tag" ]; then
+        # Its files are in place, but a failed upgrade leaves the old images running: only a deployment counts.
+        app_container=$(dc ps -q app)
+        running_revision=
+        if [ -n "$app_container" ]; then
+            running_revision=$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$app_container")
+        fi
+        if [ "$running_revision" = "$(cat REVISION)" ] && { [ -z "$phase" ] || [ "$phase" = committed ]; }; then
+            echo "Release $installed_tag is already deployed; nothing to upgrade."
+            exit 0
+        fi
+        echo "Release $installed_tag is in place but not deployed (running revision ${running_revision:-none}); continuing its upgrade."
+        export HEPTAPOD_LIFECYCLE_LOCK_FD=9
+        exec ./scripts/upgrade.sh --staged "$(cat REVISION)"
+    fi
+    # Migrations only run forward: older code on the current schema is not a supported state.
+    if release_tag_older "$target_tag" "$installed_tag"; then
+        echo "Refusing to downgrade from $installed_tag to $target_tag. Returning to an older release means restoring a backup taken with it; see docs/deploy/operations.md." >&2
+        exit 1
+    fi
+    mkdir -p "$state"
+    # Stage on the installation filesystem: each rename leaves this running script's open file intact.
+    bundle_stage=$(mktemp -d "$lifecycle_dir/bundle.XXXXXX")
+    trap 'rm -rf "$bundle_stage"; if [ -f "$state/host-replacement" ]; then echo "Bundle replacement interrupted. Rerun ./scripts/upgrade.sh: it first restores the previous release files." >&2; fi' EXIT
+    fetch_release_bundle "$target_tag" "$bundle_stage"
+    # Keep a copy of every file about to be replaced and record the replacement durably, ending in "end",
+    # before the first rename. The top of this script restores from both after an interruption.
+    host_previous=$state/host-previous
+    rm -rf "$host_previous"
+    cp "$bundle_root/MANIFEST" "$state/host-manifest"
+    while IFS= read -r bundle_file; do
+        if [ -e "$bundle_file" ]; then
+            mkdir -p "$host_previous/$(dirname -- "$bundle_file")"
+            cp -p "$bundle_file" "$host_previous/$bundle_file"
+            printf 'old %s\n' "$bundle_file"
+        else
+            printf 'new %s\n' "$bundle_file"
+        fi
+    done < "$state/host-manifest" > "$state/host-replacement.tmp"
+    echo end >> "$state/host-replacement.tmp"
+    sync
+    persist_lifecycle_file "$state/host-replacement"
+    # MANIFEST order: REVISION last, so a partial replacement never claims the new release.
+    while IFS= read -r bundle_file; do
+        mkdir -p "$(dirname -- "$bundle_file")"
+        mv "$bundle_root/$bundle_file" "$bundle_file"
+    done < "$state/host-manifest"
+    sync
+    rm "$state/host-replacement"
+    sync
+    rm -rf "$host_previous" "$state/host-manifest" "$bundle_stage"
+    trap - EXIT
+    echo "Staged $target_tag ($bundle_revision); continuing with its upgrade.sh."
+    export HEPTAPOD_LIFECYCLE_LOCK_FD=9
+    exec ./scripts/upgrade.sh --staged "$bundle_revision"
 fi
 if [ "$resume" = true ]; then
     COMPOSE_PROJECT_NAME=$(cat "$previous/project")
@@ -274,12 +454,7 @@ capture_diagnostics() {
 }
 if [ "$resume" = false ]; then
     guard_preparation_container "$state" "$PWD/scripts/upgrade.sh" --resume
-    # release_checkout's export hint names install.sh's --revision, which upgrade.sh does not have.
-    if ! command -v git >/dev/null 2>&1 || ! git rev-parse HEAD >/dev/null 2>&1; then
-        echo 'Upgrades need a Git checkout of the release. See docs/deploy/operations.md.' >&2
-        exit 1
-    fi
-    release_checkout
+    release_checkout "$staged_revision"
     # Replace the last completed generation only while holding the host lock.
     mkdir -p "$previous"
     for component in app lighthouse; do

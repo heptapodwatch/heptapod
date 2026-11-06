@@ -21,6 +21,63 @@ release_checkout() {
     fi
 }
 
+# Release bundles are GitHub release assets. The overrides select a mirror or a test fixture (file:// works).
+release_api=${HEPTAPOD_RELEASE_API:-https://api.github.com/repos/heptapodwatch/heptapod}
+release_download=${HEPTAPOD_RELEASE_DOWNLOAD:-https://github.com/heptapodwatch/heptapod/releases/download}
+
+# Heptapod publishes only vMAJOR.MINOR.PATCH releases; pre-release tags are refused, not ordered.
+validate_release_tag() {
+    printf '%s\n' "$1" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || { echo "Invalid release tag: $1. Heptapod publishes only vX.Y.Z release tags, e.g. v0.2.0." >&2; exit 1; }
+}
+
+# True when release tag $1 is older than $2, comparing major, minor and patch as numbers.
+release_tag_older() {
+    awk -v older="${1#v}" -v newer="${2#v}" 'BEGIN {
+        split(older, a, "."); split(newer, b, ".")
+        for (i = 1; i <= 3; i++) { if (a[i] + 0 != b[i] + 0) exit !(a[i] + 0 < b[i] + 0) }
+        exit 1
+    }'
+}
+
+latest_release_tag() {
+    latest_json=$(curl -fsSL "$release_api/releases/latest") || { echo "Cannot read the latest release from $release_api/releases/latest; pass --to <tag>." >&2; exit 1; }
+    latest_tag=$(printf '%s\n' "$latest_json" | grep -o '"tag_name": *"[^"]*"' | head -n 1 | sed 's/.*"\([^"]*\)"$/\1/')
+    validate_release_tag "$latest_tag"
+    printf '%s\n' "$latest_tag"
+}
+
+# Download, verify and unpack heptapod-<tag>.tar.gz into $2. Sets bundle_root and bundle_revision.
+fetch_release_bundle() {
+    bundle_tag=$1
+    bundle_name=heptapod-$bundle_tag.tar.gz
+    for bundle_file in "$bundle_name" "$bundle_name.sha256"; do
+        curl -fsSL -o "$2/$bundle_file" "$release_download/$bundle_tag/$bundle_file" || { echo "Cannot download $release_download/$bundle_tag/$bundle_file" >&2; exit 1; }
+    done
+    bundle_expected=$(awk 'NR == 1 { print $1 }' "$2/$bundle_name.sha256")
+    bundle_actual=$(sha256sum "$2/$bundle_name" | awk '{ print $1 }')
+    if ! printf '%s\n' "$bundle_expected" | grep -Eq '^[a-f0-9]{64}$' || [ "$bundle_actual" != "$bundle_expected" ]; then
+        echo "Checksum mismatch for $bundle_name: expected $bundle_expected, got $bundle_actual. Nothing was changed." >&2
+        exit 1
+    fi
+    tar -xzf "$2/$bundle_name" -C "$2" --no-same-owner
+    bundle_root=$2/heptapod-$bundle_tag
+    bundle_revision=$(cat "$bundle_root/REVISION")
+    printf '%s\n' "$bundle_revision" | grep -Eq '^[a-f0-9]{40}$' || { echo "$bundle_name has no valid REVISION. Nothing was changed." >&2; exit 1; }
+    [ "$(cat "$bundle_root/RELEASE")" = "$bundle_tag" ] || { echo "$bundle_name has no RELEASE file for $bundle_tag. Nothing was changed." >&2; exit 1; }
+    validate_bundle_manifest "$bundle_root" || { echo "$bundle_name does not match its MANIFEST. Nothing was changed." >&2; exit 1; }
+}
+
+# The bundle holds exactly the regular files its newline-terminated MANIFEST lists (an unterminated last
+# line would be skipped by the publication loops), REVISION last; no installation state,
+# no absolute or parent paths. bootstrap-install.sh repeats this check.
+validate_bundle_manifest() {
+    [ -f "$1/MANIFEST" ] && [ -z "$(tail -c 1 "$1/MANIFEST")" ] && [ "$(tail -n 1 "$1/MANIFEST")" = ./REVISION ] &&
+        [ "$(cd "$1" && find . -type f | LC_ALL=C sort)" = "$(LC_ALL=C sort "$1/MANIFEST")" ] &&
+        [ -z "$(cd "$1" && find . ! -type f ! -type d)" ] &&
+        ! grep -Ev '^\./[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$' "$1/MANIFEST" > /dev/null &&
+        ! grep -E '^\./(.*/)?\.\.?(/|$)|^\./\.env\.prod$|^\./\.heptapod(/|$)' "$1/MANIFEST" > /dev/null
+}
+
 resolve_release_images() {
     release_browser=${1:?Pass the browser selection}
     default_app_repository=$(bash ./scripts/image-reference.sh app) || return 1
