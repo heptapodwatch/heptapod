@@ -45,11 +45,11 @@ Continue only when this succeeds without sudo. Require Docker Compose v5 (tested
 
 ## Download a release and install
 
-Install v0.1.0 from the public repository. Pin an exact release tag rather than a moving branch such as `main`.
+Install v0.1.1 from the public repository. Pin an exact release tag rather than a moving branch such as `main`.
 
 ```sh
 REPOSITORY_URL='https://github.com/heptapodwatch/heptapod.git'
-RELEASE_TAG='v0.1.0'
+RELEASE_TAG='v0.1.1'
 INSTALL_DIR="$HOME/heptapod"
 git clone --depth 1 --branch "$RELEASE_TAG" "$REPOSITORY_URL" "$INSTALL_DIR" && cd "$INSTALL_DIR" && ./scripts/install.sh --domain monitor.example.com --owner-email owner@example.com --without-browser
 ```
@@ -60,14 +60,17 @@ If the first clone failed, remove its partial destination directory before cloni
 
 The clone downloads `scripts/install.sh`, the Compose files and the environment example from the same pinned release before executing the installer. Use an empty destination. Replace the domain and Owner email; omit `--without-browser` only on a host sized for browser services. An existing `.env.prod` makes the installer validate configuration and report any missing keys it appends, without starting or restarting services or creating an Owner. It checks `docker compose --env-file .env.prod ps -q app` read-only. If an app is running, use the printed `./scripts/upgrade.sh` instruction (add `--build` only for source-build installs).
 
-If the first installation failed before the app started, fix the reported image-access, network or port error first. With no running app, the installer prints this explicit first-start path instead of an upgrade. Replace the email and run the Owner command only after services are healthy:
+If the first installation failed before the app started, the installer printed a complete recovery block ending in `# END INSTALL RECOVERY`. Fix the reported image-access, network or port error, then paste that whole block: it pins the verified release images before it starts services and creates the Owner. Do not run a plain `docker compose up` instead; until the images are pinned, the production defaults select the moving `:main` images. A rerun of the installer prints the same block again while no release image is pinned.
+
+Only an installation whose images are already pinned and that is stopped starts with this explicit path, which the installer prints on a rerun instead of an upgrade. Replace the email and run the Owner command only after services are healthy:
 
 ```sh
+sh -ec '. ./scripts/worker-memory-preflight.sh; require_worker_memory'
 docker compose --env-file .env.prod up -d --wait
 docker compose --env-file .env.prod exec -T app php artisan heptapod:user:create-owner --email=owner@example.com --if-missing --no-interaction
 ```
 
-This also starts a configured but stopped instance. The installer never runs these commands on a rerun.
+The installer never runs these commands on a rerun.
 
 Before installation, point DNS A (AAAA only with working IPv6) at the VPS. In the Hetzner firewall, allow inbound TCP 22, 80 and 443 only. Caddy handles automatic TLS. Public registration is disabled. The installer creates the first verified Owner and prints its password once; use `--owner-email` or follow the prompt. See [operations](operations.md) for non-interactive installs and password recovery. The dispatcher, Horizon and scheduler run their production commands; worker sizing is documented there. For a disposable local install, the [Mailpit recipe](operations.md#capture-mail-locally-with-mailpit) captures test mail without sending it to real recipients.
 
