@@ -46,13 +46,14 @@ case "${1:-all}" in
             trap 'rm -f "$baseline" "$baseline.after"' EXIT
             paths=(AGENTS.md boost.json .agents/skills resources/js/actions resources/js/routes resources/js/wayfinder resources/js/types/generated.d.ts)
             # Compare regeneration with the submitted working tree, not HEAD: an uncommitted generated change can be commit-ready.
-            # In clean CI this still requires zero generated changes.
-            git diff --binary HEAD -- "${paths[@]}" > "$baseline"
+            # In clean CI this still requires zero generated changes. --full-index: abbreviated blob hashes can grow between the two
+            # runs when the generators add objects, which would show a content-identical diff.
+            git diff --binary --full-index HEAD -- "${paths[@]}" > "$baseline"
             php artisan wayfinder:generate --with-form --no-interaction
             composer types:generate
             php artisan boost:update --no-interaction
             php scripts/check-openapi.php
-            git diff --binary HEAD -- "${paths[@]}" > "$baseline.after"
+            git diff --binary --full-index HEAD -- "${paths[@]}" > "$baseline.after"
             diff -u "$baseline" "$baseline.after"
             test -z "$(git ls-files --others --exclude-standard AGENTS.md .agents boost.json)"
             test -z "$(git ls-files --others --exclude-standard resources/js/actions resources/js/routes resources/js/wayfinder resources/js/types)"
