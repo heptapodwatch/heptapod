@@ -487,9 +487,12 @@ dc exec -T app php artisan up
 # Pruning keeps the release deployed before this one, which neither directory order nor current can tell.
 current_tag=${release_dir##*/}
 if [ "$bundle_install" = true ] && [ "$(cat "$state/deployed-release" 2>/dev/null || true)" != "$current_tag" ]; then
-    if [ -f "$state/deployed-release" ]; then
+    if [ -f "$state/deployed-release" ] && grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+' "$state/deployed-release"; then
         cp "$state/deployed-release" "$state/previous-release.tmp"
         persist_lifecycle_file "$state/previous-release"
+    elif [ -f "$state/deployed-release" ]; then
+        # Unreadable history: forget the previous release, so pruning waits until history is rebuilt.
+        rm -f "$state/previous-release"
     fi
     printf '%s\n' "$current_tag" > "$state/deployed-release.tmp"
     persist_lifecycle_file "$state/deployed-release"
@@ -550,7 +553,13 @@ fi
 # when it was created: then nothing is removed either.
 prune_releases() {
     [ -f "$state/previous-release" ] || return 0
-    previous_tag=$(cat "$state/previous-release")
+    previous_tag=$(cat "$state/previous-release") || return 1
+    # Altered history could name no real release and lose the actual previous one: keep everything instead.
+    if ! printf '%s\n' "$previous_tag" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+' || [ "$previous_tag" = "$current_tag" ] || [ ! -d "releases/$previous_tag" ] \
+        || [ "$(cat "$state/deployed-release" 2>/dev/null || true)" != "$current_tag" ]; then
+        echo "WARNING: the recorded release history in $state is not consistent; no release folder was removed." >&2
+        return 0
+    fi
     container_ids=$(docker ps -q) || return 1
     bind_sources=
     if [ -n "$container_ids" ]; then
@@ -558,7 +567,7 @@ prune_releases() {
     fi
     while IFS= read -r bind_source; do
         case "$bind_source" in
-            "$PWD"/*)
+            "$PWD"|"$PWD"/*)
                 echo "WARNING: a running container bind-mounts $bind_source from the installation directory, possibly from a release folder; no release folder was removed. Recreate or stop that container; the next upgrade removes them." >&2
                 return 0 ;;
         esac

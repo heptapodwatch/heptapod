@@ -368,6 +368,7 @@ for discontinuing in v9.9.30 v9.9.31; do
     build_bundle "$discontinuing" "$bundle_revision" 'rm -r LICENSE docker && printf new > NEW_ENTRY && relist'
 done
 build_bundle v9.9.40 "$bundle_revision"
+build_bundle v9.9.41 "$bundle_revision"
 mkdir -p "$fresh/api/releases" git-layout
 printf '{"tag_name": "v9.9.9"}' > "$fresh/api/releases/latest"
 export HEPTAPOD_RELEASE_API="file://$fresh/api" HEPTAPOD_RELEASE_DOWNLOAD="file://$fresh/release"
@@ -658,6 +659,13 @@ STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./sc
 [ "$(readlink LICENSE)" = current/LICENSE ]
 [ "$(readlink docker)" = current/docker ]
 [ ! -L NEW_ENTRY ]
+# Altered history: a deployed-release that names no release must not become the previous release, and nothing is pruned
+# until two committed upgrades have rebuilt the history.
+printf 'garbage\n' > "$lifecycle_state/deployed-release"
+STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.41 > bundle-bad-history.log 2>&1
+[ "$(cat "$lifecycle_state/deployed-release")" = v9.9.41 ]
+[ ! -e "$lifecycle_state/previous-release" ]
+[ "$(LC_ALL=C ls -A releases | tr '\n' ' ')" = 'v9.9.31 v9.9.40 v9.9.41 ' ]
 printf 'PASS: without arguments a bundle install upgrades to the latest release, then is a no-op; root entries follow the release; a container bind-mounting from the installation directory blocks pruning across two upgrades, also through a discontinued entry\n'
 # No run mixed releases: every helper was sourced by a script of its own release, also right after a swap.
 grep -Fxq 'lifecycle-lock.sh of v9.9.9 from v9.9.9' sourced.log
