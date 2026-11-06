@@ -268,6 +268,7 @@ jobs:
           elapsed=$(( $(date +%s) - started ))
           printf 'Gate runtime: %ss; seed: %s; exit: %s\n' "$elapsed" "$seed" "$result" | tee "$RUNNER_TEMP/gate-results/runtime.txt" >> "$GITHUB_STEP_SUMMARY"
           test -s "$RUNNER_TEMP/gate-results/gate.xml"
+          # shellcheck disable=SC2016 # single-quoted PHP source, not shell
           php -r '$xml = simplexml_load_file($argv[1]); $cases = $xml->xpath("//testcase"); if (count($cases) < 29) { fwrite(STDERR, "Gate ran fewer than 29 cases.\n"); exit(1); } $quiet = count($xml->xpath("//testcase[skipped or incomplete]")); if ($quiet !== 0) { fwrite(STDERR, "Gate has {$quiet} skipped or incomplete cases; quarantine by removal, never by skip.\n"); exit(1); }' "$RUNNER_TEMP/gate-results/gate.xml"
           exit "$result"
       - name: Report Gate outcome

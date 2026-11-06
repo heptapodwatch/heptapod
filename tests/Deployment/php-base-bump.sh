@@ -124,7 +124,7 @@ reject 'stale run attempt'
 # Main is a second public entry point: every source must validate before the first retag.
 export GITHUB_SHA=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 export GITHUB_RUN_ID=404 GITHUB_RUN_ATTEMPT=1 GITHUB_EVENT_NAME=push GITHUB_REF=refs/heads/main
-export RUNNER_TEMP="$RETENTION_TEST_TEMP/runner" GITHUB_STEP_SUMMARY="$RETENTION_TEST_TEMP/summary"
+export RUNNER_TEMP="$RETENTION_TEST_TEMP/runner" GITHUB_STEP_SUMMARY="$RETENTION_TEST_TEMP/summary" GITHUB_OUTPUT="$RETENTION_TEST_TEMP/output"
 prepare_candidate() {
     prepare
     change_json run.json '.event = "push" | .head_branch = "ci/candidate"'
@@ -134,6 +134,7 @@ prepare_candidate() {
         .indexes[].tags |= map(if .tag == "latest-main" then .tag = "ci-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
             elif .tag == "latest-main-coverage" then .tag = "ci-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-coverage" else . end)'
     : > "$PHP_BASE_FIXTURE_RESPONSE/retags"
+    : > "$GITHUB_OUTPUT"
 }
 invoke_reuse() {
     zip -q -j "$PHP_BASE_FIXTURE_RESPONSE/record.zip" "$PHP_BASE_FIXTURE_RESPONSE/php-base-record.json"
@@ -148,7 +149,20 @@ reject_reuse() {
     fi
     cmp "$RETENTION_TEST_TEMP/before-registry" "$PHP_BASE_FIXTURE_RESPONSE/registry.json"
     test ! -s "$PHP_BASE_FIXTURE_RESPONSE/retags"
+    test ! -s "$GITHUB_OUTPUT"
     echo "PASS: main $name rejected without retagging either index"
+}
+# An unusable candidate must select the gated native build before any registry write.
+fall_back() {
+    local name=$1
+    cp "$PHP_BASE_FIXTURE_RESPONSE/registry.json" "$RETENTION_TEST_TEMP/before-registry"
+    rm -f "$RUNNER_TEMP/php-base-record.json"
+    invoke_reuse
+    test "$(cat "$GITHUB_OUTPUT")" = reuse=false
+    cmp "$RETENTION_TEST_TEMP/before-registry" "$PHP_BASE_FIXTURE_RESPONSE/registry.json"
+    test ! -s "$PHP_BASE_FIXTURE_RESPONSE/retags"
+    test ! -e "$RUNNER_TEMP/php-base-record.json"
+    echo "PASS: main $name falls back to the native build without retagging either index"
 }
 prepare_candidate
 invoke_reuse
@@ -164,29 +178,43 @@ jq -e '.run.id == 404 and .run.attempt == 1 and .run.branch == "main" and
     .indexes[0].tags[-1].tag == "latest-main" and .indexes[1].tags[-1].tag == "latest-main-coverage"' \
     "$RUNNER_TEMP/php-base-record.json" > /dev/null
 jq -e -f "$source_root/scripts/php-base-record.jq" "$RUNNER_TEMP/php-base-record.json" > /dev/null
+test "$(cat "$GITHUB_OUTPUT")" = reuse=true
 echo 'PASS: main reuses both exact candidate indexes and emits its own record without building'
 prepare_candidate
 change_json runs.json '[{workflow_runs: []}]'
-reject_reuse 'missing same-SHA candidate'
+fall_back 'missing same-SHA candidate'
+prepare_candidate
+change_json run.json '.status = "in_progress" | .conclusion = null'
+fall_back 'unfinished candidate'
+prepare_candidate
+change_json artifacts.json 'map(.artifacts |= map(.expired = true))'
+fall_back 'expired candidate record artifact'
+prepare_candidate
+change_json run.json '.run_attempt = 2'
+fall_back 'stale candidate attempt'
 prepare_candidate
 change_json run.json '.conclusion = "failure"'
-reject_reuse 'red candidate'
+fall_back 'red candidate'
 prepare_candidate
 change_json php-base-record.json '.indexes[1].cells[1].hard_gate = "failure"'
-reject_reuse 'red coverage record'
+fall_back 'red coverage record'
 prepare_candidate
 change_json registry.json '.tags["ci-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-coverage"] = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"'
-reject_reuse 'coverage tag/digest mismatch'
+fall_back 'coverage tag/digest mismatch'
 prepare_candidate
 change_json registry.json '.manifests["sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"].manifests |= .[0:1]'
-reject_reuse 'missing coverage architecture'
+fall_back 'missing coverage architecture'
 prepare_candidate
 change_json registry.json '.manifests["sha256:3333333333333333333333333333333333333333333333333333333333333333"].config.digest = "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"'
-reject_reuse 'changed coverage pushed config'
+fall_back 'changed coverage pushed config'
 prepare_candidate
 change_json run.json '.head_sha = "ffffffffffffffffffffffffffffffffffffffff"'
 change_json php-base-record.json '.run.sha = "ffffffffffffffffffffffffffffffffffffffff" | .build.sha = .run.sha'
-reject_reuse 'wrong source SHA'
+fall_back 'wrong source SHA'
+prepare_candidate
+export PHP_BASE_FIXTURE_FAIL_RETAG=1
+reject_reuse 'failed retag of a valid candidate'
+unset PHP_BASE_FIXTURE_FAIL_RETAG
 prepare_candidate
 export GITHUB_EVENT_NAME=schedule
 reject_reuse 'non-push main invocation'

@@ -16,6 +16,10 @@ elif [ "$#" -eq 5 ] && [ "$1 $2 $3" = 'buildx imagetools inspect' ] && [ "$5" = 
     digest=${4##*@}
     jq -e --arg digest "$digest" '.manifests[$digest]' "$registry"
 elif [ "$#" -eq 6 ] && [ "$1 $2 $3 $4" = 'buildx imagetools create --tag' ]; then
+    if [ -n "${PHP_BASE_FIXTURE_FAIL_RETAG:-}" ]; then
+        echo 'Fixture registry rejected the retag' >&2
+        exit 1
+    fi
     tag=${5##*:}
     digest=${6##*@}
     printf '%s %s\n' "$tag" "$digest" >> "$PHP_BASE_FIXTURE_RESPONSE/retags"
