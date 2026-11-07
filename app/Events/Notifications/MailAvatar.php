@@ -56,6 +56,10 @@ final readonly class MailAvatar
 
     private function letterTile(Client $client): LetterTile
     {
+        if ($client->is_internal) {
+            // Reuse the mail palette's soft surface and muted ink, not the client's branding.
+            return new LetterTile('—', '#e1e5e8', '#5c6771');
+        }
         $words = preg_split('/\s+/u', trim($client->name));
         if ($words === false) {
             throw new \LogicException('Could not split client name.');

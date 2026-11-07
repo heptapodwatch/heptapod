@@ -59,7 +59,9 @@ export function ClientAvatarSettings({
             title={t('Avatar')}
             description={t('Shown in lists and headers.')}
             detail={t(
-                'Automatic uses a non-generic website icon, or initials.',
+                client.is_internal
+                    ? 'No client uses a neutral mark unless you choose an image.'
+                    : 'Automatic uses a non-generic website icon, or initials.',
             )}
         >
             <div className="flex items-center gap-3">
@@ -79,7 +81,11 @@ export function ClientAvatarSettings({
                               ? t(
                                     'Automatic · initials (site icons are generic)',
                                 )
-                              : t('Initials')}
+                              : t(
+                                    client.is_internal
+                                        ? 'Neutral mark'
+                                        : 'Initials',
+                                )}
                 </p>
             </div>
             <ImageDropzone

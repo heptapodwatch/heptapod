@@ -69,5 +69,7 @@
     "archive_client.move_wait": "Offene Störungen und ausstehende Benachrichtigungen müssen vor dem Verschieben abgeschlossen sein.",
     "Sites were added while archiving; try again.": "Während des Archivierens wurden Websites hinzugefügt; versuchen Sie es erneut.",
     "archive_client.move_progress": "Die Websites werden einzeln verschoben; bei einem Fehler bleiben abgeschlossene Verschiebungen erhalten und Sie können es erneut versuchen.",
-    "archive_client.move_failed": "{1} :site konnte nicht verschoben werden; :count Website bereits verschoben.|[0,*] :site konnte nicht verschoben werden; :count Websites bereits verschoben."
+    "archive_client.move_failed": "{1} :site konnte nicht verschoben werden; :count Website bereits verschoben.|[0,*] :site konnte nicht verschoben werden; :count Websites bereits verschoben.",
+    "Neutral mark": "Neutrales Zeichen",
+    "No client uses a neutral mark unless you choose an image.": "Ohne Kunde verwendet ein neutrales Zeichen, solange Sie kein Bild auswählen."
 }

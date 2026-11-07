@@ -269,10 +269,26 @@ it('renders every alert, system and client mail kind in the Plain design through
     expect(implode("\n=====\n", array_map(static fn (string $name, string $text): string => $name."\n".$text, array_keys($golden), $golden)))->toMatchSnapshot();
 })->with(['en', 'de']);
 
-it('attaches no inline image parts to a Plain mail and keeps the lockup and avatar on a Branded one', function (): void {
+it('uses a neutral dash instead of stored initials for No client in branded mail', function (): void {
+    $transport = mailDesignTransport();
+    $settings = app(InstanceSettings::class);
+    $settings->mail_design = MailDesign::Branded;
+    $settings->save();
+    $client = Client::query()->where('is_internal', true)->firstOrFail();
+    $client->update(['name' => 'Internal', 'short_name' => 'CUSTOM', 'accent_color' => '#336699']);
+    $check = Check::factory()->for(Site::factory()->for($client)->create())->create(['type' => CheckKey::Uptime]);
+    $event = Event::factory()->for($check)->create(['from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Warning]);
+
+    $mail = mailDesignSend(mailDesignChannel('en'), $event, $transport);
+
+    expect($mail->getHtmlBody())->toContain('>—</td>', 'background:#e1e5e8;color:#5c6771;')->not->toContain('>CUSTOM</td>', '>I</td>');
+});
+
+it('attaches no inline image parts to a Plain mail and keeps the lockup and avatar on a Branded one', function (bool $internal): void {
     $transport = mailDesignTransport();
     $channel = mailDesignChannel('en');
-    $check = Check::factory()->for(mailDesignSite('inline'))->create(['type' => CheckKey::Uptime]);
+    $site = $internal ? Site::factory()->for(Client::query()->where('is_internal', true)->firstOrFail())->create() : mailDesignSite('inline');
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::Uptime]);
     // A stored site icon the client uses as its avatar: Branded attaches it inline, Plain must not.
     $site = $check->site;
     $icon = (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', true);
@@ -300,7 +316,7 @@ it('attaches no inline image parts to a Plain mail and keeps the lockup and avat
     $branded = $send();
     expect(mailDesignInlineParts($branded))->toBe(['lockup@heptapod', $avatarCid])
         ->and($branded->getHtmlBody())->toContain('cid:lockup@heptapod', 'cid:'.$avatarCid);
-});
+})->with(['regular client' => false, 'No client' => true]);
 
 it('keeps invitation, password reset and verification mail Branded when the instance design is Plain', function (): void {
     $transport = mailDesignTransport();

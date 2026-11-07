@@ -69,5 +69,7 @@
     "archive_client.move_wait": "Open incidents and pending alerts must finish before moving.",
     "Sites were added while archiving; try again.": "Sites were added while archiving; try again.",
     "archive_client.move_progress": "Sites move one at a time; if a move fails, completed moves are kept and you can try again.",
-    "archive_client.move_failed": "{1} Could not move :site; :count site already moved.|[0,*] Could not move :site; :count sites already moved."
+    "archive_client.move_failed": "{1} Could not move :site; :count site already moved.|[0,*] Could not move :site; :count sites already moved.",
+    "Neutral mark": "Neutral mark",
+    "No client uses a neutral mark unless you choose an image.": "No client uses a neutral mark unless you choose an image."
 }
