@@ -70,41 +70,44 @@ export function SiteUrlField({
                     {help}
                 </p>
             )}
-            {probeState && probeState !== 'idle' && (
+            {probeState && (
                 <div
                     id={`${id}-status`}
                     role="status"
-                    className="space-y-2 text-xs text-muted-foreground"
+                    className="min-h-4 space-y-2 text-xs text-muted-foreground"
                 >
-                    <div className="flex items-start gap-2">
-                        {probeState === 'loading' ? (
-                            <Spinner aria-hidden="true" />
-                        ) : (
-                            <StatusDot
-                                state={
-                                    probeState === 'error'
-                                        ? 'check-error'
-                                        : (probe?.status ?? 0) >= 400
-                                          ? 'warning'
-                                          : 'ok'
-                                }
-                                label={
-                                    probeState === 'error'
-                                        ? 'Check error'
-                                        : (probe?.status ?? 0) >= 400
-                                          ? 'Warning'
-                                          : 'sites.url_reachable'
-                                }
-                            />
-                        )}
-                        <span>
-                            {probeState === 'loading'
-                                ? t('sites.url_checking')
-                                : probeState === 'error'
-                                  ? `${t('sites.url_unreachable')} · ${probe?.failure_reason ?? probeError ?? t('sites.url_probe_failed')}`
-                                  : `${t((probe?.status ?? 0) >= 400 ? 'Warning' : 'sites.url_reachable')} · HTTP ${probe?.status}`}
-                        </span>
-                    </div>
+                    {probeState !== 'idle' && (
+                        <div className="flex items-start gap-2">
+                            {probeState === 'loading' ? (
+                                <Spinner aria-hidden="true" />
+                            ) : (
+                                <StatusDot
+                                    state={
+                                        probeState === 'error'
+                                            ? 'check-error'
+                                            : (probe?.status ?? 0) >= 400
+                                              ? 'warning'
+                                              : 'ok'
+                                    }
+                                    label={
+                                        probeState === 'error'
+                                            ? 'Check error'
+                                            : (probe?.status ?? 0) >= 400
+                                              ? 'Warning'
+                                              : 'sites.url_reachable'
+                                    }
+                                />
+                            )}
+                            <span>
+                                {probeState === 'loading'
+                                    ? t('sites.url_checking')
+                                    : probeState === 'error'
+                                      ? (probeError ??
+                                        `${t('sites.url_unreachable')} · ${probe?.failure_reason ?? t('sites.url_probe_failed')}`)
+                                      : `${t((probe?.status ?? 0) >= 400 ? 'Warning' : 'sites.url_reachable')} · HTTP ${probe?.status}`}
+                            </span>
+                        </div>
+                    )}
                     {probe?.final_url &&
                         probe.final_url !== probe.normalised_url && (
                             <div className="flex flex-wrap items-center gap-2">

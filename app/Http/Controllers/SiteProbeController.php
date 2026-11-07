@@ -29,7 +29,7 @@ final class SiteProbeController extends Controller
         $url = $normalise($data['url']);
         $result = $probe($url);
         $duplicate = $site !== null && $site->url === $data['url'] ? null : $duplicates->find($url, $site?->id);
-        if ($duplicate !== null) {
+        if ($duplicate instanceof Site) {
             $result->duplicate_message = $duplicates->message($duplicate);
             $result->duplicate_site_id = $duplicates->visible($duplicate) ? $duplicate->id : null;
         } else {

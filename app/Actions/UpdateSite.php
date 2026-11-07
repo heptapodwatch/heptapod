@@ -111,7 +111,7 @@ final readonly class UpdateSite
                     /** @var string $url */
                     $url = $data['url'];
                     $duplicate = $this->duplicates->find($url, $site->id);
-                    if ($duplicate !== null) {
+                    if ($duplicate instanceof Site) {
                         throw ValidationException::withMessages(['url' => $this->duplicates->message($duplicate)]);
                     }
                     $site->setAttribute('url_key', $this->normalise->key($url));
@@ -185,7 +185,7 @@ final readonly class UpdateSite
             /** @var string $url */
             $url = $attributes['url'];
             $duplicate = $this->duplicates->find($url, $site->id);
-            throw ValidationException::withMessages(['url' => $duplicate === null ? __('sites.url_duplicate') : $this->duplicates->message($duplicate)]);
+            throw ValidationException::withMessages(['url' => $duplicate instanceof Site ? $this->duplicates->message($duplicate) : __('sites.url_duplicate')]);
         }
     }
 

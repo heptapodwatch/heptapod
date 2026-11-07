@@ -12,7 +12,9 @@ export function useSiteUrlProbe(url: string, auto: boolean, siteId?: number) {
     >('idle');
     const [probeError, setProbeError] = useState<string | null>(null);
     const abort = useRef<AbortController | null>(null);
+    const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const clearProbe = useCallback(() => {
+        clearTimeout(timer.current);
         abort.current?.abort();
         setProbe(null);
         setProbeError(null);
@@ -20,6 +22,7 @@ export function useSiteUrlProbe(url: string, auto: boolean, siteId?: number) {
     }, []);
     const runProbe = useCallback(
         async (force = false) => {
+            clearTimeout(timer.current);
             if (probe && !force) return probe;
             abort.current?.abort();
             if (!url.trim()) {
@@ -82,8 +85,8 @@ export function useSiteUrlProbe(url: string, auto: boolean, siteId?: number) {
     );
     useEffect(() => {
         if (!auto || !url.trim() || probe?.normalised_url === url) return;
-        const timer = setTimeout(() => void runProbe(), 600);
-        return () => clearTimeout(timer);
+        timer.current = setTimeout(() => void runProbe(), 600);
+        return () => clearTimeout(timer.current);
     }, [url, auto, runProbe]);
     useEffect(() => () => abort.current?.abort(), [url]);
 

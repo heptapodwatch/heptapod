@@ -59,7 +59,7 @@ final readonly class ImportOhDearMonitor
         $site = Site::query()->where('oh_dear_id', $monitor->id)->first();
         $url = ($this->normalise)($monitor->url);
         $duplicate = $site !== null && $site->url === $monitor->url ? null : $this->duplicates->find($url, $site?->id);
-        if ($duplicate !== null) {
+        if ($duplicate instanceof Site) {
             return $this->skipped($monitor, 'site:exists', $this->duplicates->message($duplicate));
         }
         // UI imports never fall back to Internal: a site that would be new but has no approved client changed since the plan.

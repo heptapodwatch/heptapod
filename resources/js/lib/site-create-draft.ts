@@ -18,26 +18,15 @@ function record(value: unknown): value is Record<string, unknown> {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-export function normalizedSiteUrl(value: string): string {
+// Draft-only parsing removes secrets; URL acceptance and normalisation belong to the server.
+function draftUrl(value: string): string {
     const trimmed = value.trim();
-    return /^[a-z][a-z\d+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
-}
-
-export function validSiteUrl(value: string): boolean {
-    const url = normalizedSiteUrl(value);
-    if (!value.trim() || !URL.canParse(url)) return false;
-    const parsed = new URL(url);
-    return (
-        ['http:', 'https:'].includes(parsed.protocol) &&
-        !parsed.username &&
-        !parsed.password &&
-        Boolean(parsed.hostname)
-    );
+    return trimmed.includes('://') ? trimmed : `https://${trimmed}`;
 }
 
 function safeUrl(value: string): string {
     if (!value.trim()) return '';
-    const normalized = normalizedSiteUrl(value);
+    const normalized = draftUrl(value);
     if (!URL.canParse(normalized)) return '';
     const url = new URL(normalized);
     if (!['http:', 'https:'].includes(url.protocol)) return '';
@@ -52,9 +41,7 @@ export function eligibleSiteCheck(check: CheckOption, url: string): boolean {
     return (
         check.key !== 'cron' &&
         !check.unavailable_reason &&
-        (!check.requires_https ||
-            !URL.canParse(normalizedSiteUrl(url)) ||
-            new URL(normalizedSiteUrl(url)).protocol === 'https:')
+        (!check.requires_https || !/^http:/i.test(url.trim()))
     );
 }
 
@@ -128,9 +115,8 @@ export function siteCreateDraft(
     const input = record(value) ? value : {};
     const url = typeof input.url === 'string' ? safeUrl(input.url) : '';
     const parsedUrl =
-        typeof input.url === 'string' &&
-        URL.canParse(normalizedSiteUrl(input.url))
-            ? new URL(normalizedSiteUrl(input.url))
+        typeof input.url === 'string' && URL.canParse(draftUrl(input.url))
+            ? new URL(draftUrl(input.url))
             : null;
     const keys = (value: unknown, eligible = false) =>
         options.checks
@@ -159,7 +145,7 @@ export function siteCreateDraft(
     )
         ? String(input.client_id)
         : '';
-    const step = !validSiteUrl(url)
+    const step = !url
         ? 'address'
         : input.step === 'checks' && client_id
           ? 'checks'

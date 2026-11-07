@@ -30,7 +30,7 @@ final readonly class SiteProbe
         $context = new CheckContext(0, 0, 0, '', $url, $now, $now->addSeconds(12), [], [], null);
         $response = $this->http->fetch($this->request($url, true), $context);
         if ($response->failure instanceof FetchFailure) {
-            $reason = $response->failure->isPolicyRefusal() ? $response->failure->policySummary() : $response->failure->summary();
+            $reason = $response->failure->isPolicyRefusal() ? ['key' => 'checks.policy.private_network', 'params' => []] : $response->failure->summary();
 
             return new SiteProbeData(null, null, null, null, null, null, null, 'probe_failed', false, $this->recommendedChecks($url), normalised_url: $url,
                 failure_reason: __($reason['key'], $reason['params']));

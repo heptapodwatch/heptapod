@@ -19,9 +19,7 @@ import { index as sitesIndex, store as sitesStore } from '@/routes/sites';
 import type { CheckKey, FieldValue } from '@/types/monitoring';
 import {
     eligibleSiteCheck,
-    normalizedSiteUrl,
     siteCreateDraft,
-    validSiteUrl,
     type SiteCreateStep,
 } from '@/lib/site-create-draft';
 import { Stepper } from '@/components/stepper';
@@ -149,10 +147,9 @@ export default function AddSite({
             setDraftUnavailable(true);
         }
     };
-    const normalizedUrl = () => normalizedSiteUrl(form.data.url);
-    const validUrl = () => validSiteUrl(form.data.url);
     const { probe, probeState, probeError, runProbe, clearProbe } =
         useSiteUrlProbe(form.data.url, true);
+    const canonicalUrl = probe?.normalised_url ?? form.data.url;
     useEffect(() => {
         if (!probe) return;
         form.setData((data) => ({
@@ -175,7 +172,7 @@ export default function AddSite({
             void runProbe();
     }, []);
     const navigate = (target: SiteCreateStep) => {
-        if (target !== 'address' && !validUrl()) {
+        if (target !== 'address' && !form.data.url.trim()) {
             form.setError(
                 'url',
                 t('Enter a valid HTTP or HTTPS URL without credentials.'),
@@ -386,8 +383,10 @@ export default function AddSite({
                                 <div className="min-w-0 space-y-3">
                                     <SectionHeading level={3}>
                                         {t('What should we watch on {{url}}?', {
-                                            url: new URL(normalizedUrl())
-                                                .hostname,
+                                            url: probe?.normalised_url
+                                                ? new URL(probe.normalised_url)
+                                                      .hostname
+                                                : form.data.url,
                                         })}
                                     </SectionHeading>
                                     <InputError
@@ -498,12 +497,12 @@ export default function AddSite({
                                                     {t('URL')}
                                                 </dt>
                                                 <dd className="break-all">
-                                                    {normalizedUrl()}
+                                                    {canonicalUrl}
                                                 </dd>
                                             </div>
                                             {probe.final_url &&
                                                 probe.final_url !==
-                                                    normalizedUrl() && (
+                                                    canonicalUrl && (
                                                     <div>
                                                         <dt className="text-muted-foreground">
                                                             {t('Redirects to')}

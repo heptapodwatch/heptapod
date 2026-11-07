@@ -657,6 +657,10 @@ it('debounces the address check, aborts stale results and normalises on blur', a
     fireEvent.change(field, { target: { value: 'SECOND.example/' } });
     expect(firstSignal.aborted).toBe(true);
     fireEvent.blur(field);
+    const blurSignal = vi.mocked(fetch).mock.calls[1]![1]!.signal!;
+    await act(() => vi.advanceTimersByTimeAsync(600));
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(blurSignal.aborted).toBe(false);
     const result = (url: string) =>
         ({
             ok: true,
@@ -675,6 +679,39 @@ it('debounces the address check, aborts stale results and normalises on blur', a
     expect(screen.queryByText('sites.url_checking')).toBeNull();
     expect(screen.getByText('sites.url_reachable · HTTP 200')).not.toBeNull();
     expect(stored().url).toBe('https://second.example/');
+});
+
+it('shows server validation without calling an invalid address unreachable', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+        ok: false,
+        status: 422,
+        json: async () => ({
+            errors: { url: ['Enter an HTTP or HTTPS address.'] },
+        }),
+    } as Response);
+    render(<AddSite {...options} />);
+    fireEvent.change(screen.getByLabelText('URL'), {
+        target: { value: 'ftp://shop.example' },
+    });
+    fireEvent.blur(screen.getByLabelText('URL'));
+    await waitFor(() =>
+        expect(
+            screen.getByText('Enter an HTTP or HTTPS address.'),
+        ).not.toBeNull(),
+    );
+    expect(screen.queryByText(/sites.url_unreachable/)).toBeNull();
+});
+
+it('lets the server validate a scheme-less host with a port instead of rejecting it locally', () => {
+    render(<AddSite {...options} />);
+    fireEvent.change(screen.getByLabelText('URL'), {
+        target: { value: 'shop.example:8080/path' },
+    });
+    expect(stored().url).toBe('https://shop.example:8080/path');
+    next();
+    expect(screen.getByText('Choose a client for this site.')).not.toBeNull();
+    next();
+    expect(screen.getByText('Recommended checks are selected.')).not.toBeNull();
 });
 
 it('offers the observed redirect address without blocking forward navigation on an HTTP warning', async () => {

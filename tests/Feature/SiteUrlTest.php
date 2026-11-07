@@ -25,10 +25,10 @@ afterEach(function (): void {
     MockClient::destroyGlobal();
 });
 
-it('refuses canonical duplicates at every write entry point without changing sites', function (string $entry, string $input): void {
+it('refuses canonical duplicates at every write entry point without changing sites', function (string $entry, string $input, bool $keyed): void {
     $owner = User::factory()->owner()->create();
     $client = Client::query()->where('is_internal', true)->firstOrFail();
-    $existing = Site::factory()->for($client)->create(['url' => 'https://xn--bcher-kva.example', 'friendly_name' => 'Library']);
+    $existing = Site::factory()->for($client)->create(['url' => 'https://xn--bcher-kva.example', 'url_key' => $keyed ? hash('sha256', 'xn--bcher-kva.example') : null, 'friendly_name' => 'Library']);
     $other = Site::factory()->for($client)->create(['url' => 'https://other.example']);
     $before = DB::table('sites')->orderBy('id')->get()->all();
     $this->actingAs($owner);
@@ -57,7 +57,7 @@ it('refuses canonical duplicates at every write entry point without changing sit
     'slash' => 'https://xn--bcher-kva.example/',
     'case and default port' => 'HTTPS://XN--BCHER-KVA.EXAMPLE:443/#discard',
     'IDN' => 'bücher.example/',
-]);
+])->with(['indexed key' => true, 'legacy NULL key' => false]);
 
 it('persists canonical addresses and accepts distinct paths and www addresses', function (string $input, string $expected): void {
     $owner = User::factory()->owner()->create();
@@ -73,6 +73,8 @@ it('persists canonical addresses and accepts distinct paths and www addresses', 
     ['example.com/path', 'https://example.com/path'],
     ['www.example.com/', 'https://www.example.com'],
     ['example.com:8080/path', 'https://example.com:8080/path'],
+    ['empty-query.example/?', 'https://empty-query.example'],
+    ['trailing-dot.example./', 'https://trailing-dot.example'],
 ]);
 
 it('returns a clear 422 for unsupported schemes and URL credentials', function (string $url, string $message): void {

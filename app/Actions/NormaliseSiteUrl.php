@@ -26,7 +26,7 @@ final readonly class NormaliseSiteUrl
             throw ValidationException::withMessages(['url' => __('api.url_credentials_unsupported')]);
         }
         $scheme = strtolower($parts['scheme']);
-        $host = strtolower($parts['host']);
+        $host = rtrim(strtolower($parts['host']), '.');
         if (! str_starts_with($host, '[')) {
             $host = idn_to_ascii($host, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
             if ($host === false) {
@@ -36,7 +36,7 @@ final readonly class NormaliseSiteUrl
         $port = $parts['port'] ?? null;
         $path = $parts['path'] ?? '';
         $url = $scheme.'://'.$host.($port === null || $port === ($scheme === 'https' ? 443 : 80) ? '' : ':'.$port)
-            .($path === '/' ? '' : $path).(isset($parts['query']) ? '?'.$parts['query'] : '');
+            .($path === '/' ? '' : $path).(isset($parts['query']) && $parts['query'] !== '' ? '?'.$parts['query'] : '');
         Validator::make(['url' => $url], ['url' => ['max:2048', 'url:http,https']], ['url.url' => __('sites.url_invalid')])->validate();
 
         return $url;
