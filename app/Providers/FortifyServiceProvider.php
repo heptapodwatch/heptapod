@@ -2,6 +2,7 @@
 
 namespace Heptapod\Providers;
 
+use Database\Seeders\DatabaseSeeder;
 use Heptapod\Actions\Fortify\ResetUserPassword;
 use Heptapod\Contracts\Mail\MailRenderer;
 use Heptapod\Http\Requests\ActiveTwoFactorLoginRequest;
@@ -13,6 +14,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
@@ -72,6 +74,7 @@ class FortifyServiceProvider extends ServiceProvider
             'host' => $request->getHttpHost(),
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
             'status' => $request->session()->get('status'),
+            ...$this->devLoginProps($request),
         ]));
 
         Fortify::resetPasswordView(fn (Request $request) => Inertia::render('auth/reset-password', [
@@ -98,6 +101,35 @@ class FortifyServiceProvider extends ServiceProvider
             'instance' => app(InstanceSettings::class)->name,
             'host' => $request->getHttpHost(),
         ]));
+    }
+
+    /**
+     * The local demo sign-in on the login page. The login-link package is a dev dependency, absent from production images;
+     * its route exists only when the package is installed, so production code never references a package class.
+     *
+     * @return array{devLogin?: array{action: string, email: string, redirectUrl: ?string}}
+     */
+    private function devLoginProps(Request $request): array
+    {
+        if (! app()->isLocal() || ! Route::has('loginLinkLogin') || ! in_array($request->getHost(), config()->array('login-link.allowed_hosts'), true)) {
+            return [];
+        }
+
+        return ['devLogin' => [
+            'action' => route('loginLinkLogin', absolute: false),
+            'email' => DatabaseSeeder::DEMO_EMAIL,
+            'redirectUrl' => self::devLoginRedirectUrl($request),
+        ]];
+    }
+
+    /**
+     * The intended URL for a dev login, only when it is on this request's origin; null keeps the login-link default.
+     */
+    public static function devLoginRedirectUrl(Request $request): ?string
+    {
+        $intended = $request->session()->get('url.intended');
+
+        return is_string($intended) && str_starts_with($intended, $request->getSchemeAndHttpHost().'/') ? $intended : null;
     }
 
     /**

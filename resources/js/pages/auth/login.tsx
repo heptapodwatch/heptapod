@@ -21,9 +21,15 @@ type Props = {
     instance: string;
     status?: string;
     canResetPassword: boolean;
+    devLogin?: { action: string; email: string; redirectUrl: string | null };
 };
 
-export default function Login({ instance, status, canResetPassword }: Props) {
+export default function Login({
+    instance,
+    status,
+    canResetPassword,
+    devLogin,
+}: Props) {
     const { t } = useTranslation();
     const formRef = useRef<FormComponentRef>(null);
     const emailRef = useRef<HTMLInputElement>(null);
@@ -228,6 +234,36 @@ export default function Login({ instance, status, canResetPassword }: Props) {
                     </fieldset>
                 )}
             </Form>
+
+            {devLogin && (
+                <Form
+                    noValidate
+                    action={devLogin.action}
+                    method="post"
+                    transform={() => ({
+                        email: devLogin.email,
+                        redirect_url: devLogin.redirectUrl,
+                    })}
+                    className="grid gap-[6px] border-t border-border pt-[22px]"
+                >
+                    {({ processing }) => (
+                        <>
+                            <Button
+                                type="submit"
+                                variant="outline"
+                                className="w-full"
+                                disabled={processing}
+                            >
+                                {processing && <Spinner />}
+                                {t('Sign in as demo')}
+                            </Button>
+                            <p className="text-xs leading-[1.45] text-muted-foreground">
+                                {t('Local development only')}
+                            </p>
+                        </>
+                    )}
+                </Form>
+            )}
         </>
     );
 }

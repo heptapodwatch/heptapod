@@ -6,6 +6,6 @@
         <title>Heptapod</title>
     </head>
     <body>
-        <x-login-link :email="\Database\Seeders\DatabaseSeeder::DEMO_EMAIL" :label="\Database\Seeders\DatabaseSeeder::DEMO_EMAIL" />
+        <x-login-link :email="\Database\Seeders\DatabaseSeeder::DEMO_EMAIL" :label="\Database\Seeders\DatabaseSeeder::DEMO_EMAIL" :redirect-url="\Heptapod\Providers\FortifyServiceProvider::devLoginRedirectUrl(request())" />
     </body>
 </html>

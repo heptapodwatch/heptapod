@@ -58,6 +58,7 @@ $response = $request('GET', '/login');
 verify($response->getStatusCode() === 200, 'Login page unavailable: '.$response->getStatusCode().' '.$response->getHeaderLine('Location'));
 verify(str_contains((string) $response->getBody(), 'https://monitor.example.com:8443'), 'Login page missing public origin');
 verify(str_contains((string) $response->getBody(), '<html lang="'.config()->string('app.locale').'"'), 'Guest login without Accept-Language must use the configured locale');
+verify(! str_contains((string) $response->getBody(), 'devLogin') && ! str_contains((string) $response->getBody(), 'Sign in as demo'), 'Production login page must not offer the local demo sign-in');
 // A separate guest session: the guest redirect stores the intended URL, which would change the login redirect below.
 $loginCookies = $cookies;
 $cookies = [];
@@ -77,6 +78,10 @@ $englishMissing = $request('GET', '/missing-ops-page', ['headers' => ['Accept-La
 verify(str_contains((string) $englishMissing->getBody(), '<html lang="en"'), 'An explicit supported guest language must override the configured locale');
 $alertsGuest = $request('GET', '/settings/alerts');
 verify($alertsGuest->getStatusCode() === 302 && $alertsGuest->getHeader('Location') === ['https://monitor.example.com:8443/login'], 'Alert sensitivity guest redirect must use the canonical HTTPS login origin');
+$devLoginPage = $request('GET', '/dev-login');
+verify($devLoginPage->getStatusCode() === 404 && $devLoginPage->getHeader('Location') === [], 'Production must not serve /dev-login: '.$devLoginPage->getStatusCode());
+$loginLink = $request('POST', '/laravel-login-link-login', ['form_params' => ['email' => $user->email]]);
+verify(in_array($loginLink->getStatusCode(), [404, 405], true) && $loginLink->getHeader('Location') === [], 'Production must not serve the login-link route: '.$loginLink->getStatusCode().' '.$loginLink->getHeaderLine('Location'));
 $findingsGuest = $request('GET', '/sites/1/checks/1/findings.csv?run=1&observed_at=2026-10-14T00%3A00%3A00Z');
 $cookies = $loginCookies;
 verify($findingsGuest->getStatusCode() === 302 && $findingsGuest->getHeaderLine('Location') === 'https://monitor.example.com:8443/login', 'Findings export guest redirect must use the canonical HTTPS login origin');
