@@ -82,25 +82,30 @@ it('creates scoped tokens through the console action and rejects invented wildca
     expect($member->tokens()->count())->toBe(0);
 });
 
-it('uses the same generic URL collision message for visible and invisible clients', function (string $locale, string $message): void {
+it('names visible URL collisions and hides sites outside the token client constraint', function (string $locale, string $named, string $generic): void {
     $client = Client::factory()->create();
     $allowed = Site::factory()->for($client)->create();
-    $visible = Site::factory()->for($client)->create();
-    $hidden = Site::factory()->create();
+    $originalUrl = $allowed->url;
+    $visible = Site::factory()->for($client)->create(['friendly_name' => 'Visible site']);
+    $hidden = Site::factory()->create(['friendly_name' => 'Confidential site']);
     $admin = User::factory()->create(['client_scope' => ClientScope::Restricted, 'locale' => $locale]);
     $admin->assignRole('Admin');
     $admin->clients()->attach($client);
-    $this->withToken($admin->createToken('collision', ['*'])->plainTextToken);
-    $this->getJson('/api/monitors/'.$hidden->id)->assertOk();
-    foreach ([$hidden, $visible] as $collision) {
-        $this->putJson('/api/monitors/'.$allowed->id, ['url' => $collision->url])->assertUnprocessable()->assertJsonPath('errors.url', [$message])->assertJsonPath('message', $message);
+    $token = $admin->createToken('collision', ['*']);
+    $token->accessToken->forceFill(['client_id' => $client->id])->save();
+    $this->withToken($token->plainTextToken);
+
+    $this->getJson('/api/monitors/'.$visible->id)->assertOk();
+    $this->getJson('/api/monitors/'.$hidden->id)->assertNotFound();
+    foreach ([[$visible, $named], [$hidden, $generic]] as [$collision, $message]) {
+        $this->putJson('/api/monitors/'.$allowed->id, ['url' => $collision->url])->assertUnprocessable()
+            ->assertJsonPath('errors.url', [$message])->assertJsonPath('message', $message)->assertDontSee('Confidential site');
     }
-    $allowed->refresh();
-    expect($allowed->url)->not->toBe($hidden->url);
-    expect($allowed->url)->not->toBe($visible->url);
+
+    expect($allowed->refresh()->url)->toBe($originalUrl);
 })->with([
-    ['en', 'This URL cannot be used.'],
-    ['de', 'Diese URL kann nicht verwendet werden.'],
+    ['en', 'Already monitored: Visible site', 'This address is already monitored.'],
+    ['de', 'Bereits überwacht: Visible site', 'Diese Adresse wird bereits überwacht.'],
 ]);
 
 it('denies member monitor and check writes even on pre-existing privileged tokens', function (): void {

@@ -28,7 +28,10 @@ final readonly class SiteProbe
         $context = new CheckContext(0, 0, 0, '', $url, $now, $now->addSeconds(12), [], [], null);
         $response = $this->http->fetch($this->request($url, true), $context);
         if ($response->failure instanceof FetchFailure) {
-            return new SiteProbeData(null, null, null, null, null, null, null, 'probe_failed', false, $this->recommendedChecks($url));
+            $reason = $response->failure->summary();
+
+            return new SiteProbeData(null, null, null, null, null, null, null, 'probe_failed', false, $this->recommendedChecks($url), normalised_url: $url,
+                failure_reason: __($reason['key'], $reason['params']));
         }
         $finalUrl = $response->effectiveUrl ?? throw new \LogicException('A successful site probe must expose its final URL.');
         $contentType = '';
@@ -74,6 +77,7 @@ final readonly class SiteProbe
             null,
             $publicHtml,
             $this->recommendedChecks($url, $publicHtml, $sitemapUrl),
+            normalised_url: $url,
         );
     }
 

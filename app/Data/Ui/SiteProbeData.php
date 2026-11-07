@@ -23,5 +23,11 @@ final class SiteProbeData extends Data
         public readonly ?string $failure,
         public readonly bool $public_html = false,
         public readonly array $recommended_checks = [],
+        public readonly ?string $normalised_url = null,
+        public ?string $duplicate_message = null,
+        public ?int $duplicate_site_id = null,
+        public ?string $warning_site_name = null,
+        public ?int $warning_site_id = null,
+        public readonly ?string $failure_reason = null,
     ) {}
 }

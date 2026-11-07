@@ -31,7 +31,7 @@ test('dry-run plans every page and reports unsupported fields and duplicates wit
     $exit = Artisan::call('heptapod:import-ohdear', ['--token' => 'fixture-token-secret', '--dry-run' => true]);
     $output = Artisan::output();
     expect($exit)->toBe(0, $output);
-    expect($output)->toContain('plan + config validation', '101', '102', '103', 'Create', 'Duplicate URL', 'uptime_check_settings.location', 'Cron definitions: 2')
+    expect($output)->toContain('plan + config validation', '101', '102', '103', 'Create', 'This address is already monitored.', 'uptime_check_settings.location', 'Cron definitions: 2')
         ->not->toContain('fixture-token-secret', 'fixture-uptime-secret', 'fixture-health-secret', 'fixture-health-header-secret', 'fixture-crawler-secret', 'fixture-ping-secret');
     expect(Site::query()->count())->toBe(1)
         ->and(DB::table('checks')->count())->toBe(0)
@@ -366,9 +366,9 @@ test('next-page failure reports committed operations and earlier skips before in
     app(OhDearAccountTransport::class)->fake($this->account, 429, 4);
     expect(Artisan::call('heptapod:import-ohdear', ['--token' => 'fixture-token-secret']))->toBe(1);
     $output = Artisan::output();
-    expect($output)->toContain('101', 'Create', '102', 'tcp', '103', 'Duplicate URL', 'Import incomplete', 'HTTP 429')
+    expect($output)->toContain('101', 'Create', '102', 'tcp', '103', 'This address is already monitored.', 'Import incomplete', 'HTTP 429')
         ->not->toContain('fixture-token-secret', 'fixture-remote-secret', 'fixture-uptime-secret', 'fixture-crawler-secret');
-    expect(strpos($output, 'Duplicate URL'))->toBeLessThan(strpos($output, 'Import incomplete'));
+    expect(strpos($output, 'This address is already monitored.'))->toBeLessThan(strpos($output, 'Import incomplete'));
     expect(Site::query()->where('oh_dear_id', 101)->count())->toBe(1);
 });
 

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\SiteProbeController::__invoke
-* @see app/Http/Controllers/SiteProbeController.php:15
+* @see app/Http/Controllers/SiteProbeController.php:19
 * @route '/sites/probe'
 */
 const SiteProbeController = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ SiteProbeController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteProbeController::__invoke
-* @see app/Http/Controllers/SiteProbeController.php:15
+* @see app/Http/Controllers/SiteProbeController.php:19
 * @route '/sites/probe'
 */
 SiteProbeController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ SiteProbeController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteProbeController::__invoke
-* @see app/Http/Controllers/SiteProbeController.php:15
+* @see app/Http/Controllers/SiteProbeController.php:19
 * @route '/sites/probe'
 */
 SiteProbeController.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ SiteProbeController.post = (options?: RouteQueryOptions): RouteDefinition<'post'
 
 /**
 * @see \Heptapod\Http\Controllers\SiteProbeController::__invoke
-* @see app/Http/Controllers/SiteProbeController.php:15
+* @see app/Http/Controllers/SiteProbeController.php:19
 * @route '/sites/probe'
 */
 const SiteProbeControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,7 +45,7 @@ const SiteProbeControllerForm = (options?: RouteQueryOptions): RouteFormDefiniti
 
 /**
 * @see \Heptapod\Http\Controllers\SiteProbeController::__invoke
-* @see app/Http/Controllers/SiteProbeController.php:15
+* @see app/Http/Controllers/SiteProbeController.php:19
 * @route '/sites/probe'
 */
 SiteProbeControllerForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

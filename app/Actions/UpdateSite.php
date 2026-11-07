@@ -25,7 +25,7 @@ use Illuminate\Validation\ValidationException;
 
 final readonly class UpdateSite
 {
-    public function __construct(private CheckRegistry $registry, private EnableCheck $enable, private DisableCheck $disable, private UpdateCheckConfig $configure, private SyncSiteTags $tags, private ClaimService $claims) {}
+    public function __construct(private CheckRegistry $registry, private EnableCheck $enable, private DisableCheck $disable, private UpdateCheckConfig $configure, private SyncSiteTags $tags, private ClaimService $claims, private NormaliseSiteUrl $normalise, private SiteUrlDuplicates $duplicates) {}
 
     /** @param array<string, mixed> $attributes */
     public function __invoke(Site $site, array $attributes): Site
@@ -42,6 +42,10 @@ final readonly class UpdateSite
                     $site = $query->firstOrFail();
                 }
                 $supplied = $attributes;
+                $urlChanged = is_string($attributes['url'] ?? null) && (! $site->exists || $attributes['url'] !== $site->url);
+                if ($urlChanged) {
+                    $attributes['url'] = ($this->normalise)($attributes['url']);
+                }
                 $headerField = new Field(FieldType::List, items: new Field(FieldType::Object, properties: [
                     'name' => new Field(FieldType::String), 'value' => new Field(FieldType::Secret),
                 ]));
@@ -59,7 +63,7 @@ final readonly class UpdateSite
                     Arr::set($attributes, $path, $headers);
                 }
                 $rules = [
-                    'url' => [$site->exists ? 'sometimes' : 'required', 'string', 'max:2048', 'url:http,https', Rule::unique('sites', 'url')->ignore($site->id),
+                    'url' => [$site->exists ? 'sometimes' : 'required', 'string', 'max:2048', 'url:http,https',
                         static function (string $attribute, mixed $value, \Closure $fail): void {
                             $parts = is_string($value) ? parse_url($value) : false;
                             if (is_array($parts) && (isset($parts['user']) || isset($parts['pass']))) {
@@ -102,7 +106,16 @@ final readonly class UpdateSite
                     throw ValidationException::withMessages(['crawler_headers' => __('api.conflicting_aliases')]);
                 }
                 /** @var array<string, mixed> $data */
-                $data = Validator::make($attributes, $rules, ['url.unique' => __('api.url_unavailable')])->validate();
+                $data = Validator::make($attributes, $rules)->validate();
+                if ($urlChanged) {
+                    /** @var string $url */
+                    $url = $data['url'];
+                    $duplicate = $this->duplicates->find($url, $site->id);
+                    if ($duplicate instanceof Site) {
+                        throw ValidationException::withMessages(['url' => $this->duplicates->message($duplicate)]);
+                    }
+                    $site->setAttribute('url_key', $this->normalise->key($url));
+                }
                 if ($site->exists && is_string($data['url'] ?? null) && SecretReentry::origin($site->url) !== SecretReentry::origin($data['url'])) {
                     $this->requireSecretReentry($site, $supplied);
                 }
@@ -166,10 +179,13 @@ final readonly class UpdateSite
             });
         } catch (UniqueConstraintViolationException $exception) {
             // Concurrent requests can pass unique validation before either transaction commits.
-            if (! str_contains($exception->getMessage(), 'sites_url_unique')) {
+            if (! str_contains($exception->getMessage(), 'sites_url_unique') && ! str_contains($exception->getMessage(), 'sites_url_key_unique')) {
                 throw $exception;
             }
-            throw ValidationException::withMessages(['url' => __('api.url_unavailable')]);
+            /** @var string $url */
+            $url = $attributes['url'];
+            $duplicate = $this->duplicates->find($url, $site->id);
+            throw ValidationException::withMessages(['url' => $duplicate instanceof Site ? $this->duplicates->message($duplicate) : __('sites.url_duplicate')]);
         }
     }
 

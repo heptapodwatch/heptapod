@@ -1,4 +1,5 @@
 import {
+    act,
     cleanup,
     fireEvent,
     render,
@@ -68,6 +69,7 @@ beforeEach(() => {
 });
 afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
 });
@@ -633,4 +635,109 @@ it('refreshes probe-dependent recommendations when restoring Checks and preserve
         'sitemap',
         'uptime',
     ]);
+});
+
+it('debounces the address check, aborts stale results and normalises on blur', async () => {
+    vi.useFakeTimers();
+    const pending: ((value: Response) => void)[] = [];
+    vi.mocked(fetch).mockImplementation(
+        () =>
+            new Promise((resolve) =>
+                pending.push(resolve),
+            ) as Promise<Response>,
+    );
+    render(<AddSite {...options} />);
+    const field = screen.getByLabelText('URL') as HTMLInputElement;
+    fireEvent.change(field, { target: { value: 'FIRST.example/' } });
+    await act(() => vi.advanceTimersByTimeAsync(599));
+    expect(fetch).not.toHaveBeenCalled();
+    await act(() => vi.advanceTimersByTimeAsync(1));
+    expect(screen.getByText('sites.url_checking')).not.toBeNull();
+    const firstSignal = vi.mocked(fetch).mock.calls[0]![1]!.signal!;
+    fireEvent.change(field, { target: { value: 'SECOND.example/' } });
+    expect(firstSignal.aborted).toBe(true);
+    fireEvent.blur(field);
+    const blurSignal = vi.mocked(fetch).mock.calls[1]![1]!.signal!;
+    await act(() => vi.advanceTimersByTimeAsync(600));
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(blurSignal.aborted).toBe(false);
+    const result = (url: string) =>
+        ({
+            ok: true,
+            json: async () => ({
+                normalised_url: url,
+                final_url: url,
+                status: 200,
+                failure: null,
+                recommended_checks: ['uptime'],
+            }),
+        }) as Response;
+    await act(async () => pending[1]!(result('https://second.example')));
+    expect(field.value).toBe('https://second.example');
+    await act(async () => pending[0]!(result('https://first.example')));
+    expect(field.value).toBe('https://second.example');
+    expect(screen.queryByText('sites.url_checking')).toBeNull();
+    expect(screen.getByText('sites.url_reachable · HTTP 200')).not.toBeNull();
+    expect(stored().url).toBe('https://second.example/');
+});
+
+it('shows server validation without calling an invalid address unreachable', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+        ok: false,
+        status: 422,
+        json: async () => ({
+            errors: { url: ['Enter an HTTP or HTTPS address.'] },
+        }),
+    } as Response);
+    render(<AddSite {...options} />);
+    fireEvent.change(screen.getByLabelText('URL'), {
+        target: { value: 'ftp://shop.example' },
+    });
+    fireEvent.blur(screen.getByLabelText('URL'));
+    await waitFor(() =>
+        expect(
+            screen.getByText('Enter an HTTP or HTTPS address.'),
+        ).not.toBeNull(),
+    );
+    expect(screen.queryByText(/sites.url_unreachable/)).toBeNull();
+});
+
+it('lets the server validate a scheme-less host with a port instead of rejecting it locally', () => {
+    render(<AddSite {...options} />);
+    fireEvent.change(screen.getByLabelText('URL'), {
+        target: { value: 'shop.example:8080/path' },
+    });
+    expect(stored().url).toBe('https://shop.example:8080/path');
+    next();
+    expect(screen.getByText('Choose a client for this site.')).not.toBeNull();
+    next();
+    expect(screen.getByText('Recommended checks are selected.')).not.toBeNull();
+});
+
+it('offers the observed redirect address without blocking forward navigation on an HTTP warning', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+            normalised_url: 'http://shop.example',
+            final_url: 'https://www.shop.example/store',
+            status: 404,
+            failure: null,
+            recommended_checks: ['uptime'],
+        }),
+    } as Response);
+    render(<AddSite {...options} />);
+    const field = screen.getByLabelText('URL') as HTMLInputElement;
+    fireEvent.change(field, { target: { value: 'http://shop.example/' } });
+    fireEvent.blur(field);
+    await waitFor(() =>
+        expect(screen.getByText('Warning · HTTP 404')).not.toBeNull(),
+    );
+    await act(async () => fireEvent.blur(field));
+    expect(fetch).toHaveBeenCalledTimes(1);
+    fireEvent.click(
+        screen.getByRole('button', { name: 'sites.url_use_address' }),
+    );
+    expect(field.value).toBe('https://www.shop.example/store');
+    next();
+    expect(screen.getByText('Choose a client for this site.')).not.toBeNull();
 });

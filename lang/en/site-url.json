@@ -1,0 +1,14 @@
+{
+    "sites.url_invalid": "Enter an HTTP or HTTPS address.",
+    "sites.url_duplicate": "This address is already monitored.",
+    "sites.url_duplicate_named": "Already monitored: :name",
+    "sites.url_host_warning": "Another site uses this host: :name",
+    "sites.url_checking": "Checking…",
+    "sites.url_reachable": "Reachable",
+    "sites.url_unreachable": "Could not reach",
+    "sites.url_probe_failed": "The address could not be checked. You can still add or save the site.",
+    "sites.url_redirect": "Redirects to :url",
+    "sites.url_use_address": "Use this address",
+    "sites.url_duplicates_description": "List existing sites with the same normalised address, ignoring HTTP versus HTTPS (read-only)",
+    "sites.url_duplicates_none": "No duplicate site addresses."
+}
