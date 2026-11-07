@@ -1,9 +1,9 @@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { StatusDot } from '@/components/monitoring';
 import { TimezoneCombobox } from '@/components/timezone-combobox';
 import {
     FormSection,
     FormActions,
+    FormSaveStatus,
     FormSecondaryAction,
 } from '@/components/form-section';
 import { PageHeader } from '@/components/page-header';
@@ -84,6 +84,7 @@ export default function Profile({
                 description={t('pages.profile.description')}
             />
             <form
+                id="profile-form"
                 onSubmit={save}
                 noValidate
                 className="space-y-4"
@@ -253,21 +254,10 @@ export default function Profile({
                 </fieldset>
                 <FormActions
                     status={
-                        <>
-                            {form.processing ? (
-                                t('Saving…')
-                            ) : form.isDirty ? (
-                                <>
-                                    <StatusDot
-                                        state="warning"
-                                        label="Unsaved changes"
-                                    />
-                                    {t('Unsaved changes')}
-                                </>
-                            ) : (
-                                t('No unsaved changes')
-                            )}
-                        </>
+                        <FormSaveStatus
+                            dirty={form.isDirty}
+                            processing={form.processing}
+                        />
                     }
                 >
                     <FormSecondaryAction
@@ -281,6 +271,7 @@ export default function Profile({
                     </FormSecondaryAction>
                     <Button
                         type="submit"
+                        form="profile-form"
                         size="sm"
                         disabled={!form.isDirty || form.processing}
                         data-test="update-profile-button"

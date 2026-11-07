@@ -4,11 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
     FormActions,
+    FormSaveStatus,
     FormSecondaryAction,
     FormSection,
 } from '@/components/form-section';
 import InputError from '@/components/input-error';
-import { StatusDot } from '@/components/monitoring';
 import type { SettingsPage } from '@/components/recipient-settings/model';
 import { Button } from '@/components/ui/button';
 import { CheckboxField } from '@/components/ui/checkbox';
@@ -88,6 +88,7 @@ export function ScheduleSection({
     return (
         <form
             noValidate
+            id={`${id}-schedule-form`}
             onSubmit={(event) => {
                 event.preventDefault();
                 if (!dirty || blocked || form.processing) return;
@@ -211,25 +212,15 @@ export function ScheduleSection({
                     </div>
                 </div>
             </FormSection>
+            <InputError message={failure} />
             <FormActions
-                className="mt-6"
                 status={
-                    form.processing ? (
-                        t('Saving…')
-                    ) : dirty ? (
-                        <>
-                            <StatusDot
-                                state="warning"
-                                label={t('Unsaved changes')}
-                            />
-                            {t('Unsaved changes')}
-                        </>
-                    ) : (
-                        t('No unsaved changes')
-                    )
+                    <FormSaveStatus
+                        dirty={dirty}
+                        processing={form.processing}
+                    />
                 }
             >
-                <InputError message={failure} />
                 <FormSecondaryAction
                     disabled={!dirty || form.processing}
                     onClick={() => {
@@ -241,6 +232,7 @@ export function ScheduleSection({
                 </FormSecondaryAction>
                 <Button
                     type="submit"
+                    form={`${id}-schedule-form`}
                     disabled={!dirty || blocked || form.processing}
                 >
                     {t('Save')}

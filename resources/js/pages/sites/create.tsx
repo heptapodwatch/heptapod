@@ -332,6 +332,7 @@ export default function AddSite({
                 />
                 <form
                     noValidate
+                    id="site-create-form"
                     onSubmit={(event) => {
                         if (step === 'checks') return submit(event);
                         event.preventDefault();
@@ -686,7 +687,11 @@ export default function AddSite({
                         >
                             {t('Discard')}
                         </FormSecondaryAction>
-                        <Button type="submit" disabled={form.processing}>
+                        <Button
+                            type="submit"
+                            form="site-create-form"
+                            disabled={form.processing}
+                        >
                             {t(step === 'checks' ? 'Add site' : 'Next')}
                         </Button>
                     </FormActions>

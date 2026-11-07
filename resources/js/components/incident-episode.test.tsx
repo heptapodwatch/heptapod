@@ -1,4 +1,10 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import {
+    cleanup,
+    fireEvent,
+    render,
+    screen,
+    within,
+} from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -161,8 +167,13 @@ it('renders a resolved incident on the same page with its close, evidence at clo
     expect(document.body.textContent).not.toContain(
         'Now · incidents.state.open',
     );
-    // The same note form in both states.
-    expect(screen.getByRole('textbox', { name: 'Internal note' })).toBeTruthy();
+    // The same note card in both states; the note is edited in a sheet, never inline.
+    expect(screen.queryByRole('textbox', { name: 'Internal note' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Add note' }));
+    const sheet = document.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(
+        within(sheet).getByRole('textbox', { name: 'Internal note' }),
+    ).toBeTruthy();
     // Mail of events outside the timeline, named by its event.
     const other = screen
         .getByText('Other notifications')

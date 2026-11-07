@@ -5,6 +5,7 @@ import {
 import {
     FormSection,
     FormActions,
+    FormSaveStatus,
     FormSecondaryAction,
 } from '@/components/form-section';
 import { PageHeader } from '@/components/page-header';
@@ -13,7 +14,10 @@ import { PageContainer } from '@/components/page-container';
 import { Head, router, useForm } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ClientAvatarSettings } from '@/components/client-avatar-settings';
+import {
+    ClientAvatarSettings,
+    type ClientAvatarDraft,
+} from '@/components/client-avatar-settings';
 import { ConfirmDialog, confirmVisit } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { archive, store, update } from '@/routes/clients';
@@ -26,18 +30,25 @@ export default function ClientSettings({
     const { t } = useTranslation();
     const [archiveOpen, setArchiveOpen] = useState(false);
     const creating = client === null;
-    const form = useForm(clientFormValues(client));
+    const form = useForm({
+        ...clientFormValues(client),
+        avatar: null as ClientAvatarDraft,
+    });
     const save = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        const options = {
+        // PHP parses a multipart body (an avatar upload) only for POST, so the update is a spoofed PATCH.
+        form.transform(({ avatar, ...values }) => ({
+            ...values,
+            ...avatar,
+            ...(client && { _method: 'patch' }),
+        }));
+        form.post(client ? update.url(client.id) : store.url(), {
             preserveScroll: true,
-            onSuccess: () => form.setDefaults(),
-        };
-        if (client) {
-            form.patch(update.url(client.id), options);
-        } else {
-            form.post(store.url(), options);
-        }
+            onSuccess: () => {
+                form.setData('avatar', null);
+                form.setDefaults();
+            },
+        });
     };
 
     return (
@@ -69,16 +80,25 @@ export default function ClientSettings({
                         setData={form.setData}
                         timezones={timezones}
                     />
+                    {client && (
+                        <ClientAvatarSettings
+                            client={client}
+                            sites={avatar_sites}
+                            draft={form.data.avatar}
+                            onDraftChange={(avatar) =>
+                                form.setData('avatar', avatar)
+                            }
+                            errors={form.errors}
+                            disabled={form.processing}
+                        />
+                    )}
                     <FormActions
                         data-client-savebar
                         status={
-                            <>
-                                {form.processing
-                                    ? t('Saving…')
-                                    : form.isDirty
-                                      ? t('Unsaved changes')
-                                      : t('No unsaved changes')}
-                            </>
+                            <FormSaveStatus
+                                dirty={form.isDirty}
+                                processing={form.processing}
+                            />
                         }
                     >
                         <FormSecondaryAction
@@ -94,6 +114,7 @@ export default function ClientSettings({
                         <Button
                             id="client-settings-save"
                             type="submit"
+                            form="client-settings-form"
                             size="sm"
                             disabled={!form.isDirty || form.processing}
                         >
@@ -101,12 +122,6 @@ export default function ClientSettings({
                         </Button>
                     </FormActions>
                 </form>
-                {client && (
-                    <ClientAvatarSettings
-                        client={client}
-                        sites={avatar_sites}
-                    />
-                )}
                 {client && !client.is_internal && !client.archived_at && (
                     <FormSection
                         title={t('Archive client')}
