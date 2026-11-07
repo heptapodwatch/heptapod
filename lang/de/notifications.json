@@ -98,7 +98,7 @@
     "recipient_settings.category.recovery.description": "Ein Ausfall ist vorbei oder eine Prüfung wieder in Ordnung.",
     "recipient_settings.category.changes.label": "Änderungen",
     "recipient_settings.category.changes.plural": "Änderungen",
-    "recipient_settings.category.changes.description": "Neue defekte Links, DNS- oder Zertifikatsänderungen, gesunkene Werte.",
+    "recipient_settings.category.changes.description": "Neue defekte Links, DNS- oder Zertifikatsänderungen, gesunkene Werte, schnellere Antwortzeiten.",
     "recipient_settings.category.system.label": "System",
     "recipient_settings.category.system.plural": "Systemprobleme",
     "recipient_settings.category.system.description": "Heptapod selbst braucht Aufmerksamkeit: Sicherungen, Mail, Zeitplanung.",

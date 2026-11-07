@@ -18,5 +18,7 @@ final class PerformanceMetrics extends Data
         public readonly int $previous_sample_count,
         public readonly int $consecutive_warning_samples = 0,
         public readonly int $consecutive_good_samples = 0,
+        public readonly int $consecutive_improved_samples = 0,
+        public readonly int $consecutive_normal_samples = 0,
     ) {}
 }

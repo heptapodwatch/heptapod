@@ -7,8 +7,8 @@
     "performance.presentation.recovered_short": ":median ms, Entwarnung unter :recovery_below ms",
     "performance.no_data_while_down": "Keine Antwortzeiten, solange die Website ausgefallen ist (seit :date)",
     "performance.threshold_help": "Der absolute Grenzwert gilt für den Median der letzten 60 Minuten, nicht für den angezeigten Durchschnitt.",
-    "performance.minimum_increase": "Mindestanstieg gegenüber dem üblichen Wert",
-    "performance.minimum_increase_help": "Der 60-Minuten-Median muss den höheren Wert aus dem p90 derselben UTC-Stunde über sieben Tage und deren um diesen Prozentsatz erhöhtem Median überschreiten. Er muss zudem mindestens 200 ms über dem Basis-Median liegen. Standard: 50%.",
+    "performance.minimum_increase": "Mindeständerung gegenüber dem üblichen Wert",
+    "performance.minimum_increase_help": "Eine Warnung setzt voraus, dass der 60-Minuten-Median den höheren Wert aus dem p90 derselben UTC-Stunde über sieben Tage und deren um diesen Prozentsatz erhöhtem Median überschreitet; ein Hinweis auf schnellere Antwortzeiten, dass er um diesen Prozentsatz unter diesem Median liegt. Beides erfordert einen Unterschied von mindestens 200 ms. Standard: 50 %.",
     "performance.median_above_threshold": "60-Min.-Median :median ms überschreitet :threshold ms (Durchschnitt :average ms).",
     "performance.median_above_configured_range": "60-Minuten-Median :median ms liegt über :relative_threshold ms. Anstieg gegenüber :baseline ms: :delta ms. Durchschnitt: :average ms.",
     "causes.response_time": "Antwortzeit :seconds s > :threshold s",
@@ -35,5 +35,7 @@
     "performance.mail_event.check.warning": "Warnungen",
     "performance.mail_event.check.recovered": "Wiederherstellungen",
     "performance.mail_median": "60-Minuten-Median",
-    "performance.mail_recovers_below": "Entwarnung unter"
+    "performance.mail_recovers_below": "Entwarnung unter",
+    "performance.presentation.improved": "Schneller geworden: :from s → :to s (:change %)",
+    "performance.mail_event.performance.improved": "schnellere Antwortzeiten"
 }

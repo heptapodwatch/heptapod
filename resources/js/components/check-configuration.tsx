@@ -108,7 +108,9 @@ export function CheckConfiguration({
                                       ),
                                   },
                                   {
-                                      label: t('Minimum increase over normal'),
+                                      label: t(
+                                          'Minimum difference from normal',
+                                      ),
                                       value: `${format.milliseconds(
                                           page.performance_noise
                                               ?.minimum_increase_ms ??

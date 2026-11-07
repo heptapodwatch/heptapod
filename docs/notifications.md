@@ -15,16 +15,16 @@ Alerts go to **channels**: an email address, Slack, Microsoft Teams, Discord, Te
 
 ### Categories
 
-| Category    | Meaning                                                          | Digest |
-| ----------- | ---------------------------------------------------------------- | ------ |
-| Outage      | A site is Down (uptime).                                         | no     |
-| Failure     | A check result Failed: certificate, DNS, broken links and so on. | no     |
-| Check error | We could not check, for example a timeout or a blocked request.  | yes    |
-| Warning     | Something needs attention soon.                                  | yes    |
-| Expiring    | A certificate or domain expires soon.                            | yes    |
-| Recovery    | An outage is over or a check is fine again.                      | no     |
-| Changes     | New broken links, DNS or certificate changes, lower scores.      | yes    |
-| System      | Heptapod itself needs attention: backups, mail, the scheduler.   | no     |
+| Category    | Meaning                                                                            | Digest |
+| ----------- | ---------------------------------------------------------------------------------- | ------ |
+| Outage      | A site is Down (uptime).                                                           | no     |
+| Failure     | A check result Failed: certificate, DNS, broken links and so on.                   | no     |
+| Check error | We could not check, for example a timeout or a blocked request.                    | yes    |
+| Warning     | Something needs attention soon.                                                    | yes    |
+| Expiring    | A certificate or domain expires soon.                                              | yes    |
+| Recovery    | An outage is over or a check is fine again.                                        | no     |
+| Changes     | New broken links, DNS or certificate changes, lower scores, faster response times. | yes    |
+| System      | Heptapod itself needs attention: backups, mail, the scheduler.                     | no     |
 
 New team channels hear everything except Changes and System. The first Owner's account email hears everything except Changes, plus System. Other people start with Outage, Failure and Recovery for every site they can see. Client channels start with everything off, and System is never offered to clients or Members. The Owner role always gets System at its account email, even in quiet hours; that row is locked.
 

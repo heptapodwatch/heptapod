@@ -31,7 +31,7 @@ enum NotificationCategory: string
     public const array ChangeKeys = [
         'application_health.component_changed', 'certificate_health.certificate_changed', 'broken_links.new_broken_found',
         'mixed_content.new_finding', 'dns.records_changed', 'domain.expiry_changed', 'domain.registration_changed',
-        'lighthouse.score_threshold_crossed', 'sitemap.issues_changed', 'scheduled_task.missed',
+        'lighthouse.score_threshold_crossed', 'sitemap.issues_changed', 'scheduled_task.missed', 'performance.improved',
     ];
 
     /** @return list<self> */

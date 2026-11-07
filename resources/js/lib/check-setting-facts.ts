@@ -74,11 +74,9 @@ export function checkSettingFact(
             checkKey === 'certificate_health' &&
                 name === 'expires_soon_threshold_in_days'
                 ? 'Warn before expiry'
-                : checkKey === 'performance' && name === 'change_percentage'
-                  ? 'Warn above usual'
-                  : (field.presentation?.labelKey ??
-                    checkSettingLabels[name] ??
-                    name),
+                : (field.presentation?.labelKey ??
+                      checkSettingLabels[name] ??
+                      name),
         ),
         value: display,
         mono:
