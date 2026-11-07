@@ -11,7 +11,7 @@ import {
 import { PageHeader } from '@/components/page-header';
 import { ClientHeader } from '@/components/client-header';
 import { PageContainer } from '@/components/page-container';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -20,15 +20,39 @@ import {
 } from '@/components/client-avatar-settings';
 import { ConfirmDialog, confirmVisit } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
-import { archive, store, update } from '@/routes/clients';
+import InputError, { fieldErrorProps } from '@/components/input-error';
+import { RadioCards } from '@/components/ui/radio-cards';
+import { CheckboxField } from '@/components/ui/checkbox';
+import {
+    EntityCombobox,
+    clientComboboxOptions,
+} from '@/components/entity-combobox';
+import { Label } from '@/components/ui/label';
+import { archive, restore, store, update } from '@/routes/clients';
+import { useFormat } from '@/hooks/use-format';
 
 export default function ClientSettings({
     client,
     avatar_sites,
     timezones,
+    clients,
+    site_count,
+    archive_paused_site_count,
 }: Heptapod.Data.Ui.ClientSettingsPageData) {
     const { t } = useTranslation();
+    const format = useFormat();
     const [archiveOpen, setArchiveOpen] = useState(false);
+    const [restoreOpen, setRestoreOpen] = useState(false);
+    const archiveForm = useForm<{
+        site_action: 'archive' | 'move';
+        client_id: string;
+    }>({
+        site_action: 'archive',
+        client_id: String(
+            clients.find((choice) => choice.is_internal)?.id ?? '',
+        ),
+    });
+    const restoreForm = useForm({ resume_sites: true });
     const creating = client === null;
     const form = useForm({
         ...clientFormValues(client),
@@ -37,8 +61,9 @@ export default function ClientSettings({
     const save = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         // PHP parses a multipart body (an avatar upload) only for POST, so the update is a spoofed PATCH.
-        form.transform(({ avatar, ...values }) => ({
+        form.transform(({ avatar, name, ...values }) => ({
             ...values,
+            ...(!client?.is_internal && { name }),
             ...avatar,
             ...(client && { _method: 'patch' }),
         }));
@@ -79,6 +104,7 @@ export default function ClientSettings({
                         errors={form.errors}
                         setData={form.setData}
                         timezones={timezones}
+                        internal={client?.is_internal}
                     />
                     {client && (
                         <ClientAvatarSettings
@@ -126,49 +152,215 @@ export default function ClientSettings({
                     <FormSection
                         title={t('Archive client')}
                         description={t(
-                            'Stops all monitoring for this client and hides it from active views.',
+                            'Hide this client from active views; its history is kept and you can restore it later.',
                         )}
                     >
                         <Button
                             variant="outline"
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => setArchiveOpen(true)}
+                            onClick={() => {
+                                archiveForm.resetAndClearErrors();
+                                setArchiveOpen(true);
+                            }}
                         >
                             {t('Archive client')}
                         </Button>
-                        {/* Archiving has no undo path (no unarchive route or action), so it stays destructive. */}
                         <ConfirmDialog
                             open={archiveOpen}
                             onOpenChange={setArchiveOpen}
-                            destructive
                             title={t('Archive client?')}
                             description={t(
-                                'Archiving pauses monitoring for all sites. History remains available.',
+                                'Hide this client from active views; its history is kept and you can restore it later.',
                             )}
                             confirmLabel={t('Archive client')}
                             onConfirm={() =>
                                 confirmVisit((callbacks) =>
-                                    router.post(
+                                    archiveForm.post(
                                         archive.url(client.id),
-                                        {},
                                         callbacks,
                                     ),
                                 )
                             }
-                        />
+                        >
+                            {site_count > 0 && (
+                                <div className="space-y-4">
+                                    <RadioCards
+                                        label={t('What happens to the sites?')}
+                                        value={archiveForm.data.site_action}
+                                        onChange={(value) =>
+                                            archiveForm.setData(
+                                                'site_action',
+                                                value,
+                                            )
+                                        }
+                                        disabled={archiveForm.processing}
+                                        invalid={
+                                            !!archiveForm.errors.site_action
+                                        }
+                                        describedBy={
+                                            fieldErrorProps(
+                                                'archive-site-action',
+                                                archiveForm.errors.site_action,
+                                            )['aria-describedby']
+                                        }
+                                        options={[
+                                            {
+                                                value: 'archive',
+                                                label: t(
+                                                    'Archive the sites too',
+                                                ),
+                                                description: t(
+                                                    'Pause the sites and hide them with the client; keep their history.',
+                                                ),
+                                            },
+                                            {
+                                                value: 'move',
+                                                label: t(
+                                                    'Move the sites to another client',
+                                                ),
+                                                description: t(
+                                                    'Keep each site running or paused as it is; transfer its access and history.',
+                                                ),
+                                            },
+                                        ]}
+                                    />
+                                    <InputError
+                                        field="archive-site-action"
+                                        message={archiveForm.errors.site_action}
+                                    />
+                                    {archiveForm.data.site_action ===
+                                        'move' && (
+                                        <div className="space-y-2">
+                                            <Label htmlFor="archive-target-client">
+                                                {t('Client')}
+                                            </Label>
+                                            <EntityCombobox
+                                                id="archive-target-client"
+                                                options={clientComboboxOptions(
+                                                    clients,
+                                                )}
+                                                value={
+                                                    archiveForm.data.client_id
+                                                }
+                                                onValueChange={(value) =>
+                                                    archiveForm.setData(
+                                                        'client_id',
+                                                        value,
+                                                    )
+                                                }
+                                                disabled={
+                                                    archiveForm.processing
+                                                }
+                                                invalid={
+                                                    !!archiveForm.errors
+                                                        .client_id
+                                                }
+                                                describedBy={
+                                                    fieldErrorProps(
+                                                        'archive-target-client',
+                                                        archiveForm.errors
+                                                            .client_id,
+                                                    )['aria-describedby']
+                                                }
+                                            />
+                                            <p className="text-xs text-muted-foreground">
+                                                {t(
+                                                    'archive_client.move_consequences',
+                                                )}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {t('archive_client.move_wait')}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {t(
+                                                    'archive_client.move_progress',
+                                                )}
+                                            </p>
+                                        </div>
+                                    )}
+                                    <InputError
+                                        field="archive-target-client"
+                                        message={archiveForm.errors.client_id}
+                                    />
+                                </div>
+                            )}
+                        </ConfirmDialog>
                     </FormSection>
                 )}
                 {client?.is_internal && (
                     <p className="text-sm text-muted-foreground">
-                        {t('The Internal client cannot be archived.')}
+                        {t('No client cannot be archived.')}
                     </p>
                 )}
                 {client?.archived_at && (
-                    <p className="text-sm text-muted-foreground">
-                        {t(
-                            'This client is archived. Monitoring is stopped; history remains available.',
+                    <FormSection
+                        title={t('Restore client')}
+                        description={t(
+                            'Make this client and its sites visible and manageable again.',
                         )}
-                    </p>
+                    >
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                restoreForm.resetAndClearErrors();
+                                setRestoreOpen(true);
+                            }}
+                        >
+                            {t('Restore client')}
+                        </Button>
+                        <ConfirmDialog
+                            open={restoreOpen}
+                            onOpenChange={setRestoreOpen}
+                            title={t('Restore client?')}
+                            description={t('restore_client.description', {
+                                count: site_count,
+                                formattedCount: format.number(site_count),
+                            })}
+                            confirmLabel={t('Restore client')}
+                            onConfirm={() =>
+                                confirmVisit((callbacks) =>
+                                    restoreForm.post(
+                                        restore.url(client.id),
+                                        callbacks,
+                                    ),
+                                )
+                            }
+                        >
+                            {archive_paused_site_count > 0 ? (
+                                <CheckboxField
+                                    id="restore-resume-sites"
+                                    checked={restoreForm.data.resume_sites}
+                                    onCheckedChange={(checked) =>
+                                        restoreForm.setData(
+                                            'resume_sites',
+                                            checked === true,
+                                        )
+                                    }
+                                    disabled={restoreForm.processing}
+                                    {...fieldErrorProps(
+                                        'restore-resume-sites',
+                                        restoreForm.errors.resume_sites,
+                                    )}
+                                >
+                                    {t('restore_client.resume', {
+                                        count: archive_paused_site_count,
+                                        formattedCount: format.number(
+                                            archive_paused_site_count,
+                                        ),
+                                    })}
+                                </CheckboxField>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    {t(
+                                        'Sites stay paused; resume them on each site.',
+                                    )}
+                                </p>
+                            )}
+                            <InputError
+                                field="restore-resume-sites"
+                                message={restoreForm.errors.resume_sites}
+                            />
+                        </ConfirmDialog>
+                    </FormSection>
                 )}
             </PageContainer>
         </>

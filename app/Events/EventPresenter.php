@@ -37,8 +37,8 @@ final readonly class EventPresenter
         $site = $event->site;
         $label = $site?->displayName() ?? $event->site_name ?? throw new \LogicException('A timeline event must retain its site label.');
         $clientName = $site === null
-            ? ($event->client_name ?? throw new \LogicException('A timeline event must retain its client name.'))
-            : ($site->client ?? throw new \LogicException('A timeline site must have a client.'))->name;
+            ? ($event->client?->is_internal === true ? $event->client->displayName() : $event->client_name ?? throw new \LogicException('A timeline event must retain its client name.'))
+            : ($site->client ?? throw new \LogicException('A timeline site must have a client.'))->displayName();
         $contextSite = $site ?? new Site(['friendly_name' => $label,
             'url' => $event->site_url ?? throw new \LogicException('A deleted-site event must retain its URL.')]);
         $severity = $event->type === 'check.result_changed' && $event->to_result === CheckResult::Succeeded

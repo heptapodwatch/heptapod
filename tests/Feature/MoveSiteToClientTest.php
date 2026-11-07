@@ -81,13 +81,14 @@ it('transfers the whole site and retained history through settings with an actor
     $this->actingAs($newMember)->get('/activity')->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->has('events', 1));
 })->with(['Owner', 'Admin']);
 
-it('rejects Members even when they can access both clients', function (): void {
+it('rejects Members even when they can access both clients', function (bool $archived): void {
     $member = User::factory()->member()->create();
-    $site = Site::factory()->create();
+    $client = Client::factory()->create(['archived_at' => $archived ? now() : null]);
+    $site = Site::factory()->for($client)->create();
     $target = Client::factory()->create();
     $this->actingAs($member)->patchJson('/sites/'.$site->id, ['client_id' => $target->id])->assertForbidden();
     expect($site->fresh()->client_id)->toBe($site->client_id);
-});
+})->with(['active source' => false, 'archived source' => true]);
 
 it('rejects an archived target without changing any site fields', function (): void {
     $owner = User::factory()->owner()->create();
@@ -105,14 +106,17 @@ it('does not disclose a nonexistent target', function (): void {
     expect($site->fresh()->client_id)->toBe($site->client_id);
 });
 
-it('rejects archived source sites and leaves ownership unchanged', function (): void {
-    $owner = User::factory()->owner()->create();
-    $site = Site::factory()->create();
+it('moves a site out of an archived client but refuses other edits until it has moved', function (string $role): void {
+    $owner = User::factory()->create()->assignRole($role);
+    $site = Site::factory()->create(['paused_at' => now(), 'paused_by_archive_at' => now()]);
     $site->client->update(['archived_at' => now()]);
     $target = Client::factory()->create();
-    $this->actingAs($owner)->patchJson('/sites/'.$site->id, ['client_id' => $target->id])->assertForbidden();
+    $this->actingAs($owner)->patchJson('/sites/'.$site->id, ['client_id' => $target->id, 'friendly_name' => 'Forbidden'])->assertForbidden();
     expect($site->fresh()->client_id)->toBe($site->client_id);
-});
+    $this->patchJson('/sites/'.$site->id, ['client_id' => $target->id])->assertRedirect();
+    expect($site->fresh()->client_id)->toBe($target->id)->and($site->fresh()->paused_at)->not->toBeNull()
+        ->and($site->fresh()->paused_by_archive_at)->toBeNull();
+})->with(['Owner', 'Admin']);
 
 it('waits for open incidents but allows saving the unchanged client', function (): void {
     $owner = User::factory()->owner()->create();

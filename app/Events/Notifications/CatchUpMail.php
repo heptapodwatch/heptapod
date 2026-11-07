@@ -55,7 +55,7 @@ final readonly class CatchUpMail
             headline: __($site === null ? 'emails.catch_up_headline_retained' : 'emails.catch_up_headline', ['site' => $name], $locale), footerWhy: $footer['why'],
             instance: $this->settings->name.' · '.parse_url(config()->string('app.url'), PHP_URL_HOST),
             tone: array_any($rows, static fn (array $row): bool => $row['state'] !== 'check_error') ? MailTone::Failed : MailTone::CheckError,
-            lead: $lead, client: $client->name ?? $event->client_name ?? throw new \LogicException('A catch-up must retain its client.'), site: $label, blocks: $blocks,
+            lead: $lead, client: ($client ?? ($event->client?->is_internal === true ? $event->client : null))?->displayName($locale) ?? $event->client_name ?? throw new \LogicException('A catch-up must retain its client.'), site: $label, blocks: $blocks,
             primary: $site === null ? null : ['label' => __('emails.open_site', locale: $locale), 'url' => route('sites.show', ['site' => $site->id])],
             routingLabel: __($footer['labelKey'], locale: $locale), routingUrl: $footer['url'],
             avatarPng: $avatar['png'], avatarCid: $avatar['cid'], avatarTile: $avatar['tile'], design: $this->settings->mail_design);

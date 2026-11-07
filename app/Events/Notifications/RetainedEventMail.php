@@ -45,7 +45,7 @@ final readonly class RetainedEventMail
         $name = $site?->displayName() ?? $event->site_name ?? throw new \LogicException('A retained alert must keep its site label.');
         $label = $site === null ? __('events.deleted_site', ['label' => $name], $locale) : $name;
         $client = $site?->client;
-        $clientName = $client->name ?? $event->client_name ?? throw new \LogicException('A retained alert must keep its client.');
+        $clientName = ($client ?? ($event->client?->is_internal === true ? $event->client : null))?->displayName($locale) ?? $event->client_name ?? throw new \LogicException('A retained alert must keep its client.');
         $checkType = $event->check->type ?? $event->check_type ?? throw new \LogicException('A retained alert must keep its check type.');
         $facts = EventFacts::fromEvent($event);
         // Whether the check's add-on is installed is independent of whether its site or check still exists.

@@ -289,7 +289,7 @@ export default function SiteShow(page: SitePage) {
                     siteId={site.id}
                     checks={tabChecks}
                     value={isCheck ? String(page.check.id) : 'overview'}
-                    canManage={canManage}
+                    canManage={canManage || page.can_move}
                 />
                 {isCheck &&
                     page.check.enabled &&

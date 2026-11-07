@@ -155,7 +155,7 @@ Apply these page patterns to monitoring and settings screens rendered in AppLayo
 
 ## Confirmations
 
-- Every confirmation uses `ConfirmDialog`: Cancel first (focused), the confirm verb last. The confirm button names the action with the record ("Delete window", "Revoke token", "Remove from team"), never "Confirm" or a verb that collides with the footer's Cancel. Irreversible actions (delete, remove, revoke, archive, skip an occurrence) pass `destructive`; reversible ones (pause, end a running window, run checks) stay neutral. Maintenance verbs: End window (running), Delete window (one-off planned), Skip occurrence (planned occurrence of a series), Delete series; the copy states what changes for the one-off vs the series. The UI guard rejects a removal-verb ConfirmDialog without `destructive`.
+- Every confirmation uses `ConfirmDialog`: Cancel first (focused), the confirm verb last. The confirm button names the action with the record ("Delete window", "Revoke token", "Remove from team"), never "Confirm" or a verb that collides with the footer's Cancel. Irreversible actions (delete, remove, revoke, skip an occurrence) pass `destructive`; reversible ones (archive or restore a client, pause, end a running window, run checks) stay neutral. Typed-name confirmation is only for irreversible destruction of data at scale (currently Delete site). Maintenance verbs: End window (running), Delete window (one-off planned), Skip occurrence (planned occurrence of a series), Delete series; the copy states what changes for the one-off vs the series. The UI guard rejects a removal-verb ConfirmDialog without `destructive`.
 
 ## Cards
 

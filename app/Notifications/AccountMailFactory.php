@@ -41,7 +41,7 @@ final readonly class AccountMailFactory
         // Deleting an inviter sets inviter_id to null without deleting the pending invitation.
         $actor = $invitation->inviter->name ?? __('account_mail.team', locale: $locale);
         $ids = $invitation->client_ids;
-        $clients = $invitation->client_scope === ClientScope::All->value ? __('account_mail.all_clients', locale: $locale) : Client::query()->whereKey($ids)->pluck('name')->implode(', ');
+        $clients = $invitation->client_scope === ClientScope::All->value ? __('account_mail.all_clients', locale: $locale) : Client::query()->whereKey($ids)->get(['id', 'name', 'is_internal'])->map(static fn (Client $client): string => $client->displayName($locale))->implode(', ');
         $params = ['actor' => $actor, 'instance' => $this->settings->name];
         $headline = __('account_mail.invite_headline', $params, $locale);
 

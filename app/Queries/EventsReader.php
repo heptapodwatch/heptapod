@@ -160,7 +160,7 @@ final readonly class EventsReader
      */
     public function activityHeadEvents(array $eventIds): EloquentCollection
     {
-        return Event::query()->with(['site.client', 'check', 'incident'])->whereKey($eventIds)->get()->keyBy('id');
+        return Event::query()->with(['site.client', 'client', 'check', 'incident'])->whereKey($eventIds)->get()->keyBy('id');
     }
 
     /** @return array{events: list<ActivityGroupData>, older: int|null, newer: int|null} */
@@ -223,7 +223,7 @@ final readonly class EventsReader
         if ($siteId !== null) {
             $sites->where('sites.id', $siteId);
         }
-        $query = Event::feedVisible()->with(['site.client', 'check', 'incident']);
+        $query = Event::feedVisible()->with(['site.client', 'client', 'check', 'incident']);
         if ($checkId !== null) {
             $query->getQuery()->where('check_id', $checkId);
         }

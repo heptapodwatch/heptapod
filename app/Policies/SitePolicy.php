@@ -25,6 +25,16 @@ final class SitePolicy
         return $this->writable($user, $site->client_id);
     }
 
+    public function move(User $user, Site $site): Response
+    {
+        $access = $this->accessible($user, $site->client_id);
+        if ($access->denied()) {
+            return $access;
+        }
+
+        return $user->hasAnyRole(['Owner', 'Admin']) ? Response::allow() : Response::deny();
+    }
+
     public function delete(User $user, Site $site): Response
     {
         return $this->writable($user, $site->client_id);

@@ -59,7 +59,7 @@ it('cancels timed resume when the client is archived and rejects invalid pause m
     $this->post('/clients/'.$client->id.'/archive')->assertRedirect();
     expect($site->refresh()->resume_at)->toBeNull();
     $this->get('/sites/'.$site->id)->assertInertia(fn (Assert $page): Assert => $page
-        ->where('header.id', $site->id)->where('header.client_id', $client->id)->where('can_manage', false));
+        ->where('header.id', $site->id)->where('header.client_id', $client->id)->where('can_manage', false)->where('can_move', true));
     $this->travelTo(CarbonImmutable::parse('2026-10-05T02:00:00Z'));
     $this->artisan('heptapod:resume-due-sites')->assertExitCode(0);
     expect($site->refresh()->paused_at)->not->toBeNull();

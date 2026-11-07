@@ -31,7 +31,7 @@ final class ImportOhDearController extends Controller
 
         return Inertia::render('settings/import-ohdear', new ImportOhDearPageData(
             clients: array_values($clients->get(['id', 'name', 'is_internal'])
-                ->map(static fn (Client $client): array => ['id' => $client->id, 'name' => $client->name, 'is_internal' => $client->is_internal])->all()),
+                ->map(static fn (Client $client): array => ['id' => $client->id, 'name' => $client->displayName(), 'is_internal' => $client->is_internal])->all()),
         ));
     }
 

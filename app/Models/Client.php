@@ -32,6 +32,17 @@ final class Client extends Model implements HasMedia
 
     public const array AvatarRelations = ['media', 'sites:id,client_id,url,friendly_name,created_at,icon_hash,icon_backing'];
 
+    public function displayName(?string $locale = null): string
+    {
+        return $this->is_internal ? __('No client', locale: $locale) : $this->name;
+    }
+
+    /** @return literal-string */
+    public static function displayNameSql(): string
+    {
+        return 'CASE WHEN clients.is_internal THEN ? ELSE clients.name END';
+    }
+
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('logo')->singleFile()->useDisk(config()->string('filesystems.default'))->acceptsMimeTypes(['image/png', 'image/jpeg', 'image/webp']);

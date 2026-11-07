@@ -38,6 +38,7 @@ use Heptapod\Http\Controllers\Notifications\NotificationSiteMutesController;
 use Heptapod\Http\Controllers\RefreshSiteIconController;
 use Heptapod\Http\Controllers\RequestCheckRunController;
 use Heptapod\Http\Controllers\RequestSiteChecksController;
+use Heptapod\Http\Controllers\RestoreClientController;
 use Heptapod\Http\Controllers\RotateCronPingUrlController;
 use Heptapod\Http\Controllers\RunsController;
 use Heptapod\Http\Controllers\SearchController;
@@ -82,6 +83,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('clients/{client}/logo/{hash}', ClientLogoController::class)->whereNumber('client')->where('hash', '[a-f0-9]{64}')->name('clients.logo');
     Route::get('clients/{client}/settings', [ClientSettingsController::class, 'edit'])->whereNumber('client')->name('clients.settings');
     Route::patch('clients/{client}', [ClientSettingsController::class, 'update'])->whereNumber('client')->name('clients.update');
+    Route::post('clients/{client}/restore', RestoreClientController::class)->whereNumber('client')->name('clients.restore');
     Route::post('clients/{client}/archive', ArchiveClientController::class)->whereNumber('client')->name('clients.archive');
     Route::get('clients/{client}/client-messages', [ClientMessagesController::class, 'index'])->whereNumber('client')->name('clients.messages.index');
     Route::get('clients/{client}/client-messages/{message}', [ClientMessagesController::class, 'show'])->whereNumber(['client', 'message'])->name('clients.messages.show');

@@ -30,7 +30,7 @@ final class InvitationController extends Controller
         } catch (ModelNotFoundException|HttpException $exception) {
             return $this->unavailable($request, $exception, $instance);
         }
-        $clients = Client::query()->whereKey($invitation->client_ids)->withCount('sites')->get(['id', 'name']);
+        $clients = Client::query()->whereKey($invitation->client_ids)->withCount('sites')->get(['id', 'name', 'is_internal']);
         $data = ['instance' => $instance->name, 'inviter' => $invitation->inviter?->name,
             'email' => $invitation->email, 'role' => $invitation->role, 'clients' => $clients,
             'expires_at' => $invitation->expires_at->toIso8601String()];
@@ -44,7 +44,7 @@ final class InvitationController extends Controller
             state: 'valid',
             invitation: new InvitationData($instance->name, $data['inviter'], $invitation->email, $invitation->role,
                 $invitation->client_scope, array_values($clients->map(static fn (Client $client): array => [
-                    'id' => $client->id, 'name' => $client->name, 'sites_count' => $client->sites_count,
+                    'id' => $client->id, 'name' => $client->displayName(), 'sites_count' => $client->sites_count,
                 ])->all()), $data['expires_at']),
             token: $token,
             passwordRules: Password::defaults()->toPasswordRulesString(),

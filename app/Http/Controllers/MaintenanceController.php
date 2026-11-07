@@ -49,12 +49,12 @@ final class MaintenanceController extends Controller
         $canManage = $user->hasAnyRole(['Owner', 'Admin']);
         $siteOptions = Site::query();
         $siteOptions->getQuery()->orderBy('id');
-        $sites = $canManage ? $siteOptions->with('client:id,name')->get(['id', 'url', 'friendly_name', 'client_id', 'icon_hash', 'icon_backing'])
-            ->map(static fn (Site $site): MaintenanceTargetOptionData => new MaintenanceTargetOptionData($site->id, $site->displayName(), client_name: $site->client !== null ? $site->client->name : null, host: is_string(parse_url($site->url, PHP_URL_HOST)) ? parse_url($site->url, PHP_URL_HOST) : $site->url, icon_url: $site->iconUrl(), icon_backing: $site->icon_backing))->all() : [];
+        $sites = $canManage ? $siteOptions->with('client:id,name,is_internal')->get(['id', 'url', 'friendly_name', 'client_id', 'icon_hash', 'icon_backing'])
+            ->map(static fn (Site $site): MaintenanceTargetOptionData => new MaintenanceTargetOptionData($site->id, $site->displayName(), client_name: $site->client !== null ? $site->client->displayName() : null, host: is_string(parse_url($site->url, PHP_URL_HOST)) ? parse_url($site->url, PHP_URL_HOST) : $site->url, icon_url: $site->iconUrl(), icon_backing: $site->icon_backing))->all() : [];
         $clientOptions = ($canManage ? Client::query() : $policy->visibleClients($user, includeArchived: true))->with(Client::AvatarRelations);
         $clientOptions->getQuery()->orderBy('name');
         $loadedClients = $clientOptions->get(['id', 'name', 'short_name', 'accent_color', 'avatar_site_id', 'is_internal']);
-        $identities = $loadedClients->mapWithKeys(static fn (Client $client): array => [$client->id => new MaintenanceTargetOptionData($client->id, $client->name, app(ResolveClientAvatar::class)($client), $client->short_name, $client->accent_color, $client->is_internal)]);
+        $identities = $loadedClients->mapWithKeys(static fn (Client $client): array => [$client->id => new MaintenanceTargetOptionData($client->id, $client->displayName(), app(ResolveClientAvatar::class)($client), $client->short_name, $client->accent_color, $client->is_internal)]);
         $clients = $canManage ? $identities->values()->all() : [];
         // Reuse the resolved identity; browsing alone hides an empty Internal client.
         $filterClients = $loadedClients->filter(static fn (Client $client): bool => ! $client->is_internal || $client->sites->isNotEmpty())

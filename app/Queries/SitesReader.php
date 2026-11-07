@@ -568,7 +568,7 @@ final readonly class SitesReader
     {
         $collation = self::collation();
         $clients->with(Client::AvatarRelations);
-        $clients->getQuery()->orderByRaw('name COLLATE "'.$collation.'"')->orderBy('id');
+        $clients->getQuery()->orderByDesc('is_internal')->orderByRaw('name COLLATE "'.$collation.'"')->orderBy('id');
         $options = $clients->get()->map(fn (Client $client): ClientData => ClientData::fromClient($client))->all();
 
         return array_values($options);

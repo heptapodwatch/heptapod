@@ -34,6 +34,7 @@ export function ClientFormFields(form: {
     setData: (name: keyof ClientFormValues, value: string) => void;
     /** Server IANA timezone list. */
     timezones: string[];
+    internal?: boolean;
 }) {
     const { t } = useTranslation();
     const validTimezone = form.timezones.includes(form.data.timezone);
@@ -54,11 +55,19 @@ export function ClientFormFields(form: {
                             )}
                             name="name"
                             required
-                            value={form.data.name}
+                            readOnly={form.internal}
+                            value={
+                                form.internal ? t('No client') : form.data.name
+                            }
                             onChange={(event) =>
                                 form.setData('name', event.target.value)
                             }
                         />
+                        {form.internal && (
+                            <p className="text-xs text-muted-foreground">
+                                {t('Sites without a client are grouped here.')}
+                            </p>
+                        )}
                         <InputError
                             field="client-name"
                             message={form.errors.name}

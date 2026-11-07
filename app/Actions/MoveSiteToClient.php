@@ -22,7 +22,7 @@ final readonly class MoveSiteToClient
     public function __invoke(User $user, Site $site, int $clientId): Site
     {
         return NotificationLocks::transaction(function () use ($user, $site, $clientId): Site {
-            Gate::forUser($user)->authorize('update', $site);
+            Gate::forUser($user)->authorize('move', $site);
             $this->policy->visibleClients($user, includeArchived: true)->findOrFail($clientId);
             // NotificationLocks: both clients (ArchiveClient takes the client before checks and site), the checks, the site,
             // then the deliveries rewritten below, in ascending id.
@@ -34,7 +34,7 @@ final readonly class MoveSiteToClient
             if ($locked->client_id !== $site->client_id) {
                 throw ValidationException::withMessages(['client_id' => __('sites.client_changed')]);
             }
-            Gate::forUser($user)->authorize('update', $locked);
+            Gate::forUser($user)->authorize('move', $locked);
             $target = $lockedClients->get($clientId);
             abort_unless($target instanceof Client, 404);
             if ($target->archived_at !== null) {
@@ -63,7 +63,7 @@ final readonly class MoveSiteToClient
             // Retained history must not revert to source-client access when the site is later deleted.
             DB::table('deliveries')->whereIn('event_id', (clone $events)->select('id'))->update(['client_id' => $clientId]);
             $events->update(['client_id' => $clientId]);
-            $locked->update(['client_id' => $clientId]);
+            $locked->update(['client_id' => $clientId, 'paused_by_archive_at' => null]);
 
             return $locked;
         });

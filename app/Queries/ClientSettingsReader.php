@@ -12,10 +12,13 @@ use Heptapod\Models\Client;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
-final class ClientSettingsReader
+final readonly class ClientSettingsReader
 {
-    public function read(Client $client): ClientSettingsPageData
+    public function __construct(private SitesReader $sites) {}
+
+    public function read(Client $client, User $user): ClientSettingsPageData
     {
         $users = User::query()->with('roles');
         $users->where(function (Builder $query) use ($client): void {
@@ -43,6 +46,10 @@ final class ClientSettingsReader
             $timezones[] = $client->timezone;
         }
 
-        return new ClientSettingsPageData(ClientData::fromClient($client), array_values($members), array_values($icons), $timezones);
+        $siteCounts = DB::table('sites')->where('client_id', $client->id);
+        $siteCount = $siteCounts->count();
+        $archivePausedCount = $siteCounts->whereNotNull('paused_by_archive_at')->count();
+
+        return new ClientSettingsPageData(ClientData::fromClient($client), array_values($members), array_values($icons), $timezones, array_values(array_filter($this->sites->clientChoices($user), static fn (ClientData $choice): bool => $choice->id !== $client->id)), $siteCount, $archivePausedCount);
     }
 }

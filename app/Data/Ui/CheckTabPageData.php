@@ -50,5 +50,6 @@ final class CheckTabPageData extends Data
         public readonly ClosureLazy|CheckRunPresentationPartData|null $freshness_suppression,
         /** The instance mail design: the preset of a new message in Send to client. */
         public readonly ClosureLazy|MailDesign $mail_design,
+        public readonly ClosureLazy|bool $can_move = false,
     ) {}
 }

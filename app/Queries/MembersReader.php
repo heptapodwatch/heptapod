@@ -57,7 +57,7 @@ final readonly class MembersReader
         $clientQuery = Client::query()->with(Client::AvatarRelations);
         $clientQuery->getQuery()->orderBy('name');
         $clients = array_values($clientQuery->get(['id', 'name', 'archived_at', 'short_name', 'accent_color', 'avatar_site_id', 'is_internal'])->map(static fn (Client $client): array => [
-            'id' => $client->id, 'name' => $client->name, 'archived' => $client->archived_at !== null,
+            'id' => $client->id, 'name' => $client->displayName(), 'archived' => $client->archived_at !== null,
             'short_name' => $client->short_name, 'accent_color' => $client->accent_color, 'avatar' => app(ResolveClientAvatar::class)($client), 'is_internal' => $client->is_internal,
         ])->all());
 

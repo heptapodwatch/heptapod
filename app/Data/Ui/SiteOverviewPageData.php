@@ -32,5 +32,6 @@ final class SiteOverviewPageData extends Data
         public readonly ClosureLazy|array $uptime_ranges,
         public readonly ClosureLazy|array|null $run_all_result,
         public readonly ClosureLazy|MaintenanceSiteHeaderData|null $maintenance,
+        public readonly ClosureLazy|bool $can_move = false,
     ) {}
 }

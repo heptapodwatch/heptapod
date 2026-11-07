@@ -1435,6 +1435,7 @@ export function checkTabPageFixture(
         header: site.identity,
         check,
         can_run: true,
+        can_move: true,
         run_all_checks: [],
         maintenance: null,
         performance_noise: null,
