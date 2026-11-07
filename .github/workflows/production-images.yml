@@ -261,12 +261,12 @@ jobs:
           fi
           while IFS= read -r path; do
             case "$path" in
-              docker/*|Dockerfile*|*/Dockerfile*|app/Http/Outbound/*|app/Checks/*|config/credential-parameters.json|tests/Deployment/*|composer.json|composer.lock|package.json|package-lock.json|vite.config.ts|.github/*|addons/*/composer.json|.dockerignore|.trivyignore|.hadolint.yaml|.hadolint.yml|trivy.yaml|scripts/ci-summary.sh) app=true ;;
+              docker/*|Dockerfile*|*/Dockerfile*|app/Http/Outbound/*|app/Checks/*|config/credential-parameters.json|tests/Deployment/*|composer.json|composer.lock|package.json|package-lock.json|vite.config.ts|.github/workflows/production-images.yml|.github/actions/*|addons/*/composer.json|.dockerignore|.trivyignore|.hadolint.yaml|.hadolint.yml|trivy.yaml|scripts/ci-summary.sh) app=true ;;
               # Host lifecycle files that the app acceptance suites (tests/Deployment/acceptance.sh) execute.
               compose.prod.yaml|compose.proxy.yaml|.env.prod.example|scripts/install.sh|scripts/upgrade.sh|scripts/rollback.sh|scripts/lifecycle-lock.sh|scripts/release-image.sh|scripts/image-reference.sh|scripts/check-disk.sh|scripts/worker-memory-preflight.sh|scripts/retain-diagnostics.sh|scripts/diagnostics-filter.jq|scripts/expire-upgrade-backups.sh|scripts/upgrade-backup-retention.sh|scripts/upgrade-backup-retention.php|scripts/restore-backup.php|scripts/bootstrap-install.sh|scripts/build-release-bundle.sh) app=true ;;
             esac
             case "$path" in
-              docker/lighthouse/*|config/credential-parameters.json|tests/Fixtures/credential-parameters.json|tests/Deployment/image-modes.sh|.github/*|.dockerignore|.trivyignore|.hadolint.yaml|.hadolint.yml|trivy.yaml|scripts/ci-summary.sh) lighthouse=true ;;
+              docker/lighthouse/*|config/credential-parameters.json|tests/Fixtures/credential-parameters.json|tests/Deployment/image-modes.sh|.github/workflows/production-images.yml|.github/actions/*|.dockerignore|.trivyignore|.hadolint.yaml|.hadolint.yml|trivy.yaml|scripts/ci-summary.sh) lighthouse=true ;;
             esac
           done < "$RUNNER_TEMP/changed-paths"
           matrix=$(jq -c --argjson app "$app" --argjson lighthouse "$lighthouse" '
