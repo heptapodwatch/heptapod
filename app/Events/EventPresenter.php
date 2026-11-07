@@ -154,6 +154,10 @@ final readonly class EventPresenter
         if ($resultChange) {
             $params['result_change'] = true;
         }
+        // A pause, disable, deletion or move ends the incident without claiming that its check recovered.
+        if ($administrativeResolution) {
+            $params['administrative_resolution'] = true;
+        }
         $siteLabel = $site === null ? __('events.deleted_site', ['label' => $label]) : $label;
         if (! is_string($siteLabel)) {
             throw new \LogicException('Event site label translation must be text.');

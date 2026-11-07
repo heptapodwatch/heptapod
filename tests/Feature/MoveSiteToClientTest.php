@@ -14,6 +14,7 @@ use Heptapod\Contracts\Http\FetchResult;
 use Heptapod\Contracts\Http\OutboundHttp;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Enums\ClientScope;
+use Heptapod\Enums\NotificationCategory;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckSnooze;
 use Heptapod\Models\Client;
@@ -138,9 +139,12 @@ it('ends an open Down incident silently and opens a fresh episode for the new cl
     $check = Check::factory()->create(['type' => CheckKey::Uptime, 'failure_threshold' => 1]);
     $source = $check->site->client;
     $target = Client::factory()->create();
+    // Recovery is on everywhere: the team channel covers both clients and receives the opener, so only the
+    // administrative suppression keeps the move's resolution from reaching it.
     $channels = [];
-    foreach ([$source, $target] as $client) {
-        $channels[$client->id] = notificationRule(NotificationDestination::factory()->create(['scope_client_id' => $client->id]));
+    foreach (['source' => $source->id, 'team' => null, 'target' => $target->id] as $name => $clientId) {
+        $channels[$name] = notificationRoute(NotificationDestination::factory()->create(['scope_client_id' => $clientId]),
+            [NotificationCategory::Outage, NotificationCategory::Recovery])->id;
     }
     $observeDown = static function () use ($check): void {
         $at = CarbonImmutable::now('UTC');
@@ -153,7 +157,7 @@ it('ends an open Down incident silently and opens a fresh episode for the new cl
     $this->travelTo(CarbonImmutable::parse('2026-10-27T12:10:00Z'));
     dispatchNotifications();
     $ended = $check->incidents()->sole();
-    expect(Delivery::query()->where('state', 'sent')->sole()->destination_id)->toBe($channels[$source->id]->id);
+    expect(Delivery::query()->where('state', 'sent')->pluck('destination_id')->all())->toEqualCanonicalizing([$channels['source'], $channels['team']]);
 
     $this->travelTo(CarbonImmutable::parse('2026-10-27T12:30:00Z'));
     $this->actingAs($owner)->patchJson('/sites/'.$check->site_id, ['client_id' => $target->id])->assertRedirect();
@@ -167,6 +171,8 @@ it('ends an open Down incident silently and opens a fresh episode for the new cl
         ->and(Delivery::query()->where('event_id', $resolution->id)->exists())->toBeFalse();
     $this->get('/incidents/'.$ended->id)->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
         ->where('evidence.recovery_summary', 'incidents.resolution.moved_to_client'));
+    $this->get('/activity')->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+        ->where('events.0.latest.id', $resolution->id)->where('events.0.latest.message_params.administrative_resolution', true));
 
     $this->travelTo(CarbonImmutable::parse('2026-10-27T12:31:00Z'));
     $observeDown();
@@ -174,15 +180,13 @@ it('ends an open Down incident silently and opens a fresh episode for the new cl
     $opened = $check->incidents()->whereNull('resolved_at')->sole();
     // A continued episode would alert at once from 12:00; a fresh one waits its own ten minutes.
     expect($opened->alert_episode_started_at->toIso8601String())->toBe('2026-10-27T12:31:00+00:00')
-        ->and(Delivery::query()->where('state', 'sent')->count())->toBe(1);
+        ->and(Delivery::query()->where('state', 'sent')->count())->toBe(2);
     $this->travelTo(CarbonImmutable::parse('2026-10-27T12:41:00Z'));
     dispatchNotifications();
 
-    $sent = Delivery::query()->where('state', 'sent')->orderBy('id')->get();
-    expect($sent)->toHaveCount(2)
-        ->and($sent[1]->destination_id)->toBe($channels[$target->id]->id)
-        ->and($sent[1]->event->incident_id)->toBe($opened->id);
-    Mail::assertSentCount(2);
+    expect(Delivery::query()->where('state', 'sent')->whereIn('event_id', Event::query()->where('incident_id', $opened->id)->select('id'))->pluck('destination_id')->all())
+        ->toEqualCanonicalizing([$channels['team'], $channels['target']]);
+    Mail::assertSentCount(4);
 });
 
 it('waits for unrouted events before moving but allows saving the unchanged client', function (): void {
