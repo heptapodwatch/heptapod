@@ -63,8 +63,16 @@ final readonly class ArchiveClient
         $sites = Site::query();
         $sites->getQuery()->where('client_id', $client->id)->orderBy('id');
         // Release each site's history locks before moving the next; retries continue from the remaining sites.
+        $moved = 0;
         foreach ($sites->get() as $site) {
-            ($this->move)($user, $site, $targetClientId);
+            try {
+                ($this->move)($user, $site, $targetClientId);
+            } catch (ValidationException $exception) {
+                throw ValidationException::withMessages(['client_id' => trans_choice('archive_client.move_failed', $moved, [
+                    'site' => $site->displayName(), 'count' => $moved,
+                ]).' '.$exception->validator->errors()->first('client_id')]);
+            }
+            $moved++;
         }
         NotificationLocks::transaction(function () use ($client): void {
             NotificationLocks::clients([$client->id]);

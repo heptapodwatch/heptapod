@@ -348,13 +348,13 @@ export default function ClientSettings({
                                         ),
                                     })}
                                 </CheckboxField>
-                            ) : (
+                            ) : site_count > 0 ? (
                                 <p className="text-sm text-muted-foreground">
                                     {t(
                                         'Sites stay paused; resume them on each site.',
                                     )}
                                 </p>
-                            )}
+                            ) : null}
                             <InputError
                                 field="restore-resume-sites"
                                 message={restoreForm.errors.resume_sites}

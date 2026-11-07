@@ -32,6 +32,23 @@ it('omits initial scheduled-task observations from Activity', function (): void 
         ->missing('total')->has('events', 1)->where('events.0.latest.id', $changed->id)->where('events.0.event_count', 1)->where('older_cursor', null)->where('newer_cursor', null));
 });
 
+it('finds current and deleted-site activity by the translated No client label without leaking scope', function (string $locale, string $label, bool $deleted): void {
+    $internal = Client::query()->where('is_internal', true)->firstOrFail();
+    $site = Site::factory()->for($internal)->create();
+    $check = Check::factory()->for($site)->create();
+    $event = Event::factory()->for($check)->create(['occurred_at' => now()->subMinute(), 'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Warning]);
+    if ($deleted) {
+        $site->delete();
+    }
+    $owner = User::factory()->owner()->create(['locale' => $locale]);
+    $this->actingAs($owner)->get('/activity?'.http_build_query(['q' => $label]))
+        ->assertInertia(fn (Assert $page): Assert => $page->has('events', 1)->where('events.0.latest.id', $event->id)->where('events.0.latest.client_name', $label));
+
+    $member = User::factory()->member()->create(['locale' => $locale, 'client_scope' => ClientScope::Restricted]);
+    $this->actingAs($member)->get('/activity?'.http_build_query(['q' => $label]))
+        ->assertInertia(fn (Assert $page): Assert => $page->has('events', 0));
+})->with(['en current' => ['en', 'No client', false], 'en deleted' => ['en', 'No client', true], 'de current' => ['de', 'Ohne Kunde', false], 'de deleted' => ['de', 'Ohne Kunde', true]]);
+
 it('paginates state changes within visible clients after applying server filters', function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-04T00:30:00Z'));
     $visible = Client::factory()->create(['name' => 'Visible']);

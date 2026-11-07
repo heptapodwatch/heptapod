@@ -145,6 +145,24 @@ it('explains an empty recorded set without offering to resume unrecorded sites',
     ).toBeTruthy();
 });
 
+it('does not suggest resuming sites when restoring an empty client', () => {
+    render(
+        page({
+            client: { ...clients[0]!, archived_at: '2026-10-01T12:00:00Z' },
+            site_count: 0,
+            archive_paused_site_count: 0,
+        }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Restore client' }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).queryByRole('checkbox')).toBeNull();
+    expect(
+        within(dialog).queryByText(
+            'Sites stay paused; resume them on each site.',
+        ),
+    ).toBeNull();
+});
+
 it('uses a plain archive confirmation for an empty client', () => {
     render(page({ site_count: 0 }));
     fireEvent.click(screen.getByRole('button', { name: 'Archive client' }));

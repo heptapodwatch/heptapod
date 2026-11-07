@@ -154,6 +154,19 @@ it('sorts clients with failures first and filters attention across all pages', f
     $this->get('/clients?filter[state]=invalid')->assertSessionHasErrors('filter.state');
 });
 
+it('finds No client by its translated label without exposing it outside the visible scope', function (string $locale, string $label): void {
+    $this->withoutVite();
+    $internal = Client::query()->where('is_internal', true)->firstOrFail();
+    Site::factory()->for($internal)->create();
+    $owner = User::factory()->owner()->create(['locale' => $locale]);
+    $this->actingAs($owner)->get('/clients?'.http_build_query(['filter' => ['search' => $label]]))
+        ->assertInertia(fn (Assert $page): Assert => $page->has('clients', 1)->where('clients.0.client.id', $internal->id));
+
+    $member = User::factory()->member()->create(['locale' => $locale, 'client_scope' => ClientScope::Restricted]);
+    $this->actingAs($member)->get('/clients?'.http_build_query(['filter' => ['search' => $label]]))
+        ->assertInertia(fn (Assert $page): Assert => $page->has('clients', 0));
+})->with(['en' => ['en', 'No client'], 'de' => ['de', 'Ohne Kunde']]);
+
 it('denies roleless client reads', function (): void {
     $client = Client::factory()->create();
     $this->actingAs(User::factory()->create())->get('/clients')->assertForbidden();

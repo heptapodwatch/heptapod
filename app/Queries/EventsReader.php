@@ -10,6 +10,7 @@ use Heptapod\Data\Ui\ActivityGroupData;
 use Heptapod\Data\Ui\EventData;
 use Heptapod\Events\EventPresenter;
 use Heptapod\Models\CheckRun;
+use Heptapod\Models\Client;
 use Heptapod\Models\Event;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
@@ -263,11 +264,16 @@ final readonly class EventsReader
             $query->where(function (Builder $match) use ($pattern): void {
                 $match->whereHas('site', static fn (Builder $site): Builder => $site->where(function (Builder $identity) use ($pattern): void {
                     $identity->where('url', 'ilike', $pattern)->orWhere('friendly_name', 'ilike', $pattern)
-                        ->orWhereHas('client', static fn (Builder $client): Builder => $client->where('name', 'ilike', $pattern));
+                        ->orWhereHas('client', static function (Builder $client) use ($pattern): void {
+                            $client->getQuery()->whereRaw(Client::displayNameSql().' ILIKE ?', [__('No client'), $pattern]);
+                        });
                 }))->orWhere(function (Builder $deleted) use ($pattern): void {
                     $deleted->getQuery()->whereNull('site_id');
                     $deleted->where(function (Builder $identity) use ($pattern): void {
-                        $identity->where('site_name', 'ilike', $pattern)->orWhere('site_url', 'ilike', $pattern)->orWhere('client_name', 'ilike', $pattern);
+                        $identity->where('site_name', 'ilike', $pattern)->orWhere('site_url', 'ilike', $pattern)->orWhere('client_name', 'ilike', $pattern)
+                            ->orWhereHas('client', static function (Builder $client) use ($pattern): void {
+                                $client->getQuery()->where('is_internal', true)->whereRaw('? ILIKE ?', [__('No client'), $pattern]);
+                            });
                     });
                 });
             });

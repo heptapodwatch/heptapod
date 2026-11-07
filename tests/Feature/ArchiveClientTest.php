@@ -72,17 +72,17 @@ it('moves sites and history before archiving without changing monitoring state a
         ->and($delivery->fresh()->client_id)->toBe($target->id)->and($delivery->fresh()->digest_recurrence_ended_at)->not->toBeNull();
 });
 
-it('keeps completed moves and converges on retry after pending alerts finish', function (): void {
-    $owner = User::factory()->owner()->create();
+it('names the blocked site and completed moves and converges on retry after pending alerts finish', function (string $locale, string $message): void {
+    $owner = User::factory()->owner()->create(['locale' => $locale]);
     $source = Client::factory()->create();
     $target = Client::factory()->create();
     $first = Site::factory()->for($source)->create();
-    $second = Site::factory()->for($source)->create();
+    $second = Site::factory()->for($source)->create(['friendly_name' => 'Blocked site']);
     $check = Check::factory()->for($second)->create();
     $event = Event::factory()->for($check)->create();
 
     $this->actingAs($owner)->postJson('/clients/'.$source->id.'/archive', ['site_action' => 'move', 'client_id' => $target->id])
-        ->assertUnprocessable()->assertJsonValidationErrors('client_id');
+        ->assertUnprocessable()->assertJsonValidationErrors(['client_id' => $message]);
 
     expect($source->fresh()->archived_at)->toBeNull()->and($first->fresh()->client_id)->toBe($target->id)
         ->and($second->fresh()->client_id)->toBe($source->id)->and($first->fresh()->paused_at)->toBeNull();
@@ -90,7 +90,10 @@ it('keeps completed moves and converges on retry after pending alerts finish', f
     $this->postJson('/clients/'.$source->id.'/archive', ['site_action' => 'move', 'client_id' => $target->id])->assertRedirect();
     expect($source->fresh()->archived_at)->not->toBeNull()->and($source->sites()->count())->toBe(0)
         ->and($first->fresh()->client_id)->toBe($target->id)->and($second->fresh()->client_id)->toBe($target->id);
-});
+})->with([
+    'en' => ['en', 'Could not move Blocked site; 1 site already moved. Alerts for this site are still being sent; try again in a few minutes.'],
+    'de' => ['de', 'Blocked site konnte nicht verschoben werden; 1 Website bereits verschoben. Benachrichtigungen für diese Website werden noch versendet; versuchen Sie es in einigen Minuten erneut.'],
+]);
 
 it('refuses an archived move target and an internal archive without writing', function (): void {
     $owner = User::factory()->owner()->create();

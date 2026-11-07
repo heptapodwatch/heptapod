@@ -200,7 +200,6 @@ final readonly class SiteDetailReader
             client: Lazy::closure(static fn (): ClientData => $getClient()),
             run_all_checks: Lazy::closure(fn (): array => $this->runAllChecks($site)),
             can_manage: Lazy::closure(static fn (): bool => $getClient()->archived_at === null && $user->hasAnyRole(['Owner', 'Admin'])),
-            can_move: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
             uptime_ranges: Lazy::closure(fn (): array => $this->uptimeRanges($site, $getHistory()['uptime_percentage'])),
             run_all_result: Lazy::closure(static function (): ?array {
                 $result = request()->session()->get('run_all');
@@ -211,6 +210,7 @@ final readonly class SiteDetailReader
                 return $result;
             }),
             maintenance: Lazy::closure(fn (): ?MaintenanceSiteHeaderData => $this->maintenance($user, $siteId)),
+            can_move: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
         );
     }
 
@@ -289,7 +289,6 @@ final readonly class SiteDetailReader
                 return $strip->withPresentation($this->currentPresentation($check));
             }),
             can_run: Lazy::closure(static fn (): bool => $getCanUpdate()),
-            can_move: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
             schedule: Lazy::closure(fn (): CheckScheduleData => $this->checkRuns->schedule($check)),
             failure_threshold: Lazy::closure(static fn (): int => $check->failure_threshold),
             runs: Lazy::closure(static fn (): array => $getRuns()),
@@ -313,6 +312,7 @@ final readonly class SiteDetailReader
                 $suppression->headlineKey($check->type), ['date' => $suppression->at->toIso8601String()],
             ) : null),
             mail_design: Lazy::closure(fn (): MailDesign => $this->instanceSettings->mail_design),
+            can_move: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
         );
     }
 

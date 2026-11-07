@@ -58,7 +58,7 @@ it('names No client in invitation mail in the mail language rather than exposing
     $transport = new ArrayTransport;
     Mail::mailer()->setSymfonyTransport($transport);
 
-    Notification::route('mail', $invitation->email)->notify((new TeamInvitation($invitation, 'https://monitor.example.test/invitations/token'))->locale($locale));
+    Notification::route('mail', $invitation->email)->notify(new TeamInvitation($invitation, 'https://monitor.example.test/invitations/token')->locale($locale));
 
     $mail = $transport->messages()->sole()->getOriginalMessage();
     expect($mail->getTextBody())->toContain($label)->not->toContain('Previously renamed');
