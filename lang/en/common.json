@@ -412,7 +412,6 @@
     "import.description": "Import monitors from an Oh Dear account",
     "import.token_required": "Provide --token with an Oh Dear read-only token.",
     "import.skipped": "Skipped",
-    "import.duplicate_url": "Duplicate URL, skipped; existing site was not adopted.",
     "import.unsupported": "Not yet supported, skipped: :fields",
     "import.children": "Cron definitions: :cron; maintenance periods: :maintenance; recurring periods: :recurring",
     "import.create": "Create",

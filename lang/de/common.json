@@ -412,7 +412,6 @@
     "import.description": "Monitore aus einem Oh Dear-Konto importieren",
     "import.token_required": "--token mit einem schreibgeschützten Oh Dear-Token angeben.",
     "import.skipped": "Übersprungen",
-    "import.duplicate_url": "Doppelte URL, übersprungen; bestehende Website wurde nicht übernommen.",
     "import.unsupported": "Noch nicht unterstützt, übersprungen: :fields",
     "import.children": "Cron-Definitionen: :cron; Wartungszeiträume: :maintenance; wiederkehrende Zeiträume: :recurring",
     "import.create": "Erstellen",

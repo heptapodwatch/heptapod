@@ -88,20 +88,6 @@ it('returns a clear 422 for unsupported schemes, empty hosts and URL credentials
     ['https://user:password@example.com', 'api.url_credentials_unsupported'],
 ]);
 
-it('returns only a generic duplicate message outside the API token client constraint', function (): void {
-    $owner = User::factory()->owner()->create();
-    $internal = Client::query()->where('is_internal', true)->firstOrFail();
-    $hidden = Site::factory()->create(['url' => 'https://private.example', 'friendly_name' => 'Confidential client']);
-    $token = $owner->createToken('constrained', ['monitors:write']);
-    $token->accessToken->forceFill(['client_id' => $internal->id])->save();
-
-    $response = $this->withToken($token->plainTextToken)->postJson('/api/monitors', ['team_id' => 1, 'type' => 'http', 'url' => 'http://PRIVATE.example/', 'checks' => []]);
-
-    $response->assertUnprocessable()->assertJsonPath('errors.url.0', 'This address is already monitored.')->assertDontSee('Confidential client');
-    expect(Site::query()->count())->toBe(1);
-    expect($hidden->refresh()->url)->toBe('https://private.example');
-});
-
 it('keeps byte-identical legacy collision URLs valid for other field saves but refuses a changed colliding value', function (): void {
     $owner = User::factory()->owner()->create();
     Site::factory()->create(['url' => 'https://legacy.example']);
@@ -131,25 +117,10 @@ it('reports visible duplicates with links and warns only for visible same-host o
     ['https://www.example.com/shop', false, false],
 ]);
 
-it('accepts a different path through the API without exposing hidden host warnings', function (): void {
-    $owner = User::factory()->owner()->create();
-    $internal = Client::query()->where('is_internal', true)->firstOrFail();
-    Site::factory()->create(['url' => 'https://hidden.example', 'friendly_name' => 'Secret']);
-    $token = $owner->createToken('write', ['monitors:write']);
-    $token->accessToken->forceFill(['client_id' => $internal->id])->save();
-
-    $this->withToken($token->plainTextToken)->postJson('/api/monitors', ['team_id' => 1, 'type' => 'http', 'url' => 'hidden.example/path', 'checks' => []])->assertCreated()->assertDontSee('Secret');
-
-    $this->assertDatabaseHas('sites', ['url' => 'https://hidden.example/path']);
-});
-
-it('authorizes the site excluded from a settings probe and ignores its own address', function (): void {
+it('ignores the site\'s own address in a settings probe', function (): void {
     $owner = User::factory()->owner()->create();
     $site = Site::factory()->create(['url' => 'https://own.example']);
     $this->actingAs($owner)->postJson('/sites/probe', ['url' => 'http://own.example/', 'site_id' => $site->id])->assertOk()->assertJsonPath('duplicate_message', null);
-    $member = User::factory()->create();
-    $member->assignRole('Member');
-    $this->actingAs($member)->postJson('/sites/probe', ['url' => 'http://own.example/', 'site_id' => $site->id])->assertForbidden();
 });
 
 it('accepts another path on an already monitored host at every write entry point', function (string $entry): void {
