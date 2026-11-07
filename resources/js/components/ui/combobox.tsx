@@ -176,28 +176,34 @@ export function Combobox({
                             value={query}
                             onValueChange={setQuery}
                         />
-                        <CommandList label={t('combobox.options')}>
+                        {/* Only the options scroll; the Create entry stays pinned below them, still inside the list so arrow keys reach it last. */}
+                        <CommandList
+                            label={t('combobox.options')}
+                            className="max-h-none overflow-y-visible"
+                        >
                             {!create && matching.length === 0 && (
                                 <CommandEmpty>{t('combobox.empty')}</CommandEmpty>
                             )}
-                            {grouped(matching).map(([group, items]) => (
-                                <CommandGroup key={group ?? ''} heading={group ?? undefined}>
-                                    {items.map((option) => (
-                                        <CommandItem
-                                            key={option.value}
-                                            value={option.value}
-                                            onSelect={() => select(option)}
-                                        >
-                                            {optionContent(option)}
-                                            {value === option.value && (
-                                                <Check className="ml-auto size-4 shrink-0" />
-                                            )}
-                                        </CommandItem>
-                                    ))}
-                                </CommandGroup>
-                            ))}
+                            <div className="max-h-[300px] scroll-py-1 overflow-y-auto">
+                                {grouped(matching).map(([group, items]) => (
+                                    <CommandGroup key={group ?? ''} heading={group ?? undefined}>
+                                        {items.map((option) => (
+                                            <CommandItem
+                                                key={option.value}
+                                                value={option.value}
+                                                onSelect={() => select(option)}
+                                            >
+                                                {optionContent(option)}
+                                                {value === option.value && (
+                                                    <Check className="ml-auto size-4 shrink-0" />
+                                                )}
+                                            </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                ))}
+                            </div>
                             {create && (
-                                <CommandGroup>
+                                <CommandGroup className="border-t">
                                     <CommandItem
                                         value="__create__"
                                         onSelect={() => {
