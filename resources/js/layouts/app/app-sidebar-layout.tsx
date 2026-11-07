@@ -64,7 +64,10 @@ export default function AppSidebarLayout({
         <LiveProvider>
             <ShellHealthLive />
             <AppShell variant="sidebar">
-                <AppSidebar onOpenSearch={openSearch} />
+                <AppSidebar
+                    onOpenSearch={openSearch}
+                    onOpenShortcuts={() => setShortcutsOpen(true)}
+                />
                 <AppContent
                     variant="sidebar"
                     className="min-w-0 overflow-x-clip"

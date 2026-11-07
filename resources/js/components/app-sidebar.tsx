@@ -1,7 +1,10 @@
 import { Link, usePage } from '@inertiajs/react';
+import { CircleHelp } from 'lucide-react';
 import { StatusDot } from '@/components/monitoring';
 import { CommandPaletteTrigger } from '@/components/real-command-palette';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Kbd } from '@/components/ui/kbd';
 import {
     Tooltip,
     TooltipContent,
@@ -30,8 +33,10 @@ import { edit as systemHealth } from '@/routes/settings/system';
 
 export function AppSidebar({
     onOpenSearch,
+    onOpenShortcuts,
 }: {
     onOpenSearch: (trigger: HTMLButtonElement) => void;
+    onOpenShortcuts: () => void;
 }) {
     const { t } = useTranslation();
     const { setOpenMobile, state, isMobile } = useSidebar();
@@ -148,9 +153,31 @@ export function AppSidebar({
                             }
                         />
                     )}
-                <NavMain
-                    items={items.filter((item) => item.group === 'Footer')}
-                />
+                <div className="flex items-center group-data-[collapsible=icon]:flex-col">
+                    <NavMain
+                        items={items.filter((item) => item.group === 'Footer')}
+                    />
+                    {/* Keyboard shortcuts do not apply on touch, so the mobile drawer has no help button. */}
+                    {!isMobile && (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="me-2 shrink-0 text-muted-foreground group-data-[collapsible=icon]:me-0"
+                                    aria-label={t('Keyboard shortcuts')}
+                                    aria-haspopup="dialog"
+                                    onClick={onOpenShortcuts}
+                                >
+                                    <CircleHelp />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="right">
+                                {t('Keyboard shortcuts')} <Kbd>?</Kbd>
+                            </TooltipContent>
+                        </Tooltip>
+                    )}
+                </div>
                 <NavUser />
             </SidebarFooter>
             <SidebarRail />
