@@ -407,7 +407,6 @@
     "psl.refresh_failed": "Public Suffix List refresh failed. See the application log.",
     "psl.refresh_source_only": "Refresh the Public Suffix List in a source checkout, then build and deploy a new image. Production refresh is disabled.",
     "api.secrets_host_change": "Re-enter this secret before changing the target origin.",
-    "api.url_unavailable": "This URL cannot be used.",
     "api.url_credentials_unsupported": "Credentials in the URL are not supported; use an Authorization header.",
     "validation.secret_minimum": "Secrets require at least 4 characters after trimming surrounding whitespace.",
     "import.description": "Import monitors from an Oh Dear account",

@@ -407,7 +407,6 @@
     "psl.refresh_failed": "Aktualisierung der Public Suffix List fehlgeschlagen. Siehe Anwendungsprotokoll.",
     "psl.refresh_source_only": "Aktualisieren Sie die Public Suffix List im Quellcode und erstellen und verteilen Sie danach ein neues Image. Die Aktualisierung in der Produktionsumgebung ist deaktiviert.",
     "api.secrets_host_change": "Dieses Geheimnis vor dem Wechsel des Zielursprungs erneut eingeben.",
-    "api.url_unavailable": "Diese URL kann nicht verwendet werden.",
     "api.url_credentials_unsupported": "Zugangsdaten in der URL werden nicht unterstützt. Einen Authorization-Header verwenden.",
     "validation.secret_minimum": "Geheimnisse benötigen nach dem Entfernen umgebender Leerzeichen mindestens 4 Zeichen.",
     "import.description": "Monitore aus einem Oh Dear-Konto importieren",
