@@ -69,6 +69,7 @@
     "incidents.resolution.check_disabled": "Check disabled",
     "incidents.resolution.site_paused": "Site paused",
     "incidents.resolution.site_deleted": "Site deleted or marked for deletion",
+    "incidents.resolution.moved_to_client": "Site moved to another client",
     "incidents.resolve_inactive.description": "Resolve open incidents on disabled checks or paused/deleted sites without recovery alerts",
     "incidents.resolve_inactive.unknown_actor": "Audit actor must be an existing user ID.",
     "incidents.resolve_inactive.would_resolve": "Would resolve :count inactive incident.|Would resolve :count inactive incidents.",

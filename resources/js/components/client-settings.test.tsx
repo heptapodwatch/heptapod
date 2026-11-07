@@ -137,9 +137,8 @@ it('defaults to archiving sites and preselects No client when moving them instea
 
 it('names the sites that cannot move and blocks only the move until they can', async () => {
     blockedSites = [
-        { id: 7, name: 'API', reason: 'open_incident' },
-        { id: 8, name: 'Shop', reason: 'alerts_pending' },
-        { id: 9, name: 'Blog', reason: 'alerts_pending' },
+        { id: 8, name: 'Shop' },
+        { id: 9, name: 'Blog' },
     ];
     render(page());
     fireEvent.click(screen.getByRole('button', { name: 'Archive client' }));
@@ -151,11 +150,6 @@ it('names the sites that cannot move and blocks only the move until they can', a
     );
     expect(
         await within(dialog).findByText(
-            'API cannot move until its open incident is resolved.',
-        ),
-    ).toBeTruthy();
-    expect(
-        within(dialog).getByText(
             'Shop and Blog cannot move yet; their alerts are still being sent.',
         ),
     ).toBeTruthy();

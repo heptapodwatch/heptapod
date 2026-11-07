@@ -37,7 +37,7 @@ final readonly class DeleteSite
                 ->whereIn('event_id', DB::table('events')->select('id')->where('site_id', $site->id)));
             $ids = [];
             foreach ($lockedChecks as $check) {
-                $ids = [...$ids, ...($this->resolve)($check, deletingSite: true)];
+                $ids = [...$ids, ...($this->resolve)($check, IncidentResolutionReason::SiteDeleted)];
             }
             $eventIds = DB::table('events')->where('site_id', $lockedSite->id)->select('id');
             $siteUrls = DB::table('events')->where('site_id', $lockedSite->id)->select('site_url')

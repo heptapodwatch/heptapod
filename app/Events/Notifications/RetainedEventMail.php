@@ -51,8 +51,8 @@ final readonly class RetainedEventMail
         // Whether the check's add-on is installed is independent of whether its site or check still exists.
         $addonInstalled = in_array($checkType, $this->registry->keys(), true);
         // How the incident was closed is a fact of the event; a deleted site or removed check only limits what is still shown.
-        // Only ResolveInactiveCheckIncidents records a resolution_reason: monitoring stopped. Any other closure with a
-        // resolution_key was reported by the check itself because nothing is left to check (cron without tasks).
+        // Only ResolveInactiveCheckIncidents records a resolution_reason: monitoring stopped or the site moved to another client.
+        // Any other closure with a resolution_key was reported by the check itself because nothing is left to check (cron without tasks).
         $closure = null;
         if ($event->type === 'incident.resolved' && isset($facts->summaryParams['resolution_key'])) {
             $stoppedBy = $event->payload['resolution_reason'] ?? null;

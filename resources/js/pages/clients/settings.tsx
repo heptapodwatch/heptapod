@@ -39,17 +39,11 @@ import {
 import { useFormat } from '@/hooks/use-format';
 import { useHttpRequest } from '@/hooks/use-http-request';
 
-/** A site that cannot move to another client right now (ClientMoveBlockersController). */
+/** A site whose alerts are still being sent, so it cannot move to another client yet (ClientMoveBlockersController). */
 type MoveBlocker = {
     id: number;
     name: string;
-    reason: 'open_incident' | 'alerts_pending';
 };
-
-const blockedKeys = {
-    open_incident: 'archive_client.blocked_open_incident',
-    alerts_pending: 'archive_client.blocked_alerts_pending',
-} as const;
 
 export default function ClientSettings({
     client,
@@ -104,30 +98,26 @@ export default function ClientSettings({
         blockersRequest.get,
         blockersRequest.cancel,
     ]);
-    const blockedLines = (['open_incident', 'alerts_pending'] as const).flatMap(
-        (reason) => {
-            const names = (blockers ?? [])
-                .filter((site) => site.reason === reason)
-                .map((site) => site.name);
-            if (names.length === 0) return [];
-            const shown =
-                names.length > 3
-                    ? [
-                          ...names.slice(0, 2),
-                          t('archive_client.blocked_more', {
-                              count: names.length - 2,
-                              formattedCount: format.number(names.length - 2),
-                          }),
-                      ]
-                    : names;
-            return [
-                t(blockedKeys[reason], {
-                    count: names.length,
-                    sites: new Intl.ListFormat(i18n.language).format(shown),
-                }),
-            ];
-        },
-    );
+    const blockedNames = (blockers ?? []).map((site) => site.name);
+    const blockedLine =
+        blockedNames.length === 0
+            ? null
+            : t('archive_client.blocked_alerts_pending', {
+                  count: blockedNames.length,
+                  sites: new Intl.ListFormat(i18n.language).format(
+                      blockedNames.length > 3
+                          ? [
+                                ...blockedNames.slice(0, 2),
+                                t('archive_client.blocked_more', {
+                                    count: blockedNames.length - 2,
+                                    formattedCount: format.number(
+                                        blockedNames.length - 2,
+                                    ),
+                                }),
+                            ]
+                          : blockedNames,
+                  ),
+              });
     const restoreForm = useForm({ resume_sites: true });
     const creating = client === null;
     const form = useForm({
@@ -310,13 +300,12 @@ export default function ClientSettings({
                                     {archiveForm.data.site_action ===
                                         'move' && (
                                         <div className="space-y-2">
-                                            {blockedLines.map((line) => (
+                                            {blockedLine !== null && (
                                                 <InputError
-                                                    key={line}
                                                     role="status"
-                                                    message={line}
+                                                    message={blockedLine}
                                                 />
-                                            ))}
+                                            )}
                                             <Label htmlFor="archive-target-client">
                                                 {t('Client')}
                                             </Label>

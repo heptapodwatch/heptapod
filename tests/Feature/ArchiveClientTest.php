@@ -73,10 +73,10 @@ it('moves sites and history before archiving without changing monitoring state a
         ->and($delivery->fresh()->client_id)->toBe($target->id)->and($delivery->fresh()->digest_recurrence_ended_at)->not->toBeNull();
 });
 
-it('reports up front which sites cannot move and why, only to managers', function (): void {
+it('reports up front which sites cannot move yet, not those with an open incident, only to managers', function (): void {
     $owner = User::factory()->owner()->create();
     $client = Client::factory()->create();
-    $incident = Incident::factory()->for(Check::factory()->for(Site::factory()->for($client)->create(['friendly_name' => 'Down site'])))->create();
+    Incident::factory()->for(Check::factory()->for(Site::factory()->for($client)->create(['friendly_name' => 'Down site'])))->create();
     $sending = Event::factory()->for(Check::factory()->for(Site::factory()->for($client)->create(['friendly_name' => 'Sending site'])))->create(['notification_routed_at' => now()]);
     Delivery::query()->create(['event_id' => $sending->id, 'destination_id' => NotificationDestination::factory()->create()->id,
         'state' => 'pending', 'next_attempt_at' => now(), 'suppression_evaluated_at' => now()]);
@@ -85,8 +85,7 @@ it('reports up front which sites cannot move and why, only to managers', functio
         'state' => 'sent', 'next_attempt_at' => now(), 'sent_at' => now(), 'suppression_evaluated_at' => now()]);
 
     $this->actingAs($owner)->getJson('/clients/'.$client->id.'/move-blockers')->assertOk()->assertExactJson(['sites' => [
-        ['id' => $incident->site_id, 'name' => 'Down site', 'reason' => 'open_incident'],
-        ['id' => $sending->site_id, 'name' => 'Sending site', 'reason' => 'alerts_pending'],
+        ['id' => $sending->site_id, 'name' => 'Sending site'],
     ]]);
     $this->actingAs(User::factory()->member()->create())->getJson('/clients/'.$client->id.'/move-blockers')->assertNotFound();
 });

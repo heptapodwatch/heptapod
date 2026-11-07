@@ -10,7 +10,7 @@ use Heptapod\Models\Site;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 
-/** The up-front check of the archive dialog: which of the client's sites cannot move to another client right now, and why. */
+/** The up-front check of the archive dialog: which of the client's sites cannot move to another client right now. */
 final class ClientMoveBlockersController extends Controller
 {
     public function __invoke(Client $client): JsonResponse
@@ -23,7 +23,7 @@ final class ClientMoveBlockersController extends Controller
         $siteIds = $sites->modelKeys();
         $blockers = MoveSiteToClient::blockers($siteIds);
 
-        return response()->json(['sites' => $sites->filter(static fn (Site $site): bool => isset($blockers[$site->id]))
-            ->map(static fn (Site $site): array => ['id' => $site->id, 'name' => $site->displayName(), 'reason' => $blockers[$site->id]])->values()->all()]);
+        return response()->json(['sites' => $sites->filter(static fn (Site $site): bool => in_array($site->id, $blockers, true))
+            ->map(static fn (Site $site): array => ['id' => $site->id, 'name' => $site->displayName()])->values()->all()]);
     }
 }

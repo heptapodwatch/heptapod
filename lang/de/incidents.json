@@ -69,6 +69,7 @@
     "incidents.resolution.check_disabled": "Prüfung deaktiviert",
     "incidents.resolution.site_paused": "Website pausiert",
     "incidents.resolution.site_deleted": "Website gelöscht oder zur Löschung vorgemerkt",
+    "incidents.resolution.moved_to_client": "Website einem anderen Kunden zugeordnet",
     "incidents.resolve_inactive.description": "Offene Störungen deaktivierter Prüfungen oder pausierter/gelöschter Websites ohne Entwarnung schließen",
     "incidents.resolve_inactive.unknown_actor": "Für den Audit-Eintrag ist eine vorhandene Konto-ID erforderlich.",
     "incidents.resolve_inactive.would_resolve": ":count inaktive Störung würde geschlossen.|:count inaktive Störungen würden geschlossen.",
