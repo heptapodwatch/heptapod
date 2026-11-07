@@ -77,12 +77,14 @@ it('persists canonical addresses and accepts distinct paths and www addresses', 
     ['trailing-dot.example./', 'https://trailing-dot.example'],
 ]);
 
-it('returns a clear 422 for unsupported schemes and URL credentials', function (string $url, string $message): void {
+it('returns a clear 422 for unsupported schemes, empty hosts and URL credentials', function (string $url, string $message): void {
     $owner = User::factory()->owner()->create();
     $this->actingAs($owner)->postJson('/sites/probe', ['url' => $url])->assertUnprocessable()->assertJsonPath('errors.url.0', __($message));
 })->with([
     ['ftp://example.com', 'sites.url_invalid'],
     ['javascript:alert(1)', 'sites.url_invalid'],
+    ['.', 'sites.url_invalid'],
+    ['https://../', 'sites.url_invalid'],
     ['https://user:password@example.com', 'api.url_credentials_unsupported'],
 ]);
 

@@ -28,7 +28,7 @@ final readonly class NormaliseSiteUrl
         $scheme = strtolower($parts['scheme']);
         $host = rtrim(strtolower($parts['host']), '.');
         if (! str_starts_with($host, '[')) {
-            $host = idn_to_ascii($host, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
+            $host = $host === '' ? false : idn_to_ascii($host, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
             if ($host === false) {
                 throw ValidationException::withMessages(['url' => __('sites.url_invalid')]);
             }

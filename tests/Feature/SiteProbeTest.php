@@ -64,15 +64,15 @@ it('returns a safe translated reason for each failed probe class', function (): 
     $user->assignRole('Owner');
     $fake = new FakeOutboundHttp;
     app()->instance(OutboundHttp::class, $fake);
-    foreach ([FetchFailureKind::Connect, FetchFailureKind::Timeout, FetchFailureKind::Dns, FetchFailureKind::PrivateTarget] as $kind) {
+    foreach ([FetchFailureKind::Connect, FetchFailureKind::Timeout, FetchFailureKind::Dns, FetchFailureKind::PrivateTarget, FetchFailureKind::RedirectBlocked] as $kind) {
         $fake->respondUsing(static fn (): FetchResult => new FetchResult(503, failure: new FetchFailure($kind, 503, targetAddress: '10.0.0.5')));
         $response = $this->actingAs($user)->postJson('/sites/probe', ['url' => 'https://example.test/'])->assertOk();
         $response->assertJsonPath('failure', 'probe_failed')->assertJsonPath('normalised_url', 'https://example.test')
-            ->assertJsonPath('failure_reason', __($kind === FetchFailureKind::PrivateTarget ? 'checks.policy.private_network' : 'causes.outbound.'.$kind->value))
+            ->assertJsonPath('failure_reason', __('causes.outbound.'.$kind->value))
             ->assertDontSee('10.0.0.5');
         expect($response->json('recommended_checks'))->toBe(['certificate_health', 'dns', 'domain', 'performance', 'uptime']);
     }
-    expect($fake->requests)->toHaveCount(4);
+    expect($fake->requests)->toHaveCount(5);
 });
 
 it('does not start DNS after the probe budget has already expired', function (): void {

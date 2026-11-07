@@ -6,7 +6,6 @@ namespace Heptapod\Checks;
 
 use Carbon\CarbonImmutable;
 use GuzzleHttp\Psr7\Uri;
-use Heptapod\Actions\NormaliseSiteUrl;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
@@ -21,16 +20,15 @@ use Heptapod\Data\Ui\SiteProbeData;
 
 final readonly class SiteProbe
 {
-    public function __construct(private OutboundHttp $http, private CheckRegistry $registry, private NormaliseSiteUrl $normalise) {}
+    public function __construct(private OutboundHttp $http, private CheckRegistry $registry) {}
 
     public function __invoke(string $url): SiteProbeData
     {
-        $url = ($this->normalise)($url);
         $now = CarbonImmutable::now('UTC');
         $context = new CheckContext(0, 0, 0, '', $url, $now, $now->addSeconds(12), [], [], null);
         $response = $this->http->fetch($this->request($url, true), $context);
         if ($response->failure instanceof FetchFailure) {
-            $reason = $response->failure->isPolicyRefusal() ? ['key' => 'checks.policy.private_network', 'params' => []] : $response->failure->summary();
+            $reason = $response->failure->summary();
 
             return new SiteProbeData(null, null, null, null, null, null, null, 'probe_failed', false, $this->recommendedChecks($url), normalised_url: $url,
                 failure_reason: __($reason['key'], $reason['params']));
