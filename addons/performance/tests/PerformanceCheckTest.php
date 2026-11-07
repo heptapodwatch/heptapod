@@ -10,6 +10,7 @@ use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\RunResult;
+use Heptapod\Contracts\Schema\ValidatedConfig;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\NotificationMode;
 use Heptapod\Jobs\RunCheck;
@@ -145,9 +146,10 @@ it('confirms a sustained warning only on the third evaluation', function (int $e
 ]);
 
 /**
- * Evaluates once per entry, each with three current samples of that many seconds, against a same-hour baseline on three days.
+ * Evaluates once per entry, a minute apart, each with three current samples of that many seconds, against a same-hour
+ * baseline on three days. A null entry is an evaluation that errors on an invalid stored setting.
  *
- * @param  list<float>  $currentSeconds
+ * @param  list<?float>  $currentSeconds
  */
 function evaluatePerformanceSequence(array $currentSeconds, float $baselineSeconds = 2.0, int $baselineSamples = 9): Check
 {
@@ -161,12 +163,14 @@ function evaluatePerformanceSequence(array $currentSeconds, float $baselineSecon
     foreach ([31, 32, 33] as $minutes) {
         $current[] = CheckRun::factory()->for($uptime)->create(['started_at' => CarbonImmutable::now()->subMinutes($minutes)->subSecond(), 'ended_at' => CarbonImmutable::now()->subMinutes($minutes)]);
     }
-    $check = Check::factory()->for($site)->create(['type' => CheckKey::Performance,
-        'config' => app(CheckRegistry::class)->get(CheckKey::Performance)->definition()->configSchema->validateConfig([])]);
+    $config = app(CheckRegistry::class)->get(CheckKey::Performance)->definition()->configSchema->validateConfig([]);
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::Performance, 'config' => $config]);
     Bus::fake([RunCheck::class]);
     foreach ($currentSeconds as $seconds) {
+        test()->travel(1)->minutes();
+        $check->update(['config' => $seconds === null ? new ValidatedConfig(['change_percentage' => -1] + $config->public, []) : $config]);
         foreach ($current as $run) {
-            $run->update(['metrics' => ['total_time_in_seconds' => $seconds]]);
+            $run->update(['metrics' => ['total_time_in_seconds' => $seconds ?? 2.0]]);
         }
         expect(app(ClaimService::class)->runNow($check->id, RunOrigin::System))->not->toBeNull();
         app(CheckExecutor::class)->execute($check->id, $check->refresh()->claim_token, 10);
@@ -203,6 +207,17 @@ it('notes a confirmed speed-up once as an info event and re-arms only after thre
     $check = evaluatePerformanceSequence([0.3, 0.3, 0.3, 0.3, 2.0, 2.0, 2.0, 0.3, 0.3, 0.3]);
     expect(performanceImprovements($check))->toBe(2);
 });
+
+it('holds the speed-up latch through slow, warning and errored evaluations', function (array $currentSeconds): void {
+    $check = evaluatePerformanceSequence($currentSeconds);
+
+    expect(performanceImprovements($check))->toBe(1)
+        ->and(CheckRun::query()->where('check_id', $check->id)->where('result', RunResult::Errored)->count())->toBe(in_array(null, $currentSeconds, true) ? 1 : 0);
+})->with([
+    'a slow evaluation interrupts the normal count' => [[0.3, 0.3, 0.3, 2.0, 2.0, 2.5, 2.0, 0.3, 0.3, 0.3]],
+    'a warning and its recovery are not normal' => [[0.3, 0.3, 0.3, 3.0, 3.0, 3.0, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]],
+    'an errored evaluation' => [[0.3, 0.3, 0.3, null, 0.3, 0.3, 0.3]],
+]);
 
 it('notes no speed-up without a baseline, below the change or 200 ms floor, or when a warning recovers', function (array $currentSeconds, float $baselineSeconds, int $baselineSamples): void {
     expect(performanceImprovements(evaluatePerformanceSequence($currentSeconds, $baselineSeconds, $baselineSamples)))->toBe(0);

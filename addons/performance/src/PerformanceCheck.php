@@ -24,6 +24,7 @@ use Heptapod\Contracts\Mail\MailTone;
 use Heptapod\Contracts\Mail\NoteBlock;
 use Heptapod\Contracts\NoResultReason;
 use Heptapod\Contracts\PerformanceResponseTimeWindow;
+use Heptapod\Contracts\PreviousResult;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Contracts\Schema\Field;
@@ -238,11 +239,19 @@ final class PerformanceCheck implements CheckRunPresenter, CheckType, MailEviden
         $goodSamples = $warningSample ? 0 : min(3, ($previousMetrics->consecutive_good_samples ?? 0) + 1);
         $warning = $warningSamples === 3 || ($wasWarning && $goodSamples < 3);
         // A speed-up confirms like a warning but only outside one, so a recovery is never an improvement. The third fast
-        // evaluation emits once; the latch (3) holds until three evaluations in a row are no longer fast.
+        // evaluation emits once; the latch (3) holds until three evaluations in a row are back within the normal band.
         $fast = ! $wasWarning && ! $warningSample && $change !== null
             && $median < $baseline * (100 - $minimumIncrease) / 100 && $baseline - $median >= $minimumIncreaseInMs;
-        $previousImproved = $previousMetrics->consecutive_improved_samples ?? 0;
-        $normalSamples = ! $fast && $previousImproved === 3 ? min(3, ($previousMetrics->consecutive_normal_samples ?? 0) + 1) : 0;
+        $normal = ! $fast && ! $wasWarning && ! $warningSample && $change !== null;
+        $latchMetrics = $previousMetrics;
+        if ($context->previousResult instanceof PreviousResult && ! $previousMetrics instanceof PerformanceMetrics) {
+            // An errored run stores no metrics; the latch carries over from the last evaluated run.
+            // shortcut: errors lasting over a day drop the latch, upgrade if such outages repeat speed-up events.
+            $evaluated = $history->read($context->siteId, CheckKey::Performance, $context->startedAt->subDay(), $context->startedAt, 10000);
+            $latchMetrics = $evaluated === [] ? null : PerformanceMetrics::from(array_last($evaluated)->metrics);
+        }
+        $previousImproved = $latchMetrics->consecutive_improved_samples ?? 0;
+        $normalSamples = $normal && $previousImproved === 3 ? min(3, ($latchMetrics->consecutive_normal_samples ?? 0) + 1) : 0;
         $improvedSamples = $fast ? min(3, $previousImproved + 1) : ($previousImproved === 3 && $normalSamples < 3 ? 3 : 0);
         $events = [];
         if ($fast && $previousImproved === 2) {
