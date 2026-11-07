@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Addons\Performance;
 
 use Carbon\CarbonImmutable;
+use Heptapod\Contracts\AddonEvent;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\CheckDefinition;
 use Heptapod\Contracts\CheckKey;
@@ -23,6 +24,7 @@ use Heptapod\Contracts\Mail\MailTone;
 use Heptapod\Contracts\Mail\NoteBlock;
 use Heptapod\Contracts\NoResultReason;
 use Heptapod\Contracts\PerformanceResponseTimeWindow;
+use Heptapod\Contracts\PreviousResult;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Contracts\Schema\Field;
@@ -35,6 +37,19 @@ final class PerformanceCheck implements CheckRunPresenter, CheckType, MailEviden
 {
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
     {
+        $improved = $run->eventPayload('performance.improved');
+        if ($improved !== null) {
+            $baseline = $improved['baseline'] ?? null;
+            $median = $improved['median'] ?? null;
+            $change = $improved['change_percentage'] ?? null;
+            if ((! is_int($baseline) && ! is_float($baseline)) || (! is_int($median) && ! is_float($median)) || (! is_int($change) && ! is_float($change))) {
+                throw new \LogicException('A performance improvement needs its retained baseline, median and change.');
+            }
+            $seconds = static fn (int|float $ms): float => round($ms / 1000, $ms < 1000 ? 2 : 1);
+
+            return new CheckRunPresentationData([new CheckRunPresentationPartData('performance.presentation.improved',
+                ['from' => $seconds($baseline), 'to' => $seconds($median), 'change' => (int) round($change)])]);
+        }
         if (! $run->event instanceof MailEventFacts) {
             return null;
         }
@@ -54,6 +69,7 @@ final class PerformanceCheck implements CheckRunPresenter, CheckType, MailEviden
             'check.failing' => 'performance.mail_event.check.failing',
             'check.warning' => 'performance.mail_event.check.warning',
             'check.recovered' => 'performance.mail_event.check.recovered',
+            'performance.improved' => 'performance.mail_event.performance.improved',
         ];
     }
 
@@ -64,6 +80,7 @@ final class PerformanceCheck implements CheckRunPresenter, CheckType, MailEviden
             'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
             'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
             'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
+            'performance.improved' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Changed, 'succeeded' => MailTone::Changed],
         ];
     }
 
@@ -122,7 +139,10 @@ final class PerformanceCheck implements CheckRunPresenter, CheckType, MailEviden
                 'previous_sample_count' => new Field(FieldType::Integer, ['required', 'min:0']),
                 'consecutive_warning_samples' => new Field(FieldType::Integer, ['required', 'between:0,3']),
                 'consecutive_good_samples' => new Field(FieldType::Integer, ['required', 'between:0,3']),
+                'consecutive_improved_samples' => new Field(FieldType::Integer, ['required', 'between:0,3']),
+                'consecutive_normal_samples' => new Field(FieldType::Integer, ['required', 'between:0,3']),
             ]),
+            emittedEvents: ['performance.improved'],
             minimumIncreaseInMs: 200,
         );
     }
@@ -218,6 +238,26 @@ final class PerformanceCheck implements CheckRunPresenter, CheckType, MailEviden
         $warningSamples = $warningSample ? min(3, ($previousMetrics->consecutive_warning_samples ?? 0) + 1) : 0;
         $goodSamples = $warningSample ? 0 : min(3, ($previousMetrics->consecutive_good_samples ?? 0) + 1);
         $warning = $warningSamples === 3 || ($wasWarning && $goodSamples < 3);
+        // A speed-up confirms like a warning but only outside one, so a recovery is never an improvement. The third fast
+        // evaluation emits once; the latch (3) holds until three evaluations in a row are back within the normal band.
+        $fast = ! $wasWarning && ! $warningSample && $change !== null
+            && $median < $baseline * (100 - $minimumIncrease) / 100 && $baseline - $median >= $minimumIncreaseInMs;
+        $normal = ! $fast && ! $wasWarning && ! $warningSample && $change !== null;
+        $latchMetrics = $previousMetrics;
+        if ($context->previousResult instanceof PreviousResult && ! $previousMetrics instanceof PerformanceMetrics) {
+            // An errored run stores no metrics; the latch carries over from the last evaluated run.
+            // shortcut: errors lasting over a day drop the latch, upgrade if such outages repeat speed-up events.
+            $evaluated = $history->read($context->siteId, CheckKey::Performance, $context->startedAt->subDay(), $context->startedAt, 10000);
+            $latchMetrics = $evaluated === [] ? null : PerformanceMetrics::from(array_last($evaluated)->metrics);
+        }
+        $previousImproved = $latchMetrics->consecutive_improved_samples ?? 0;
+        $normalSamples = $normal && $previousImproved === 3 ? min(3, ($latchMetrics->consecutive_normal_samples ?? 0) + 1) : 0;
+        $improvedSamples = $fast ? min(3, $previousImproved + 1) : ($previousImproved === 3 && $normalSamples < 3 ? 3 : 0);
+        $events = [];
+        if ($fast && $previousImproved === 2) {
+            $improvement = ['baseline' => round($baseline, 2), 'median' => round($median, 2), 'change_percentage' => round($change, 2)];
+            $events[] = new AddonEvent('performance.improved', 'performance:'.$context->checkId.':'.$context->runId, 1, $improvement, presentationParams: $improvement);
+        }
         if (! $warning && $warningSamples > 0) {
             $summary = 'performance.confirming_warning';
             $params = ['average' => round($average, 2), 'count' => $warningSamples];
@@ -239,7 +279,8 @@ final class PerformanceCheck implements CheckRunPresenter, CheckType, MailEviden
             $warning ? RunResult::Warning : RunResult::Succeeded,
             $summary,
             $params,
-            new PerformanceMetrics($average, $baseline, $change, count($current), count($previous), $warningSamples, $goodSamples),
+            new PerformanceMetrics($average, $baseline, $change, count($current), count($previous), $warningSamples, $goodSamples, $improvedSamples, $normalSamples),
+            events: $events,
         );
     }
 

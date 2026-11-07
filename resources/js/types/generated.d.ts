@@ -381,6 +381,8 @@ readonly sample_count: number,
 readonly previous_sample_count: number,
 readonly consecutive_warning_samples: number,
 readonly consecutive_good_samples: number,
+readonly consecutive_improved_samples: number,
+readonly consecutive_normal_samples: number,
 };
 }
 namespace Sitemap {

@@ -10,7 +10,7 @@ Performance uses accepted online uptime observations from its current window: tw
 An evaluation is elevated when either:
 
 - Its 60-minute median exceeds the configured `threshold_in_ms` (default: 2000 ms).
-- Its 60-minute median exceeds `max(baseline p90, baseline median × (1 + change_percentage / 100))`, and is at least 200 ms above the baseline median. Both conditions must hold. `change_percentage` is the minimum increase over normal (default: 50%). A 47 → 93 ms increase does not qualify.
+- Its 60-minute median exceeds `max(baseline p90, baseline median × (1 + change_percentage / 100))`, and is at least 200 ms above the baseline median. Both conditions must hold. `change_percentage` is the minimum change from normal (default: 50%). A 47 → 93 ms increase does not qualify.
 
 The historical baseline consists of accepted online uptime response times from the same UTC hour on each of the preceding seven days. Today is excluded. For example, an evaluation at 14:30 UTC compares its last 60 minutes with observations from 14:00–15:00 UTC on those prior days. The baseline median describes the usual response time; its p90 is the upper end of the usual range: 90% of those samples are at or below it. Percentiles use linear interpolation.
 
@@ -22,4 +22,6 @@ Three consecutive elevated performance evaluations enter Warning. While Warning,
 
 “What we check” shows “Recovers below” directly under Threshold. With the defaults, this is 1900 ms. This line is the absolute recovery bound; the relative bound varies with the historical baseline. Changing the margin takes effect on the next evaluation and does not reset confirmation counts. Existing configurations use the default without a migration. The API returns stored setting keys; omitted keys use the documented defaults.
 
-The settings form labels `change_percentage` as “Minimum increase over normal”. Its API/import key and validation are unchanged; stored values remain active and valid, with no migration. The similarly named run metric reports the observed percentage change between the current and baseline medians.
+A clear speed-up adds one information event to Activity and the check history, for example “Got faster: 2.1 s → 0.31 s (-85%)”. It needs the same history as relative warnings, a 60-minute median below `baseline median × (1 − change_percentage / 100)` and at least 200 ms below the baseline median, on three consecutive evaluations outside a Warning. A recovery from a Warning does not count. The event appears once; another one needs three evaluations in a row back at the usual response time first (slow evaluations and Warnings do not count). It does not change the result or open an incident. Notifications for it use the Changes category, which is off by default.
+
+The settings form labels `change_percentage` as “Minimum change from normal”. Its API/import key and validation are unchanged; stored values remain active and valid, with no migration. The similarly named run metric reports the observed percentage change between the current and baseline medians.

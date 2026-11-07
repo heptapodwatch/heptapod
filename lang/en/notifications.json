@@ -98,7 +98,7 @@
     "recipient_settings.category.recovery.description": "An outage is over or a check is fine again.",
     "recipient_settings.category.changes.label": "Changes",
     "recipient_settings.category.changes.plural": "changes",
-    "recipient_settings.category.changes.description": "New broken links, DNS or certificate changes, lower scores.",
+    "recipient_settings.category.changes.description": "New broken links, DNS or certificate changes, lower scores, faster response times.",
     "recipient_settings.category.system.label": "System",
     "recipient_settings.category.system.plural": "system issues",
     "recipient_settings.category.system.description": "Heptapod itself needs attention: backups, mail, scheduler.",

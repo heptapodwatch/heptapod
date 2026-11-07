@@ -8,14 +8,26 @@ use Heptapod\Checks\Execution\ClaimService;
 use Heptapod\Checks\Execution\RunOrigin;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
+use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\RunResult;
+use Heptapod\Contracts\Schema\ValidatedConfig;
+use Heptapod\Enums\NotificationCategory;
+use Heptapod\Enums\NotificationMode;
 use Heptapod\Jobs\RunCheck;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
+use Heptapod\Models\Delivery;
+use Heptapod\Models\Event;
+use Heptapod\Models\Incident;
+use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
+use Heptapod\Models\User;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
+use Inertia\Testing\AssertableInertia as Assert;
+
+require_once __DIR__.'/../../../tests/Support/NotificationChannels.php';
 
 beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-05T12:30:00Z'));
@@ -96,6 +108,7 @@ it('requires nine same-UTC-hour samples on three days and ignores outside-hour a
             'change_percentage' => $change, 'sample_count' => 3, 'previous_sample_count' => $count,
             'consecutive_warning_samples' => $result === RunResult::Warning ? 3 : 0,
             'consecutive_good_samples' => $result === RunResult::Warning ? 0 : 3,
+            'consecutive_improved_samples' => 0, 'consecutive_normal_samples' => 0,
         ]);
 })->with([
     'eight samples on three days' => [8, 3, null, null, RunResult::Succeeded, 'performance.succeeded', ['average' => 2000]],
@@ -131,6 +144,104 @@ it('confirms a sustained warning only on the third evaluation', function (int $e
     [2, RunResult::Succeeded, 'performance.confirming_warning', ['average' => 3000, 'count' => 2]],
     [3, RunResult::Warning, 'performance.median_above_threshold', ['average' => 3000, 'median' => 3000, 'threshold' => 2000]],
 ]);
+
+/**
+ * Evaluates once per entry, a minute apart, each with three current samples of that many seconds, against a same-hour
+ * baseline on three days. A null entry is an evaluation that errors on an invalid stored setting.
+ *
+ * @param  list<?float>  $currentSeconds
+ */
+function evaluatePerformanceSequence(array $currentSeconds, float $baselineSeconds = 2.0, int $baselineSamples = 9): Check
+{
+    $site = Site::factory()->create();
+    $uptime = Check::factory()->for($site)->create();
+    for ($index = 0; $index < $baselineSamples; $index++) {
+        $endedAt = CarbonImmutable::now()->startOfHour()->subDays($index % 3 + 1)->addMinutes(intdiv($index, 3) + 1);
+        CheckRun::factory()->for($uptime)->create(['started_at' => $endedAt->subSecond(), 'ended_at' => $endedAt, 'metrics' => ['total_time_in_seconds' => $baselineSeconds]]);
+    }
+    $current = [];
+    foreach ([31, 32, 33] as $minutes) {
+        $current[] = CheckRun::factory()->for($uptime)->create(['started_at' => CarbonImmutable::now()->subMinutes($minutes)->subSecond(), 'ended_at' => CarbonImmutable::now()->subMinutes($minutes)]);
+    }
+    $config = app(CheckRegistry::class)->get(CheckKey::Performance)->definition()->configSchema->validateConfig([]);
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::Performance, 'config' => $config]);
+    Bus::fake([RunCheck::class]);
+    foreach ($currentSeconds as $seconds) {
+        test()->travel(1)->minutes();
+        $check->update(['config' => $seconds === null ? new ValidatedConfig(['change_percentage' => -1] + $config->public, []) : $config]);
+        foreach ($current as $run) {
+            $run->update(['metrics' => ['total_time_in_seconds' => $seconds ?? 2.0]]);
+        }
+        expect(app(ClaimService::class)->runNow($check->id, RunOrigin::System))->not->toBeNull();
+        app(CheckExecutor::class)->execute($check->id, $check->refresh()->claim_token, 10);
+    }
+
+    return $check;
+}
+
+function performanceImprovements(Check $check): int
+{
+    return Event::query()->where('check_id', $check->id)->where('type', 'performance.improved')->count();
+}
+
+it('notes a confirmed speed-up once as an info event and re-arms only after three normal evaluations', function (): void {
+    $check = evaluatePerformanceSequence([0.3, 0.3]);
+    expect(performanceImprovements($check))->toBe(0);
+
+    $check = evaluatePerformanceSequence([0.3, 0.3, 0.3]);
+    $event = Event::query()->where('check_id', $check->id)->where('type', 'performance.improved')->sole();
+    expect($event->to_result)->toBe(CheckResult::Succeeded)
+        ->and($event->incident_id)->toBeNull()
+        ->and(Incident::query()->where('check_id', $check->id)->exists())->toBeFalse()
+        ->and(CheckRun::query()->where('check_id', $check->id)->pluck('result')->unique()->all())->toBe([RunResult::Succeeded]);
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $this->actingAs($owner)->get('/activity?period=all')->assertInertia(fn (Assert $page): Assert => $page
+        ->where('events.0.latest.id', $event->id)
+        ->where('events.0.latest.severity', 'info')
+        ->where('events.0.latest.message', 'Got faster: 2 s → 0.3 s (-85%).'));
+
+    $check = evaluatePerformanceSequence([0.3, 0.3, 0.3, 0.3, 2.0, 2.0, 0.3, 2.0, 2.0, 0.3, 0.3, 0.3]);
+    expect(performanceImprovements($check))->toBe(1);
+
+    $check = evaluatePerformanceSequence([0.3, 0.3, 0.3, 0.3, 2.0, 2.0, 2.0, 0.3, 0.3, 0.3]);
+    expect(performanceImprovements($check))->toBe(2);
+});
+
+it('holds the speed-up latch through slow, warning and errored evaluations', function (array $currentSeconds): void {
+    $check = evaluatePerformanceSequence($currentSeconds);
+
+    expect(performanceImprovements($check))->toBe(1)
+        ->and(CheckRun::query()->where('check_id', $check->id)->where('result', RunResult::Errored)->count())->toBe(in_array(null, $currentSeconds, true) ? 1 : 0);
+})->with([
+    'a slow evaluation interrupts the normal count' => [[0.3, 0.3, 0.3, 2.0, 2.0, 2.5, 2.0, 0.3, 0.3, 0.3]],
+    'a warning and its recovery are not normal' => [[0.3, 0.3, 0.3, 3.0, 3.0, 3.0, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]],
+    'an errored evaluation' => [[0.3, 0.3, 0.3, null, 0.3, 0.3, 0.3]],
+]);
+
+it('notes no speed-up without a baseline, below the change or 200 ms floor, or when a warning recovers', function (array $currentSeconds, float $baselineSeconds, int $baselineSamples): void {
+    expect(performanceImprovements(evaluatePerformanceSequence($currentSeconds, $baselineSeconds, $baselineSamples)))->toBe(0);
+})->with([
+    'eight baseline samples' => [[0.3, 0.3, 0.3], 2.0, 8],
+    'at the change percentage' => [[1.0, 1.0, 1.0], 2.0, 9],
+    'less than 200 ms faster' => [[0.12, 0.12, 0.12], 0.3, 9],
+    'recovery from a warning' => [[3.0, 3.0, 3.0, 0.3, 0.3, 0.3], 2.0, 9],
+]);
+
+it('routes a speed-up through Changes only to channels that turned Changes on', function (): void {
+    $default = NotificationDestination::factory()->create();
+    $immediate = notificationRoute(NotificationDestination::factory()->create(), [NotificationCategory::Changes]);
+    $digest = notificationRoute(NotificationDestination::factory()->create(), [NotificationCategory::Changes], NotificationMode::Digest);
+    $check = evaluatePerformanceSequence([0.3, 0.3, 0.3]);
+    $event = Event::query()->where('check_id', $check->id)->where('type', 'performance.improved')->sole();
+
+    dispatchNotifications();
+
+    expect(NotificationCategory::of($event))->toBe(NotificationCategory::Changes)
+        ->and(Delivery::query()->where('event_id', $event->id)->where('suppressed', false)->orderBy('destination_id')->pluck('destination_id')->all())
+        ->toBe([$immediate->id, $digest->id])
+        ->and(Delivery::query()->where('destination_id', $default->id)->exists())->toBeFalse();
+});
 
 it('returns no observation when there are no usable uptime samples without rewriting state', function (): void {
     expect(runPerformanceAddon([null]))->toBeNull();
