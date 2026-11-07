@@ -27,7 +27,7 @@ final class ResumeSite
             if ($locked->paused_at === null || ($onlyIfDue && ($locked->resume_at === null || $locked->resume_at->isFuture()))) {
                 return;
             }
-            $locked->update(['paused_at' => null, 'resume_at' => null, 'paused_by_archive_at' => null]);
+            $locked->update(['paused_at' => null, 'resume_at' => null]);
             DB::table('checks')->where('site_id', $site->id)->update(['awaiting_result_since' => null, 'lost_attempts' => 0, 'last_loss_started_at' => null]);
             DB::table('unmonitored_periods')->where('site_id', $site->id)->whereNull('check_id')->whereNull('ended_at')->update(['ended_at' => now()]);
         });
