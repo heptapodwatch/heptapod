@@ -156,7 +156,7 @@ Use `http://heptapod-app:80` inside the browser container, not `http://app:80`: 
 
 FrankenPHP proxies `/vite/*` (including WebSockets) to Vite. A relative hot-file URL keeps assets and HMR on the page's origin, so both http://localhost:8088 and http://heptapod-app:80 work without hostname or CDP request rewriting. The direct Vite port is for diagnostics; open the app URL to use HMR.
 
-Open http://localhost:8088/dev-login (or http://heptapod-app:80/dev-login inside the browser container) and select the demo account `test@example.test` to enter the dashboard. Spatie's login-link package creates the development user if needed. This page exists only in `APP_ENV=local`; the package also rejects non-local environments and hosts outside its explicit allowlist. The dependency is development-only. Never expose this development stack publicly.
+Open http://localhost:8088/dev-login (or http://heptapod-app:80/dev-login inside the browser container) and select the demo account `test@example.test` to enter the dashboard. On an allowlisted host the login page also shows "Sign in as demo", which returns to the page that sent you to the login (for example a deep link to a site's settings). Spatie's login-link package creates the development user if needed. This page exists only in `APP_ENV=local`; the package also rejects non-local environments and hosts outside its explicit allowlist. The dependency is development-only. Never expose this development stack publicly.
 
 ## Contributing
 
