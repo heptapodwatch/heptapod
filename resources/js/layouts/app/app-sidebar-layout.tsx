@@ -2,6 +2,7 @@ import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppMobileHeader } from '@/components/app-mobile-header';
+import { FormActionsDock } from '@/components/form-section';
 import { LiveProvider } from '@/components/live-provider';
 import { KeyboardShortcutsDialog } from '@/components/keyboard-shortcuts-dialog';
 import { RealCommandPalette } from '@/components/real-command-palette';
@@ -71,7 +72,7 @@ export default function AppSidebarLayout({
                     <AppMobileHeader onOpenSearch={openSearch} />
                     <StreamLostStrip />
                     {incidentBanner}
-                    {children}
+                    <FormActionsDock>{children}</FormActionsDock>
                 </AppContent>
                 {props.auth.user && (
                     <RealCommandPalette

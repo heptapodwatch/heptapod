@@ -1,5 +1,4 @@
 import { Combobox } from '@/components/ui/combobox';
-import { FormSecondaryAction } from '@/components/form-section';
 import { ClientMark } from '@/components/client-mark';
 import { useTranslation } from 'react-i18next';
 import type { ComponentProps, ReactNode } from 'react';
@@ -121,17 +120,7 @@ export function SiteClientField({ error, ...props }: SiteClientFieldProps) {
     });
     return (
         <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-                <Label htmlFor={id}>{t('Client')}</Label>
-                {onCreateClient && (
-                    <FormSecondaryAction
-                        disabled={selectProps.disabled}
-                        onClick={() => onCreateClient('')}
-                    >
-                        {t('New client')}
-                    </FormSecondaryAction>
-                )}
-            </div>
+            <Label htmlFor={id}>{t('Client')}</Label>
             {onCreateClient ? (
                 <Combobox
                     id={id}

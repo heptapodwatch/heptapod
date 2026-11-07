@@ -51,8 +51,13 @@ it('lets owners create clients, edit branding, and rejects unsafe uploads', func
     $this->patch('/clients/'.$client->id, ['logo' => UploadedFile::fake()->createWithContent('payload.svg', '<svg onload="alert(1)"/>')])->assertSessionHasErrors('logo');
     $this->patch('/clients/'.$client->id, ['logo' => UploadedFile::fake()->image('oversized.png', 4097, 20)])->assertSessionHasErrors('logo');
     expect($client->fresh()?->getFirstMedia('logo')?->mime_type)->toBe('image/png');
-    $this->patch('/clients/'.$client->id, ['logo' => UploadedFile::fake()->image('replacement.png', 320, 320)])->assertRedirect();
-    $replacement = $client->fresh()?->getFirstMedia('logo') ?? throw new LogicException('The replacement logo must exist.');
+    // The settings Save: the identity fields and the avatar draft in one spoofed multipart PATCH.
+    $this->post('/clients/'.$client->id, [
+        '_method' => 'PATCH', 'name' => 'Renamed with logo', 'short_name' => 'EX', 'contact_name' => 'Ada',
+        'locale' => 'de', 'timezone' => 'Europe/Berlin', 'logo' => UploadedFile::fake()->image('replacement.png', 320, 320),
+    ])->assertSessionHasNoErrors()->assertRedirect();
+    expect($client->refresh()->name)->toBe('Renamed with logo');
+    $replacement = $client->getFirstMedia('logo') ?? throw new LogicException('The replacement logo must exist.');
     expect($replacement->id)->not->toBe($logo->id);
     expect(Activity::query()->where('subject_type', $client->getMorphClass())->where('subject_id', $client->id)
         ->where('event', 'client.avatar.updated')->where('causer_id', $owner->id)->orderBy('id')->pluck('properties')->map(fn ($properties): string => $properties['source'])->all())->toBe(['uploaded', 'uploaded']);

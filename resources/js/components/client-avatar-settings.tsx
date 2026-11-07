@@ -1,55 +1,59 @@
-import { router } from '@inertiajs/react';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ClientMark } from '@/components/client-mark';
 import { FormSection } from '@/components/form-section';
 import { ImageDropzone } from '@/components/image-dropzone';
+import InputError, { fieldErrorProps } from '@/components/input-error';
 import { Label } from '@/components/ui/label';
 import {
     EntityCombobox,
     siteComboboxOptions,
 } from '@/components/entity-combobox';
-import { update } from '@/routes/clients';
+
+/** An unsaved avatar change, sent with the client form's Save: an upload, a site icon, or back to automatic. null = unchanged. */
+export type ClientAvatarDraft =
+    | { logo: File }
+    | { avatar_site_id: number }
+    | { remove_logo: true }
+    | null;
 
 export function ClientAvatarSettings({
     client,
     sites,
+    draft,
+    onDraftChange,
+    errors,
+    disabled,
 }: {
     client: Heptapod.Data.Ui.ClientData;
     sites: Heptapod.Data.Ui.ClientAvatarSiteData[];
+    draft: ClientAvatarDraft;
+    onDraftChange: (draft: ClientAvatarDraft) => void;
+    /** The client form's server errors; the avatar fields are not draft keys. */
+    errors: Partial<Record<string, string>>;
+    disabled: boolean;
 }) {
     const { t } = useTranslation();
-    const [file, setFile] = useState<File | null>(null);
-    const [processing, setProcessing] = useState(false);
-    const [error, setError] = useState<string>();
-    const [saved, setSaved] = useState(false);
-    const save = (attributes: {
-        logo?: File;
-        remove_logo?: boolean;
-        avatar_site_id?: number | null;
-    }) => {
-        setError(undefined);
-        setSaved(false);
-        router.post(
-            update.url(client.id),
-            { _method: 'patch', ...attributes },
-            {
-                preserveScroll: true,
-                onStart: () => setProcessing(true),
-                onSuccess: () => {
-                    setFile(null);
-                    setSaved(true);
-                },
-                onError: (errors) => {
-                    setFile(null);
-                    setError(Object.values(errors).join(' '));
-                },
-                onFinish: () => setProcessing(false),
-            },
-        );
-    };
-    const hasOverride =
+    const savedOverride =
         client.avatar.source === 'uploaded' || client.avatar_site_id !== null;
+    const savedSiteId =
+        client.avatar.source === 'chosen-site' ? client.avatar.site_id : null;
+    const override = draft ? !('remove_logo' in draft) : savedOverride;
+    // Choosing what is already saved clears the draft instead of sending a no-op.
+    const choose = (siteId: number | null) =>
+        onDraftChange(
+            siteId === null
+                ? savedOverride
+                    ? { remove_logo: true }
+                    : null
+                : siteId === savedSiteId
+                  ? null
+                  : { avatar_site_id: siteId },
+        );
+    const chosenSiteId = draft
+        ? 'avatar_site_id' in draft
+            ? draft.avatar_site_id
+            : null
+        : savedSiteId;
     return (
         <FormSection
             title={t('Avatar')}
@@ -79,16 +83,11 @@ export function ClientAvatarSettings({
                 </p>
             </div>
             <ImageDropzone
-                value={file}
-                error={error}
-                disabled={processing}
-                onChange={(image) => {
-                    setFile(image);
-                    save({ logo: image });
-                }}
-                onReset={
-                    hasOverride ? () => save({ remove_logo: true }) : undefined
-                }
+                value={draft && 'logo' in draft ? draft.logo : null}
+                error={errors.logo}
+                disabled={disabled}
+                onChange={(logo) => onDraftChange({ logo })}
+                onReset={override ? () => choose(null) : undefined}
             />
             {sites.length > 0 && (
                 <div className="space-y-2">
@@ -102,28 +101,28 @@ export function ClientAvatarSettings({
                             ...siteComboboxOptions(sites),
                         ]}
                         value={
-                            client.avatar.source === 'chosen-site'
-                                ? String(client.avatar.site_id)
-                                : 'automatic'
+                            chosenSiteId === null
+                                ? 'automatic'
+                                : String(chosenSiteId)
                         }
-                        disabled={processing}
+                        disabled={disabled}
+                        invalid={!!errors.avatar_site_id}
+                        describedBy={
+                            fieldErrorProps(
+                                'client-avatar-site',
+                                errors.avatar_site_id,
+                            )['aria-describedby']
+                        }
                         onValueChange={(value) =>
-                            save(
-                                value === 'automatic'
-                                    ? { remove_logo: true }
-                                    : { avatar_site_id: Number(value) },
-                            )
+                            choose(value === 'automatic' ? null : Number(value))
                         }
+                    />
+                    <InputError
+                        field="client-avatar-site"
+                        message={errors.avatar_site_id}
                     />
                 </div>
             )}
-            <p role="status" className="text-xs text-muted-foreground">
-                {processing
-                    ? t('Saving…')
-                    : saved
-                      ? t('Avatar updated.')
-                      : t('Avatar changes are saved immediately.')}
-            </p>
         </FormSection>
     );
 }

@@ -12,6 +12,7 @@ import {
 } from '@/components/alert-sensitivity-options';
 import {
     FormActions,
+    FormSaveStatus,
     FormSecondaryAction,
     FormSection,
 } from '@/components/form-section';
@@ -41,6 +42,7 @@ export function TeamAlertSensitivity({
     return (
         <form
             noValidate
+            id="team-alert-sensitivity-form"
             data-team-alert-sensitivity
             onSubmit={(event) => {
                 event.preventDefault();
@@ -70,13 +72,12 @@ export function TeamAlertSensitivity({
                 />
             </FormSection>
             <FormActions
-                status={t(
-                    form.processing
-                        ? 'Saving…'
-                        : form.isDirty
-                          ? 'Unsaved changes'
-                          : 'No unsaved changes',
-                )}
+                status={
+                    <FormSaveStatus
+                        dirty={form.isDirty}
+                        processing={form.processing}
+                    />
+                }
             >
                 <FormSecondaryAction
                     size="sm"
@@ -90,6 +91,7 @@ export function TeamAlertSensitivity({
                 </FormSecondaryAction>
                 <Button
                     type="submit"
+                    form="team-alert-sensitivity-form"
                     size="sm"
                     disabled={
                         !form.isDirty ||

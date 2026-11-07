@@ -2,6 +2,7 @@ import { router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 
 export function useBufferedChanges<T>(
+    // Must keep its identity between renders (a prop, or memoized); a fresh array each render loops the effect.
     rows: T[],
     key: (row: T) => number | string,
     scope?: number | null,

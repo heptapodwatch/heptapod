@@ -1,7 +1,6 @@
 import { InfoTooltip } from '@/components/info-tooltip';
 import { TooltipHint } from '@/components/truncated-text';
 import { ClientCreateSheet } from '@/components/client-create-sheet';
-import { StatusDot } from '@/components/monitoring';
 import { SiteAlertSensitivity } from '@/components/alert-sensitivity-form';
 import { SiteAvatar } from '@/components/site-avatar';
 import { useLiveReload } from '@/hooks/use-live';
@@ -15,6 +14,7 @@ import { SiteHeader } from '@/components/site-header';
 import {
     FormSection,
     FormActions,
+    FormSaveStatus,
     FormSecondaryAction,
 } from '@/components/form-section';
 import {
@@ -361,19 +361,10 @@ export default function SiteSettings({
                 <FormActions
                     data-site-savebar
                     status={
-                        form.processing ? (
-                            t('Saving…')
-                        ) : form.isDirty ? (
-                            <>
-                                <StatusDot
-                                    state="warning"
-                                    label="Unsaved changes"
-                                />
-                                {t('Unsaved changes')}
-                            </>
-                        ) : (
-                            t('No unsaved changes')
-                        )
+                        <FormSaveStatus
+                            dirty={form.isDirty}
+                            processing={form.processing}
+                        />
                     }
                 >
                     <FormSecondaryAction

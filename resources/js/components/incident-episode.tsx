@@ -3,7 +3,7 @@ import InputError, { fieldErrorProps } from '@/components/input-error';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { PresentationChanges } from '@/components/presentation-changes';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
-import { Fragment, useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
     ArrowRight,
     ExternalLink,
@@ -40,6 +40,9 @@ import {
     CardAction,
 } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { FormSecondaryAction } from '@/components/form-section';
+import { SheetForm } from '@/components/sheet-form';
+import { Sheet } from '@/components/ui/sheet';
 import {
     DropdownMenu,
     DropdownMenuTrigger,
@@ -97,14 +100,15 @@ export function IncidentEpisode({
     const {
         props: { errors, timezone },
     } = usePage();
-    const form = useForm({ note: page.internal_note ?? '' });
+    const [noteOpen, setNoteOpen] = useState(false);
     // The incident and its current snapshot are single records: after the own run they show the refetched state.
     const ownRunState = ownRun && {
         token: ownRun.attemptId,
         accepts: () => true,
     };
+    const incidentRows = useMemo(() => [page.incident], [page.incident]);
     const incidentState = useBufferedChanges(
-        [page.incident],
+        incidentRows,
         (row) => row.id,
         page.incident.id,
         (row) => JSON.stringify({ ...row, duration_seconds: 0 }),
@@ -168,8 +172,8 @@ export function IncidentEpisode({
                 entry.event?.run_id === ownRun.checkRunId,
         },
     );
-    const snapshot = useBufferedChanges(
-        [
+    const snapshotRows = useMemo(
+        () => [
             {
                 id: incident.id,
                 headline,
@@ -196,6 +200,10 @@ export function IncidentEpisode({
                         check.summary?.startsWith('crawl.not_crawlable.')),
             },
         ],
+        [incident.id, headline, page, check],
+    );
+    const snapshot = useBufferedChanges(
+        snapshotRows,
         (entry) => entry.id,
         incident.id,
         (entry) => JSON.stringify(entry),
@@ -940,67 +948,53 @@ export function IncidentEpisode({
                     <Card>
                         <CardHeader>
                             <CardTitle>{t('Internal note')}</CardTitle>
+                            <CardAction>
+                                <FormSecondaryAction
+                                    size="sm"
+                                    onClick={() => setNoteOpen(true)}
+                                >
+                                    {t(
+                                        page.internal_note
+                                            ? 'Edit note'
+                                            : 'Add note',
+                                    )}
+                                </FormSecondaryAction>
+                            </CardAction>
                         </CardHeader>
-                        <CardContent>
-                            <form
-                                noValidate
-                                className="space-y-3"
-                                onSubmit={(event) => {
-                                    event.preventDefault();
-                                    form.put(saveNote.url(incident.id), {
-                                        preserveScroll: true,
-                                    });
-                                }}
-                            >
-                                <Textarea
-                                    id="incident-note"
-                                    aria-label={t('Internal note')}
-                                    {...fieldErrorProps(
-                                        'incident-note',
-                                        form.errors.note,
-                                    )}
-                                    value={form.data.note}
-                                    maxLength={10000}
-                                    onChange={(event) =>
-                                        form.setData('note', event.target.value)
-                                    }
-                                    placeholder={t(
-                                        'What happened, what did you try?',
-                                    )}
-                                />
-                                <InputError
-                                    field="incident-note"
-                                    message={form.errors.note}
-                                />
-                                {page.internal_note !== null &&
-                                    page.note_updated_at && (
-                                        <p className="text-xs text-muted-foreground">
-                                            {t('Note by {{name}}', {
-                                                name:
-                                                    page.note_author ??
-                                                    t('Team'),
-                                            })}{' '}
-                                            ·{' '}
-                                            <AbsoluteTime
-                                                value={page.note_updated_at}
-                                            />
-                                        </p>
-                                    )}
-                                <p className="text-xs text-muted-foreground">
-                                    {t('Team only. Never sent to the client.')}
+                        <CardContent className="space-y-3">
+                            {page.internal_note ? (
+                                <p className="text-sm break-words whitespace-pre-wrap">
+                                    {page.internal_note}
                                 </p>
-                                <div className="flex justify-end">
-                                    <Button
-                                        type="submit"
-                                        size="sm"
-                                        disabled={form.processing}
-                                    >
-                                        {t('Save note')}
-                                    </Button>
-                                </div>
-                            </form>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    {t('No note yet.')}
+                                </p>
+                            )}
+                            {page.internal_note !== null &&
+                                page.note_updated_at && (
+                                    <p className="text-xs text-muted-foreground">
+                                        {t('Note by {{name}}', {
+                                            name: page.note_author ?? t('Team'),
+                                        })}{' '}
+                                        ·{' '}
+                                        <AbsoluteTime
+                                            value={page.note_updated_at}
+                                        />
+                                    </p>
+                                )}
+                            <p className="text-xs text-muted-foreground">
+                                {t('Team only. Never sent to the client.')}
+                            </p>
                         </CardContent>
                     </Card>
+                    {noteOpen && (
+                        <IncidentNoteSheet
+                            incidentId={incident.id}
+                            note={page.internal_note ?? ''}
+                            onClose={() => setNoteOpen(false)}
+                        />
+                    )}
                     <PendingChanges
                         count={otherDeliveries.pendingCount}
                         apply={otherDeliveries.apply}
@@ -1073,6 +1067,68 @@ export function IncidentEpisode({
  * The episode meta facts on one text line: " · " only between facts. Each separator stays with the fact before it, so a
  * wrapped line never starts with a separator.
  */
+function IncidentNoteSheet({
+    incidentId,
+    note,
+    onClose,
+}: {
+    incidentId: number;
+    note: string;
+    onClose: () => void;
+}) {
+    const { t } = useTranslation();
+    const form = useForm({ note });
+    return (
+        <Sheet
+            open
+            onOpenChange={(open) => {
+                if (!open && !form.processing) onClose();
+            }}
+        >
+            <SheetForm
+                title={t('Internal note')}
+                description={t(
+                    'Only your team sees this note; clients never do.',
+                )}
+                aria-busy={form.processing}
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    form.put(saveNote.url(incidentId), {
+                        preserveScroll: true,
+                        onSuccess: onClose,
+                    });
+                }}
+                footer={
+                    <>
+                        <FormSecondaryAction
+                            disabled={form.processing}
+                            onClick={onClose}
+                        >
+                            {t('Cancel')}
+                        </FormSecondaryAction>
+                        <Button type="submit" disabled={form.processing}>
+                            {t('Save note')}
+                        </Button>
+                    </>
+                }
+            >
+                <Textarea
+                    id="incident-note"
+                    aria-label={t('Internal note')}
+                    {...fieldErrorProps('incident-note', form.errors.note)}
+                    value={form.data.note}
+                    maxLength={10000}
+                    onChange={(event) =>
+                        form.setData('note', event.target.value)
+                    }
+                    placeholder={t('What happened, what did you try?')}
+                />
+                <InputError field="incident-note" message={form.errors.note} />
+            </SheetForm>
+        </Sheet>
+    );
+}
+
 function EpisodeMetaFacts({ facts }: { facts: ReactNode[] }) {
     return (
         <span>

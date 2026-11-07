@@ -62,6 +62,18 @@ it('always offers a terminal create option when opted in, including empty search
     expect(screen.getAllByRole('option').at(-1)?.textContent).toBe(
         'New client',
     );
+    // The pinned entry is the last arrow-key stop, after the last option.
+    const search = screen.getByRole('combobox', { name: 'combobox.search' });
+    fireEvent.keyDown(search, { key: 'ArrowDown' });
+    expect(
+        screen
+            .getAllByRole('option')
+            .find((option) => option.getAttribute('aria-selected') === 'true')
+            ?.textContent,
+    ).toBe('New client');
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect(create.onCreate).toHaveBeenCalledExactlyOnceWith('');
+    fireEvent.click(screen.getByLabelText('Client'));
     fireEvent.change(
         screen.getByRole('combobox', { name: 'combobox.search' }),
         {

@@ -3,10 +3,10 @@ import { Form, Head } from '@inertiajs/react';
 import { useRef } from 'react';
 import SecurityController from '@/actions/Heptapod/Http/Controllers/Settings/SecurityController';
 import { PageHeader } from '@/components/page-header';
-import { StatusDot } from '@/components/monitoring';
 import {
     FormSection,
     FormActions,
+    FormSaveStatus,
     FormSecondaryAction,
 } from '@/components/form-section';
 import InputError, { fieldErrorProps } from '@/components/input-error';
@@ -42,6 +42,7 @@ export default function Security(props: Props) {
                 <div className="space-y-6">
                     <Form
                         noValidate
+                        id="security-password-form"
                         {...SecurityController.update.form()}
                         options={{
                             preserveScroll: true,
@@ -153,19 +154,10 @@ export default function Security(props: Props) {
                                 </FormSection>
                                 <FormActions
                                     status={
-                                        processing ? (
-                                            t('Saving…')
-                                        ) : isDirty ? (
-                                            <>
-                                                <StatusDot
-                                                    state="warning"
-                                                    label="Unsaved changes"
-                                                />
-                                                {t('Unsaved changes')}
-                                            </>
-                                        ) : (
-                                            t('No unsaved changes')
-                                        )
+                                        <FormSaveStatus
+                                            dirty={isDirty}
+                                            processing={processing}
+                                        />
                                     }
                                 >
                                     <FormSecondaryAction
@@ -175,6 +167,8 @@ export default function Security(props: Props) {
                                         {t('Discard')}
                                     </FormSecondaryAction>
                                     <Button
+                                        type="submit"
+                                        form="security-password-form"
                                         disabled={!isDirty || processing}
                                         data-test="update-password-button"
                                     >

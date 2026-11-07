@@ -1,10 +1,10 @@
 import { AbsoluteTime } from '@/components/absolute-time';
 import { InfoTooltip } from '@/components/info-tooltip';
 import { SectionHeading } from '@/components/section-heading';
-import { StatusDot } from '@/components/monitoring';
 import {
     FormSection,
     FormActions,
+    FormSaveStatus,
     FormSecondaryAction,
 } from '@/components/form-section';
 import { PageHeader } from '@/components/page-header';
@@ -80,6 +80,7 @@ export default function Instance({
             />
             <form
                 noValidate
+                id="instance-settings-form"
                 aria-busy={form.processing}
                 className="space-y-4"
                 onSubmit={(event) => {
@@ -387,21 +388,10 @@ export default function Instance({
                 </FormSection>
                 <FormActions
                     status={
-                        <>
-                            {form.processing ? (
-                                t('Saving…')
-                            ) : form.isDirty ? (
-                                <>
-                                    <StatusDot
-                                        state="warning"
-                                        label="Unsaved changes"
-                                    />
-                                    {t('Unsaved changes')}
-                                </>
-                            ) : (
-                                t('No unsaved changes')
-                            )}
-                        </>
+                        <FormSaveStatus
+                            dirty={form.isDirty}
+                            processing={form.processing}
+                        />
                     }
                 >
                     <FormSecondaryAction
@@ -413,6 +403,7 @@ export default function Instance({
                     </FormSecondaryAction>
                     <Button
                         type="submit"
+                        form="instance-settings-form"
                         size="sm"
                         disabled={!form.isDirty || form.processing}
                     >

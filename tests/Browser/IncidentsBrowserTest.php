@@ -33,7 +33,7 @@ it('filters incidents and saves a team note while clearing an existing reminder 
         ->assertCount('main table tbody > tr', 3);
     $page->click('button:text-is("Open 6")')->click('role=link[name="Open incident '.$incident->id.' for Backup"s]');
     $page->assertSee('1 of 2 tasks is failing: Backup 2.')->assertSee('What we observe');
-    $page->fill('textarea[aria-label="Internal note"]', 'Investigating this backup run.')
+    $page->click('button:text-is("Add note")')->fill('textarea[aria-label="Internal note"]', 'Investigating this backup run.')
         ->click('button:text-is("Save note")')->assertSee('Note by Test User');
     expect($incident->refresh()->notes)->toBe('Investigating this backup run.');
     $page->assertSee('Reminders snoozed until')->assertDontSee('Snooze reminders')
