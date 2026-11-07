@@ -10,7 +10,7 @@ use Heptapod\Models\Site;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 
-/** The archive dialog's up-front check: which of the client's sites cannot move to another client right now, and why. */
+/** The up-front check of the archive dialog: which of the client's sites cannot move to another client right now, and why. */
 final class ClientMoveBlockersController extends Controller
 {
     public function __invoke(Client $client): JsonResponse
