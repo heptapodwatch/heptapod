@@ -1,8 +1,10 @@
 import {
+    act,
     cleanup,
     fireEvent,
     render,
     screen,
+    waitFor,
     within,
 } from '@testing-library/react';
 import { router } from '@inertiajs/react';
@@ -46,6 +48,13 @@ beforeEach(() => {
         removeEventListener() {},
     });
     HTMLElement.prototype.scrollIntoView = vi.fn();
+    vi.stubGlobal(
+        'URL',
+        class extends URL {
+            static override createObjectURL = vi.fn(() => 'blob:client-avatar');
+            static override revokeObjectURL = vi.fn();
+        },
+    );
 });
 afterEach(() => {
     cleanup();
@@ -174,7 +183,7 @@ it('uses a plain archive confirmation for an empty client', () => {
 });
 
 it('keeps the No client name read-only while other settings still save', () => {
-    const patch = vi.spyOn(router, 'patch').mockImplementation(() => {});
+    const post = vi.spyOn(router, 'post').mockImplementation(() => {});
     render(
         page({
             client: { ...clients[0]!, is_internal: true, name: 'No client' },
@@ -189,12 +198,141 @@ it('keeps the No client name read-only while other settings still save', () => {
         target: { value: 'Team contact' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    expect(patch).toHaveBeenCalledWith(
+    expect(post).toHaveBeenCalledWith(
         `/clients/${clients[0]!.id}`,
         expect.not.objectContaining({ name: expect.anything() }),
         expect.any(Object),
     );
-    expect(patch.mock.calls[0]![1]).toEqual(
-        expect.objectContaining({ contact_name: 'Team contact' }),
+    expect(post.mock.calls[0]![1]).toEqual(
+        expect.objectContaining({
+            contact_name: 'Team contact',
+            _method: 'patch',
+        }),
     );
+});
+
+function dropAvatar() {
+    const file = new File(['avatar'], 'logo.png', { type: 'image/png' });
+    fireEvent.drop(
+        screen.getByRole('button', {
+            name: 'Drop an image, click to choose, or paste',
+        }),
+        {
+            dataTransfer: { files: [file] },
+        },
+    );
+    return file;
+}
+
+it('keeps a dropped avatar local until the docked Save submits it', () => {
+    const post = vi.spyOn(router, 'post').mockImplementation(() => {});
+    const patch = vi.spyOn(router, 'patch').mockImplementation(() => {});
+    render(page());
+
+    const file = dropAvatar();
+
+    expect(screen.getByRole('img', { name: 'Avatar preview' })).toBeTruthy();
+    expect(post).not.toHaveBeenCalled();
+    expect(patch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(post).toHaveBeenCalledWith(
+        `/clients/${clients[0]!.id}`,
+        expect.objectContaining({ logo: file, _method: 'patch' }),
+        expect.any(Object),
+    );
+    expect(post.mock.calls[0]![1]).not.toHaveProperty('avatar');
+});
+
+it('discards the avatar draft and its preview without uploading it', () => {
+    const post = vi.spyOn(router, 'post').mockImplementation(() => {});
+    render(page());
+    dropAvatar();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+
+    expect(screen.queryByRole('img', { name: 'Avatar preview' })).toBeNull();
+    expect(
+        screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled'),
+    ).toBe(true);
+    expect(screen.getByText('No unsaved changes')).toBeTruthy();
+    expect(post).not.toHaveBeenCalled();
+});
+
+it('leaves the form clean after successfully saving the avatar and other fields', async () => {
+    const post = vi.spyOn(router, 'post').mockImplementation(() => {});
+    render(page());
+    dropAvatar();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Contact name' }), {
+        target: { value: 'Saved contact' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const visit = post.mock.calls[0]![2]!;
+
+    await act(async () => {
+        await Promise.resolve(
+            visit.onSuccess?.(
+                {} as Parameters<NonNullable<typeof visit.onSuccess>>[0],
+            ),
+        );
+        visit.onFinish?.(
+            {} as Parameters<NonNullable<typeof visit.onFinish>>[0],
+        );
+    });
+
+    await waitFor(() =>
+        expect(
+            screen
+                .getByRole('button', { name: 'Save' })
+                .hasAttribute('disabled'),
+        ).toBe(true),
+    );
+    expect(
+        screen
+            .getByRole('button', { name: 'Discard' })
+            .hasAttribute('disabled'),
+    ).toBe(true);
+    expect(screen.queryByRole('img', { name: 'Avatar preview' })).toBeNull();
+    expect(screen.getByText('No unsaved changes')).toBeTruthy();
+    expect(
+        (
+            screen.getByRole('textbox', {
+                name: 'Contact name',
+            }) as HTMLInputElement
+        ).value,
+    ).toBe('Saved contact');
+});
+
+it('clears the avatar draft when the saved site icon is chosen again', () => {
+    render(
+        page({
+            client: {
+                ...clients[0]!,
+                avatar_site_id: 101,
+                avatar: {
+                    url: '/sites/101/icon/hash',
+                    backing: 'none',
+                    source: 'chosen-site',
+                    site_id: 101,
+                    site_host: 'saved.example.test',
+                },
+            },
+            avatar_sites: [
+                { id: 101, name: 'Saved site', host: 'saved.example.test' },
+                { id: 102, name: 'Another site', host: 'another.example.test' },
+            ],
+        }),
+    );
+    fireEvent.click(screen.getByRole('combobox', { name: 'Use icon from…' }));
+    fireEvent.click(screen.getByRole('option', { name: /Another site/ }));
+    expect(
+        screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled'),
+    ).toBe(false);
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Use icon from…' }));
+    fireEvent.click(screen.getByRole('option', { name: /Saved site/ }));
+
+    expect(
+        screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled'),
+    ).toBe(true);
+    expect(screen.getByText('No unsaved changes')).toBeTruthy();
 });
