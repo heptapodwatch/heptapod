@@ -34,11 +34,13 @@ final readonly class EventsReader
         return $this->present($query->get(), $incidentId !== null);
     }
 
-    /** @param Collection<int, Event> $events
+    /** @param EloquentCollection<int, Event> $events
      * @return list<EventData>
      */
-    public function present(Collection $events, bool $describeResultChange = false): array
+    public function present(EloquentCollection $events, bool $describeResultChange = false): array
     {
+        // Only deleted-site events name their client through the event; live sites already carry site.client.
+        $events->whereNull('site_id')->load('client');
         $references = [];
         foreach ($events as $event) {
             if (is_int($event->payload['run_id'] ?? null) && is_string($event->payload['run_ended_at'] ?? null)) {
@@ -161,7 +163,7 @@ final readonly class EventsReader
      */
     public function activityHeadEvents(array $eventIds): EloquentCollection
     {
-        return Event::query()->with(['site.client', 'client', 'check', 'incident'])->whereKey($eventIds)->get()->keyBy('id');
+        return Event::query()->with(['site.client', 'check', 'incident'])->whereKey($eventIds)->get()->keyBy('id');
     }
 
     /** @return array{events: list<ActivityGroupData>, older: int|null, newer: int|null} */
@@ -224,7 +226,7 @@ final readonly class EventsReader
         if ($siteId !== null) {
             $sites->where('sites.id', $siteId);
         }
-        $query = Event::feedVisible()->with(['site.client', 'client', 'check', 'incident']);
+        $query = Event::feedVisible()->with(['site.client', 'check', 'incident']);
         if ($checkId !== null) {
             $query->getQuery()->where('check_id', $checkId);
         }
