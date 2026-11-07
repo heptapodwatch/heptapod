@@ -3,7 +3,7 @@ import InputError, { fieldErrorProps } from '@/components/input-error';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { PresentationChanges } from '@/components/presentation-changes';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
-import { Fragment, useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
     ArrowRight,
     ExternalLink,
@@ -103,8 +103,9 @@ export function IncidentEpisode({
         token: ownRun.attemptId,
         accepts: () => true,
     };
+    const incidentRows = useMemo(() => [page.incident], [page.incident]);
     const incidentState = useBufferedChanges(
-        [page.incident],
+        incidentRows,
         (row) => row.id,
         page.incident.id,
         (row) => JSON.stringify({ ...row, duration_seconds: 0 }),
@@ -168,8 +169,8 @@ export function IncidentEpisode({
                 entry.event?.run_id === ownRun.checkRunId,
         },
     );
-    const snapshot = useBufferedChanges(
-        [
+    const snapshotRows = useMemo(
+        () => [
             {
                 id: incident.id,
                 headline,
@@ -196,6 +197,10 @@ export function IncidentEpisode({
                         check.summary?.startsWith('crawl.not_crawlable.')),
             },
         ],
+        [incident.id, headline, page, check],
+    );
+    const snapshot = useBufferedChanges(
+        snapshotRows,
         (entry) => entry.id,
         incident.id,
         (entry) => JSON.stringify(entry),
