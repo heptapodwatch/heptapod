@@ -14,6 +14,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
@@ -24,7 +25,6 @@ use Laravel\Fortify\Http\Requests\TwoFactorLoginRequest;
 use Laravel\Passkeys\Contracts\PasskeyUser;
 use Laravel\Passkeys\Passkey;
 use Laravel\Passkeys\Passkeys;
-use Spatie\LoginLink\LoginLinkServiceProvider;
 
 class FortifyServiceProvider extends ServiceProvider
 {
@@ -74,7 +74,7 @@ class FortifyServiceProvider extends ServiceProvider
             'host' => $request->getHttpHost(),
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
             'status' => $request->session()->get('status'),
-            ...self::devLoginProps($request),
+            ...$this->devLoginProps($request),
         ]));
 
         Fortify::resetPasswordView(fn (Request $request) => Inertia::render('auth/reset-password', [
@@ -104,13 +104,14 @@ class FortifyServiceProvider extends ServiceProvider
     }
 
     /**
-     * The local demo sign-in on the login page. The login-link package is a dev dependency, absent from production images.
+     * The local demo sign-in on the login page. The login-link package is a dev dependency, absent from production images;
+     * its route exists only when the package is installed, so production code never references a package class.
      *
      * @return array{devLogin?: array{action: string, email: string, redirectUrl: ?string}}
      */
-    private static function devLoginProps(Request $request): array
+    private function devLoginProps(Request $request): array
     {
-        if (! app()->isLocal() || ! class_exists(LoginLinkServiceProvider::class) || ! in_array($request->getHost(), config()->array('login-link.allowed_hosts'), true)) {
+        if (! app()->isLocal() || ! Route::has('loginLinkLogin') || ! in_array($request->getHost(), config()->array('login-link.allowed_hosts'), true)) {
             return [];
         }
 
