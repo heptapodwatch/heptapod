@@ -29,7 +29,12 @@ return new class extends Migration
         // A domain check's warning is an expiry notice; its routing key was check.warning.
         'expiring' => ['certificate.expiring', 'check.warning'],
         'recovery' => ['site.recovered', 'check.recovered'],
-        'changes' => NotificationCategory::ChangeKeys,
+        // NotificationCategory::ChangeKeys as released with this migration; later keys must not change what it did.
+        'changes' => [
+            'application_health.component_changed', 'certificate_health.certificate_changed', 'broken_links.new_broken_found',
+            'mixed_content.new_finding', 'dns.records_changed', 'domain.expiry_changed', 'domain.registration_changed',
+            'lighthouse.score_threshold_crossed', 'sitemap.issues_changed', 'scheduled_task.missed',
+        ],
     ];
 
     private const string UnreachableKey = 'cron.task_result_changed';
