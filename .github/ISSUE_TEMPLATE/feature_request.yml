@@ -1,5 +1,6 @@
 name: Feature request
 description: Propose an improvement to Heptapod.
+labels: [enhancement]
 body:
   - type: textarea
     id: problem
@@ -16,6 +17,16 @@ body:
     validations:
       required: true
   - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Observable, testable statements. One per line.
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: Non-goals
+      description: Related changes this request does not include.
+  - type: textarea
     id: alternatives
     attributes:
       label: Alternatives considered
@@ -24,4 +35,4 @@ body:
     id: scope
     attributes:
       label: Scope and verification
-      description: What should stay unchanged, and how could a contributor verify the result?
+      description: Which parts of Heptapod are affected, and how could a contributor verify the result?
