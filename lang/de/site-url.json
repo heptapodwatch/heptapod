@@ -1,0 +1,14 @@
+{
+    "sites.url_invalid": "Geben Sie eine HTTP- oder HTTPS-Adresse ein.",
+    "sites.url_duplicate": "Diese Adresse wird bereits überwacht.",
+    "sites.url_duplicate_named": "Bereits überwacht: :name",
+    "sites.url_host_warning": "Eine andere Website verwendet diesen Host: :name",
+    "sites.url_checking": "Prüfung läuft…",
+    "sites.url_reachable": "Erreichbar",
+    "sites.url_unreachable": "Verbindung nicht möglich",
+    "sites.url_probe_failed": "Die Adresse konnte nicht geprüft werden. Sie können die Website trotzdem hinzufügen oder speichern.",
+    "sites.url_redirect": "Weiterleitung zu :url",
+    "sites.url_use_address": "Diese Adresse verwenden",
+    "sites.url_duplicates_description": "Bestehende Websites mit derselben normalisierten Adresse auflisten, unabhängig von HTTP oder HTTPS (nur lesend)",
+    "sites.url_duplicates_none": "Keine doppelten Website-Adressen."
+}

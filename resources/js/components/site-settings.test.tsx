@@ -272,3 +272,73 @@ it('saves a check from its settings row without submitting or discarding the sit
     expect(toggle.getAttribute('aria-checked')).toBe(drafted);
     expect(screen.getAllByText('Unsaved changes').length).toBeGreaterThan(0);
 });
+
+it('checks only a changed address on blur and includes the current site in the probe', async () => {
+    document.cookie = 'XSRF-TOKEN=test';
+    const fetchProbe = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+            normalised_url: 'https://new.example',
+            final_url: 'https://new.example',
+            status: 503,
+            failure: null,
+            recommended_checks: [],
+        }),
+    });
+    vi.stubGlobal('fetch', fetchProbe);
+    const site = sites[0]!;
+    const sensitivity = {
+        alert_after_minutes: 5,
+        alert_recovery_checks: 2,
+        inherited: false,
+        preset: null,
+    };
+    render(
+        <SiteSettings
+            site={site}
+            client={clients[0]!}
+            clients={clients}
+            resume_at={null}
+            check_count={site.checks.length}
+            incident_count={0}
+            result_count={0}
+            run_all_checks={[]}
+            maintenance={null}
+            icon_fetched_at={null}
+            icon_manual_result={null}
+            start_redirect_target_url={null}
+            start_redirect_summary_key={null}
+            alert_sensitivity={sensitivity}
+            team_alert_sensitivity={sensitivity}
+            alert_sensitivity_presets={[]}
+            timezones={['UTC']}
+            check_settings={[]}
+            alert_sensitivity_bounds={{
+                minutes_min: 2,
+                minutes_max: 60,
+                stored_minutes_min: 1,
+                stored_minutes_max: 1440,
+                recovery_min: 1,
+                recovery_max: 10,
+            }}
+        />,
+    );
+    const field = screen.getByLabelText('URL') as HTMLInputElement;
+    fireEvent.blur(field);
+    expect(fetchProbe).not.toHaveBeenCalled();
+    fireEvent.change(field, { target: { value: 'NEW.example/' } });
+    expect(fetchProbe).not.toHaveBeenCalled();
+    await act(async () => fireEvent.blur(field));
+    expect(JSON.parse(fetchProbe.mock.calls[0]![1].body)).toEqual({
+        url: 'NEW.example/',
+        site_id: site.id,
+    });
+    expect(field.value).toBe('https://new.example');
+    expect(screen.getByText('Warning · HTTP 503')).not.toBeNull();
+    expect(
+        screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled'),
+    ).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    expect(field.value).toBe(site.identity.url);
+    expect(screen.queryByText('Warning · HTTP 503')).toBeNull();
+});

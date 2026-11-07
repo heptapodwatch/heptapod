@@ -37,6 +37,8 @@ final readonly class ImportOhDearMonitor
 
     public function __construct(
         private CheckRegistry $registry,
+        private NormaliseSiteUrl $normalise,
+        private SiteUrlDuplicates $duplicates,
         private CreateSite $createSite,
         private UpdateSite $updateSite,
         private UpdateCheckConfig $configure,
@@ -55,12 +57,10 @@ final readonly class ImportOhDearMonitor
             return $this->skipped($monitor, 'monitor:unsupported', __('import.unsupported_monitor', ['type' => $monitor->type]));
         }
         $site = Site::query()->where('oh_dear_id', $monitor->id)->first();
-        $duplicate = Site::query()->where('url', $monitor->url);
-        if ($site !== null) {
-            $duplicate->where('id', '!=', $site->id);
-        }
-        if ($duplicate->getQuery()->exists()) {
-            return $this->skipped($monitor, 'site:exists', __('import.duplicate_url'));
+        $url = ($this->normalise)($monitor->url);
+        $duplicate = $site !== null && $site->url === $monitor->url ? null : $this->duplicates->find($url, $site?->id);
+        if ($duplicate !== null) {
+            return $this->skipped($monitor, 'site:exists', $this->duplicates->message($duplicate));
         }
         // UI imports never fall back to Internal: a site that would be new but has no approved client changed since the plan.
         if ($requireClient && $site === null && $clientId === null && ! $dryRun) {

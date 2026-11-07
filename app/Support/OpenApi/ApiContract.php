@@ -316,7 +316,7 @@ final class ApiContract
         // Top-level keys mirror the UpdateSite validation rules; each `<check>_check_settings` comes from the installed addon's config schema.
         $monitor = ['type' => 'object', 'additionalProperties' => false, 'properties' => [
             'team_id' => ['type' => 'integer', 'const' => 1], 'type' => ['type' => 'string', 'const' => 'http'],
-            'url' => ['type' => 'string', 'maxLength' => 2048, 'description' => 'http or https URL without credentials.'],
+            'url' => ['type' => 'string', 'maxLength' => 2048, 'description' => 'HTTP or HTTPS address without credentials; a missing scheme becomes HTTPS. New or changed addresses are normalised (scheme and host case, IDN, default ports, root slash and fragment). The same normalised address ignoring HTTP versus HTTPS returns 422 errors.url: Already monitored: <site name>, or This address is already monitored. outside the caller\'s client scope. Different paths and www/apex variants remain separate sites. Byte-identical existing addresses are preserved when saving other fields.'],
             'friendly_name' => ['type' => ['string', 'null'], 'maxLength' => 255], 'group_name' => ['type' => 'string', 'maxLength' => 255],
             'description' => ['type' => ['string', 'null']], 'notes' => ['type' => ['string', 'null']],
             'tags' => ['type' => 'array', 'items' => ['type' => 'string', 'maxLength' => 255]],

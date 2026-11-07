@@ -15,11 +15,7 @@ import InputError, { fieldErrorProps } from '@/components/input-error';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-    index as sitesIndex,
-    store as sitesStore,
-    probe as sitesProbe,
-} from '@/routes/sites';
+import { index as sitesIndex, store as sitesStore } from '@/routes/sites';
 import type { CheckKey, FieldValue } from '@/types/monitoring';
 import {
     eligibleSiteCheck,
@@ -34,6 +30,7 @@ import { CheckSettingsSheet } from '@/components/check-settings-sheet';
 import { TextLink } from '@/components/text-link';
 import { team as teamNotifications } from '@/routes/settings/notifications';
 import { ClientCreateSheet } from '@/components/client-create-sheet';
+import { useSiteUrlProbe } from '@/hooks/use-site-url-probe';
 
 export default function AddSite({
     clients: suppliedClients,
@@ -97,17 +94,9 @@ export default function AddSite({
     const [step, setStep] = useState<SiteCreateStep>(
         initial.draft?.step ?? 'address',
     );
-    const [probe, setProbe] = useState<Heptapod.Data.Ui.SiteProbeData | null>(
-        null,
-    );
-    const [probeState, setProbeState] = useState<
-        'idle' | 'loading' | 'done' | 'error'
-    >('idle');
-    const probeAbort = useRef<AbortController | null>(null);
     const changedChecks = useRef(
         new Set<CheckKey>(initial.draft?.changedChecks),
     );
-    useEffect(() => () => probeAbort.current?.abort(), []);
     const form = useForm({
         url: initial.draft?.url ?? '',
         client_id:
@@ -162,58 +151,23 @@ export default function AddSite({
     };
     const normalizedUrl = () => normalizedSiteUrl(form.data.url);
     const validUrl = () => validSiteUrl(form.data.url);
-    const runProbe = async () => {
-        probeAbort.current?.abort();
-        const controller = new AbortController();
-        probeAbort.current = controller;
-        setProbe(null);
-        setProbeState('loading');
-        try {
-            const token = document.cookie
-                .split('; ')
-                .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
-                ?.split('=')[1];
-            if (!token) throw new Error('Missing CSRF cookie for site probe');
-            const response = await fetch(sitesProbe.url(), {
-                method: 'POST',
-                credentials: 'same-origin',
-                signal: controller.signal,
-                headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-XSRF-TOKEN': decodeURIComponent(token),
-                },
-                body: JSON.stringify({ url: normalizedUrl() }),
-            });
-            if (!response.ok)
-                throw new Error(`Site probe failed: ${response.status}`);
-            const result: Heptapod.Data.Ui.SiteProbeData =
-                await response.json();
-            if (!controller.signal.aborted) {
-                setProbe(result);
-                form.setData((data) => ({
-                    ...data,
-                    checks: checks
-                        .filter(
-                            (check) =>
-                                isEligible(check) &&
-                                (changedChecks.current.has(check.key)
-                                    ? data.checks.includes(check.key)
-                                    : result.recommended_checks.includes(
-                                          check.key,
-                                      )),
-                        )
-                        .map((check) => check.key),
-                }));
-                setProbeState(result.failure ? 'error' : 'done');
-            }
-        } catch (error) {
-            if (!controller.signal.aborted) {
-                console.error(error);
-                setProbeState('error');
-            }
-        }
-    };
+    const { probe, probeState, probeError, runProbe, clearProbe } =
+        useSiteUrlProbe(form.data.url, true);
+    useEffect(() => {
+        if (!probe) return;
+        form.setData((data) => ({
+            ...data,
+            checks: checks
+                .filter(
+                    (check) =>
+                        eligibleSiteCheck(check, data.url) &&
+                        (changedChecks.current.has(check.key)
+                            ? data.checks.includes(check.key)
+                            : probe.recommended_checks.includes(check.key)),
+                )
+                .map((check) => check.key),
+        }));
+    }, [probe]);
     const isEligible = (check: (typeof checks)[number]) =>
         eligibleSiteCheck(check, form.data.url);
     useEffect(() => {
@@ -284,7 +238,7 @@ export default function AddSite({
                 .filter(([, value]) => Object.keys(value).length),
         );
         form.transform(({ client_id }) => ({
-            url: normalizedUrl(),
+            url: form.data.url,
             client_id,
             checks: eligibleChecks,
             ...settings,
@@ -374,9 +328,23 @@ export default function AddSite({
                                 value={form.data.url}
                                 onChange={(event) => {
                                     form.setData('url', event.target.value);
-                                    probeAbort.current?.abort();
-                                    setProbe(null);
-                                    setProbeState('idle');
+                                    clearProbe();
+                                }}
+                                onBlur={() =>
+                                    void runProbe().then((result) => {
+                                        if (result?.normalised_url)
+                                            form.setData(
+                                                'url',
+                                                result.normalised_url,
+                                            );
+                                    })
+                                }
+                                probe={probe}
+                                probeState={probeState}
+                                probeError={probeError}
+                                onUseAddress={(url) => {
+                                    clearProbe();
+                                    form.setData('url', url);
                                 }}
                                 error={form.errors.url}
                                 help={t(
@@ -619,7 +587,7 @@ export default function AddSite({
                                             type="button"
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => void runProbe()}
+                                            onClick={() => void runProbe(true)}
                                         >
                                             {t('Retry')}
                                         </Button>

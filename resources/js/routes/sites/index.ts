@@ -85,7 +85,7 @@ index.form = indexForm
 
 /**
 * @see \Heptapod\Http\Controllers\AddSiteController::create
-* @see app/Http/Controllers/AddSiteController.php:24
+* @see app/Http/Controllers/AddSiteController.php:25
 * @route '/sites/create'
 */
 export const create = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -100,7 +100,7 @@ create.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\AddSiteController::create
-* @see app/Http/Controllers/AddSiteController.php:24
+* @see app/Http/Controllers/AddSiteController.php:25
 * @route '/sites/create'
 */
 create.url = (options?: RouteQueryOptions) => {
@@ -109,7 +109,7 @@ create.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\AddSiteController::create
-* @see app/Http/Controllers/AddSiteController.php:24
+* @see app/Http/Controllers/AddSiteController.php:25
 * @route '/sites/create'
 */
 create.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -119,7 +119,7 @@ create.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\AddSiteController::create
-* @see app/Http/Controllers/AddSiteController.php:24
+* @see app/Http/Controllers/AddSiteController.php:25
 * @route '/sites/create'
 */
 create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -129,7 +129,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\AddSiteController::create
-* @see app/Http/Controllers/AddSiteController.php:24
+* @see app/Http/Controllers/AddSiteController.php:25
 * @route '/sites/create'
 */
 const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -139,7 +139,7 @@ const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\AddSiteController::create
-* @see app/Http/Controllers/AddSiteController.php:24
+* @see app/Http/Controllers/AddSiteController.php:25
 * @route '/sites/create'
 */
 createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -149,7 +149,7 @@ createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\AddSiteController::create
-* @see app/Http/Controllers/AddSiteController.php:24
+* @see app/Http/Controllers/AddSiteController.php:25
 * @route '/sites/create'
 */
 createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -166,7 +166,7 @@ create.form = createForm
 
 /**
 * @see \Heptapod\Http\Controllers\SiteProbeController::__invoke
-* @see app/Http/Controllers/SiteProbeController.php:15
+* @see app/Http/Controllers/SiteProbeController.php:19
 * @route '/sites/probe'
 */
 export const probe = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -181,7 +181,7 @@ probe.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteProbeController::__invoke
-* @see app/Http/Controllers/SiteProbeController.php:15
+* @see app/Http/Controllers/SiteProbeController.php:19
 * @route '/sites/probe'
 */
 probe.url = (options?: RouteQueryOptions) => {
@@ -190,7 +190,7 @@ probe.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteProbeController::__invoke
-* @see app/Http/Controllers/SiteProbeController.php:15
+* @see app/Http/Controllers/SiteProbeController.php:19
 * @route '/sites/probe'
 */
 probe.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -200,7 +200,7 @@ probe.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\SiteProbeController::__invoke
-* @see app/Http/Controllers/SiteProbeController.php:15
+* @see app/Http/Controllers/SiteProbeController.php:19
 * @route '/sites/probe'
 */
 const probeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -210,7 +210,7 @@ const probeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\SiteProbeController::__invoke
-* @see app/Http/Controllers/SiteProbeController.php:15
+* @see app/Http/Controllers/SiteProbeController.php:19
 * @route '/sites/probe'
 */
 probeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -222,7 +222,7 @@ probe.form = probeForm
 
 /**
 * @see \Heptapod\Http\Controllers\AddSiteController::store
-* @see app/Http/Controllers/AddSiteController.php:34
+* @see app/Http/Controllers/AddSiteController.php:35
 * @route '/sites'
 */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -237,7 +237,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\AddSiteController::store
-* @see app/Http/Controllers/AddSiteController.php:34
+* @see app/Http/Controllers/AddSiteController.php:35
 * @route '/sites'
 */
 store.url = (options?: RouteQueryOptions) => {
@@ -246,7 +246,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\AddSiteController::store
-* @see app/Http/Controllers/AddSiteController.php:34
+* @see app/Http/Controllers/AddSiteController.php:35
 * @route '/sites'
 */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -256,7 +256,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\AddSiteController::store
-* @see app/Http/Controllers/AddSiteController.php:34
+* @see app/Http/Controllers/AddSiteController.php:35
 * @route '/sites'
 */
 const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -266,7 +266,7 @@ const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\AddSiteController::store
-* @see app/Http/Controllers/AddSiteController.php:34
+* @see app/Http/Controllers/AddSiteController.php:35
 * @route '/sites'
 */
 storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

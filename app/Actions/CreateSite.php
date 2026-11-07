@@ -16,11 +16,15 @@ use Illuminate\Validation\ValidationException;
 
 final readonly class CreateSite
 {
-    public function __construct(private CheckRegistry $registry, private UpdateSite $updateSite) {}
+    public function __construct(private CheckRegistry $registry, private UpdateSite $updateSite, private NormaliseSiteUrl $normalise) {}
 
     /** @param array<string, mixed> $attributes */
     public function __invoke(int $clientId, array $attributes, ?SiteProbeData $detection = null): Site
     {
+        if (is_string($attributes['url'] ?? null)) {
+            $attributes['url'] = ($this->normalise)($attributes['url']);
+        }
+
         return DB::transaction(function () use ($clientId, $attributes, $detection): Site {
             $clients = Client::query();
             NotificationLocks::forShare($clients->getQuery()->where('id', $clientId));

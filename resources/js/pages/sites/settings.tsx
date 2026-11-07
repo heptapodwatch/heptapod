@@ -9,6 +9,7 @@ import { SiteTabs } from '@/components/site-tabs';
 import { PageContainer } from '@/components/page-container';
 import { Head, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import { useSiteUrlProbe } from '@/hooks/use-site-url-probe';
 import { useTranslation } from 'react-i18next';
 import { SiteHeader } from '@/components/site-header';
 import {
@@ -122,6 +123,8 @@ export default function SiteSettings({
             .filter((check) => check.enabled)
             .map((check) => check.key),
     });
+    const { probe, probeState, probeError, runProbe, clearProbe } =
+        useSiteUrlProbe(form.data.url, false, site.id);
     const loadDeletionImpact = () => {
         setImpactPending(true);
         setImpactError(false);
@@ -236,12 +239,31 @@ export default function SiteSettings({
                             </div>
                             <div className="sm:col-span-2">
                                 <SiteUrlField
-                                    type="url"
+                                    type="text"
+                                    inputMode="url"
                                     required
                                     value={form.data.url}
-                                    onChange={(event) =>
-                                        form.setData('url', event.target.value)
-                                    }
+                                    onChange={(event) => {
+                                        clearProbe();
+                                        form.setData('url', event.target.value);
+                                    }}
+                                    onBlur={() => {
+                                        if (form.data.url !== site.identity.url)
+                                            void runProbe().then((result) => {
+                                                if (result?.normalised_url)
+                                                    form.setData(
+                                                        'url',
+                                                        result.normalised_url,
+                                                    );
+                                            });
+                                    }}
+                                    probe={probe}
+                                    probeState={probeState}
+                                    probeError={probeError}
+                                    onUseAddress={(url) => {
+                                        clearProbe();
+                                        form.setData('url', url);
+                                    }}
                                     error={form.errors.url}
                                 />
                                 {start_redirect_target_url &&
@@ -370,7 +392,10 @@ export default function SiteSettings({
                     <FormSecondaryAction
                         size="sm"
                         disabled={!form.isDirty || form.processing}
-                        onClick={() => form.resetAndClearErrors()}
+                        onClick={() => {
+                            clearProbe();
+                            form.resetAndClearErrors();
+                        }}
                     >
                         {t('Discard')}
                     </FormSecondaryAction>

@@ -1820,6 +1820,12 @@ readonly sitemap_url: string | null,
 readonly failure: string | null,
 readonly public_html: boolean,
 readonly recommended_checks: Heptapod.Contracts.CheckKey[],
+readonly normalised_url: string | null,
+duplicate_message: string | null,
+duplicate_site_id: number | null,
+warning_site_name: string | null,
+warning_site_id: number | null,
+readonly failure_reason: string | null,
 };
 export type SiteRowData = {
 readonly id: number,

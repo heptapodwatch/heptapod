@@ -7185,7 +7185,7 @@
                                         "type": "object"
                                     },
                                     "url": {
-                                        "description": "http or https URL without credentials.",
+                                        "description": "HTTP or HTTPS address without credentials; a missing scheme becomes HTTPS. New or changed addresses are normalised (scheme and host case, IDN, default ports, root slash and fragment). The same normalised address ignoring HTTP versus HTTPS returns 422 errors.url: Already monitored: <site name>, or This address is already monitored. outside the caller's client scope. Different paths and www/apex variants remain separate sites. Byte-identical existing addresses are preserved when saving other fields.",
                                         "maxLength": 2048,
                                         "type": "string"
                                     }
@@ -8476,7 +8476,7 @@
                                         "type": "object"
                                     },
                                     "url": {
-                                        "description": "http or https URL without credentials.",
+                                        "description": "HTTP or HTTPS address without credentials; a missing scheme becomes HTTPS. New or changed addresses are normalised (scheme and host case, IDN, default ports, root slash and fragment). The same normalised address ignoring HTTP versus HTTPS returns 422 errors.url: Already monitored: <site name>, or This address is already monitored. outside the caller's client scope. Different paths and www/apex variants remain separate sites. Byte-identical existing addresses are preserved when saving other fields.",
                                         "maxLength": 2048,
                                         "type": "string"
                                     }

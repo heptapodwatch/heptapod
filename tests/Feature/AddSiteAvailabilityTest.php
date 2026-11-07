@@ -72,7 +72,7 @@ it('excludes unavailable checks from the wizard, probe recommendations and defau
     expect($recommendations)->toContain('uptime')->not->toContain('lighthouse');
     $this->post('/sites', ['url' => 'https://example.test/', 'client_id' => $client->id])->assertRedirect()->assertSessionHasNoErrors();
 
-    $site = Site::query()->where('url', 'https://example.test/')->firstOrFail();
+    $site = Site::query()->where('url', 'https://example.test')->firstOrFail();
     expect($site->checks()->where('type', 'uptime')->exists())->toBeTrue();
     expect($site->checks()->where('type', 'lighthouse')->exists())->toBeFalse();
     expect($fake->requests)->toHaveCount(4);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers;
 
 use Heptapod\Actions\CreateSite;
+use Heptapod\Actions\NormaliseSiteUrl;
 use Heptapod\Checks\SiteProbe;
 use Heptapod\Exceptions\CheckConfigurationValidationException;
 use Heptapod\Models\Site;
@@ -31,7 +32,7 @@ final class AddSiteController extends Controller
         return Inertia::render('sites/create', $reader->read($user, $request->filled('client_id') ? $request->integer('client_id') : null)->toArray());
     }
 
-    public function store(Request $request, CreateSite $create, SitePolicy $policy, SiteProbe $probe): RedirectResponse
+    public function store(Request $request, CreateSite $create, SitePolicy $policy, SiteProbe $probe, NormaliseSiteUrl $normalise): RedirectResponse
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
@@ -51,8 +52,10 @@ final class AddSiteController extends Controller
         $attributes = $request->except('client_id', '_token');
         $detection = null;
         if (! array_key_exists('checks', $attributes)) {
-            Validator::make($attributes, ['url' => ['required', 'string', 'max:2048', 'url:http,https']])->validate();
-            $detection = $probe($request->string('url')->toString());
+            /** @var array{url: string} $address */
+            $address = Validator::make($attributes, ['url' => ['required', 'string', 'max:2048']])->validate();
+            $attributes['url'] = $normalise($address['url']);
+            $detection = $probe($attributes['url']);
         }
         try {
             $site = $create($clientId, $attributes, $detection);

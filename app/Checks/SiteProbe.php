@@ -6,6 +6,7 @@ namespace Heptapod\Checks;
 
 use Carbon\CarbonImmutable;
 use GuzzleHttp\Psr7\Uri;
+use Heptapod\Actions\NormaliseSiteUrl;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
@@ -20,15 +21,19 @@ use Heptapod\Data\Ui\SiteProbeData;
 
 final readonly class SiteProbe
 {
-    public function __construct(private OutboundHttp $http, private CheckRegistry $registry) {}
+    public function __construct(private OutboundHttp $http, private CheckRegistry $registry, private NormaliseSiteUrl $normalise) {}
 
     public function __invoke(string $url): SiteProbeData
     {
+        $url = ($this->normalise)($url);
         $now = CarbonImmutable::now('UTC');
         $context = new CheckContext(0, 0, 0, '', $url, $now, $now->addSeconds(12), [], [], null);
         $response = $this->http->fetch($this->request($url, true), $context);
         if ($response->failure instanceof FetchFailure) {
-            return new SiteProbeData(null, null, null, null, null, null, null, 'probe_failed', false, $this->recommendedChecks($url));
+            $reason = $response->failure->isPolicyRefusal() ? $response->failure->policySummary() : $response->failure->summary();
+
+            return new SiteProbeData(null, null, null, null, null, null, null, 'probe_failed', false, $this->recommendedChecks($url), normalised_url: $url,
+                failure_reason: __($reason['key'], $reason['params']));
         }
         $finalUrl = $response->effectiveUrl ?? throw new \LogicException('A successful site probe must expose its final URL.');
         $contentType = '';
@@ -74,6 +79,7 @@ final readonly class SiteProbe
             null,
             $publicHtml,
             $this->recommendedChecks($url, $publicHtml, $sitemapUrl),
+            normalised_url: $url,
         );
     }
 
