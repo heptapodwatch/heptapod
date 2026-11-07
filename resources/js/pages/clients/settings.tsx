@@ -12,7 +12,7 @@ import { PageHeader } from '@/components/page-header';
 import { ClientHeader } from '@/components/client-header';
 import { PageContainer } from '@/components/page-container';
 import { Head, useForm } from '@inertiajs/react';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     ClientAvatarSettings,
@@ -28,8 +28,28 @@ import {
     clientComboboxOptions,
 } from '@/components/entity-combobox';
 import { Label } from '@/components/ui/label';
-import { archive, restore, store, update } from '@/routes/clients';
+import { InfoTooltip } from '@/components/info-tooltip';
+import {
+    archive,
+    moveBlockers,
+    restore,
+    store,
+    update,
+} from '@/routes/clients';
 import { useFormat } from '@/hooks/use-format';
+import { useHttpRequest } from '@/hooks/use-http-request';
+
+/** A site that cannot move to another client right now (ClientMoveBlockersController). */
+type MoveBlocker = {
+    id: number;
+    name: string;
+    reason: 'open_incident' | 'alerts_pending';
+};
+
+const blockedKeys = {
+    open_incident: 'archive_client.blocked_open_incident',
+    alerts_pending: 'archive_client.blocked_alerts_pending',
+} as const;
 
 export default function ClientSettings({
     client,
@@ -39,9 +59,14 @@ export default function ClientSettings({
     site_count,
     archive_paused_site_count,
 }: Heptapod.Data.Ui.ClientSettingsPageData) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const format = useFormat();
     const [archiveOpen, setArchiveOpen] = useState(false);
+    const blockersRequest = useHttpRequest<
+        Record<string, never>,
+        { sites: MoveBlocker[] }
+    >();
+    const [blockers, setBlockers] = useState<MoveBlocker[] | null>(null);
     const [restoreOpen, setRestoreOpen] = useState(false);
     const archiveForm = useForm<{
         site_action: 'archive' | 'move';
@@ -52,6 +77,57 @@ export default function ClientSettings({
             clients.find((choice) => choice.is_internal)?.id ?? '',
         ),
     });
+    const clientId = client?.id;
+    const targetId = archiveForm.data.client_id;
+    useEffect(() => {
+        if (!archiveOpen || clientId === undefined || site_count === 0) return;
+        let active = true;
+        setBlockers(null);
+        void blockersRequest.get(moveBlockers.url(clientId)).then(
+            (response) => {
+                if (active) setBlockers(response.sites);
+            },
+            // The move itself still refuses a blocked site, so a failed check does not hold the dialog.
+            () => {
+                if (active) setBlockers([]);
+            },
+        );
+        return () => {
+            active = false;
+            blockersRequest.cancel();
+        };
+    }, [
+        archiveOpen,
+        clientId,
+        targetId,
+        site_count,
+        blockersRequest.get,
+        blockersRequest.cancel,
+    ]);
+    const blockedLines = (['open_incident', 'alerts_pending'] as const).flatMap(
+        (reason) => {
+            const names = (blockers ?? [])
+                .filter((site) => site.reason === reason)
+                .map((site) => site.name);
+            if (names.length === 0) return [];
+            const shown =
+                names.length > 3
+                    ? [
+                          ...names.slice(0, 2),
+                          t('archive_client.blocked_more', {
+                              count: names.length - 2,
+                              formattedCount: format.number(names.length - 2),
+                          }),
+                      ]
+                    : names;
+            return [
+                t(blockedKeys[reason], {
+                    count: names.length,
+                    sites: new Intl.ListFormat(i18n.language).format(shown),
+                }),
+            ];
+        },
+    );
     const restoreForm = useForm({ resume_sites: true });
     const creating = client === null;
     const form = useForm({
@@ -172,6 +248,10 @@ export default function ClientSettings({
                                 'Hide this client from active views; its history is kept and you can restore it later.',
                             )}
                             confirmLabel={t('Archive client')}
+                            confirmDisabled={
+                                archiveForm.data.site_action === 'move' &&
+                                blockers?.length !== 0
+                            }
                             onConfirm={() =>
                                 confirmVisit((callbacks) =>
                                     archiveForm.post(
@@ -230,6 +310,13 @@ export default function ClientSettings({
                                     {archiveForm.data.site_action ===
                                         'move' && (
                                         <div className="space-y-2">
+                                            {blockedLines.map((line) => (
+                                                <InputError
+                                                    key={line}
+                                                    role="status"
+                                                    message={line}
+                                                />
+                                            ))}
                                             <Label htmlFor="archive-target-client">
                                                 {t('Client')}
                                             </Label>
@@ -265,15 +352,12 @@ export default function ClientSettings({
                                             <p className="text-xs text-muted-foreground">
                                                 {t(
                                                     'archive_client.move_consequences',
-                                                )}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {t('archive_client.move_wait')}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {t(
-                                                    'archive_client.move_progress',
-                                                )}
+                                                )}{' '}
+                                                <InfoTooltip>
+                                                    {t(
+                                                        'archive_client.move_progress',
+                                                    )}
+                                                </InfoTooltip>
                                             </p>
                                         </div>
                                     )}

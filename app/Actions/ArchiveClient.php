@@ -68,7 +68,11 @@ final readonly class ArchiveClient
             try {
                 ($this->move)($user, $site, $targetClientId);
             } catch (ValidationException $exception) {
-                throw ValidationException::withMessages(['client_id' => trans_choice('archive_client.move_failed', $moved, [
+                // Only a target archived meanwhile is the picker's error; any other refusal is about this site.
+                if (Client::query()->getQuery()->where('id', $targetClientId)->whereNotNull('archived_at')->exists()) {
+                    throw $exception;
+                }
+                throw ValidationException::withMessages(['site_action' => trans_choice('archive_client.move_failed', $moved, [
                     'site' => $site->displayName(), 'count' => $moved,
                 ]).' '.$exception->validator->errors()->first('client_id')]);
             }
@@ -78,7 +82,7 @@ final readonly class ArchiveClient
             NotificationLocks::clients([$client->id]);
             $locked = Client::query()->findOrFail($client->id);
             if (DB::table('sites')->where('client_id', $locked->id)->exists()) {
-                throw ValidationException::withMessages(['client_id' => __('Sites were added while archiving; try again.')]);
+                throw ValidationException::withMessages(['site_action' => __('Sites were added while archiving; try again.')]);
             }
             $locked->update(['archived_at' => now()]);
         });

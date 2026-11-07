@@ -774,6 +774,111 @@ archiveForm.post = (args: { client: number | { id: number } } | [client: number 
 archive.form = archiveForm
 
 /**
+* @see \Heptapod\Http\Controllers\ClientMoveBlockersController::__invoke
+* @see app/Http/Controllers/ClientMoveBlockersController.php:16
+* @route '/clients/{client}/move-blockers'
+*/
+export const moveBlockers = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: moveBlockers.url(args, options),
+    method: 'get',
+})
+
+moveBlockers.definition = {
+    methods: ["get","head"],
+    url: '/clients/{client}/move-blockers',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \Heptapod\Http\Controllers\ClientMoveBlockersController::__invoke
+* @see app/Http/Controllers/ClientMoveBlockersController.php:16
+* @route '/clients/{client}/move-blockers'
+*/
+moveBlockers.url = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { client: args }
+    }
+
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { client: args.id }
+    }
+
+    if (Array.isArray(args)) {
+        args = {
+            client: args[0],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        client: typeof args.client === 'object'
+        ? args.client.id
+        : args.client,
+    }
+
+    return moveBlockers.definition.url
+            .replace('{client}', parsedArgs.client.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \Heptapod\Http\Controllers\ClientMoveBlockersController::__invoke
+* @see app/Http/Controllers/ClientMoveBlockersController.php:16
+* @route '/clients/{client}/move-blockers'
+*/
+moveBlockers.get = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: moveBlockers.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\ClientMoveBlockersController::__invoke
+* @see app/Http/Controllers/ClientMoveBlockersController.php:16
+* @route '/clients/{client}/move-blockers'
+*/
+moveBlockers.head = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: moveBlockers.url(args, options),
+    method: 'head',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\ClientMoveBlockersController::__invoke
+* @see app/Http/Controllers/ClientMoveBlockersController.php:16
+* @route '/clients/{client}/move-blockers'
+*/
+const moveBlockersForm = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: moveBlockers.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\ClientMoveBlockersController::__invoke
+* @see app/Http/Controllers/ClientMoveBlockersController.php:16
+* @route '/clients/{client}/move-blockers'
+*/
+moveBlockersForm.get = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: moveBlockers.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\ClientMoveBlockersController::__invoke
+* @see app/Http/Controllers/ClientMoveBlockersController.php:16
+* @route '/clients/{client}/move-blockers'
+*/
+moveBlockersForm.head = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: moveBlockers.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+moveBlockers.form = moveBlockersForm
+
+/**
 * @see \Heptapod\Http\Controllers\Notifications\ClientNotificationSettingsController::notifications
 * @see app/Http/Controllers/Notifications/ClientNotificationSettingsController.php:23
 * @route '/clients/{client}/notifications'
@@ -888,6 +993,7 @@ const clients = {
     update: Object.assign(update, update),
     restore: Object.assign(restore, restore),
     archive: Object.assign(archive, archive),
+    moveBlockers: Object.assign(moveBlockers, moveBlockers),
     messages: Object.assign(messages, messages),
     notifications: Object.assign(notifications, notifications1ce82a),
 }

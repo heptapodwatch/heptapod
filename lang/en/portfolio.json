@@ -66,10 +66,15 @@
     "restore_client.resume_other": "Resume the {{formattedCount}} sites that archiving paused",
     "Sites stay paused; resume them on each site.": "Sites stay paused; resume them on each site.",
     "This client is archived; move the site to an active client to manage it, then resume it explicitly.": "This client is archived; move the site to an active client to manage it, then resume it explicitly.",
-    "archive_client.move_wait": "Open incidents and pending alerts must finish before moving.",
     "Sites were added while archiving; try again.": "Sites were added while archiving; try again.",
     "archive_client.move_progress": "Sites move one at a time; if a move fails, completed moves are kept and you can try again.",
-    "archive_client.move_failed": "{1} Could not move :site; :count site already moved.|[0,*] Could not move :site; :count sites already moved.",
+    "archive_client.move_failed": "{0} Could not move :site.|{1} Could not move :site; :count site already moved.|[2,*] Could not move :site; :count sites already moved.",
+    "archive_client.blocked_open_incident_one": "{{sites}} cannot move until its open incident is resolved.",
+    "archive_client.blocked_open_incident_other": "{{sites}} cannot move until their open incidents are resolved.",
+    "archive_client.blocked_alerts_pending_one": "{{sites}} cannot move yet; its alerts are still being sent.",
+    "archive_client.blocked_alerts_pending_other": "{{sites}} cannot move yet; their alerts are still being sent.",
+    "archive_client.blocked_more_one": "{{formattedCount}} more site",
+    "archive_client.blocked_more_other": "{{formattedCount}} more sites",
     "Neutral mark": "Neutral mark",
     "No client uses a neutral mark unless you choose an image.": "No client uses a neutral mark unless you choose an image."
 }

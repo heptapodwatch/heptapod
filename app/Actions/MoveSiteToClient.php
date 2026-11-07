@@ -44,14 +44,14 @@ final readonly class MoveSiteToClient
             if ($locked->client_id === $clientId) {
                 return $locked;
             }
-            if (DB::table('incidents')->where('site_id', $locked->id)->whereNull('resolved_at')->exists()) {
-                throw ValidationException::withMessages(['client_id' => __('sites.client_open_incident')]);
+            $blocker = self::blockers([$locked->id])[$locked->id] ?? null;
+            if ($blocker !== null) {
+                throw ValidationException::withMessages(['client_id' => __(match ($blocker) {
+                    'open_incident' => 'sites.client_open_incident',
+                    'alerts_pending' => 'sites.client_alerts_pending',
+                })]);
             }
             $events = DB::table('events')->where('site_id', $locked->id);
-            if ((clone $events)->whereNull('notification_routed_at')->exists()
-                || Delivery::awaitingDelivery()->getQuery()->whereIn('event_id', (clone $events)->select('id'))->exists()) {
-                throw ValidationException::withMessages(['client_id' => __('sites.client_alerts_pending')]);
-            }
             $previous = $lockedClients->get($locked->client_id) ?? throw new \LogicException('The source client must be locked.');
             if ($previous->avatar_site_id === $locked->id) {
                 $previous->update(['avatar_site_id' => null]);
@@ -67,5 +67,24 @@ final readonly class MoveSiteToClient
 
             return $locked;
         });
+    }
+
+    /**
+     * The sites that cannot change client right now: an open incident, else alerts not yet routed or still being sent.
+     *
+     * @param  list<int>  $siteIds
+     * @return array<int, 'open_incident'|'alerts_pending'>
+     */
+    public static function blockers(array $siteIds): array
+    {
+        /** @var list<int> $openIncident */
+        $openIncident = DB::table('incidents')->whereIn('site_id', $siteIds)->whereNull('resolved_at')->distinct()->pluck('site_id')->all();
+        /** @var list<int> $alertsPending */
+        $alertsPending = [
+            ...DB::table('events')->whereIn('site_id', $siteIds)->whereNull('notification_routed_at')->distinct()->pluck('site_id')->all(),
+            ...DB::table('events')->whereIn('site_id', $siteIds)->whereIn('id', Delivery::awaitingDelivery()->getQuery()->select('event_id'))->distinct()->pluck('site_id')->all(),
+        ];
+
+        return array_fill_keys($openIncident, 'open_incident') + array_fill_keys($alertsPending, 'alerts_pending');
     }
 }

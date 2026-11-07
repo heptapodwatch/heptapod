@@ -7,9 +7,12 @@ import {
     waitFor,
     within,
 } from '@testing-library/react';
+import { http } from '@inertiajs/core';
+import type { HttpResponse } from '@inertiajs/core';
 import { router } from '@inertiajs/react';
 import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import ClientSettings from '@/pages/clients/settings';
 import { clients } from '@/fixtures/design';
 import '@/lib/i18n';
@@ -32,7 +35,20 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
     usePage: () => ({ props: { timezone: 'UTC' } }),
 }));
 
+/** The move-blockers check's answer: the sites that cannot move right now. */
+let blockedSites: unknown[] = [];
+/** The real Inertia useHttp over a fake transport: what the server answers is all that is faked. */
+function fakeTransport(): Promise<HttpResponse> {
+    return Promise.resolve({
+        status: 200,
+        data: JSON.stringify({ sites: blockedSites }),
+        headers: {},
+    });
+}
+
 beforeEach(() => {
+    blockedSites = [];
+    http.setClient({ request: fakeTransport });
     vi.setSystemTime(new Date('2026-11-07T12:00:00Z'));
     vi.stubGlobal(
         'ResizeObserver',
@@ -66,20 +82,24 @@ function page(
     overrides: Partial<Heptapod.Data.Ui.ClientSettingsPageData> = {},
 ) {
     return (
-        <ClientSettings
-            client={clients[0]!}
-            members={[]}
-            avatar_sites={[]}
-            timezones={['UTC']}
-            clients={[{ ...clients[1]!, is_internal: true, name: 'No client' }]}
-            site_count={3}
-            archive_paused_site_count={2}
-            {...overrides}
-        />
+        <TooltipProvider>
+            <ClientSettings
+                client={clients[0]!}
+                members={[]}
+                avatar_sites={[]}
+                timezones={['UTC']}
+                clients={[
+                    { ...clients[1]!, is_internal: true, name: 'No client' },
+                ]}
+                site_count={3}
+                archive_paused_site_count={2}
+                {...overrides}
+            />
+        </TooltipProvider>
     );
 }
 
-it('defaults to archiving sites and preselects No client when moving them instead', () => {
+it('defaults to archiving sites and preselects No client when moving them instead', async () => {
     const post = vi.spyOn(router, 'post').mockImplementation(() => {});
     render(page());
     fireEvent.click(screen.getByRole('button', { name: 'Archive client' }));
@@ -98,9 +118,11 @@ it('defaults to archiving sites and preselects No client when moving them instea
     expect(
         within(dialog).getByRole('combobox', { name: 'Client' }).textContent,
     ).toContain('No client');
-    fireEvent.click(
-        within(dialog).getByRole('button', { name: 'Archive client' }),
-    );
+    const confirm = within(dialog).getByRole('button', {
+        name: 'Archive client',
+    });
+    await waitFor(() => expect(confirm.hasAttribute('disabled')).toBe(false));
+    fireEvent.click(confirm);
     expect(post).toHaveBeenCalledWith(
         `/clients/${clients[0]!.id}/archive`,
         { site_action: 'move', client_id: String(clients[1]!.id) },
@@ -111,6 +133,40 @@ it('defaults to archiving sites and preselects No client when moving them instea
             .getByRole('button', { name: 'Archive client' })
             .hasAttribute('disabled'),
     ).toBe(true);
+});
+
+it('names the sites that cannot move and blocks only the move until they can', async () => {
+    blockedSites = [
+        { id: 7, name: 'API', reason: 'open_incident' },
+        { id: 8, name: 'Shop', reason: 'alerts_pending' },
+        { id: 9, name: 'Blog', reason: 'alerts_pending' },
+    ];
+    render(page());
+    fireEvent.click(screen.getByRole('button', { name: 'Archive client' }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(
+        within(dialog).getByRole('radio', {
+            name: 'Move the sites to another client',
+        }),
+    );
+    expect(
+        await within(dialog).findByText(
+            'API cannot move until its open incident is resolved.',
+        ),
+    ).toBeTruthy();
+    expect(
+        within(dialog).getByText(
+            'Shop and Blog cannot move yet; their alerts are still being sent.',
+        ),
+    ).toBeTruthy();
+    const confirm = within(dialog).getByRole('button', {
+        name: 'Archive client',
+    });
+    expect(confirm.hasAttribute('disabled')).toBe(true);
+    fireEvent.click(
+        within(dialog).getByRole('radio', { name: 'Archive the sites too' }),
+    );
+    expect(confirm.hasAttribute('disabled')).toBe(false);
 });
 
 it('defaults to resuming recorded sites and submits the opt-out on restore', () => {

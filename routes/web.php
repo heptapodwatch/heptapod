@@ -12,6 +12,7 @@ use Heptapod\Http\Controllers\ClientLogoController;
 use Heptapod\Http\Controllers\ClientMessageAttachmentController;
 use Heptapod\Http\Controllers\ClientMessagePreviewController;
 use Heptapod\Http\Controllers\ClientMessagesController;
+use Heptapod\Http\Controllers\ClientMoveBlockersController;
 use Heptapod\Http\Controllers\ClientSettingsController;
 use Heptapod\Http\Controllers\ClientsIndexController;
 use Heptapod\Http\Controllers\EnableSiteCheckController;
@@ -85,6 +86,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::patch('clients/{client}', [ClientSettingsController::class, 'update'])->whereNumber('client')->name('clients.update');
     Route::post('clients/{client}/restore', RestoreClientController::class)->whereNumber('client')->name('clients.restore');
     Route::post('clients/{client}/archive', ArchiveClientController::class)->whereNumber('client')->name('clients.archive');
+    Route::get('clients/{client}/move-blockers', ClientMoveBlockersController::class)->whereNumber('client')->name('clients.move-blockers');
     Route::get('clients/{client}/client-messages', [ClientMessagesController::class, 'index'])->whereNumber('client')->name('clients.messages.index');
     Route::get('clients/{client}/client-messages/{message}', [ClientMessagesController::class, 'show'])->whereNumber(['client', 'message'])->name('clients.messages.show');
     Route::get('clients/{client}/client-messages/{message}/attachment', ClientMessageAttachmentController::class)->whereNumber(['client', 'message'])->name('clients.messages.attachment');

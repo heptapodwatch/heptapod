@@ -88,6 +88,8 @@ $guestXsrf = urldecode(substr($cookies['XSRF-TOKEN'], strlen('XSRF-TOKEN=')));
 $restoreGuest = $request('POST', '/clients/1/restore', ['headers' => ['X-XSRF-TOKEN' => $guestXsrf]]);
 verify($restoreGuest->getStatusCode() === 302 && $restoreGuest->getHeader('Location') === ['https://monitor.example.com:8443/login'], 'Client restore guest redirect must use the canonical HTTPS login origin');
 verify(route('clients.restore', ['client' => 1]) === 'https://monitor.example.com:8443/clients/1/restore', 'Client restore action must use the canonical HTTPS origin');
+$moveBlockersGuest = $request('GET', '/clients/1/move-blockers');
+verify($moveBlockersGuest->getStatusCode() === 302 && $moveBlockersGuest->getHeader('Location') === ['https://monitor.example.com:8443/login'], 'Client move check guest redirect must use the canonical HTTPS login origin');
 $cookies = $loginCookies;
 verify($findingsGuest->getStatusCode() === 302 && $findingsGuest->getHeaderLine('Location') === 'https://monitor.example.com:8443/login', 'Findings export guest redirect must use the canonical HTTPS login origin');
 verify(! str_starts_with($findingsGuest->getHeaderLine('Content-Type'), 'text/csv'), 'Unauthenticated findings export must not disclose CSV');

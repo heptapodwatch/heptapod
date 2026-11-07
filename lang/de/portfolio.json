@@ -66,10 +66,15 @@
     "restore_client.resume_other": "Die {{formattedCount}} durch das Archivieren pausierten Websites fortsetzen",
     "Sites stay paused; resume them on each site.": "Die Websites bleiben pausiert; setzen Sie sie einzeln auf der jeweiligen Website fort.",
     "This client is archived; move the site to an active client to manage it, then resume it explicitly.": "Dieser Kunde ist archiviert; ordnen Sie die Website zur Bearbeitung einem aktiven Kunden zu und setzen Sie sie danach ausdrücklich fort.",
-    "archive_client.move_wait": "Offene Störungen und ausstehende Benachrichtigungen müssen vor dem Verschieben abgeschlossen sein.",
     "Sites were added while archiving; try again.": "Während des Archivierens wurden Websites hinzugefügt; versuchen Sie es erneut.",
     "archive_client.move_progress": "Die Websites werden einzeln verschoben; bei einem Fehler bleiben abgeschlossene Verschiebungen erhalten und Sie können es erneut versuchen.",
-    "archive_client.move_failed": "{1} :site konnte nicht verschoben werden; :count Website bereits verschoben.|[0,*] :site konnte nicht verschoben werden; :count Websites bereits verschoben.",
+    "archive_client.move_failed": "{0} :site konnte nicht verschoben werden.|{1} :site konnte nicht verschoben werden; :count Website bereits verschoben.|[2,*] :site konnte nicht verschoben werden; :count Websites bereits verschoben.",
+    "archive_client.blocked_open_incident_one": "{{sites}} kann erst nach Behebung der offenen Störung verschoben werden.",
+    "archive_client.blocked_open_incident_other": "{{sites}} können erst nach Behebung ihrer offenen Störungen verschoben werden.",
+    "archive_client.blocked_alerts_pending_one": "{{sites}} kann noch nicht verschoben werden; Benachrichtigungen werden noch versendet.",
+    "archive_client.blocked_alerts_pending_other": "{{sites}} können noch nicht verschoben werden; Benachrichtigungen werden noch versendet.",
+    "archive_client.blocked_more_one": "{{formattedCount}} weitere Website",
+    "archive_client.blocked_more_other": "{{formattedCount}} weitere Websites",
     "Neutral mark": "Neutrales Zeichen",
     "No client uses a neutral mark unless you choose an image.": "Ohne Kunde verwendet ein neutrales Zeichen, solange Sie kein Bild auswählen."
 }

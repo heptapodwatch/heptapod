@@ -7,6 +7,7 @@ use Heptapod\Models\Check;
 use Heptapod\Models\Client;
 use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
+use Heptapod\Models\Incident;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
@@ -72,6 +73,24 @@ it('moves sites and history before archiving without changing monitoring state a
         ->and($delivery->fresh()->client_id)->toBe($target->id)->and($delivery->fresh()->digest_recurrence_ended_at)->not->toBeNull();
 });
 
+it('reports up front which sites cannot move and why, only to managers', function (): void {
+    $owner = User::factory()->owner()->create();
+    $client = Client::factory()->create();
+    $incident = Incident::factory()->for(Check::factory()->for(Site::factory()->for($client)->create(['friendly_name' => 'Down site'])))->create();
+    $sending = Event::factory()->for(Check::factory()->for(Site::factory()->for($client)->create(['friendly_name' => 'Sending site'])))->create(['notification_routed_at' => now()]);
+    Delivery::query()->create(['event_id' => $sending->id, 'destination_id' => NotificationDestination::factory()->create()->id,
+        'state' => 'pending', 'next_attempt_at' => now(), 'suppression_evaluated_at' => now()]);
+    $sent = Event::factory()->for(Check::factory()->for(Site::factory()->for($client)->create())->create())->create(['notification_routed_at' => now()]);
+    Delivery::query()->create(['event_id' => $sent->id, 'destination_id' => NotificationDestination::factory()->create()->id,
+        'state' => 'sent', 'next_attempt_at' => now(), 'sent_at' => now(), 'suppression_evaluated_at' => now()]);
+
+    $this->actingAs($owner)->getJson('/clients/'.$client->id.'/move-blockers')->assertOk()->assertExactJson(['sites' => [
+        ['id' => $incident->site_id, 'name' => 'Down site', 'reason' => 'open_incident'],
+        ['id' => $sending->site_id, 'name' => 'Sending site', 'reason' => 'alerts_pending'],
+    ]]);
+    $this->actingAs(User::factory()->member()->create())->getJson('/clients/'.$client->id.'/move-blockers')->assertNotFound();
+});
+
 it('names the blocked site and completed moves and converges on retry after pending alerts finish', function (string $locale, string $message): void {
     $owner = User::factory()->owner()->create(['locale' => $locale]);
     $source = Client::factory()->create();
@@ -82,7 +101,7 @@ it('names the blocked site and completed moves and converges on retry after pend
     $event = Event::factory()->for($check)->create();
 
     $this->actingAs($owner)->postJson('/clients/'.$source->id.'/archive', ['site_action' => 'move', 'client_id' => $target->id])
-        ->assertUnprocessable()->assertJsonValidationErrors(['client_id' => $message]);
+        ->assertUnprocessable()->assertJsonValidationErrors(['site_action' => $message])->assertJsonMissingValidationErrors('client_id');
 
     expect($source->fresh()->archived_at)->toBeNull()->and($first->fresh()->client_id)->toBe($target->id)
         ->and($second->fresh()->client_id)->toBe($source->id)->and($first->fresh()->paused_at)->toBeNull();
@@ -132,7 +151,7 @@ it('refuses to archive if a site appears after the move snapshot and converges o
     });
 
     $this->actingAs($owner)->postJson('/clients/'.$source->id.'/archive', ['site_action' => 'move', 'client_id' => $target->id])
-        ->assertUnprocessable()->assertJsonValidationErrors(['client_id' => __('Sites were added while archiving; try again.')]);
+        ->assertUnprocessable()->assertJsonValidationErrors(['site_action' => __('Sites were added while archiving; try again.')]);
 
     expect($source->fresh()->archived_at)->toBeNull()->and($site->fresh()->client_id)->toBe($target->id)
         ->and($added?->client_id)->toBe($source->id);
