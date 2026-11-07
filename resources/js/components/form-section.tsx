@@ -88,11 +88,14 @@ export function FormSaveStatus({
     const { t } = useTranslation();
     if (processing) return t('Saving…');
     if (!dirty) return t('No unsaved changes');
+    // Inline (not flex), so the bar's truncating status line ends the text with an ellipsis at 390 px.
     return (
-        <span className="inline-flex items-center gap-2">
-            <StatusDot state="warning" label="Unsaved changes" />
+        <>
+            <span className="mr-2 inline-flex align-middle">
+                <StatusDot state="warning" label="Unsaved changes" />
+            </span>
             {t('Unsaved changes')}
-        </span>
+        </>
     );
 }
 
