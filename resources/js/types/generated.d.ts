@@ -1816,6 +1816,7 @@ readonly maintenance: Heptapod.Data.Ui.MaintenanceSiteHeaderData | null,
 readonly record?: Heptapod.Data.Ui.SiteRecordData | null,
 readonly upcoming?: Heptapod.Data.Ui.UpcomingItemData[],
 readonly alert_channels?: number | null,
+readonly lighthouse?: Heptapod.Contracts.CheckHistoryData | null,
 readonly can_move: boolean,
 };
 export type SiteProbeData = {

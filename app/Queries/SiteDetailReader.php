@@ -193,6 +193,7 @@ final readonly class SiteDetailReader
             return $history ??= $this->history->read($user, $siteId);
         };
         $uptime = array_find($site->checks, static fn (CheckStripData $check): bool => $check->key === CheckKey::Uptime);
+        $lighthouse = array_find($site->checks, static fn (CheckStripData $check): bool => $check->key === CheckKey::Lighthouse && $check->enabled);
 
         return new SiteOverviewPageData(
             site: Lazy::closure(static fn (): SiteRowData => $site),
@@ -221,6 +222,8 @@ final readonly class SiteDetailReader
             record: Lazy::inertiaDeferred(fn (): ?SiteRecordData => $uptime instanceof CheckStripData ? $this->record($siteId, $uptime->id) : null, 'overview'),
             upcoming: Lazy::inertiaDeferred(fn (): array => $this->nextUpcoming($user, $siteId), 'overview'),
             alert_channels: Lazy::inertiaDeferred(fn (): ?int => $uptime?->enabled === true ? $this->alertChannels($user, $uptime->id, NotificationCategory::Outage) : null, 'overview'),
+            lighthouse: Lazy::inertiaDeferred(fn (): ?CheckHistoryData => $lighthouse instanceof CheckStripData
+                ? $this->checkHistory($user, Check::query()->with('site')->findOrFail($lighthouse->id)) : null, 'overview'),
             can_move: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
         );
     }

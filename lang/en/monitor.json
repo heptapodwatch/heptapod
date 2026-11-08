@@ -125,9 +125,9 @@
     "site_overview.record_outages_one": "1 outage, {{duration}} in total, last on {{date}}",
     "site_overview.record_outages_other": "{{formattedCount}} outages, {{duration}} in total, last on {{date}}",
     "site_overview.record_no_outage": "No outage",
-    "site_overview.record_response": "Response {{value}} ms (hourly average)",
     "site_overview.coming_certificate": "Certificate expires on {{date}}",
     "site_overview.coming_domain": "Domain expires on {{date}}",
     "site_overview.coming_maintenance": "Maintenance {{time}}",
-    "site_overview.coming_nothing": "Nothing scheduled in the next 12 months"
+    "site_overview.coming_nothing": "Nothing scheduled in the next 12 months",
+    "site_overview.response_peaks": "Peaks over the last 24 hours"
 }

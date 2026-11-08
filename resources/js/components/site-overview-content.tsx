@@ -6,10 +6,13 @@ import { AbsoluteTime } from '@/components/absolute-time';
 import { AlertChannelsLine } from '@/components/alert-channels-line';
 import { openRowTarget, rowTargetClass } from '@/components/entity-link';
 import { EvidenceFacts } from '@/components/evidence-facts';
+import { ScoreRing } from '@/components/foundation-primitives';
 import {
     ContentState,
     EventTimeline,
     MonitoringTime,
+    responseTimeSummary,
+    Sparkline,
     StatusBadge,
     StatusDot,
     UptimeBar,
@@ -166,6 +169,9 @@ export function SiteOverviewContent({ page }: { page: Page }) {
     );
     const enabledChecks = site.checks.filter((check) => check.enabled);
     const uptime = site.checks.find((check) => check.key === 'uptime');
+    const lighthouse = site.checks.find(
+        (check) => check.key === 'lighthouse' && check.enabled,
+    );
     return (
         <div className="space-y-6" data-site-overview>
             <section className="space-y-3" aria-labelledby={attentionId}>
@@ -281,27 +287,45 @@ export function SiteOverviewContent({ page }: { page: Page }) {
                     <SiteCheckRows siteId={site.id} checks={otherChecks} />
                 </section>
             )}
-            {/* Side by side only from xl: narrower, the Uptime card's title and Open check collide (DE at 1024). */}
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                <Card className="min-w-0">
-                    <CardHeader>
-                        <CardTitle>{t('Recent events')}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {page.events.length ? (
-                            <EventTimeline events={page.events} />
-                        ) : (
-                            <ContentState
-                                bare
-                                state="empty"
-                                title="No events yet"
-                                description="Events appear here when a state changes, not after every check run."
-                            />
-                        )}
-                    </CardContent>
-                </Card>
-                {uptime && <UptimeCard page={page} uptime={uptime} />}
-            </div>
+            {uptime && (
+                // One row from xl only: narrower, a card's title and Open check collide (DE at 1024).
+                <div
+                    data-site-launchpad
+                    className="grid gap-6 xl:auto-cols-fr xl:grid-flow-col"
+                >
+                    <UptimeCard page={page} uptime={uptime} />
+                    <ResponseCard
+                        page={page}
+                        check={
+                            site.checks.find(
+                                (check) =>
+                                    check.key === 'performance' &&
+                                    check.enabled,
+                            ) ?? uptime
+                        }
+                    />
+                    {lighthouse && (
+                        <LighthouseCard page={page} lighthouse={lighthouse} />
+                    )}
+                </div>
+            )}
+            <Card className="min-w-0">
+                <CardHeader>
+                    <CardTitle>{t('Recent events')}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {page.events.length ? (
+                        <EventTimeline events={page.events} />
+                    ) : (
+                        <ContentState
+                            bare
+                            state="empty"
+                            title="No events yet"
+                            description="Events appear here when a state changes, not after every check run."
+                        />
+                    )}
+                </CardContent>
+            </Card>
             {uptime?.enabled && (
                 <AlertChannelsLine
                     siteId={site.id}
@@ -363,18 +387,6 @@ function SiteRecordLines({ page }: { page: Page }) {
                                                     record.last_outage_started_at,
                                                 ),
                                             }),
-                                      ...(record.response_ms === null
-                                          ? []
-                                          : [
-                                                t(
-                                                    'site_overview.record_response',
-                                                    {
-                                                        value: format.milliseconds(
-                                                            record.response_ms,
-                                                        ),
-                                                    },
-                                                ),
-                                            ]),
                                   ].join(' · '),
                               },
                           ]
@@ -484,15 +496,61 @@ function UptimeCard({ page, uptime }: { page: Page; uptime: Check }) {
     const percentage = (value: number | null) =>
         value === null ? '—' : format.uptimePercentage(value);
     return (
-        <Card className="min-w-0">
+        <LaunchpadCard title={t('Uptime')} siteId={page.site.id} check={uptime}>
+            <div className="grid grid-cols-2 gap-4">
+                <StatTile
+                    label={t('24 hours')}
+                    value={percentage(page.uptime_ranges.hours24)}
+                />
+                <StatTile
+                    label={t('90 days')}
+                    value={percentage(page.uptime_ranges.days90)}
+                />
+            </div>
+            {measured ? (
+                <UptimeBar buckets={days} />
+            ) : (
+                <p className="text-sm text-muted-foreground">{t('No data')}</p>
+            )}
+            {/* Below the bar at every width: beside the title it wrapped into a tall block on narrow cards. */}
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--foreground-faint)]">
+                {legend('--status-ok', 'No interruption')}
+                {legend('--status-warn', 'Short interruptions (1–4 min)')}
+                {legend('--status-down', 'Outage (5 min or more)')}
+                {days.some((b) => b.status === 'no_data') &&
+                    legend('--status-pending', 'No data')}
+                {days.some((b) => b.status === 'errored') &&
+                    legend('--status-error', 'Check error')}
+                {days.some((b) => b.status === 'warning') &&
+                    legend('--status-warn', 'Warning')}
+            </div>
+        </LaunchpadCard>
+    );
+}
+
+/** The launchpad card anatomy: title, Open check, one or two headline numbers and one small visual; the detail lives on the check tab. */
+function LaunchpadCard({
+    title,
+    siteId,
+    check,
+    children,
+}: {
+    title: string;
+    siteId: number;
+    check: Check;
+    children: ReactNode;
+}) {
+    const { t } = useTranslation();
+    return (
+        <Card className="min-w-0" data-launchpad-card={check.key}>
             <CardHeader>
-                <CardTitle>{t('Uptime')}</CardTitle>
+                <CardTitle>{title}</CardTitle>
                 <CardAction>
                     <Button asChild size="sm" variant="ghost">
                         <Link
                             href={checkShow.url({
-                                site: page.site.id,
-                                check: uptime.id,
+                                site: siteId,
+                                check: check.id,
                             })}
                             prefetch
                         >
@@ -502,37 +560,138 @@ function UptimeCard({ page, uptime }: { page: Page; uptime: Check }) {
                     </Button>
                 </CardAction>
             </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <StatTile
-                        label={t('24 hours')}
-                        value={percentage(page.uptime_ranges.hours24)}
-                    />
-                    <StatTile
-                        label={t('90 days')}
-                        value={percentage(page.uptime_ranges.days90)}
+            <CardContent className="space-y-4">{children}</CardContent>
+        </Card>
+    );
+}
+
+/** The Performance tab's latest hourly average and the 24-hour peak sparkline; opens Performance, or Uptime without it. */
+function ResponseCard({ page, check }: { page: Page; check: Check }) {
+    const { t } = useTranslation();
+    const format = useFormat();
+    const uptime = page.site.checks.find((item) => item.key === 'uptime');
+    return (
+        <LaunchpadCard
+            title={t('Response time')}
+            siteId={page.site.id}
+            check={check}
+        >
+            <StatTile
+                label={t('Hourly average')}
+                value={
+                    <Deferred
+                        data="record"
+                        fallback={
+                            <Skeleton
+                                aria-busy="true"
+                                className="h-[1.25em] w-24"
+                            />
+                        }
+                    >
+                        {page.record?.response_ms == null
+                            ? '—'
+                            : `${format.milliseconds(page.record.response_ms)} ${t('ms')}`}
+                    </Deferred>
+                }
+            />
+            {/* Peaks, not averages: the caption says so, and the summary replaces the decorative line for screen readers. */}
+            <div className="space-y-1">
+                <div aria-hidden="true">
+                    <Sparkline
+                        data={page.site.response}
+                        state={uptime ? checkState(uptime) : 'ok'}
+                        decorative
                     />
                 </div>
-                {measured ? (
-                    <UptimeBar buckets={days} />
+                <span className="sr-only">
+                    {responseTimeSummary(page.site.response, t, format)}
+                </span>
+                <p aria-hidden="true" className="text-xs text-muted-foreground">
+                    {t('site_overview.response_peaks')}
+                </p>
+            </div>
+        </LaunchpadCard>
+    );
+}
+
+const lighthouseCategories = [
+    'performance',
+    'accessibility',
+    'best_practices',
+    'seo',
+] as const;
+
+/** The Lighthouse tab's last successful scores with its own score rings and thresholds; no history chart. */
+function LighthouseCard({
+    page,
+    lighthouse,
+}: {
+    page: Page;
+    lighthouse: Check;
+}) {
+    const { t } = useTranslation();
+    const history =
+        page.lighthouse?.check_type === 'lighthouse' ? page.lighthouse : null;
+    const metrics = history?.last_successful_metrics ?? null;
+    return (
+        <LaunchpadCard
+            title={t(lighthouse.label_key)}
+            siteId={page.site.id}
+            check={lighthouse}
+        >
+            <Deferred
+                data="lighthouse"
+                fallback={
+                    <div aria-busy="true" className="grid grid-cols-4 gap-2">
+                        {lighthouseCategories.map((category) => (
+                            <Skeleton
+                                key={category}
+                                className="mx-auto size-14 rounded-full"
+                            />
+                        ))}
+                    </div>
+                }
+            >
+                {metrics ? (
+                    <div
+                        role="group"
+                        aria-label={t('lighthouse.scores')}
+                        className="grid grid-cols-4 gap-2"
+                    >
+                        {lighthouseCategories.map((category) => (
+                            <div
+                                key={category}
+                                className="grid min-w-0 justify-items-center gap-1.5"
+                            >
+                                <ScoreRing
+                                    score={metrics[`${category}_score`]}
+                                    label={t(`lighthouse.${category}`)}
+                                />
+                                <span
+                                    aria-hidden="true"
+                                    className="text-center text-xs leading-tight text-muted-foreground"
+                                >
+                                    {t(`lighthouse.${category}`)}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
                 ) : (
                     <p className="text-sm text-muted-foreground">
-                        {t('No data')}
+                        {t('No evidence retained for this check.')}
                     </p>
                 )}
-                {/* Below the bar at every width: beside the title it wrapped into a tall block on narrow cards. */}
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--foreground-faint)]">
-                    {legend('--status-ok', 'No interruption')}
-                    {legend('--status-warn', 'Short interruptions (1–4 min)')}
-                    {legend('--status-down', 'Outage (5 min or more)')}
-                    {days.some((b) => b.status === 'no_data') &&
-                        legend('--status-pending', 'No data')}
-                    {days.some((b) => b.status === 'errored') &&
-                        legend('--status-error', 'Check error')}
-                    {days.some((b) => b.status === 'warning') &&
-                        legend('--status-warn', 'Warning')}
-                </div>
-            </CardContent>
-        </Card>
+                {history?.last_successful_at && (
+                    <p className="text-xs text-muted-foreground">
+                        <MonitoringTime
+                            value={history.last_successful_at}
+                            mode="since"
+                            prefix={t('Checked')}
+                            className="font-mono"
+                        />
+                    </p>
+                )}
+            </Deferred>
+        </LaunchpadCard>
     );
 }

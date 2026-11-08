@@ -357,6 +357,25 @@ it('counts the channels an outage of the site or a failure of a check would reac
     expect(siteDeferredProps('/sites/'.$site->id, 'alert_channels')['alert_channels'])->toBeNull();
 });
 
+it('serves the Lighthouse tab\'s last successful scores for the launchpad card only with an enabled Lighthouse check', function (): void {
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $site = Site::factory()->create();
+    $lighthouse = Check::factory()->for($site)->create(['type' => CheckKey::Lighthouse]);
+    $scores = ['performance_score' => 91, 'accessibility_score' => 48, 'best_practices_score' => 77, 'seo_score' => 100, 'progressive_web_app_score' => null,
+        'first_contentful_paint_in_ms' => null, 'speed_index_in_ms' => null, 'largest_contentful_paint_in_ms' => null, 'time_to_interactive_in_ms' => null,
+        'total_blocking_time_in_ms' => null, 'cumulative_layout_shift' => null];
+    $run = CheckRun::factory()->for($lighthouse)->create(['started_at' => now()->subHours(2), 'ended_at' => now()->subHour(), 'metrics' => $scores]);
+
+    $this->actingAs($owner);
+    $card = siteDeferredProps('/sites/'.$site->id, 'lighthouse')['lighthouse'];
+    expect($card['check_type'])->toBe('lighthouse')
+        ->and($card['last_successful_at'])->toBe($run->ended_at->toIso8601String())
+        ->and(array_intersect_key($card['last_successful_metrics'], $scores))->toEqual($scores);
+    $lighthouse->update(['enabled' => false]);
+    expect(siteDeferredProps('/sites/'.$site->id, 'lighthouse')['lighthouse'])->toBeNull();
+});
+
 it('keeps counting a channel once it has been alerted about the open outage', function (): void {
     Mail::fake();
     config(['mail.default' => 'smtp']);

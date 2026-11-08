@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Data\Ui;
 
+use Heptapod\Contracts\CheckHistoryData;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\Lazy\ClosureLazy;
 use Spatie\LaravelData\Support\Lazy\InertiaDeferred;
@@ -38,6 +39,8 @@ final class SiteOverviewPageData extends Data
         public readonly InertiaDeferred|SiteRecordData|null $record,
         public readonly InertiaDeferred|array $upcoming,
         public readonly InertiaDeferred|int|null $alert_channels,
+        /** The Lighthouse tab's own score history for the launchpad card; null without an enabled Lighthouse check. */
+        public readonly InertiaDeferred|CheckHistoryData|null $lighthouse,
         public readonly ClosureLazy|bool $can_move = false,
     ) {}
 }

@@ -125,9 +125,9 @@
     "site_overview.record_outages_one": "1 Ausfall, insgesamt {{duration}}, zuletzt am {{date}}",
     "site_overview.record_outages_other": "{{formattedCount}} Ausfälle, insgesamt {{duration}}, zuletzt am {{date}}",
     "site_overview.record_no_outage": "Kein Ausfall",
-    "site_overview.record_response": "Antwortzeit {{value}} ms (stündlicher Durchschnitt)",
     "site_overview.coming_certificate": "Zertifikat läuft am {{date}} ab",
     "site_overview.coming_domain": "Domain läuft am {{date}} ab",
     "site_overview.coming_maintenance": "Wartung {{time}}",
-    "site_overview.coming_nothing": "In den nächsten 12 Monaten ist nichts geplant"
+    "site_overview.coming_nothing": "In den nächsten 12 Monaten ist nichts geplant",
+    "site_overview.response_peaks": "Spitzenwerte der letzten 24 Stunden"
 }

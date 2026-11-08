@@ -99,6 +99,7 @@ export default function SiteShow(page: SitePage) {
                   'uptime_ranges',
                   'record',
                   'upcoming',
+                  'lighthouse',
               ],
         (signal) =>
             signal.ids.site === page.header.id ||
