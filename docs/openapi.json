@@ -4315,7 +4315,7 @@
         },
         "/checks/{check}/unsnooze": {
             "post": {
-                "description": "Ends the active snooze of a check; notifications it held back are sent now. Repeats are harmless.\n\nToken abilities: `checks:snooze` or `checks:write`.",
+                "description": "Ends the active snooze of a check. Pending notifications the snooze deferred become due again; the normal delivery rules still apply. Repeats are harmless.\n\nToken abilities: `checks:snooze` or `checks:write`.",
                 "operationId": "unsnoozeCheck",
                 "parameters": [
                     {
@@ -7919,7 +7919,8 @@
                                 "checks": [
                                     "uptime",
                                     "broken_links",
-                                    "cron"
+                                    "cron",
+                                    "certificate_health"
                                 ],
                                 "group_name": "Websites",
                                 "tags": [
@@ -11843,9 +11844,7 @@
                                     "description": "Database backup",
                                     "frequency_in_minutes": null,
                                     "grace_time_in_minutes": 30,
-                                    "human_readable_latest_ping_at": "6 hours ago",
                                     "id": 400,
-                                    "latest_ping_at": "2026-10-01 01:02:10",
                                     "latest_result": "pending",
                                     "name": "Nightly backup",
                                     "ping_url": "https://monitoring.example.com/cron/3b2f8c1e-7d4a-4e6b-9f20-5c8a1d3e4b70",
@@ -12222,9 +12221,7 @@
                                         "description": "",
                                         "frequency_in_minutes": 60,
                                         "grace_time_in_minutes": 10,
-                                        "human_readable_latest_ping_at": "6 hours ago",
                                         "id": 401,
-                                        "latest_ping_at": "2026-10-01 01:02:10",
                                         "latest_result": "pending",
                                         "name": "Hourly import",
                                         "ping_url": "https://monitoring.example.com/cron/6f1c2e9a-0b7d-4c55-9a3e-2d4f8b1c7e60",

@@ -517,7 +517,7 @@ final class ApiContract
             'enableCheck' => 'Turns a check on. A check of an addon that is not installed returns 422.',
             'disableCheck' => 'Turns a check off. Its open incidents are resolved without a recovery notification.',
             'snoozeCheck' => 'Mutes the notifications of a check until `snooze_until`, or for `minutes` (at most 525600), and replaces an active snooze. Prefer `snooze_until`: a retry sets the same end. The check keeps running.',
-            'unsnoozeCheck' => 'Ends the active snooze of a check; notifications it held back are sent now. Repeats are harmless.',
+            'unsnoozeCheck' => 'Ends the active snooze of a check. Pending notifications the snooze deferred become due again; the normal delivery rules still apply. Repeats are harmless.',
             'getCheckSummary' => 'The latest result and summary of one check type of the monitor. `result` is null until the check has a result.',
             'requestCheckRun' => 'Queues a run of the check now and returns the check (Oh Dear format). To follow the exact run, use createCheckRun instead.',
             'createCheckRun' => 'Requests a manual run and returns a receipt to poll (`Location`, `Retry-After`). Manual runs are limited to 10 per minute per user and 5 per token, with a cooldown per check. '

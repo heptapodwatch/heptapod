@@ -26,7 +26,7 @@ final class ApiExamples
 
         return [
             'createMonitor' => ['team_id' => 1, 'type' => 'http', 'url' => 'https://example.com', 'group_name' => 'Websites', 'tags' => ['production'],
-                'checks' => ['uptime', 'broken_links', 'cron'], 'uptime_check_settings' => ['frequency_value' => 1, 'frequency_unit' => 'minute']],
+                'checks' => ['uptime', 'broken_links', 'cron', 'certificate_health'], 'uptime_check_settings' => ['frequency_value' => 1, 'frequency_unit' => 'minute']],
             'updateMonitor' => ['friendly_name' => 'Example shop', 'tags' => ['production', 'shop']],
             'createTag' => ['team_id' => 1, 'name' => 'production', 'monitors' => [1]],
             'requestCheckRun' => ['httpClientHeaders' => [['name' => 'X-Monitor', 'value' => 'heptapod']]],
@@ -55,6 +55,8 @@ final class ApiExamples
         $snoozedCheck = [...self::check(102, 'cron', 'Cron', 'failed', '1 of 2 failing · Nightly backup', '2026-10-01 07:30:00', 900),
             'active_snooze' => self::snooze(800, '2026-10-01 07:35:00', '2026-10-01 09:30:00', 'api')];
         $task = self::cronTask();
+        // A task has no ping fields until its first ping (CronTaskResource).
+        $newTask = array_diff_key($task, ['latest_ping_at' => true, 'human_readable_latest_ping_at' => true]);
         $tag = ['id' => 600, 'team_id' => 1, 'team_name' => 'Heptapod', 'name' => 'production', 'slug' => 'production', 'created_at' => self::Created, 'updated_at' => self::Created, 'sites' => [1]];
         $window = ['id' => 500, 'monitor_id' => 1, 'name' => 'Planned deploy', 'starts_at' => '2026-10-20 22:00:00', 'ends_at' => '2026-10-20 23:00:00', 'scope' => 'site', 'shared' => false];
         $note = ['note' => 'Backup host was rebooted; watching the next run.', 'note_author' => 'Ada Admin', 'note_updated_at' => '2026-10-01T07:40:00+00:00'];
@@ -119,9 +121,9 @@ final class ApiExamples
             'updateMaintenancePeriod' => [200 => [...$window, 'starts_at' => '2026-10-20 22:30:00', 'ends_at' => '2026-10-20 23:30:00']],
             'startMaintenance' => [200 => [...$window, 'id' => 501, 'name' => 'Deploy', 'starts_at' => '2026-10-01 07:50:00', 'ends_at' => '2026-10-01 08:20:00']],
             'listCronChecks' => [200 => ['data' => [$task]]],
-            'createCronCheck' => [201 => [...$task, 'latest_result' => 'pending', 'active_snooze' => null]],
+            'createCronCheck' => [201 => [...$newTask, 'latest_result' => 'pending']],
             'updateCronCheck' => [200 => [...$task, 'grace_time_in_minutes' => 45]],
-            'syncCronChecks' => [200 => [$task, [...self::cronTask(), 'id' => 401, 'uuid' => '6f1c2e9a-0b7d-4c55-9a3e-2d4f8b1c7e60', 'name' => 'Hourly import', 'type' => 'simple',
+            'syncCronChecks' => [200 => [$task, [...$newTask, 'id' => 401, 'uuid' => '6f1c2e9a-0b7d-4c55-9a3e-2d4f8b1c7e60', 'name' => 'Hourly import', 'type' => 'simple',
                 'frequency_in_minutes' => 60, 'grace_time_in_minutes' => 10, 'cron_expression' => null, 'server_timezone' => null, 'description' => '',
                 'ping_url' => 'https://monitoring.example.com/cron/6f1c2e9a-0b7d-4c55-9a3e-2d4f8b1c7e60', 'latest_result' => 'pending']]],
             'snoozeCronCheck' => [200 => [...$task, 'active_snooze' => self::snooze(801, '2026-10-01 07:35:00', '2026-10-01 09:35:00', 'api')]],
