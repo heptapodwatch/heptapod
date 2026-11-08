@@ -1,22 +1,86 @@
 ---
 title: Maintenance
-description: Schedule windows, alerts and end-of-window catch-up
+description: Mute alerts during planned work and get one catch-up alert for anything still failing at the end.
 sidebar:
     order: 7
 ---
 
-Checks continue running in maintenance windows. A window is active from its start instant, inclusive, until its end instant, exclusive; no manual End action is needed for it to expire. Incidents remain visible when checks fail or recover. A muted window suppresses opening and recovery notifications; it also stops all reminders for affected sites while active, including reminders for incidents that opened before the window. An informational window (`mute_alerts=false`) changes no notifications. The site header links to the site's maintenance list and shows the active or next window even when its alerts are not muted. The header-slot endpoint exposes the same scoped state.
+A maintenance window marks planned work on one site, a client's sites or every site with a tag. Checks keep running during the window, and you choose whether its alerts are muted.
 
-Windows target a site, every site of a client, or every site with a tag. Client and tag membership is evaluated at the time of the check and the list request. Sites added later join automatically. Owners and Admins can write windows for the whole instance; Members see site/client windows only within their assigned clients. Tag windows are hidden from restricted Members because later sites outside their reach may join that tag. The `/maintenance` page lists up to 50 windows per page (`page=`) with state `active`, `planned`, or `done`, an effective site count, UTC ISO times, the display timezone, recurrence fields, flags and allowed actions. Use `site_id=` to view a site's history; a shared occurrence that this site left early is retained as `done` with its actual departure time. `GET /sites/{site}/maintenance` supplies the scoped header slot. If an active tag window is outside a restricted Member's reach, the slot reports only an active maintenance state and whether alerts are muted; its ID, reason, times and timezone are null. Hidden planned windows are not shown. Owners and Admins can schedule or edit windows in its sheet; Members see the list without write controls. Browser writes redirect back to the page after the action. Failed validation retains form input and displays field errors.
+## Schedule a window
 
-The scheduler's `heptapod:announce-maintenance-boundaries` command runs every minute to request live refreshes when starts or ends pass, even without a new check result. Each tick claims at most 100 starts and 100 ends, oldest first; a backlog drains across later ticks. These signals are best-effort: the database marker is saved before publication, so a crash can lose a refresh hint. A later page reload reads the time-based state; disconnected or failed-refresh sessions also retry while visible. This is not a durable or exactly-once live stream. Maintenance rows changed by natural boundaries or another tab wait behind N new changes; click it to apply. Successful window edits in this tab appear directly. See [interface behavior](./ui.md) for buffering limits.
+Owners and Admins schedule windows.
 
-`POST /maintenance` takes `target_type` (`site`, `client`, `tag`), `target_id`, `starts_local` and `ends_local` (`YYYY-MM-DD HH:mm`), an IANA `timezone`, and `recurrence_type` (`once`, `daily`, `weekly`, `monthly`). Optional fields: `name`, `reason`, `mute_alerts` (true by default), and `catch_up_at_end` (true for newly created windows). Weekly schedules take `days_of_week` (Sunday 0 to Saturday 6) and `interval` (for every N weeks); monthly schedules take `day_of_month`, or `nth_weekday` (1–5) and `day_of_week` (Sunday 0 to Saturday 6). Recurring windows use the start date as their interval anchor. An ambiguous DST wall time uses the first occurrence; a missing spring wall time moves forward. The generator produces bounded future occurrences. Existing site windows and imported schedules remain muted and use end catch-up by default.
+1. Open **Maintenance** and select **New window**. On a site, **Schedule maintenance** in the header opens the same sheet for that site.
+2. Choose the **Target**: **Site**, **Client** or **Tag**, then the record.
+3. Enter **Starts** and **Ends** in 24-hour format and choose the **Timezone**.
+4. Choose **Repeats**: **Once**, **Daily**, **Weekly** or **Monthly**.
+5. Set **Mute alerts during the window** and **Alert if still failing at the end**. Both are on by default.
+6. Select **Schedule maintenance**.
 
-`PUT /maintenance/{window}` edits one window. `PUT /maintenance/series/{series}` changes future occurrences, leaving active/history untouched. `POST /maintenance/{window}/end` ends **only that occurrence** now, not every window on the site. `POST /sites/{site}/maintenance/end` instead ends maintenance for one site: site-targeted active windows end, while shared client/tag windows gain a site-specific exclusion for the current occurrence. Other sites stay in maintenance. The next recurring occurrence includes this site again. `DELETE /maintenance/{window}` cancels one planned occurrence; `DELETE /maintenance/series/{series}` cancels future occurrences of that series. All writes require Owner/Admin and are audited.
+The list shows 50 windows per page, each **Planned**, **Active** or **Done**. Filter it by **Window state** and client. The site header links to that site's windows; a shared window the site left early shows as **Done** with its departure time.
 
-When `catch_up_at_end` is enabled, the notification dispatcher checks incidents that opened during this window and are **still open** at its end. An incident opened in overlapping muted windows is attributed first to one with catch-up enabled, then to the earliest ending window, then to the lowest ID. Active check snoozes still suppress their incidents at catch-up time. It resolves each incident's normal channel settings: the channel's category choice, site mutes, quiet hours and digest schedule. Each new uptime notification episode gets a separate opening message per channel, using its saved alert sensitivity and a maintenance-ended note. Other checks and legacy uptime incidents keep one aggregate message per site and channel. Each channel sees only the checks whose categories it receives. When aggregated checks are due at different times on one channel, their message waits for the latest due time. Uptime delays do not delay the other checks' aggregate. A site with no matched channel sends nothing. This event is idempotent even when two schedulers race. Window catch-ups are not sent while another muted window on the affected site remains active. A site that leaves a shared occurrence early becomes eligible for its own catch-up at departure (including a scheduled delayed departure); remaining sites wait for their own end. Processing depends on the notification worker, and normal routing can delay sending beyond that boundary. Later reminders and recovery alerts consider an accepted catch-up as the opener for its included incidents. Acceptance is transport acceptance, not proof of inbox delivery or reading. With catch-up off, a still-open new uptime episode can send its first alert at the later of the window end and its saved alert-sensitivity due time. Its first reminder follows one hour after acceptance, then the ordinary 4-hour and 24-hour backoff applies. Legacy incidents retain their existing post-window reminder behavior. Recovery follows normal opening-acceptance rules. A failure that has already recovered does not generate a catch-up. A waiting catch-up whose incidents have all recovered is dropped. A check grouped under the site's uptime outage is not a separate catch-up item; the uptime outage covers it.
+## What happens during a window
 
-## Upgrade note
+- A window is active from its start, inclusive, until its end, exclusive. It ends on its own.
+- Checks keep running. Incidents open, recover and stay visible as usual.
+- A muted window sends no opening or recovery alerts. It also stops all reminders for its sites, including reminders for incidents that opened before the window.
+- An unmuted window changes no notifications.
+- Client and tag windows include the sites that belong to the client or tag at check time. Sites added later join automatically.
+- The site header shows the active or next window, muted or not.
 
-Existing muted windows gain end catch-up. Before this change, an incident opened during maintenance could stay silent after the window because it had no delivered opener. Open incidents can be alerted at the end through catch-up. Only uptime Down incidents can receive a first post-window reminder. Review existing windows and notification channels before deployment; a previously silent still-open incident can produce a catch-up email.
+## Catch-up alerts
+
+With **Alert if still failing at the end** on, each incident that opened during a muted window and is still open at its end gets one alert. It follows the normal routing of each channel: categories, site mutes, quiet hours and digests.
+
+- Each uptime outage (Down) gets its own opening alert per channel, with the channel's alert sensitivity and the note "Maintenance has ended. This interruption is still ongoing."
+- All other failing checks of a site share one message per channel: "[After maintenance] _site_ is still failing". It waits for the latest due time among its checks. Uptime delays do not hold it back.
+- A channel gets only the checks whose categories it receives. A site with no matching channel sends nothing.
+- A check grouped under the site's uptime outage is covered by the outage alert.
+- An incident that recovered before the end gets no catch-up. A waiting catch-up is dropped when all its incidents recover.
+- Active check snoozes still suppress their incidents.
+- While another muted window on the site is still active, the catch-up waits for it.
+- When overlapping muted windows cover an incident, the catch-up belongs to the window with catch-up on, then the window ending first, then the lowest ID.
+- A site that leaves a shared window early gets its catch-up when it leaves. The other sites wait for the window's end.
+- The catch-up counts as the opening alert. Later reminders and the recovery alert follow from it.
+
+Catch-up alerts need the notification worker. Sent means the mail server or chat service accepted the message, not that someone read it.
+
+With **Alert if still failing at the end** off, a still-open Down incident sends its first alert at the window end or its alert-sensitivity due time, whichever is later. Its first reminder follows one hour after that alert, then every 4 and 24 hours. See [notifications](./notifications.md) for channels, alert sensitivity and reminders.
+
+## End, skip or delete a window
+
+Owners and Admins use the row actions in the list:
+
+| Action              | Applies to                       | Effect                                                                                                                                         |
+| ------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Edit**            | A window that has not ended      | A one-time window changes itself. A recurring window changes its future occurrences; active and past ones stay. The repeat type cannot change. |
+| **End window**      | An active window                 | Its sites leave maintenance at once. Other windows keep running.                                                                               |
+| **Skip occurrence** | A planned occurrence of a series | Deletes only this occurrence. The series keeps its other dates.                                                                                |
+| **Delete window**   | A planned one-time window        | Deletes the window. This cannot be undone.                                                                                                     |
+| **Delete series**   | A series                         | Deletes future occurrences. A running occurrence keeps going until it ends.                                                                    |
+
+Every change is audited.
+
+## Who sees which window
+
+- Owners and Admins see and change every window.
+- Members see site and client windows of their assigned clients, without write controls.
+- Members never see tag windows, because sites outside their clients may join the tag later.
+- For a site in an active tag window, a Member's site header shows only that maintenance is active and whether alerts are muted.
+
+## Recurring windows
+
+- **Daily** repeats every N days, **Weekly** every N weeks on the chosen **Weekdays**, **Monthly** every N months. N is 1 to 52, counted from the start date.
+- **Monthly** repeats on a **Day of month** or on an **Nth weekday**, for example the second Tuesday.
+- One occurrence lasts at most 24 hours.
+- An ambiguous wall time during a DST change uses the first occurrence. A wall time skipped in spring moves forward.
+- Imported schedules are muted and use catch-up.
+
+## Live updates
+
+The list and site headers update when a window starts or ends. The scheduler's `heptapod:announce-maintenance-boundaries` command sends these updates every minute, best-effort; a page reload always shows the current state. Changes from window boundaries or another tab wait behind **N new changes**. Your own edits appear at once. See [interface behavior](./ui.md) for buffering limits.
+
+## API
+
+The [API](./api.md#maintenance-periods) schedules, ends and lists site windows with the `maintenance:read` and `maintenance:write` abilities. Client and tag windows are managed in the UI.
