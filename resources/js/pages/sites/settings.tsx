@@ -30,6 +30,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { CheckSettingsSheet } from '@/components/check-settings-sheet';
 import { checkSettingsSummary } from '@/lib/check-setting-facts';
+import { siteCheckOrder } from '@/components/site-checks-list';
+import { eligibleSiteCheck } from '@/lib/site-create-draft';
 import { ConfirmDialog, confirmVisit } from '@/components/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -68,6 +70,7 @@ export default function SiteSettings({
     alert_sensitivity_bounds,
     timezones,
     check_settings,
+    check_options,
 }: Heptapod.Data.Ui.SiteSettingsPageData) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -75,6 +78,41 @@ export default function SiteSettings({
     const checkSettings = new Map(
         check_settings.map((check) => [check.check_id, check]),
     );
+    // Every installed type in the wizard's order; a type without a check is created on Save when turned on.
+    const checkRows = [
+        ...site.checks.map((check) => ({
+            key: check.key,
+            label_key: check.label_key,
+            check,
+            option: undefined,
+        })),
+        ...check_options
+            .filter(
+                (option) =>
+                    !site.checks.some((check) => check.key === option.key),
+            )
+            .map((option) => ({
+                key: option.key,
+                label_key: option.label_key,
+                check: undefined,
+                option,
+            })),
+    ].sort(
+        (left, right) =>
+            siteCheckOrder.indexOf(left.key) -
+            siteCheckOrder.indexOf(right.key),
+    );
+    // The add-site wizard's reason why a type cannot be turned on for this site.
+    const ineligibleReason = (option: Heptapod.Data.Ui.CheckOptionData) =>
+        eligibleSiteCheck(option, site.identity.url)
+            ? undefined
+            : option.key === 'cron'
+              ? t(
+                    'Scheduled tasks are added through the API. Create a token in Settings → API tokens.',
+                )
+              : option.unavailable_reason
+                ? t(option.unavailable_reason)
+                : t('add_site.unavailable.https_hint');
     const iconForm = useForm<{ icon?: string }>({});
     const iconPending = icon_manual_result?.key === 'icons.queued';
     const reloadPage = useLiveReload(
@@ -323,21 +361,27 @@ export default function SiteSettings({
                             )}
                             className="divide-y rounded-lg border"
                         >
-                            {site.checks.map((check) => {
-                                const settings = checkSettings.get(check.id);
+                            {checkRows.map((row) => {
+                                const { key, label_key, check, option } = row;
+                                const settings =
+                                    check && checkSettings.get(check.id);
+                                const reason =
+                                    option && ineligibleReason(option);
+                                const id = `settings-check-${check?.id ?? key}`;
+                                const summary =
+                                    reason ??
+                                    (settings &&
+                                        checkSettingsSummary(
+                                            settings,
+                                            t,
+                                            format,
+                                        ).join(' · '));
                                 return (
                                     <SiteCheckField
-                                        key={check.id}
-                                        id={`settings-check-${check.id}`}
-                                        label={t(check.label_key)}
-                                        summary={
-                                            settings &&
-                                            checkSettingsSummary(
-                                                settings,
-                                                t,
-                                                format,
-                                            ).join(' · ')
-                                        }
+                                        key={key}
+                                        id={id}
+                                        label={t(label_key)}
+                                        summary={summary}
                                         action={
                                             settings?.can_update && (
                                                 <CheckSettingsSheet
@@ -349,9 +393,7 @@ export default function SiteSettings({
                                                     triggerLabel={t(
                                                         'checks.settings_section.configure',
                                                         {
-                                                            check: t(
-                                                                check.label_key,
-                                                            ),
+                                                            check: t(label_key),
                                                         },
                                                     )}
                                                 />
@@ -359,16 +401,19 @@ export default function SiteSettings({
                                         }
                                         control={
                                             <Switch
-                                                id={`settings-check-${check.id}`}
-                                                aria-label={t(check.label_key)}
+                                                id={id}
+                                                aria-label={t(label_key)}
                                                 aria-describedby={
-                                                    settings
-                                                        ? `settings-check-${check.id}-summary`
+                                                    summary
+                                                        ? `${id}-summary`
                                                         : undefined
                                                 }
-                                                disabled={archivedClient}
+                                                disabled={
+                                                    archivedClient ||
+                                                    reason !== undefined
+                                                }
                                                 checked={form.data.checks.includes(
-                                                    check.key,
+                                                    key,
                                                 )}
                                                 onCheckedChange={(selected) =>
                                                     form.setData(
@@ -377,12 +422,14 @@ export default function SiteSettings({
                                                             ? [
                                                                   ...form.data
                                                                       .checks,
-                                                                  check.key,
+                                                                  key,
                                                               ]
                                                             : form.data.checks.filter(
-                                                                  (key) =>
-                                                                      key !==
-                                                                      check.key,
+                                                                  (
+                                                                      selectedKey,
+                                                                  ) =>
+                                                                      selectedKey !==
+                                                                      key,
                                                               ),
                                                     )
                                                 }
@@ -391,11 +438,6 @@ export default function SiteSettings({
                                     />
                                 );
                             })}
-                            {!site.checks.length && (
-                                <p className="p-3 text-sm text-muted-foreground">
-                                    {t('No checks configured')}
-                                </p>
-                            )}
                         </div>
                         <InputError
                             field="settings-checks"

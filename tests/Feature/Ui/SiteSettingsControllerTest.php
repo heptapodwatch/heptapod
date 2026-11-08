@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Heptapod\Contracts\CheckKey;
+use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Enums\ClientScope;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
@@ -9,6 +11,7 @@ use Heptapod\Models\Client;
 use Heptapod\Models\Incident;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
+use Illuminate\Support\Collection;
 use Inertia\Testing\AssertableInertia as Assert;
 
 it('shows the actual deletion impact and restricts site settings to authorized operators', function (): void {
@@ -59,4 +62,25 @@ it('updates a site through existing validation and requires its exact display na
     $this->assertDatabaseMissing('sites', ['id' => $site->id]);
     $this->assertDatabaseMissing('check_runs', ['id' => $run->id]);
     $this->assertDatabaseMissing('incidents', ['id' => $incident->id]);
+});
+
+it('offers every installed check type and creates a check the site lacked on save, refusing an unavailable one', function (): void {
+    $this->withoutVite();
+    config(['heptapod.browser.enabled' => false]);
+    $owner = User::factory()->owner()->create();
+    $site = Site::factory()->create();
+    Check::factory()->for($site)->create(['type' => CheckKey::Uptime]);
+
+    $this->actingAs($owner)->get('/sites/'.$site->id.'/settings')->assertInertia(fn (Assert $page): Assert => $page
+        ->where('check_options', fn (Collection $options): bool => $options->pluck('key')->all() === array_map(static fn (CheckKey $key): string => $key->value, app(CheckRegistry::class)->keys())
+            && $options->firstWhere('key', 'lighthouse')['unavailable_reason'] === 'lighthouse.browser_unavailable'
+            && $options->firstWhere('key', 'domain')['unavailable_reason'] === null));
+
+    $this->patch('/sites/'.$site->id, ['checks' => ['uptime', 'lighthouse']])->assertSessionHasErrors(['checks.1' => __('lighthouse.browser_unavailable')]);
+    expect($site->checks()->where('type', CheckKey::Lighthouse)->exists())->toBeFalse();
+
+    $this->patch('/sites/'.$site->id, ['checks' => ['uptime', 'domain']])->assertRedirect()->assertSessionHasNoErrors();
+    $domain = $site->checks()->where('type', CheckKey::Domain)->firstOrFail();
+    expect($domain->enabled)->toBeTrue();
+    expect($domain->interval_seconds)->toBe(app(CheckRegistry::class)->get(CheckKey::Domain)->definition()->defaultInterval);
 });

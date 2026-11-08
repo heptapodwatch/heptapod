@@ -40,5 +40,7 @@ final class SiteSettingsPageData extends Data
         public readonly array $timezones = [],
         /** @var list<CheckSettingsData> Every check of the site, in the site's check order, for the Checks section. */
         public readonly array $check_settings = [],
+        /** @var list<CheckOptionData> Every installed check type, as the add-site wizard offers it, so the Checks section can turn on a type the site has no check for. */
+        public readonly array $check_options = [],
     ) {}
 }

@@ -26,6 +26,7 @@ use Heptapod\Contracts\Mail\MailDesign;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\Schema\Schema;
 use Heptapod\Data\Ui\AlertSensitivityData;
+use Heptapod\Data\Ui\CheckOptionData;
 use Heptapod\Data\Ui\CheckRunData;
 use Heptapod\Data\Ui\CheckScheduleData;
 use Heptapod\Data\Ui\CheckSettingsData;
@@ -117,7 +118,8 @@ final readonly class SiteDetailReader
             AlertSensitivityData::fromDelay(AlertDelay::team($this->instanceSettings)),
             AlertSensitivityData::presets(), AlertSensitivity::bounds(), Lazy::inertia(fn (): int => $this->resultCount($user, $siteId)), $this->runAllChecks($site),
             $this->maintenance($user, $siteId), $stored->icon_fetched_at?->toIso8601String(), $stored->icon_manual_result, $redirectTarget, $redirectSummary, $this->sites->clientChoices($user), \DateTimeZone::listIdentifiers(),
-            $this->checkSettings($site, array_values($checksQuery->get()->all()), static fn (Check $check): bool => Gate::forUser($user)->allows('update', $check)));
+            $this->checkSettings($site, array_values($checksQuery->get()->all()), static fn (Check $check): bool => Gate::forUser($user)->allows('update', $check)),
+            array_map(fn (CheckKey $key): CheckOptionData => CheckOptionData::fromType($this->registry->get($key)), $this->registry->keys()));
     }
 
     /**

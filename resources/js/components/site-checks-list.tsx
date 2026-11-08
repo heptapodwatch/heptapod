@@ -11,7 +11,7 @@ import { checkIcon, checkSettingLabels } from '@/lib/check-types';
 import { eligibleSiteCheck } from '@/lib/site-create-draft';
 import type { CheckKey, FieldValue } from '@/types/monitoring';
 
-const displayOrder: CheckKey[] = [
+export const siteCheckOrder: CheckKey[] = [
     'uptime',
     'performance',
     'certificate_health',
@@ -84,8 +84,8 @@ export function SiteChecksList({
                         .filter((check) => group(check) === section)
                         .sort(
                             (left, right) =>
-                                displayOrder.indexOf(left.key) -
-                                displayOrder.indexOf(right.key),
+                                siteCheckOrder.indexOf(left.key) -
+                                siteCheckOrder.indexOf(right.key),
                         );
                     if (!rows.length) return null;
                     return (
