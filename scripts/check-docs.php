@@ -12,7 +12,6 @@ $notYetRewritten = [
     'docs/deploy/hetzner.md',
     'docs/notifications.md',
     'docs/ui.md',
-    'docs/webhook-receivers.md',
 ];
 $maxWords = 30;
 $banned = '/\b(simply|just|easy|easily|please note|note that|in order to|now|no longer|previously|used to|legacy)\b/i';
