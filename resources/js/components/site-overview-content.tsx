@@ -165,13 +165,13 @@ export function SiteOverviewContent({ page }: { page: Page }) {
         })),
     ];
     const hasLaunchpad = site.checks.some((check) => check.key === 'uptime');
-    // A healthy Performance row only repeats the Response card's number; a non-OK one keeps its cause.
+    // A healthy row of a carded check only repeats its card; a non-OK one keeps its cause.
     const otherChecks = checks.filter(
         (check) =>
             !attentionChecks.includes(check) &&
             !(
                 hasLaunchpad &&
-                check.key === 'performance' &&
+                ['uptime', 'performance', 'lighthouse'].includes(check.key) &&
                 check.enabled &&
                 checkState(check) === 'ok'
             ),
@@ -289,14 +289,6 @@ export function SiteOverviewContent({ page }: { page: Page }) {
             >
                 <SiteRecordLines page={page} />
             </Deferred>
-            {otherChecks.length > 0 && (
-                <section className="space-y-3" aria-labelledby={checksId}>
-                    <SectionHeading id={checksId}>
-                        {t(items.length ? 'Other checks' : 'Checks')}
-                    </SectionHeading>
-                    <SiteCheckRows siteId={site.id} checks={otherChecks} />
-                </section>
-            )}
             {uptime && (
                 // One row from xl only: narrower, a card's title and Open check collide (DE at 1024).
                 <div
@@ -318,6 +310,12 @@ export function SiteOverviewContent({ page }: { page: Page }) {
                         <LighthouseCard page={page} lighthouse={lighthouse} />
                     )}
                 </div>
+            )}
+            {otherChecks.length > 0 && (
+                <section className="space-y-3" aria-labelledby={checksId}>
+                    <SectionHeading id={checksId}>{t('Checks')}</SectionHeading>
+                    <SiteCheckRows siteId={site.id} checks={otherChecks} />
+                </section>
             )}
             <Card className="min-w-0">
                 <CardHeader>

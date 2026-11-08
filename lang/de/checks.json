@@ -405,6 +405,5 @@
     "checks.interval.days_other": "Alle {{formattedCount}} Tage",
     "checks.interval.seconds_one": "Jede Sekunde",
     "checks.interval.seconds_other": "Alle {{formattedCount}} Sekunden",
-    "checks.interval.mixed": "Alle {{interval}}",
-    "Other checks": "Weitere Prüfungen"
+    "checks.interval.mixed": "Alle {{interval}}"
 }

@@ -405,6 +405,5 @@
     "checks.interval.days_other": "Every {{formattedCount}} days",
     "checks.interval.seconds_one": "Every second",
     "checks.interval.seconds_other": "Every {{formattedCount}} seconds",
-    "checks.interval.mixed": "Every {{interval}}",
-    "Other checks": "Other checks"
+    "checks.interval.mixed": "Every {{interval}}"
 }
