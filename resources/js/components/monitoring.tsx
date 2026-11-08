@@ -3,30 +3,15 @@ import { PresentationChanges } from '@/components/presentation-changes';
 import { SiteAvatar } from '@/components/site-avatar';
 import { EmptyState } from '@/components/empty-state';
 import { historySampleStatus } from '@/components/history-sample-marks';
-import {
-    AlertCircle,
-    ArrowDown,
-    ArrowUp,
-    ChevronRight,
-    Globe,
-    Minus,
-} from 'lucide-react';
+import { AlertCircle, ArrowDown, ArrowUp, Globe, Minus } from 'lucide-react';
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { Link } from '@inertiajs/react';
 import { EntityLink } from '@/components/entity-link';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Line, LineChart, ResponsiveContainer } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardAction,
-    CardContent,
-    CardFooter,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardFooter, CardHeader } from '@/components/ui/card';
 import { ChartContainer } from '@/components/ui/chart';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -49,7 +34,6 @@ import {
 import { useFormat } from '@/hooks/use-format';
 import { useCheckHeadline } from '@/hooks/use-check-headline';
 import type { MonitoringTimeMode } from '@/lib/monitor-time';
-import { focusRingClass, rowHoverClass } from '@/lib/interaction';
 import { cn } from '@/lib/utils';
 import type {
     CheckDto,
@@ -831,90 +815,6 @@ export function MetricTile({
                     )}
                 </CardFooter>
             )}
-        </Card>
-    );
-}
-export function CheckCard({
-    check,
-    loading = false,
-    href,
-}: {
-    check: CheckDto;
-    loading?: boolean;
-    href?: string;
-}) {
-    const { t } = useTranslation();
-    const headlineFor = useCheckHeadline();
-    const headline = headlineFor(check);
-    return (
-        <Card
-            className={cn(
-                'relative min-w-0',
-                href && !loading && rowHoverClass,
-            )}
-        >
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <StatusDot
-                        state={check.enabled ? checkState(check) : 'disabled'}
-                        label={
-                            check.freshness_suppressed_by
-                                ? 'No current data'
-                                : undefined
-                        }
-                    />
-                    <span>{t(check.label_key)}</span>
-                    <span className="ml-auto font-mono text-label font-normal text-muted-foreground">
-                        {!check.enabled
-                            ? t('Off')
-                            : check.checked_at && (
-                                  <MonitoringTime value={check.checked_at} />
-                              )}
-                    </span>
-                </CardTitle>
-                {href && !loading && (
-                    <CardAction>
-                        <Link
-                            href={href}
-                            preserveScroll
-                            prefetch
-                            aria-label={t(
-                                check.open_incident_id !== null
-                                    ? 'Open incident: {{check}}'
-                                    : 'Open check: {{check}}',
-                                {
-                                    check: t(check.label_key),
-                                },
-                            )}
-                            className={cn(
-                                'rounded-sm after:absolute after:inset-0',
-                                focusRingClass,
-                            )}
-                        >
-                            <ChevronRight className="size-4" />
-                        </Link>
-                    </CardAction>
-                )}
-            </CardHeader>
-            <CardContent>
-                {loading ? (
-                    <Skeleton className="h-8 w-40 max-w-full" />
-                ) : (
-                    <p className="text-cell leading-relaxed text-muted-foreground">
-                        {headline}
-                        {check.presentation &&
-                            !check.freshness_suppressed_by &&
-                            !check.pending_recheck && (
-                                <span className="block">
-                                    <PresentationChanges
-                                        changes={check.presentation.changes}
-                                        details={check.presentation.details}
-                                    />
-                                </span>
-                            )}
-                    </p>
-                )}
-            </CardContent>
         </Card>
     );
 }

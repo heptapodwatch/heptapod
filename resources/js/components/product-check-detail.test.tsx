@@ -1,8 +1,9 @@
 import { cleanup, render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ProductCheckDetail } from './product-check-detail';
-import { CheckCard } from './monitoring';
+import { SiteCheckList } from './site-overview-content';
 import { checkTabPageFixture, sites } from '@/fixtures/design';
 import type { RequestedRun } from '@/hooks/use-requested-run';
 
@@ -15,6 +16,9 @@ vi.mock('@inertiajs/react', () => ({
     usePage: () => ({
         props: { timezone: 'UTC', auth: { canManageChannels: true } },
     }),
+    Link: ({ children, href }: { children: ReactNode; href: string }) => (
+        <a href={href}>{children}</a>
+    ),
 }));
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }));
 vi.mock('@/components/check-configuration', () => ({
@@ -80,17 +84,20 @@ function page(pending: boolean) {
 
 afterEach(cleanup);
 
-it('shows the missing capability instead of awaiting a result in an unavailable check card', () => {
+it('shows the missing capability instead of awaiting a result in an unavailable overview check row', () => {
     render(
-        <CheckCard
-            check={{
-                ...page(false).check,
-                result: 'pending',
-                state: 'unavailable',
-                summary: null,
-                presentation: null,
-                unavailable_reason: 'lighthouse.browser_unavailable',
-            }}
+        <SiteCheckList
+            siteId={1}
+            checks={[
+                {
+                    ...page(false).check,
+                    result: 'pending',
+                    state: 'unavailable',
+                    summary: null,
+                    presentation: null,
+                    unavailable_reason: 'lighthouse.browser_unavailable',
+                },
+            ]}
         />,
         { wrapper: TooltipProvider },
     );
@@ -123,11 +130,11 @@ it('keeps the stored header and change chip when no accepted recheck is pending'
     expect(screen.queryByText(/Last result: Failed/)).toBeNull();
 });
 
-it('uses the same projected pending state and headline in the overview card', () => {
-    render(<CheckCard check={page(true).check} />, {
+it('uses the same projected pending state and headline in the overview check row', () => {
+    render(<SiteCheckList siteId={1} checks={[page(true).check]} />, {
         wrapper: TooltipProvider,
     });
     expect(screen.getByText('Checking the accepted records…')).not.toBeNull();
-    expect(screen.getByRole('img', { name: 'Pending' })).not.toBeNull();
+    expect(screen.getByText('Pending')).not.toBeNull();
     expect(screen.queryByText('Old change chip')).toBeNull();
 });

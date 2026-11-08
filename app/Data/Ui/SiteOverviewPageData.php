@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Heptapod\Data\Ui;
 
+use Heptapod\Contracts\CheckHistoryData;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\Lazy\ClosureLazy;
+use Spatie\LaravelData\Support\Lazy\InertiaDeferred;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
-/** Props of GET /sites/{id}. Every prop is a closure so partial reloads evaluate only the requested keys. */
+/** Props of GET /sites/{id}. Every prop is a closure so partial reloads evaluate only the requested keys; the record lines and the alert line arrive deferred. */
 #[TypeScript]
 final class SiteOverviewPageData extends Data
 {
@@ -19,6 +21,8 @@ final class SiteOverviewPageData extends Data
      * @param  ClosureLazy|list<RunAllCheckData>  $run_all_checks
      * @param  ClosureLazy|array{hours24: ?float, days7: ?float, days30: ?float, days90: ?float}  $uptime_ranges
      * @param  ClosureLazy|array{queued: int, unavailable: int, results: list<array{check_id: int, status: string, reason: string|null}>}|null  $run_all_result
+     * @param  InertiaDeferred|list<UpcomingItemData>  $upcoming  the next certificate expiry, domain expiry and maintenance window
+     * @param  InertiaDeferred|int|null  $alert_channels  channels an uptime outage would reach now; null without an enabled uptime check
      */
     public function __construct(
         public readonly ClosureLazy|SiteRowData $site,
@@ -32,6 +36,11 @@ final class SiteOverviewPageData extends Data
         public readonly ClosureLazy|array $uptime_ranges,
         public readonly ClosureLazy|array|null $run_all_result,
         public readonly ClosureLazy|MaintenanceSiteHeaderData|null $maintenance,
+        public readonly InertiaDeferred|SiteRecordData|null $record,
+        public readonly InertiaDeferred|array $upcoming,
+        public readonly InertiaDeferred|int|null $alert_channels,
+        /** The Lighthouse tab's own score history for the launchpad card; null without an enabled Lighthouse check. */
+        public readonly InertiaDeferred|CheckHistoryData|null $lighthouse,
         public readonly ClosureLazy|bool $can_move = false,
     ) {}
 }

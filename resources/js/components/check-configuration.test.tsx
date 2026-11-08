@@ -5,11 +5,12 @@ import {
     render,
     screen,
 } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { I18nextProvider } from 'react-i18next';
 import { CheckConfiguration } from './check-configuration';
 import { CronTasksDetail } from './cron-tasks-detail';
-import { CheckCard } from './monitoring';
+import { SiteCheckList } from './site-overview-content';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { checkTabPageFixture, sites } from '@/fixtures/design';
 import i18n from '@/lib/i18n';
@@ -17,6 +18,9 @@ import i18n from '@/lib/i18n';
 vi.mock('@inertiajs/react', () => ({
     usePage: () => ({ props: { timezone: 'UTC' } }),
     router: { on: () => () => {} },
+    Link: ({ children, href }: { children: ReactNode; href: string }) => (
+        <a href={href}>{children}</a>
+    ),
 }));
 
 vi.hoisted(() => {
@@ -79,7 +83,7 @@ it.each([
 
         render(
             <I18nextProvider i18n={i18n}>
-                <CheckCard check={check} />
+                <SiteCheckList siteId={1} checks={[check]} />
             </I18nextProvider>,
             { wrapper: TooltipProvider },
         );

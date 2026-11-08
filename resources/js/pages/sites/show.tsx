@@ -20,14 +20,9 @@ import { useTranslation } from 'react-i18next';
 import { IncidentBanner } from '@/components/incident-banner';
 import { RunBar } from '@/components/foundation-primitives';
 import { ProductCheckDetail } from '@/components/product-check-detail';
-import { NotificationExplanation } from '@/components/notification-explanation';
+import { AlertChannelsLine } from '@/components/alert-channels-line';
 import { SiteOverviewContent } from '@/components/site-overview-content';
-import {
-    ContentState,
-    EventTimeline,
-    MonitoringTime,
-} from '@/components/monitoring';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { MonitoringTime } from '@/components/monitoring';
 import { SiteTabs } from '@/components/site-tabs';
 import { checkState, stateCountOrder } from '@/lib/status';
 import { useFormat } from '@/hooks/use-format';
@@ -102,6 +97,9 @@ export default function SiteShow(page: SitePage) {
                   'events',
                   'incidents',
                   'uptime_ranges',
+                  'record',
+                  'upcoming',
+                  'lighthouse',
               ],
         (signal) =>
             signal.ids.site === page.header.id ||
@@ -402,14 +400,16 @@ export default function SiteShow(page: SitePage) {
                             page={{ ...page, runs: bufferedRuns.rows }}
                         />
                         {page.check.enabled && (
-                            <NotificationExplanation
+                            <AlertChannelsLine
+                                siteId={site.id}
                                 checkId={page.check.id}
-                                clientId={site.client_id}
-                                defaultCategory={
+                                category={
                                     page.check.key === 'uptime'
                                         ? 'outage'
                                         : 'failure'
                                 }
+                                count={page.alert_channels}
+                                canOpenSettings={page.can_move}
                             />
                         )}
                     </>
@@ -437,31 +437,6 @@ export default function SiteShow(page: SitePage) {
                             </Alert>
                         )}
                         <SiteOverviewContent page={page} />
-                        {uptimeCheck?.enabled && (
-                            <NotificationExplanation
-                                checkId={uptimeCheck.id}
-                                clientId={site.client_id}
-                            />
-                        )}
-                        <div className="min-w-0">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>{t('Recent events')}</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    {page.events.length ? (
-                                        <EventTimeline events={page.events} />
-                                    ) : (
-                                        <ContentState
-                                            bare
-                                            state="empty"
-                                            title="No events yet"
-                                            description="Events appear here when a state changes, not after every check run."
-                                        />
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </div>
                     </>
                 )}
             </PageContainer>

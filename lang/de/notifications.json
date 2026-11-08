@@ -206,5 +206,11 @@
     "explanation.reason.opener_pending": "Wartet, bis die erste Störungsmeldung gesendet ist.",
     "explanation.reason.no_opener": "Der Kanal hat keine erste Störungsmeldung erhalten, daher folgt keine Entwarnung.",
     "recipient_settings.paused_prefix_system": "Pausiert: Es werden nur Systemprobleme gesendet. Nach dem Fortsetzen:",
-    "recipient_settings.paused_notice_system": "Pausiert: Bis zur Fortsetzung werden nur Systemprobleme gesendet."
+    "recipient_settings.paused_notice_system": "Pausiert: Bis zur Fortsetzung werden nur Systemprobleme gesendet.",
+    "alert_channels.outage_one": "Ausfallalarme gehen an 1 Kanal",
+    "alert_channels.outage_other": "Ausfallalarme gehen an {{formattedCount}} Kanäle",
+    "alert_channels.outage_none": "Kein Kanal erhält Ausfälle",
+    "alert_channels.failure_one": "Alarme zu fehlgeschlagenen Prüfungen gehen an 1 Kanal",
+    "alert_channels.failure_other": "Alarme zu fehlgeschlagenen Prüfungen gehen an {{formattedCount}} Kanäle",
+    "alert_channels.failure_none": "Kein Kanal erhält fehlgeschlagene Prüfungen"
 }

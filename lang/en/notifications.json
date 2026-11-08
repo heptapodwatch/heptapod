@@ -206,5 +206,11 @@
     "explanation.reason.opener_pending": "Waits until the opening alert has gone out.",
     "explanation.reason.no_opener": "The channel got no opening alert, so no recovery follows.",
     "recipient_settings.paused_prefix_system": "Paused: only system issues are sent. When resumed:",
-    "recipient_settings.paused_notice_system": "Paused: only system issues are sent until you resume it."
+    "recipient_settings.paused_notice_system": "Paused: only system issues are sent until you resume it.",
+    "alert_channels.outage_one": "Outage alerts go to 1 channel",
+    "alert_channels.outage_other": "Outage alerts go to {{formattedCount}} channels",
+    "alert_channels.outage_none": "No channel hears about outages",
+    "alert_channels.failure_one": "Failure alerts go to 1 channel",
+    "alert_channels.failure_other": "Failure alerts go to {{formattedCount}} channels",
+    "alert_channels.failure_none": "No channel hears about failures"
 }

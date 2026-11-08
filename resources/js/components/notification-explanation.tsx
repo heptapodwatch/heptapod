@@ -14,6 +14,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useHttpRequest } from '@/hooks/use-http-request';
@@ -39,7 +40,7 @@ type Explanation = {
 };
 
 /** The categories a check can be asked about; System has no check and is never explained here. */
-const categories = [
+export const categories = [
     'outage',
     'failure',
     'check_error',
@@ -81,18 +82,25 @@ const reasonKeys: Record<string, string> = {
  * be told if it happened now, with the reason. Members see other people's addresses masked.
  */
 export function NotificationExplanation({
-    checkId,
+    checkId: defaultCheckId,
     defaultCategory = 'outage',
     clientId,
+    checks,
+    onExplained,
 }: {
     checkId: number;
     defaultCategory?: Category;
     /** The site's client, so a client channel row links to that client's settings. */
     clientId: number;
+    /** Site settings: the site's checks behind a preview-only Check picker beside the category. */
+    checks?: { id: number; label: string }[];
+    /** Runs after an explanation has rendered. */
+    onExplained?: () => void;
 }) {
     const { t } = useTranslation();
     const id = useId();
     const { auth } = usePage().props;
+    const [checkId, setCheckId] = useState(defaultCheckId);
     const [category, setCategory] = useState<Category>(defaultCategory);
     const [failure, setFailure] = useState(false);
     const request = useHttpRequest<Record<string, never>, Explanation>();
@@ -124,6 +132,9 @@ export function NotificationExplanation({
             request.cancel();
         };
     }, [checkId, category, request.get, request.cancel]);
+    useEffect(() => {
+        if (result) onExplained?.();
+    }, [result]);
     // Managers open team and client channels; a person's channel is only ever changed by that person.
     const settingsHref = (recipient: Recipient) =>
         !auth.canManageChannels
@@ -143,46 +154,67 @@ export function NotificationExplanation({
                 <CardTitle>{t('explanation.title')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="space-y-2 sm:max-w-xs">
-                    <Label htmlFor={`${id}-category`}>
-                        {t('explanation.if_now')}
-                    </Label>
-                    <Select
-                        value={category}
-                        onValueChange={(value) =>
-                            setCategory(value as Category)
-                        }
-                    >
-                        <SelectTrigger id={`${id}-category`} className="w-full">
-                            <SelectValue>
-                                {t(
-                                    `recipient_settings.category.${category}.label`,
-                                )}
-                            </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent
-                            position="popper"
-                            align="start"
-                            className="w-[var(--radix-select-trigger-width)]"
+                <div className="flex flex-wrap gap-x-4 gap-y-3">
+                    {checks && (
+                        <div className="w-full space-y-2 sm:w-60">
+                            <Label htmlFor={`${id}-check`}>{t('Check')}</Label>
+                            <Combobox
+                                id={`${id}-check`}
+                                options={checks.map((check) => ({
+                                    value: String(check.id),
+                                    label: check.label,
+                                }))}
+                                value={String(checkId)}
+                                onValueChange={(value) =>
+                                    setCheckId(Number(value))
+                                }
+                            />
+                        </div>
+                    )}
+                    <div className="w-full space-y-2 sm:w-80">
+                        <Label htmlFor={`${id}-category`}>
+                            {t('explanation.if_now')}
+                        </Label>
+                        <Select
+                            value={category}
+                            onValueChange={(value) =>
+                                setCategory(value as Category)
+                            }
                         >
-                            {categories.map((value) => (
-                                <SelectItem key={value} value={value}>
-                                    <span className="block whitespace-normal">
-                                        <span className="block">
-                                            {t(
-                                                `recipient_settings.category.${value}.label`,
-                                            )}
+                            <SelectTrigger
+                                id={`${id}-category`}
+                                className="w-full"
+                            >
+                                <SelectValue>
+                                    {t(
+                                        `recipient_settings.category.${category}.label`,
+                                    )}
+                                </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent
+                                position="popper"
+                                align="start"
+                                className="w-[var(--radix-select-trigger-width)]"
+                            >
+                                {categories.map((value) => (
+                                    <SelectItem key={value} value={value}>
+                                        <span className="block whitespace-normal">
+                                            <span className="block">
+                                                {t(
+                                                    `recipient_settings.category.${value}.label`,
+                                                )}
+                                            </span>
+                                            <span className="block text-xs text-muted-foreground">
+                                                {t(
+                                                    `recipient_settings.category.${value}.description`,
+                                                )}
+                                            </span>
                                         </span>
-                                        <span className="block text-xs text-muted-foreground">
-                                            {t(
-                                                `recipient_settings.category.${value}.description`,
-                                            )}
-                                        </span>
-                                    </span>
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
                 {failure ? (
                     <InputError message={t('explanation.failed')} />

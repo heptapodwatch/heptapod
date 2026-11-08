@@ -7,8 +7,12 @@ import { useLiveReload } from '@/hooks/use-live';
 import { refresh as refreshIcon } from '@/routes/sites/icon';
 import { SiteTabs } from '@/components/site-tabs';
 import { PageContainer } from '@/components/page-container';
-import { Head, router, useForm } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
+import {
+    categories,
+    NotificationExplanation,
+} from '@/components/notification-explanation';
+import { useRef, useState } from 'react';
 import { useSiteUrlProbe } from '@/hooks/use-site-url-probe';
 import { useTranslation } from 'react-i18next';
 import { SiteHeader } from '@/components/site-header';
@@ -76,6 +80,21 @@ export default function SiteSettings({
     const { t } = useTranslation();
     const format = useFormat();
     const archivedClient = client.archived_at !== null;
+    const showSensitivity =
+        !archivedClient && site.checks.some((check) => check.key === 'uptime');
+    // "Details" on the overview and the check tabs opens #alerts with ?check=&category=.
+    const query = new URL(usePage().url, 'http://localhost').searchParams;
+    const enabledChecks = site.checks.filter((check) => check.enabled);
+    const explainedCheck =
+        enabledChecks.find(
+            (check) => String(check.id) === query.get('check'),
+        ) ??
+        enabledChecks.find((check) => check.key === 'uptime') ??
+        enabledChecks[0];
+    const scrolledToAlerts = useRef(false);
+    const explainedCategory =
+        categories.find((category) => category === query.get('category')) ??
+        (explainedCheck?.key === 'uptime' ? 'outage' : 'failure');
     const checkSettings = new Map(
         check_settings.map((check) => [check.check_id, check]),
     );
@@ -280,7 +299,7 @@ export default function SiteSettings({
                 />
                 <SiteTabs
                     siteId={site.id}
-                    checks={site.checks.filter((check) => check.enabled)}
+                    checks={enabledChecks}
                     value="settings"
                     canManage
                 />
@@ -533,16 +552,46 @@ export default function SiteSettings({
                         {t('Save')}
                     </Button>
                 </FormActions>
-                {!archivedClient &&
-                    site.checks.some((check) => check.key === 'uptime') && (
-                        <SiteAlertSensitivity
-                            siteId={site.id}
-                            saved={alert_sensitivity}
-                            team={team_alert_sensitivity}
-                            presets={alert_sensitivity_presets}
-                            bounds={alert_sensitivity_bounds}
-                        />
-                    )}
+                {(showSensitivity || explainedCheck) && (
+                    <div id="alerts" className="scroll-mt-4">
+                        <FormSection
+                            title={t('alert_sensitivity.alerts')}
+                            description={t('site_settings.alerts_description')}
+                        >
+                            {showSensitivity && (
+                                <SiteAlertSensitivity
+                                    siteId={site.id}
+                                    saved={alert_sensitivity}
+                                    team={team_alert_sensitivity}
+                                    presets={alert_sensitivity_presets}
+                                    bounds={alert_sensitivity_bounds}
+                                />
+                            )}
+                            {explainedCheck && (
+                                <NotificationExplanation
+                                    checkId={explainedCheck.id}
+                                    defaultCategory={explainedCategory}
+                                    clientId={site.client_id}
+                                    checks={enabledChecks.map((check) => ({
+                                        id: check.id,
+                                        label: t(check.label_key),
+                                    }))}
+                                    onExplained={() => {
+                                        // Inertia scrolls to #alerts before the explanation has loaded and lengthened the page.
+                                        if (
+                                            !scrolledToAlerts.current &&
+                                            window.location.hash === '#alerts'
+                                        )
+                                            document
+                                                .getElementById('alerts')
+                                                ?.scrollIntoView();
+                                        scrolledToAlerts.current = true;
+                                    }}
+                                />
+                            )}
+                        </FormSection>
+                    </div>
+                )}
                 <FormSection
                     title={t('icons.title')}
                     description={t('icons.description')}

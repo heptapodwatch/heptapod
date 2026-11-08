@@ -39,14 +39,15 @@ final class MaintenanceTargets
             ."AND {$tag}.taggable_id = {$site}.id AND {$tag}.taggable_type = ?)))", [(new Site)->getMorphClass()]];
     }
 
-    public static function whereCoversSiteId(QueryBuilder $query, int $siteId): void
+    /** @param literal-string $table */
+    public static function whereCoversSiteId(QueryBuilder $query, int $siteId, string $table = 'maintenance_periods'): void
     {
-        self::whereTargetMatches($query, 'maintenance_periods',
+        self::whereTargetMatches($query, $table,
             site: fn (QueryBuilder $site) => $site->where(fn (QueryBuilder $siteIds) => $siteIds
-                ->where('maintenance_periods.target_id', $siteId)->orWhere(fn (QueryBuilder $legacy) => $legacy
-                ->whereNull('maintenance_periods.target_id')->where('maintenance_periods.site_id', $siteId))),
-            client: fn (QueryBuilder $client) => $client->whereIn('maintenance_periods.target_id', DB::table('sites')->select('client_id')->where('id', $siteId)),
-            tag: fn (QueryBuilder $tag) => $tag->whereIn('maintenance_periods.target_id', DB::table('taggables')->select('tag_id')
+                ->where($table.'.target_id', $siteId)->orWhere(fn (QueryBuilder $legacy) => $legacy
+                ->whereNull($table.'.target_id')->where($table.'.site_id', $siteId))),
+            client: fn (QueryBuilder $client) => $client->whereIn($table.'.target_id', DB::table('sites')->select('client_id')->where('id', $siteId)),
+            tag: fn (QueryBuilder $tag) => $tag->whereIn($table.'.target_id', DB::table('taggables')->select('tag_id')
                 ->where('taggable_type', (new Site)->getMorphClass())->where('taggable_id', $siteId)));
     }
 

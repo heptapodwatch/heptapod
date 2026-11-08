@@ -11,6 +11,7 @@ use Heptapod\Contracts\Mail\MailDesign;
 use Heptapod\Enums\FreshnessSuppression;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\Lazy\ClosureLazy;
+use Spatie\LaravelData\Support\Lazy\InertiaDeferred;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 /** Props of GET /sites/{site}/checks/{check}. Every prop is a closure so partial reloads evaluate only the requested keys. */
@@ -50,6 +51,8 @@ final class CheckTabPageData extends Data
         public readonly ClosureLazy|CheckRunPresentationPartData|null $freshness_suppression,
         /** The instance mail design: the preset of a new message in Send to client. */
         public readonly ClosureLazy|MailDesign $mail_design,
+        /** Channels this check's outage (uptime) or failure would reach now; null when the check is off or never reports it. */
+        public readonly InertiaDeferred|int|null $alert_channels,
         public readonly ClosureLazy|bool $can_move = false,
     ) {}
 }

@@ -41,11 +41,15 @@ use Heptapod\Data\Ui\ResponseTimeSeriesData;
 use Heptapod\Data\Ui\RunAllCheckData;
 use Heptapod\Data\Ui\SiteIdentityData;
 use Heptapod\Data\Ui\SiteOverviewPageData;
+use Heptapod\Data\Ui\SiteRecordData;
 use Heptapod\Data\Ui\SiteRowData;
 use Heptapod\Data\Ui\SiteSettingsPageData;
+use Heptapod\Data\Ui\UpcomingItemData;
 use Heptapod\Data\Ui\UptimeBucketData;
 use Heptapod\Enums\AlertSensitivity;
 use Heptapod\Enums\FreshnessSuppression;
+use Heptapod\Enums\IncidentCause;
+use Heptapod\Enums\NotificationCategory;
 use Heptapod\Events\Notifications\AlertDelay;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
@@ -56,13 +60,14 @@ use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\Support\RedactionContext;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Spatie\LaravelData\Lazy;
 
 final readonly class SiteDetailReader
 {
-    public function __construct(private SitesReader $sites, private HistoryReader $history, private EventsReader $events, private IncidentsReader $incidents, private RollupReader $rollupReader, private CheckRegistry $registry, private CauseSummary $summaries, private CheckRunPresentations $presentations, private SitePolicy $policy, private CheckRunsReader $checkRuns, private UptimeReader $uptime, private MaintenanceReader $maintenanceReader, private NoResultFreshness $freshness, private PerformanceAvailability $performanceAvailability, private InstanceSettings $instanceSettings) {}
+    public function __construct(private SitesReader $sites, private HistoryReader $history, private EventsReader $events, private IncidentsReader $incidents, private RollupReader $rollupReader, private CheckRegistry $registry, private CauseSummary $summaries, private CheckRunPresentations $presentations, private SitePolicy $policy, private CheckRunsReader $checkRuns, private UptimeReader $uptime, private MaintenanceReader $maintenanceReader, private NoResultFreshness $freshness, private PerformanceAvailability $performanceAvailability, private InstanceSettings $instanceSettings, private UpcomingReader $upcoming, private NotificationExplanationReader $explanations) {}
 
     public function site(User $user, int $siteId): SiteRowData
     {
@@ -187,6 +192,8 @@ final readonly class SiteDetailReader
         $getHistory = function () use ($user, $siteId, &$history): array {
             return $history ??= $this->history->read($user, $siteId);
         };
+        $uptime = array_find($site->checks, static fn (CheckStripData $check): bool => $check->key === CheckKey::Uptime);
+        $lighthouse = array_find($site->checks, static fn (CheckStripData $check): bool => $check->key === CheckKey::Lighthouse && $check->enabled);
 
         return new SiteOverviewPageData(
             site: Lazy::closure(static fn (): SiteRowData => $site),
@@ -212,8 +219,68 @@ final readonly class SiteDetailReader
                 return $result;
             }),
             maintenance: Lazy::closure(fn (): ?MaintenanceSiteHeaderData => $this->maintenance($user, $siteId)),
+            record: Lazy::inertiaDeferred(fn (): ?SiteRecordData => $uptime instanceof CheckStripData ? $this->record($siteId, $uptime->id) : null, 'overview'),
+            upcoming: Lazy::inertiaDeferred(fn (): array => $this->nextUpcoming($user, $siteId), 'overview'),
+            alert_channels: Lazy::inertiaDeferred(fn (): ?int => $uptime?->enabled === true ? $this->alertChannels($user, $uptime->id, NotificationCategory::Outage) : null, 'overview'),
+            lighthouse: Lazy::inertiaDeferred(fn (): ?CheckHistoryData => $lighthouse instanceof CheckStripData
+                ? $this->checkHistory($user, Check::query()->with('site')->findOrFail($lighthouse->id)) : null, 'overview'),
             can_move: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
         );
+    }
+
+    /** Uptime outages overlapping the last 30 days with Uptime's own downtime (maintenance and unmonitored time excluded), and the Performance tab's latest hourly average. */
+    private function record(int $siteId, int $uptimeCheckId): SiteRecordData
+    {
+        $now = CarbonImmutable::now('UTC');
+        $from = $now->subDays(30);
+        $outages = DB::table('incidents')->where('site_id', $siteId)->where('check_id', $uptimeCheckId)->where('cause', IncidentCause::Failed->value)
+            ->where('first_failure_at', '<', $now->format('Y-m-d H:i:s.uP'))
+            ->where(static fn (QueryBuilder $overlap): QueryBuilder => $overlap->where('first_failure_at', '>=', $from->format('Y-m-d H:i:s.uP'))
+                ->orWhereNull('resolved_at')->orWhere('resolved_at', '>', $from->format('Y-m-d H:i:s.uP')))
+            ->selectRaw('count(*) AS outage_count, max(first_failure_at) AS last_started_at')->first();
+        if ($outages === null || ! is_numeric($outages->outage_count)) {
+            throw new \LogicException('Site outage aggregate is invalid.');
+        }
+        [, $downtimeMs] = $this->uptime->durations([$uptimeCheckId], $from, $now)[$uptimeCheckId]
+            ?? throw new \LogicException('The uptime window must cover its own check.');
+        $lastStartedAt = $outages->last_started_at;
+        if ($lastStartedAt !== null && ! is_string($lastStartedAt)) {
+            throw new \LogicException('Site outage start must be a timestamp.');
+        }
+        // The Performance tab shows the newest measured hour of its last 24 hourly averages.
+        $hours = array_slice($this->hourlyResponses($uptimeCheckId)['average']->points, -24);
+        $response = array_find(array_reverse($hours), static fn (ResponsePointData $point): bool => $point->value !== null)?->value;
+
+        return new SiteRecordData((int) $outages->outage_count, intdiv($downtimeMs, 1000),
+            $lastStartedAt === null ? null : CarbonImmutable::parse($lastStartedAt)->utc()->toIso8601String(), $response);
+    }
+
+    /** @return list<UpcomingItemData> the next certificate expiry, domain expiry and maintenance window of one site within a year */
+    private function nextUpcoming(User $user, int $siteId): array
+    {
+        $next = [];
+        // Maintenance is read on its own: a daily series would otherwise fill the reader's 100 items before a later expiry.
+        foreach ([['maintenance'], ['certificate', 'domain']] as $types) {
+            foreach ($this->upcoming->read($user, 365, $types, siteId: $siteId) as $item) {
+                $next[$item->type] ??= $item;
+            }
+        }
+        usort($next, static fn (UpcomingItemData $a, UpcomingItemData $b): int => [$a->date, $a->key] <=> [$b->date, $b->key]);
+
+        return $next;
+    }
+
+    /** How many channels the one-line "Who gets this" names: every channel told now or later, or already alerted about the open episode; null when the check never reports the category. */
+    private function alertChannels(User $user, int $checkId, NotificationCategory $category): ?int
+    {
+        $check = Check::query()->with('site.client')->findOrFail($checkId);
+        $explanation = $this->explanations->explain($user, $check, $category, CarbonImmutable::now('UTC'));
+        if ($explanation['status'] === 'not_applicable') {
+            return null;
+        }
+
+        return count(array_filter($explanation['recipients'], static fn (array $recipient): bool => $recipient['status'] !== 'not_sent'
+            || $recipient['reason'] === 'notifications.suppression.episode_already_alerted'));
     }
 
     /** @return list<RunAllCheckData> */
@@ -314,6 +381,8 @@ final readonly class SiteDetailReader
                 $suppression->headlineKey($check->type), ['date' => $suppression->at->toIso8601String()],
             ) : null),
             mail_design: Lazy::closure(fn (): MailDesign => $this->instanceSettings->mail_design),
+            alert_channels: Lazy::inertiaDeferred(fn (): ?int => $check->enabled
+                ? $this->alertChannels($user, $checkId, $check->type === CheckKey::Uptime ? NotificationCategory::Outage : NotificationCategory::Failure) : null),
             can_move: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
         );
     }

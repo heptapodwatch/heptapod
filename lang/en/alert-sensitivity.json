@@ -3,7 +3,6 @@
     "alert_sensitivity.page_description": "Choose when outages trigger an alert.",
     "alert_sensitivity.intro": "How long a site must be down before Heptapod sends an alert.",
     "alert_sensitivity.site_intro": "Overrides the team default for this site only.",
-    "alert_sensitivity.site_description": "Use the team default or choose alert timing for this site.",
     "alert_sensitivity.alerts": "Alerts",
     "alert_sensitivity.preset.strict.label": "Strict",
     "alert_sensitivity.preset.balanced.label": "Balanced",
@@ -58,5 +57,6 @@
     "notifications.preview_opening_muted": "Alerts are muted by snooze or maintenance.",
     "notifications.opening_snoozed_no_catch_up": "Alerts for this outage were snoozed. No opening alert is sent after the snooze ends.",
     "notifications.preview_maintenance_catch_up_disabled": "This outage opened during maintenance. Catch-up alerts and reminders are off.",
-    "alert_sensitivity.intro_detail": "Status, incidents and uptime still show every failed check."
+    "alert_sensitivity.intro_detail": "Status, incidents and uptime still show every failed check.",
+    "site_settings.alerts_description": "When this site's alerts go out, and who gets them."
 }

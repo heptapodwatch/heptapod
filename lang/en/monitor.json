@@ -103,7 +103,6 @@
     "runs.board.newestRuns": "Show newest runs",
     "runs.board.progressUnknown": "Progress not reported",
     "Short interruptions": "Short interruptions",
-    "uptime.history_title": "Uptime · {{count}} days",
     "uptime.failed_checks_one": "{{count}} failed check",
     "uptime.failed_checks_other": "{{count}} failed checks",
     "uptime.failed_duration": "about {{duration}}",
@@ -114,5 +113,17 @@
     "sites.attention_show_all_one": "Show {{formattedCount}}",
     "sites.attention_show_all_other": "Show all {{formattedCount}}",
     "Deleting removes this site, its checks, runs and incidents.": "Deleting removes this site, its checks, runs and incidents.",
-    "Notification history is kept.": "Notification history is kept."
+    "Notification history is kept.": "Notification history is kept.",
+    "site_overview.paused": "Monitoring is paused",
+    "site_overview.paused_detail": "No checks run and no alerts are sent.",
+    "site_overview.maintenance": "Maintenance is running",
+    "Coming up": "Coming up",
+    "site_overview.record_outages_one": "1 outage, {{duration}} in total, last on {{date}}",
+    "site_overview.record_outages_other": "{{formattedCount}} outages, {{duration}} in total, last on {{date}}",
+    "site_overview.record_no_outage": "No outage",
+    "site_overview.coming_certificate": "Certificate expires on {{date}}",
+    "site_overview.coming_domain": "Domain expires on {{date}}",
+    "site_overview.coming_maintenance": "Maintenance {{time}}",
+    "site_overview.coming_nothing": "Nothing scheduled in the next 12 months",
+    "site_overview.response_peaks": "Peaks over the last 24 hours"
 }

@@ -3,7 +3,6 @@
     "Incidents": "Incidents",
     "Resolved": "Resolved",
     "Resolver": "Resolver",
-    "Open incident: {{check}}": "Open incident: {{check}}",
     "incidents.state.open": "Open",
     "Open incidents": "Open incidents",
     "No incidents for this client.": "No incidents for this client.",
