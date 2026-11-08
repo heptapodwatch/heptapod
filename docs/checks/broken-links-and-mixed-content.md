@@ -9,11 +9,11 @@ The broken-links check crawls the HTML pages of a site and checks every link, im
 
 ## Results
 
-| Result  | Broken links                                                                  | Mixed content                                |
-| ------- | ----------------------------------------------------------------------------- | -------------------------------------------- |
-| OK      | No broken links found.                                                        | No HTTP resources on HTTPS pages.            |
-| Warning | Broken external links, links that could not be checked, or rate-limited URLs. | —                                            |
-| Failed  | Broken internal links.                                                        | At least one HTTP resource on an HTTPS page. |
+| Result      | Broken links                                                                  | Mixed content                                |
+| ----------- | ----------------------------------------------------------------------------- | -------------------------------------------- |
+| **OK**      | No broken links found.                                                        | No HTTP resources on HTTPS pages.            |
+| **Warning** | Broken external links, links that could not be checked, or rate-limited URLs. | —                                            |
+| **Failed**  | Broken internal links.                                                        | At least one HTTP resource on an HTTPS page. |
 
 A finding stays until a later crawl checks the link again and finds it fixed.
 
