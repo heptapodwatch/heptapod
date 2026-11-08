@@ -34,7 +34,7 @@ The list shows 50 windows per page, each **Planned**, **Active** or **Done**. Fi
 With **Alert if still failing at the end** on, each incident that opened during a muted window and is still open at its end gets one alert. It follows the normal routing of each channel: categories, site mutes, quiet hours and digests.
 
 - Each uptime outage (Down) gets its own opening alert per channel, with its saved alert sensitivity. Its note reads "Maintenance has ended. This interruption is still ongoing."
-- All other failing checks of a site share one message per channel: "[After maintenance] _site_ is still failing". It waits for the latest due time among its checks. Uptime delays do not hold it back.
+- All other failing checks of a site share one message per channel, titled `[After maintenance] <site> is still failing`. It waits for the latest due time among its checks. Uptime delays do not hold it back.
 - An uptime incident without saved alert sensitivity joins this shared message.
 - A channel gets only the checks whose categories it receives. A site with no matching channel sends nothing.
 - A check grouped under the site's uptime outage is covered by the outage alert.
