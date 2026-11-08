@@ -25,6 +25,27 @@ export const siteCheckOrder: CheckKey[] = [
     'cron',
 ];
 
+/** Whether a new check of this type still lacks a required setting in the draft (`<type>.<field>` keys). */
+export function checkNeedsSetup(
+    check: Heptapod.Data.Ui.CheckOptionData,
+    settings: Record<string, FieldValue>,
+): boolean {
+    return addSiteFieldViews(
+        check.config_schema,
+        check.key + '.',
+        checkSettingLabels,
+    ).some((field) => {
+        const value =
+            settings[field.name] ??
+            check.config_schema.fields[field.name.slice(check.key.length + 1)]
+                ?.default;
+        return (
+            field.required &&
+            (value === undefined || value === null || value === '')
+        );
+    });
+}
+
 const groupLabels = {
     recommended: 'add_site.group.recommended',
     optional: 'add_site.group.optional',
@@ -118,21 +139,10 @@ export function SiteChecksList({
                                         check.key + '.',
                                         checkSettingLabels,
                                     );
-                                    const missing = fields.some((field) => {
-                                        const value =
-                                            settings[field.name] ??
-                                            check.config_schema.fields[
-                                                field.name.slice(
-                                                    check.key.length + 1,
-                                                )
-                                            ]?.default;
-                                        return (
-                                            field.required &&
-                                            (value === undefined ||
-                                                value === null ||
-                                                value === '')
-                                        );
-                                    });
+                                    const missing = checkNeedsSetup(
+                                        check,
+                                        settings,
+                                    );
                                     const changed = Object.entries(
                                         check.config_schema.fields,
                                     ).filter(([name, field]) => {

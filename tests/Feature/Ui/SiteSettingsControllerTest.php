@@ -83,4 +83,11 @@ it('offers every installed check type and creates a check the site lacked on sav
     $domain = $site->checks()->where('type', CheckKey::Domain)->firstOrFail();
     expect($domain->enabled)->toBeTrue();
     expect($domain->interval_seconds)->toBe(app(CheckRegistry::class)->get(CheckKey::Domain)->definition()->defaultInterval);
+
+    $this->patch('/sites/'.$site->id, ['checks' => ['uptime', 'domain', 'application_health']])
+        ->assertSessionHasErrors(['checks.application_health.result_url', 'checks.application_health.secret']);
+    expect($site->checks()->where('type', CheckKey::ApplicationHealth)->exists())->toBeFalse();
+    $this->patch('/sites/'.$site->id, ['checks' => ['uptime', 'domain', 'application_health'],
+        'application_health_check_settings' => ['result_url' => $site->url.'/health', 'secret' => 'a-long-enough-health-secret']])->assertSessionHasNoErrors();
+    expect($site->checks()->where('type', CheckKey::ApplicationHealth)->firstOrFail()->enabled)->toBeTrue();
 });
