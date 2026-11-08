@@ -8,7 +8,6 @@ $root = dirname(__DIR__);
 $internal = ['docs/deploy/operations.md'];
 // Pages written before the style rules skip the sentence and word checks. Remove a page here when you rewrite it.
 $notYetRewritten = [
-    'docs/api.md',
     'docs/deploy/hetzner.md',
     'docs/notifications.md',
     'docs/ui.md',
@@ -37,7 +36,7 @@ foreach ($pages as $file) {
     if (in_array($path, $notYetRewritten, true)) {
         continue;
     }
-    $offset = substr_count($parts[1], "\n") + 3;
+    $offset = substr_count($parts[1], "\n") + 4;
     $inCode = false;
     foreach (explode("\n", $parts[2]) as $index => $line) {
         if (str_starts_with(ltrim($line), '```')) {
