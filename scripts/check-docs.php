@@ -10,7 +10,6 @@ $internal = ['docs/deploy/operations.md'];
 $notYetRewritten = [
     'docs/api.md',
     'docs/checks/performance.md',
-    'docs/checks/runs.md',
     'docs/checks/sitemap.md',
     'docs/deploy/hetzner.md',
     'docs/notifications.md',
