@@ -8,7 +8,6 @@ $root = dirname(__DIR__);
 $internal = ['docs/deploy/operations.md'];
 // Pages written before the style rules skip the sentence and word checks. Remove a page here when you rewrite it.
 $notYetRewritten = [
-    'docs/notifications.md',
     'docs/ui.md',
 ];
 $maxWords = 30;

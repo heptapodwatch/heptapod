@@ -41,6 +41,19 @@ Webhook channels require HTTPS. Set `allow_insecure_http` to `true` only for a t
 | `changes`          | Localized change descriptions, apart from the headline of a Warning or Failed result. Empty when there are none.                                                               |
 | `details`          | Localized secondary facts, such as links that could not be verified. Empty when there are none.                                                                                |
 
+## Severity and other fields
+
+| Field                         | Content                                                                                                                                                           |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `severity`                    | Urgency, not cause: `down`, `recovered`, `warning`, `error` or `info`. Both an uptime outage and a non-uptime failure can be `down`, and both bypass quiet hours. |
+| `downtime_seconds`            | For uptime, the downtime. For other checks, how long the failure lasted, not proof that the site was down.                                                        |
+| `also_affected`, `rechecking` | Check keys grouped under an uptime outage, or waiting for a re-check after it. `[]` when empty.                                                                   |
+| `site_id`, `link`             | `null` on deliveries kept after the site was deleted. `site_label` keeps the label with a deleted-site marker.                                                    |
+
+- Read the event type, check type and result to tell a Down site from a Failed check. Never label every `down` severity as an outage.
+- Dates use ISO 8601, also inside `summary`.
+- `summary` labels durations as "Total downtime" for every check type.
+
 ## System alerts
 
 A webhook channel receives System alerts when System is on for it in the team notification settings. They report a problem with the Heptapod instance, such as a failed backup, a stopped scheduler or failing email, and its recovery. The payload has the same keys as other alerts:
