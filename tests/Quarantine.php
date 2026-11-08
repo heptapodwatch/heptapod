@@ -17,6 +17,7 @@ final class Quarantine
         'tests/Feature/MonitoringRoutesTest.php' => ['cause' => 'test', 'owner' => 'routes', 'note' => 'unexplained CI run 41561079596 shard 2 seed 1736113616 failure at line 32: GET /clients was not a valid Inertia response; exact-seed shard replay did not reproduce'],
         'tests/Feature/DemoScenarioTest.php' => ['cause' => 'test', 'owner' => 'demo', 'note' => 'DemoSeeder::reviewCertificate issues certificates on the wall clock; expiry counts disagree with the frozen test clock; needs a clock/validity seam in the seeder (production change). Also stale: /dashboard now 301 and 25 (not 24) demo clients'],
         'tests/Feature/SeederDomainsTest.php' => ['cause' => 'test', 'owner' => 'demo', 'note' => 'AgencyDemoSeeder records 30 days of samples for 18 hosts (>4 min per run); too slow for ci-php. Needs a seeder option that skips history in tests (production change), or a nightly job'],
+        'tests/Feature/CheckRecording/MissingAddonTest.php' => ['cause' => 'test', 'owner' => 'execution', 'note' => 'https://github.com/heptapodwatch/heptapod/issues/22: CI run 42471863683 shard 3 seed 621777973, line 61, a third run on the second dispatch; wall-clock next_run_at after a real commit'],
         'tests/Feature/CheckJourneyTest.php' => ['cause' => 'test', 'owner' => 'execution', 'note' => 'real Horizon/cURL/SIGKILL journey; non-deterministic by design, belongs in deployment acceptance, not ci-php'],
     ];
 }

@@ -74,6 +74,7 @@
             <directory>addons/crawl/tests</directory>
             <directory>addons/lighthouse/tests/Feature</directory>
             <!-- T1 quarantine: mirrors tests/Quarantine.php (cause and owner per file); QuarantineTest keeps both equal. -->
+            <exclude>tests/Feature/CheckRecording/MissingAddonTest.php</exclude>
             <exclude>tests/Feature/CheckJourneyTest.php</exclude>
             <exclude>tests/Feature/DemoScenarioTest.php</exclude>
             <exclude>tests/Feature/MonitoringRoutesTest.php</exclude>
