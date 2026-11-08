@@ -9,7 +9,6 @@ $internal = ['docs/deploy/operations.md'];
 // Pages written before the style rules skip the sentence and word checks. Remove a page here when you rewrite it.
 $notYetRewritten = [
     'docs/api.md',
-    'docs/checks/performance.md',
     'docs/checks/sitemap.md',
     'docs/deploy/hetzner.md',
     'docs/notifications.md',
