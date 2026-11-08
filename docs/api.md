@@ -220,7 +220,7 @@ Members with access to the incident's client can use:
 - Monitored time starts at the check's first result. It excludes site pauses, disabled uptime checks and maintenance.
 - An empty monitored interval has no percentage.
 
-## Oh Dear compatibility
+## Compatibility
 
 Heptapod speaks the Oh Dear API format for a tested set of endpoints. spatie/laravel-health, spatie/laravel-schedule-monitor and the Oh Dear PHP SDK can point at a Heptapod instance. Heptapod is independent and not affiliated with or endorsed by Oh Dear.
 
@@ -270,7 +270,7 @@ Tested operations:
 - Incomplete timing buckets are left out, never zero. Integer cURL fields round half up.
 - The monitor's performance average is the mean of the last 15 minutes of uptime timings, or `null`. The performance check itself is described in [performance](./checks/performance.md).
 
-## Import monitors from Oh Dear
+## Import monitors from an Oh Dear account
 
 Owners and Admins can also import under **Settings → Import**. On the command line:
 
