@@ -54,7 +54,8 @@ You need an Ubuntu or Debian server (amd64) with 2 vCPU, 4 GB RAM and 40 GB disk
 
 The installer verifies the release bundle, writes the configuration, starts the stack and creates the first Owner. Upgrade with `cd /opt/heptapod && sudo ./scripts/upgrade.sh`.
 
-- [Install guide](https://heptapod.watch/docs/getting-started/install/): every option, a Git checkout and an existing reverse proxy.
+- [Install guide](https://heptapod.watch/docs/getting-started/install/): every option and an existing reverse proxy.
+- [Install from a Git checkout](docs/deploy/operations.md#install-from-a-git-checkout) for other Linux distributions or a source install.
 - [Operations](docs/deploy/operations.md): installation details, upgrades, backups, capacity and diagnostics, with a [Hetzner example](docs/deploy/hetzner.md).
 
 ## Documentation
@@ -68,7 +69,7 @@ The app does not serve an API guide at `/docs/api`. Operators distributing these
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup, the [Code of Conduct](CODE_OF_CONDUCT.md) and the [security reporting policy](SECURITY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) to contribute and [DEVELOPMENT.md](DEVELOPMENT.md) to run Heptapod from source. Follow the [Code of Conduct](CODE_OF_CONDUCT.md), and report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
 ## License
 

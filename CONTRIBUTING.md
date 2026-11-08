@@ -4,41 +4,17 @@ Open an issue at https://github.com/heptapodwatch/heptapod/issues before startin
 
 ## Development setup
 
-Install Git and Docker with Compose. The demo and smoke scripts also need Bash, curl, jq and standard Unix tools. Follow the [development environment](#development-environment), including creation of the external `heptapod-heavy-locks` volume. PHP, Composer and Node run in the app container; host installations are not required.
-
-Install the Git hooks from the running stack:
-
-```sh
-docker compose exec app npm run hooks:install
-```
-
-For the demo scripts, set `COMPOSE_PROJECT_NAME` in `.env` to this checkout's existing project name, shown by `docker compose config --format json | jq -r .name`. Do not reuse another checkout's project name. Build with the source-input label required by the stale-image guard, then seed the demo scenario and verify the main pages:
-
-```sh
-DEV_IMAGE_INPUT_HASH=$(./scripts/dev-image-hash.sh) docker compose build
-./scripts/dev-up.sh attention
-./scripts/smoke.sh
-```
-
-`dev-up.sh` resets that checkout's database and queues. Never use it on a real instance or a checkout containing production data. Demo login is `test@example.test` / `password`. Keep development ports local and use synthetic data in examples, screenshots and reports.
+Set up a checkout, seed demo data and run the tools as described in [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Checks and hooks
 
-Run commands through `docker compose exec app …`. The [tooling section](#tooling) lists formatting, spelling, type, static-analysis, dependency and build commands. Pre-push runs the static checks; CI also enforces generated-file, production image, deployment OPS and security gates.
+Run commands through `docker compose exec app …`. The [tooling section](DEVELOPMENT.md#tooling) lists formatting, spelling, type, static-analysis, dependency and build commands. Pre-push runs the static checks; CI also enforces generated-file, production image, deployment OPS and security gates. Tests need the [offline check fixtures](DEVELOPMENT.md#offline-check-fixtures).
 
-Tests need the offline check fixtures; the test runner stops before any test when they are unreachable. Start them once per stack:
-
-```sh
-docker compose --profile fixtures up -d --wait fixtures fixtures-alt dns-fixtures
-```
-
-Rootless Docker and Podman cannot bind the default `FIXTURES_HTTPS_ALT_PORT` 444; set it in `.env` to a free port of 1024 or above first. See [offline check fixtures](#offline-check-fixtures) for the other fixture ports.
-
-Application tests run in CI, and the PHP Gate, non-quarantined Feature/Unit tests, architecture tests and Vitest block merges. Run affected PHP tests with `docker compose exec app bash scripts/run-tests.sh focused <test-file>` or the non-quarantined Feature/Unit suites with `docker compose exec app bash scripts/run-tests.sh ci-php`. Use random order and record the seed; see [operations](docs/deploy/operations.md#development-test-hooks) for commands and isolation rules. Browser, mutation and coverage suites remain disabled. The `composer test:types` static type-coverage gate remains enabled. Describe actual commands, results and manual verification in the pull request.
+Application tests run in CI, and the PHP Gate, non-quarantined Feature/Unit tests, architecture tests and Vitest block merges. Run the affected tests as shown in [tooling](DEVELOPMENT.md#tooling), in random order, and record the seed; see [operations](docs/deploy/operations.md#development-test-hooks) for commands and isolation rules. Browser, mutation and coverage suites remain disabled. The `composer test:types` static type-coverage gate remains enabled. Describe actual commands, results and manual verification in the pull request.
 
 Tests use real Postgres and Redis, fixed clocks, isolated database state and fake external seams. Add regression coverage through feature entry points; do not use real network calls, sleeps or retries. A failure with no code cause is quarantined in a separate commit and tracked in a public issue with a responsible maintainer, not hidden with a skip. A quarantined file re-enters after five green isolated runs.
 
-Keep hooks enabled. Pre-commit formats staged files and runs checks; commit-msg enforces [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), for example `fix: preserve paused check state`. Stage whole files: formatter fixes can stage other working-copy changes in the same file. Hooks require the checkout's stack to be running.
+Keep the [Git hooks](DEVELOPMENT.md#git-hooks) enabled. Pre-commit formats staged files and runs checks; commit-msg enforces Conventional Commits. Hooks require the checkout's stack to be running.
 
 ## Pull requests
 
@@ -50,108 +26,3 @@ Keep hooks enabled. Pre-commit formats staged files and runs checks; commit-msg 
 - Leave license changes and new dependencies for explicit maintainer review.
 
 Submit pull requests at https://github.com/heptapodwatch/heptapod/pulls. Report vulnerabilities through https://github.com/heptapodwatch/heptapod/security/advisories/new, not public issues.
-
-## Development environment
-
-Inertia DevTools: set `INERTIA_DEVTOOLS_ENABLED=true` in your `.env`.
-
-Install Docker with Compose. PHP 8.5.12 (FrankenPHP), Composer, Node 24 and aspell run in the containers; no host PHP or Node installation is needed.
-
-```sh
-cp .env.example .env
-docker volume create heptapod-heavy-locks
-docker compose up -d --wait
-docker compose exec app php artisan key:generate
-docker compose exec app php artisan migrate
-```
-
-For the demo data and a dev image labelled for `scripts/dev-up.sh`, follow the first start in [Development setup](#development-setup).
-
-The app installs Composer and npm dependencies at startup when their manifests or lockfiles change, or their installed dependencies are missing. Startup stamps live in `vendor` and `node_modules`; a checkout-scoped file lock serializes app startups and one-offs. Unchanged startups leave Laravel's cached manifests untouched. Other PHP/Node services wait for the app healthcheck. `vendor`, `bootstrap/cache`, and `node_modules` live in checkout-scoped Docker volumes shared by the PHP/Node services. Laravel's atomic cache writes stay on the container filesystem instead of the host bind mount. The tracked `bootstrap/cache/.gitignore` stays on the host. For host IDE dependency indexing, copy dependencies with `docker compose cp app:/workspace/vendor/. ./vendor`. Native Vite/oxc binaries are installed on Linux, not copied from the host. After changing `package-lock.json`, run `docker compose exec app npm ci` and restart Vite. After changing `composer.lock`, run `docker compose exec app composer install`.
-
-- App: http://localhost:8088
-- Vite: http://localhost:5188/vite/
-- Mailpit: http://localhost:8028
-- Browser CDP: http://localhost:9334
-
-Set `APP_PORT`, `VITE_PORT`, `MAILPIT_PORT` and `BROWSER_PORT` in `.env` before starting another checkout. Set `APP_CPUS`, `HORIZON_CPUS`, and `FRANKENPHP_NUM_THREADS` to tune the development CPU and PHP worker limits; see [development test hooks](docs/deploy/operations.md#development-test-hooks). `APP_URL` uses `APP_PORT`. Compose derives the project name from the checkout directory: the main checkout and a `design` worktree get separate networks and volumes. Do not set a shared `COMPOSE_PROJECT_NAME`. All published ports bind to loopback; Postgres and Redis have no host port.
-
-Postgres 17 initializes `DB_DATABASE` and a separate `heptapod_test` database on its first start. PHPUnit forces the test database; it must never use the app database. Changing Postgres credentials or database names requires an explicit data migration or recreating the volume, which deletes its data. `docker compose down` keeps data; `docker compose down -v` deletes it.
-
-The `horizon` service runs Laravel Horizon; `dispatcher` runs `heptapod:dispatch` and `scheduler` runs `schedule:work`.
-
-### Offline check fixtures
-
-The `fixtures` Compose profile serves offline HTTP, crawl, health JSON, TLS and DNS scenarios. PHP tests require it; start it before the first test run with `docker compose --profile fixtures up -d --wait fixtures fixtures-alt dns-fixtures`. See the [fixture URL table and smoke-test command](docker/fixtures/README.md). Set `FIXTURES_HTTP_PORT` and `FIXTURES_HTTPS_PORT` in `.env` to override the default loopback ports 8480 and 8481. The default `FIXTURES_HTTPS_ALT_PORT` 444 is privileged: rootless Docker and Podman need a value of 1024 or above.
-
-### Tooling
-
-Run project commands through the app container. CI runs static checks on PHP 8.5.12, Node 24, Postgres 17, Redis and aspell. The PHP Gate, non-quarantined Feature/Unit tests, architecture tests and Vitest run in CI and block merges. Browser, mutation and coverage suites remain disabled. Run affected PHP tests with `docker compose exec app bash scripts/run-tests.sh focused <test-file>` or the non-quarantined Feature/Unit suites with `docker compose exec app bash scripts/run-tests.sh ci-php`; use random order and record the seed as shown in [operations](docs/deploy/operations.md#development-test-hooks). The type-coverage check remains part of the static gate.
-
-```sh
-docker compose exec app composer fmt             # Pint, write fixes
-docker compose exec app composer fmt:check
-docker compose exec app npm run check:fix        # Kit formatter, write fixes
-docker compose exec app npm run check
-docker compose exec app composer peck
-docker compose exec app npm run lint
-docker compose exec app npm run types:check
-docker compose exec app composer analyse
-docker compose exec app composer rector:check
-docker compose exec app composer deps:check
-docker compose exec app composer normalize:check
-docker compose exec app composer validate --strict
-docker compose exec app php artisan migrate --force --no-interaction
-docker compose exec app php artisan wayfinder:generate --with-form
-docker compose exec app composer types:generate
-git diff --exit-code                           # Commit generated declarations
-docker compose exec app composer test:types     # Static type coverage 100%
-docker compose exec app npm run build
-docker compose exec app composer audit
-docker compose exec app npm audit --audit-level=high
-```
-
-Migrate before generating types or running Vite builds: Wayfinder reads route-binding types from the live schema. CI migrates its fresh database before either operation. Use the same locked dependencies, local route environment (`APP_ENV=local`) and current Postgres schema when committing generated artifacts; a warm database is not fresh-state CI proof.
-
-Composer ignores only the abandoned status of `symplify/rule-doc-generator-contracts`, a transitive development dependency of `driftingly/rector-laravel`. Security advisories still fail the audit. TODO: Remove `config.audit.ignore-abandoned` when rector-laravel drops this dependency.
-
-CI runs formatting, spelling, lint, TypeScript, static analysis, type coverage, generated-file comparison and dependency audits. Production image, deployment OPS and security gates are active. The PHP Gate, non-quarantined PHP tests, architecture tests and Vitest are blocking CI checks; Browser tests remain disabled.
-
-The development image gate runs when its inputs change. Hadolint permits current apt package versions on its install step so distro security fixes remain available. Development-image vulnerability findings are report-only. Production app and Lighthouse images have HIGH/CRITICAL gates on amd64 and arm64; official runtime image scans are report-only and require upstream review. See [operations](docs/deploy/operations.md) for image and capacity caveats.
-
-The development image includes headless Chromium and Playwright's OS dependencies. The separate browser service supports manual CDP sessions.
-
-### Git hooks and releases
-
-```sh
-docker compose exec app npm run hooks:install
-./scripts/check-hooks.sh                       # Host Git boundary smoke test
-./scripts/check-hooks.sh --commit-modes        # Clean detached disposable checkout + own stack only
-```
-
-Git runs on the host. Its generated Lefthook hooks load `scripts/hooks-rc.sh`, then `scripts/lefthook-container.sh` runs Lefthook, Pint, vite-plus and commitlint through `docker compose exec -T app`. No host PHP/Node/Lefthook is required. Pre-commit formats staged files only and stages fixes; commit-msg enforces Conventional Commits. Stage whole files: formatters read the working copy, so `stage_fixed` also stages unstaged hunks in those files. If the committing checkout's stack is down, hooks fail with `start the stack: docker compose up -d`; never bypass them.
-
-Hooks forward Git's active index, including temporary indexes used by `git commit -a` and `git commit --only`. With `--only`, Git can leave the selected file's pre-format content staged in the normal index (`MM`); unrelated staged content remains unchanged and uncommitted.
-
-Linked worktrees share the common Git hooks, but each uses its own Compose project. Before starting a linked worktree's stack, add `GIT_COMMON_DIR` to its `.env` with the absolute output of `git rev-parse --path-format=absolute --git-common-dir`. Compose mounts that directory at `/git-common` so the container can use the shared index. A normal clone needs no extra configuration. Each checkout that has `lefthook.yml` needs the hook scripts and installed dependencies. Older linked worktrees without that config print `no lefthook.yml on this branch, hooks skipped` and exit successfully before looking for any tools; installing hooks preserves this guard.
-
-Renovate is inert until the Renovate GitHub app is installed. Dependabot is not configured. Renovate groups minor/patch updates and the vite-plus/Vite/Vitest ecosystem; other majors have separate PRs. FrankenPHP's exact tag and digest are updated by Renovate. Keep its PHP patch aligned with Composer's `config.platform.php` and CI's `php-version`. Release-please uses the manifest and `simple` release type: this full-stack application is not an npm or Composer library. `version.txt` is the application version, starting at 0.0.0 before the first 0.1 release; neither dependency manifest gets a library version. Release-please runs only through manual `workflow_dispatch` until the release policy is decided.
-
-### Browser and developer login
-
-```sh
-export AGENT_BROWSER_SESSION=heptapod-dev
-# Use the BROWSER_PORT value from your .env.
-BROWSER_PORT=9334
-agent-browser connect "$BROWSER_PORT"
-agent-browser --cdp "ws://127.0.0.1:${BROWSER_PORT}" open http://heptapod-app:80/login
-agent-browser --cdp "ws://127.0.0.1:${BROWSER_PORT}" wait --text 'Sign in'
-agent-browser --cdp "ws://127.0.0.1:${BROWSER_PORT}" set viewport 1440 900
-agent-browser --cdp "ws://127.0.0.1:${BROWSER_PORT}" screenshot /tmp/heptapod-login.png
-```
-
-Use `http://heptapod-app:80` inside the browser container, not `http://app:80`: Chrome upgrades the HSTS-preloaded `.app` hostname to HTTPS. The network alias avoids that upgrade.
-
-FrankenPHP proxies `/vite/*` (including WebSockets) to Vite. A relative hot-file URL keeps assets and HMR on the page's origin, so both http://localhost:8088 and http://heptapod-app:80 work without hostname or CDP request rewriting. The direct Vite port is for diagnostics; open the app URL to use HMR.
-
-Open http://localhost:8088/dev-login (or http://heptapod-app:80/dev-login inside the browser container) and select the demo account `test@example.test` to enter the dashboard. On an allowlisted host the login page also shows "Sign in as demo", which returns to the page that sent you to the login (for example a deep link to a site's settings). Spatie's login-link package creates the development user if needed. This page exists only in `APP_ENV=local`; the package also rejects non-local environments and hosts outside its explicit allowlist. The dependency is development-only. Never expose this development stack publicly.
