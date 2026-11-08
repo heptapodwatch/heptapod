@@ -1,28 +1,118 @@
 ---
 title: Broken links and mixed content
-description: How Heptapod checks links and insecure resources on a site
+description: Crawl a site once a day for broken links and for HTTP resources on HTTPS pages.
 sidebar:
     order: 1
 ---
 
-## Outbound requests
+The broken-links check crawls the HTML pages of a site and checks every link, image, script and stylesheet it finds. The mixed-content check uses the same crawl and reports HTTP resources on HTTPS pages.
 
-HTTP checks, crawls (including mixed content), sitemap probes, site-icon fetches, RDAP lookups and HTTP notifications use `User-Agent: HeptapodBot/<version> (+https://heptapod.watch/bot)`, where `<version>` is the installed application version. Update checks use the same User-Agent and request GitHub's JSON format. The shared check client also sends `Accept: text/html,application/xhtml+xml;q=0.9,*/*;q=0.8` and `Accept-Language: en,de;q=0.9,*;q=0.5` unless a request supplies its own values.
+## Results
 
-Site crawler headers and per-check headers can override the User-Agent on same-origin requests. After a redirect leaves that origin, only the application-owned public header profile is sent, even if a later hop returns to the original origin. Configured credentials and headers are not forwarded to other origins. Bot-protection pages can still refuse automated checks; identifying the client does not bypass a challenge or WAF rule.
+| Result  | Broken links                                                                  | Mixed content                                |
+| ------- | ----------------------------------------------------------------------------- | -------------------------------------------- |
+| OK      | No broken links found.                                                        | No HTTP resources on HTTPS pages.            |
+| Warning | Broken external links, links that could not be checked, or rate-limited URLs. | —                                            |
+| Failed  | Broken internal links.                                                        | At least one HTTP resource on an HTTPS page. |
 
-Lighthouse uses headless Chrome's browser User-Agent because it measures a real browser. Certificate and DNS checks do not make HTTP requests, so they have no HTTP User-Agent. Native WHOIS lookups also use a separate, non-HTTP protocol.
+A finding stays until a later complete crawl confirms it is fixed.
 
-## Link and resource checks
+## What counts as broken
 
-The broken-links check crawls HTML pages on the monitored site and checks discovered HTTP(S) links. It checks concurrent URLs independently: a large response from one URL cannot replace another URL's HTTP status or connection policy. External links are checked for status when **Check external links** is enabled, but external pages are not crawled. HTTP errors, unreachable links (other than temporary timeouts or connection failures) and malformed HTTP(S) URLs are broken-link findings. A timed-out or disconnected URL is marked `unchecked (timeout)` or `unchecked (connect)` in the crawl findings and makes an otherwise clean broken-links run a warning. The run evidence includes an `unchecked_count`. It does not create a new broken-link finding. A previously broken URL stays broken until a later successful check confirms recovery. A malformed URL has no status code and includes the page where it was found. Links with literal spaces in their paths are percent-encoded like browser URLs before status checks; malformed hosts remain invalid. An extraction flagged as malformed by the upstream crawler is still parsed using browser URL rules before it is reported as invalid. At most 100 distinct malformed URLs are reported per page; if that limit is reached, the crawl remains incomplete rather than resolving older findings. Links using `javascript:`, `mailto:`, `tel:` or `data:` are ignored.
+- An HTTP error status, an unreachable link or a malformed HTTP(S) URL. A malformed URL shows the page it was found on.
+- An external link is broken only on hard evidence: 404 or 410, an invalid certificate or another client error.
+- Links with `javascript:`, `mailto:`, `tel:` or `data:` are ignored.
+- Spaces in a link path are encoded like a browser does before the check. A malformed host stays invalid.
+- Cloudflare's email-protection path `/cdn-cgi/l/email-protection` on the site's host or its `www`/apex alias is ignored by default. Other 404s still count.
+- A page or resource is never broken only because of its size. Above 2 MiB, Heptapod retries the URL with HEAD to get its status. Links inside an oversized page are not read.
 
-Heptapod ignores the `/cdn-cgi/l/email-protection` path on the monitored host or its direct `www`/apex alias, including its query and fragment, by default. This is Cloudflare's email-obfuscation endpoint, not a broken page. Other 404s still count. Whitelist entries accept full HTTP(S) URLs or wildcard patterns such as `*/news/sample?edition=*`. Matching compares the full canonical browser URL: scheme/host case, spaces in paths and trailing slashes are normalized, fragments are ignored, and path/query case is preserved. A wildcard `*` matches across path and query delimiters; exact entries still require an exact query match. Patterns starting with `*` match against the normalized URL but their literal host text is case-sensitive: use lowercase host text in such patterns. An unparseable pattern is matched as a glob with its fragment removed and literal spaces encoded as `%20`. A saved invalid exact entry is ignored and reported as a note in the run evidence, without exposing the entry. A reachable 404 or 410 link does not make discovery incomplete; unavailable pages, timeouts and caps do. The default page cap is 2,000 same-origin link targets, up to depth 5. Increase the **Max pages** broken-links setting (up to 10,000) to check more pages; mixed content shares this crawl. Images, scripts and stylesheets are status-checked separately, with a maximum of 10,000 same-origin resources and 10,000 external destinations. Increase `HEPTAPOD_CRAWL_MAX_STATUS_URLS` (1–25,000, default 10,000) to raise **each** status-URL budget; update the production environment and restart workers with rebuilt configuration cache. The two status budgets share a 25,000-item comparison limit with the page and finding counts: raising both to 25,000 may reach that limit before the status budgets. Checks have a configurable execution budget (`HEPTAPOD_CRAWL_TIMEOUT_SECONDS`, 1–1,200 seconds; default and maximum 1,200). A longer deadline is not supported without changing the job, Horizon, lease and queue retry timeout chain. Exceeding the comparison limit marks the result incomplete instead of discarding previously confirmed findings. Status checks use the crawl's default five-request concurrency and apply robots.txt to same-origin resources unless a URL is forced. A crawl that reaches the page cap with pending pages reports "Crawl incomplete (cap N reached)", even if some checked links were 404 and did not count as observed HTML pages. The detail data contains distinct page-cap, resource/external-URL-cap, comparison-limit and time-limit flags, the page cap, observed page and URL counts, discovered URL count, and completeness state. Show progress as "N pages checked · M URLs discovered · limit reached"; discovered URLs include resources and external destinations, so M is not a count of pages. A status URL cap reports an incomplete resource-limit reason, not an unspecified truncation. Incomplete crawls retain unseen findings instead of reporting false recovery. An incomplete run never resolves an incident. A page or resource cap still opens or escalates an incident for confirmed failed findings and emits new-finding events. A time limit or comparison overflow neither opens nor escalates an incident and emits no change events. A complete warning still resolves an open incident. If the execution time limit is reached, the crawl reports an incomplete result instead of a check error. It retains prior findings even when a partially checked page appears recovered, keeps new partial findings, sends no change events, and marks `time_limit_reached` in run evidence. State comes from confirmed findings: no broken links is OK, external broken links are Warning, internal broken links are Failed; mixed-content findings are Failed. Reaching a page, resource, time or comparison limit is a fact, not an escalation: a clean capped run is OK, but it is incomplete and cannot resolve an existing incident. Unchecked timeout/connect URLs still warn, and previously confirmed findings remain in force until a complete run verifies recovery.
+## Links that are not broken
 
-Larger budgets can increase crawl time and memory. Plan capacity using the crawl-worker sizing table in [Operations](../deploy/operations.md#installation-and-capacity), especially when running multiple crawls concurrently. Check detail reads at most 50 findings from the last accepted crawl. History's `observed_at` and page/resource/time cap flags describe that accepted snapshot; detail's `run_ended_at` and comparison-limit flag describe the latest run, which might not have produced a new snapshot. It reports both the page-cap and time-limit reasons when present, including on mixed-content checks. Each broken-link row records the first observation still available in retained history, not a claim about older pruned history. Exact new and fixed finding counts are omitted until an accepted snapshot from at least seven days ago exists. Broken-link counts exclude successful and unchecked URLs; incomplete crawls retain findings that are not yet confirmed fixed.
+These links appear in their own group and do not count as broken:
 
-The mixed-content check inspects resources referenced by HTTPS pages, such as images, scripts and stylesheets. HTTP resources on those pages are findings. Invalid resource URLs do not count as mixed content; malformed resources included in the broken-links crawl are reported there instead. These checks parse HTML only; they do not execute JavaScript.
+- **Could not be checked**: the request timed out, could not connect or was reset (`unchecked (timeout)`, `unchecked (connect)`, `unchecked (connection reset)`). They make an otherwise clean run a Warning.
+- **Not verifiable**: the site blocks automated checks (bot protection), is rate-limited, or the link points to a private network address.
+- **Not verifiable, external links only**: the site requires a login, refuses the request, its host name does not resolve, or TLS fails. The same cause on an internal link is broken.
 
-Previously collected findings for the email-protection path are also ignored during later evaluations, including incomplete crawls. Broken links and mixed content share one recent crawl when the target, crawl-relevant settings and site crawler headers are unchanged. Mixed-content resource inspection runs independently of the broken-links status-check types. A change to crawl depth, limits, extracted status-check types, crawl/skip lists, external status checking or robots policy triggers a new crawl for either check. Whitelist and new-links-only changes only affect evaluation against the current snapshot; they do not recollect the site. A manual **Run check** on either check always collects a new shared crawl. Older snapshots without a crawl configuration fingerprint are recollected on their next run.
+Identifying the client does not get past a challenge or WAF rule. Use **Allowed broken URLs** for links you know are fine.
 
-Each response body is limited to 2 MiB by default. If a GET exceeds the limit, Heptapod retries that URL with HEAD to get its HTTP status. An oversized page or asset is not a broken link solely because of its size. Links inside oversized HTML, including links after the size limit, are not extracted. When a page cannot be inspected, previously observed findings are retained until a complete crawl can establish recovery. If neither request provides a status, the URL is recorded as a request failure; an unreachable root can prevent collection altogether.
+## Settings
+
+| Setting                  | Default | Range                                                                 | Effect                                                                              |
+| ------------------------ | ------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| **Maximum pages**        | 2,000   | 1–10,000                                                              | Same-origin pages crawled. Mixed content shares this crawl.                         |
+| **Maximum depth**        | 5       | 0–20                                                                  | Link steps from the start page.                                                     |
+| **Check external links** | On      | —                                                                     | Checks the status of external links. External pages are never crawled.              |
+| **Resource types**       | All     | **Link**, **Image**, **Script**, **Stylesheet**, **Open Graph image** | What the broken-links check status-checks. Mixed content always inspects resources. |
+| **Respect robots.txt**   | On      | —                                                                     | Applies robots.txt to same-origin pages and resources.                              |
+| **Only new links**       | Off     | —                                                                     | Has no effect on crawls or results.                                                 |
+| **Exclude patterns**     | Empty   | Up to 1,000                                                           | URLs or `*` patterns that are never crawled.                                        |
+| **Do not crawl URLs**    | Empty   | Up to 1,000                                                           | URLs or `*` patterns that are never crawled.                                        |
+| **Always crawl URLs**    | Empty   | Up to 1,000                                                           | URLs or `*` patterns crawled even when robots.txt or another rule skips them.       |
+| **Allowed broken URLs**  | Empty   | Up to 1,000                                                           | Full HTTP(S) URLs or wildcard patterns that never count as broken.                  |
+
+### Allowed broken URLs
+
+- Entries match the full URL. Scheme and host case, path spaces and trailing slashes are normalized. Path and query keep their case, and fragments are ignored.
+- `*` matches across path and query, for example `*/news/sample?edition=*`. An exact entry needs an exact query.
+- In a pattern that starts with `*`, write the host in lowercase.
+- An entry that is not a valid URL matches as a glob, without its fragment and with spaces as `%20`.
+- An invalid exact entry is ignored and noted in the run evidence, without showing the entry.
+
+## Limits and incomplete crawls
+
+| Limit                                         | Default       | Change it with                             |
+| --------------------------------------------- | ------------- | ------------------------------------------ |
+| Pages                                         | 2,000         | **Maximum pages**, up to 10,000            |
+| Same-origin resources and external URLs, each | 10,000        | `HEPTAPOD_CRAWL_MAX_STATUS_URLS`, 1–25,000 |
+| Comparison of pages, resources and findings   | 25,000 items  | Fixed                                      |
+| Run time                                      | 1,200 seconds | `HEPTAPOD_CRAWL_TIMEOUT_SECONDS`, 1–1,200  |
+| Malformed URLs per page                       | 100           | Fixed                                      |
+| Response body                                 | 2 MiB         | Fixed                                      |
+| Parallel requests                             | 5             | Fixed                                      |
+
+To raise an environment limit, set it in the production environment, rebuild the configuration cache and restart the workers. Larger budgets cost crawl time and memory; size workers with the [capacity table](../deploy/operations.md#installation-and-capacity).
+
+A crawl that hits a limit is incomplete and says so, for example "Crawl incomplete (cap 2000 reached)". An incomplete crawl never resolves an incident or clears a finding.
+
+- A page or resource limit still opens or escalates an incident for confirmed failures and reports new findings.
+- A time limit or the comparison limit opens nothing, escalates nothing and sends no change events. It keeps earlier findings and records `time_limit_reached` or the comparison flag in the run evidence.
+- A clean run that hit a limit is OK but incomplete.
+- A 404 or 410 link does not make a crawl incomplete. Unavailable pages, timeouts and limits do.
+
+Progress reads "N pages checked · M URLs discovered · limit reached". M includes resources and external URLs, so it is not a page count.
+
+## When a new crawl runs
+
+Both checks run once a day and share one recent crawl.
+
+- A change to depth, limits, resource types, crawl lists, external checking or robots.txt starts a new crawl.
+- A change to **Allowed broken URLs** re-evaluates the current crawl without a new one.
+- **Run check** on either check always starts a new crawl.
+
+## Mixed content
+
+- Mixed content checks the images, scripts and stylesheets of HTTPS pages. An HTTP resource is a finding.
+- A malformed resource URL is reported by broken links, not here.
+- Both checks read HTML only. They do not run JavaScript.
+
+## Check detail
+
+- Detail shows up to 50 findings from the last accepted crawl.
+- `observed_at` and the cap flags describe that crawl. `run_ended_at` and the comparison flag describe the latest run, which may not have replaced it.
+- Each broken link shows its first observation in retained history.
+- New and fixed counts appear once a crawl from at least seven days ago exists.
+
+## Request headers
+
+All HTTP requests from Heptapod (checks, crawls, sitemaps, site icons, RDAP lookups, update checks and HTTP notifications) send:
+
+| Header            | Value                                                 |
+| ----------------- | ----------------------------------------------------- |
+| `User-Agent`      | `HeptapodBot/<version> (+https://heptapod.watch/bot)` |
+| `Accept`          | `text/html,application/xhtml+xml;q=0.9,*/*;q=0.8`     |
+| `Accept-Language` | `en,de;q=0.9,*;q=0.5`                                 |
+
+- Site crawler headers and check headers can override them on same-origin requests.
+- After a redirect leaves the origin, only these public headers are sent, even if a later hop returns. Credentials never go to other origins.
+- Lighthouse sends the headless Chrome User-Agent. Certificate, DNS and WHOIS checks make no HTTP requests.
