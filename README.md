@@ -38,9 +38,9 @@
 - [Performance](https://heptapod.watch/docs/checks/performance/): response times from the uptime runs, slow responses and sudden changes.
 - [Certificates](https://heptapod.watch/docs/checks/certificates/): expiry and issuer changes.
 - [Domain and DNS](https://heptapod.watch/docs/checks/domain-and-dns/): domain expiry, and DNS record changes until you accept them.
-- [Broken links and mixed content](https://heptapod.watch/docs/checks/broken-links-and-mixed-content/): a crawl of every page for dead links and insecure resources.
+- [Broken links and mixed content](https://heptapod.watch/docs/checks/broken-links-and-mixed-content/): a site crawl for dead links and insecure resources.
 - [Lighthouse](https://heptapod.watch/docs/checks/lighthouse/): performance, accessibility, best practices and SEO scores.
-- [Cron jobs](https://heptapod.watch/docs/checks/cron-heartbeats/): scheduled tasks ping Heptapod; a late, missed or failed run fails the check.
+- [Cron jobs](https://heptapod.watch/docs/checks/cron-heartbeats/): scheduled tasks ping Heptapod; it warns about late finishes and fails missed or failed runs.
 - [Application health](https://heptapod.watch/docs/checks/application-health/): what your application reports about itself, in the spatie/laravel-health format.
 - [Sitemap](https://heptapod.watch/docs/checks/sitemap/): the sitemap and the URLs it lists.
 
