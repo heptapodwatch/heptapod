@@ -18,7 +18,7 @@ These rules take precedence over generated guidance below. Keep private machine 
 - Namespace `Heptapod\`. Addons live in `addons/*` and depend on core only through `Heptapod\Contracts\*`. Fakes only at the seams in `Heptapod\Testing\*`.
 - Fail loud: no silent fallbacks or reflexive try/catch; handle failures at system boundaries.
 - Comments only for non-obvious why. Keep scope narrow: no drive-by refactors; report systemic issues separately.
-- `docs/` (except `docs/deploy/operations.md`) is user-facing and synced to the public website; no internal or development notes there.
+- `docs/` (except `docs/deploy/operations.md`) is user-facing and synced to the public website; no internal or development notes there. Write and review it by `.agents/skills/heptapod-docs`.
 
 ## Product and UI
 - Scope is monitoring, reporting and opt-in notifications. Never add assignees, owners, claiming, acknowledgement, on-call or task tracking. "Follow" means only "send me these alerts". Keep permission roles, engine claims/leases and record ownership distinct.

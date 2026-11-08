@@ -1,24 +1,62 @@
 ---
 title: Check runs
-description: Run lifecycle, scheduling and cancellation
+description: See queued, running and late checks, run checks by hand and cancel long crawls.
 sidebar:
     order: 5
 ---
 
-A check is scheduled for its next due time. The dispatcher claims due checks and queues work on the fast, crawl or browser queue. A queued claim remains owned while its job is still in Redis, even when heavy workers are backlogged. The dispatcher checks a queued job after ten minutes; it requeues a lost job, but renews the lease for a job that is still waiting. The execution lease begins when a worker starts the attempt and records a completed result. The Runs page (`/runs`) shows a live board of queued, running and finished runs, and the attempt history below it, including skipped or cancelled attempts. Filter by client, check, check type and state. These filters never expand the viewer's authorized access.
+Each check runs at its next due time on the fast, crawl or browser queue. **Runs** (`/runs`) shows what is queued, running and finished, with the attempt history below.
 
-The attempt history hides repeated accepted results by default; the board's Finished column shows them. **Show runs with the same result as before** includes attempts whose accepted result matches the immediately preceding retained accepted result of the same check. This compares result states, not every metric or finding. First results, changed results, queued/running/late work and attempts with an unknown or pruned predecessor stay visible. Missing older attempt details are reported rather than reconstructed. Runs is in the collapsible Operations navigation group. Its badge and the collapsed group's count show late checks, not queued work or errors; zero has no badge.
+## Read the Runs page
 
-Failed is not the same as Down. Failed reports a check's failed result, including non-uptime failures; the site's Down state requires an open failed uptime incident. A failed uptime result can precede a threshold-qualified outage incident. Check error means the attempt errored or timed out, not confirmed target downtime. Read the check type, result and recorded cause together. A non-uptime incident's duration measures the failure, not an uptime outage; notification severity describes urgency rather than cause. See [Notifications](../notifications.md).
+- The live board shows queued, running and finished runs.
+- The attempt history lists every attempt, including skipped and cancelled ones.
+- Filter by client, check, check type and state. Filters never widen what you are allowed to see.
+- The history hides attempts whose result matches the check's previous result. **Show runs with the same result as before** includes them. It compares result states, not metrics or findings.
+- First results, changed results, queued, running and late work always stay visible. So do attempts whose previous result is unknown or pruned.
+- Runs sits in the Operations group of the navigation. Its badge counts late checks only.
 
-**Late** means a due check has not started after `max(60 seconds, 10% of its interval)` beyond its due time. Late is a derived schedule state, not a failed result. The check page shows “Late by” the elapsed time since the persisted due time, not a future next-run date. A manual Run check request does not move the check's schedule. One manual request per check is allowed every 30 seconds.
+## Results
 
-The site header on overview, check and settings pages places Pause/Resume and Run all checks beside the site identity for operators. Pause keeps history and stops checks and alerts; scheduled one-hour or tomorrow-at-08:00 resumes use instance time. Personal Follow site remains on the overview. Maintenance links to the site-scoped window; private tag-window details stay hidden from restricted members. Recent result-change events name the new result rather than saying “Changed”.
+| Result      | Meaning                                                                                                                                           |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Failed      | The check's result failed. This includes non-uptime checks.                                                                                       |
+| Down        | The site has an open failed uptime incident. An uptime Check error is not Down. A failed uptime result can come before the outage incident opens. |
+| Check error | The attempt errored or timed out. It is not proof that the site is down.                                                                          |
+| Late        | A due check has not started within `max(60 seconds, 10% of its interval)`. Late is a schedule state, not a result.                                |
 
-Run all checks requires confirmation because it sends requests to the monitored server. Its confirmation lists each enabled check, queue and maximum execution time. Fast-only mode skips crawl and browser checks. Each individual run still obeys the 30-second limit. Run all reports each check as queued or skipped with a reason (busy, rate-limited, unavailable or fast-only); a busy check does not stop the remaining requests.
+A late check shows **Late by** the time since its due time. Read the check type, result and recorded cause together. See [notifications](../notifications.md) for how results become alerts.
 
-Only Broken links and Mixed content crawls, and Lighthouse attempts may be cancelled. Sitemap shares the crawl queue but cannot be cancelled because it has no cancellation checkpoints. A queued cancellation stops the attempt before work starts. A running cancellation is cooperative: the addon stops at its next cancellation checkpoint. Its attempt is marked cancelled; no completed check result, incident transition or change event is produced. If recording finished before the cancellation request acquired the check lock, the completed result wins. A cancelled or replaced attempt leaves the next scheduled due time unchanged.
+## Run checks by hand
 
-Live `run.finished` signals include the terminal outcome (`done`, `failed`, `cancelled` or `skipped`) without result evidence or secrets. Completed results still emit `state.changed` so run history and metrics refresh even when the health state stays the same.
+- **Run check** on a check page queues one run. A fast check accepts one manual request every 30 seconds, a crawl or browser check one every five minutes.
+- **Run all checks…** in the site header queues every enabled check after a confirmation. The confirmation lists each check with its queue and maximum run time, because it sends requests to the site.
+- **Only fast checks** skips crawl and browser checks.
+- Run all reports each check as queued or skipped with a reason: busy, rate-limited, unavailable or fast checks only. A busy check does not stop the others.
+- A manual run does not move the check's schedule.
 
-The crawl and browser queues have separate Horizon worker pools. Crawl capacity follows its configured concurrency; the browser pool has one worker. Progress is limited to at most one update per second, and is shown only while viewing the affected check. The Runs page displays the live board and attempt history; upcoming scheduling is on the Upcoming page; check detail shows persisted run state, attempt history and effective settings without a separate Schedule card. Attempt history is retained for seven days by default (`MONITORING_ATTEMPT_RETENTION_DAYS`); completed check results follow the existing check history retention.
+## Cancel a run
+
+Only Broken links, Mixed content and Lighthouse runs can be cancelled, with **Cancel** on the check page. Sitemap shares the crawl queue but cannot be cancelled.
+
+- A queued run stops before it starts.
+- A running run stops at its next checkpoint and is marked cancelled. It produces no result, incident change or change event.
+- If the result was recorded before the cancel request, the result stands.
+- Cancelling never moves the next due time.
+
+## Pause a site
+
+**Pause site** under **More actions** in the site header stops checks and alerts and keeps history. **Resume site** starts them again. A scheduled resume in one hour or tomorrow at 08:00 uses the instance time zone.
+
+## Queues and retention
+
+| Item                | Value                                                                                                 |
+| ------------------- | ----------------------------------------------------------------------------------------------------- |
+| Browser worker pool | One worker                                                                                            |
+| Crawl worker pool   | Its configured concurrency                                                                            |
+| Lost queued job     | Requeued after ten minutes (fast) or 25 minutes (crawl, browser); a job still waiting keeps its claim |
+| Progress updates    | At most one per second, only while you view the check                                                 |
+| Attempt history     | Seven days (`MONITORING_ATTEMPT_RETENTION_DAYS`)                                                      |
+| Check results       | The check history retention                                                                           |
+
+Upcoming due times are on **Upcoming**, not on Runs.

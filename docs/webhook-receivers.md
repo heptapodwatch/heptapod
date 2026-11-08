@@ -1,33 +1,78 @@
-# Verify webhook deliveries
+---
+title: Verify webhook deliveries
+description: Verify the signature, timestamp and payload of a webhook delivery.
+---
 
-Webhook channels require HTTPS. Set the channel's boolean `allow_insecure_http` to `true` only for an explicitly trusted HTTP receiver (for example, a local fixture). HTTP exposes the payload and signature to the network; signatures do not encrypt data. The flag defaults to false when omitted.
+Every webhook delivery is signed with the channel secret. Verify the signature and timestamp before you act on the payload.
 
-Headers:
+## Headers
 
-- `X-Heptapod-Timestamp`: Unix seconds in decimal, generated for each delivery attempt.
-- `Signature`: lowercase hexadecimal HMAC-SHA256 of `timestamp + "." + raw JSON body`, using the channel secret.
-- `X-Heptapod-Delivery` and `Idempotency-Key`: delivery hints, not signed. Do not use them as authenticated deduplication keys.
+| Header                                   | Value                                                                                           | Signed |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------- | ------ |
+| `X-Heptapod-Timestamp`                   | Unix seconds in decimal, new for each delivery attempt                                          | Yes    |
+| `Signature`                              | Lowercase hexadecimal HMAC-SHA256 of `timestamp + "." + raw JSON body`, with the channel secret | —      |
+| `X-Heptapod-Delivery`, `Idempotency-Key` | Delivery hints. Do not use them to deduplicate.                                                 | No     |
 
-Read the raw request bytes before parsing JSON. Reject malformed headers, invalid signatures and timestamps more than 300 seconds from the receiver's current time, including future timestamps. Keep both machines' clocks synchronized. Compare signatures in constant time. Body-only signatures are not accepted.
+## Verify a delivery
 
-After verification, parse the signed body. Atomically deduplicate on `(event_id, destination_id)` before applying side effects. Keep those keys for the full retry lifetime; retries have fresh timestamps but the same signed IDs. A timestamp window alone does not prevent replay inside the window. `is_test: true` deliveries have `event_id: 0`; treat them as verification-only, without production side effects. Return 2xx for successfully processed or already processed events.
+1. Read the raw request bytes before any JSON parsing.
+2. Reject malformed headers with 401.
+3. Reject a timestamp more than 300 seconds away from your clock, in either direction. Keep both clocks synchronized.
+4. Compute the HMAC of `timestamp + "." + raw body` and compare it with `Signature` in constant time. Reject a mismatch with 401.
+5. Parse the signed body.
+6. Record `(event_id, destination_id)` atomically before any side effect. Skip the event if it is already recorded.
+7. Return 2xx for a processed event, also when it was processed before.
 
-The `headline` field describes the delivered event, not the check's state at delivery time. It includes the check name when the headline does not identify its subject. If detailed run evidence has expired, it uses that event's retained summary. The existing `title` and `summary` fields remain available. The `changes` field is a list of localized change descriptions, separate from the state headline for Warning and Failed results, and is empty when there are no separate change facts. The `details` field is a list of localized secondary facts that are neither a problem nor a change, for example links that could not be verified, and is empty when there are none.
+- Keep the deduplication keys for the full retry period. Retries get a fresh timestamp but the same signed IDs.
+- The timestamp window alone does not stop a replay inside the window.
+- A test delivery has `is_test: true` and `event_id: 0`. Use it to verify your receiver, without side effects.
+- Signatures over the body alone are not accepted.
+
+## HTTPS
+
+Webhook channels require HTTPS. Set `allow_insecure_http` to `true` only for a trusted HTTP receiver, such as a local test fixture. It is `false` by default. Over HTTP the payload and signature are visible on the network; the signature does not encrypt anything.
+
+## Payload text fields
+
+| Field              | Content                                                                                                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `headline`         | The delivered event, not the check's state at delivery time. It names the check when the headline does not. If run evidence has expired, it uses the event's retained summary. |
+| `title`, `summary` | Title and summary of the alert.                                                                                                                                                |
+| `changes`          | Localized change descriptions, apart from the headline of a Warning or Failed result. Empty when there are none.                                                               |
+| `details`          | Localized secondary facts, such as links that could not be verified. Empty when there are none.                                                                                |
+
+## Severity and other fields
+
+| Field                         | Content                                                                                                                                                           |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `severity`                    | Urgency, not cause: `down`, `recovered`, `warning`, `error` or `info`. Both an uptime outage and a non-uptime failure can be `down`, and both bypass quiet hours. |
+| `downtime_seconds`            | For uptime, the downtime. For other checks, how long the failure lasted, not proof that the site was down.                                                        |
+| `also_affected`, `rechecking` | Check keys grouped under an uptime outage, or waiting for a re-check after it. `[]` when empty.                                                                   |
+| `site_id`, `link`             | `null` on deliveries kept after the site was deleted. `site_label` keeps the label with a deleted-site marker.                                                    |
+
+- Read the event type, check type and result to tell a Down site from a Failed check. Never label every `down` severity as an outage.
+- Dates use ISO 8601, also inside `summary`.
+- `summary` labels durations as "Total downtime" for every check type.
 
 ## System alerts
 
-A webhook channel receives System alerts only when System is turned on for it in the team notification settings. They report a problem with the Heptapod instance itself, such as a failed backup, a stopped scheduler or failing email delivery, and the matching recovery. The payload has the same keys as every other alert:
+A webhook channel receives System alerts when System is on for it in the team notification settings. They report a problem with the Heptapod instance, such as a failed backup, a stopped scheduler or failing email, and its recovery. The payload has the same keys as other alerts:
 
-- `site_id`, `site_label`, `site_url` and `check_type` are `null`; the instance is the subject.
-- `title` starts with `[System]` for a problem and `[System recovered]` for its recovery.
-- `headline` is the recommended action, or for a recovery what changed.
-- `summary` lists the localized facts, one per line.
-- `severity` is `down` or `warning` for a problem and `recovered` for its recovery. `cause` is `null`.
-- `link` opens System health.
+| Field                                             | Value                                                          |
+| ------------------------------------------------- | -------------------------------------------------------------- |
+| `site_id`, `site_label`, `site_url`, `check_type` | `null`                                                         |
+| `title`                                           | Starts with `[System]`, or `[System recovered]` for a recovery |
+| `headline`                                        | The recommended action, or what changed for a recovery         |
+| `summary`                                         | Localized facts, one per line                                  |
+| `severity`                                        | `down` or `warning` for a problem, `recovered` for a recovery  |
+| `cause`                                           | `null`                                                         |
+| `link`                                            | System health                                                  |
 
-Each problem and each recovery is sent once per channel, with its own `event_id`. Deduplicate on `(event_id, destination_id)` as for other alerts.
+Each problem and recovery is sent once per channel with its own `event_id`.
 
-PHP (returns 401 on verification failure; `$secret` comes from receiver configuration):
+## PHP example
+
+Returns 401 when verification fails. `$secret` comes from your receiver configuration.
 
 ```php
 $raw = file_get_contents('php://input');
@@ -44,7 +89,9 @@ $event = json_decode($raw, true, flags: JSON_THROW_ON_ERROR);
 // Atomically record [$event['event_id'], $event['destination_id']] before side effects.
 ```
 
-Node (call before any JSON/body middleware; `rawBody` is the original Buffer):
+## Node example
+
+Call it before any JSON or body middleware. `rawBody` is the original Buffer.
 
 ```js
 import { createHmac, timingSafeEqual } from 'node:crypto';
