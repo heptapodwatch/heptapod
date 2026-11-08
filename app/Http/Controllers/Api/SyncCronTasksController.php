@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers\Api;
 
+use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\SyncCronTasks;
 use Heptapod\Concerns\AuthorizesCronTasks;
 use Heptapod\Http\Controllers\Controller;
@@ -13,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
+#[Group('Cron tasks')]
 final class SyncCronTasksController extends Controller
 {
     use AuthorizesCronTasks;

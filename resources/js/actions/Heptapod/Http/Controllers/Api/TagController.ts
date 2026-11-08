@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::index
-* @see app/Http/Controllers/Api/TagController.php:26
+* @see app/Http/Controllers/Api/TagController.php:28
 * @route '/api/tags'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::index
-* @see app/Http/Controllers/Api/TagController.php:26
+* @see app/Http/Controllers/Api/TagController.php:28
 * @route '/api/tags'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::index
-* @see app/Http/Controllers/Api/TagController.php:26
+* @see app/Http/Controllers/Api/TagController.php:28
 * @route '/api/tags'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::index
-* @see app/Http/Controllers/Api/TagController.php:26
+* @see app/Http/Controllers/Api/TagController.php:28
 * @route '/api/tags'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::index
-* @see app/Http/Controllers/Api/TagController.php:26
+* @see app/Http/Controllers/Api/TagController.php:28
 * @route '/api/tags'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::index
-* @see app/Http/Controllers/Api/TagController.php:26
+* @see app/Http/Controllers/Api/TagController.php:28
 * @route '/api/tags'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::index
-* @see app/Http/Controllers/Api/TagController.php:26
+* @see app/Http/Controllers/Api/TagController.php:28
 * @route '/api/tags'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ index.form = indexForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::store
-* @see app/Http/Controllers/Api/TagController.php:45
+* @see app/Http/Controllers/Api/TagController.php:47
 * @route '/api/tags'
 */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -97,7 +97,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::store
-* @see app/Http/Controllers/Api/TagController.php:45
+* @see app/Http/Controllers/Api/TagController.php:47
 * @route '/api/tags'
 */
 store.url = (options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::store
-* @see app/Http/Controllers/Api/TagController.php:45
+* @see app/Http/Controllers/Api/TagController.php:47
 * @route '/api/tags'
 */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -116,7 +116,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::store
-* @see app/Http/Controllers/Api/TagController.php:45
+* @see app/Http/Controllers/Api/TagController.php:47
 * @route '/api/tags'
 */
 const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -126,7 +126,7 @@ const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::store
-* @see app/Http/Controllers/Api/TagController.php:45
+* @see app/Http/Controllers/Api/TagController.php:47
 * @route '/api/tags'
 */
 storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

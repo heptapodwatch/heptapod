@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::index
-* @see app/Http/Controllers/Api/MonitorController.php:32
+* @see app/Http/Controllers/Api/MonitorController.php:34
 * @route '/api/monitors'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::index
-* @see app/Http/Controllers/Api/MonitorController.php:32
+* @see app/Http/Controllers/Api/MonitorController.php:34
 * @route '/api/monitors'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::index
-* @see app/Http/Controllers/Api/MonitorController.php:32
+* @see app/Http/Controllers/Api/MonitorController.php:34
 * @route '/api/monitors'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::index
-* @see app/Http/Controllers/Api/MonitorController.php:32
+* @see app/Http/Controllers/Api/MonitorController.php:34
 * @route '/api/monitors'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::index
-* @see app/Http/Controllers/Api/MonitorController.php:32
+* @see app/Http/Controllers/Api/MonitorController.php:34
 * @route '/api/monitors'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::index
-* @see app/Http/Controllers/Api/MonitorController.php:32
+* @see app/Http/Controllers/Api/MonitorController.php:34
 * @route '/api/monitors'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::index
-* @see app/Http/Controllers/Api/MonitorController.php:32
+* @see app/Http/Controllers/Api/MonitorController.php:34
 * @route '/api/monitors'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ index.form = indexForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::show
-* @see app/Http/Controllers/Api/MonitorController.php:50
+* @see app/Http/Controllers/Api/MonitorController.php:52
 * @route '/api/monitors/{monitor}'
 */
 export const show = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -97,7 +97,7 @@ show.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::show
-* @see app/Http/Controllers/Api/MonitorController.php:50
+* @see app/Http/Controllers/Api/MonitorController.php:52
 * @route '/api/monitors/{monitor}'
 */
 show.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -130,7 +130,7 @@ show.url = (args: { monitor: number | { id: number } } | [monitor: number | { id
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::show
-* @see app/Http/Controllers/Api/MonitorController.php:50
+* @see app/Http/Controllers/Api/MonitorController.php:52
 * @route '/api/monitors/{monitor}'
 */
 show.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -140,7 +140,7 @@ show.get = (args: { monitor: number | { id: number } } | [monitor: number | { id
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::show
-* @see app/Http/Controllers/Api/MonitorController.php:50
+* @see app/Http/Controllers/Api/MonitorController.php:52
 * @route '/api/monitors/{monitor}'
 */
 show.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -150,7 +150,7 @@ show.head = (args: { monitor: number | { id: number } } | [monitor: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::show
-* @see app/Http/Controllers/Api/MonitorController.php:50
+* @see app/Http/Controllers/Api/MonitorController.php:52
 * @route '/api/monitors/{monitor}'
 */
 const showForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -160,7 +160,7 @@ const showForm = (args: { monitor: number | { id: number } } | [monitor: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::show
-* @see app/Http/Controllers/Api/MonitorController.php:50
+* @see app/Http/Controllers/Api/MonitorController.php:52
 * @route '/api/monitors/{monitor}'
 */
 showForm.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -170,7 +170,7 @@ showForm.get = (args: { monitor: number | { id: number } } | [monitor: number | 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::show
-* @see app/Http/Controllers/Api/MonitorController.php:50
+* @see app/Http/Controllers/Api/MonitorController.php:52
 * @route '/api/monitors/{monitor}'
 */
 showForm.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -187,7 +187,7 @@ show.form = showForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::store
-* @see app/Http/Controllers/Api/MonitorController.php:59
+* @see app/Http/Controllers/Api/MonitorController.php:61
 * @route '/api/monitors'
 */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -202,7 +202,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::store
-* @see app/Http/Controllers/Api/MonitorController.php:59
+* @see app/Http/Controllers/Api/MonitorController.php:61
 * @route '/api/monitors'
 */
 store.url = (options?: RouteQueryOptions) => {
@@ -211,7 +211,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::store
-* @see app/Http/Controllers/Api/MonitorController.php:59
+* @see app/Http/Controllers/Api/MonitorController.php:61
 * @route '/api/monitors'
 */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -221,7 +221,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::store
-* @see app/Http/Controllers/Api/MonitorController.php:59
+* @see app/Http/Controllers/Api/MonitorController.php:61
 * @route '/api/monitors'
 */
 const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -231,7 +231,7 @@ const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::store
-* @see app/Http/Controllers/Api/MonitorController.php:59
+* @see app/Http/Controllers/Api/MonitorController.php:61
 * @route '/api/monitors'
 */
 storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -243,7 +243,7 @@ store.form = storeForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::update
-* @see app/Http/Controllers/Api/MonitorController.php:73
+* @see app/Http/Controllers/Api/MonitorController.php:75
 * @route '/api/monitors/{monitor}'
 */
 export const update = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -258,7 +258,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::update
-* @see app/Http/Controllers/Api/MonitorController.php:73
+* @see app/Http/Controllers/Api/MonitorController.php:75
 * @route '/api/monitors/{monitor}'
 */
 update.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -291,7 +291,7 @@ update.url = (args: { monitor: number | { id: number } } | [monitor: number | { 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::update
-* @see app/Http/Controllers/Api/MonitorController.php:73
+* @see app/Http/Controllers/Api/MonitorController.php:75
 * @route '/api/monitors/{monitor}'
 */
 update.put = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -301,7 +301,7 @@ update.put = (args: { monitor: number | { id: number } } | [monitor: number | { 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::update
-* @see app/Http/Controllers/Api/MonitorController.php:73
+* @see app/Http/Controllers/Api/MonitorController.php:75
 * @route '/api/monitors/{monitor}'
 */
 const updateForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -316,7 +316,7 @@ const updateForm = (args: { monitor: number | { id: number } } | [monitor: numbe
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::update
-* @see app/Http/Controllers/Api/MonitorController.php:73
+* @see app/Http/Controllers/Api/MonitorController.php:75
 * @route '/api/monitors/{monitor}'
 */
 updateForm.put = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -333,7 +333,7 @@ update.form = updateForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::destroy
-* @see app/Http/Controllers/Api/MonitorController.php:85
+* @see app/Http/Controllers/Api/MonitorController.php:87
 * @route '/api/monitors/{monitor}'
 */
 export const destroy = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -348,7 +348,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::destroy
-* @see app/Http/Controllers/Api/MonitorController.php:85
+* @see app/Http/Controllers/Api/MonitorController.php:87
 * @route '/api/monitors/{monitor}'
 */
 destroy.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -381,7 +381,7 @@ destroy.url = (args: { monitor: number | { id: number } } | [monitor: number | {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::destroy
-* @see app/Http/Controllers/Api/MonitorController.php:85
+* @see app/Http/Controllers/Api/MonitorController.php:87
 * @route '/api/monitors/{monitor}'
 */
 destroy.delete = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -391,7 +391,7 @@ destroy.delete = (args: { monitor: number | { id: number } } | [monitor: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::destroy
-* @see app/Http/Controllers/Api/MonitorController.php:85
+* @see app/Http/Controllers/Api/MonitorController.php:87
 * @route '/api/monitors/{monitor}'
 */
 const destroyForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -406,7 +406,7 @@ const destroyForm = (args: { monitor: number | { id: number } } | [monitor: numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::destroy
-* @see app/Http/Controllers/Api/MonitorController.php:85
+* @see app/Http/Controllers/Api/MonitorController.php:87
 * @route '/api/monitors/{monitor}'
 */
 destroyForm.delete = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

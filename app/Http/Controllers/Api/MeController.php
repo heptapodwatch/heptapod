@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers\Api;
 
+use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+#[Group('Account')]
 final class MeController extends Controller
 {
     use ResolvesApiPrincipal;

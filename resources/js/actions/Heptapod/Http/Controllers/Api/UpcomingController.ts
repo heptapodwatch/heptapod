@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\UpcomingController::__invoke
-* @see app/Http/Controllers/Api/UpcomingController.php:24
+* @see app/Http/Controllers/Api/UpcomingController.php:26
 * @route '/api/upcoming'
 */
 const UpcomingController = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ UpcomingController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UpcomingController::__invoke
-* @see app/Http/Controllers/Api/UpcomingController.php:24
+* @see app/Http/Controllers/Api/UpcomingController.php:26
 * @route '/api/upcoming'
 */
 UpcomingController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ UpcomingController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UpcomingController::__invoke
-* @see app/Http/Controllers/Api/UpcomingController.php:24
+* @see app/Http/Controllers/Api/UpcomingController.php:26
 * @route '/api/upcoming'
 */
 UpcomingController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ UpcomingController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> =
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UpcomingController::__invoke
-* @see app/Http/Controllers/Api/UpcomingController.php:24
+* @see app/Http/Controllers/Api/UpcomingController.php:26
 * @route '/api/upcoming'
 */
 UpcomingController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ UpcomingController.head = (options?: RouteQueryOptions): RouteDefinition<'head'>
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UpcomingController::__invoke
-* @see app/Http/Controllers/Api/UpcomingController.php:24
+* @see app/Http/Controllers/Api/UpcomingController.php:26
 * @route '/api/upcoming'
 */
 const UpcomingControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const UpcomingControllerForm = (options?: RouteQueryOptions): RouteFormDefinitio
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UpcomingController::__invoke
-* @see app/Http/Controllers/Api/UpcomingController.php:24
+* @see app/Http/Controllers/Api/UpcomingController.php:26
 * @route '/api/upcoming'
 */
 UpcomingControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ UpcomingControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UpcomingController::__invoke
-* @see app/Http/Controllers/Api/UpcomingController.php:24
+* @see app/Http/Controllers/Api/UpcomingController.php:26
 * @route '/api/upcoming'
 */
 UpcomingControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

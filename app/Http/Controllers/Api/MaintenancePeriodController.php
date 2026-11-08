@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers\Api;
 
 use Carbon\CarbonImmutable;
+use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\CreateMaintenanceWindow;
 use Heptapod\Actions\DeleteMaintenancePeriod;
 use Heptapod\Actions\UpdateMaintenancePeriod;
@@ -23,6 +24,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
+#[Group('Maintenance')]
 final class MaintenancePeriodController extends Controller
 {
     use ResolvesApiPrincipal;

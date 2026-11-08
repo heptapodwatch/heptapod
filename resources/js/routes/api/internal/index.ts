@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::getIncidentNote
-* @see app/Http/Controllers/Api/IncidentNoteController.php:20
+* @see app/Http/Controllers/Api/IncidentNoteController.php:22
 * @route '/api/internal/incidents/{incident}/note'
 */
 export const getIncidentNote = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ getIncidentNote.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::getIncidentNote
-* @see app/Http/Controllers/Api/IncidentNoteController.php:20
+* @see app/Http/Controllers/Api/IncidentNoteController.php:22
 * @route '/api/internal/incidents/{incident}/note'
 */
 getIncidentNote.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -43,7 +43,7 @@ getIncidentNote.url = (args: { incident: string | number } | [incident: string |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::getIncidentNote
-* @see app/Http/Controllers/Api/IncidentNoteController.php:20
+* @see app/Http/Controllers/Api/IncidentNoteController.php:22
 * @route '/api/internal/incidents/{incident}/note'
 */
 getIncidentNote.get = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -53,7 +53,7 @@ getIncidentNote.get = (args: { incident: string | number } | [incident: string |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::getIncidentNote
-* @see app/Http/Controllers/Api/IncidentNoteController.php:20
+* @see app/Http/Controllers/Api/IncidentNoteController.php:22
 * @route '/api/internal/incidents/{incident}/note'
 */
 getIncidentNote.head = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -63,7 +63,7 @@ getIncidentNote.head = (args: { incident: string | number } | [incident: string 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::getIncidentNote
-* @see app/Http/Controllers/Api/IncidentNoteController.php:20
+* @see app/Http/Controllers/Api/IncidentNoteController.php:22
 * @route '/api/internal/incidents/{incident}/note'
 */
 const getIncidentNoteForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -73,7 +73,7 @@ const getIncidentNoteForm = (args: { incident: string | number } | [incident: st
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::getIncidentNote
-* @see app/Http/Controllers/Api/IncidentNoteController.php:20
+* @see app/Http/Controllers/Api/IncidentNoteController.php:22
 * @route '/api/internal/incidents/{incident}/note'
 */
 getIncidentNoteForm.get = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -83,7 +83,7 @@ getIncidentNoteForm.get = (args: { incident: string | number } | [incident: stri
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::getIncidentNote
-* @see app/Http/Controllers/Api/IncidentNoteController.php:20
+* @see app/Http/Controllers/Api/IncidentNoteController.php:22
 * @route '/api/internal/incidents/{incident}/note'
 */
 getIncidentNoteForm.head = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -100,7 +100,7 @@ getIncidentNote.form = getIncidentNoteForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::saveIncidentNote
-* @see app/Http/Controllers/Api/IncidentNoteController.php:28
+* @see app/Http/Controllers/Api/IncidentNoteController.php:30
 * @route '/api/internal/incidents/{incident}/note'
 */
 export const saveIncidentNote = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -115,7 +115,7 @@ saveIncidentNote.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::saveIncidentNote
-* @see app/Http/Controllers/Api/IncidentNoteController.php:28
+* @see app/Http/Controllers/Api/IncidentNoteController.php:30
 * @route '/api/internal/incidents/{incident}/note'
 */
 saveIncidentNote.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -142,7 +142,7 @@ saveIncidentNote.url = (args: { incident: string | number } | [incident: string 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::saveIncidentNote
-* @see app/Http/Controllers/Api/IncidentNoteController.php:28
+* @see app/Http/Controllers/Api/IncidentNoteController.php:30
 * @route '/api/internal/incidents/{incident}/note'
 */
 saveIncidentNote.put = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -152,7 +152,7 @@ saveIncidentNote.put = (args: { incident: string | number } | [incident: string 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::saveIncidentNote
-* @see app/Http/Controllers/Api/IncidentNoteController.php:28
+* @see app/Http/Controllers/Api/IncidentNoteController.php:30
 * @route '/api/internal/incidents/{incident}/note'
 */
 const saveIncidentNoteForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -167,7 +167,7 @@ const saveIncidentNoteForm = (args: { incident: string | number } | [incident: s
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::saveIncidentNote
-* @see app/Http/Controllers/Api/IncidentNoteController.php:28
+* @see app/Http/Controllers/Api/IncidentNoteController.php:30
 * @route '/api/internal/incidents/{incident}/note'
 */
 saveIncidentNoteForm.put = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -184,7 +184,7 @@ saveIncidentNote.form = saveIncidentNoteForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::snoozeIncident
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:19
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:21
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 export const snoozeIncident = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -199,7 +199,7 @@ snoozeIncident.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::snoozeIncident
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:19
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:21
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 snoozeIncident.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -226,7 +226,7 @@ snoozeIncident.url = (args: { incident: string | number } | [incident: string | 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::snoozeIncident
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:19
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:21
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 snoozeIncident.post = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -236,7 +236,7 @@ snoozeIncident.post = (args: { incident: string | number } | [incident: string |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::snoozeIncident
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:19
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:21
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 const snoozeIncidentForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -246,7 +246,7 @@ const snoozeIncidentForm = (args: { incident: string | number } | [incident: str
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::snoozeIncident
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:19
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:21
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 snoozeIncidentForm.post = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -258,7 +258,7 @@ snoozeIncident.form = snoozeIncidentForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::unsnoozeIncident
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:28
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:30
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 export const unsnoozeIncident = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -273,7 +273,7 @@ unsnoozeIncident.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::unsnoozeIncident
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:28
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:30
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 unsnoozeIncident.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -300,7 +300,7 @@ unsnoozeIncident.url = (args: { incident: string | number } | [incident: string 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::unsnoozeIncident
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:28
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:30
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 unsnoozeIncident.delete = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -310,7 +310,7 @@ unsnoozeIncident.delete = (args: { incident: string | number } | [incident: stri
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::unsnoozeIncident
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:28
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:30
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 const unsnoozeIncidentForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -325,7 +325,7 @@ const unsnoozeIncidentForm = (args: { incident: string | number } | [incident: s
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::unsnoozeIncident
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:28
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:30
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 unsnoozeIncidentForm.delete = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

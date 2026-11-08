@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::index
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:30
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:32
 * @route '/api/monitors/{monitor}/maintenance-periods'
 */
 export const index = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::index
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:30
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:32
 * @route '/api/monitors/{monitor}/maintenance-periods'
 */
 index.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ index.url = (args: { monitor: number | { id: number } } | [monitor: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::index
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:30
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:32
 * @route '/api/monitors/{monitor}/maintenance-periods'
 */
 index.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -59,7 +59,7 @@ index.get = (args: { monitor: number | { id: number } } | [monitor: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::index
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:30
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:32
 * @route '/api/monitors/{monitor}/maintenance-periods'
 */
 index.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -69,7 +69,7 @@ index.head = (args: { monitor: number | { id: number } } | [monitor: number | { 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::index
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:30
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:32
 * @route '/api/monitors/{monitor}/maintenance-periods'
 */
 const indexForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ const indexForm = (args: { monitor: number | { id: number } } | [monitor: number
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::index
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:30
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:32
 * @route '/api/monitors/{monitor}/maintenance-periods'
 */
 indexForm.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -89,7 +89,7 @@ indexForm.get = (args: { monitor: number | { id: number } } | [monitor: number |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::index
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:30
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:32
 * @route '/api/monitors/{monitor}/maintenance-periods'
 */
 indexForm.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -106,7 +106,7 @@ index.form = indexForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::store
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:72
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:74
 * @route '/api/maintenance-periods'
 */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -121,7 +121,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::store
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:72
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:74
 * @route '/api/maintenance-periods'
 */
 store.url = (options?: RouteQueryOptions) => {
@@ -130,7 +130,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::store
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:72
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:74
 * @route '/api/maintenance-periods'
 */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -140,7 +140,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::store
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:72
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:74
 * @route '/api/maintenance-periods'
 */
 const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -150,7 +150,7 @@ const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::store
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:72
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:74
 * @route '/api/maintenance-periods'
 */
 storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -162,7 +162,7 @@ store.form = storeForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::update
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:96
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:98
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 export const update = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -177,7 +177,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::update
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:96
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:98
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 update.url = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -210,7 +210,7 @@ update.url = (args: { maintenancePeriod: number | { id: number } } | [maintenanc
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::update
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:96
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:98
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 update.put = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -220,7 +220,7 @@ update.put = (args: { maintenancePeriod: number | { id: number } } | [maintenanc
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::update
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:96
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:98
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 const updateForm = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -235,7 +235,7 @@ const updateForm = (args: { maintenancePeriod: number | { id: number } } | [main
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::update
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:96
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:98
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 updateForm.put = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -252,7 +252,7 @@ update.form = updateForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::destroy
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:114
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:116
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 export const destroy = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -267,7 +267,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::destroy
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:114
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:116
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 destroy.url = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -300,7 +300,7 @@ destroy.url = (args: { maintenancePeriod: number | { id: number } } | [maintenan
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::destroy
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:114
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:116
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 destroy.delete = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -310,7 +310,7 @@ destroy.delete = (args: { maintenancePeriod: number | { id: number } } | [mainte
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::destroy
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:114
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:116
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 const destroyForm = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -325,7 +325,7 @@ const destroyForm = (args: { maintenancePeriod: number | { id: number } } | [mai
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::destroy
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:114
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:116
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 destroyForm.delete = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

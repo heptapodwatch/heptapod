@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeController::__invoke
-* @see app/Http/Controllers/Api/UptimeController.php:22
+* @see app/Http/Controllers/Api/UptimeController.php:24
 * @route '/api/monitors/{monitor}/uptime'
 */
 const UptimeController = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ UptimeController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeController::__invoke
-* @see app/Http/Controllers/Api/UptimeController.php:22
+* @see app/Http/Controllers/Api/UptimeController.php:24
 * @route '/api/monitors/{monitor}/uptime'
 */
 UptimeController.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ UptimeController.url = (args: { monitor: number | { id: number } } | [monitor: n
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeController::__invoke
-* @see app/Http/Controllers/Api/UptimeController.php:22
+* @see app/Http/Controllers/Api/UptimeController.php:24
 * @route '/api/monitors/{monitor}/uptime'
 */
 UptimeController.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -59,7 +59,7 @@ UptimeController.get = (args: { monitor: number | { id: number } } | [monitor: n
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeController::__invoke
-* @see app/Http/Controllers/Api/UptimeController.php:22
+* @see app/Http/Controllers/Api/UptimeController.php:24
 * @route '/api/monitors/{monitor}/uptime'
 */
 UptimeController.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -69,7 +69,7 @@ UptimeController.head = (args: { monitor: number | { id: number } } | [monitor: 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeController::__invoke
-* @see app/Http/Controllers/Api/UptimeController.php:22
+* @see app/Http/Controllers/Api/UptimeController.php:24
 * @route '/api/monitors/{monitor}/uptime'
 */
 const UptimeControllerForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ const UptimeControllerForm = (args: { monitor: number | { id: number } } | [moni
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeController::__invoke
-* @see app/Http/Controllers/Api/UptimeController.php:22
+* @see app/Http/Controllers/Api/UptimeController.php:24
 * @route '/api/monitors/{monitor}/uptime'
 */
 UptimeControllerForm.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -89,7 +89,7 @@ UptimeControllerForm.get = (args: { monitor: number | { id: number } } | [monito
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeController::__invoke
-* @see app/Http/Controllers/Api/UptimeController.php:22
+* @see app/Http/Controllers/Api/UptimeController.php:24
 * @route '/api/monitors/{monitor}/uptime'
 */
 UptimeControllerForm.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

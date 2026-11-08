@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:21
 * @route '/api/checks/{check}/unsnooze'
 */
 const UnsnoozeCheckController = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ UnsnoozeCheckController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:21
 * @route '/api/checks/{check}/unsnooze'
 */
 UnsnoozeCheckController.url = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ UnsnoozeCheckController.url = (args: { check: number | { id: number } } | [check
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:21
 * @route '/api/checks/{check}/unsnooze'
 */
 UnsnoozeCheckController.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ UnsnoozeCheckController.post = (args: { check: number | { id: number } } | [chec
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:21
 * @route '/api/checks/{check}/unsnooze'
 */
 const UnsnoozeCheckControllerForm = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const UnsnoozeCheckControllerForm = (args: { check: number | { id: number } } | 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:21
 * @route '/api/checks/{check}/unsnooze'
 */
 UnsnoozeCheckControllerForm.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

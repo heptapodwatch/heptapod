@@ -13,8 +13,8 @@ use Dedoc\Scramble\Support\Generator\Types\Type;
  */
 final class RawSchema extends Type
 {
-    /** @param array<string, mixed> $schema */
-    public function __construct(private readonly array $schema)
+    /** @param array<string, mixed>|false $schema `false` is the JSON Schema that matches nothing (`additionalProperties: false`). */
+    public function __construct(private readonly array|false $schema)
     {
         parent::__construct('raw');
     }

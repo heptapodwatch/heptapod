@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::index
-* @see app/Http/Controllers/Api/IncidentController.php:40
+* @see app/Http/Controllers/Api/IncidentController.php:42
 * @route '/api/incidents'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::index
-* @see app/Http/Controllers/Api/IncidentController.php:40
+* @see app/Http/Controllers/Api/IncidentController.php:42
 * @route '/api/incidents'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::index
-* @see app/Http/Controllers/Api/IncidentController.php:40
+* @see app/Http/Controllers/Api/IncidentController.php:42
 * @route '/api/incidents'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::index
-* @see app/Http/Controllers/Api/IncidentController.php:40
+* @see app/Http/Controllers/Api/IncidentController.php:42
 * @route '/api/incidents'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::index
-* @see app/Http/Controllers/Api/IncidentController.php:40
+* @see app/Http/Controllers/Api/IncidentController.php:42
 * @route '/api/incidents'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::index
-* @see app/Http/Controllers/Api/IncidentController.php:40
+* @see app/Http/Controllers/Api/IncidentController.php:42
 * @route '/api/incidents'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::index
-* @see app/Http/Controllers/Api/IncidentController.php:40
+* @see app/Http/Controllers/Api/IncidentController.php:42
 * @route '/api/incidents'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ index.form = indexForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::show
-* @see app/Http/Controllers/Api/IncidentController.php:103
+* @see app/Http/Controllers/Api/IncidentController.php:105
 * @route '/api/incidents/{incident}'
 */
 export const show = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -97,7 +97,7 @@ show.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::show
-* @see app/Http/Controllers/Api/IncidentController.php:103
+* @see app/Http/Controllers/Api/IncidentController.php:105
 * @route '/api/incidents/{incident}'
 */
 show.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -124,7 +124,7 @@ show.url = (args: { incident: string | number } | [incident: string | number ] |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::show
-* @see app/Http/Controllers/Api/IncidentController.php:103
+* @see app/Http/Controllers/Api/IncidentController.php:105
 * @route '/api/incidents/{incident}'
 */
 show.get = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -134,7 +134,7 @@ show.get = (args: { incident: string | number } | [incident: string | number ] |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::show
-* @see app/Http/Controllers/Api/IncidentController.php:103
+* @see app/Http/Controllers/Api/IncidentController.php:105
 * @route '/api/incidents/{incident}'
 */
 show.head = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -144,7 +144,7 @@ show.head = (args: { incident: string | number } | [incident: string | number ] 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::show
-* @see app/Http/Controllers/Api/IncidentController.php:103
+* @see app/Http/Controllers/Api/IncidentController.php:105
 * @route '/api/incidents/{incident}'
 */
 const showForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -154,7 +154,7 @@ const showForm = (args: { incident: string | number } | [incident: string | numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::show
-* @see app/Http/Controllers/Api/IncidentController.php:103
+* @see app/Http/Controllers/Api/IncidentController.php:105
 * @route '/api/incidents/{incident}'
 */
 showForm.get = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -164,7 +164,7 @@ showForm.get = (args: { incident: string | number } | [incident: string | number
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::show
-* @see app/Http/Controllers/Api/IncidentController.php:103
+* @see app/Http/Controllers/Api/IncidentController.php:105
 * @route '/api/incidents/{incident}'
 */
 showForm.head = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

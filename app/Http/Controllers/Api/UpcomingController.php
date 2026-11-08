@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers\Api;
 
 use Carbon\CarbonImmutable;
+use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Contracts\UpcomingPosition;
 use Heptapod\Http\Controllers\Controller;
@@ -15,6 +16,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
+#[Group('Activity & upcoming')]
 final class UpcomingController extends Controller
 {
     use ResolvesApiPrincipal;

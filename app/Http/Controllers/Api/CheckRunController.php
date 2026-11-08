@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers\Api;
 
 use Carbon\CarbonImmutable;
+use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Http\Requests\Api\PaginationRequest;
@@ -14,6 +15,7 @@ use Heptapod\Models\Site;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 
+#[Group('Check runs')]
 final class CheckRunController extends Controller
 {
     public function __invoke(PaginationRequest $request, Site $monitor, string $checkType): PaginatedCollection

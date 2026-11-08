@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers\Api;
 
+use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\RequestCheckRun;
 use Heptapod\Checks\CheckRunPresentations;
 use Heptapod\Checks\Execution\ManualRunRefused;
@@ -27,6 +28,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 
+#[Group('Check runs')]
 final class RunController extends Controller
 {
     use ResolvesApiPrincipal;

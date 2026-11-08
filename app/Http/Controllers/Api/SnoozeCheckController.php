@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers\Api;
 
 use Carbon\CarbonImmutable;
+use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\SnoozeCheck;
 use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Http\Controllers\Controller;
@@ -14,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 
+#[Group('Checks')]
 final class SnoozeCheckController extends Controller
 {
     use ResolvesApiPrincipal;

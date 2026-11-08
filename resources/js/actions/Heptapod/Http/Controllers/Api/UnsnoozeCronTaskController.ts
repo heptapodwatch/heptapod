@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCronTaskController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:21
 * @route '/api/cron-checks/{cronTask}/unsnooze'
 */
 const UnsnoozeCronTaskController = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ UnsnoozeCronTaskController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCronTaskController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:21
 * @route '/api/cron-checks/{cronTask}/unsnooze'
 */
 UnsnoozeCronTaskController.url = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -43,7 +43,7 @@ UnsnoozeCronTaskController.url = (args: { cronTask: string | number } | [cronTas
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCronTaskController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:21
 * @route '/api/cron-checks/{cronTask}/unsnooze'
 */
 UnsnoozeCronTaskController.post = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -53,7 +53,7 @@ UnsnoozeCronTaskController.post = (args: { cronTask: string | number } | [cronTa
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCronTaskController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:21
 * @route '/api/cron-checks/{cronTask}/unsnooze'
 */
 const UnsnoozeCronTaskControllerForm = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -63,7 +63,7 @@ const UnsnoozeCronTaskControllerForm = (args: { cronTask: string | number } | [c
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCronTaskController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:21
 * @route '/api/cron-checks/{cronTask}/unsnooze'
 */
 UnsnoozeCronTaskControllerForm.post = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

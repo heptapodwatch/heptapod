@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers\Api;
 
+use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\StartMaintenance;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Http\Resources\OhDear\MaintenancePeriodResource;
@@ -14,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 
+#[Group('Maintenance')]
 final class StartMaintenanceController extends Controller
 {
     public function __invoke(Request $request, Site $monitor, StartMaintenance $start, Idempotency $idempotency): JsonResponse

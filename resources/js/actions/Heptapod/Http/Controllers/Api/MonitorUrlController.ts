@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorUrlController::__invoke
-* @see app/Http/Controllers/Api/MonitorUrlController.php:16
+* @see app/Http/Controllers/Api/MonitorUrlController.php:18
 * @route '/api/monitors/url/{url}'
 */
 const MonitorUrlController = (args: { url: string | number } | [url: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ MonitorUrlController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorUrlController::__invoke
-* @see app/Http/Controllers/Api/MonitorUrlController.php:16
+* @see app/Http/Controllers/Api/MonitorUrlController.php:18
 * @route '/api/monitors/url/{url}'
 */
 MonitorUrlController.url = (args: { url: string | number } | [url: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -43,7 +43,7 @@ MonitorUrlController.url = (args: { url: string | number } | [url: string | numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorUrlController::__invoke
-* @see app/Http/Controllers/Api/MonitorUrlController.php:16
+* @see app/Http/Controllers/Api/MonitorUrlController.php:18
 * @route '/api/monitors/url/{url}'
 */
 MonitorUrlController.get = (args: { url: string | number } | [url: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -53,7 +53,7 @@ MonitorUrlController.get = (args: { url: string | number } | [url: string | numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorUrlController::__invoke
-* @see app/Http/Controllers/Api/MonitorUrlController.php:16
+* @see app/Http/Controllers/Api/MonitorUrlController.php:18
 * @route '/api/monitors/url/{url}'
 */
 MonitorUrlController.head = (args: { url: string | number } | [url: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -63,7 +63,7 @@ MonitorUrlController.head = (args: { url: string | number } | [url: string | num
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorUrlController::__invoke
-* @see app/Http/Controllers/Api/MonitorUrlController.php:16
+* @see app/Http/Controllers/Api/MonitorUrlController.php:18
 * @route '/api/monitors/url/{url}'
 */
 const MonitorUrlControllerForm = (args: { url: string | number } | [url: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -73,7 +73,7 @@ const MonitorUrlControllerForm = (args: { url: string | number } | [url: string 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorUrlController::__invoke
-* @see app/Http/Controllers/Api/MonitorUrlController.php:16
+* @see app/Http/Controllers/Api/MonitorUrlController.php:18
 * @route '/api/monitors/url/{url}'
 */
 MonitorUrlControllerForm.get = (args: { url: string | number } | [url: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -83,7 +83,7 @@ MonitorUrlControllerForm.get = (args: { url: string | number } | [url: string | 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorUrlController::__invoke
-* @see app/Http/Controllers/Api/MonitorUrlController.php:16
+* @see app/Http/Controllers/Api/MonitorUrlController.php:18
 * @route '/api/monitors/url/{url}'
 */
 MonitorUrlControllerForm.head = (args: { url: string | number } | [url: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

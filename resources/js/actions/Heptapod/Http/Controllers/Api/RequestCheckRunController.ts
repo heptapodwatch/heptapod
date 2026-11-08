@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\RequestCheckRunController::__invoke
-* @see app/Http/Controllers/Api/RequestCheckRunController.php:19
+* @see app/Http/Controllers/Api/RequestCheckRunController.php:21
 * @route '/api/checks/{check}/request-run'
 */
 const RequestCheckRunController = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ RequestCheckRunController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RequestCheckRunController::__invoke
-* @see app/Http/Controllers/Api/RequestCheckRunController.php:19
+* @see app/Http/Controllers/Api/RequestCheckRunController.php:21
 * @route '/api/checks/{check}/request-run'
 */
 RequestCheckRunController.url = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ RequestCheckRunController.url = (args: { check: number | { id: number } } | [che
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RequestCheckRunController::__invoke
-* @see app/Http/Controllers/Api/RequestCheckRunController.php:19
+* @see app/Http/Controllers/Api/RequestCheckRunController.php:21
 * @route '/api/checks/{check}/request-run'
 */
 RequestCheckRunController.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ RequestCheckRunController.post = (args: { check: number | { id: number } } | [ch
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RequestCheckRunController::__invoke
-* @see app/Http/Controllers/Api/RequestCheckRunController.php:19
+* @see app/Http/Controllers/Api/RequestCheckRunController.php:21
 * @route '/api/checks/{check}/request-run'
 */
 const RequestCheckRunControllerForm = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const RequestCheckRunControllerForm = (args: { check: number | { id: number } } 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RequestCheckRunController::__invoke
-* @see app/Http/Controllers/Api/RequestCheckRunController.php:19
+* @see app/Http/Controllers/Api/RequestCheckRunController.php:21
 * @route '/api/checks/{check}/request-run'
 */
 RequestCheckRunControllerForm.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

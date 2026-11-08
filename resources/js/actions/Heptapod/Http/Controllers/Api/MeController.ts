@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\MeController::__invoke
-* @see app/Http/Controllers/Api/MeController.php:17
+* @see app/Http/Controllers/Api/MeController.php:19
 * @route '/api/me'
 */
 const MeController = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ MeController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MeController::__invoke
-* @see app/Http/Controllers/Api/MeController.php:17
+* @see app/Http/Controllers/Api/MeController.php:19
 * @route '/api/me'
 */
 MeController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ MeController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MeController::__invoke
-* @see app/Http/Controllers/Api/MeController.php:17
+* @see app/Http/Controllers/Api/MeController.php:19
 * @route '/api/me'
 */
 MeController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ MeController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MeController::__invoke
-* @see app/Http/Controllers/Api/MeController.php:17
+* @see app/Http/Controllers/Api/MeController.php:19
 * @route '/api/me'
 */
 MeController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ MeController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MeController::__invoke
-* @see app/Http/Controllers/Api/MeController.php:17
+* @see app/Http/Controllers/Api/MeController.php:19
 * @route '/api/me'
 */
 const MeControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const MeControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MeController::__invoke
-* @see app/Http/Controllers/Api/MeController.php:17
+* @see app/Http/Controllers/Api/MeController.php:19
 * @route '/api/me'
 */
 MeControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ MeControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'>
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MeController::__invoke
-* @see app/Http/Controllers/Api/MeController.php:17
+* @see app/Http/Controllers/Api/MeController.php:19
 * @route '/api/me'
 */
 MeControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

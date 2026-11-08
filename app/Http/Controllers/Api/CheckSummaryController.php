@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers\Api;
 
+use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\EngineMessage;
 use Heptapod\Contracts\OhDear\CheckSummaryData;
@@ -12,6 +13,7 @@ use Heptapod\Models\Site;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 
+#[Group('Checks')]
 final class CheckSummaryController extends Controller
 {
     public function __invoke(Site $monitor, string $checkType): JsonResponse

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\DowntimeController::__invoke
-* @see app/Http/Controllers/Api/DowntimeController.php:19
+* @see app/Http/Controllers/Api/DowntimeController.php:21
 * @route '/api/monitors/{monitor}/downtime'
 */
 const DowntimeController = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ DowntimeController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DowntimeController::__invoke
-* @see app/Http/Controllers/Api/DowntimeController.php:19
+* @see app/Http/Controllers/Api/DowntimeController.php:21
 * @route '/api/monitors/{monitor}/downtime'
 */
 DowntimeController.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ DowntimeController.url = (args: { monitor: number | { id: number } } | [monitor:
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DowntimeController::__invoke
-* @see app/Http/Controllers/Api/DowntimeController.php:19
+* @see app/Http/Controllers/Api/DowntimeController.php:21
 * @route '/api/monitors/{monitor}/downtime'
 */
 DowntimeController.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -59,7 +59,7 @@ DowntimeController.get = (args: { monitor: number | { id: number } } | [monitor:
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DowntimeController::__invoke
-* @see app/Http/Controllers/Api/DowntimeController.php:19
+* @see app/Http/Controllers/Api/DowntimeController.php:21
 * @route '/api/monitors/{monitor}/downtime'
 */
 DowntimeController.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -69,7 +69,7 @@ DowntimeController.head = (args: { monitor: number | { id: number } } | [monitor
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DowntimeController::__invoke
-* @see app/Http/Controllers/Api/DowntimeController.php:19
+* @see app/Http/Controllers/Api/DowntimeController.php:21
 * @route '/api/monitors/{monitor}/downtime'
 */
 const DowntimeControllerForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ const DowntimeControllerForm = (args: { monitor: number | { id: number } } | [mo
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DowntimeController::__invoke
-* @see app/Http/Controllers/Api/DowntimeController.php:19
+* @see app/Http/Controllers/Api/DowntimeController.php:21
 * @route '/api/monitors/{monitor}/downtime'
 */
 DowntimeControllerForm.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -89,7 +89,7 @@ DowntimeControllerForm.get = (args: { monitor: number | { id: number } } | [moni
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DowntimeController::__invoke
-* @see app/Http/Controllers/Api/DowntimeController.php:19
+* @see app/Http/Controllers/Api/DowntimeController.php:21
 * @route '/api/monitors/{monitor}/downtime'
 */
 DowntimeControllerForm.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

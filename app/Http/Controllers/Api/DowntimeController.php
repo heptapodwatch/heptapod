@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers\Api;
 
+use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Enums\IncidentCause;
 use Heptapod\Http\Controllers\Controller;
@@ -14,6 +15,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 
+#[Group('Uptime')]
 final class DowntimeController extends Controller
 {
     public function __invoke(MetricRangeRequest $request, Site $monitor): JsonResponse

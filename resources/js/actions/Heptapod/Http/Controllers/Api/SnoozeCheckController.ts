@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\SnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/SnoozeCheckController.php:21
+* @see app/Http/Controllers/Api/SnoozeCheckController.php:23
 * @route '/api/checks/{check}/snooze'
 */
 const SnoozeCheckController = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ SnoozeCheckController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/SnoozeCheckController.php:21
+* @see app/Http/Controllers/Api/SnoozeCheckController.php:23
 * @route '/api/checks/{check}/snooze'
 */
 SnoozeCheckController.url = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ SnoozeCheckController.url = (args: { check: number | { id: number } } | [check: 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/SnoozeCheckController.php:21
+* @see app/Http/Controllers/Api/SnoozeCheckController.php:23
 * @route '/api/checks/{check}/snooze'
 */
 SnoozeCheckController.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ SnoozeCheckController.post = (args: { check: number | { id: number } } | [check:
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/SnoozeCheckController.php:21
+* @see app/Http/Controllers/Api/SnoozeCheckController.php:23
 * @route '/api/checks/{check}/snooze'
 */
 const SnoozeCheckControllerForm = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const SnoozeCheckControllerForm = (args: { check: number | { id: number } } | [c
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/SnoozeCheckController.php:21
+* @see app/Http/Controllers/Api/SnoozeCheckController.php:23
 * @route '/api/checks/{check}/snooze'
 */
 SnoozeCheckControllerForm.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
