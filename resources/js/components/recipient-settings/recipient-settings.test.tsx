@@ -324,6 +324,23 @@ it('keeps the channel sheet open with the reason when the server refuses its cha
     expect(screen.getByRole('dialog')).toBe(sheet);
 });
 
+it("shows the provider's reason in the sheet when a test is rejected", async () => {
+    writeResponse = json(200, {
+        status: 'failed',
+        reason: 'notifications.transport_failed',
+        providerMessageId: null,
+        diagnosis: 'HTTP 200 — not_in_channel',
+    });
+    window.history.replaceState(null, '', '?channel=7');
+    show([channel()]);
+    const sheet = await screen.findByRole('dialog');
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Send test' }));
+    expect((await within(sheet).findByRole('alert')).textContent).toBe(
+        'HTTP 200 — not_in_channel',
+    );
+    expect(toast.error).toHaveBeenCalledWith('notifications.transport_failed');
+});
+
 it('shows a refused channel setting at its field, under its label, and never says the channel was added', async () => {
     writeResponse = json(422, {
         message: 'The Email address field must be a valid email address.',

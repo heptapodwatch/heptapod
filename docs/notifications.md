@@ -32,7 +32,7 @@ The channel sheet highlights each category that differs from how the channel sta
 
 ### Channel actions
 
-Each row shows the channel's summary in one sentence, for example "Gets outages, failures and recoveries immediately; warnings in the 08:00 digest. Not for shop.example." Open a row to change its categories, leave out single sites, send a test, pause or resume it, edit its name and transport settings, or remove it. Removing a channel drops its queued messages and keeps its delivery history; the account email cannot be removed. Pausing discards queued automatic alerts; resuming does not restore them. A channel whose last delivery was rejected is marked **Needs attention** and sends nothing until its settings are repaired.
+Each row shows the channel's summary in one sentence, for example "Gets outages, failures and recoveries immediately; warnings in the 08:00 digest. Not for shop.example." Open a row to change its categories, leave out single sites, send a test, pause or resume it, edit its name and transport settings, or remove it. Removing a channel drops its queued messages and keeps its delivery history; the account email cannot be removed. Pausing discards queued automatic alerts; resuming does not restore them.
 
 ### Who gets this
 
@@ -53,6 +53,8 @@ The client's **Messages** tab lists everything it was sent: when, what, by whom 
 A fresh installation uses `MAIL_MAILER=log`: messages are written to the app's stderr log, not delivered. The `array` transport also does not deliver mail. Delivery history labels these outcomes **Logged, not delivered**; they do not count as accepted opening alerts or successful sends. Existing historical sent records are unchanged.
 
 The instance Owner can inspect the active transport in **Settings → Instance**. Configure an SMTP or API transport in the installation's `.env.prod` and recreate the app and workers to apply it. For SMTP, set `MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` and the provider's required `MAIL_SCHEME`. Then open a channel in **Settings → Notifications** and use **Send test** to verify acceptance. Ask your instance Owner to configure this if you do not manage the server.
+
+To set up Slack, Discord, Microsoft Teams, Telegram, Pushover or ntfy, see [Channel setup](./channels.md).
 
 ## Alert sensitivity
 
