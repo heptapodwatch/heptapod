@@ -32,7 +32,7 @@ The channel sheet highlights each category that differs from how the channel sta
 
 ### Channel actions
 
-Each row shows the channel's summary in one sentence, for example "Gets outages, failures and recoveries immediately; warnings in the 08:00 digest. Not for shop.example." Open a row to change its categories, leave out single sites, send a test, pause or resume it, edit its name and transport settings, or remove it. Removing a channel drops its queued messages and keeps its delivery history; the account email cannot be removed. Pausing discards queued automatic alerts; resuming does not restore them. A channel whose last delivery was rejected is marked **Needs attention** and sends nothing until its settings are repaired.
+Each row shows the channel's summary in one sentence, for example "Gets outages, failures and recoveries immediately; warnings in the 08:00 digest. Not for shop.example." Open a row to change its categories, leave out single sites, send a test, pause or resume it, edit its name and transport settings, or remove it. Removing a channel drops its queued messages and keeps its delivery history; the account email cannot be removed. Pausing discards queued automatic alerts; resuming does not restore them.
 
 ### Who gets this
 
