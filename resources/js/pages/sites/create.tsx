@@ -1,12 +1,15 @@
-import { AbsoluteTime } from '@/components/absolute-time';
-import { SectionHeading } from '@/components/section-heading';
 import { PageHeader } from '@/components/page-header';
 import {
     FormSection,
     FormActions,
     FormSecondaryAction,
 } from '@/components/form-section';
-import { SiteClientField, SiteUrlField } from '@/components/site-fields';
+import {
+    SiteClientField,
+    SiteNameField,
+    SiteTagsField,
+    SiteUrlField,
+} from '@/components/site-fields';
 import { PageContainer } from '@/components/page-container';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -14,21 +17,27 @@ import { useTranslation } from 'react-i18next';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { index as sitesIndex, store as sitesStore } from '@/routes/sites';
 import type { CheckKey, FieldValue } from '@/types/monitoring';
-import {
-    eligibleSiteCheck,
-    siteCreateDraft,
-    type SiteCreateStep,
-} from '@/lib/site-create-draft';
-import { Stepper } from '@/components/stepper';
-import { SiteChecksList } from '@/components/site-checks-list';
+import { eligibleSiteCheck, siteCreateDraft } from '@/lib/site-create-draft';
+import { checkNeedsSetup, SiteChecksList } from '@/components/site-checks-list';
 import { CheckSettingsSheet } from '@/components/check-settings-sheet';
 import { TextLink } from '@/components/text-link';
 import { team as teamNotifications } from '@/routes/settings/notifications';
 import { ClientCreateSheet } from '@/components/client-create-sheet';
 import { useSiteUrlProbe } from '@/hooks/use-site-url-probe';
+
+/** Request error keys in page order with the control a refused Add site focuses. */
+const fieldOrder = [
+    ['url', 'site-url'],
+    ['client_id', 'site-client'],
+    ['friendly_name', 'site-name'],
+    ['tags', 'site-tags'],
+    ['checks', 'site-checks'],
+] as const;
+
+/** How far the page has revealed: 0 Address, 1 + Client, 2 + Details and Checks. A revealed section never collapses. */
+type Revealed = 0 | 1 | 2;
 
 export default function AddSite({
     clients: suppliedClients,
@@ -89,17 +98,20 @@ export default function AddSite({
     const [openChecks, setOpenChecks] = useState<CheckKey[]>(
         initial.draft?.openChecks ?? [],
     );
-    const [step, setStep] = useState<SiteCreateStep>(
-        initial.draft?.step ?? 'address',
-    );
     const changedChecks = useRef(
         new Set<CheckKey>(initial.draft?.changedChecks),
     );
     const form = useForm({
         url: initial.draft?.url ?? '',
+        // Preselect only without a real choice: in a multi-client team the first client is a wrong-client trap.
         client_id:
-            initial.draft?.client_id ??
-            String(selected_client_id ?? clients[0]?.id ?? ''),
+            initial.draft?.client_id ||
+            String(
+                selected_client_id ??
+                    (clients.length === 1 ? clients[0]!.id : ''),
+            ),
+        friendly_name: initial.draft?.friendly_name ?? '',
+        tags: initial.draft?.tags ?? '',
         checks:
             initial.draft?.checks ??
             checks
@@ -118,7 +130,6 @@ export default function AddSite({
                     siteCreateDraft(
                         {
                             ...form.data,
-                            step,
                             openChecks,
                             changedChecks: [...changedChecks.current],
                             omitted: initial.draft?.omitted,
@@ -130,15 +141,7 @@ export default function AddSite({
         } catch {
             setDraftUnavailable(true);
         }
-    }, [
-        form.data,
-        step,
-        openChecks,
-        draftKey,
-        draftUnavailable,
-        clients,
-        checks,
-    ]);
+    }, [form.data, openChecks, draftKey, draftUnavailable, clients, checks]);
     const clearDraft = () => {
         draftCleared.current = true;
         try {
@@ -147,9 +150,20 @@ export default function AddSite({
             setDraftUnavailable(true);
         }
     };
-    const { probe, probeState, probeError, runProbe, clearProbe } =
-        useSiteUrlProbe(form.data.url, true);
-    const canonicalUrl = probe?.normalised_url ?? form.data.url;
+    const {
+        probe,
+        probeState,
+        probeError,
+        addressInvalid,
+        runProbe,
+        clearProbe,
+    } = useSiteUrlProbe(form.data.url, true);
+    /** Checks the address now (blur, Enter, restore) and puts the normalised form into the field. */
+    const checkAddress = () =>
+        void runProbe().then((result) => {
+            if (result?.normalised_url)
+                form.setData('url', result.normalised_url);
+        });
     useEffect(() => {
         if (!probe) return;
         form.setData((data) => ({
@@ -165,54 +179,89 @@ export default function AddSite({
                 .map((check) => check.key),
         }));
     }, [probe]);
+    useEffect(() => {
+        if (initial.draft?.url) checkAddress();
+    }, []);
     const isEligible = (check: (typeof checks)[number]) =>
         eligibleSiteCheck(check, form.data.url);
+    const selectedChecks = checks.filter(
+        (check) =>
+            isEligible(check) &&
+            form.data.checks.includes(check.key) &&
+            (check.key !== 'performance' ||
+                form.data.checks.includes('uptime')),
+    );
+    const address = probe?.normalised_url ?? form.data.url;
+    const host = URL.canParse(address) ? new URL(address).hostname : null;
+    const client = clients.find(
+        (candidate) => String(candidate.id) === form.data.client_id,
+    );
+
+    // The probe has answered for an address the server accepts; an unreachable one only warns.
+    const answered =
+        probeState === 'done' || (probeState === 'error' && !addressInvalid);
+    const [revealed, setRevealed] = useState<Revealed>(() =>
+        initial.draft?.url ? (form.data.client_id ? 2 : 1) : 0,
+    );
+    const [restored] = useState(revealed);
+    const reachable: Revealed =
+        answered || revealed > 0 ? (form.data.client_id ? 2 : 1) : 0;
+    if (reachable > revealed) setRevealed(reachable);
+    // Set by Enter/Tab, cleared by any other key or a pointer: a section revealed after a keyboard finish takes focus.
+    const finishedByKeyboard = useRef(false);
     useEffect(() => {
-        if (initial.draft?.step === 'checks' && initial.draft.url)
-            void runProbe();
-    }, []);
-    const navigate = (target: SiteCreateStep) => {
-        if (target !== 'address' && !form.data.url.trim()) {
-            form.setError(
-                'url',
-                t('Enter a valid HTTP or HTTPS URL without credentials.'),
-            );
-            setStep('address');
-            return;
-        }
-        form.clearErrors('url');
-        if (target === 'checks' && !form.data.client_id) {
-            form.setError('client_id', t('Select a client.'));
-            setStep('client');
-            return;
-        }
-        form.clearErrors('client_id');
-        setStep(target);
-        if (target === 'checks' && probeState === 'idle') void runProbe();
+        if (!finishedByKeyboard.current || revealed === restored) return;
+        finishedByKeyboard.current = false;
+        // After the combobox popover has returned focus to its trigger.
+        requestAnimationFrame(() =>
+            document
+                .getElementById(revealed === 2 ? 'site-name' : 'site-client')
+                ?.focus(),
+        );
+    }, [revealed]);
+
+    const focusFirstError = (errors: Record<string, string>) => {
+        const keys = Object.keys(errors);
+        const id = fieldOrder.find(([field]) =>
+            keys.some(
+                (key) =>
+                    key === field ||
+                    (field === 'tags' && key.startsWith('tags.')),
+            ),
+        )?.[1];
+        if (!id) return;
+        // After the render that reveals every section; the checks group itself is not focusable, its first switch is.
+        requestAnimationFrame(() => {
+            const target =
+                id === 'site-checks'
+                    ? document.querySelector<HTMLElement>(
+                          '#site-checks [role="switch"]:not(:disabled)',
+                      )
+                    : document.getElementById(id);
+            target?.scrollIntoView({ block: 'center' });
+            target?.focus({ preventScroll: true });
+        });
     };
     const submit = (event: React.SubmitEvent<HTMLFormElement>) => {
         event.preventDefault();
-        const eligibleChecks = checks
-            .filter(
-                (check) =>
-                    isEligible(check) && form.data.checks.includes(check.key),
-            )
-            .map((check) => check.key);
-        if (!eligibleChecks.length) {
-            form.setError('checks', t('Select at least one check.'));
-            return;
-        }
-        if (
-            eligibleChecks.includes('performance') &&
-            !eligibleChecks.includes('uptime')
-        ) {
-            form.setError(
-                'checks',
-                t('Performance uses Uptime results. Enable Uptime first.'),
+        // Focus goes to the first error, not to a section this submit reveals.
+        finishedByKeyboard.current = false;
+        setRevealed(2);
+        const eligibleChecks = selectedChecks.map((check) => check.key);
+        const errors: Record<string, string> = {};
+        if (!form.data.url.trim())
+            errors.url = t(
+                'Enter a valid HTTP or HTTPS URL without credentials.',
             );
+        if (!form.data.client_id) errors.client_id = t('Select a client.');
+        if (!eligibleChecks.length)
+            errors.checks = t('Select at least one check.');
+        form.clearErrors();
+        if (Object.keys(errors).length) {
+            form.setError(errors as never);
+            focusFirstError(errors);
             return;
         }
-        form.clearErrors('checks');
         const settings = Object.fromEntries(
             checks
                 .filter((check) => eligibleChecks.includes(check.key))
@@ -234,17 +283,28 @@ export default function AddSite({
                 )
                 .filter(([, value]) => Object.keys(value).length),
         );
-        form.transform(({ client_id }) => ({
-            url: form.data.url,
+        const tags = [
+            ...new Set(
+                form.data.tags
+                    .split(',')
+                    .map((tag) => tag.trim())
+                    .filter(Boolean),
+            ),
+        ];
+        form.transform(({ url, client_id, friendly_name }) => ({
+            url,
             client_id,
+            ...(friendly_name.trim()
+                ? { friendly_name: friendly_name.trim() }
+                : {}),
+            ...(tags.length ? { tags } : {}),
             checks: eligibleChecks,
             ...settings,
         }));
         form.post(sitesStore.url(), {
             onSuccess: clearDraft,
             onError: (errors) => {
-                if (errors.url) setStep('address');
-                else if (errors.client_id) setStep('client');
+                focusFirstError(errors);
                 setOpenChecks((current) => [
                     ...new Set([
                         ...current,
@@ -260,6 +320,40 @@ export default function AddSite({
             },
         });
     };
+    // The server validates each tag as `tags.N`; the Tags field shows and clears them as its own.
+    const errors = form.errors as Record<string, string>;
+    const tagErrorKeys = Object.keys(errors).filter(
+        (key) => key === 'tags' || key.startsWith('tags.'),
+    );
+    const errorCount = new Set(
+        Object.keys(errors).map((key) =>
+            tagErrorKeys.includes(key) ? 'tags' : key,
+        ),
+    ).size;
+    const reasons: Partial<Record<CheckKey, string>> = probe
+        ? {
+              ...(probe.status && {
+                  uptime: t('add_site.reason.status', {
+                      status: probe.status,
+                  }),
+              }),
+              ...(probe.certificate_issuer && {
+                  certificate_health: t('add_site.reason.certificate', {
+                      issuer: probe.certificate_issuer,
+                  }),
+              }),
+              ...(probe.sitemap_url && {
+                  sitemap: t('add_site.reason.sitemap'),
+              }),
+              ...(probe.public_html && {
+                  broken_links: t('add_site.reason.public_html'),
+                  mixed_content: t('add_site.reason.public_html'),
+                  lighthouse: t('add_site.reason.public_html'),
+              }),
+          }
+        : {};
+    const revealClass = (level: Revealed) =>
+        level > restored ? 'motion-row-in' : undefined;
     return (
         <>
             <Head title={t('Add site')} />
@@ -268,26 +362,16 @@ export default function AddSite({
                     title={t('Add site')}
                     description={t('pages.add_site.description')}
                 />
-                <Stepper
-                    label={t('Add site steps')}
-                    steps={[t('Address'), t('Client'), t('Checks')]}
-                    current={(['address', 'client', 'checks'] as const).indexOf(
-                        step,
-                    )}
-                    disabled={form.processing}
-                    onStepChange={(index) =>
-                        navigate(
-                            (['address', 'client', 'checks'] as const)[index]!,
-                        )
-                    }
-                />
                 <form
                     noValidate
                     id="site-create-form"
-                    onSubmit={(event) => {
-                        if (step === 'checks') return submit(event);
-                        event.preventDefault();
-                        navigate(step === 'address' ? 'client' : 'checks');
+                    onSubmit={submit}
+                    onKeyDownCapture={(event) => {
+                        finishedByKeyboard.current =
+                            event.key === 'Enter' || event.key === 'Tab';
+                    }}
+                    onPointerDownCapture={() => {
+                        finishedByKeyboard.current = false;
                     }}
                     className="space-y-6"
                 >
@@ -307,342 +391,233 @@ export default function AddSite({
                             {t('sites.draft.unavailable')}
                         </p>
                     )}
-                    {step === 'address' && (
-                        <FormSection
-                            title={t('Address')}
-                            description={t(
-                                'Add the address you want to monitor.',
+                    <FormSection
+                        title={t('Address')}
+                        description={t('Add the address you want to monitor.')}
+                    >
+                        <SiteUrlField
+                            id="site-url"
+                            name="url"
+                            type="text"
+                            inputMode="url"
+                            required
+                            autoFocus
+                            placeholder="https://shop.example"
+                            value={form.data.url}
+                            onChange={(event) => {
+                                form.setData('url', event.target.value);
+                                form.clearErrors('url');
+                                clearProbe();
+                            }}
+                            onBlur={checkAddress}
+                            onKeyDown={(event) => {
+                                // Enter finishes the address like Tab while Client is still ahead; then it submits the form.
+                                if (event.key !== 'Enter' || revealed > 0)
+                                    return;
+                                event.preventDefault();
+                                checkAddress();
+                            }}
+                            probe={probe}
+                            probeState={probeState}
+                            probeError={probeError}
+                            onUseAddress={(url) => {
+                                clearProbe();
+                                form.setData('url', url);
+                            }}
+                            onRetry={() => void runProbe(true)}
+                            facts
+                            error={form.errors.url}
+                            help={t(
+                                'We check the address before adding the site',
                             )}
-                        >
-                            <SiteUrlField
-                                id="site-url"
-                                name="url"
-                                type="text"
-                                inputMode="url"
-                                required
-                                autoFocus
-                                placeholder="https://shop.example"
-                                value={form.data.url}
-                                onChange={(event) => {
-                                    form.setData('url', event.target.value);
-                                    clearProbe();
-                                }}
-                                onBlur={() =>
-                                    void runProbe().then((result) => {
-                                        if (result?.normalised_url)
-                                            form.setData(
-                                                'url',
-                                                result.normalised_url,
-                                            );
-                                    })
-                                }
-                                probe={probe}
-                                probeState={probeState}
-                                probeError={probeError}
-                                onUseAddress={(url) => {
-                                    clearProbe();
-                                    form.setData('url', url);
-                                }}
-                                error={form.errors.url}
-                                help={t(
-                                    'We check the address before adding the site',
+                        />
+                    </FormSection>
+                    {revealed > 0 && (
+                        <div className={revealClass(1)}>
+                            <FormSection
+                                title={t('Client')}
+                                description={t(
+                                    'Choose a client for this site.',
                                 )}
-                            />
-                        </FormSection>
+                            >
+                                <SiteClientField
+                                    clients={clients}
+                                    onCreateClient={
+                                        can_create_site
+                                            ? setNewClientName
+                                            : undefined
+                                    }
+                                    value={form.data.client_id}
+                                    onValueChange={(value) => {
+                                        form.setData('client_id', value);
+                                        form.clearErrors('client_id');
+                                    }}
+                                    required
+                                    error={form.errors.client_id}
+                                />
+                            </FormSection>
+                        </div>
                     )}
-                    {step === 'client' && (
-                        <FormSection
-                            title={t('Client')}
-                            description={t('Choose a client for this site.')}
-                        >
-                            <SiteClientField
-                                clients={clients}
-                                onCreateClient={
-                                    can_create_site
-                                        ? setNewClientName
-                                        : undefined
-                                }
-                                value={form.data.client_id}
-                                onValueChange={(value) =>
-                                    form.setData('client_id', value)
-                                }
-                                required
-                                error={form.errors.client_id}
-                            />
-                        </FormSection>
-                    )}
-                    {step === 'checks' && (
-                        <FormSection
-                            title={t('Checks')}
-                            description={t('Recommended checks are selected.')}
-                            detail={t(
-                                'Open Settings to change their defaults.',
-                            )}
-                        >
-                            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
-                                <div className="min-w-0 space-y-3">
-                                    <SectionHeading level={3}>
-                                        {t('What should we watch on {{url}}?', {
-                                            url: probe?.normalised_url
-                                                ? new URL(probe.normalised_url)
-                                                      .hostname
-                                                : form.data.url,
-                                        })}
-                                    </SectionHeading>
-                                    <InputError
-                                        field="site-checks"
-                                        message={form.errors.checks}
-                                    />
-                                    {overallHealth &&
-                                        !overallHealth.notifications_covered && (
-                                            <Alert
-                                                tone="warning"
-                                                action={
-                                                    auth.canManageChannels ? (
-                                                        <TextLink
-                                                            href={teamNotifications.url()}
-                                                        >
-                                                            {t(
-                                                                'add_site.no_rules.action',
-                                                            )}
-                                                        </TextLink>
-                                                    ) : undefined
-                                                }
-                                            >
-                                                <AlertTitle>
-                                                    {t(
-                                                        'add_site.no_rules.title',
-                                                    )}
-                                                </AlertTitle>
-                                                <AlertDescription>
-                                                    {t(
-                                                        'add_site.no_rules.body',
-                                                    )}
-                                                </AlertDescription>
-                                            </Alert>
-                                        )}
-                                    <SiteChecksList
-                                        groupProps={{
-                                            'aria-label': t('Checks'),
-                                            ...fieldErrorProps(
-                                                'site-checks',
-                                                form.errors.checks,
-                                            ),
-                                        }}
-                                        checks={checks}
-                                        url={form.data.url}
-                                        recommended={
-                                            probe?.recommended_checks ??
-                                            checks
-                                                .filter(
-                                                    (check) =>
-                                                        check.recommended,
-                                                )
-                                                .map((check) => check.key)
-                                        }
-                                        selected={form.data.checks}
-                                        settings={form.data.settings}
-                                        canManage={can_create_site}
-                                        onSettings={(key) =>
-                                            setOpenChecks([key])
-                                        }
-                                        onToggle={(key, enabled) => {
-                                            changedChecks.current.add(key);
-                                            if (key === 'uptime' && !enabled)
-                                                changedChecks.current.add(
-                                                    'performance',
-                                                );
+                    {revealed > 1 && (
+                        <div className={revealClass(2)}>
+                            <FormSection
+                                title={t('Details')}
+                                description={t(
+                                    'How this site appears in your portfolio.',
+                                )}
+                            >
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <SiteNameField
+                                        value={form.data.friendly_name}
+                                        placeholder={host ?? undefined}
+                                        onChange={(event) => {
                                             form.setData(
-                                                'checks',
-                                                enabled
-                                                    ? [...form.data.checks, key]
-                                                    : form.data.checks.filter(
-                                                          (selected) =>
-                                                              selected !==
-                                                                  key &&
-                                                              !(
-                                                                  key ===
-                                                                      'uptime' &&
-                                                                  selected ===
-                                                                      'performance'
-                                                              ),
-                                                      ),
+                                                'friendly_name',
+                                                event.target.value,
                                             );
+                                            form.clearErrors('friendly_name');
                                         }}
+                                        error={form.errors.friendly_name}
+                                    />
+                                    <SiteTagsField
+                                        value={form.data.tags}
+                                        onChange={(event) => {
+                                            form.setData(
+                                                'tags',
+                                                event.target.value,
+                                            );
+                                            // clearErrors() without keys would clear every field.
+                                            if (tagErrorKeys.length)
+                                                form.clearErrors(
+                                                    ...(tagErrorKeys as 'tags'[]),
+                                                );
+                                        }}
+                                        error={
+                                            tagErrorKeys.length
+                                                ? errors[tagErrorKeys[0]!]
+                                                : undefined
+                                        }
                                     />
                                 </div>
-                                <aside
-                                    className="h-fit space-y-3 rounded-lg border p-4"
-                                    aria-live="polite"
-                                >
-                                    <SectionHeading level={3}>
-                                        {t('Detected')}
-                                    </SectionHeading>
-                                    {probeState === 'loading' && (
-                                        <div
-                                            className="space-y-3"
-                                            aria-label={t('Checking site')}
-                                        >
-                                            <p className="text-sm">
-                                                {t('Checking site')}
-                                            </p>
-                                            <Skeleton className="h-4 w-full" />
-                                            <Skeleton className="h-4 w-3/4" />
-                                        </div>
-                                    )}
-                                    {probeState === 'done' && probe && (
-                                        <dl className="space-y-3 text-sm">
-                                            <div>
-                                                <dt className="text-muted-foreground">
-                                                    {t('URL')}
-                                                </dt>
-                                                <dd className="break-all">
-                                                    {canonicalUrl}
-                                                </dd>
-                                            </div>
-                                            {probe.final_url &&
-                                                probe.final_url !==
-                                                    canonicalUrl && (
-                                                    <div>
-                                                        <dt className="text-muted-foreground">
-                                                            {t('Redirects to')}
-                                                        </dt>
-                                                        <dd className="break-all">
-                                                            {probe.final_url}
-                                                        </dd>
-                                                    </div>
-                                                )}
-                                            {probe.status !== null && (
-                                                <div>
-                                                    <dt className="text-muted-foreground">
-                                                        {t('HTTP status')}
-                                                    </dt>
-                                                    <dd>{probe.status}</dd>
-                                                </div>
-                                            )}
-                                            {probe.server && (
-                                                <div>
-                                                    <dt className="text-muted-foreground">
-                                                        {t('Server')}
-                                                    </dt>
-                                                    <dd>{probe.server}</dd>
-                                                </div>
-                                            )}
-                                            {probe.certificate_issuer && (
-                                                <div>
-                                                    <dt className="text-muted-foreground">
-                                                        {t('Certificate')}
-                                                    </dt>
-                                                    <dd>
-                                                        {
-                                                            probe.certificate_issuer
-                                                        }
-                                                        {probe.certificate_expires_at && (
-                                                            <>
-                                                                {' '}
-                                                                ·{' '}
-                                                                <AbsoluteTime
-                                                                    value={
-                                                                        probe.certificate_expires_at
-                                                                    }
-                                                                    mode="calendarDate"
-                                                                />
-                                                            </>
+                            </FormSection>
+                            <FormSection
+                                title={t('Checks')}
+                                description={t(
+                                    'Recommended checks are selected.',
+                                )}
+                                detail={t(
+                                    'Open Settings to change their defaults.',
+                                )}
+                            >
+                                <InputError
+                                    field="site-checks"
+                                    message={form.errors.checks}
+                                />
+                                {overallHealth &&
+                                    !overallHealth.notifications_covered && (
+                                        <Alert
+                                            tone="warning"
+                                            action={
+                                                auth.canManageChannels ? (
+                                                    <TextLink
+                                                        href={teamNotifications.url()}
+                                                    >
+                                                        {t(
+                                                            'add_site.no_rules.action',
                                                         )}
-                                                    </dd>
-                                                </div>
-                                            )}
-                                            {probe.sitemap_url && (
-                                                <div>
-                                                    <dt className="text-muted-foreground">
-                                                        {t('Sitemap')}
-                                                    </dt>
-                                                    <dd className="break-all">
-                                                        {probe.sitemap_url}
-                                                    </dd>
-                                                </div>
-                                            )}
-                                        </dl>
-                                    )}
-                                    {probeState === 'error' && (
-                                        <div
-                                            role="alert"
-                                            className="space-y-2 text-sm"
+                                                    </TextLink>
+                                                ) : undefined
+                                            }
                                         >
-                                            <p>
-                                                {t(
-                                                    'Site URL could not be detected',
-                                                )}
-                                            </p>
-                                            <p className="text-muted-foreground">
-                                                {t(
-                                                    'Check the URL or retry. You can still add the site.',
-                                                )}
-                                            </p>
-                                        </div>
+                                            <AlertTitle>
+                                                {t('add_site.no_rules.title')}
+                                            </AlertTitle>
+                                            <AlertDescription>
+                                                {t('add_site.no_rules.body')}
+                                            </AlertDescription>
+                                        </Alert>
                                     )}
-                                    {probeState !== 'loading' && (
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => void runProbe(true)}
-                                        >
-                                            {t('Retry')}
-                                        </Button>
-                                    )}
-                                </aside>
-                            </div>
-                        </FormSection>
+                                <SiteChecksList
+                                    groupProps={{
+                                        'aria-label': t('Checks'),
+                                        ...fieldErrorProps(
+                                            'site-checks',
+                                            form.errors.checks,
+                                        ),
+                                    }}
+                                    checks={checks}
+                                    url={form.data.url}
+                                    recommended={
+                                        probe?.recommended_checks ??
+                                        checks
+                                            .filter(
+                                                (check) => check.recommended,
+                                            )
+                                            .map((check) => check.key)
+                                    }
+                                    reasons={reasons}
+                                    selected={form.data.checks}
+                                    settings={form.data.settings}
+                                    canManage={can_create_site}
+                                    onSettings={(key) => setOpenChecks([key])}
+                                    onToggle={(key, enabled) => {
+                                        changedChecks.current.add(key);
+                                        if (key === 'uptime' && !enabled)
+                                            changedChecks.current.add(
+                                                'performance',
+                                            );
+                                        form.clearErrors('checks');
+                                        form.setData(
+                                            'checks',
+                                            enabled
+                                                ? [...form.data.checks, key]
+                                                : form.data.checks.filter(
+                                                      (selected) =>
+                                                          selected !== key &&
+                                                          !(
+                                                              key ===
+                                                                  'uptime' &&
+                                                              selected ===
+                                                                  'performance'
+                                                          ),
+                                                  ),
+                                        );
+                                        const check = checks.find(
+                                            (option) => option.key === key,
+                                        )!;
+                                        // As in Site settings, a check is never added without its required settings.
+                                        if (
+                                            enabled &&
+                                            checkNeedsSetup(
+                                                check,
+                                                form.data.settings,
+                                            )
+                                        )
+                                            setOpenChecks([key]);
+                                    }}
+                                />
+                            </FormSection>
+                        </div>
                     )}
                     <FormActions
                         status={
-                            <>
-                                {t('Step :step of :total', {
-                                    step:
-                                        step === 'address'
-                                            ? 1
-                                            : step === 'client'
-                                              ? 2
-                                              : 3,
-                                    total: 3,
-                                })}
-                                {step === 'checks' && (
-                                    <>
-                                        {' '}
-                                        ·{' '}
-                                        {t('add_site.count.footer', {
-                                            count: checks.filter(
-                                                (check) =>
-                                                    isEligible(check) &&
-                                                    form.data.checks.includes(
-                                                        check.key,
-                                                    ) &&
-                                                    (check.key !==
-                                                        'performance' ||
-                                                        form.data.checks.includes(
-                                                            'uptime',
-                                                        )),
-                                            ).length,
-                                        })}
-                                    </>
-                                )}
-                            </>
-                        }
-                        back={
-                            step !== 'address' && (
-                                <FormSecondaryAction
-                                    onClick={() =>
-                                        setStep(
-                                            step === 'checks'
-                                                ? 'client'
-                                                : 'address',
-                                        )
-                                    }
-                                >
-                                    {t('Back')}
-                                </FormSecondaryAction>
-                            )
+                            form.processing
+                                ? t('Saving…')
+                                : errorCount
+                                  ? t('add_site.summary.attention', {
+                                        count: errorCount,
+                                    })
+                                  : host
+                                    ? [
+                                          host,
+                                          client?.name,
+                                          t('add_site.count.footer', {
+                                              count: selectedChecks.length,
+                                          }),
+                                      ]
+                                          .filter(Boolean)
+                                          .join(' · ')
+                                    : t('add_site.summary.empty')
                         }
                     >
                         <FormSecondaryAction
@@ -659,7 +634,7 @@ export default function AddSite({
                             form="site-create-form"
                             disabled={form.processing}
                         >
-                            {t(step === 'checks' ? 'Add site' : 'Next')}
+                            {t('Add site')}
                         </Button>
                     </FormActions>
                 </form>
@@ -667,7 +642,7 @@ export default function AddSite({
             {checks
                 .filter(
                     (check) =>
-                        step === 'checks' &&
+                        revealed === 2 &&
                         openChecks[0] === check.key &&
                         isEligible(check),
                 )
@@ -686,7 +661,17 @@ export default function AddSite({
                                     message,
                                 ]),
                         )}
-                        onClose={() => setOpenChecks([])}
+                        onClose={() => {
+                            // Cancelled without its required settings, the check stays off.
+                            if (checkNeedsSetup(check, form.data.settings))
+                                form.setData(
+                                    'checks',
+                                    form.data.checks.filter(
+                                        (key) => key !== check.key,
+                                    ),
+                                );
+                            setOpenChecks([]);
+                        }}
                         onApply={(settings) => {
                             form.setData('settings', settings);
                             form.clearErrors();
@@ -699,9 +684,9 @@ export default function AddSite({
                     initialName={newClientName}
                     timezones={timezones}
                     onClose={() => setNewClientName(null)}
-                    onCreated={(client) => {
-                        setCreatedClients((current) => [...current, client]);
-                        form.setData('client_id', String(client.id));
+                    onCreated={(created) => {
+                        setCreatedClients((current) => [...current, created]);
+                        form.setData('client_id', String(created.id));
                         setNewClientName(null);
                     }}
                 />

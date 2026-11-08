@@ -65,7 +65,7 @@ it('creates a site through the shared action and returns inline configuration er
     app()->instance(TargetResolver::class, (new FakeTargetResolver)->respondWith('example.test', ['127.0.0.1'])->respondWith('www.example.test', ['127.0.0.1']));
     $this->post('/sites', ['client_id' => $client->id, 'url' => 'https://example.test', 'friendly_name' => 'New site', 'tags' => ['production']])->assertRedirect();
     $site = Site::query()->where('url', 'https://example.test')->firstOrFail();
-    expect($site->tags->first()?->getTranslation('name', 'en'))->toBe('production');
+    expect($site->friendly_name)->toBe('New site')->and($site->tags->first()?->getTranslation('name', 'en'))->toBe('production');
     $expected = ['certificate_health', 'dns', 'domain', 'performance', 'uptime'];
     expect($site->checks->where('enabled', true)->pluck('type')->map(static fn (CheckKey $key): string => $key->value)->all())->toEqualCanonicalizing($expected);
     $this->post('/sites', ['client_id' => $client->id, 'url' => 'https://bad.example', 'checks' => ['application_health']])->assertSessionHasErrors();

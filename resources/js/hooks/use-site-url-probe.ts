@@ -11,6 +11,8 @@ export function useSiteUrlProbe(url: string, auto: boolean, siteId?: number) {
         'idle' | 'loading' | 'done' | 'error'
     >('idle');
     const [probeError, setProbeError] = useState<string | null>(null);
+    // The server refused the address itself (422), as opposed to a probe that could not run.
+    const [addressInvalid, setAddressInvalid] = useState(false);
     const abort = useRef<AbortController | null>(null);
     const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const clearProbe = useCallback(() => {
@@ -18,6 +20,7 @@ export function useSiteUrlProbe(url: string, auto: boolean, siteId?: number) {
         abort.current?.abort();
         setProbe(null);
         setProbeError(null);
+        setAddressInvalid(false);
         setProbeState('idle');
     }, []);
     const runProbe = useCallback(
@@ -33,6 +36,7 @@ export function useSiteUrlProbe(url: string, auto: boolean, siteId?: number) {
             abort.current = controller;
             setProbe(null);
             setProbeError(null);
+            setAddressInvalid(false);
             setProbeState('loading');
             try {
                 const token = document.cookie
@@ -63,6 +67,7 @@ export function useSiteUrlProbe(url: string, auto: boolean, siteId?: number) {
                             error?.errors?.url?.[0] ??
                                 t('sites.url_probe_failed'),
                         );
+                        setAddressInvalid(response.status === 422);
                         setProbeState('error');
                     }
                     return null;
@@ -90,5 +95,12 @@ export function useSiteUrlProbe(url: string, auto: boolean, siteId?: number) {
     }, [url, auto, runProbe]);
     useEffect(() => () => abort.current?.abort(), [url]);
 
-    return { probe, probeState, probeError, runProbe, clearProbe };
+    return {
+        probe,
+        probeState,
+        probeError,
+        addressInvalid,
+        runProbe,
+        clearProbe,
+    };
 }

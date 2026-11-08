@@ -10,5 +10,8 @@
     "sites.url_redirect": "Redirects to :url",
     "sites.url_use_address": "Use this address",
     "sites.url_duplicates_description": "List existing sites with the same normalised address, ignoring HTTP versus HTTPS (read-only)",
-    "sites.url_duplicates_none": "No duplicate site addresses."
+    "sites.url_duplicates_none": "No duplicate site addresses.",
+    "sites.url_fact.html": "Content",
+    "sites.url_fact.public_html": "Public HTML page",
+    "sites.url_fact.no_public_html": "No public HTML page"
 }

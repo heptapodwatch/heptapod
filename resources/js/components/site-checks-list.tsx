@@ -58,6 +58,7 @@ export function SiteChecksList({
     checks,
     url,
     recommended,
+    reasons,
     selected,
     settings,
     canManage,
@@ -74,6 +75,8 @@ export function SiteChecksList({
     checks: Heptapod.Data.Ui.CheckOptionData[];
     url: string;
     recommended: CheckKey[];
+    /** Why the probe recommended a check; shown on its row instead of the check's purpose. */
+    reasons: Partial<Record<CheckKey, string>>;
     selected: CheckKey[];
     settings: Record<string, FieldValue>;
     canManage: boolean;
@@ -192,9 +195,14 @@ export function SiteChecksList({
                                                         )}
                                                     </div>
                                                     <p className="text-xs text-muted-foreground">
-                                                        {t(
-                                                            `add_site.purpose.${check.key}`,
-                                                        )}
+                                                        {(section ===
+                                                            'recommended' &&
+                                                            reasons[
+                                                                check.key
+                                                            ]) ||
+                                                            t(
+                                                                `add_site.purpose.${check.key}`,
+                                                            )}
                                                     </p>
                                                     {blocked && (
                                                         <p className="text-xs text-[var(--status-warn)]">

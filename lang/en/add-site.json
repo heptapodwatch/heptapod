@@ -28,5 +28,12 @@
     "add_site.unavailable.browser_detail": "They need a server with at least 8 GB of memory.",
     "add_site.count.footer_one": ":count check will run",
     "add_site.count.footer_other": ":count checks will run",
-    "add_site.unavailable.https_hint": "Use an HTTPS address to enable this check."
+    "add_site.unavailable.https_hint": "Use an HTTPS address to enable this check.",
+    "add_site.reason.status": "Answers with HTTP :status",
+    "add_site.reason.certificate": "HTTPS · :issuer",
+    "add_site.reason.sitemap": "Sitemap found",
+    "add_site.reason.public_html": "Public HTML page found",
+    "add_site.summary.empty": "Enter an address to start",
+    "add_site.summary.attention_one": ":count field needs attention",
+    "add_site.summary.attention_other": ":count fields need attention"
 }

@@ -2,11 +2,12 @@ import type { CheckKey, FieldValue } from '@/types/monitoring';
 
 type CheckOption = Heptapod.Data.Ui.CheckOptionData;
 type Field = Heptapod.Contracts.Schema.Field;
-export type SiteCreateStep = 'address' | 'client' | 'checks';
 export type SiteCreateDraft = {
-    step: SiteCreateStep;
     url: string;
     client_id: string;
+    friendly_name: string;
+    /** Comma-separated, as typed in the Tags field. */
+    tags: string;
     checks: CheckKey[];
     settings: Record<string, FieldValue>;
     openChecks: CheckKey[];
@@ -145,17 +146,12 @@ export function siteCreateDraft(
     )
         ? String(input.client_id)
         : '';
-    const step = !url
-        ? 'address'
-        : input.step === 'checks' && client_id
-          ? 'checks'
-          : input.step === 'client' || input.step === 'checks'
-            ? 'client'
-            : 'address';
     return {
-        step,
         url,
         client_id,
+        friendly_name:
+            typeof input.friendly_name === 'string' ? input.friendly_name : '',
+        tags: typeof input.tags === 'string' ? input.tags : '',
         checks: keys(input.checks, true),
         settings,
         openChecks: keys(input.openChecks),
