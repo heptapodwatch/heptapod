@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ProductCheckDetail } from './product-check-detail';
-import { SiteCheckRows } from './site-overview-content';
+import { SiteCheckList } from './site-overview-content';
 import { checkTabPageFixture, sites } from '@/fixtures/design';
 import type { RequestedRun } from '@/hooks/use-requested-run';
 
@@ -86,7 +86,7 @@ afterEach(cleanup);
 
 it('shows the missing capability instead of awaiting a result in an unavailable overview check row', () => {
     render(
-        <SiteCheckRows
+        <SiteCheckList
             siteId={1}
             checks={[
                 {
@@ -131,10 +131,10 @@ it('keeps the stored header and change chip when no accepted recheck is pending'
 });
 
 it('uses the same projected pending state and headline in the overview check row', () => {
-    render(<SiteCheckRows siteId={1} checks={[page(true).check]} />, {
+    render(<SiteCheckList siteId={1} checks={[page(true).check]} />, {
         wrapper: TooltipProvider,
     });
     expect(screen.getByText('Checking the accepted records…')).not.toBeNull();
-    expect(screen.getByRole('img', { name: 'Pending' })).not.toBeNull();
+    expect(screen.getByText('Pending')).not.toBeNull();
     expect(screen.queryByText('Old change chip')).toBeNull();
 });

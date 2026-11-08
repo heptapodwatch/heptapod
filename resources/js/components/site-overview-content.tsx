@@ -1,5 +1,5 @@
 import { Deferred, Link } from '@inertiajs/react';
-import { ArrowRight, ChevronRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AbsoluteTime } from '@/components/absolute-time';
@@ -18,13 +18,10 @@ import {
     responseTimeSummary,
     Sparkline,
     StatusBadge,
-    StatusDot,
     UptimeBar,
 } from '@/components/monitoring';
 import { SectionHeading } from '@/components/section-heading';
 import { StatTile } from '@/components/stat-tile';
-import { TextLink } from '@/components/text-link';
-import { TruncatedText } from '@/components/truncated-text';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -47,16 +44,21 @@ import { show as checkShow } from '@/routes/sites/checks';
 type Page = Heptapod.Data.Ui.SiteOverviewPageData;
 type Check = Heptapod.Data.Ui.CheckStripData;
 
-type AttentionItem = {
+type SiteCheckRow = {
     key: string;
     state: Heptapod.Enums.SiteStatus;
+    /** StatusBadge label when the state word alone would mislead (a suppressed gap). */
+    stateLabel?: string;
     what: string;
     detail: string;
     when: ReactNode;
-    link: { href: string; label: string } | null;
+    /** The row's one target; a paused site has none (Resume is the header action). */
+    href: string | null;
+    checkId?: number;
 };
 
-const attentionColumns = 'sm:grid-cols-[8.5rem_minmax(0,1fr)_11rem_8rem]';
+/** The Sites attention band's State · What · When widths. */
+const checkListColumns = 'sm:grid-cols-[8.5rem_minmax(0,1fr)_7rem]';
 
 /** An unavailable check cannot run at all, so on its own site it needs attention too. */
 function needsAttention(state: SiteState): boolean {
@@ -72,8 +74,6 @@ function checkHref(siteId: number, check: Check): string {
 /** "Is this site OK, and what needs me?": attention first, then the 30-day record and what is coming, one row per other check, recent events. */
 export function SiteOverviewContent({ page }: { page: Page }) {
     const { t } = useTranslation();
-    const format = useFormat();
-    const headline = useCheckHeadline();
     const attentionId = useId();
     const checksId = useId();
     const { site } = page;
@@ -90,7 +90,7 @@ export function SiteOverviewContent({ page }: { page: Page }) {
     );
     const maintenance =
         page.maintenance?.state === 'active' ? page.maintenance : null;
-    const items: AttentionItem[] = [
+    const siteRows: SiteCheckRow[] = [
         ...(site.state === 'paused'
             ? [
                   {
@@ -99,7 +99,7 @@ export function SiteOverviewContent({ page }: { page: Page }) {
                       what: t('site_overview.paused'),
                       detail: t('site_overview.paused_detail'),
                       when: null,
-                      link: null,
+                      href: null,
                   },
               ]
             : []),
@@ -121,51 +121,12 @@ export function SiteOverviewContent({ page }: { page: Page }) {
                               <AbsoluteTime value={maintenance.endsAt} />
                           </span>
                       ),
-                      link: {
-                          href: maintenanceIndex.url({
-                              query: { site_id: site.id },
-                          }),
-                          label: t('Open maintenance'),
-                      },
+                      href: maintenanceIndex.url({
+                          query: { site_id: site.id },
+                      }),
                   },
               ]
             : []),
-        ...attentionChecks.map((check) => ({
-            key: `check:${check.id}`,
-            state: checkState(check),
-            // An unavailable check's cause is its missing capability, not its last retained result.
-            what: check.unavailable_reason
-                ? headline(check)
-                : format.issueHeadline({
-                      ...check,
-                      check: check.key,
-                      fallback: headline(check),
-                  }),
-            detail: t(check.label_key),
-            when: check.open_incident_started_at ? (
-                <MonitoringTime
-                    value={check.open_incident_started_at}
-                    mode="since"
-                    prefix={t('Since')}
-                />
-            ) : check.checked_at ? (
-                <MonitoringTime
-                    value={check.checked_at}
-                    mode="since"
-                    prefix={t('Checked')}
-                />
-            ) : check.unavailable_reason ? null : (
-                t('Awaiting first result')
-            ),
-            link: {
-                href: checkHref(site.id, check),
-                label: t(
-                    check.open_incident_id !== null
-                        ? 'Open incident'
-                        : 'Open check',
-                ),
-            },
-        })),
     ];
     const hasLaunchpad = site.checks.some((check) => check.key === 'uptime');
     // A healthy row of a carded check only repeats its card; a non-OK one keeps its cause.
@@ -186,61 +147,20 @@ export function SiteOverviewContent({ page }: { page: Page }) {
     return (
         <div className="space-y-6" data-site-overview>
             {/* As on Sites: nothing needs attention, no section; the header meta already states the site's state. */}
-            {items.length > 0 && (
-                <section className="space-y-3" aria-labelledby={attentionId}>
+            {siteRows.length + attentionChecks.length > 0 && (
+                <section
+                    data-site-attention
+                    className="space-y-3"
+                    aria-labelledby={attentionId}
+                >
                     <SectionHeading id={attentionId}>
                         {t('Needs attention')}
                     </SectionHeading>
-                    <div
-                        data-site-attention
-                        className="@container/table overflow-hidden rounded-lg border"
-                    >
-                        <ListHeader className={cn(attentionColumns, 'sm:grid')}>
-                            <span>{t('State')}</span>
-                            <span>{t('What')}</span>
-                            <span>{t('When')}</span>
-                            <span />
-                        </ListHeader>
-                        {items.map((item) => (
-                            <ListRow
-                                key={item.key}
-                                className={cn(
-                                    attentionColumns,
-                                    'sm:items-center',
-                                    item.link && rowTargetClass,
-                                    rowEmphasisClass(item.state),
-                                )}
-                                onClick={
-                                    item.link
-                                        ? openRowTarget(item.link.href)
-                                        : undefined
-                                }
-                            >
-                                <StatusBadge state={item.state} />
-                                <div className="min-w-0">
-                                    <TruncatedText content={item.what}>
-                                        <p className="truncate font-medium">
-                                            {item.what}
-                                        </p>
-                                    </TruncatedText>
-                                    <p className="truncate text-xs text-muted-foreground">
-                                        {item.detail}
-                                    </p>
-                                </div>
-                                <span className="font-mono text-xs text-muted-foreground">
-                                    {item.when}
-                                </span>
-                                {item.link && (
-                                    <TextLink
-                                        className="text-xs"
-                                        href={item.link.href}
-                                    >
-                                        {item.link.label}
-                                    </TextLink>
-                                )}
-                            </ListRow>
-                        ))}
-                    </div>
+                    <SiteCheckList
+                        siteId={site.id}
+                        leading={siteRows}
+                        checks={attentionChecks}
+                    />
                 </section>
             )}
             {/* Each line's height as loaded: the values wrap to two lines below sm and fit on one above. */}
@@ -298,7 +218,7 @@ export function SiteOverviewContent({ page }: { page: Page }) {
             {otherChecks.length > 0 && (
                 <section className="space-y-3" aria-labelledby={checksId}>
                     <SectionHeading id={checksId}>{t('Checks')}</SectionHeading>
-                    <SiteCheckRows siteId={site.id} checks={otherChecks} />
+                    <SiteCheckList siteId={site.id} checks={otherChecks} />
                 </section>
             )}
             <Card className="min-w-0">
@@ -386,71 +306,100 @@ function SiteRecordLines({ page }: { page: Page }) {
     );
 }
 
-/** One compact row per check: state and name, the current headline, last checked; the row opens the check or its incident. */
-export function SiteCheckRows({
+/** The row of one check: its cause or current headline, the check name, and since when (open incident) or when last checked. */
+function useCheckRow(siteId: number) {
+    const { t } = useTranslation();
+    const format = useFormat();
+    const headline = useCheckHeadline();
+    return (check: Check): SiteCheckRow => {
+        const state = check.enabled ? checkState(check) : 'disabled';
+        return {
+            key: `check:${check.id}`,
+            checkId: check.id,
+            state,
+            stateLabel: check.freshness_suppressed_by
+                ? 'No current data'
+                : undefined,
+            // An attention row names its issue (incl. the uptime-dependency headline); an unavailable check's cause is its missing capability.
+            what:
+                needsAttention(state) && !check.unavailable_reason
+                    ? format.issueHeadline({
+                          ...check,
+                          check: check.key,
+                          fallback: headline(check),
+                      })
+                    : headline(check),
+            detail: t(check.label_key),
+            when: check.open_incident_started_at ? (
+                <MonitoringTime
+                    value={check.open_incident_started_at}
+                    mode="since"
+                    prefix={t('Since')}
+                />
+            ) : check.checked_at ? (
+                <MonitoringTime
+                    value={check.checked_at}
+                    mode="since"
+                    prefix={t('Checked')}
+                />
+            ) : check.enabled && !check.unavailable_reason ? (
+                t('Awaiting first result')
+            ) : null,
+            href: checkHref(siteId, check),
+        };
+    };
+}
+
+/**
+ * Needs attention and Checks: one bordered list with the Sites attention band's State · What · When columns. A row with a
+ * target opens it from anywhere; the headline link stays its one tab stop.
+ */
+export function SiteCheckList({
     siteId,
     checks,
+    leading = [],
 }: {
     siteId: number;
     checks: Check[];
+    /** Site-level rows before the checks: a paused site, an active maintenance window. */
+    leading?: SiteCheckRow[];
 }) {
     const { t } = useTranslation();
-    const headlineFor = useCheckHeadline();
+    const checkRow = useCheckRow(siteId);
     return (
         <div className="@container/table overflow-hidden rounded-lg border">
-            {checks.map((check) => {
-                const href = checkHref(siteId, check);
-                const headline = headlineFor(check);
-                return (
-                    <ListRow
-                        key={check.id}
-                        data-site-check={check.id}
-                        className={cn(
-                            'grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 sm:grid-cols-[12rem_minmax(0,1fr)_6rem_1rem]',
-                            rowTargetClass,
-                        )}
-                        onClick={openRowTarget(href)}
-                    >
+            <ListHeader className={cn(checkListColumns, 'sm:grid')}>
+                <span>{t('State')}</span>
+                <span>{t('What')}</span>
+                <span>{t('When')}</span>
+            </ListHeader>
+            {[...leading, ...checks.map(checkRow)].map((row) => (
+                <ListRow
+                    key={row.key}
+                    data-site-check={row.checkId}
+                    className={cn(
+                        checkListColumns,
+                        'sm:items-center',
+                        row.href && rowTargetClass,
+                        rowEmphasisClass(row.state),
+                    )}
+                    onClick={row.href ? openRowTarget(row.href) : undefined}
+                >
+                    <StatusBadge state={row.state} label={row.stateLabel} />
+                    <div className="min-w-0">
                         <EntityLink
-                            href={href}
-                            name={t(check.label_key)}
-                            icon={
-                                <StatusDot
-                                    state={
-                                        check.enabled
-                                            ? checkState(check)
-                                            : 'disabled'
-                                    }
-                                    label={
-                                        check.freshness_suppressed_by
-                                            ? 'No current data'
-                                            : undefined
-                                    }
-                                />
-                            }
+                            href={row.href ?? undefined}
+                            name={row.what}
                         />
-                        <span className="text-right font-mono text-xs text-muted-foreground sm:order-3">
-                            {!check.enabled
-                                ? t('Off')
-                                : check.checked_at && (
-                                      <MonitoringTime
-                                          value={check.checked_at}
-                                          mode="since"
-                                      />
-                                  )}
-                        </span>
-                        <TruncatedText content={headline}>
-                            <span className="col-span-2 truncate text-xs text-muted-foreground sm:order-2 sm:col-span-1 sm:text-cell">
-                                {headline}
-                            </span>
-                        </TruncatedText>
-                        <ChevronRight
-                            aria-hidden
-                            className="hidden size-4 text-muted-foreground sm:order-4 sm:block"
-                        />
-                    </ListRow>
-                );
-            })}
+                        <p className="truncate text-xs text-muted-foreground">
+                            {row.detail}
+                        </p>
+                    </div>
+                    <span className="font-mono text-xs text-muted-foreground">
+                        {row.when}
+                    </span>
+                </ListRow>
+            ))}
         </div>
     );
 }
