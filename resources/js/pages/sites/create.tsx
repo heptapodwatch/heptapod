@@ -320,7 +320,16 @@ export default function AddSite({
             },
         });
     };
-    const errorCount = Object.keys(form.errors).length;
+    // The server validates each tag as `tags.N`; the Tags field shows and clears them as its own.
+    const errors = form.errors as Record<string, string>;
+    const tagErrorKeys = Object.keys(errors).filter(
+        (key) => key === 'tags' || key.startsWith('tags.'),
+    );
+    const errorCount = new Set(
+        Object.keys(errors).map((key) =>
+            tagErrorKeys.includes(key) ? 'tags' : key,
+        ),
+    ).size;
     const reasons: Partial<Record<CheckKey, string>> = probe
         ? {
               ...(probe.status && {
@@ -477,9 +486,17 @@ export default function AddSite({
                                                 'tags',
                                                 event.target.value,
                                             );
-                                            form.clearErrors('tags');
+                                            // clearErrors() without keys would clear every field.
+                                            if (tagErrorKeys.length)
+                                                form.clearErrors(
+                                                    ...(tagErrorKeys as 'tags'[]),
+                                                );
                                         }}
-                                        error={form.errors.tags}
+                                        error={
+                                            tagErrorKeys.length
+                                                ? errors[tagErrorKeys[0]!]
+                                                : undefined
+                                        }
                                     />
                                 </div>
                             </FormSection>

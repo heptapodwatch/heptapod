@@ -226,6 +226,23 @@ it('submits name, distinct tags and the selected checks once', async () => {
     });
 });
 
+it('shows a per-tag server error on the Tags field and clears it on edit', async () => {
+    vi.spyOn(router, 'post').mockImplementation((_url, _data, options) => {
+        options?.onError?.({ 'tags.1': 'Tag too long' });
+    });
+    render(<AddSite {...options} />);
+    await enterAddress();
+    chooseClient();
+    const tags = screen.getByLabelText('Tags');
+    fireEvent.change(tags, { target: { value: 'shop, x' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add site' }));
+    expect(screen.getByText('Tag too long')).not.toBeNull();
+    expect(tags.getAttribute('aria-invalid')).toBe('true');
+    fireEvent.change(tags, { target: { value: 'shop' } });
+    expect(screen.queryByText('Tag too long')).toBeNull();
+    expect(tags.getAttribute('aria-invalid')).toBeNull();
+});
+
 it.each(['shop.example.test', 'https://shop.example.test'])(
     'restores the ordinary host %s without an omitted-secrets note',
     (url) => {
