@@ -164,8 +164,17 @@ export function SiteOverviewContent({ page }: { page: Page }) {
             },
         })),
     ];
+    const hasLaunchpad = site.checks.some((check) => check.key === 'uptime');
+    // A healthy Performance row only repeats the Response card's number; a non-OK one keeps its cause.
     const otherChecks = checks.filter(
-        (check) => !attentionChecks.includes(check),
+        (check) =>
+            !attentionChecks.includes(check) &&
+            !(
+                hasLaunchpad &&
+                check.key === 'performance' &&
+                check.enabled &&
+                checkState(check) === 'ok'
+            ),
     );
     const enabledChecks = site.checks.filter((check) => check.enabled);
     const uptime = site.checks.find((check) => check.key === 'uptime');
@@ -250,6 +259,7 @@ export function SiteOverviewContent({ page }: { page: Page }) {
                     </div>
                 )}
             </section>
+            {/* Each line's height as loaded: the values wrap to two lines below sm and fit on one above. */}
             <Deferred
                 data={['record', 'upcoming']}
                 fallback={
@@ -261,7 +271,7 @@ export function SiteOverviewContent({ page }: { page: Page }) {
                                           {
                                               label: t('Last 30 days'),
                                               value: (
-                                                  <Skeleton className="h-4 w-96 max-w-full" />
+                                                  <Skeleton className="h-[2lh] w-96 max-w-full sm:h-[1lh]" />
                                               ),
                                           },
                                       ]
@@ -269,7 +279,7 @@ export function SiteOverviewContent({ page }: { page: Page }) {
                                 {
                                     label: t('Coming up'),
                                     value: (
-                                        <Skeleton className="h-4 w-72 max-w-full" />
+                                        <Skeleton className="h-[2lh] w-72 max-w-full sm:h-[1lh]" />
                                     ),
                                 },
                             ]}
@@ -621,6 +631,45 @@ const lighthouseCategories = [
     'seo',
 ] as const;
 
+/** Four score rings with their labels; without metrics the rings are skeletons of the same size. */
+function LighthouseScoreGrid({
+    metrics,
+}: {
+    metrics: Heptapod.Addons.Lighthouse.LighthouseMetrics | null;
+}) {
+    const { t } = useTranslation();
+    return (
+        <div
+            role="group"
+            aria-label={t('lighthouse.scores')}
+            aria-busy={metrics ? undefined : true}
+            className="grid grid-cols-4 gap-2"
+        >
+            {lighthouseCategories.map((category) => (
+                <div
+                    key={category}
+                    className="grid min-w-0 justify-items-center gap-1.5"
+                >
+                    {metrics ? (
+                        <ScoreRing
+                            score={metrics[`${category}_score`]}
+                            label={t(`lighthouse.${category}`)}
+                        />
+                    ) : (
+                        <Skeleton className="size-14 rounded-full" />
+                    )}
+                    <span
+                        aria-hidden="true"
+                        className="text-center text-xs leading-tight text-muted-foreground"
+                    >
+                        {t(`lighthouse.${category}`)}
+                    </span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 /** The Lighthouse tab's last successful scores with its own score rings and thresholds; no history chart. */
 function LighthouseCard({
     page,
@@ -641,41 +690,16 @@ function LighthouseCard({
         >
             <Deferred
                 data="lighthouse"
+                // The loaded layout with skeleton rings and time: the real labels wrap the same, so nothing below jumps.
                 fallback={
-                    <div aria-busy="true" className="grid grid-cols-4 gap-2">
-                        {lighthouseCategories.map((category) => (
-                            <Skeleton
-                                key={category}
-                                className="mx-auto size-14 rounded-full"
-                            />
-                        ))}
-                    </div>
+                    <>
+                        <LighthouseScoreGrid metrics={null} />
+                        <Skeleton aria-busy="true" className="h-4 w-28" />
+                    </>
                 }
             >
                 {metrics ? (
-                    <div
-                        role="group"
-                        aria-label={t('lighthouse.scores')}
-                        className="grid grid-cols-4 gap-2"
-                    >
-                        {lighthouseCategories.map((category) => (
-                            <div
-                                key={category}
-                                className="grid min-w-0 justify-items-center gap-1.5"
-                            >
-                                <ScoreRing
-                                    score={metrics[`${category}_score`]}
-                                    label={t(`lighthouse.${category}`)}
-                                />
-                                <span
-                                    aria-hidden="true"
-                                    className="text-center text-xs leading-tight text-muted-foreground"
-                                >
-                                    {t(`lighthouse.${category}`)}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
+                    <LighthouseScoreGrid metrics={metrics} />
                 ) : (
                     <p className="text-sm text-muted-foreground">
                         {t('No evidence retained for this check.')}
