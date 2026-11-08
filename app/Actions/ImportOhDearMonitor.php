@@ -349,7 +349,7 @@ final readonly class ImportOhDearMonitor
 
         return new ImportPlanRowData((string) $monitor->id, $monitor->url, $monitor->label, $monitor->teamId, array_values(array_filter($monitor->tags, is_string(...))),
             $invalid !== [] ? ImportOperation::Partial : ($site === null ? ImportOperation::Create : ImportOperation::Update), $enabled, array_values(array_diff($configured, $enabled)),
-            $notices, implode('; ', [...$details, ...$notImported]), $siteId, $siteId === null ? null : Site::query()->with('client')->findOrFail($siteId)->client?->name,
+            $notices, implode('; ', [...$details, ...$notImported]), $siteId, $siteId === null ? null : Site::query()->with('client')->findOrFail($siteId)->client?->displayName(),
             isset($attributes['uptime_check_settings']) ? ($attributes['uptime_check_settings']['failed_notification_threshold'] ?? null) === null : null);
     }
 

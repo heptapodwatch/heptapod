@@ -231,7 +231,7 @@ export function IncidentEpisode({
                   (now - new Date(incident.started_at).getTime()) / 1000,
               ),
           );
-    // A disabled check or a paused/deleted site closes an incident without a recovery (docs/ui.md).
+    // A disabled check, a paused/deleted site or a move to another client closes an incident without a recovery (docs/ui.md).
     const closed =
         resolved &&
         (page.evidence?.recovery_summary?.startsWith('incidents.resolution.') ??

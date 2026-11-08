@@ -37,12 +37,17 @@ export function ClientMark({ client, small = false }: ClientMarkProps) {
             )}
             <AvatarFallback
                 className={cn(
-                    'font-mono font-semibold text-white',
+                    'font-mono font-semibold',
+                    client.is_internal ? 'text-muted-foreground' : 'text-white',
                     small ? 'text-mark' : 'text-xs',
                 )}
-                style={{ backgroundColor: client.accent_color ?? '#4B4B57' }}
+                style={
+                    client.is_internal
+                        ? undefined
+                        : { backgroundColor: client.accent_color ?? '#4B4B57' }
+                }
             >
-                {client.is_internal ? 'I' : client.short_name || initials}
+                {client.is_internal ? '—' : client.short_name || initials}
             </AvatarFallback>
         </Avatar>
     );

@@ -71,6 +71,7 @@ export default function SiteSettings({
 }: Heptapod.Data.Ui.SiteSettingsPageData) {
     const { t } = useTranslation();
     const format = useFormat();
+    const archivedClient = client.archived_at !== null;
     const checkSettings = new Map(
         check_settings.map((check) => [check.check_id, check]),
     );
@@ -147,17 +148,21 @@ export default function SiteSettings({
     };
     const save = (event: React.SubmitEvent<HTMLFormElement>) => {
         event.preventDefault();
-        form.transform(({ tags, ...data }) => ({
-            ...data,
-            tags: [
-                ...new Set(
-                    tags
-                        .split(',')
-                        .map((tag) => tag.trim())
-                        .filter(Boolean),
-                ),
-            ],
-        }));
+        form.transform(({ tags, ...data }) =>
+            archivedClient
+                ? { client_id: data.client_id }
+                : {
+                      ...data,
+                      tags: [
+                          ...new Set(
+                              tags
+                                  .split(',')
+                                  .map((tag) => tag.trim())
+                                  .filter(Boolean),
+                          ),
+                      ],
+                  },
+        );
         form.patch(siteUpdate.url(site.id), {
             preserveScroll: true,
             onSuccess: ({ props }) => {
@@ -184,7 +189,7 @@ export default function SiteSettings({
                     showTrail
                     site={site}
                     client={client}
-                    canManage
+                    canManage={!archivedClient}
                     runAllChecks={run_all_checks}
                     maintenance={maintenance}
                     resumeAt={resume_at}
@@ -208,8 +213,16 @@ export default function SiteSettings({
                             'How this site appears in your portfolio.',
                         )}
                     >
+                        {archivedClient && (
+                            <p className="text-sm text-muted-foreground">
+                                {t(
+                                    'This client is archived; move the site to an active client to manage it, then resume it explicitly.',
+                                )}
+                            </p>
+                        )}
                         <div className="grid gap-4 sm:grid-cols-2">
                             <SiteNameField
+                                readOnly={archivedClient}
                                 value={form.data.friendly_name}
                                 onChange={(event) =>
                                     form.setData(
@@ -223,10 +236,17 @@ export default function SiteSettings({
                                 <SiteClientField
                                     clients={clientOptions}
                                     value={form.data.client_id}
+                                    placeholder={
+                                        archivedClient ? client.name : undefined
+                                    }
                                     onValueChange={(value) =>
                                         form.setData('client_id', value)
                                     }
-                                    onCreateClient={setCreateClientName}
+                                    onCreateClient={
+                                        archivedClient
+                                            ? undefined
+                                            : setCreateClientName
+                                    }
                                     disabled={form.processing}
                                     error={form.errors.client_id}
                                 />
@@ -239,6 +259,7 @@ export default function SiteSettings({
                             </div>
                             <div className="sm:col-span-2">
                                 <SiteUrlField
+                                    readOnly={archivedClient}
                                     type="text"
                                     inputMode="url"
                                     required
@@ -277,6 +298,7 @@ export default function SiteSettings({
                             </div>
                             <div className="sm:col-span-2">
                                 <SiteTagsField
+                                    readOnly={archivedClient}
                                     value={form.data.tags}
                                     onChange={(event) =>
                                         form.setData('tags', event.target.value)
@@ -344,6 +366,7 @@ export default function SiteSettings({
                                                         ? `settings-check-${check.id}-summary`
                                                         : undefined
                                                 }
+                                                disabled={archivedClient}
                                                 checked={form.data.checks.includes(
                                                     check.key,
                                                 )}
@@ -409,15 +432,16 @@ export default function SiteSettings({
                         {t('Save')}
                     </Button>
                 </FormActions>
-                {site.checks.some((check) => check.key === 'uptime') && (
-                    <SiteAlertSensitivity
-                        siteId={site.id}
-                        saved={alert_sensitivity}
-                        team={team_alert_sensitivity}
-                        presets={alert_sensitivity_presets}
-                        bounds={alert_sensitivity_bounds}
-                    />
-                )}
+                {!archivedClient &&
+                    site.checks.some((check) => check.key === 'uptime') && (
+                        <SiteAlertSensitivity
+                            siteId={site.id}
+                            saved={alert_sensitivity}
+                            team={team_alert_sensitivity}
+                            presets={alert_sensitivity_presets}
+                            bounds={alert_sensitivity_bounds}
+                        />
+                    )}
                 <FormSection
                     title={t('icons.title')}
                     description={t('icons.description')}
@@ -458,6 +482,7 @@ export default function SiteSettings({
                             variant="outline"
                             size="sm"
                             disabled={
+                                archivedClient ||
                                 iconForm.processing ||
                                 iconPending ||
                                 site.identity.state === 'paused'
@@ -501,6 +526,7 @@ export default function SiteSettings({
                     <div className="flex flex-wrap gap-2">
                         <Button
                             variant="destructive"
+                            disabled={archivedClient}
                             onClick={() => {
                                 setDeleteOpen(true);
                                 loadDeletionImpact();

@@ -105,6 +105,6 @@
     ":count sites failed in an earlier attempt and were not read again._other": ":count sites failed in an earlier attempt and were not read again.",
     "Use a read-only Oh Dear API token.": "Use a read-only Oh Dear API token.",
     "It is used for this import only: it is kept encrypted for at most 15 minutes between the plan and the import, then it expires. It is never shown or logged.": "It is used for this import only: it is kept encrypted for at most 15 minutes between the plan and the import, then it expires. It is never shown or logged.",
-    "Sites go to Internal unless you assign a client.": "Sites go to Internal unless you assign a client.",
-    "A tag assignment wins over the team assignment; a choice per site wins over both.": "A tag assignment wins over the team assignment; a choice per site wins over both."
+    "A tag assignment wins over the team assignment; a choice per site wins over both.": "A tag assignment wins over the team assignment; a choice per site wins over both.",
+    "Sites without an assigned client go to No client.": "Sites without an assigned client go to No client."
 }

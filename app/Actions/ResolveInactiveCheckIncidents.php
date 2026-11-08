@@ -22,10 +22,14 @@ final readonly class ResolveInactiveCheckIncidents
 {
     public function __construct(private EventOutbox $outbox, private DatabaseClock $clock) {}
 
-    /** @return list<int> */
-    public function __invoke(Check $check, bool $deletingSite = false, ?User $actor = null): array
+    /**
+     * Ends the check's open incident without a recovery: for $reason, else for the reason its monitoring has stopped.
+     *
+     * @return list<int>
+     */
+    public function __invoke(Check $check, ?IncidentResolutionReason $reason = null, ?User $actor = null): array
     {
-        return DB::transaction(function () use ($check, $deletingSite, $actor): array {
+        return DB::transaction(function () use ($check, $reason, $actor): array {
             // NotificationLocks: the check and its site (exclusive), then the incidents and deliveries below (lockWork).
             // Callers that resolve several checks (PauseSite, DeleteSite) take lockWork for all of them first.
             NotificationLocks::checks([], exclusive: [$check->id]);
@@ -36,7 +40,7 @@ final readonly class ResolveInactiveCheckIncidents
             }
             NotificationLocks::sites([$locked->site_id], exclusive: true);
             $site = Site::query()->findOrFail($locked->site_id);
-            $reason = IncidentResolutionReason::forCheck($locked, $site, $deletingSite);
+            $reason ??= IncidentResolutionReason::forCheck($locked, $site);
             if (! $reason instanceof IncidentResolutionReason) {
                 return [];
             }

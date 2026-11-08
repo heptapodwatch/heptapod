@@ -35,6 +35,7 @@ use Spatie\Tags\Tag;
  * @property int $client_id
  * @property string $url
  * @property list<array{name: string, value: string}>|null $crawler_headers
+ * @property CarbonImmutable|null $paused_by_archive_at
  * @property CarbonImmutable|null $paused_at
  * @property CarbonImmutable|null $resume_at
  * @property CarbonImmutable|null $marked_for_deletion_at
@@ -115,7 +116,8 @@ final class Site extends Model
 
     protected function casts(): array
     {
-        return ['alert_after_minutes' => 'integer', 'alert_recovery_checks' => 'integer', 'icon_backing' => SiteIconBacking::class, 'icon_manual_result' => DataEloquentCast::class.':'.IconRefreshResultData::class, 'icon_fetched_at' => 'immutable_datetime', 'icon_attempted_at' => 'immutable_datetime', 'icon_manual_requested_at' => 'immutable_datetime', 'crawler_headers' => 'encrypted:array', 'send_report_to_emails' => 'array', 'include_check_types_in_report' => 'array', 'paused_at' => 'immutable_datetime', 'resume_at' => 'immutable_datetime', 'marked_for_deletion_at' => 'immutable_datetime'];
+        return ['alert_after_minutes' => 'integer', 'alert_recovery_checks' => 'integer', 'icon_backing' => SiteIconBacking::class, 'icon_manual_result' => DataEloquentCast::class.':'.IconRefreshResultData::class, 'icon_fetched_at' => 'immutable_datetime', 'icon_attempted_at' => 'immutable_datetime', 'icon_manual_requested_at' => 'immutable_datetime', 'crawler_headers' => 'encrypted:array', 'send_report_to_emails' => 'array', 'include_check_types_in_report' => 'array', 'paused_at' => 'immutable_datetime',
+            'paused_by_archive_at' => 'immutable_datetime', 'resume_at' => 'immutable_datetime', 'marked_for_deletion_at' => 'immutable_datetime'];
     }
 
     /** @return BelongsTo<Client, $this> */

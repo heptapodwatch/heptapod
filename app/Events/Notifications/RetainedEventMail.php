@@ -45,14 +45,14 @@ final readonly class RetainedEventMail
         $name = $site?->displayName() ?? $event->site_name ?? throw new \LogicException('A retained alert must keep its site label.');
         $label = $site === null ? __('events.deleted_site', ['label' => $name], $locale) : $name;
         $client = $site?->client;
-        $clientName = $client->name ?? $event->client_name ?? throw new \LogicException('A retained alert must keep its client.');
+        $clientName = ($client ?? ($event->client?->is_internal === true ? $event->client : null))?->displayName($locale) ?? $event->client_name ?? throw new \LogicException('A retained alert must keep its client.');
         $checkType = $event->check->type ?? $event->check_type ?? throw new \LogicException('A retained alert must keep its check type.');
         $facts = EventFacts::fromEvent($event);
         // Whether the check's add-on is installed is independent of whether its site or check still exists.
         $addonInstalled = in_array($checkType, $this->registry->keys(), true);
         // How the incident was closed is a fact of the event; a deleted site or removed check only limits what is still shown.
-        // Only ResolveInactiveCheckIncidents records a resolution_reason: monitoring stopped. Any other closure with a
-        // resolution_key was reported by the check itself because nothing is left to check (cron without tasks).
+        // Only ResolveInactiveCheckIncidents records a resolution_reason: monitoring stopped or the site moved to another client.
+        // Any other closure with a resolution_key was reported by the check itself because nothing is left to check (cron without tasks).
         $closure = null;
         if ($event->type === 'incident.resolved' && isset($facts->summaryParams['resolution_key'])) {
             $stoppedBy = $event->payload['resolution_reason'] ?? null;

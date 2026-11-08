@@ -73,6 +73,17 @@ it('limits every search group and scopes all matches without leaking secrets', f
     }
 })->with([30, 300]);
 
+it('finds No client by its translated label within the visible scope', function (string $locale, string $label): void {
+    $internal = Client::query()->where('is_internal', true)->firstOrFail();
+    Site::factory()->for($internal)->create();
+    $owner = User::factory()->owner()->create(['locale' => $locale]);
+    $this->actingAs($owner)->getJson('/search?'.http_build_query(['q' => $label]))
+        ->assertOk()->assertJsonCount(1, 'clients')->assertJsonPath('clients.0.id', $internal->id);
+
+    $member = User::factory()->member()->create(['locale' => $locale, 'client_scope' => ClientScope::Restricted]);
+    $this->actingAs($member)->getJson('/search?'.http_build_query(['q' => $label]))->assertOk()->assertJsonCount(0, 'clients');
+})->with(['en' => ['en', 'No client'], 'de' => ['de', 'Ohne Kunde']]);
+
 it('validates search input and returns no results for an empty query', function (): void {
     $this->get('/search')->assertRedirect('/login');
     $user = User::factory()->create();

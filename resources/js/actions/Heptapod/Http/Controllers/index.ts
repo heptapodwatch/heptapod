@@ -8,7 +8,9 @@ import ClientsIndexController from './ClientsIndexController'
 import ClientSettingsController from './ClientSettingsController'
 import ClientDetailController from './ClientDetailController'
 import ClientLogoController from './ClientLogoController'
+import RestoreClientController from './RestoreClientController'
 import ArchiveClientController from './ArchiveClientController'
+import ClientMoveBlockersController from './ClientMoveBlockersController'
 import ClientMessagesController from './ClientMessagesController'
 import ClientMessageAttachmentController from './ClientMessageAttachmentController'
 import ClientMessagePreviewController from './ClientMessagePreviewController'
@@ -55,7 +57,9 @@ const Controllers = {
     ClientSettingsController: Object.assign(ClientSettingsController, ClientSettingsController),
     ClientDetailController: Object.assign(ClientDetailController, ClientDetailController),
     ClientLogoController: Object.assign(ClientLogoController, ClientLogoController),
+    RestoreClientController: Object.assign(RestoreClientController, RestoreClientController),
     ArchiveClientController: Object.assign(ArchiveClientController, ArchiveClientController),
+    ClientMoveBlockersController: Object.assign(ClientMoveBlockersController, ClientMoveBlockersController),
     ClientMessagesController: Object.assign(ClientMessagesController, ClientMessagesController),
     ClientMessageAttachmentController: Object.assign(ClientMessageAttachmentController, ClientMessageAttachmentController),
     ClientMessagePreviewController: Object.assign(ClientMessagePreviewController, ClientMessagePreviewController),

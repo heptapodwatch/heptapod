@@ -54,7 +54,7 @@ final class IncidentExportController extends Controller
                         throw new \LogicException('Incident export translations must be text.');
                     }
                     $values = [$row->id, $state, $row->site_name,
-                        $client->name, $row->check->value, $row->cause->value, $summary,
+                        $client->displayName(), $row->check->value, $row->cause->value, $summary,
                         $row->started_at, $row->resolved_at ?? '', $row->duration_seconds];
                     fputcsv($output, array_map(self::safeCell(...), $values), ',', '"', '');
                 }

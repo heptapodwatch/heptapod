@@ -30,7 +30,7 @@ final readonly class DigestMail
         }
         $locale = $destination->effectiveLocale();
         // The digest's own source list bounds this primary-key lookup; ordering needs every source's category.
-        $sources = Delivery::query()->with('event.check');
+        $sources = Delivery::query()->with(['event.check', 'event.client']);
         $sources->getQuery()->whereIn('id', $sourceIds)->orderBy('id');
         $rows = [];
         $sites = [];
@@ -41,7 +41,7 @@ final readonly class DigestMail
             $category = $source->category ?? NotificationCategory::of($event);
             $siteId = $event->site_id ?? throw new \LogicException('A digest source must keep its site.');
             $sites[$siteId] = ['name' => $event->site_name ?? throw new \LogicException('A digest source must retain its site label.'),
-                'client' => $event->client_name ?? throw new \LogicException('A digest source must retain its client.'),
+                'client' => ($event->client?->is_internal === true ? $event->client->displayName($locale) : $event->client_name) ?? throw new \LogicException('A digest source must retain its client.'),
                 'url' => $event->site_url ?? throw new \LogicException('A digest source must retain its URL.')];
             $rows[] = ['site' => $siteId, 'category' => $category,
                 'check' => $event->check->type ?? $event->check_type ?? throw new \LogicException('A digest source needs its check type.')];

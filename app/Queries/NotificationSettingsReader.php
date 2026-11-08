@@ -43,7 +43,7 @@ final readonly class NotificationSettingsReader
         $query = Client::query();
         $query->getQuery()->whereNull('archived_at')->orderBy('name');
         foreach ($query->get(['id', 'name']) as $client) {
-            $clients[] = ['id' => $client->id, 'name' => $client->name];
+            $clients[] = ['id' => $client->id, 'name' => $client->displayName()];
         }
 
         return $this->page(RecipientKind::Team, null, $this->settings->name, $viewer, Site::query()->getQuery()->select('sites.*')->whereIntegerInRaw('sites.id', $this->sites->visibleSiteIds($viewer)),
@@ -63,7 +63,7 @@ final readonly class NotificationSettingsReader
         $schedule = NotificationSchedule::defaults(RecipientKind::Client, clientId: $client->id);
         $schedule->setRelation('client', $client);
 
-        return $this->page(RecipientKind::Client, $client->id, $client->name, $viewer,
+        return $this->page(RecipientKind::Client, $client->id, $client->displayName(), $viewer,
             Site::query()->getQuery()->select('sites.*')->where('sites.client_id', $client->id), $schedule, []);
     }
 
@@ -146,7 +146,7 @@ final readonly class NotificationSettingsReader
         // Site exceptions name a site so it can be told apart from others of the same name: avatar, client and host.
         $siteRows = [];
         // The callers' base query already selects sites.*; get() would not narrow it, so the client name is added to it.
-        foreach ($sites->join('clients', 'clients.id', '=', 'sites.client_id')->addSelect('clients.name AS client_name')
+        foreach ($sites->join('clients', 'clients.id', '=', 'sites.client_id')->selectRaw(Client::displayNameSql().' AS client_name', [__('No client')])
             ->orderBy('sites.friendly_name')->orderBy('sites.url')->get() as $site) {
             $friendly = ((array) $site)['friendly_name'] ?? null;
             $hash = ((array) $site)['icon_hash'] ?? null;

@@ -34,7 +34,7 @@ final readonly class SearchReader
         $clientQuery = Client::query();
         $clientQuery->getQuery()->whereIn('id', $siteRows->pluck('client_id')->unique()->all());
         /** @var array<int, string> $clientNames */
-        $clientNames = $clientQuery->pluck('name', 'id')->all();
+        $clientNames = $clientQuery->get(['id', 'name', 'is_internal'])->mapWithKeys(static fn (Client $client): array => [$client->id => $client->displayName()])->all();
         $rows = [];
         foreach ($siteRows as $site) {
             $name = $site->getAttribute('name');
@@ -44,7 +44,7 @@ final readonly class SearchReader
             }
             $rows[] = new SearchSiteData($site->id, $name, $site->url, $site->client_id, SiteStatus::from($state), $site->iconUrl(), $site->icon_backing, $clientNames[$site->client_id] ?? null);
         }
-        $clients->getQuery()->where('name', 'ilike', $pattern)->orderBy('name')->orderBy('id')->limit(10);
+        $clients->getQuery()->whereRaw(Client::displayNameSql().' ILIKE ?', [__('No client'), $pattern])->orderBy('name')->orderBy('id')->limit(10);
         $clientRows = $clients->with(Client::AvatarRelations)->get()->map(static fn (Client $client): ClientData => ClientData::fromClient($client))->all();
         $incidentId = null;
         if (preg_match('/^INC-([1-9][0-9]*)$/iD', $search, $matches) === 1) {

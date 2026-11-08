@@ -67,7 +67,8 @@ final readonly class MaintenanceReader
         $siteLabels = $sites->get()->mapWithKeys(static fn (Site $site): array => [$site->id => $site->displayName()]);
         $clients = Client::query();
         $clients->getQuery()->whereIn('id', $byType->get('client', collect())->pluck('target_id')->all());
-        $clientLabels = $clients->pluck('name', 'id');
+        $clients->getQuery()->select('clients.id')->selectRaw(Client::displayNameSql().' AS display_name', [__('No client')]);
+        $clientLabels = $clients->pluck('display_name', 'id');
         $tags = Tag::query();
         $tags->getQuery()->whereIn('id', $byType->get('tag', collect())->pluck('target_id')->all());
         $tagLabels = $tags->get()->mapWithKeys(static fn (Tag $tag): array => [$tag->id => $tag->name]);

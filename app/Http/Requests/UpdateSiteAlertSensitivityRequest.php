@@ -17,7 +17,7 @@ final class UpdateSiteAlertSensitivityRequest extends FormRequest
     {
         $site = $this->route('site');
 
-        return $site instanceof Site && Gate::allows('update', $site);
+        return $site instanceof Site && (Gate::allows('update', $site) || ($this->has('client_id') && Gate::allows('move', $site)));
     }
 
     /** @return array<string, list<string>> */

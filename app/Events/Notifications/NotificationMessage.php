@@ -102,7 +102,7 @@ final readonly class NotificationMessage
                 ['site' => $site->displayName()], 'notifications.maintenance_catch_up_summary',
                 ['count' => $count, 'checks' => ''], $site->id, $site->displayName(),
                 SecretRedactor::redact($site->url, $context->secrets, $context->urls), null,
-                CarbonImmutable::parse($since)->utc(), null, 'failed', $deletedSite ? null : route('sites.show', ['site' => $site->id]), clientName: $client->name, checkTypes: $checks,
+                CarbonImmutable::parse($since)->utc(), null, 'failed', $deletedSite ? null : route('sites.show', ['site' => $site->id]), clientName: $destination?->channel === 'mail' ? $client->displayName($destination->effectiveLocale()) : $client->name, checkTypes: $checks,
                 mail: $destination?->channel === 'mail' ? $this->catchUps->build($event, $destination) : null);
         }
         $severity = $this->types->severity($event);
@@ -183,7 +183,7 @@ final readonly class NotificationMessage
             $site->id, $label, SecretRedactor::redact($site->url, $context->secrets, $context->urls), $check, $since->utc(), $downtime,
             $severity === AlertSeverity::Error ? 'errored' : ($severity === AlertSeverity::Down ? 'failed' : null),
             $deletedSite ? null : ($event->incident_id !== null ? route('incidents.show', ['incident' => $event->incident_id]) : route('sites.show', ['site' => $site->id])),
-            clientName: $client->name,
+            clientName: $destination?->channel === 'mail' ? $client->displayName($destination->effectiveLocale()) : $client->name,
             affectedChecks: $affectedChecks,
             recheckingChecks: $recheckingChecks,
             mailContext: $mailContext,

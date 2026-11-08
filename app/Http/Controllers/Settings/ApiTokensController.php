@@ -47,7 +47,7 @@ final class ApiTokensController extends Controller
             ? $policy->visibleClients($user, includeArchived: true)->with(Client::AvatarRelations)->get()->sortBy('name')->values()
             : new Collection;
         /** @var array<int, string> $names */
-        $names = $clients->pluck('name', 'id')->all();
+        $names = $clients->mapWithKeys(static fn (Client $client): array => [$client->id => $client->displayName()])->all();
         $tokens = $user->tokens()->getQuery()->get()->sortBy('id')->map(static function (PersonalAccessToken $token) use ($names): array {
             /** @var int|null $clientId */
             $clientId = $token->getAttribute('client_id');
@@ -61,7 +61,7 @@ final class ApiTokensController extends Controller
         })->all();
 
         return new ApiTokenSettingsData(array_values($tokens), CreateApiToken::Abilities, $create->presets($user),
-            array_values($clients->map(static fn (Client $client): array => ['id' => $client->id, 'name' => $client->name, 'short_name' => $client->short_name, 'accent_color' => $client->accent_color, 'avatar' => app(ResolveClientAvatar::class)($client), 'is_internal' => $client->is_internal])->all()), $user->timezone);
+            array_values($clients->map(static fn (Client $client): array => ['id' => $client->id, 'name' => $client->displayName(), 'short_name' => $client->short_name, 'accent_color' => $client->accent_color, 'avatar' => app(ResolveClientAvatar::class)($client), 'is_internal' => $client->is_internal])->all()), $user->timezone);
     }
 
     public function store(Request $request, CreateApiToken $create): JsonResponse

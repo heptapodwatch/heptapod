@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::create
-* @see app/Http/Controllers/ClientSettingsController.php:22
+* @see app/Http/Controllers/ClientSettingsController.php:23
 * @route '/clients/create'
 */
 export const create = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ create.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::create
-* @see app/Http/Controllers/ClientSettingsController.php:22
+* @see app/Http/Controllers/ClientSettingsController.php:23
 * @route '/clients/create'
 */
 create.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ create.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::create
-* @see app/Http/Controllers/ClientSettingsController.php:22
+* @see app/Http/Controllers/ClientSettingsController.php:23
 * @route '/clients/create'
 */
 create.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ create.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::create
-* @see app/Http/Controllers/ClientSettingsController.php:22
+* @see app/Http/Controllers/ClientSettingsController.php:23
 * @route '/clients/create'
 */
 create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::create
-* @see app/Http/Controllers/ClientSettingsController.php:22
+* @see app/Http/Controllers/ClientSettingsController.php:23
 * @route '/clients/create'
 */
 const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::create
-* @see app/Http/Controllers/ClientSettingsController.php:22
+* @see app/Http/Controllers/ClientSettingsController.php:23
 * @route '/clients/create'
 */
 createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::create
-* @see app/Http/Controllers/ClientSettingsController.php:22
+* @see app/Http/Controllers/ClientSettingsController.php:23
 * @route '/clients/create'
 */
 createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ create.form = createForm
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::store
-* @see app/Http/Controllers/ClientSettingsController.php:29
+* @see app/Http/Controllers/ClientSettingsController.php:30
 * @route '/clients'
 */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -97,7 +97,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::store
-* @see app/Http/Controllers/ClientSettingsController.php:29
+* @see app/Http/Controllers/ClientSettingsController.php:30
 * @route '/clients'
 */
 store.url = (options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::store
-* @see app/Http/Controllers/ClientSettingsController.php:29
+* @see app/Http/Controllers/ClientSettingsController.php:30
 * @route '/clients'
 */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -116,7 +116,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::store
-* @see app/Http/Controllers/ClientSettingsController.php:29
+* @see app/Http/Controllers/ClientSettingsController.php:30
 * @route '/clients'
 */
 const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -126,7 +126,7 @@ const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::store
-* @see app/Http/Controllers/ClientSettingsController.php:29
+* @see app/Http/Controllers/ClientSettingsController.php:30
 * @route '/clients'
 */
 storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -138,7 +138,7 @@ store.form = storeForm
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::edit
-* @see app/Http/Controllers/ClientSettingsController.php:42
+* @see app/Http/Controllers/ClientSettingsController.php:43
 * @route '/clients/{client}/settings'
 */
 export const edit = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -153,7 +153,7 @@ edit.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::edit
-* @see app/Http/Controllers/ClientSettingsController.php:42
+* @see app/Http/Controllers/ClientSettingsController.php:43
 * @route '/clients/{client}/settings'
 */
 edit.url = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -186,7 +186,7 @@ edit.url = (args: { client: number | { id: number } } | [client: number | { id: 
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::edit
-* @see app/Http/Controllers/ClientSettingsController.php:42
+* @see app/Http/Controllers/ClientSettingsController.php:43
 * @route '/clients/{client}/settings'
 */
 edit.get = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -196,7 +196,7 @@ edit.get = (args: { client: number | { id: number } } | [client: number | { id: 
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::edit
-* @see app/Http/Controllers/ClientSettingsController.php:42
+* @see app/Http/Controllers/ClientSettingsController.php:43
 * @route '/clients/{client}/settings'
 */
 edit.head = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -206,7 +206,7 @@ edit.head = (args: { client: number | { id: number } } | [client: number | { id:
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::edit
-* @see app/Http/Controllers/ClientSettingsController.php:42
+* @see app/Http/Controllers/ClientSettingsController.php:43
 * @route '/clients/{client}/settings'
 */
 const editForm = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -216,7 +216,7 @@ const editForm = (args: { client: number | { id: number } } | [client: number | 
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::edit
-* @see app/Http/Controllers/ClientSettingsController.php:42
+* @see app/Http/Controllers/ClientSettingsController.php:43
 * @route '/clients/{client}/settings'
 */
 editForm.get = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -226,7 +226,7 @@ editForm.get = (args: { client: number | { id: number } } | [client: number | { 
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::edit
-* @see app/Http/Controllers/ClientSettingsController.php:42
+* @see app/Http/Controllers/ClientSettingsController.php:43
 * @route '/clients/{client}/settings'
 */
 editForm.head = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -243,7 +243,7 @@ edit.form = editForm
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::update
-* @see app/Http/Controllers/ClientSettingsController.php:49
+* @see app/Http/Controllers/ClientSettingsController.php:53
 * @route '/clients/{client}'
 */
 export const update = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -258,7 +258,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::update
-* @see app/Http/Controllers/ClientSettingsController.php:49
+* @see app/Http/Controllers/ClientSettingsController.php:53
 * @route '/clients/{client}'
 */
 update.url = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -291,7 +291,7 @@ update.url = (args: { client: number | { id: number } } | [client: number | { id
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::update
-* @see app/Http/Controllers/ClientSettingsController.php:49
+* @see app/Http/Controllers/ClientSettingsController.php:53
 * @route '/clients/{client}'
 */
 update.patch = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -301,7 +301,7 @@ update.patch = (args: { client: number | { id: number } } | [client: number | { 
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::update
-* @see app/Http/Controllers/ClientSettingsController.php:49
+* @see app/Http/Controllers/ClientSettingsController.php:53
 * @route '/clients/{client}'
 */
 const updateForm = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -316,7 +316,7 @@ const updateForm = (args: { client: number | { id: number } } | [client: number 
 
 /**
 * @see \Heptapod\Http\Controllers\ClientSettingsController::update
-* @see app/Http/Controllers/ClientSettingsController.php:49
+* @see app/Http/Controllers/ClientSettingsController.php:53
 * @route '/clients/{client}'
 */
 updateForm.patch = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

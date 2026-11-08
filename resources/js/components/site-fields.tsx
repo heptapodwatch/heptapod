@@ -247,6 +247,7 @@ export function SiteClientField({ error, ...props }: SiteClientFieldProps) {
                     id={id}
                     options={clients.map(option)}
                     value={selectProps.value}
+                    placeholder={selectProps.placeholder}
                     onValueChange={selectProps.onValueChange}
                     disabled={selectProps.disabled}
                     invalid={!!error}

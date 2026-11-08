@@ -465,7 +465,8 @@ foreach ($files as $path) {
         foreach ($matches[0] as [$tag, $offset]) {
             $removal = preg_match('~confirmLabel=\{t\(\s*[\'"](?:Delete|Remove|Revoke|Archive|Skip)\b~', $tag) === 1
                 || (str_contains($tag, 'confirmationCopy') && preg_match("~label: '(?:Delete|Remove|Revoke|Archive|Skip)\\b~", $source) === 1);
-            if ($removal && preg_match('~\sdestructive(?:[\s=/>])~', $tag) !== 1) {
+            $reversibleArchive = $path === 'resources/js/pages/clients/settings.tsx' && str_contains($tag, "confirmLabel={t('Archive client')}");
+            if ($removal && ! $reversibleArchive && preg_match('~\sdestructive(?:[\s=/>])~', $tag) !== 1) {
                 $failures[] = sprintf('%s:%d: irreversible ConfirmDialog without destructive', $path, substr_count($source, "\n", 0, $offset) + 1);
             }
         }

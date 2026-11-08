@@ -36,7 +36,17 @@ final readonly class ClientsReader
                 ->groupBy('client_id');
             $clients->getQuery()->leftJoinSub($ranked, 'attention', 'attention.client_id', '=', 'clients.id');
         }
-        $query = QueryBuilder::for($clients, $request)->allowedFilters(AllowedFilter::partial('search', 'clients.name'), AllowedFilter::callback('state', static function (Builder $query, mixed $value): void {
+        $query = QueryBuilder::for($clients, $request)->allowedFilters(AllowedFilter::callback('search', static function (Builder $query, mixed $value): void {
+            $query->where(static function (Builder $matches) use ($value): void {
+                foreach ((array) $value as $term) {
+                    if (! is_string($term)) {
+                        throw new \LogicException('Client search must be validated.');
+                    }
+                    $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term).'%';
+                    $matches->getQuery()->orWhereRaw(Client::displayNameSql().' ILIKE ?', [__('No client'), $pattern]);
+                }
+            });
+        }), AllowedFilter::callback('state', static function (Builder $query, mixed $value): void {
             if ($value === 'archived') {
                 $query->getQuery()->whereNotNull('clients.archived_at');
             } elseif ($value === 'attention') {

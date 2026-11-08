@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\ArchiveClientController::__invoke
-* @see app/Http/Controllers/ArchiveClientController.php:14
+* @see app/Http/Controllers/ArchiveClientController.php:18
 * @route '/clients/{client}/archive'
 */
 const ArchiveClientController = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ ArchiveClientController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\ArchiveClientController::__invoke
-* @see app/Http/Controllers/ArchiveClientController.php:14
+* @see app/Http/Controllers/ArchiveClientController.php:18
 * @route '/clients/{client}/archive'
 */
 ArchiveClientController.url = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ ArchiveClientController.url = (args: { client: number | { id: number } } | [clie
 
 /**
 * @see \Heptapod\Http\Controllers\ArchiveClientController::__invoke
-* @see app/Http/Controllers/ArchiveClientController.php:14
+* @see app/Http/Controllers/ArchiveClientController.php:18
 * @route '/clients/{client}/archive'
 */
 ArchiveClientController.post = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ ArchiveClientController.post = (args: { client: number | { id: number } } | [cli
 
 /**
 * @see \Heptapod\Http\Controllers\ArchiveClientController::__invoke
-* @see app/Http/Controllers/ArchiveClientController.php:14
+* @see app/Http/Controllers/ArchiveClientController.php:18
 * @route '/clients/{client}/archive'
 */
 const ArchiveClientControllerForm = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const ArchiveClientControllerForm = (args: { client: number | { id: number } } |
 
 /**
 * @see \Heptapod\Http\Controllers\ArchiveClientController::__invoke
-* @see app/Http/Controllers/ArchiveClientController.php:14
+* @see app/Http/Controllers/ArchiveClientController.php:18
 * @route '/clients/{client}/archive'
 */
 ArchiveClientControllerForm.post = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

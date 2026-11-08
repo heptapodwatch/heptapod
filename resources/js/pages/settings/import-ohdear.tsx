@@ -434,7 +434,7 @@ export default function ImportOhDear({ clients }: { clients: ClientOption[] }) {
                     <FormSection
                         title={t('Clients')}
                         description={t(
-                            'Sites go to Internal unless you assign a client.',
+                            'Sites without an assigned client go to No client.',
                         )}
                         detail={t(
                             'A tag assignment wins over the team assignment; a choice per site wins over both.',

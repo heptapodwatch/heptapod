@@ -16,7 +16,7 @@ final class ClientData extends Data
     {
         $avatar = app(ResolveClientAvatar::class)($client);
 
-        return new self($client->id, $client->name, $client->locale, $client->timezone, $client->short_name,
+        return new self($client->id, $client->displayName(), $client->locale, $client->timezone, $client->short_name,
             $client->contact_name, $client->accent_color, $client->archived_at?->toIso8601String(), $client->is_internal, $avatar, $client->avatar_site_id);
     }
 

@@ -9,6 +9,7 @@ use Heptapod\Actions\UpdateClient;
 use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\ClientSettingsPageData;
 use Heptapod\Models\Client;
+use Heptapod\Models\User;
 use Heptapod\Queries\ClientSettingsReader;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -39,11 +40,14 @@ final class ClientSettingsController extends Controller
         return redirect()->route('clients.show', ['client' => $client->id]);
     }
 
-    public function edit(Client $client, ClientSettingsReader $reader): Response
+    public function edit(Request $request, Client $client, ClientSettingsReader $reader): Response
     {
         Gate::authorize('update', $client);
 
-        return Inertia::render('clients/settings', $reader->read($client)->toArray());
+        $user = $request->user();
+        abort_unless($user instanceof User, 401);
+
+        return Inertia::render('clients/settings', $reader->read($client, $user)->toArray());
     }
 
     public function update(Request $request, Client $client, UpdateClient $update): RedirectResponse

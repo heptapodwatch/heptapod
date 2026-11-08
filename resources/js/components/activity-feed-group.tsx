@@ -24,6 +24,15 @@ import { show as incidentShow } from '@/routes/incidents';
 import { EntityLink } from '@/components/entity-link';
 import { TextLink } from '@/components/text-link';
 
+/** An administrative resolution (pause, disable, deletion, move) is Closed, never Recovered. */
+function eventBadgeLabel(event: Heptapod.Data.Ui.EventData) {
+    if (event.message_params.administrative_resolution === true)
+        return 'Closed';
+    return event.severity === 'recovered'
+        ? 'activity.recovered'
+        : eventLabel(event);
+}
+
 export function ActivityFeedGroup({
     group,
     filters,
@@ -128,11 +137,7 @@ export function ActivityFeedGroup({
                         <div className="flex flex-wrap items-start gap-2">
                             <StatusBadge
                                 state={eventState(event)}
-                                label={
-                                    event.severity === 'recovered'
-                                        ? 'activity.recovered'
-                                        : eventLabel(event)
-                                }
+                                label={eventBadgeLabel(event)}
                             />
                             {event.incident_id ? (
                                 <TextLink
@@ -194,11 +199,7 @@ export function ActivityFeedGroup({
                             />
                             <StatusBadge
                                 state={eventState(item)}
-                                label={
-                                    item.severity === 'recovered'
-                                        ? 'activity.recovered'
-                                        : eventLabel(item)
-                                }
+                                label={eventBadgeLabel(item)}
                             />
                             <span className="text-xs break-words">
                                 {item.message}

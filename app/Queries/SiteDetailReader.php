@@ -91,7 +91,7 @@ final readonly class SiteDetailReader
     {
         $site = $this->site($user, $siteId);
         $stored = Site::query()->findOrFail($siteId);
-        Gate::forUser($user)->authorize('update', $stored);
+        Gate::forUser($user)->authorize('move', $stored);
 
         $redirectQuery = Check::query()->where('site_id', $siteId)->where('enabled', true);
         $redirectQuery->getQuery()->whereIn('type', [CheckKey::BrokenLinks->value, CheckKey::MixedContent->value])
@@ -210,6 +210,7 @@ final readonly class SiteDetailReader
                 return $result;
             }),
             maintenance: Lazy::closure(fn (): ?MaintenanceSiteHeaderData => $this->maintenance($user, $siteId)),
+            can_move: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
         );
     }
 
@@ -311,6 +312,7 @@ final readonly class SiteDetailReader
                 $suppression->headlineKey($check->type), ['date' => $suppression->at->toIso8601String()],
             ) : null),
             mail_design: Lazy::closure(fn (): MailDesign => $this->instanceSettings->mail_design),
+            can_move: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
         );
     }
 

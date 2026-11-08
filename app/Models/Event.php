@@ -88,6 +88,12 @@ final class Event extends Model
         });
     }
 
+    /** @return BelongsTo<Client, $this> */
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
+    }
+
     protected function casts(): array
     {
         return ['flap_group_id' => 'integer', 'from_result' => CheckResult::class, 'to_result' => CheckResult::class, 'cause' => IncidentCause::class,

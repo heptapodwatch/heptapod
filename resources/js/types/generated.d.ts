@@ -1076,6 +1076,7 @@ readonly freshness_suppressed_since: string | null,
 readonly freshness_latest_error_at: string | null,
 readonly freshness_suppression: Heptapod.Contracts.CheckRunPresentationPartData | null,
 readonly mail_design: Heptapod.Contracts.Mail.MailDesign,
+readonly can_move: boolean,
 };
 export type ClientAvatarData = {
 readonly url: string | null,
@@ -1142,6 +1143,9 @@ readonly client: Heptapod.Data.Ui.ClientData | null,
 readonly members: Heptapod.Data.Ui.ClientMemberData[],
 readonly avatar_sites: Heptapod.Data.Ui.ClientAvatarSiteData[],
 readonly timezones: string[],
+readonly clients: Heptapod.Data.Ui.ClientData[],
+readonly site_count: number,
+readonly archive_paused_site_count: number,
 };
 export type ClientsIndexPageData = {
 readonly clients: Heptapod.Data.Ui.ClientRowData[],
@@ -1808,6 +1812,7 @@ reason: string | null,
 }[],
 } | null,
 readonly maintenance: Heptapod.Data.Ui.MaintenanceSiteHeaderData | null,
+readonly can_move: boolean,
 };
 export type SiteProbeData = {
 readonly final_url: string | null,
@@ -1995,7 +2000,7 @@ export type HealthStatus = 'ok' | 'warn' | 'down' | 'not-configured';
 export type ImportOperation = 'create' | 'update' | 'partial' | 'skipped' | 'failed';
 export type ImportRunStatus = 'planned' | 'queued' | 'running' | 'completed' | 'incomplete' | 'failed';
 export type IncidentCause = 'failed' | 'errored';
-export type IncidentResolutionReason = 'check_disabled' | 'site_paused' | 'site_deleted';
+export type IncidentResolutionReason = 'check_disabled' | 'site_paused' | 'site_deleted' | 'moved_to_client';
 export type NotificationCategory = 'outage' | 'failure' | 'check_error' | 'warning' | 'expiring' | 'recovery' | 'changes' | 'system' | 'report';
 export type NotificationMode = 'immediate' | 'digest' | 'off';
 export type RecipientKind = 'team' | 'user' | 'client';

@@ -1,6 +1,6 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
 /**
-* @see routes/web.php:65
+* @see routes/web.php:67
 * @route '/dev/components'
 */
 export const components = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -14,7 +14,7 @@ components.definition = {
 } satisfies RouteDefinition<["get","head"]>
 
 /**
-* @see routes/web.php:65
+* @see routes/web.php:67
 * @route '/dev/components'
 */
 components.url = (options?: RouteQueryOptions) => {
@@ -22,7 +22,7 @@ components.url = (options?: RouteQueryOptions) => {
 }
 
 /**
-* @see routes/web.php:65
+* @see routes/web.php:67
 * @route '/dev/components'
 */
 components.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -31,7 +31,7 @@ components.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 
 /**
-* @see routes/web.php:65
+* @see routes/web.php:67
 * @route '/dev/components'
 */
 components.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -40,7 +40,7 @@ components.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 })
 
 /**
-* @see routes/web.php:65
+* @see routes/web.php:67
 * @route '/dev/components'
 */
 const componentsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -49,7 +49,7 @@ const componentsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'>
 })
 
 /**
-* @see routes/web.php:65
+* @see routes/web.php:67
 * @route '/dev/components'
 */
 componentsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -58,7 +58,7 @@ componentsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =
 })
 
 /**
-* @see routes/web.php:65
+* @see routes/web.php:67
 * @route '/dev/components'
 */
 componentsForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

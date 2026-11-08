@@ -29,6 +29,11 @@ final class ClientPolicy
         return $user->canAccessClient($client->id) && $user->hasAnyRole(['Owner', 'Admin']) ? Response::allow() : Response::denyAsNotFound();
     }
 
+    public function restore(User $user, Client $client): Response
+    {
+        return $this->archive($user, $client);
+    }
+
     public function archive(User $user, Client $client): Response
     {
         $update = $this->update($user, $client);

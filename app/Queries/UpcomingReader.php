@@ -12,6 +12,7 @@ use Heptapod\Data\Ui\UpcomingItemData;
 use Heptapod\Enums\SiteIconBacking;
 use Heptapod\Maintenance\MaintenanceOccurrences;
 use Heptapod\Maintenance\MaintenanceTargets;
+use Heptapod\Models\Client;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\RecurringMaintenancePeriod;
 use Heptapod\Models\Site;
@@ -82,7 +83,8 @@ final readonly class UpcomingReader
         $sites = DB::table('sites')->join('clients', 'clients.id', '=', 'sites.client_id')
             ->whereIntegerInRaw('sites.id', $visibleIds)->whereNull('sites.paused_at')->whereNull('sites.marked_for_deletion_at')
             ->when($clientId !== null, static fn (Builder $query): Builder => $query->where('sites.client_id', $clientId))
-            ->get(['sites.id', 'sites.client_id', 'sites.url', 'sites.friendly_name', 'clients.name as client_name', 'sites.icon_hash', 'sites.icon_backing'])->keyBy('id');
+            ->select('sites.id', 'sites.client_id', 'sites.url', 'sites.friendly_name', 'sites.icon_hash', 'sites.icon_backing')
+            ->selectRaw(Client::displayNameSql().' AS client_name', [__('No client')])->get()->keyBy('id');
         $items = [];
         $iconSites = Site::query();
         $iconSites->getQuery()->whereIntegerInRaw('id', $visibleIds)->whereNotNull('icon_hash');

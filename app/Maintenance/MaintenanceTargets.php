@@ -140,7 +140,7 @@ final class MaintenanceTargets
         });
         $sites = Site::query();
         $sites->getQuery()->whereIn('sites.id', $siteIds->all())->join('clients', 'clients.id', '=', 'sites.client_id')
-            ->select('sites.*', 'clients.name as target_client_name');
+            ->select('sites.*')->selectRaw(Client::displayNameSql().' AS target_client_name', [__('No client')]);
         $labels = [];
         foreach ($sites->get() as $site) {
             $clientName = $site->getAttribute('target_client_name');
@@ -152,7 +152,7 @@ final class MaintenanceTargets
         $clients = Client::query();
         $clients->getQuery()->whereIn('id', $byType->get('client', collect())->pluck('target_id')->all());
         foreach ($clients->get() as $client) {
-            $labels['client:'.$client->id] = ['label' => $client->name, 'client_name' => $client->name];
+            $labels['client:'.$client->id] = ['label' => $client->displayName(), 'client_name' => $client->displayName()];
         }
         $tags = Tag::query();
         $tags->getQuery()->whereIn('id', $byType->get('tag', collect())->pluck('target_id')->all());

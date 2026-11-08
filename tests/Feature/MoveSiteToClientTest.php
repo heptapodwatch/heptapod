@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Heptapod\Actions\EmitNotificationDigests;
+use Heptapod\Addons\Uptime\UptimeMetrics;
+use Heptapod\Checks\Recording\RecordableRun;
+use Heptapod\Checks\Recording\ResultRecorder;
 use Heptapod\Contracts\CheckKey;
+use Heptapod\Contracts\CheckOutcome;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\Http\FetchResult;
 use Heptapod\Contracts\Http\OutboundHttp;
+use Heptapod\Contracts\RunResult;
 use Heptapod\Enums\ClientScope;
+use Heptapod\Enums\NotificationCategory;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckSnooze;
 use Heptapod\Models\Client;
@@ -18,11 +24,16 @@ use Heptapod\Models\Incident;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
+use Heptapod\Settings\InstanceSettings;
+use Heptapod\Testing\ClaimedRun;
 use Heptapod\Testing\FakeOutboundHttp;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia;
 use Spatie\Activitylog\Models\Activity;
+
+require_once __DIR__.'/../Support/NotificationChannels.php';
 
 beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-27T12:00:00Z'));
@@ -81,13 +92,14 @@ it('transfers the whole site and retained history through settings with an actor
     $this->actingAs($newMember)->get('/activity')->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->has('events', 1));
 })->with(['Owner', 'Admin']);
 
-it('rejects Members even when they can access both clients', function (): void {
+it('rejects Members even when they can access both clients', function (bool $archived): void {
     $member = User::factory()->member()->create();
-    $site = Site::factory()->create();
+    $client = Client::factory()->create(['archived_at' => $archived ? now() : null]);
+    $site = Site::factory()->for($client)->create();
     $target = Client::factory()->create();
     $this->actingAs($member)->patchJson('/sites/'.$site->id, ['client_id' => $target->id])->assertForbidden();
     expect($site->fresh()->client_id)->toBe($site->client_id);
-});
+})->with(['active source' => false, 'archived source' => true]);
 
 it('rejects an archived target without changing any site fields', function (): void {
     $owner = User::factory()->owner()->create();
@@ -105,28 +117,79 @@ it('does not disclose a nonexistent target', function (): void {
     expect($site->fresh()->client_id)->toBe($site->client_id);
 });
 
-it('rejects archived source sites and leaves ownership unchanged', function (): void {
-    $owner = User::factory()->owner()->create();
-    $site = Site::factory()->create();
+it('moves a site out of an archived client but refuses other edits until it has moved', function (string $role): void {
+    $owner = User::factory()->create()->assignRole($role);
+    $site = Site::factory()->create(['paused_at' => now(), 'paused_by_archive_at' => now()]);
     $site->client->update(['archived_at' => now()]);
     $target = Client::factory()->create();
-    $this->actingAs($owner)->patchJson('/sites/'.$site->id, ['client_id' => $target->id])->assertForbidden();
+    $this->actingAs($owner)->patchJson('/sites/'.$site->id, ['client_id' => $target->id, 'friendly_name' => 'Forbidden'])->assertForbidden();
     expect($site->fresh()->client_id)->toBe($site->client_id);
-});
+    $this->patchJson('/sites/'.$site->id, ['client_id' => $target->id])->assertRedirect();
+    expect($site->fresh()->client_id)->toBe($target->id)->and($site->fresh()->paused_at)->not->toBeNull()
+        ->and($site->fresh()->paused_by_archive_at)->toBeNull();
+})->with(['Owner', 'Admin']);
 
-it('waits for open incidents but allows saving the unchanged client', function (): void {
+it('ends an open Down incident silently and opens a fresh episode for the new client while the site still fails', function (): void {
+    Mail::fake();
+    config(['mail.default' => 'smtp']);
+    $settings = app(InstanceSettings::class);
+    $settings->alert_after_minutes = 10;
+    $settings->save();
     $owner = User::factory()->owner()->create();
-    $incident = Incident::factory()->create();
-    $site = $incident->site;
+    $check = Check::factory()->create(['type' => CheckKey::Uptime, 'failure_threshold' => 1]);
+    $source = $check->site->client;
     $target = Client::factory()->create();
-    $this->actingAs($owner)->patchJson('/sites/'.$site->id, ['client_id' => $target->id])
-        ->assertUnprocessable()->assertJsonValidationErrors(['client_id' => __('sites.client_open_incident')]);
-    expect($site->fresh()->client_id)->toBe($site->client_id);
-    $this->patchJson('/sites/'.$site->id, ['client_id' => $site->client_id, 'friendly_name' => 'Still editable'])->assertRedirect();
-    expect($site->fresh()->friendly_name)->toBe('Still editable');
+    // Recovery is on everywhere: the team channel covers both clients and receives the opener, so only the
+    // administrative suppression keeps the move's resolution from reaching it.
+    $channels = [];
+    foreach (['source' => $source->id, 'team' => null, 'target' => $target->id] as $name => $clientId) {
+        $channels[$name] = notificationRoute(NotificationDestination::factory()->create(['scope_client_id' => $clientId]),
+            [NotificationCategory::Outage, NotificationCategory::Recovery])->id;
+    }
+    $observeDown = static function () use ($check): void {
+        $at = CarbonImmutable::now('UTC');
+        $context = ClaimedRun::start($check->fresh(), $at);
+        app(ResultRecorder::class)->record(new RecordableRun($check->id, $context->claimToken, $at, $at,
+            new CheckOutcome(RunResult::Failed, 'uptime.status', [], new UptimeMetrics(null, null, null, null, null, 0.01,
+                array_fill_keys(['namelookup_time', 'connect_time', 'appconnect_time', 'starttransfer_time', 'pretransfer_time', 'redirect_time', 'total_time', 'header_size', 'size_download', 'speed_download'], null), '2026-10-27'))));
+    };
+    $observeDown();
+    $this->travelTo(CarbonImmutable::parse('2026-10-27T12:10:00Z'));
+    dispatchNotifications();
+    $ended = $check->incidents()->sole();
+    expect(Delivery::query()->where('state', 'sent')->pluck('destination_id')->all())->toEqualCanonicalizing([$channels['source'], $channels['team']]);
+
+    $this->travelTo(CarbonImmutable::parse('2026-10-27T12:30:00Z'));
+    $this->actingAs($owner)->patchJson('/sites/'.$check->site_id, ['client_id' => $target->id])->assertRedirect();
+    dispatchNotifications();
+
+    $resolution = Event::query()->where('incident_id', $ended->id)->where('type', 'incident.resolved')->sole();
+    expect($ended->fresh()->resolved_at)->not->toBeNull()
+        ->and($resolution->payload['resolution_reason'])->toBe('moved_to_client')
+        ->and($resolution->suppression_reason)->toBe('monitoring_stopped')
+        ->and($resolution->client_id)->toBe($target->id)
+        ->and(Delivery::query()->where('event_id', $resolution->id)->exists())->toBeFalse();
+    $this->get('/incidents/'.$ended->id)->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+        ->where('evidence.recovery_summary', 'incidents.resolution.moved_to_client'));
+    $this->get('/activity')->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+        ->where('events.0.latest.id', $resolution->id)->where('events.0.latest.message_params.administrative_resolution', true));
+
+    $this->travelTo(CarbonImmutable::parse('2026-10-27T12:31:00Z'));
+    $observeDown();
+    dispatchNotifications();
+    $opened = $check->incidents()->whereNull('resolved_at')->sole();
+    // A continued episode would alert at once from 12:00; a fresh one waits its own ten minutes.
+    expect($opened->alert_episode_started_at->toIso8601String())->toBe('2026-10-27T12:31:00+00:00')
+        ->and(Delivery::query()->where('state', 'sent')->count())->toBe(2);
+    $this->travelTo(CarbonImmutable::parse('2026-10-27T12:41:00Z'));
+    dispatchNotifications();
+
+    expect(Delivery::query()->where('state', 'sent')->whereIn('event_id', Event::query()->where('incident_id', $opened->id)->select('id'))->pluck('destination_id')->all())
+        ->toEqualCanonicalizing([$channels['team'], $channels['target']]);
+    Mail::assertSentCount(4);
 });
 
-it('waits for unrouted events before moving', function (): void {
+it('waits for unrouted events before moving but allows saving the unchanged client', function (): void {
     $owner = User::factory()->owner()->create();
     $event = Event::factory()->create();
     $site = $event->site;
@@ -134,6 +197,8 @@ it('waits for unrouted events before moving', function (): void {
     $this->actingAs($owner)->patchJson('/sites/'.$site->id, ['client_id' => $target->id])
         ->assertUnprocessable()->assertJsonValidationErrors(['client_id' => __('sites.client_alerts_pending')]);
     expect($site->fresh()->client_id)->toBe($site->client_id);
+    $this->patchJson('/sites/'.$site->id, ['client_id' => $site->client_id, 'friendly_name' => 'Still editable'])->assertRedirect();
+    expect($site->fresh()->friendly_name)->toBe('Still editable');
 });
 
 it('waits for pending sends and future retries including digest source items', function (string $state, bool $digest): void {

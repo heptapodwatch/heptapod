@@ -69,6 +69,9 @@ final class UpdateClient
                 $locked->getQuery()->lock('for no key update');
                 $client = $locked->findOrFail($client->id);
             }
+            if ($client->is_internal && isset($data['name']) && $data['name'] !== $client->name) {
+                throw ValidationException::withMessages(['name' => __('The No client name cannot be changed.')]);
+            }
             // A site transfer locks this client too; validate membership only after acquiring it.
             Validator::make(Arr::only($data, ['avatar_site_id']), [
                 'avatar_site_id' => ['nullable', Rule::exists('sites', 'id')->where('client_id', $client->id)->whereNotNull('icon_hash')],
