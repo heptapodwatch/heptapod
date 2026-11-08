@@ -4,9 +4,13 @@ import { useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { AlertChannelsLine } from '@/components/alert-channels-line';
-import { openRowTarget, rowTargetClass } from '@/components/entity-link';
+import {
+    EntityLink,
+    openRowTarget,
+    rowTargetClass,
+} from '@/components/entity-link';
+import { LighthouseScoreGrid } from '@/components/check-evidence';
 import { EvidenceFacts } from '@/components/evidence-facts';
-import { ScoreRing } from '@/components/foundation-primitives';
 import {
     ContentState,
     EventTimeline,
@@ -30,10 +34,9 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ListHeader, ListRow } from '@/components/ui/table';
+import { ListHeader, ListRow, rowEmphasisClass } from '@/components/ui/table';
 import { useCheckHeadline } from '@/hooks/use-check-headline';
 import { useFormat } from '@/hooks/use-format';
-import { focusRingClass } from '@/lib/interaction';
 import { bySeverity, checkState, isAttentionState } from '@/lib/status';
 import type { SiteState } from '@/types/monitoring';
 import { cn } from '@/lib/utils';
@@ -176,44 +179,18 @@ export function SiteOverviewContent({ page }: { page: Page }) {
                 checkState(check) === 'ok'
             ),
     );
-    const enabledChecks = site.checks.filter((check) => check.enabled);
     const uptime = site.checks.find((check) => check.key === 'uptime');
     const lighthouse = site.checks.find(
         (check) => check.key === 'lighthouse' && check.enabled,
     );
     return (
         <div className="space-y-6" data-site-overview>
-            <section className="space-y-3" aria-labelledby={attentionId}>
-                <SectionHeading id={attentionId}>
-                    {t('Needs attention')}
-                </SectionHeading>
-                {items.length === 0 ? (
-                    <p
-                        data-site-calm
-                        className="flex items-center gap-3 rounded-lg border px-4 py-3 text-sm"
-                    >
-                        <span aria-hidden className="inline-flex">
-                            <StatusDot state="ok" />
-                        </span>
-                        <span>
-                            {t('site_overview.nothing_needs_attention')}
-                            {enabledChecks.length > 0 &&
-                                enabledChecks.every(
-                                    (check) => checkState(check) === 'ok',
-                                ) && (
-                                    <span className="text-muted-foreground">
-                                        {' '}
-                                        {t('site_overview.all_checks_ok', {
-                                            count: enabledChecks.length,
-                                            formattedCount: format.number(
-                                                enabledChecks.length,
-                                            ),
-                                        })}
-                                    </span>
-                                )}
-                        </span>
-                    </p>
-                ) : (
+            {/* As on Sites: nothing needs attention, no section; the header meta already states the site's state. */}
+            {items.length > 0 && (
+                <section className="space-y-3" aria-labelledby={attentionId}>
+                    <SectionHeading id={attentionId}>
+                        {t('Needs attention')}
+                    </SectionHeading>
                     <div
                         data-site-attention
                         className="@container/table overflow-hidden rounded-lg border"
@@ -230,7 +207,14 @@ export function SiteOverviewContent({ page }: { page: Page }) {
                                 className={cn(
                                     attentionColumns,
                                     'sm:items-center',
+                                    item.link && rowTargetClass,
+                                    rowEmphasisClass(item.state),
                                 )}
+                                onClick={
+                                    item.link
+                                        ? openRowTarget(item.link.href)
+                                        : undefined
+                                }
                             >
                                 <StatusBadge state={item.state} />
                                 <div className="min-w-0">
@@ -257,8 +241,8 @@ export function SiteOverviewContent({ page }: { page: Page }) {
                             </ListRow>
                         ))}
                     </div>
-                )}
-            </section>
+                </section>
+            )}
             {/* Each line's height as loaded: the values wrap to two lines below sm and fit on one above. */}
             <Deferred
                 data={['record', 'upcoming']}
@@ -352,7 +336,6 @@ function SiteRecordLines({ page }: { page: Page }) {
     const { t } = useTranslation();
     const format = useFormat();
     const { record, upcoming = [] } = page;
-    const days30 = page.uptime_ranges.days30;
     const coming = upcoming.map((item) =>
         item.type === 'maintenance'
             ? t('site_overview.coming_maintenance', {
@@ -373,14 +356,7 @@ function SiteRecordLines({ page }: { page: Page }) {
                         ? [
                               {
                                   label: t('Last 30 days'),
-                                  value: [
-                                      days30 === null
-                                          ? t('No measured uptime')
-                                          : t('site_overview.record_uptime', {
-                                                value: format.uptimePercentage(
-                                                    days30,
-                                                ),
-                                            }),
+                                  value:
                                       record.last_outage_started_at === null
                                           ? t('site_overview.record_no_outage')
                                           : t('site_overview.record_outages', {
@@ -395,7 +371,6 @@ function SiteRecordLines({ page }: { page: Page }) {
                                                     record.last_outage_started_at,
                                                 ),
                                             }),
-                                  ].join(' · '),
                               },
                           ]
                         : []),
@@ -436,36 +411,31 @@ export function SiteCheckRows({
                         )}
                         onClick={openRowTarget(href)}
                     >
-                        <Link
+                        <EntityLink
                             href={href}
-                            prefetch
-                            className={cn(
-                                'flex min-w-0 items-center gap-2 rounded-sm font-medium',
-                                focusRingClass,
-                            )}
-                        >
-                            <StatusDot
-                                state={
-                                    check.enabled
-                                        ? checkState(check)
-                                        : 'disabled'
-                                }
-                                label={
-                                    check.freshness_suppressed_by
-                                        ? 'No current data'
-                                        : undefined
-                                }
-                            />
-                            <span className="truncate">
-                                {t(check.label_key)}
-                            </span>
-                        </Link>
+                            name={t(check.label_key)}
+                            icon={
+                                <StatusDot
+                                    state={
+                                        check.enabled
+                                            ? checkState(check)
+                                            : 'disabled'
+                                    }
+                                    label={
+                                        check.freshness_suppressed_by
+                                            ? 'No current data'
+                                            : undefined
+                                    }
+                                />
+                            }
+                        />
                         <span className="text-right font-mono text-xs text-muted-foreground sm:order-3">
                             {!check.enabled
                                 ? t('Off')
                                 : check.checked_at && (
                                       <MonitoringTime
                                           value={check.checked_at}
+                                          mode="since"
                                       />
                                   )}
                         </span>
@@ -485,7 +455,7 @@ export function SiteCheckRows({
     );
 }
 
-/** Uptime beside the events: 24 hours and 90 days, the last 30 days as daily buckets. */
+/** Uptime for 24 hours and for the 30 days its daily buckets show. */
 function UptimeCard({ page, uptime }: { page: Page; uptime: Check }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -511,8 +481,8 @@ function UptimeCard({ page, uptime }: { page: Page; uptime: Check }) {
                     value={percentage(page.uptime_ranges.hours24)}
                 />
                 <StatTile
-                    label={t('90 days')}
-                    value={percentage(page.uptime_ranges.days90)}
+                    label={t('30 days')}
+                    value={percentage(page.uptime_ranges.days30)}
                 />
             </div>
             {measured ? (
@@ -604,13 +574,11 @@ function ResponseCard({ page, check }: { page: Page; check: Check }) {
             />
             {/* Peaks, not averages: the caption says so, and the summary replaces the decorative line for screen readers. */}
             <div className="space-y-1">
-                <div aria-hidden="true">
-                    <Sparkline
-                        data={page.site.response}
-                        state={uptime ? checkState(uptime) : 'ok'}
-                        decorative
-                    />
-                </div>
+                <Sparkline
+                    data={page.site.response}
+                    state={uptime ? checkState(uptime) : 'ok'}
+                    decorative
+                />
                 <span className="sr-only">
                     {responseTimeSummary(page.site.response, t, format)}
                 </span>
@@ -619,52 +587,6 @@ function ResponseCard({ page, check }: { page: Page; check: Check }) {
                 </p>
             </div>
         </LaunchpadCard>
-    );
-}
-
-const lighthouseCategories = [
-    'performance',
-    'accessibility',
-    'best_practices',
-    'seo',
-] as const;
-
-/** Four score rings with their labels; without metrics the rings are skeletons of the same size. */
-function LighthouseScoreGrid({
-    metrics,
-}: {
-    metrics: Heptapod.Addons.Lighthouse.LighthouseMetrics | null;
-}) {
-    const { t } = useTranslation();
-    return (
-        <div
-            role="group"
-            aria-label={t('lighthouse.scores')}
-            aria-busy={metrics ? undefined : true}
-            className="grid grid-cols-4 gap-2"
-        >
-            {lighthouseCategories.map((category) => (
-                <div
-                    key={category}
-                    className="grid min-w-0 justify-items-center gap-1.5"
-                >
-                    {metrics ? (
-                        <ScoreRing
-                            score={metrics[`${category}_score`]}
-                            label={t(`lighthouse.${category}`)}
-                        />
-                    ) : (
-                        <Skeleton className="size-14 rounded-full" />
-                    )}
-                    <span
-                        aria-hidden="true"
-                        className="text-center text-xs leading-tight text-muted-foreground"
-                    >
-                        {t(`lighthouse.${category}`)}
-                    </span>
-                </div>
-            ))}
-        </div>
     );
 }
 
@@ -691,13 +613,19 @@ function LighthouseCard({
                 // The loaded layout with skeleton rings and time: the real labels wrap the same, so nothing below jumps.
                 fallback={
                     <>
-                        <LighthouseScoreGrid metrics={null} />
+                        <LighthouseScoreGrid
+                            metrics={null}
+                            className="grid-cols-4 gap-2"
+                        />
                         <Skeleton aria-busy="true" className="h-4 w-28" />
                     </>
                 }
             >
                 {metrics ? (
-                    <LighthouseScoreGrid metrics={metrics} />
+                    <LighthouseScoreGrid
+                        metrics={metrics}
+                        className="grid-cols-4 gap-2"
+                    />
                 ) : (
                     <p className="text-sm text-muted-foreground">
                         {t('No evidence retained for this check.')}

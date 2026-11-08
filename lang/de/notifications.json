@@ -209,8 +209,8 @@
     "recipient_settings.paused_notice_system": "Pausiert: Bis zur Fortsetzung werden nur Systemprobleme gesendet.",
     "alert_channels.outage_one": "Ausfallalarme gehen an 1 Kanal",
     "alert_channels.outage_other": "Ausfallalarme gehen an {{formattedCount}} Kanäle",
-    "alert_channels.outage_none": "Kein Kanal erhält Ausfallalarme",
+    "alert_channels.outage_none": "Kein Kanal erhält Ausfälle",
     "alert_channels.failure_one": "Alarme zu fehlgeschlagenen Prüfungen gehen an 1 Kanal",
     "alert_channels.failure_other": "Alarme zu fehlgeschlagenen Prüfungen gehen an {{formattedCount}} Kanäle",
-    "alert_channels.failure_none": "Kein Kanal erhält Alarme zu fehlgeschlagenen Prüfungen"
+    "alert_channels.failure_none": "Kein Kanal erhält fehlgeschlagene Prüfungen"
 }

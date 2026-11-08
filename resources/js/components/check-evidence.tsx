@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { useState, type ReactNode } from 'react';
 import { EvidenceFacts } from '@/components/evidence-facts';
 import { ScoreRing } from '@/components/foundation-primitives';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from 'react-i18next';
 import {
     CrawlFindings,
@@ -39,6 +40,55 @@ function uptimeResultState(result: string) {
     return runState('uptime', parseResult(result));
 }
 
+const lighthouseCategories = [
+    'performance',
+    'accessibility',
+    'best_practices',
+    'seo',
+] as const;
+
+/** The four Lighthouse score rings with their labels (the ring names its score); without metrics the rings are same-size skeletons. */
+export function LighthouseScoreGrid({
+    metrics,
+    className,
+}: {
+    metrics: Heptapod.Addons.Lighthouse.LighthouseMetrics | null;
+    /** Column layout and gap of the caller. */
+    className: string;
+}) {
+    const { t } = useTranslation();
+    return (
+        <div
+            role="group"
+            aria-label={t('lighthouse.scores')}
+            aria-busy={metrics ? undefined : true}
+            className={cn('grid', className)}
+        >
+            {lighthouseCategories.map((category) => (
+                <div
+                    key={category}
+                    className="grid min-w-0 justify-items-center gap-2"
+                >
+                    {metrics ? (
+                        <ScoreRing
+                            score={metrics[`${category}_score`]}
+                            label={t(`lighthouse.${category}`)}
+                        />
+                    ) : (
+                        <Skeleton className="size-14 rounded-full" />
+                    )}
+                    <span
+                        aria-hidden="true"
+                        className="text-center text-xs leading-tight text-muted-foreground"
+                    >
+                        {t(`lighthouse.${category}`)}
+                    </span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 export function LighthouseScores({
     metrics,
     evidence,
@@ -51,33 +101,10 @@ export function LighthouseScores({
     return (
         <>
             {metrics && (
-                <div
-                    role="group"
-                    aria-label={t('lighthouse.scores')}
-                    className="grid grid-cols-2 gap-4 sm:grid-cols-4"
-                >
-                    {(
-                        [
-                            'performance',
-                            'accessibility',
-                            'best_practices',
-                            'seo',
-                        ] as const
-                    ).map((category) => (
-                        <div
-                            key={category}
-                            className="grid justify-items-center gap-2"
-                        >
-                            <ScoreRing
-                                score={metrics[`${category}_score`]}
-                                label={t(`lighthouse.${category}`)}
-                            />
-                            <span className="text-xs text-muted-foreground">
-                                {t(`lighthouse.${category}`)}
-                            </span>
-                        </div>
-                    ))}
-                </div>
+                <LighthouseScoreGrid
+                    metrics={metrics}
+                    className="grid-cols-2 gap-4 sm:grid-cols-4"
+                />
             )}
             {evidence && (
                 <ul className="space-y-2 text-sm">
