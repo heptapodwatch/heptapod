@@ -1076,6 +1076,7 @@ readonly freshness_suppressed_since: string | null,
 readonly freshness_latest_error_at: string | null,
 readonly freshness_suppression: Heptapod.Contracts.CheckRunPresentationPartData | null,
 readonly mail_design: Heptapod.Contracts.Mail.MailDesign,
+readonly alert_channels?: number | null,
 readonly can_move: boolean,
 };
 export type ClientAvatarData = {
@@ -1812,6 +1813,9 @@ reason: string | null,
 }[],
 } | null,
 readonly maintenance: Heptapod.Data.Ui.MaintenanceSiteHeaderData | null,
+readonly record?: Heptapod.Data.Ui.SiteRecordData | null,
+readonly upcoming?: Heptapod.Data.Ui.UpcomingItemData[],
+readonly alert_channels?: number | null,
 readonly can_move: boolean,
 };
 export type SiteProbeData = {
@@ -1831,6 +1835,12 @@ duplicate_site_id: number | null,
 warning_site_name: string | null,
 warning_site_id: number | null,
 readonly failure_reason: string | null,
+};
+export type SiteRecordData = {
+readonly outage_count: number,
+readonly downtime_seconds: number,
+readonly last_outage_started_at: string | null,
+readonly response_ms: number | null,
 };
 export type SiteRowData = {
 readonly id: number,

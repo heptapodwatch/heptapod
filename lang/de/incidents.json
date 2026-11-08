@@ -3,7 +3,6 @@
     "Incidents": "Störungen",
     "Resolved": "Behoben",
     "Resolver": "Resolver",
-    "Open incident: {{check}}": "Störung öffnen: {{check}}",
     "incidents.state.open": "Offen",
     "Open incidents": "Offene Störungen",
     "No incidents for this client.": "Keine Störungen für diesen Kunden.",

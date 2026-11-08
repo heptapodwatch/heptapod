@@ -209,10 +209,7 @@ export function SiteAlertSensitivity({
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     return (
-        <FormSection
-            title={t('alert_sensitivity.alerts')}
-            description={t('alert_sensitivity.site_description')}
-        >
+        <>
             <div
                 data-site-alert-sensitivity
                 className="flex items-center justify-between gap-3 rounded-lg border p-4"
@@ -245,6 +242,6 @@ export function SiteAlertSensitivity({
                     onClose={() => setOpen(false)}
                 />
             )}
-        </FormSection>
+        </>
     );
 }

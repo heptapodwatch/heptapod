@@ -73,7 +73,6 @@
     "Certificate renewed": "Certificate renewed",
     "DNS records verified": "DNS records verified",
     "Check could not run": "Check could not run",
-    "Open check: {{check}}": "Open check: {{check}}",
     "Check nameserver sync": "Check nameserver sync",
     "Domain expiry changed": "Domain expiry changed",
     "Uptime 30d": "Uptime 30d",
@@ -341,10 +340,6 @@
     "Minimum difference from normal": "Minimum difference from normal",
     "Not enough baseline history": "Not enough baseline history",
     "No measured response time": "No measured response time",
-    "Last outage": "Last outage",
-    "Latest outage day in daily history": "Latest outage day in daily history",
-    "No outage in daily history": "No outage in daily history",
-    "Estimated downtime": "Estimated downtime",
     "No interruption": "No interruption",
     "Short interruptions (1–4 min)": "Short interruptions (1–4 min)",
     "Outage (5 min or more)": "Outage (5 min or more)",
@@ -410,5 +405,6 @@
     "checks.interval.days_other": "Every {{formattedCount}} days",
     "checks.interval.seconds_one": "Every second",
     "checks.interval.seconds_other": "Every {{formattedCount}} seconds",
-    "checks.interval.mixed": "Every {{interval}}"
+    "checks.interval.mixed": "Every {{interval}}",
+    "Other checks": "Other checks"
 }

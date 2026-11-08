@@ -91,5 +91,6 @@
     "Plan a window to mark planned work on your sites.": "Planen Sie ein Zeitfenster, um geplante Arbeiten an Ihren Websites zu kennzeichnen.",
     "No matching maintenance windows.": "Keine passenden Wartungsfenster.",
     "Clear filters to see all windows.": "Filter entfernen, um alle Zeitfenster zu sehen.",
-    "A window's repeat type cannot change; create a new window instead.": "Die Wiederholung eines Zeitfensters lässt sich nicht ändern; legen Sie stattdessen ein neues Zeitfenster an."
+    "A window's repeat type cannot change; create a new window instead.": "Die Wiederholung eines Zeitfensters lässt sich nicht ändern; legen Sie stattdessen ein neues Zeitfenster an.",
+    "Open maintenance": "Wartung öffnen"
 }

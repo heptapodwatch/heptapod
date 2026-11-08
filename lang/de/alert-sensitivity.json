@@ -3,7 +3,6 @@
     "alert_sensitivity.page_description": "Festlegen, wann Ausfälle einen Alarm auslösen.",
     "alert_sensitivity.intro": "Wie lange eine Website ausgefallen sein muss, bevor Heptapod alarmiert.",
     "alert_sensitivity.site_intro": "Ersetzt den Teamstandard nur für diese Website.",
-    "alert_sensitivity.site_description": "Den Teamstandard verwenden oder eigene Alarmzeiten für diese Website festlegen.",
     "alert_sensitivity.alerts": "Alarme",
     "alert_sensitivity.preset.strict.label": "Streng",
     "alert_sensitivity.preset.balanced.label": "Ausgewogen",
@@ -58,5 +57,6 @@
     "notifications.preview_opening_muted": "Alarme sind durch Stummschaltung oder Wartung ausgesetzt.",
     "notifications.opening_snoozed_no_catch_up": "Alarme für diesen Ausfall waren stummgeschaltet. Nach Ende der Stummschaltung wird kein Eröffnungsalarm gesendet.",
     "notifications.preview_maintenance_catch_up_disabled": "Dieser Ausfall begann während einer Wartung. Nachholalarme und Erinnerungen sind ausgeschaltet.",
-    "alert_sensitivity.intro_detail": "Status, Störungen und Erreichbarkeit zeigen weiterhin jede fehlgeschlagene Prüfung."
+    "alert_sensitivity.intro_detail": "Status, Störungen und Erreichbarkeit zeigen weiterhin jede fehlgeschlagene Prüfung.",
+    "site_settings.alerts_description": "Wann Alarme für diese Website ausgelöst werden und wer sie erhält."
 }

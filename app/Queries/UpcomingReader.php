@@ -73,8 +73,11 @@ final readonly class UpcomingReader
         }
     }
 
-    /** @return list<UpcomingItemData> */
-    public function read(User $user, int $days = 90, ?string $onlyType = null, ?int $clientId = null): array
+    /**
+     * @param  list<string>|null  $types  null reads every type
+     * @return list<UpcomingItemData>
+     */
+    public function read(User $user, int $days = 90, ?array $types = null, ?int $clientId = null, ?int $siteId = null): array
     {
         $now = CarbonImmutable::now('UTC');
         $through = $now->addDays($days);
@@ -83,19 +86,26 @@ final readonly class UpcomingReader
         $sites = DB::table('sites')->join('clients', 'clients.id', '=', 'sites.client_id')
             ->whereIntegerInRaw('sites.id', $visibleIds)->whereNull('sites.paused_at')->whereNull('sites.marked_for_deletion_at')
             ->when($clientId !== null, static fn (Builder $query): Builder => $query->where('sites.client_id', $clientId))
+            ->when($siteId !== null, static fn (Builder $query): Builder => $query->where('sites.id', $siteId))
             ->select('sites.id', 'sites.client_id', 'sites.url', 'sites.friendly_name', 'sites.icon_hash', 'sites.icon_backing')
             ->selectRaw(Client::displayNameSql().' AS client_name', [__('No client')])->get()->keyBy('id');
         $items = [];
         $iconSites = Site::query();
         $iconSites->getQuery()->whereIntegerInRaw('id', $visibleIds)->whereNotNull('icon_hash');
         $icons = $iconSites->get(['id', 'icon_hash', 'icon_backing'])->mapWithKeys(static fn (Site $site): array => [$site->id => ['url' => $site->iconUrl(), 'backing' => $site->icon_backing]])->all();
-        if ($onlyType === null || $onlyType === 'maintenance') {
+        if ($types === null || in_array('maintenance', $types, true)) {
             $maintenanceQuery = $this->standaloneMaintenance($user, $now, $through, $clientId);
+            if ($siteId !== null) {
+                MaintenanceTargets::whereCoversSiteId($maintenanceQuery->getQuery(), $siteId);
+            }
             $this->targets->withSiteCount($maintenanceQuery, $now);
             $maintenanceQuery->getQuery()->orderBy('starts_at')->orderBy('id')->limit(100);
             $windows = $maintenanceQuery->get();
             $recurringQuery = RecurringMaintenancePeriod::query();
             $this->maintenance->visibleTargets($recurringQuery, $user, $clientId);
+            if ($siteId !== null) {
+                MaintenanceTargets::whereCoversSiteId($recurringQuery->getQuery(), $siteId, 'recurring_maintenance_periods');
+            }
             $this->targets->withSiteCount($recurringQuery, $now);
             $series = $recurringQuery->get();
             $labels = $this->targets->labels(collect([...$windows->all(), ...$series->all()]));
@@ -112,7 +122,7 @@ final readonly class UpcomingReader
                 }
             }
         }
-        if ($onlyType !== 'maintenance') {
+        if ($types === null || array_diff($types, ['maintenance']) !== []) {
             /** @var Collection<int, \stdClass&object{id: int, site_id: int}> $checks */
             $checks = DB::table('checks')->whereIn('site_id', $sites->keys())->where('enabled', true)->get(['id', 'site_id']);
             /** @var list<int> $checkIds */
@@ -123,7 +133,7 @@ final readonly class UpcomingReader
                     throw new \LogicException('Upcoming source must implement its contract.');
                 }
                 foreach ($source->read($checkIds, $now, $through) as $occurrence) {
-                    if ($onlyType !== null && $onlyType !== $occurrence->type) {
+                    if ($types !== null && ! in_array($occurrence->type, $types, true)) {
                         continue;
                     }
                     $siteId = $siteByCheck[$occurrence->checkId] ?? throw new \LogicException('Upcoming occurrence must belong to a visible check.');

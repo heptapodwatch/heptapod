@@ -27,7 +27,7 @@ final class UpcomingController extends Controller
         $days = $request->string('days', '90')->toString();
         $type = $request->string('type', 'all')->toString();
         $clientId = $request->filled('client_id') ? $request->integer('client_id') : null;
-        $items = $reader->read($user, $days === 'all' ? 365 : (int) $days, $type === 'all' ? null : $type, $clientId);
+        $items = $reader->read($user, $days === 'all' ? 365 : (int) $days, $type === 'all' ? null : [$type], $clientId);
 
         return Inertia::render('upcoming/index', new UpcomingIndexPageData(
             items: $items,
