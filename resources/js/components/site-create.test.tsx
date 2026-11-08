@@ -36,10 +36,29 @@ vi.mock('react-i18next', () => {
 const options = { ...addSitePage, can_create_site: true };
 const storageKey = (id = userId) => `heptapod:site-create:${id}`;
 const stored = () => JSON.parse(localStorage.getItem(storageKey()) ?? 'null');
-const next = () =>
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-const step = (name: string) =>
-    fireEvent.click(screen.getByRole('button', { name }));
+const urlField = () => screen.getByLabelText('URL') as HTMLInputElement;
+const clientField = () => screen.queryByRole('combobox', { name: 'Client' });
+/** Enters an address and leaves the field, as a user moving on; resolves once the probe revealed Client. */
+const enterAddress = async (url = 'https://shop.example.test') => {
+    fireEvent.change(urlField(), { target: { value: url } });
+    fireEvent.blur(urlField());
+    await waitFor(() => expect(clientField()).not.toBeNull());
+};
+const chooseClient = (name = options.clients[1]!.name) => {
+    fireEvent.click(clientField()!);
+    fireEvent.click(screen.getByRole('option', { name }));
+};
+const restoreDraft = (draft: Record<string, unknown>) =>
+    localStorage.setItem(
+        storageKey(),
+        JSON.stringify({
+            url: 'https://shop.example.test',
+            client_id: String(options.clients[0]!.id),
+            ...draft,
+        }),
+    );
+const switchState = (name: string) =>
+    screen.getByRole('switch', { name }).getAttribute('aria-checked');
 
 beforeEach(() => {
     userId = 1;
@@ -74,18 +93,145 @@ afterEach(() => {
     vi.unstubAllGlobals();
 });
 
+it('reveals Client once the address is checked, then Details and Checks once a client is chosen, and never collapses them', async () => {
+    render(<AddSite {...options} />);
+    expect(clientField()).toBeNull();
+    await enterAddress();
+    expect(
+        within(clientField()!).queryByText(options.clients[0]!.name),
+    ).toBeNull();
+    expect(screen.queryByLabelText('Name')).toBeNull();
+    chooseClient();
+    expect(screen.getByLabelText('Name')).not.toBeNull();
+    expect(screen.getByLabelText('Tags')).not.toBeNull();
+    expect(switchState('checks.uptime.label')).toBe('true');
+    fireEvent.change(urlField(), { target: { value: '' } });
+    expect(clientField()).not.toBeNull();
+    expect(screen.getByLabelText('Name')).not.toBeNull();
+});
+
+it('reveals Client after an unreachable address but not after an address the server refuses', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        json: async () => ({
+            errors: { url: ['Enter an HTTP or HTTPS address.'] },
+        }),
+    } as Response);
+    render(<AddSite {...options} />);
+    fireEvent.change(urlField(), { target: { value: 'ftp://shop.example' } });
+    fireEvent.blur(urlField());
+    await waitFor(() =>
+        expect(
+            screen.getByText('Enter an HTTP or HTTPS address.'),
+        ).not.toBeNull(),
+    );
+    expect(screen.queryByText(/sites.url_unreachable/)).toBeNull();
+    expect(clientField()).toBeNull();
+    vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+            recommended_checks: ['uptime'],
+            failure: 'connection_refused',
+            failure_reason: 'Connection refused',
+            status: null,
+        }),
+    } as Response);
+    await enterAddress('https://down.example');
+    expect(
+        screen.getByText('sites.url_unreachable · Connection refused'),
+    ).not.toBeNull();
+});
+
+it('preselects the only client and reveals everything after the address check', async () => {
+    render(<AddSite {...options} clients={[options.clients[1]!]} />);
+    await enterAddress();
+    expect(
+        within(clientField()!).getByText(options.clients[1]!.name),
+    ).not.toBeNull();
+    expect(screen.getByLabelText('Name')).not.toBeNull();
+});
+
+it('moves focus into a revealed section only after a keyboard finish, never while typing', async () => {
+    vi.useFakeTimers();
+    render(<AddSite {...options} />);
+    fireEvent.keyDown(urlField(), { key: 's' });
+    fireEvent.change(urlField(), {
+        target: { value: 'https://shop.example.test' },
+    });
+    await act(() => vi.advanceTimersByTimeAsync(700));
+    expect(clientField()).not.toBeNull();
+    await act(() => vi.advanceTimersByTimeAsync(50));
+    expect(document.activeElement).toBe(urlField());
+    cleanup();
+    localStorage.clear();
+    render(<AddSite {...options} />);
+    fireEvent.change(urlField(), {
+        target: { value: 'https://shop.example.test' },
+    });
+    fireEvent.keyDown(urlField(), { key: 'Enter' });
+    // The probe answers, then the next animation frame moves focus.
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(clientField()).not.toBeNull();
+    await act(() => vi.advanceTimersByTimeAsync(50));
+    expect(document.activeElement).toBe(clientField());
+});
+
+it('validates every field at once, reveals every section and focuses the first invalid field', async () => {
+    vi.useFakeTimers();
+    render(<AddSite {...options} />);
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Add site' }), {
+        key: 'Enter',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add site' }));
+    await act(() => vi.advanceTimersByTimeAsync(50));
+    expect(
+        screen.getByText(
+            'Enter a valid HTTP or HTTPS URL without credentials.',
+        ),
+    ).not.toBeNull();
+    expect(screen.getByText('Select a client.')).not.toBeNull();
+    expect(screen.getByLabelText('Name')).not.toBeNull();
+    expect(screen.getByText('add_site.summary.attention')).not.toBeNull();
+    expect(document.activeElement).toBe(urlField());
+    fireEvent.change(urlField(), {
+        target: { value: 'https://shop.example.test' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add site' }));
+    await act(() => vi.advanceTimersByTimeAsync(50));
+    expect(document.activeElement).toBe(clientField());
+});
+
+it('submits name, distinct tags and the selected checks once', async () => {
+    const post = vi.spyOn(router, 'post').mockImplementation(() => {});
+    render(<AddSite {...options} />);
+    await enterAddress();
+    chooseClient();
+    fireEvent.change(screen.getByLabelText('Name'), {
+        target: { value: ' Shop ' },
+    });
+    fireEvent.change(screen.getByLabelText('Tags'), {
+        target: { value: 'shop, live,shop' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add site' }));
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(post.mock.calls[0]![1]).toEqual({
+        url: 'https://shop.example.test',
+        client_id: String(options.clients[1]!.id),
+        friendly_name: 'Shop',
+        tags: ['shop', 'live'],
+        checks: ['uptime'],
+    });
+});
+
 it.each(['shop.example.test', 'https://shop.example.test'])(
     'restores the ordinary host %s without an omitted-secrets note',
     (url) => {
         const view = render(<AddSite {...options} />);
-        fireEvent.change(screen.getByLabelText('URL'), {
-            target: { value: url },
-        });
+        fireEvent.change(urlField(), { target: { value: url } });
         view.unmount();
         render(<AddSite {...options} />);
-        expect((screen.getByLabelText('URL') as HTMLInputElement).value).toBe(
-            'https://shop.example.test/',
-        );
+        expect(urlField().value).toBe('https://shop.example.test/');
         expect(screen.queryByText('sites.draft.secrets_omitted')).toBeNull();
         expect(stored().omitted).toBe(false);
     },
@@ -99,50 +245,25 @@ it.each([
     'restores %s with an omitted-secrets note after removing its private URL parts',
     (url) => {
         const view = render(<AddSite {...options} />);
-        fireEvent.change(screen.getByLabelText('URL'), {
-            target: { value: url },
-        });
+        fireEvent.change(urlField(), { target: { value: url } });
         view.unmount();
         render(<AddSite {...options} />);
-        expect((screen.getByLabelText('URL') as HTMLInputElement).value).toBe(
-            'https://shop.example.test/',
-        );
+        expect(urlField().value).toBe('https://shop.example.test/');
         expect(screen.getByText('sites.draft.secrets_omitted')).not.toBeNull();
         expect(stored().omitted).toBe(true);
     },
 );
 
-it('keeps recommendations and probes when an untouched wizard is reopened before entering its address', async () => {
+it('restores the whole draft with its sections, manual check choices and settings after a reload', async () => {
     const view = render(<AddSite {...options} />);
-    view.unmount();
-    render(<AddSite {...options} />);
-    fireEvent.change(screen.getByLabelText('URL'), {
-        target: { value: 'https://shop.example.test' },
+    await enterAddress();
+    chooseClient();
+    fireEvent.change(screen.getByLabelText('Name'), {
+        target: { value: 'Shop' },
     });
-    next();
-    next();
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
-    expect(
-        screen
-            .getByRole('switch', { name: /checks.uptime.label/ })
-            .getAttribute('aria-checked'),
-    ).toBe('true');
-});
-
-it('validates forward steps and restores the complete draft and manual check choices after back, forth and reload', async () => {
-    const view = render(<AddSite {...options} />);
-    step('3. Checks');
-    expect(
-        screen.getByText(
-            'Enter a valid HTTP or HTTPS URL without credentials.',
-        ),
-    ).not.toBeNull();
-    fireEvent.change(screen.getByLabelText('URL'), {
-        target: { value: 'https://shop.example.test' },
+    fireEvent.change(screen.getByLabelText('Tags'), {
+        target: { value: 'shop, live' },
     });
-    next();
-    next();
-    await waitFor(() => expect(screen.queryByText('Checking site')).toBeNull());
     fireEvent.click(
         screen.getAllByRole('button', {
             name: 'add_site.settings.for_check',
@@ -153,38 +274,27 @@ it('validates forward steps and restores the complete draft and manual check cho
     });
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
     fireEvent.click(screen.getByRole('switch', { name: /checks.dns.label/ }));
-    step('1. Address');
-    step('3. Checks');
-    expect(
-        screen
-            .getByRole('switch', { name: /checks.dns.label/ })
-            .getAttribute('aria-checked'),
-    ).toBe('true');
     view.unmount();
     render(<AddSite {...options} />);
-    await waitFor(() => expect(screen.queryByText('Checking site')).toBeNull());
     expect(
-        screen
-            .getByRole('switch', { name: /checks.dns.label/ })
-            .getAttribute('aria-checked'),
-    ).toBe('true');
-    expect(stored().step).toBe('checks');
+        within(clientField()!).getByText(options.clients[1]!.name),
+    ).not.toBeNull();
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe(
+        'Shop',
+    );
+    expect((screen.getByLabelText('Tags') as HTMLInputElement).value).toBe(
+        'shop, live',
+    );
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    expect(switchState('checks.dns.label')).toBe('true');
     expect(stored().changedChecks).toContain('dns');
     expect(stored().settings['uptime.timeout']).toBe(17);
-    fireEvent.click(
-        screen.getAllByRole('button', {
-            name: 'add_site.settings.for_check',
-        })[0]!,
-    );
-    expect((screen.getByLabelText('Timeout') as HTMLInputElement).value).toBe(
-        '17',
-    );
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(stored()).not.toHaveProperty('step');
 });
 
 it('never stores URL credentials, query, fragment, health secrets, request headers or request bodies', () => {
     const view = render(<AddSite {...options} />);
-    fireEvent.change(screen.getByLabelText('URL'), {
+    fireEvent.change(urlField(), {
         target: {
             value: 'https://user:password@shop.example.test/path?token=private#private',
         },
@@ -216,24 +326,19 @@ it('never stores URL credentials, query, fragment, health secrets, request heade
                 : check,
         ),
     };
-    localStorage.setItem(
-        storageKey(),
-        JSON.stringify({
-            url: 'https://user:password@shop.example.test/path?token=private#private',
-            client_id: String(options.clients[0]!.id),
-            step: 'address',
-            checks: ['uptime', 'application_health'],
-            settings: {
-                'application_health.secret': 'health-private',
-                'uptime.http_client_headers': [
-                    { name: 'Authorization', value: 'header-private' },
-                ],
-                'uptime.raw_payload': '{"token":"body-private"}',
-                'uptime.nested': { label: 'public', token: 'nested-private' },
-                'uptime.timeout': 12,
-            },
-        }),
-    );
+    restoreDraft({
+        url: 'https://user:password@shop.example.test/path?token=private#private',
+        checks: ['uptime', 'application_health'],
+        settings: {
+            'application_health.secret': 'health-private',
+            'uptime.http_client_headers': [
+                { name: 'Authorization', value: 'header-private' },
+            ],
+            'uptime.raw_payload': '{"token":"body-private"}',
+            'uptime.nested': { label: 'public', token: 'nested-private' },
+            'uptime.timeout': 12,
+        },
+    });
     render(<AddSite {...withNested} />);
     const draft = localStorage.getItem(storageKey())!;
     expect(draft).not.toMatch(
@@ -243,30 +348,24 @@ it('never stores URL credentials, query, fragment, health secrets, request heade
         'uptime.timeout': 12,
         'uptime.nested': { label: 'public' },
     });
-    expect((screen.getByLabelText('URL') as HTMLInputElement).value).toBe(
-        'https://shop.example.test/path',
-    );
+    expect(urlField().value).toBe('https://shop.example.test/path');
     expect(screen.getByText('sites.draft.secrets_omitted')).not.toBeNull();
 });
 
 it('isolates drafts per user, rejects malformed storage and clamps removed clients and unavailable checks', () => {
     localStorage.setItem(storageKey(), 'not json');
     const view = render(<AddSite {...options} />);
-    expect((screen.getByLabelText('URL') as HTMLInputElement).value).toBe('');
-    fireEvent.change(screen.getByLabelText('URL'), {
+    expect(urlField().value).toBe('');
+    fireEvent.change(urlField(), {
         target: { value: 'https://first.example.test' },
     });
     view.unmount();
     userId = 2;
-    localStorage.setItem(
-        storageKey(),
-        JSON.stringify({
-            url: 'https://second.example.test',
-            step: 'checks',
-            client_id: '-123',
-            checks: ['uptime', 'lighthouse', 'not-installed'],
-        }),
-    );
+    restoreDraft({
+        url: 'https://second.example.test',
+        client_id: '-123',
+        checks: ['uptime', 'lighthouse', 'not-installed'],
+    });
     render(
         <AddSite
             {...options}
@@ -280,9 +379,10 @@ it('isolates drafts per user, rejects malformed storage and clamps removed clien
             )}
         />,
     );
-    expect(stored().step).toBe('client');
     expect(stored().client_id).toBe('');
     expect(stored().checks).toEqual(['uptime']);
+    expect(clientField()).not.toBeNull();
+    expect(screen.queryByLabelText('Name')).toBeNull();
     expect(JSON.parse(localStorage.getItem(storageKey(1))!).url).toBe(
         'https://first.example.test/',
     );
@@ -291,26 +391,22 @@ it('isolates drafts per user, rejects malformed storage and clamps removed clien
 it('clears the draft only on explicit discard or successful save, not validation failure', async () => {
     const visit = vi.spyOn(router, 'visit').mockImplementation(() => {});
     let view = render(<AddSite {...options} />);
-    fireEvent.change(screen.getByLabelText('URL'), {
+    fireEvent.change(urlField(), {
         target: { value: 'https://shop.example.test' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
     expect(localStorage.getItem(storageKey())).toBeNull();
     expect(visit).toHaveBeenCalled();
     view.unmount();
+    restoreDraft({ checks: ['uptime'] });
     view = render(<AddSite {...options} />);
-    fireEvent.change(screen.getByLabelText('URL'), {
-        target: { value: 'https://shop.example.test' },
-    });
-    next();
-    next();
-    await waitFor(() => expect(screen.queryByText('Checking site')).toBeNull());
     const post = vi
         .spyOn(router, 'post')
         .mockImplementation((_url, _data, options) => {
             options?.onError?.({ url: 'URL already exists' });
         });
     fireEvent.click(screen.getByRole('button', { name: 'Add site' }));
+    expect(screen.getByText('URL already exists')).not.toBeNull();
     expect(localStorage.getItem(storageKey())).not.toBeNull();
     post.mockImplementation((_url, _data, options) => {
         options?.onSuccess?.(
@@ -319,12 +415,11 @@ it('clears the draft only on explicit discard or successful save, not validation
             >[0],
         );
     });
-    step('3. Checks');
     fireEvent.click(screen.getByRole('button', { name: 'Add site' }));
     await waitFor(() => expect(localStorage.getItem(storageKey())).toBeNull());
 });
 
-it('creates a client in a sheet with the normal form and selects it without leaving step 2', async () => {
+it('creates a client in a sheet with the normal form and selects it in place', async () => {
     const request = vi.spyOn(http.getClient(), 'request').mockResolvedValue({
         status: 201,
         headers: { 'content-type': 'application/json' },
@@ -335,11 +430,8 @@ it('creates a client in a sheet with the normal form and selects it without leav
         }),
     });
     render(<AddSite {...options} />);
-    fireEvent.change(screen.getByLabelText('URL'), {
-        target: { value: 'shop.example.test' },
-    });
-    next();
-    fireEvent.click(screen.getByRole('combobox', { name: 'Client' }));
+    await enterAddress();
+    fireEvent.click(clientField()!);
     fireEvent.change(
         screen.getByRole('combobox', { name: 'combobox.search' }),
         { target: { value: 'New Studio' } },
@@ -367,23 +459,15 @@ it('creates a client in a sheet with the normal form and selects it without leav
         locale: 'en',
         timezone: 'UTC',
     });
-    expect(
-        within(screen.getByRole('combobox', { name: 'Client' })).getByText(
-            'New Studio',
-        ),
-    ).not.toBeNull();
-    expect(stored().step).toBe('client');
+    expect(within(clientField()!).getByText('New Studio')).not.toBeNull();
     expect(stored().client_id).toBe('987');
+    expect(screen.getByLabelText('Name')).not.toBeNull();
 });
 
-it('cancels client creation without changing the selected client and gives Members no Create entry', () => {
+it('cancels client creation without changing the selected client and gives Members no Create entry', async () => {
     const view = render(<AddSite {...options} />);
-    fireEvent.change(screen.getByLabelText('URL'), {
-        target: { value: 'shop.example.test' },
-    });
-    next();
-    const selected = stored().client_id;
-    fireEvent.click(screen.getByRole('combobox', { name: 'Client' }));
+    await enterAddress();
+    fireEvent.click(clientField()!);
     fireEvent.change(
         screen.getByRole('combobox', { name: 'combobox.search' }),
         { target: { value: 'Cancelled Studio' } },
@@ -393,24 +477,16 @@ it('cancels client creation without changing the selected client and gives Membe
     );
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(stored().client_id).toBe(selected);
+    expect(stored().client_id).toBe('');
     view.unmount();
     render(<AddSite {...options} can_create_site={false} />);
-    fireEvent.click(screen.getByRole('combobox', { name: 'Client' }));
+    fireEvent.click(clientField()!);
     expect(screen.queryByRole('option', { name: /Create/ })).toBeNull();
     expect(screen.queryByText('clients.create_inline')).toBeNull();
 });
 
-it('groups checks by consequence, removes unavailable controls and moves Lighthouse into recommendations when enabled on the instance', async () => {
-    localStorage.setItem(
-        storageKey(),
-        JSON.stringify({
-            url: 'https://shop.example.test',
-            step: 'checks',
-            client_id: String(options.clients[0]!.id),
-            checks: ['uptime', 'performance'],
-        }),
-    );
+it('groups checks by consequence, removes unavailable controls and moves Lighthouse into recommendations when enabled on the instance', () => {
+    restoreDraft({ checks: ['uptime', 'performance'] });
     const checks = options.checks.map((check) =>
         check.key === 'lighthouse'
             ? {
@@ -471,15 +547,7 @@ it('groups checks by consequence, removes unavailable controls and moves Lightho
 });
 
 it('groups HTTPS-only checks of an HTTP address under the address, not under instance availability', () => {
-    localStorage.setItem(
-        storageKey(),
-        JSON.stringify({
-            url: 'http://shop.example.test',
-            step: 'checks',
-            client_id: String(options.clients[0]!.id),
-            checks: ['uptime'],
-        }),
-    );
+    restoreDraft({ url: 'http://shop.example.test', checks: ['uptime'] });
     render(<AddSite {...options} />);
     const address = screen.getByRole('region', {
         name: 'add_site.group.address',
@@ -497,15 +565,7 @@ it('groups HTTPS-only checks of an HTTP address under the address, not under ins
 });
 
 it('applies check settings from a sheet, counts only differences from defaults and discards cancelled edits', () => {
-    localStorage.setItem(
-        storageKey(),
-        JSON.stringify({
-            url: 'https://shop.example.test',
-            step: 'checks',
-            client_id: String(options.clients[0]!.id),
-            checks: ['uptime'],
-        }),
-    );
+    restoreDraft({ checks: ['uptime'] });
     render(
         <AddSite
             {...options}
@@ -546,34 +606,35 @@ it('applies check settings from a sheet, counts only differences from defaults a
     expect(stored().settings['uptime.timeout']).toBe(17);
     fireEvent.click(settings());
     fireEvent.change(screen.getByLabelText('Timeout'), {
-        target: {
-            value: '10',
-        },
+        target: { value: '10' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
     expect(screen.queryByText('add_site.settings.changed')).toBeNull();
 });
 
-it('refreshes probe-dependent recommendations when restoring Checks and preserves explicit check selections', async () => {
-    localStorage.setItem(
-        storageKey(),
-        JSON.stringify({
-            url: 'https://shop.example.test',
-            step: 'checks',
-            client_id: String(options.clients[0]!.id),
-            checks: ['uptime', 'application_health'],
-            changedChecks: [
-                'lighthouse',
-                'mixed_content',
-                'application_health',
-            ],
-        }),
+it('opens the setup sheet when a check that needs settings is turned on and leaves it off when cancelled', () => {
+    restoreDraft({ checks: ['uptime'] });
+    render(<AddSite {...options} />);
+    fireEvent.click(
+        screen.getByRole('switch', { name: 'checks.application_health.label' }),
     );
+    const sheet = screen.getByRole('dialog');
+    expect(within(sheet).getByText('checks.application_health.label'));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }));
+    expect(switchState('checks.application_health.label')).toBe('false');
+});
+
+it('names the probe reason on recommended checks and refreshes recommendations on restore without overriding explicit choices', async () => {
+    restoreDraft({
+        checks: ['uptime', 'application_health'],
+        changedChecks: ['lighthouse', 'mixed_content', 'application_health'],
+    });
     vi.mocked(fetch).mockResolvedValue({
         ok: true,
         json: async () => ({
             recommended_checks: [
                 'uptime',
+                'certificate_health',
                 'broken_links',
                 'mixed_content',
                 'sitemap',
@@ -581,6 +642,9 @@ it('refreshes probe-dependent recommendations when restoring Checks and preserve
             ],
             failure: null,
             status: 200,
+            certificate_issuer: 'Example CA',
+            sitemap_url: 'https://shop.example.test/sitemap.xml',
+            public_html: true,
         }),
     } as Response);
     render(
@@ -598,9 +662,10 @@ it('refreshes probe-dependent recommendations when restoring Checks and preserve
             )}
         />,
     );
-
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.queryByText('Checking site')).toBeNull());
+    await waitFor(() =>
+        expect(screen.getByText('add_site.reason.status')).not.toBeNull(),
+    );
+    expect(fetch).toHaveBeenCalledTimes(1);
     const recommended = within(
         screen.getByRole('region', { name: 'add_site.group.recommended' }),
     );
@@ -609,29 +674,22 @@ it('refreshes probe-dependent recommendations when restoring Checks and preserve
         'mixed_content',
         'sitemap',
         'lighthouse',
-    ]) {
+    ])
         expect(
             recommended.getByRole('switch', { name: `checks.${key}.label` }),
         ).not.toBeNull();
-    }
+    expect(recommended.getByText('add_site.reason.certificate')).not.toBeNull();
+    expect(recommended.getByText('add_site.reason.sitemap')).not.toBeNull();
     expect(
-        recommended
-            .getByRole('switch', { name: 'checks.lighthouse.label' })
-            .getAttribute('aria-checked'),
-    ).toBe('false');
-    expect(
-        recommended
-            .getByRole('switch', { name: 'checks.mixed_content.label' })
-            .getAttribute('aria-checked'),
-    ).toBe('false');
-    expect(
-        screen
-            .getByRole('switch', { name: 'checks.application_health.label' })
-            .getAttribute('aria-checked'),
-    ).toBe('true');
+        recommended.getAllByText('add_site.reason.public_html'),
+    ).toHaveLength(3);
+    expect(switchState('checks.lighthouse.label')).toBe('false');
+    expect(switchState('checks.mixed_content.label')).toBe('false');
+    expect(switchState('checks.application_health.label')).toBe('true');
     expect(stored().checks.toSorted()).toEqual([
         'application_health',
         'broken_links',
+        'certificate_health',
         'sitemap',
         'uptime',
     ]);
@@ -647,7 +705,7 @@ it('debounces the address check, aborts stale results and normalises on blur', a
             ) as Promise<Response>,
     );
     render(<AddSite {...options} />);
-    const field = screen.getByLabelText('URL') as HTMLInputElement;
+    const field = urlField();
     fireEvent.change(field, { target: { value: 'FIRST.example/' } });
     await act(() => vi.advanceTimersByTimeAsync(599));
     expect(fetch).not.toHaveBeenCalled();
@@ -681,40 +739,13 @@ it('debounces the address check, aborts stale results and normalises on blur', a
     expect(stored().url).toBe('https://second.example/');
 });
 
-it('shows server validation without calling an invalid address unreachable', async () => {
-    vi.mocked(fetch).mockResolvedValue({
-        ok: false,
-        status: 422,
-        json: async () => ({
-            errors: { url: ['Enter an HTTP or HTTPS address.'] },
-        }),
-    } as Response);
+it('lets the server validate a scheme-less host with a port instead of rejecting it locally', async () => {
     render(<AddSite {...options} />);
-    fireEvent.change(screen.getByLabelText('URL'), {
-        target: { value: 'ftp://shop.example' },
-    });
-    fireEvent.blur(screen.getByLabelText('URL'));
-    await waitFor(() =>
-        expect(
-            screen.getByText('Enter an HTTP or HTTPS address.'),
-        ).not.toBeNull(),
-    );
-    expect(screen.queryByText(/sites.url_unreachable/)).toBeNull();
-});
-
-it('lets the server validate a scheme-less host with a port instead of rejecting it locally', () => {
-    render(<AddSite {...options} />);
-    fireEvent.change(screen.getByLabelText('URL'), {
-        target: { value: 'shop.example:8080/path' },
-    });
+    await enterAddress('shop.example:8080/path');
     expect(stored().url).toBe('https://shop.example:8080/path');
-    next();
-    expect(screen.getByText('Choose a client for this site.')).not.toBeNull();
-    next();
-    expect(screen.getByText('Recommended checks are selected.')).not.toBeNull();
 });
 
-it('offers the observed redirect address without blocking forward navigation on an HTTP warning', async () => {
+it('offers the observed redirect address and still reveals Client on an HTTP warning', async () => {
     vi.mocked(fetch).mockResolvedValue({
         ok: true,
         json: async () => ({
@@ -726,18 +757,13 @@ it('offers the observed redirect address without blocking forward navigation on 
         }),
     } as Response);
     render(<AddSite {...options} />);
-    const field = screen.getByLabelText('URL') as HTMLInputElement;
-    fireEvent.change(field, { target: { value: 'http://shop.example/' } });
-    fireEvent.blur(field);
-    await waitFor(() =>
-        expect(screen.getByText('Warning · HTTP 404')).not.toBeNull(),
-    );
-    await act(async () => fireEvent.blur(field));
+    await enterAddress('http://shop.example/');
+    expect(screen.getByText('Warning · HTTP 404')).not.toBeNull();
+    await act(async () => fireEvent.blur(urlField()));
     expect(fetch).toHaveBeenCalledTimes(1);
     fireEvent.click(
         screen.getByRole('button', { name: 'sites.url_use_address' }),
     );
-    expect(field.value).toBe('https://www.shop.example/store');
-    next();
-    expect(screen.getByText('Choose a client for this site.')).not.toBeNull();
+    expect(urlField().value).toBe('https://www.shop.example/store');
+    expect(clientField()).not.toBeNull();
 });

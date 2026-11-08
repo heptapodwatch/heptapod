@@ -28,5 +28,12 @@
     "add_site.unavailable.browser_detail": "Diese benötigen einen Server mit mindestens 8 GB Arbeitsspeicher.",
     "add_site.count.footer_one": ":count Prüfung wird ausgeführt",
     "add_site.count.footer_other": ":count Prüfungen werden ausgeführt",
-    "add_site.unavailable.https_hint": "Eine HTTPS-Adresse verwenden, um diese Prüfung zu aktivieren."
+    "add_site.unavailable.https_hint": "Eine HTTPS-Adresse verwenden, um diese Prüfung zu aktivieren.",
+    "add_site.reason.status": "Antwortet mit HTTP :status",
+    "add_site.reason.certificate": "HTTPS · :issuer",
+    "add_site.reason.sitemap": "Sitemap gefunden",
+    "add_site.reason.public_html": "Öffentliche HTML-Seite gefunden",
+    "add_site.summary.empty": "Geben Sie zuerst eine Adresse ein",
+    "add_site.summary.attention_one": ":count Feld benötigt Ihre Aufmerksamkeit",
+    "add_site.summary.attention_other": ":count Felder benötigen Ihre Aufmerksamkeit"
 }

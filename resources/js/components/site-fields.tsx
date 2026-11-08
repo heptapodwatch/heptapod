@@ -1,3 +1,4 @@
+import { AbsoluteTime } from '@/components/absolute-time';
 import { StatusDot } from '@/components/monitoring';
 import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,8 @@ export function SiteUrlField({
     probeState,
     probeError,
     onUseAddress,
+    onRetry,
+    facts = false,
     id = 'site-url',
     ...props
 }: InputFieldProps & {
@@ -50,6 +53,10 @@ export function SiteUrlField({
     probeState?: 'idle' | 'loading' | 'done' | 'error';
     probeError?: string | null;
     onUseAddress?: (url: string) => void;
+    /** Offers Retry after a probe that could not reach the address. */
+    onRetry?: () => void;
+    /** Also list what a successful probe found (server, certificate, sitemap, public HTML) under the status. */
+    facts?: boolean;
 }) {
     const { t } = useTranslation();
     return (
@@ -106,6 +113,16 @@ export function SiteUrlField({
                                         `${t('sites.url_unreachable')} · ${probe?.failure_reason ?? t('sites.url_probe_failed')}`)
                                       : `${t((probe?.status ?? 0) >= 400 ? 'Warning' : 'sites.url_reachable')} · HTTP ${probe?.status}`}
                             </span>
+                            {onRetry && probeState === 'error' && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="xs"
+                                    onClick={onRetry}
+                                >
+                                    {t('Retry')}
+                                </Button>
+                            )}
                         </div>
                     )}
                     {probe?.final_url &&
@@ -151,6 +168,55 @@ export function SiteUrlField({
                                 })}
                             </span>
                         </div>
+                    )}
+                    {facts && probeState === 'done' && probe && (
+                        <dl className="flex flex-wrap gap-x-4 gap-y-1">
+                            {probe.server && (
+                                <div className="flex min-w-0 gap-1">
+                                    <dt>{t('Server')}</dt>
+                                    <dd className="text-foreground">
+                                        {probe.server}
+                                    </dd>
+                                </div>
+                            )}
+                            {probe.certificate_issuer && (
+                                <div className="flex min-w-0 gap-1">
+                                    <dt>{t('Certificate')}</dt>
+                                    <dd className="text-foreground">
+                                        {probe.certificate_issuer}
+                                        {probe.certificate_expires_at && (
+                                            <>
+                                                {' · '}
+                                                <AbsoluteTime
+                                                    value={
+                                                        probe.certificate_expires_at
+                                                    }
+                                                    mode="calendarDate"
+                                                />
+                                            </>
+                                        )}
+                                    </dd>
+                                </div>
+                            )}
+                            {probe.sitemap_url && (
+                                <div className="flex min-w-0 gap-1">
+                                    <dt>{t('Sitemap')}</dt>
+                                    <dd className="min-w-0 font-mono break-all text-foreground">
+                                        {probe.sitemap_url}
+                                    </dd>
+                                </div>
+                            )}
+                            <div className="flex min-w-0 gap-1">
+                                <dt>{t('sites.url_fact.html')}</dt>
+                                <dd className="text-foreground">
+                                    {t(
+                                        probe.public_html
+                                            ? 'sites.url_fact.public_html'
+                                            : 'sites.url_fact.no_public_html',
+                                    )}
+                                </dd>
+                            </div>
+                        </dl>
                     )}
                 </div>
             )}

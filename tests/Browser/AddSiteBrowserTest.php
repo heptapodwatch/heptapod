@@ -14,19 +14,24 @@ beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-26T12:00:00Z'));
 });
 
-it('starts recommended check settings collapsed and shows the effective expiry default', function (): void {
+/** Enters the address, waits for the probe to reveal Client and chooses the client: every section is then shown. */
+function addSiteSections(string $url, Client $client): mixed
+{
+    return visit('/sites/create')->fill('#site-url', $url)
+        ->click('#site-client')->click('role=option[name="'.$client->name.'"s]');
+}
+
+it('shows the effective expiry default only in the check settings sheet', function (): void {
     Vite::useHotFile(storage_path('framework/testing.hot'));
     $user = User::factory()->create();
     $user->assignRole('Owner');
-    Client::factory()->create();
+    $client = Client::factory()->create();
     $this->actingAs($user);
 
-    visit('/sites/create')->resize(390, 844)
-        ->fill('#site-url', 'https://defaults.example')
-        ->click('button[type="submit"]')->click('button[type="submit"]')
-        ->assertSee('Using recommended defaults')
+    addSiteSections('https://defaults.example', $client)->resize(390, 844)
+        ->assertSee('Defaults')
         ->assertDontSee('Default: 14')
-        ->click('button:has-text("Settings") >> nth=0')
+        ->click('button[aria-label="Settings for Certificate"]')
         ->assertSee('Default: 14')
         ->assertNoJavaScriptErrors();
 });
@@ -35,11 +40,10 @@ it('creates an HTTP site from recommended selections without HTTPS-only checks',
     Vite::useHotFile(storage_path('framework/testing.hot'));
     $user = User::factory()->create();
     $user->assignRole('Owner');
-    Client::factory()->create();
+    $client = Client::factory()->create();
     $this->actingAs($user);
 
-    $page = visit('/sites/create')->fill('#site-url', 'http://plain.example')
-        ->click('button[type="submit"]')->click('button[type="submit"]')
+    $page = addSiteSections('http://plain.example', $client)
         ->click('button[type="submit"]')->assertPathIsNot('/sites/create');
     $site = Site::query()->where('url', 'http://plain.example')->firstOrFail();
     $page->assertPathIs('/sites/'.$site->id)->assertNoJavaScriptErrors();
@@ -54,12 +58,11 @@ it('persists schema-shaped headers, payload and both assertion lists from the ad
     Vite::useHotFile(storage_path('framework/testing.hot'));
     $user = User::factory()->create();
     $user->assignRole('Owner');
-    Client::factory()->create();
+    $client = Client::factory()->create();
     $this->actingAs($user);
 
-    $page = visit('/sites/create')->fill('#site-url', 'https://schema.example')
-        ->click('button[type="submit"]')->click('button[type="submit"]')
-        ->click('label[for="check-uptime"] >> xpath=../../.. >> button:text-is("Settings")');
+    $page = addSiteSections('https://schema.example', $client)
+        ->click('button[aria-label="Settings for Uptime"]');
     foreach (['Headers', 'Request fields', 'Expected response headers', 'Response body rules'] as $label) {
         $page->click('fieldset:has(legend:text-is("'.$label.'")) button:has-text("Add pair")');
     }
@@ -71,8 +74,9 @@ it('persists schema-shaped headers, payload and both assertion lists from the ad
         ->fill('input[id*="uptime.expected_response_headers-value-0"]', 'yes')
         ->fill('input[id*="uptime.response_body_assertions-path-0"]', 'result.ok')
         ->fill('input[id*="uptime.response_body_assertions-value-0"]', 'true')
-        ->click('[role=combobox][aria-label="Condition 1"]')->click('role=option[name="contains"s]')
+        ->click('role=radio[name="contains"s]')
         ->click('[role=combobox][aria-label="Operator 1"]')->click('role=option[name="equals"s]')
+        ->click('button:text-is("Apply")')
         ->click('button[type="submit"]')->assertPathIsNot('/sites/create');
     $site = Site::query()->where('url', 'https://schema.example')->firstOrFail();
     $page->assertPathIs('/sites/'.$site->id)->assertNoJavaScriptErrors();
@@ -83,20 +87,19 @@ it('persists schema-shaped headers, payload and both assertion lists from the ad
         ->and($config['response_body_assertions'])->toBe([['path' => 'result.ok', 'value' => 'true', 'operator' => 'equals']]);
 });
 
-it('opens add-site settings on validation errors after submission', function (): void {
+it('reopens the check settings sheet on its validation errors after submission', function (): void {
     Vite::useHotFile(storage_path('framework/testing.hot'));
     $user = User::factory()->create();
     $user->assignRole('Owner');
-    Client::factory()->create();
+    $client = Client::factory()->create();
     $this->actingAs($user);
 
-    $page = visit('/sites/create')->fill('#site-url', 'https://new.example')
-        ->click('button[type="submit"]')->click('button[type="submit"]')
-        ->click('label[for="check-uptime"] >> xpath=../../.. >> button:text-is("Settings")')
+    $page = addSiteSections('https://new.example', $client)
+        ->click('button[aria-label="Settings for Uptime"]')
         ->fill('input[name="uptime.timeout"]', '0')
-        ->click('label[for="check-uptime"] >> xpath=../../.. >> button:text-is("Settings")')
+        ->click('button:text-is("Apply")')
         ->click('button[type="submit"]')
-        ->assertSee('The values.timeout field must be at least 1.');
-    expect($page->script('document.querySelector("input[name=\\"uptime.timeout\\"]").closest("[data-slot=collapsible]").getAttribute("data-state")'))->toBe('open');
+        ->assertSee('The values.timeout field must be at least 1.')
+        ->assertVisible('[role="dialog"] input[name="uptime.timeout"]');
     $page->assertNoJavaScriptErrors();
 });
