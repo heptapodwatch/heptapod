@@ -86,9 +86,11 @@ beforeEach(() => {
         }),
     );
 });
-afterEach(() => {
+afterEach(async () => {
     cleanup();
     vi.useRealTimers();
+    // Radix restores focus in a timeout after unmount; run it now, or it blurs the next test's URL field and probes.
+    await new Promise((resolve) => setTimeout(resolve, 0));
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
 });

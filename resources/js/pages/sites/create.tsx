@@ -158,6 +158,12 @@ export default function AddSite({
         runProbe,
         clearProbe,
     } = useSiteUrlProbe(form.data.url, true);
+    /** Checks the address now (blur, Enter, restore) and puts the normalised form into the field. */
+    const checkAddress = () =>
+        void runProbe().then((result) => {
+            if (result?.normalised_url)
+                form.setData('url', result.normalised_url);
+        });
     useEffect(() => {
         if (!probe) return;
         form.setData((data) => ({
@@ -174,7 +180,7 @@ export default function AddSite({
         }));
     }, [probe]);
     useEffect(() => {
-        if (initial.draft?.url) void runProbe();
+        if (initial.draft?.url) checkAddress();
     }, []);
     const isEligible = (check: (typeof checks)[number]) =>
         eligibleSiteCheck(check, form.data.url);
@@ -394,27 +400,13 @@ export default function AddSite({
                                 form.clearErrors('url');
                                 clearProbe();
                             }}
-                            onBlur={() =>
-                                void runProbe().then((result) => {
-                                    if (result?.normalised_url)
-                                        form.setData(
-                                            'url',
-                                            result.normalised_url,
-                                        );
-                                })
-                            }
+                            onBlur={checkAddress}
                             onKeyDown={(event) => {
                                 // Enter finishes the address like Tab while Client is still ahead; then it submits the form.
                                 if (event.key !== 'Enter' || revealed > 0)
                                     return;
                                 event.preventDefault();
-                                void runProbe().then((result) => {
-                                    if (result?.normalised_url)
-                                        form.setData(
-                                            'url',
-                                            result.normalised_url,
-                                        );
-                                });
+                                checkAddress();
                             }}
                             probe={probe}
                             probeState={probeState}
