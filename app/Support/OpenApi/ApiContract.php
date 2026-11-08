@@ -507,7 +507,7 @@ final class ApiContract
             'getOpenApiDocument' => 'This OpenAPI 3.1 document. Public: it needs no token and holds no monitoring data.',
             'getMe' => 'The user the token belongs to, and the one virtual team (ID 1) with the instance name and time zone.',
             'listMonitors' => 'Monitors the token can see, by ID, each with its checks and check settings. Page with `page`/`per_page` or `page[number]`/`page[size]` (1–200, default 200).',
-            'createMonitor' => 'Creates an HTTP monitor in the Internal client. Without `checks` the recommended checks are turned on; `checks: []` creates it with none.',
+            'createMonitor' => 'Creates an HTTP monitor in the internal client, shown as "No client" in the app. Without `checks` the recommended checks are turned on; `checks: []` creates it with none.',
             'getMonitor' => 'One monitor with its checks and check settings. Secrets are never returned: crawler headers are null, other secret values are `********`.',
             'getMonitorByUrl' => 'The monitor whose stored URL equals the address in the path, URL-decoded once (the encoding of the Oh Dear SDK).',
             'updateMonitor' => 'Partial update: omitted fields and check settings keep their value, and a masked secret (`********`) keeps the stored secret.',

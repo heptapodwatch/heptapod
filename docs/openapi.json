@@ -7910,7 +7910,7 @@
                 }
             },
             "post": {
-                "description": "Creates an HTTP monitor in the Internal client. Without `checks` the recommended checks are turned on; `checks: []` creates it with none.\n\nToken abilities: `monitors:write`.",
+                "description": "Creates an HTTP monitor in the internal client, shown as \"No client\" in the app. Without `checks` the recommended checks are turned on; `checks: []` creates it with none.\n\nToken abilities: `monitors:write`.",
                 "operationId": "createMonitor",
                 "requestBody": {
                     "content": {
