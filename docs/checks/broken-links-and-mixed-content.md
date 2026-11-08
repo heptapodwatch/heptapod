@@ -15,12 +15,12 @@ The broken-links check crawls the HTML pages of a site and checks every link, im
 | Warning | Broken external links, links that could not be checked, or rate-limited URLs. | —                                            |
 | Failed  | Broken internal links.                                                        | At least one HTTP resource on an HTTPS page. |
 
-A finding stays until a later complete crawl confirms it is fixed.
+A finding stays until a later crawl checks the link again and finds it fixed.
 
 ## What counts as broken
 
 - An HTTP error status, an unreachable link or a malformed HTTP(S) URL. A malformed URL shows the page it was found on.
-- An external link is broken only on hard evidence: 404 or 410, an invalid certificate or another client error.
+- An external link is broken only on hard evidence: a 404, 410, other client error or server error, an expired or not-yet-valid certificate, or a certificate for another host.
 - Links with `javascript:`, `mailto:`, `tel:` or `data:` are ignored.
 - Spaces in a link path are encoded like a browser does before the check. A malformed host stays invalid.
 - Cloudflare's email-protection path `/cdn-cgi/l/email-protection` on the site's host or its `www`/apex alias is ignored by default. Other 404s still count.
@@ -32,7 +32,7 @@ These links appear in their own group and do not count as broken:
 
 - **Could not be checked**: the request timed out, could not connect or was reset (`unchecked (timeout)`, `unchecked (connect)`, `unchecked (connection reset)`). They make an otherwise clean run a Warning.
 - **Not verifiable**: the site blocks automated checks (bot protection), is rate-limited, or the link points to a private network address.
-- **Not verifiable, external links only**: the site requires a login, refuses the request, its host name does not resolve, or TLS fails. The same cause on an internal link is broken.
+- **Not verifiable, external links only**: the site requires a login, refuses the request, its host name does not resolve, its certificate chain cannot be verified, or the TLS handshake fails. The same cause on an internal link is broken.
 
 Identifying the client does not get past a challenge or WAF rule. Use **Allowed broken URLs** for links you know are fine.
 
@@ -73,10 +73,10 @@ Identifying the client does not get past a challenge or WAF rule. Use **Allowed 
 
 To raise an environment limit, set it in the production environment, rebuild the configuration cache and restart the workers. Larger budgets cost crawl time and memory; size workers with the [capacity table](../deploy/operations.md#installation-and-capacity).
 
-A crawl that hits a limit is incomplete and says so, for example "Crawl incomplete (cap 2000 reached)". An incomplete crawl never resolves an incident or clears a finding.
+A crawl that hits a limit is incomplete and says so, for example "Crawl incomplete (cap 2000 reached)". An incomplete crawl never resolves an incident. It clears only findings it checked again and keeps the rest.
 
 - A page or resource limit still opens or escalates an incident for confirmed failures and reports new findings.
-- A time limit or the comparison limit opens nothing, escalates nothing and sends no change events. It keeps earlier findings and records `time_limit_reached` or the comparison flag in the run evidence.
+- A time limit or the comparison limit opens nothing, escalates nothing and sends no change events. It keeps every earlier finding, even links it saw fixed, and records `time_limit_reached` or the comparison flag in the run evidence.
 - A clean run that hit a limit is OK but incomplete.
 - A 404 or 410 link does not make a crawl incomplete. Unavailable pages, timeouts and limits do.
 
@@ -105,14 +105,16 @@ Both checks run once a day and share one recent crawl.
 
 ## Request headers
 
-All HTTP requests from Heptapod (checks, crawls, sitemaps, site icons, RDAP lookups, update checks and HTTP notifications) send:
+All HTTP requests from Heptapod (checks, crawls, sitemaps, site icons, RDAP lookups, update checks and HTTP notifications) send `User-Agent: HeptapodBot/<version> (+https://heptapod.watch/bot)`.
 
-| Header            | Value                                                 |
-| ----------------- | ----------------------------------------------------- |
-| `User-Agent`      | `HeptapodBot/<version> (+https://heptapod.watch/bot)` |
-| `Accept`          | `text/html,application/xhtml+xml;q=0.9,*/*;q=0.8`     |
-| `Accept-Language` | `en,de;q=0.9,*;q=0.5`                                 |
+Check requests also send these defaults unless the request sets its own:
 
+| Header            | Value                                             |
+| ----------------- | ------------------------------------------------- |
+| `Accept`          | `text/html,application/xhtml+xml;q=0.9,*/*;q=0.8` |
+| `Accept-Language` | `en,de;q=0.9,*;q=0.5`                             |
+
+- Update checks and RDAP lookups ask for JSON instead.
 - Site crawler headers and check headers can override them on same-origin requests.
 - After a redirect leaves the origin, only these public headers are sent, even if a later hop returns. Credentials never go to other origins.
 - Lighthouse sends the headless Chrome User-Agent. Certificate, DNS and WHOIS checks make no HTTP requests.

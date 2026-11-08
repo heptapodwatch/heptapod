@@ -49,7 +49,7 @@ These limits are fixed. The sitemap documents, redirects and HEAD-to-GET retries
 
 - A broken URL stays open until a later run finds it reachable, or the sitemap stops listing it.
 - A run that checks other URLs, or a structure-only run, keeps earlier findings open.
-- A Failed incident resolves only when every known broken URL has been checked again and is reachable.
+- A Failed incident resolves only when every known broken URL is reachable again or has left the sitemap.
 - URLs outside the current window are unchecked, not healthy or broken. So are refused requests and requests cut short by the run time.
 
 ## Runs that hit the time limit

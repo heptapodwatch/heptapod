@@ -19,14 +19,14 @@ The API returns only the keys you saved. Missing keys use these defaults.
 
 ## When it warns
 
-Each evaluation compares the 60-minute median response time with two limits. It is elevated when either applies:
+Each evaluation compares the median response time of its sample window with two limits. It is elevated when either applies:
 
 - **Threshold**: the median is above **Threshold**.
 - **Usual level**: the median is above both the baseline p90 and the baseline median plus **Minimum change from normal**. It must also be at least 200 ms above the baseline median. A rise from 47 ms to 93 ms does not count.
 
 Three elevated evaluations in a row raise a Warning. A normal evaluation resets that count. While a warning or recovery is being confirmed, the check shows its progress.
 
-The median decides, so one slow request does not trigger a warning. The average shown on the check is the mean of the same samples and never triggers one.
+The median decides, so in a well-populated window one slow request does not trigger a warning. **Threshold** has no minimum sample count, so a single slow sample in a sparse window can. The average shown on the check is the mean of the same samples and never triggers one.
 
 ## When it recovers
 
@@ -35,7 +35,7 @@ A Warning ends after three evaluations in a row below the recovery limit of both
 - **Threshold** rule: at or below **Threshold** × (1 − **Recovery margin**). With the defaults this is 1900 ms, shown as **Recovers below** in **What we check**.
 - **Usual level** rule: the same margin below the greater of the relative limit and the baseline median plus 200 ms.
 
-A value between the limit and the recovery limit keeps the Warning and resets recovery progress. A margin of 0 recovers at the warning limit itself. A change to the margin applies from the next evaluation and keeps the current counts.
+A value between the limit and the recovery limit keeps the Warning and resets recovery progress. A margin of 0 keeps the warning boundaries without a band. A change to the margin applies from the next evaluation and keeps the current counts.
 
 ## Baseline
 
@@ -45,7 +45,7 @@ A value between the limit and the recovery limit keeps the Warning and resets re
 
 ## Samples
 
-- Samples are successful uptime response times from the current window: twice the uptime interval, at least 60 minutes and at most 23 hours.
+- Samples are the response times of successful or Warning uptime results in the sample window: twice the uptime interval, at least 60 minutes and at most 23 hours.
 - Failed uptime checks, check errors and missing timings are not samples.
 - An uptime check that runs less often than every 12 hours gives no response-time data.
 - Without samples, an evaluation produces no result and keeps the current state.

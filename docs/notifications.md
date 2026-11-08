@@ -145,8 +145,10 @@ Deleting a site removes its checks, runs and incidents. Timeline events and deli
 
 Owners and Admins choose another active client in the site settings. Settings, secrets and history move with the site; client channels and maintenance stay with the client.
 
+- Members of the new client gain access. Members with access only to the old client lose it.
 - Open incidents close without an alert and show "Site moved to another client". A check that still fails alerts the new client's channels.
-- Channel site exceptions and snoozes stay with the site. A digest planned before the move may still be sent.
+- Channel site exceptions and snoozes stay with the site.
+- The site leaves existing daily digests. A digest planned before the move may still be sent.
 
 ## Delivery outcomes
 

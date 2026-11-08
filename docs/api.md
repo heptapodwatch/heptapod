@@ -311,7 +311,7 @@ Owners and Admins can also import under **Settings → Import**. On the command 
 ### Reruns
 
 - Reruns update the stored Oh Dear identities. An existing site with an unmapped URL is skipped, never adopted.
-- Definitions missing from a rerun stay. The import never deletes.
+- Definitions missing from a rerun stay.
 - Cron checks need non-empty source definitions. They keep their local UUIDs on reruns. Point your tasks at the Heptapod ping URLs.
 
 ### Maintenance schedules
@@ -319,7 +319,7 @@ Owners and Admins can also import under **Settings → Import**. On the command 
 - Recurring schedules use the Oh Dear team's time zone, or the instance time zone.
 - Recurring windows are generated first. A running or future period is skipped when a local window covers it; otherwise it becomes a one-off.
 - Coverage uses UTC instants, so a second occurrence in a doubled DST hour stays a one-off.
-- Past covered periods are stored as tombstones. A period that ends at import time is still imported, but inactive.
+- A period that ends at import time is still imported, but inactive.
 - Overlapping windows mute alerts for their combined time.
 
 ### Setting mapping
