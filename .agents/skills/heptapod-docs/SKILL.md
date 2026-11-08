@@ -82,6 +82,24 @@ Use the glossary in `.agents/skills/heptapod-ui-rules` exactly:
 - Roles: Owner, Admin, Member. Owners and Admins see and change the whole instance; Members read only, and a Member limited to assigned clients sees only those clients.
 - "Follow" means only "send me these alerts".
 
+## States and callouts in user docs
+
+The website renders these docs with the app's colors; color carries meaning only.
+
+- When a word names a state, bold exactly that word: `**Down**`. The states are OK, Up,
+  Warning, Failed, Down, Check error, Pending, Maintenance and Paused. The website shows it
+  with the app's status mark (the same ring shape and color as in the app); on GitHub, in
+  the Markdown twins and in llms.txt it stays a bold or plain word.
+- Bold a state in a result or state table's first column (`| **Failed** | When … |`) and
+  where prose names a state ("an uptime outage (**Down**)"). Do not bold a state word that
+  is not a state; for a page or label that shares the name, bold more than the word
+  ("the **Maintenance page**", "**Settings → Maintenance**").
+- Callouts are Starlight asides (`:::note`, `:::tip`, `:::caution`, `:::danger`). Use a note
+  for context that does not block the task, a tip for a shortcut, a caution for a mistake
+  with a recoverable cost and a danger for data loss or a security risk. Their color
+  follows that meaning (maintenance, ok, degraded, down), so pick by meaning, not by look.
+- Never add color any other way: no HTML, no inline styles, no colored headings.
+
 ## Public docs
 
 - No host names, local paths, internal URLs, private repos or people. Example hosts use `example.com`; example addresses `ops@example.com`.

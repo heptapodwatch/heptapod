@@ -18,12 +18,12 @@ Each check runs at its next due time on the fast, crawl or browser queue. **Runs
 
 ## Results
 
-| Result      | Meaning                                                                                                                                           |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Failed      | The check's result failed. This includes non-uptime checks.                                                                                       |
-| Down        | The site has an open failed uptime incident. An uptime Check error is not Down. A failed uptime result can come before the outage incident opens. |
-| Check error | The attempt errored or timed out. It is not proof that the site is down.                                                                          |
-| Late        | A due check has not started within `max(60 seconds, 10% of its interval)`. Late is a schedule state, not a result.                                |
+| Result          | Meaning                                                                                                                                           |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Failed**      | The check's result failed. This includes non-uptime checks.                                                                                       |
+| **Down**        | The site has an open failed uptime incident. An uptime Check error is not Down. A failed uptime result can come before the outage incident opens. |
+| **Check error** | The attempt errored or timed out. It is not proof that the site is down.                                                                          |
+| Late            | A due check has not started within `max(60 seconds, 10% of its interval)`. Late is a schedule state, not a result.                                |
 
 A late check shows **Late by** the time since its due time. Read the check type, result and recorded cause together. See [notifications](../notifications.md) for how results become alerts.
 
