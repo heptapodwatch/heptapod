@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  Self-hosted website monitoring for freelancers and small agencies.<br>
+  Self-hosted website monitoring for freelancers and agencies.<br>
   Every client site, watched from one server you own.
 </p>
 
