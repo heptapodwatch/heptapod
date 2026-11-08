@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\DisableCheckController::__invoke
-* @see app/Http/Controllers/Api/DisableCheckController.php:15
+* @see app/Http/Controllers/Api/DisableCheckController.php:17
 * @route '/api/checks/{check}/disable'
 */
 const DisableCheckController = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ DisableCheckController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DisableCheckController::__invoke
-* @see app/Http/Controllers/Api/DisableCheckController.php:15
+* @see app/Http/Controllers/Api/DisableCheckController.php:17
 * @route '/api/checks/{check}/disable'
 */
 DisableCheckController.url = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ DisableCheckController.url = (args: { check: number | { id: number } } | [check:
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DisableCheckController::__invoke
-* @see app/Http/Controllers/Api/DisableCheckController.php:15
+* @see app/Http/Controllers/Api/DisableCheckController.php:17
 * @route '/api/checks/{check}/disable'
 */
 DisableCheckController.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ DisableCheckController.post = (args: { check: number | { id: number } } | [check
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DisableCheckController::__invoke
-* @see app/Http/Controllers/Api/DisableCheckController.php:15
+* @see app/Http/Controllers/Api/DisableCheckController.php:17
 * @route '/api/checks/{check}/disable'
 */
 const DisableCheckControllerForm = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const DisableCheckControllerForm = (args: { check: number | { id: number } } | [
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DisableCheckController::__invoke
-* @see app/Http/Controllers/Api/DisableCheckController.php:15
+* @see app/Http/Controllers/Api/DisableCheckController.php:17
 * @route '/api/checks/{check}/disable'
 */
 DisableCheckControllerForm.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers\Api;
 
+use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\SnoozeCronTask;
 use Heptapod\Concerns\AuthorizesCronTasks;
 use Heptapod\Concerns\ResolvesApiPrincipal;
@@ -12,6 +13,7 @@ use Heptapod\Http\Resources\OhDear\CronTaskResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
+#[Group('Cron tasks')]
 final class SnoozeCronTaskController extends Controller
 {
     use AuthorizesCronTasks;

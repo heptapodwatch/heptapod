@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\FindingsController::__invoke
-* @see app/Http/Controllers/Api/FindingsController.php:39
+* @see app/Http/Controllers/Api/FindingsController.php:41
 * @route '/api/findings'
 */
 const FindingsController = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ FindingsController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\FindingsController::__invoke
-* @see app/Http/Controllers/Api/FindingsController.php:39
+* @see app/Http/Controllers/Api/FindingsController.php:41
 * @route '/api/findings'
 */
 FindingsController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ FindingsController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\FindingsController::__invoke
-* @see app/Http/Controllers/Api/FindingsController.php:39
+* @see app/Http/Controllers/Api/FindingsController.php:41
 * @route '/api/findings'
 */
 FindingsController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ FindingsController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> =
 
 /**
 * @see \Heptapod\Http\Controllers\Api\FindingsController::__invoke
-* @see app/Http/Controllers/Api/FindingsController.php:39
+* @see app/Http/Controllers/Api/FindingsController.php:41
 * @route '/api/findings'
 */
 FindingsController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ FindingsController.head = (options?: RouteQueryOptions): RouteDefinition<'head'>
 
 /**
 * @see \Heptapod\Http\Controllers\Api\FindingsController::__invoke
-* @see app/Http/Controllers/Api/FindingsController.php:39
+* @see app/Http/Controllers/Api/FindingsController.php:41
 * @route '/api/findings'
 */
 const FindingsControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const FindingsControllerForm = (options?: RouteQueryOptions): RouteFormDefinitio
 
 /**
 * @see \Heptapod\Http\Controllers\Api\FindingsController::__invoke
-* @see app/Http/Controllers/Api/FindingsController.php:39
+* @see app/Http/Controllers/Api/FindingsController.php:41
 * @route '/api/findings'
 */
 FindingsControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ FindingsControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<
 
 /**
 * @see \Heptapod\Http\Controllers\Api\FindingsController::__invoke
-* @see app/Http/Controllers/Api/FindingsController.php:39
+* @see app/Http/Controllers/Api/FindingsController.php:41
 * @route '/api/findings'
 */
 FindingsControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

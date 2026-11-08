@@ -2,7 +2,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import internal from './internal'
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:14
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:16
 * @route '/api/openapi.json'
 */
 export const getOpenApiDocument = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -17,7 +17,7 @@ getOpenApiDocument.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:14
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:16
 * @route '/api/openapi.json'
 */
 getOpenApiDocument.url = (options?: RouteQueryOptions) => {
@@ -26,7 +26,7 @@ getOpenApiDocument.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:14
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:16
 * @route '/api/openapi.json'
 */
 getOpenApiDocument.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -36,7 +36,7 @@ getOpenApiDocument.get = (options?: RouteQueryOptions): RouteDefinition<'get'> =
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:14
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:16
 * @route '/api/openapi.json'
 */
 getOpenApiDocument.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -46,7 +46,7 @@ getOpenApiDocument.head = (options?: RouteQueryOptions): RouteDefinition<'head'>
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:14
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:16
 * @route '/api/openapi.json'
 */
 const getOpenApiDocumentForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -56,7 +56,7 @@ const getOpenApiDocumentForm = (options?: RouteQueryOptions): RouteFormDefinitio
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:14
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:16
 * @route '/api/openapi.json'
 */
 getOpenApiDocumentForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -66,7 +66,7 @@ getOpenApiDocumentForm.get = (options?: RouteQueryOptions): RouteFormDefinition<
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:14
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:16
 * @route '/api/openapi.json'
 */
 getOpenApiDocumentForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -83,7 +83,7 @@ getOpenApiDocument.form = getOpenApiDocumentForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::listMaintenancePeriods
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:30
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:32
 * @route '/api/monitors/{monitor}/maintenance-periods'
 */
 export const listMaintenancePeriods = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -98,7 +98,7 @@ listMaintenancePeriods.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::listMaintenancePeriods
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:30
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:32
 * @route '/api/monitors/{monitor}/maintenance-periods'
 */
 listMaintenancePeriods.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -131,7 +131,7 @@ listMaintenancePeriods.url = (args: { monitor: number | { id: number } } | [moni
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::listMaintenancePeriods
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:30
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:32
 * @route '/api/monitors/{monitor}/maintenance-periods'
 */
 listMaintenancePeriods.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -141,7 +141,7 @@ listMaintenancePeriods.get = (args: { monitor: number | { id: number } } | [moni
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::listMaintenancePeriods
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:30
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:32
 * @route '/api/monitors/{monitor}/maintenance-periods'
 */
 listMaintenancePeriods.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -151,7 +151,7 @@ listMaintenancePeriods.head = (args: { monitor: number | { id: number } } | [mon
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::listMaintenancePeriods
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:30
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:32
 * @route '/api/monitors/{monitor}/maintenance-periods'
 */
 const listMaintenancePeriodsForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -161,7 +161,7 @@ const listMaintenancePeriodsForm = (args: { monitor: number | { id: number } } |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::listMaintenancePeriods
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:30
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:32
 * @route '/api/monitors/{monitor}/maintenance-periods'
 */
 listMaintenancePeriodsForm.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -171,7 +171,7 @@ listMaintenancePeriodsForm.get = (args: { monitor: number | { id: number } } | [
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::listMaintenancePeriods
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:30
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:32
 * @route '/api/monitors/{monitor}/maintenance-periods'
 */
 listMaintenancePeriodsForm.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -188,7 +188,7 @@ listMaintenancePeriods.form = listMaintenancePeriodsForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\StartMaintenanceController::__invoke
-* @see app/Http/Controllers/Api/StartMaintenanceController.php:19
+* @see app/Http/Controllers/Api/StartMaintenanceController.php:21
 * @route '/api/monitors/{monitor}/start-maintenance'
 */
 export const startMaintenance = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -203,7 +203,7 @@ startMaintenance.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\StartMaintenanceController::__invoke
-* @see app/Http/Controllers/Api/StartMaintenanceController.php:19
+* @see app/Http/Controllers/Api/StartMaintenanceController.php:21
 * @route '/api/monitors/{monitor}/start-maintenance'
 */
 startMaintenance.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -236,7 +236,7 @@ startMaintenance.url = (args: { monitor: number | { id: number } } | [monitor: n
 
 /**
 * @see \Heptapod\Http\Controllers\Api\StartMaintenanceController::__invoke
-* @see app/Http/Controllers/Api/StartMaintenanceController.php:19
+* @see app/Http/Controllers/Api/StartMaintenanceController.php:21
 * @route '/api/monitors/{monitor}/start-maintenance'
 */
 startMaintenance.post = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -246,7 +246,7 @@ startMaintenance.post = (args: { monitor: number | { id: number } } | [monitor: 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\StartMaintenanceController::__invoke
-* @see app/Http/Controllers/Api/StartMaintenanceController.php:19
+* @see app/Http/Controllers/Api/StartMaintenanceController.php:21
 * @route '/api/monitors/{monitor}/start-maintenance'
 */
 const startMaintenanceForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -256,7 +256,7 @@ const startMaintenanceForm = (args: { monitor: number | { id: number } } | [moni
 
 /**
 * @see \Heptapod\Http\Controllers\Api\StartMaintenanceController::__invoke
-* @see app/Http/Controllers/Api/StartMaintenanceController.php:19
+* @see app/Http/Controllers/Api/StartMaintenanceController.php:21
 * @route '/api/monitors/{monitor}/start-maintenance'
 */
 startMaintenanceForm.post = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -268,7 +268,7 @@ startMaintenance.form = startMaintenanceForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\StopMaintenanceController::__invoke
-* @see app/Http/Controllers/Api/StopMaintenanceController.php:17
+* @see app/Http/Controllers/Api/StopMaintenanceController.php:19
 * @route '/api/monitors/{monitor}/stop-maintenance'
 */
 export const stopMaintenance = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -283,7 +283,7 @@ stopMaintenance.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\StopMaintenanceController::__invoke
-* @see app/Http/Controllers/Api/StopMaintenanceController.php:17
+* @see app/Http/Controllers/Api/StopMaintenanceController.php:19
 * @route '/api/monitors/{monitor}/stop-maintenance'
 */
 stopMaintenance.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -316,7 +316,7 @@ stopMaintenance.url = (args: { monitor: number | { id: number } } | [monitor: nu
 
 /**
 * @see \Heptapod\Http\Controllers\Api\StopMaintenanceController::__invoke
-* @see app/Http/Controllers/Api/StopMaintenanceController.php:17
+* @see app/Http/Controllers/Api/StopMaintenanceController.php:19
 * @route '/api/monitors/{monitor}/stop-maintenance'
 */
 stopMaintenance.post = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -326,7 +326,7 @@ stopMaintenance.post = (args: { monitor: number | { id: number } } | [monitor: n
 
 /**
 * @see \Heptapod\Http\Controllers\Api\StopMaintenanceController::__invoke
-* @see app/Http/Controllers/Api/StopMaintenanceController.php:17
+* @see app/Http/Controllers/Api/StopMaintenanceController.php:19
 * @route '/api/monitors/{monitor}/stop-maintenance'
 */
 const stopMaintenanceForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -336,7 +336,7 @@ const stopMaintenanceForm = (args: { monitor: number | { id: number } } | [monit
 
 /**
 * @see \Heptapod\Http\Controllers\Api\StopMaintenanceController::__invoke
-* @see app/Http/Controllers/Api/StopMaintenanceController.php:17
+* @see app/Http/Controllers/Api/StopMaintenanceController.php:19
 * @route '/api/monitors/{monitor}/stop-maintenance'
 */
 stopMaintenanceForm.post = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -348,7 +348,7 @@ stopMaintenance.form = stopMaintenanceForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::createMaintenancePeriod
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:72
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:74
 * @route '/api/maintenance-periods'
 */
 export const createMaintenancePeriod = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -363,7 +363,7 @@ createMaintenancePeriod.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::createMaintenancePeriod
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:72
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:74
 * @route '/api/maintenance-periods'
 */
 createMaintenancePeriod.url = (options?: RouteQueryOptions) => {
@@ -372,7 +372,7 @@ createMaintenancePeriod.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::createMaintenancePeriod
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:72
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:74
 * @route '/api/maintenance-periods'
 */
 createMaintenancePeriod.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -382,7 +382,7 @@ createMaintenancePeriod.post = (options?: RouteQueryOptions): RouteDefinition<'p
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::createMaintenancePeriod
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:72
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:74
 * @route '/api/maintenance-periods'
 */
 const createMaintenancePeriodForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -392,7 +392,7 @@ const createMaintenancePeriodForm = (options?: RouteQueryOptions): RouteFormDefi
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::createMaintenancePeriod
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:72
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:74
 * @route '/api/maintenance-periods'
 */
 createMaintenancePeriodForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -404,7 +404,7 @@ createMaintenancePeriod.form = createMaintenancePeriodForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::updateMaintenancePeriod
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:96
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:98
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 export const updateMaintenancePeriod = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -419,7 +419,7 @@ updateMaintenancePeriod.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::updateMaintenancePeriod
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:96
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:98
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 updateMaintenancePeriod.url = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -452,7 +452,7 @@ updateMaintenancePeriod.url = (args: { maintenancePeriod: number | { id: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::updateMaintenancePeriod
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:96
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:98
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 updateMaintenancePeriod.put = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -462,7 +462,7 @@ updateMaintenancePeriod.put = (args: { maintenancePeriod: number | { id: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::updateMaintenancePeriod
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:96
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:98
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 const updateMaintenancePeriodForm = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -477,7 +477,7 @@ const updateMaintenancePeriodForm = (args: { maintenancePeriod: number | { id: n
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::updateMaintenancePeriod
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:96
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:98
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 updateMaintenancePeriodForm.put = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -494,7 +494,7 @@ updateMaintenancePeriod.form = updateMaintenancePeriodForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::deleteMaintenancePeriod
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:114
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:116
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 export const deleteMaintenancePeriod = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -509,7 +509,7 @@ deleteMaintenancePeriod.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::deleteMaintenancePeriod
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:114
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:116
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 deleteMaintenancePeriod.url = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -542,7 +542,7 @@ deleteMaintenancePeriod.url = (args: { maintenancePeriod: number | { id: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::deleteMaintenancePeriod
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:114
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:116
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 deleteMaintenancePeriod.delete = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -552,7 +552,7 @@ deleteMaintenancePeriod.delete = (args: { maintenancePeriod: number | { id: numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::deleteMaintenancePeriod
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:114
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:116
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 const deleteMaintenancePeriodForm = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -567,7 +567,7 @@ const deleteMaintenancePeriodForm = (args: { maintenancePeriod: number | { id: n
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::deleteMaintenancePeriod
-* @see app/Http/Controllers/Api/MaintenancePeriodController.php:114
+* @see app/Http/Controllers/Api/MaintenancePeriodController.php:116
 * @route '/api/maintenance-periods/{maintenancePeriod}'
 */
 deleteMaintenancePeriodForm.delete = (args: { maintenancePeriod: number | { id: number } } | [maintenancePeriod: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -584,7 +584,7 @@ deleteMaintenancePeriod.form = deleteMaintenancePeriodForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::listCronChecks
-* @see app/Http/Controllers/Api/CronTaskController.php:23
+* @see app/Http/Controllers/Api/CronTaskController.php:25
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 export const listCronChecks = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -599,7 +599,7 @@ listCronChecks.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::listCronChecks
-* @see app/Http/Controllers/Api/CronTaskController.php:23
+* @see app/Http/Controllers/Api/CronTaskController.php:25
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 listCronChecks.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -632,7 +632,7 @@ listCronChecks.url = (args: { monitor: number | { id: number } } | [monitor: num
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::listCronChecks
-* @see app/Http/Controllers/Api/CronTaskController.php:23
+* @see app/Http/Controllers/Api/CronTaskController.php:25
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 listCronChecks.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -642,7 +642,7 @@ listCronChecks.get = (args: { monitor: number | { id: number } } | [monitor: num
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::listCronChecks
-* @see app/Http/Controllers/Api/CronTaskController.php:23
+* @see app/Http/Controllers/Api/CronTaskController.php:25
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 listCronChecks.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -652,7 +652,7 @@ listCronChecks.head = (args: { monitor: number | { id: number } } | [monitor: nu
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::listCronChecks
-* @see app/Http/Controllers/Api/CronTaskController.php:23
+* @see app/Http/Controllers/Api/CronTaskController.php:25
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 const listCronChecksForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -662,7 +662,7 @@ const listCronChecksForm = (args: { monitor: number | { id: number } } | [monito
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::listCronChecks
-* @see app/Http/Controllers/Api/CronTaskController.php:23
+* @see app/Http/Controllers/Api/CronTaskController.php:25
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 listCronChecksForm.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -672,7 +672,7 @@ listCronChecksForm.get = (args: { monitor: number | { id: number } } | [monitor:
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::listCronChecks
-* @see app/Http/Controllers/Api/CronTaskController.php:23
+* @see app/Http/Controllers/Api/CronTaskController.php:25
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 listCronChecksForm.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -689,7 +689,7 @@ listCronChecks.form = listCronChecksForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::createCronCheck
-* @see app/Http/Controllers/Api/CronTaskController.php:30
+* @see app/Http/Controllers/Api/CronTaskController.php:32
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 export const createCronCheck = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -704,7 +704,7 @@ createCronCheck.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::createCronCheck
-* @see app/Http/Controllers/Api/CronTaskController.php:30
+* @see app/Http/Controllers/Api/CronTaskController.php:32
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 createCronCheck.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -737,7 +737,7 @@ createCronCheck.url = (args: { monitor: number | { id: number } } | [monitor: nu
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::createCronCheck
-* @see app/Http/Controllers/Api/CronTaskController.php:30
+* @see app/Http/Controllers/Api/CronTaskController.php:32
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 createCronCheck.post = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -747,7 +747,7 @@ createCronCheck.post = (args: { monitor: number | { id: number } } | [monitor: n
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::createCronCheck
-* @see app/Http/Controllers/Api/CronTaskController.php:30
+* @see app/Http/Controllers/Api/CronTaskController.php:32
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 const createCronCheckForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -757,7 +757,7 @@ const createCronCheckForm = (args: { monitor: number | { id: number } } | [monit
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::createCronCheck
-* @see app/Http/Controllers/Api/CronTaskController.php:30
+* @see app/Http/Controllers/Api/CronTaskController.php:32
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 createCronCheckForm.post = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -769,7 +769,7 @@ createCronCheck.form = createCronCheckForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SyncCronTasksController::__invoke
-* @see app/Http/Controllers/Api/SyncCronTasksController.php:20
+* @see app/Http/Controllers/Api/SyncCronTasksController.php:22
 * @route '/api/monitors/{monitor}/cron-checks/sync'
 */
 export const syncCronChecks = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -784,7 +784,7 @@ syncCronChecks.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SyncCronTasksController::__invoke
-* @see app/Http/Controllers/Api/SyncCronTasksController.php:20
+* @see app/Http/Controllers/Api/SyncCronTasksController.php:22
 * @route '/api/monitors/{monitor}/cron-checks/sync'
 */
 syncCronChecks.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -817,7 +817,7 @@ syncCronChecks.url = (args: { monitor: number | { id: number } } | [monitor: num
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SyncCronTasksController::__invoke
-* @see app/Http/Controllers/Api/SyncCronTasksController.php:20
+* @see app/Http/Controllers/Api/SyncCronTasksController.php:22
 * @route '/api/monitors/{monitor}/cron-checks/sync'
 */
 syncCronChecks.post = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -827,7 +827,7 @@ syncCronChecks.post = (args: { monitor: number | { id: number } } | [monitor: nu
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SyncCronTasksController::__invoke
-* @see app/Http/Controllers/Api/SyncCronTasksController.php:20
+* @see app/Http/Controllers/Api/SyncCronTasksController.php:22
 * @route '/api/monitors/{monitor}/cron-checks/sync'
 */
 const syncCronChecksForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -837,7 +837,7 @@ const syncCronChecksForm = (args: { monitor: number | { id: number } } | [monito
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SyncCronTasksController::__invoke
-* @see app/Http/Controllers/Api/SyncCronTasksController.php:20
+* @see app/Http/Controllers/Api/SyncCronTasksController.php:22
 * @route '/api/monitors/{monitor}/cron-checks/sync'
 */
 syncCronChecksForm.post = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -849,7 +849,7 @@ syncCronChecks.form = syncCronChecksForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::updateCronCheck
-* @see app/Http/Controllers/Api/CronTaskController.php:40
+* @see app/Http/Controllers/Api/CronTaskController.php:42
 * @route '/api/cron-checks/{cronTask}'
 */
 export const updateCronCheck = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -864,7 +864,7 @@ updateCronCheck.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::updateCronCheck
-* @see app/Http/Controllers/Api/CronTaskController.php:40
+* @see app/Http/Controllers/Api/CronTaskController.php:42
 * @route '/api/cron-checks/{cronTask}'
 */
 updateCronCheck.url = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -891,7 +891,7 @@ updateCronCheck.url = (args: { cronTask: string | number } | [cronTask: string |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::updateCronCheck
-* @see app/Http/Controllers/Api/CronTaskController.php:40
+* @see app/Http/Controllers/Api/CronTaskController.php:42
 * @route '/api/cron-checks/{cronTask}'
 */
 updateCronCheck.put = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -901,7 +901,7 @@ updateCronCheck.put = (args: { cronTask: string | number } | [cronTask: string |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::updateCronCheck
-* @see app/Http/Controllers/Api/CronTaskController.php:40
+* @see app/Http/Controllers/Api/CronTaskController.php:42
 * @route '/api/cron-checks/{cronTask}'
 */
 const updateCronCheckForm = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -916,7 +916,7 @@ const updateCronCheckForm = (args: { cronTask: string | number } | [cronTask: st
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::updateCronCheck
-* @see app/Http/Controllers/Api/CronTaskController.php:40
+* @see app/Http/Controllers/Api/CronTaskController.php:42
 * @route '/api/cron-checks/{cronTask}'
 */
 updateCronCheckForm.put = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -933,7 +933,7 @@ updateCronCheck.form = updateCronCheckForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::deleteCronCheck
-* @see app/Http/Controllers/Api/CronTaskController.php:49
+* @see app/Http/Controllers/Api/CronTaskController.php:51
 * @route '/api/cron-checks/{cronTask}'
 */
 export const deleteCronCheck = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -948,7 +948,7 @@ deleteCronCheck.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::deleteCronCheck
-* @see app/Http/Controllers/Api/CronTaskController.php:49
+* @see app/Http/Controllers/Api/CronTaskController.php:51
 * @route '/api/cron-checks/{cronTask}'
 */
 deleteCronCheck.url = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -975,7 +975,7 @@ deleteCronCheck.url = (args: { cronTask: string | number } | [cronTask: string |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::deleteCronCheck
-* @see app/Http/Controllers/Api/CronTaskController.php:49
+* @see app/Http/Controllers/Api/CronTaskController.php:51
 * @route '/api/cron-checks/{cronTask}'
 */
 deleteCronCheck.delete = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -985,7 +985,7 @@ deleteCronCheck.delete = (args: { cronTask: string | number } | [cronTask: strin
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::deleteCronCheck
-* @see app/Http/Controllers/Api/CronTaskController.php:49
+* @see app/Http/Controllers/Api/CronTaskController.php:51
 * @route '/api/cron-checks/{cronTask}'
 */
 const deleteCronCheckForm = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1000,7 +1000,7 @@ const deleteCronCheckForm = (args: { cronTask: string | number } | [cronTask: st
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::deleteCronCheck
-* @see app/Http/Controllers/Api/CronTaskController.php:49
+* @see app/Http/Controllers/Api/CronTaskController.php:51
 * @route '/api/cron-checks/{cronTask}'
 */
 deleteCronCheckForm.delete = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1017,7 +1017,7 @@ deleteCronCheck.form = deleteCronCheckForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SnoozeCronTaskController::__invoke
-* @see app/Http/Controllers/Api/SnoozeCronTaskController.php:20
+* @see app/Http/Controllers/Api/SnoozeCronTaskController.php:22
 * @route '/api/cron-checks/{cronTask}/snooze'
 */
 export const snoozeCronCheck = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -1032,7 +1032,7 @@ snoozeCronCheck.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SnoozeCronTaskController::__invoke
-* @see app/Http/Controllers/Api/SnoozeCronTaskController.php:20
+* @see app/Http/Controllers/Api/SnoozeCronTaskController.php:22
 * @route '/api/cron-checks/{cronTask}/snooze'
 */
 snoozeCronCheck.url = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -1059,7 +1059,7 @@ snoozeCronCheck.url = (args: { cronTask: string | number } | [cronTask: string |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SnoozeCronTaskController::__invoke
-* @see app/Http/Controllers/Api/SnoozeCronTaskController.php:20
+* @see app/Http/Controllers/Api/SnoozeCronTaskController.php:22
 * @route '/api/cron-checks/{cronTask}/snooze'
 */
 snoozeCronCheck.post = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -1069,7 +1069,7 @@ snoozeCronCheck.post = (args: { cronTask: string | number } | [cronTask: string 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SnoozeCronTaskController::__invoke
-* @see app/Http/Controllers/Api/SnoozeCronTaskController.php:20
+* @see app/Http/Controllers/Api/SnoozeCronTaskController.php:22
 * @route '/api/cron-checks/{cronTask}/snooze'
 */
 const snoozeCronCheckForm = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1079,7 +1079,7 @@ const snoozeCronCheckForm = (args: { cronTask: string | number } | [cronTask: st
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SnoozeCronTaskController::__invoke
-* @see app/Http/Controllers/Api/SnoozeCronTaskController.php:20
+* @see app/Http/Controllers/Api/SnoozeCronTaskController.php:22
 * @route '/api/cron-checks/{cronTask}/snooze'
 */
 snoozeCronCheckForm.post = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1091,7 +1091,7 @@ snoozeCronCheck.form = snoozeCronCheckForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCronTaskController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:21
 * @route '/api/cron-checks/{cronTask}/unsnooze'
 */
 export const unsnoozeCronCheck = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -1106,7 +1106,7 @@ unsnoozeCronCheck.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCronTaskController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:21
 * @route '/api/cron-checks/{cronTask}/unsnooze'
 */
 unsnoozeCronCheck.url = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -1133,7 +1133,7 @@ unsnoozeCronCheck.url = (args: { cronTask: string | number } | [cronTask: string
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCronTaskController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:21
 * @route '/api/cron-checks/{cronTask}/unsnooze'
 */
 unsnoozeCronCheck.post = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -1143,7 +1143,7 @@ unsnoozeCronCheck.post = (args: { cronTask: string | number } | [cronTask: strin
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCronTaskController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:21
 * @route '/api/cron-checks/{cronTask}/unsnooze'
 */
 const unsnoozeCronCheckForm = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1153,7 +1153,7 @@ const unsnoozeCronCheckForm = (args: { cronTask: string | number } | [cronTask: 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCronTaskController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCronTaskController.php:21
 * @route '/api/cron-checks/{cronTask}/unsnooze'
 */
 unsnoozeCronCheckForm.post = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1165,7 +1165,7 @@ unsnoozeCronCheck.form = unsnoozeCronCheckForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MeController::__invoke
-* @see app/Http/Controllers/Api/MeController.php:17
+* @see app/Http/Controllers/Api/MeController.php:19
 * @route '/api/me'
 */
 export const getMe = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -1180,7 +1180,7 @@ getMe.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MeController::__invoke
-* @see app/Http/Controllers/Api/MeController.php:17
+* @see app/Http/Controllers/Api/MeController.php:19
 * @route '/api/me'
 */
 getMe.url = (options?: RouteQueryOptions) => {
@@ -1189,7 +1189,7 @@ getMe.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MeController::__invoke
-* @see app/Http/Controllers/Api/MeController.php:17
+* @see app/Http/Controllers/Api/MeController.php:19
 * @route '/api/me'
 */
 getMe.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -1199,7 +1199,7 @@ getMe.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MeController::__invoke
-* @see app/Http/Controllers/Api/MeController.php:17
+* @see app/Http/Controllers/Api/MeController.php:19
 * @route '/api/me'
 */
 getMe.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -1209,7 +1209,7 @@ getMe.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MeController::__invoke
-* @see app/Http/Controllers/Api/MeController.php:17
+* @see app/Http/Controllers/Api/MeController.php:19
 * @route '/api/me'
 */
 const getMeForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1219,7 +1219,7 @@ const getMeForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MeController::__invoke
-* @see app/Http/Controllers/Api/MeController.php:17
+* @see app/Http/Controllers/Api/MeController.php:19
 * @route '/api/me'
 */
 getMeForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1229,7 +1229,7 @@ getMeForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MeController::__invoke
-* @see app/Http/Controllers/Api/MeController.php:17
+* @see app/Http/Controllers/Api/MeController.php:19
 * @route '/api/me'
 */
 getMeForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1246,7 +1246,7 @@ getMe.form = getMeForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::listMonitors
-* @see app/Http/Controllers/Api/MonitorController.php:32
+* @see app/Http/Controllers/Api/MonitorController.php:34
 * @route '/api/monitors'
 */
 export const listMonitors = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -1261,7 +1261,7 @@ listMonitors.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::listMonitors
-* @see app/Http/Controllers/Api/MonitorController.php:32
+* @see app/Http/Controllers/Api/MonitorController.php:34
 * @route '/api/monitors'
 */
 listMonitors.url = (options?: RouteQueryOptions) => {
@@ -1270,7 +1270,7 @@ listMonitors.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::listMonitors
-* @see app/Http/Controllers/Api/MonitorController.php:32
+* @see app/Http/Controllers/Api/MonitorController.php:34
 * @route '/api/monitors'
 */
 listMonitors.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -1280,7 +1280,7 @@ listMonitors.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::listMonitors
-* @see app/Http/Controllers/Api/MonitorController.php:32
+* @see app/Http/Controllers/Api/MonitorController.php:34
 * @route '/api/monitors'
 */
 listMonitors.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -1290,7 +1290,7 @@ listMonitors.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::listMonitors
-* @see app/Http/Controllers/Api/MonitorController.php:32
+* @see app/Http/Controllers/Api/MonitorController.php:34
 * @route '/api/monitors'
 */
 const listMonitorsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1300,7 +1300,7 @@ const listMonitorsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::listMonitors
-* @see app/Http/Controllers/Api/MonitorController.php:32
+* @see app/Http/Controllers/Api/MonitorController.php:34
 * @route '/api/monitors'
 */
 listMonitorsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1310,7 +1310,7 @@ listMonitorsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'>
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::listMonitors
-* @see app/Http/Controllers/Api/MonitorController.php:32
+* @see app/Http/Controllers/Api/MonitorController.php:34
 * @route '/api/monitors'
 */
 listMonitorsForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1327,7 +1327,7 @@ listMonitors.form = listMonitorsForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorUrlController::__invoke
-* @see app/Http/Controllers/Api/MonitorUrlController.php:16
+* @see app/Http/Controllers/Api/MonitorUrlController.php:18
 * @route '/api/monitors/url/{url}'
 */
 export const getMonitorByUrl = (args: { url: string | number } | [url: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -1342,7 +1342,7 @@ getMonitorByUrl.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorUrlController::__invoke
-* @see app/Http/Controllers/Api/MonitorUrlController.php:16
+* @see app/Http/Controllers/Api/MonitorUrlController.php:18
 * @route '/api/monitors/url/{url}'
 */
 getMonitorByUrl.url = (args: { url: string | number } | [url: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -1369,7 +1369,7 @@ getMonitorByUrl.url = (args: { url: string | number } | [url: string | number ] 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorUrlController::__invoke
-* @see app/Http/Controllers/Api/MonitorUrlController.php:16
+* @see app/Http/Controllers/Api/MonitorUrlController.php:18
 * @route '/api/monitors/url/{url}'
 */
 getMonitorByUrl.get = (args: { url: string | number } | [url: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -1379,7 +1379,7 @@ getMonitorByUrl.get = (args: { url: string | number } | [url: string | number ] 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorUrlController::__invoke
-* @see app/Http/Controllers/Api/MonitorUrlController.php:16
+* @see app/Http/Controllers/Api/MonitorUrlController.php:18
 * @route '/api/monitors/url/{url}'
 */
 getMonitorByUrl.head = (args: { url: string | number } | [url: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -1389,7 +1389,7 @@ getMonitorByUrl.head = (args: { url: string | number } | [url: string | number ]
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorUrlController::__invoke
-* @see app/Http/Controllers/Api/MonitorUrlController.php:16
+* @see app/Http/Controllers/Api/MonitorUrlController.php:18
 * @route '/api/monitors/url/{url}'
 */
 const getMonitorByUrlForm = (args: { url: string | number } | [url: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1399,7 +1399,7 @@ const getMonitorByUrlForm = (args: { url: string | number } | [url: string | num
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorUrlController::__invoke
-* @see app/Http/Controllers/Api/MonitorUrlController.php:16
+* @see app/Http/Controllers/Api/MonitorUrlController.php:18
 * @route '/api/monitors/url/{url}'
 */
 getMonitorByUrlForm.get = (args: { url: string | number } | [url: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1409,7 +1409,7 @@ getMonitorByUrlForm.get = (args: { url: string | number } | [url: string | numbe
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorUrlController::__invoke
-* @see app/Http/Controllers/Api/MonitorUrlController.php:16
+* @see app/Http/Controllers/Api/MonitorUrlController.php:18
 * @route '/api/monitors/url/{url}'
 */
 getMonitorByUrlForm.head = (args: { url: string | number } | [url: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1426,7 +1426,7 @@ getMonitorByUrl.form = getMonitorByUrlForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::getMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:50
+* @see app/Http/Controllers/Api/MonitorController.php:52
 * @route '/api/monitors/{monitor}'
 */
 export const getMonitor = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -1441,7 +1441,7 @@ getMonitor.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::getMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:50
+* @see app/Http/Controllers/Api/MonitorController.php:52
 * @route '/api/monitors/{monitor}'
 */
 getMonitor.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -1474,7 +1474,7 @@ getMonitor.url = (args: { monitor: number | { id: number } } | [monitor: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::getMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:50
+* @see app/Http/Controllers/Api/MonitorController.php:52
 * @route '/api/monitors/{monitor}'
 */
 getMonitor.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -1484,7 +1484,7 @@ getMonitor.get = (args: { monitor: number | { id: number } } | [monitor: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::getMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:50
+* @see app/Http/Controllers/Api/MonitorController.php:52
 * @route '/api/monitors/{monitor}'
 */
 getMonitor.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -1494,7 +1494,7 @@ getMonitor.head = (args: { monitor: number | { id: number } } | [monitor: number
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::getMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:50
+* @see app/Http/Controllers/Api/MonitorController.php:52
 * @route '/api/monitors/{monitor}'
 */
 const getMonitorForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1504,7 +1504,7 @@ const getMonitorForm = (args: { monitor: number | { id: number } } | [monitor: n
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::getMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:50
+* @see app/Http/Controllers/Api/MonitorController.php:52
 * @route '/api/monitors/{monitor}'
 */
 getMonitorForm.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1514,7 +1514,7 @@ getMonitorForm.get = (args: { monitor: number | { id: number } } | [monitor: num
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::getMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:50
+* @see app/Http/Controllers/Api/MonitorController.php:52
 * @route '/api/monitors/{monitor}'
 */
 getMonitorForm.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1531,7 +1531,7 @@ getMonitor.form = getMonitorForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::createMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:59
+* @see app/Http/Controllers/Api/MonitorController.php:61
 * @route '/api/monitors'
 */
 export const createMonitor = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -1546,7 +1546,7 @@ createMonitor.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::createMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:59
+* @see app/Http/Controllers/Api/MonitorController.php:61
 * @route '/api/monitors'
 */
 createMonitor.url = (options?: RouteQueryOptions) => {
@@ -1555,7 +1555,7 @@ createMonitor.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::createMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:59
+* @see app/Http/Controllers/Api/MonitorController.php:61
 * @route '/api/monitors'
 */
 createMonitor.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -1565,7 +1565,7 @@ createMonitor.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => (
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::createMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:59
+* @see app/Http/Controllers/Api/MonitorController.php:61
 * @route '/api/monitors'
 */
 const createMonitorForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1575,7 +1575,7 @@ const createMonitorForm = (options?: RouteQueryOptions): RouteFormDefinition<'po
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::createMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:59
+* @see app/Http/Controllers/Api/MonitorController.php:61
 * @route '/api/monitors'
 */
 createMonitorForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1587,7 +1587,7 @@ createMonitor.form = createMonitorForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::updateMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:73
+* @see app/Http/Controllers/Api/MonitorController.php:75
 * @route '/api/monitors/{monitor}'
 */
 export const updateMonitor = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -1602,7 +1602,7 @@ updateMonitor.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::updateMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:73
+* @see app/Http/Controllers/Api/MonitorController.php:75
 * @route '/api/monitors/{monitor}'
 */
 updateMonitor.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -1635,7 +1635,7 @@ updateMonitor.url = (args: { monitor: number | { id: number } } | [monitor: numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::updateMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:73
+* @see app/Http/Controllers/Api/MonitorController.php:75
 * @route '/api/monitors/{monitor}'
 */
 updateMonitor.put = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -1645,7 +1645,7 @@ updateMonitor.put = (args: { monitor: number | { id: number } } | [monitor: numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::updateMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:73
+* @see app/Http/Controllers/Api/MonitorController.php:75
 * @route '/api/monitors/{monitor}'
 */
 const updateMonitorForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1660,7 +1660,7 @@ const updateMonitorForm = (args: { monitor: number | { id: number } } | [monitor
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::updateMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:73
+* @see app/Http/Controllers/Api/MonitorController.php:75
 * @route '/api/monitors/{monitor}'
 */
 updateMonitorForm.put = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1677,7 +1677,7 @@ updateMonitor.form = updateMonitorForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::deleteMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:85
+* @see app/Http/Controllers/Api/MonitorController.php:87
 * @route '/api/monitors/{monitor}'
 */
 export const deleteMonitor = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -1692,7 +1692,7 @@ deleteMonitor.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::deleteMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:85
+* @see app/Http/Controllers/Api/MonitorController.php:87
 * @route '/api/monitors/{monitor}'
 */
 deleteMonitor.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -1725,7 +1725,7 @@ deleteMonitor.url = (args: { monitor: number | { id: number } } | [monitor: numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::deleteMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:85
+* @see app/Http/Controllers/Api/MonitorController.php:87
 * @route '/api/monitors/{monitor}'
 */
 deleteMonitor.delete = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -1735,7 +1735,7 @@ deleteMonitor.delete = (args: { monitor: number | { id: number } } | [monitor: n
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::deleteMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:85
+* @see app/Http/Controllers/Api/MonitorController.php:87
 * @route '/api/monitors/{monitor}'
 */
 const deleteMonitorForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1750,7 +1750,7 @@ const deleteMonitorForm = (args: { monitor: number | { id: number } } | [monitor
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::deleteMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:85
+* @see app/Http/Controllers/Api/MonitorController.php:87
 * @route '/api/monitors/{monitor}'
 */
 deleteMonitorForm.delete = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1767,7 +1767,7 @@ deleteMonitor.form = deleteMonitorForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::listIncidents
-* @see app/Http/Controllers/Api/IncidentController.php:40
+* @see app/Http/Controllers/Api/IncidentController.php:42
 * @route '/api/incidents'
 */
 export const listIncidents = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -1782,7 +1782,7 @@ listIncidents.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::listIncidents
-* @see app/Http/Controllers/Api/IncidentController.php:40
+* @see app/Http/Controllers/Api/IncidentController.php:42
 * @route '/api/incidents'
 */
 listIncidents.url = (options?: RouteQueryOptions) => {
@@ -1791,7 +1791,7 @@ listIncidents.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::listIncidents
-* @see app/Http/Controllers/Api/IncidentController.php:40
+* @see app/Http/Controllers/Api/IncidentController.php:42
 * @route '/api/incidents'
 */
 listIncidents.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -1801,7 +1801,7 @@ listIncidents.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::listIncidents
-* @see app/Http/Controllers/Api/IncidentController.php:40
+* @see app/Http/Controllers/Api/IncidentController.php:42
 * @route '/api/incidents'
 */
 listIncidents.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -1811,7 +1811,7 @@ listIncidents.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => (
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::listIncidents
-* @see app/Http/Controllers/Api/IncidentController.php:40
+* @see app/Http/Controllers/Api/IncidentController.php:42
 * @route '/api/incidents'
 */
 const listIncidentsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1821,7 +1821,7 @@ const listIncidentsForm = (options?: RouteQueryOptions): RouteFormDefinition<'ge
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::listIncidents
-* @see app/Http/Controllers/Api/IncidentController.php:40
+* @see app/Http/Controllers/Api/IncidentController.php:42
 * @route '/api/incidents'
 */
 listIncidentsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1831,7 +1831,7 @@ listIncidentsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::listIncidents
-* @see app/Http/Controllers/Api/IncidentController.php:40
+* @see app/Http/Controllers/Api/IncidentController.php:42
 * @route '/api/incidents'
 */
 listIncidentsForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1848,7 +1848,7 @@ listIncidents.form = listIncidentsForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::getIncident
-* @see app/Http/Controllers/Api/IncidentController.php:103
+* @see app/Http/Controllers/Api/IncidentController.php:105
 * @route '/api/incidents/{incident}'
 */
 export const getIncident = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -1863,7 +1863,7 @@ getIncident.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::getIncident
-* @see app/Http/Controllers/Api/IncidentController.php:103
+* @see app/Http/Controllers/Api/IncidentController.php:105
 * @route '/api/incidents/{incident}'
 */
 getIncident.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -1890,7 +1890,7 @@ getIncident.url = (args: { incident: string | number } | [incident: string | num
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::getIncident
-* @see app/Http/Controllers/Api/IncidentController.php:103
+* @see app/Http/Controllers/Api/IncidentController.php:105
 * @route '/api/incidents/{incident}'
 */
 getIncident.get = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -1900,7 +1900,7 @@ getIncident.get = (args: { incident: string | number } | [incident: string | num
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::getIncident
-* @see app/Http/Controllers/Api/IncidentController.php:103
+* @see app/Http/Controllers/Api/IncidentController.php:105
 * @route '/api/incidents/{incident}'
 */
 getIncident.head = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -1910,7 +1910,7 @@ getIncident.head = (args: { incident: string | number } | [incident: string | nu
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::getIncident
-* @see app/Http/Controllers/Api/IncidentController.php:103
+* @see app/Http/Controllers/Api/IncidentController.php:105
 * @route '/api/incidents/{incident}'
 */
 const getIncidentForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1920,7 +1920,7 @@ const getIncidentForm = (args: { incident: string | number } | [incident: string
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::getIncident
-* @see app/Http/Controllers/Api/IncidentController.php:103
+* @see app/Http/Controllers/Api/IncidentController.php:105
 * @route '/api/incidents/{incident}'
 */
 getIncidentForm.get = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1930,7 +1930,7 @@ getIncidentForm.get = (args: { incident: string | number } | [incident: string |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentController::getIncident
-* @see app/Http/Controllers/Api/IncidentController.php:103
+* @see app/Http/Controllers/Api/IncidentController.php:105
 * @route '/api/incidents/{incident}'
 */
 getIncidentForm.head = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1947,7 +1947,7 @@ getIncident.form = getIncidentForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ActivityController::__invoke
-* @see app/Http/Controllers/Api/ActivityController.php:31
+* @see app/Http/Controllers/Api/ActivityController.php:33
 * @route '/api/activity'
 */
 export const listActivity = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -1962,7 +1962,7 @@ listActivity.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ActivityController::__invoke
-* @see app/Http/Controllers/Api/ActivityController.php:31
+* @see app/Http/Controllers/Api/ActivityController.php:33
 * @route '/api/activity'
 */
 listActivity.url = (options?: RouteQueryOptions) => {
@@ -1971,7 +1971,7 @@ listActivity.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ActivityController::__invoke
-* @see app/Http/Controllers/Api/ActivityController.php:31
+* @see app/Http/Controllers/Api/ActivityController.php:33
 * @route '/api/activity'
 */
 listActivity.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -1981,7 +1981,7 @@ listActivity.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ActivityController::__invoke
-* @see app/Http/Controllers/Api/ActivityController.php:31
+* @see app/Http/Controllers/Api/ActivityController.php:33
 * @route '/api/activity'
 */
 listActivity.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -1991,7 +1991,7 @@ listActivity.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ActivityController::__invoke
-* @see app/Http/Controllers/Api/ActivityController.php:31
+* @see app/Http/Controllers/Api/ActivityController.php:33
 * @route '/api/activity'
 */
 const listActivityForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2001,7 +2001,7 @@ const listActivityForm = (options?: RouteQueryOptions): RouteFormDefinition<'get
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ActivityController::__invoke
-* @see app/Http/Controllers/Api/ActivityController.php:31
+* @see app/Http/Controllers/Api/ActivityController.php:33
 * @route '/api/activity'
 */
 listActivityForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2011,7 +2011,7 @@ listActivityForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'>
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ActivityController::__invoke
-* @see app/Http/Controllers/Api/ActivityController.php:31
+* @see app/Http/Controllers/Api/ActivityController.php:33
 * @route '/api/activity'
 */
 listActivityForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2028,7 +2028,7 @@ listActivity.form = listActivityForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UpcomingController::__invoke
-* @see app/Http/Controllers/Api/UpcomingController.php:24
+* @see app/Http/Controllers/Api/UpcomingController.php:26
 * @route '/api/upcoming'
 */
 export const listUpcoming = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -2043,7 +2043,7 @@ listUpcoming.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UpcomingController::__invoke
-* @see app/Http/Controllers/Api/UpcomingController.php:24
+* @see app/Http/Controllers/Api/UpcomingController.php:26
 * @route '/api/upcoming'
 */
 listUpcoming.url = (options?: RouteQueryOptions) => {
@@ -2052,7 +2052,7 @@ listUpcoming.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UpcomingController::__invoke
-* @see app/Http/Controllers/Api/UpcomingController.php:24
+* @see app/Http/Controllers/Api/UpcomingController.php:26
 * @route '/api/upcoming'
 */
 listUpcoming.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -2062,7 +2062,7 @@ listUpcoming.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UpcomingController::__invoke
-* @see app/Http/Controllers/Api/UpcomingController.php:24
+* @see app/Http/Controllers/Api/UpcomingController.php:26
 * @route '/api/upcoming'
 */
 listUpcoming.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -2072,7 +2072,7 @@ listUpcoming.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UpcomingController::__invoke
-* @see app/Http/Controllers/Api/UpcomingController.php:24
+* @see app/Http/Controllers/Api/UpcomingController.php:26
 * @route '/api/upcoming'
 */
 const listUpcomingForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2082,7 +2082,7 @@ const listUpcomingForm = (options?: RouteQueryOptions): RouteFormDefinition<'get
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UpcomingController::__invoke
-* @see app/Http/Controllers/Api/UpcomingController.php:24
+* @see app/Http/Controllers/Api/UpcomingController.php:26
 * @route '/api/upcoming'
 */
 listUpcomingForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2092,7 +2092,7 @@ listUpcomingForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'>
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UpcomingController::__invoke
-* @see app/Http/Controllers/Api/UpcomingController.php:24
+* @see app/Http/Controllers/Api/UpcomingController.php:26
 * @route '/api/upcoming'
 */
 listUpcomingForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2109,7 +2109,7 @@ listUpcoming.form = listUpcomingForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\FindingsController::__invoke
-* @see app/Http/Controllers/Api/FindingsController.php:39
+* @see app/Http/Controllers/Api/FindingsController.php:41
 * @route '/api/findings'
 */
 export const findings = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -2124,7 +2124,7 @@ findings.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\FindingsController::__invoke
-* @see app/Http/Controllers/Api/FindingsController.php:39
+* @see app/Http/Controllers/Api/FindingsController.php:41
 * @route '/api/findings'
 */
 findings.url = (options?: RouteQueryOptions) => {
@@ -2133,7 +2133,7 @@ findings.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\FindingsController::__invoke
-* @see app/Http/Controllers/Api/FindingsController.php:39
+* @see app/Http/Controllers/Api/FindingsController.php:41
 * @route '/api/findings'
 */
 findings.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -2143,7 +2143,7 @@ findings.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\FindingsController::__invoke
-* @see app/Http/Controllers/Api/FindingsController.php:39
+* @see app/Http/Controllers/Api/FindingsController.php:41
 * @route '/api/findings'
 */
 findings.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -2153,7 +2153,7 @@ findings.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\FindingsController::__invoke
-* @see app/Http/Controllers/Api/FindingsController.php:39
+* @see app/Http/Controllers/Api/FindingsController.php:41
 * @route '/api/findings'
 */
 const findingsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2163,7 +2163,7 @@ const findingsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =
 
 /**
 * @see \Heptapod\Http\Controllers\Api\FindingsController::__invoke
-* @see app/Http/Controllers/Api/FindingsController.php:39
+* @see app/Http/Controllers/Api/FindingsController.php:41
 * @route '/api/findings'
 */
 findingsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2173,7 +2173,7 @@ findingsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\FindingsController::__invoke
-* @see app/Http/Controllers/Api/FindingsController.php:39
+* @see app/Http/Controllers/Api/FindingsController.php:41
 * @route '/api/findings'
 */
 findingsForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2190,7 +2190,7 @@ findings.form = findingsForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckSummaryController::__invoke
-* @see app/Http/Controllers/Api/CheckSummaryController.php:17
+* @see app/Http/Controllers/Api/CheckSummaryController.php:19
 * @route '/api/monitors/{monitor}/check-summary/{checkType}'
 */
 export const getCheckSummary = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -2205,7 +2205,7 @@ getCheckSummary.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckSummaryController::__invoke
-* @see app/Http/Controllers/Api/CheckSummaryController.php:17
+* @see app/Http/Controllers/Api/CheckSummaryController.php:19
 * @route '/api/monitors/{monitor}/check-summary/{checkType}'
 */
 getCheckSummary.url = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions) => {
@@ -2233,7 +2233,7 @@ getCheckSummary.url = (args: { monitor: number | { id: number }, checkType: stri
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckSummaryController::__invoke
-* @see app/Http/Controllers/Api/CheckSummaryController.php:17
+* @see app/Http/Controllers/Api/CheckSummaryController.php:19
 * @route '/api/monitors/{monitor}/check-summary/{checkType}'
 */
 getCheckSummary.get = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -2243,7 +2243,7 @@ getCheckSummary.get = (args: { monitor: number | { id: number }, checkType: stri
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckSummaryController::__invoke
-* @see app/Http/Controllers/Api/CheckSummaryController.php:17
+* @see app/Http/Controllers/Api/CheckSummaryController.php:19
 * @route '/api/monitors/{monitor}/check-summary/{checkType}'
 */
 getCheckSummary.head = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -2253,7 +2253,7 @@ getCheckSummary.head = (args: { monitor: number | { id: number }, checkType: str
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckSummaryController::__invoke
-* @see app/Http/Controllers/Api/CheckSummaryController.php:17
+* @see app/Http/Controllers/Api/CheckSummaryController.php:19
 * @route '/api/monitors/{monitor}/check-summary/{checkType}'
 */
 const getCheckSummaryForm = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2263,7 +2263,7 @@ const getCheckSummaryForm = (args: { monitor: number | { id: number }, checkType
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckSummaryController::__invoke
-* @see app/Http/Controllers/Api/CheckSummaryController.php:17
+* @see app/Http/Controllers/Api/CheckSummaryController.php:19
 * @route '/api/monitors/{monitor}/check-summary/{checkType}'
 */
 getCheckSummaryForm.get = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2273,7 +2273,7 @@ getCheckSummaryForm.get = (args: { monitor: number | { id: number }, checkType: 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckSummaryController::__invoke
-* @see app/Http/Controllers/Api/CheckSummaryController.php:17
+* @see app/Http/Controllers/Api/CheckSummaryController.php:19
 * @route '/api/monitors/{monitor}/check-summary/{checkType}'
 */
 getCheckSummaryForm.head = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2290,7 +2290,7 @@ getCheckSummary.form = getCheckSummaryForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckRunController::__invoke
-* @see app/Http/Controllers/Api/CheckRunController.php:19
+* @see app/Http/Controllers/Api/CheckRunController.php:21
 * @route '/api/monitors/{monitor}/checks/{checkType}/runs'
 */
 export const listCheckRuns = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -2305,7 +2305,7 @@ listCheckRuns.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckRunController::__invoke
-* @see app/Http/Controllers/Api/CheckRunController.php:19
+* @see app/Http/Controllers/Api/CheckRunController.php:21
 * @route '/api/monitors/{monitor}/checks/{checkType}/runs'
 */
 listCheckRuns.url = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions) => {
@@ -2333,7 +2333,7 @@ listCheckRuns.url = (args: { monitor: number | { id: number }, checkType: string
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckRunController::__invoke
-* @see app/Http/Controllers/Api/CheckRunController.php:19
+* @see app/Http/Controllers/Api/CheckRunController.php:21
 * @route '/api/monitors/{monitor}/checks/{checkType}/runs'
 */
 listCheckRuns.get = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -2343,7 +2343,7 @@ listCheckRuns.get = (args: { monitor: number | { id: number }, checkType: string
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckRunController::__invoke
-* @see app/Http/Controllers/Api/CheckRunController.php:19
+* @see app/Http/Controllers/Api/CheckRunController.php:21
 * @route '/api/monitors/{monitor}/checks/{checkType}/runs'
 */
 listCheckRuns.head = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -2353,7 +2353,7 @@ listCheckRuns.head = (args: { monitor: number | { id: number }, checkType: strin
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckRunController::__invoke
-* @see app/Http/Controllers/Api/CheckRunController.php:19
+* @see app/Http/Controllers/Api/CheckRunController.php:21
 * @route '/api/monitors/{monitor}/checks/{checkType}/runs'
 */
 const listCheckRunsForm = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2363,7 +2363,7 @@ const listCheckRunsForm = (args: { monitor: number | { id: number }, checkType: 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckRunController::__invoke
-* @see app/Http/Controllers/Api/CheckRunController.php:19
+* @see app/Http/Controllers/Api/CheckRunController.php:21
 * @route '/api/monitors/{monitor}/checks/{checkType}/runs'
 */
 listCheckRunsForm.get = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2373,7 +2373,7 @@ listCheckRunsForm.get = (args: { monitor: number | { id: number }, checkType: st
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckRunController::__invoke
-* @see app/Http/Controllers/Api/CheckRunController.php:19
+* @see app/Http/Controllers/Api/CheckRunController.php:21
 * @route '/api/monitors/{monitor}/checks/{checkType}/runs'
 */
 listCheckRunsForm.head = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2390,7 +2390,7 @@ listCheckRuns.form = listCheckRunsForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\EnableCheckController::__invoke
-* @see app/Http/Controllers/Api/EnableCheckController.php:15
+* @see app/Http/Controllers/Api/EnableCheckController.php:17
 * @route '/api/checks/{check}/enable'
 */
 export const enableCheck = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2405,7 +2405,7 @@ enableCheck.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\EnableCheckController::__invoke
-* @see app/Http/Controllers/Api/EnableCheckController.php:15
+* @see app/Http/Controllers/Api/EnableCheckController.php:17
 * @route '/api/checks/{check}/enable'
 */
 enableCheck.url = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -2438,7 +2438,7 @@ enableCheck.url = (args: { check: number | { id: number } } | [check: number | {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\EnableCheckController::__invoke
-* @see app/Http/Controllers/Api/EnableCheckController.php:15
+* @see app/Http/Controllers/Api/EnableCheckController.php:17
 * @route '/api/checks/{check}/enable'
 */
 enableCheck.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2448,7 +2448,7 @@ enableCheck.post = (args: { check: number | { id: number } } | [check: number | 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\EnableCheckController::__invoke
-* @see app/Http/Controllers/Api/EnableCheckController.php:15
+* @see app/Http/Controllers/Api/EnableCheckController.php:17
 * @route '/api/checks/{check}/enable'
 */
 const enableCheckForm = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2458,7 +2458,7 @@ const enableCheckForm = (args: { check: number | { id: number } } | [check: numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\EnableCheckController::__invoke
-* @see app/Http/Controllers/Api/EnableCheckController.php:15
+* @see app/Http/Controllers/Api/EnableCheckController.php:17
 * @route '/api/checks/{check}/enable'
 */
 enableCheckForm.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2470,7 +2470,7 @@ enableCheck.form = enableCheckForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DisableCheckController::__invoke
-* @see app/Http/Controllers/Api/DisableCheckController.php:15
+* @see app/Http/Controllers/Api/DisableCheckController.php:17
 * @route '/api/checks/{check}/disable'
 */
 export const disableCheck = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2485,7 +2485,7 @@ disableCheck.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DisableCheckController::__invoke
-* @see app/Http/Controllers/Api/DisableCheckController.php:15
+* @see app/Http/Controllers/Api/DisableCheckController.php:17
 * @route '/api/checks/{check}/disable'
 */
 disableCheck.url = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -2518,7 +2518,7 @@ disableCheck.url = (args: { check: number | { id: number } } | [check: number | 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DisableCheckController::__invoke
-* @see app/Http/Controllers/Api/DisableCheckController.php:15
+* @see app/Http/Controllers/Api/DisableCheckController.php:17
 * @route '/api/checks/{check}/disable'
 */
 disableCheck.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2528,7 +2528,7 @@ disableCheck.post = (args: { check: number | { id: number } } | [check: number |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DisableCheckController::__invoke
-* @see app/Http/Controllers/Api/DisableCheckController.php:15
+* @see app/Http/Controllers/Api/DisableCheckController.php:17
 * @route '/api/checks/{check}/disable'
 */
 const disableCheckForm = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2538,7 +2538,7 @@ const disableCheckForm = (args: { check: number | { id: number } } | [check: num
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DisableCheckController::__invoke
-* @see app/Http/Controllers/Api/DisableCheckController.php:15
+* @see app/Http/Controllers/Api/DisableCheckController.php:17
 * @route '/api/checks/{check}/disable'
 */
 disableCheckForm.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2550,7 +2550,7 @@ disableCheck.form = disableCheckForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::createCheckRun
-* @see app/Http/Controllers/Api/RunController.php:38
+* @see app/Http/Controllers/Api/RunController.php:40
 * @route '/api/checks/{check}/runs'
 */
 export const createCheckRun = (args: { check: string | number } | [check: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2565,7 +2565,7 @@ createCheckRun.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::createCheckRun
-* @see app/Http/Controllers/Api/RunController.php:38
+* @see app/Http/Controllers/Api/RunController.php:40
 * @route '/api/checks/{check}/runs'
 */
 createCheckRun.url = (args: { check: string | number } | [check: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -2592,7 +2592,7 @@ createCheckRun.url = (args: { check: string | number } | [check: string | number
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::createCheckRun
-* @see app/Http/Controllers/Api/RunController.php:38
+* @see app/Http/Controllers/Api/RunController.php:40
 * @route '/api/checks/{check}/runs'
 */
 createCheckRun.post = (args: { check: string | number } | [check: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2602,7 +2602,7 @@ createCheckRun.post = (args: { check: string | number } | [check: string | numbe
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::createCheckRun
-* @see app/Http/Controllers/Api/RunController.php:38
+* @see app/Http/Controllers/Api/RunController.php:40
 * @route '/api/checks/{check}/runs'
 */
 const createCheckRunForm = (args: { check: string | number } | [check: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2612,7 +2612,7 @@ const createCheckRunForm = (args: { check: string | number } | [check: string | 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::createCheckRun
-* @see app/Http/Controllers/Api/RunController.php:38
+* @see app/Http/Controllers/Api/RunController.php:40
 * @route '/api/checks/{check}/runs'
 */
 createCheckRunForm.post = (args: { check: string | number } | [check: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2624,7 +2624,7 @@ createCheckRun.form = createCheckRunForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::getRun
-* @see app/Http/Controllers/Api/RunController.php:70
+* @see app/Http/Controllers/Api/RunController.php:72
 * @route '/api/runs/{attemptRef}'
 */
 export const getRun = (args: { attemptRef: string | number } | [attemptRef: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -2639,7 +2639,7 @@ getRun.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::getRun
-* @see app/Http/Controllers/Api/RunController.php:70
+* @see app/Http/Controllers/Api/RunController.php:72
 * @route '/api/runs/{attemptRef}'
 */
 getRun.url = (args: { attemptRef: string | number } | [attemptRef: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -2666,7 +2666,7 @@ getRun.url = (args: { attemptRef: string | number } | [attemptRef: string | numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::getRun
-* @see app/Http/Controllers/Api/RunController.php:70
+* @see app/Http/Controllers/Api/RunController.php:72
 * @route '/api/runs/{attemptRef}'
 */
 getRun.get = (args: { attemptRef: string | number } | [attemptRef: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -2676,7 +2676,7 @@ getRun.get = (args: { attemptRef: string | number } | [attemptRef: string | numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::getRun
-* @see app/Http/Controllers/Api/RunController.php:70
+* @see app/Http/Controllers/Api/RunController.php:72
 * @route '/api/runs/{attemptRef}'
 */
 getRun.head = (args: { attemptRef: string | number } | [attemptRef: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -2686,7 +2686,7 @@ getRun.head = (args: { attemptRef: string | number } | [attemptRef: string | num
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::getRun
-* @see app/Http/Controllers/Api/RunController.php:70
+* @see app/Http/Controllers/Api/RunController.php:72
 * @route '/api/runs/{attemptRef}'
 */
 const getRunForm = (args: { attemptRef: string | number } | [attemptRef: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2696,7 +2696,7 @@ const getRunForm = (args: { attemptRef: string | number } | [attemptRef: string 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::getRun
-* @see app/Http/Controllers/Api/RunController.php:70
+* @see app/Http/Controllers/Api/RunController.php:72
 * @route '/api/runs/{attemptRef}'
 */
 getRunForm.get = (args: { attemptRef: string | number } | [attemptRef: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2706,7 +2706,7 @@ getRunForm.get = (args: { attemptRef: string | number } | [attemptRef: string | 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::getRun
-* @see app/Http/Controllers/Api/RunController.php:70
+* @see app/Http/Controllers/Api/RunController.php:72
 * @route '/api/runs/{attemptRef}'
 */
 getRunForm.head = (args: { attemptRef: string | number } | [attemptRef: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -2723,7 +2723,7 @@ getRun.form = getRunForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RequestCheckRunController::__invoke
-* @see app/Http/Controllers/Api/RequestCheckRunController.php:19
+* @see app/Http/Controllers/Api/RequestCheckRunController.php:21
 * @route '/api/checks/{check}/request-run'
 */
 export const requestCheckRun = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2738,7 +2738,7 @@ requestCheckRun.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RequestCheckRunController::__invoke
-* @see app/Http/Controllers/Api/RequestCheckRunController.php:19
+* @see app/Http/Controllers/Api/RequestCheckRunController.php:21
 * @route '/api/checks/{check}/request-run'
 */
 requestCheckRun.url = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -2771,7 +2771,7 @@ requestCheckRun.url = (args: { check: number | { id: number } } | [check: number
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RequestCheckRunController::__invoke
-* @see app/Http/Controllers/Api/RequestCheckRunController.php:19
+* @see app/Http/Controllers/Api/RequestCheckRunController.php:21
 * @route '/api/checks/{check}/request-run'
 */
 requestCheckRun.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2781,7 +2781,7 @@ requestCheckRun.post = (args: { check: number | { id: number } } | [check: numbe
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RequestCheckRunController::__invoke
-* @see app/Http/Controllers/Api/RequestCheckRunController.php:19
+* @see app/Http/Controllers/Api/RequestCheckRunController.php:21
 * @route '/api/checks/{check}/request-run'
 */
 const requestCheckRunForm = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2791,7 +2791,7 @@ const requestCheckRunForm = (args: { check: number | { id: number } } | [check: 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RequestCheckRunController::__invoke
-* @see app/Http/Controllers/Api/RequestCheckRunController.php:19
+* @see app/Http/Controllers/Api/RequestCheckRunController.php:21
 * @route '/api/checks/{check}/request-run'
 */
 requestCheckRunForm.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2803,7 +2803,7 @@ requestCheckRun.form = requestCheckRunForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/SnoozeCheckController.php:21
+* @see app/Http/Controllers/Api/SnoozeCheckController.php:23
 * @route '/api/checks/{check}/snooze'
 */
 export const snoozeCheck = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2818,7 +2818,7 @@ snoozeCheck.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/SnoozeCheckController.php:21
+* @see app/Http/Controllers/Api/SnoozeCheckController.php:23
 * @route '/api/checks/{check}/snooze'
 */
 snoozeCheck.url = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -2851,7 +2851,7 @@ snoozeCheck.url = (args: { check: number | { id: number } } | [check: number | {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/SnoozeCheckController.php:21
+* @see app/Http/Controllers/Api/SnoozeCheckController.php:23
 * @route '/api/checks/{check}/snooze'
 */
 snoozeCheck.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2861,7 +2861,7 @@ snoozeCheck.post = (args: { check: number | { id: number } } | [check: number | 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/SnoozeCheckController.php:21
+* @see app/Http/Controllers/Api/SnoozeCheckController.php:23
 * @route '/api/checks/{check}/snooze'
 */
 const snoozeCheckForm = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2871,7 +2871,7 @@ const snoozeCheckForm = (args: { check: number | { id: number } } | [check: numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/SnoozeCheckController.php:21
+* @see app/Http/Controllers/Api/SnoozeCheckController.php:23
 * @route '/api/checks/{check}/snooze'
 */
 snoozeCheckForm.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2883,7 +2883,7 @@ snoozeCheck.form = snoozeCheckForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:21
 * @route '/api/checks/{check}/unsnooze'
 */
 export const unsnoozeCheck = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2898,7 +2898,7 @@ unsnoozeCheck.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:21
 * @route '/api/checks/{check}/unsnooze'
 */
 unsnoozeCheck.url = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -2931,7 +2931,7 @@ unsnoozeCheck.url = (args: { check: number | { id: number } } | [check: number |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:21
 * @route '/api/checks/{check}/unsnooze'
 */
 unsnoozeCheck.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2941,7 +2941,7 @@ unsnoozeCheck.post = (args: { check: number | { id: number } } | [check: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:21
 * @route '/api/checks/{check}/unsnooze'
 */
 const unsnoozeCheckForm = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2951,7 +2951,7 @@ const unsnoozeCheckForm = (args: { check: number | { id: number } } | [check: nu
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:19
+* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:21
 * @route '/api/checks/{check}/unsnooze'
 */
 unsnoozeCheckForm.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2963,7 +2963,7 @@ unsnoozeCheck.form = unsnoozeCheckForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeController::__invoke
-* @see app/Http/Controllers/Api/UptimeController.php:22
+* @see app/Http/Controllers/Api/UptimeController.php:24
 * @route '/api/monitors/{monitor}/uptime'
 */
 export const getUptime = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -2978,7 +2978,7 @@ getUptime.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeController::__invoke
-* @see app/Http/Controllers/Api/UptimeController.php:22
+* @see app/Http/Controllers/Api/UptimeController.php:24
 * @route '/api/monitors/{monitor}/uptime'
 */
 getUptime.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -3011,7 +3011,7 @@ getUptime.url = (args: { monitor: number | { id: number } } | [monitor: number |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeController::__invoke
-* @see app/Http/Controllers/Api/UptimeController.php:22
+* @see app/Http/Controllers/Api/UptimeController.php:24
 * @route '/api/monitors/{monitor}/uptime'
 */
 getUptime.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -3021,7 +3021,7 @@ getUptime.get = (args: { monitor: number | { id: number } } | [monitor: number |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeController::__invoke
-* @see app/Http/Controllers/Api/UptimeController.php:22
+* @see app/Http/Controllers/Api/UptimeController.php:24
 * @route '/api/monitors/{monitor}/uptime'
 */
 getUptime.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -3031,7 +3031,7 @@ getUptime.head = (args: { monitor: number | { id: number } } | [monitor: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeController::__invoke
-* @see app/Http/Controllers/Api/UptimeController.php:22
+* @see app/Http/Controllers/Api/UptimeController.php:24
 * @route '/api/monitors/{monitor}/uptime'
 */
 const getUptimeForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -3041,7 +3041,7 @@ const getUptimeForm = (args: { monitor: number | { id: number } } | [monitor: nu
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeController::__invoke
-* @see app/Http/Controllers/Api/UptimeController.php:22
+* @see app/Http/Controllers/Api/UptimeController.php:24
 * @route '/api/monitors/{monitor}/uptime'
 */
 getUptimeForm.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -3051,7 +3051,7 @@ getUptimeForm.get = (args: { monitor: number | { id: number } } | [monitor: numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeController::__invoke
-* @see app/Http/Controllers/Api/UptimeController.php:22
+* @see app/Http/Controllers/Api/UptimeController.php:24
 * @route '/api/monitors/{monitor}/uptime'
 */
 getUptimeForm.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -3068,7 +3068,7 @@ getUptime.form = getUptimeForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeMetricsController::__invoke
-* @see app/Http/Controllers/Api/UptimeMetricsController.php:19
+* @see app/Http/Controllers/Api/UptimeMetricsController.php:21
 * @route '/api/monitors/{monitor}/http-uptime-metrics'
 */
 export const httpUptimeMetrics = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -3083,7 +3083,7 @@ httpUptimeMetrics.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeMetricsController::__invoke
-* @see app/Http/Controllers/Api/UptimeMetricsController.php:19
+* @see app/Http/Controllers/Api/UptimeMetricsController.php:21
 * @route '/api/monitors/{monitor}/http-uptime-metrics'
 */
 httpUptimeMetrics.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -3116,7 +3116,7 @@ httpUptimeMetrics.url = (args: { monitor: number | { id: number } } | [monitor: 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeMetricsController::__invoke
-* @see app/Http/Controllers/Api/UptimeMetricsController.php:19
+* @see app/Http/Controllers/Api/UptimeMetricsController.php:21
 * @route '/api/monitors/{monitor}/http-uptime-metrics'
 */
 httpUptimeMetrics.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -3126,7 +3126,7 @@ httpUptimeMetrics.get = (args: { monitor: number | { id: number } } | [monitor: 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeMetricsController::__invoke
-* @see app/Http/Controllers/Api/UptimeMetricsController.php:19
+* @see app/Http/Controllers/Api/UptimeMetricsController.php:21
 * @route '/api/monitors/{monitor}/http-uptime-metrics'
 */
 httpUptimeMetrics.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -3136,7 +3136,7 @@ httpUptimeMetrics.head = (args: { monitor: number | { id: number } } | [monitor:
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeMetricsController::__invoke
-* @see app/Http/Controllers/Api/UptimeMetricsController.php:19
+* @see app/Http/Controllers/Api/UptimeMetricsController.php:21
 * @route '/api/monitors/{monitor}/http-uptime-metrics'
 */
 const httpUptimeMetricsForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -3146,7 +3146,7 @@ const httpUptimeMetricsForm = (args: { monitor: number | { id: number } } | [mon
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeMetricsController::__invoke
-* @see app/Http/Controllers/Api/UptimeMetricsController.php:19
+* @see app/Http/Controllers/Api/UptimeMetricsController.php:21
 * @route '/api/monitors/{monitor}/http-uptime-metrics'
 */
 httpUptimeMetricsForm.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -3156,7 +3156,7 @@ httpUptimeMetricsForm.get = (args: { monitor: number | { id: number } } | [monit
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UptimeMetricsController::__invoke
-* @see app/Http/Controllers/Api/UptimeMetricsController.php:19
+* @see app/Http/Controllers/Api/UptimeMetricsController.php:21
 * @route '/api/monitors/{monitor}/http-uptime-metrics'
 */
 httpUptimeMetricsForm.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -3173,7 +3173,7 @@ httpUptimeMetrics.form = httpUptimeMetricsForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DowntimeController::__invoke
-* @see app/Http/Controllers/Api/DowntimeController.php:19
+* @see app/Http/Controllers/Api/DowntimeController.php:21
 * @route '/api/monitors/{monitor}/downtime'
 */
 export const getDowntime = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -3188,7 +3188,7 @@ getDowntime.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DowntimeController::__invoke
-* @see app/Http/Controllers/Api/DowntimeController.php:19
+* @see app/Http/Controllers/Api/DowntimeController.php:21
 * @route '/api/monitors/{monitor}/downtime'
 */
 getDowntime.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -3221,7 +3221,7 @@ getDowntime.url = (args: { monitor: number | { id: number } } | [monitor: number
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DowntimeController::__invoke
-* @see app/Http/Controllers/Api/DowntimeController.php:19
+* @see app/Http/Controllers/Api/DowntimeController.php:21
 * @route '/api/monitors/{monitor}/downtime'
 */
 getDowntime.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -3231,7 +3231,7 @@ getDowntime.get = (args: { monitor: number | { id: number } } | [monitor: number
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DowntimeController::__invoke
-* @see app/Http/Controllers/Api/DowntimeController.php:19
+* @see app/Http/Controllers/Api/DowntimeController.php:21
 * @route '/api/monitors/{monitor}/downtime'
 */
 getDowntime.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -3241,7 +3241,7 @@ getDowntime.head = (args: { monitor: number | { id: number } } | [monitor: numbe
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DowntimeController::__invoke
-* @see app/Http/Controllers/Api/DowntimeController.php:19
+* @see app/Http/Controllers/Api/DowntimeController.php:21
 * @route '/api/monitors/{monitor}/downtime'
 */
 const getDowntimeForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -3251,7 +3251,7 @@ const getDowntimeForm = (args: { monitor: number | { id: number } } | [monitor: 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DowntimeController::__invoke
-* @see app/Http/Controllers/Api/DowntimeController.php:19
+* @see app/Http/Controllers/Api/DowntimeController.php:21
 * @route '/api/monitors/{monitor}/downtime'
 */
 getDowntimeForm.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -3261,7 +3261,7 @@ getDowntimeForm.get = (args: { monitor: number | { id: number } } | [monitor: nu
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DowntimeController::__invoke
-* @see app/Http/Controllers/Api/DowntimeController.php:19
+* @see app/Http/Controllers/Api/DowntimeController.php:21
 * @route '/api/monitors/{monitor}/downtime'
 */
 getDowntimeForm.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -3278,7 +3278,7 @@ getDowntime.form = getDowntimeForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::listTags
-* @see app/Http/Controllers/Api/TagController.php:26
+* @see app/Http/Controllers/Api/TagController.php:28
 * @route '/api/tags'
 */
 export const listTags = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -3293,7 +3293,7 @@ listTags.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::listTags
-* @see app/Http/Controllers/Api/TagController.php:26
+* @see app/Http/Controllers/Api/TagController.php:28
 * @route '/api/tags'
 */
 listTags.url = (options?: RouteQueryOptions) => {
@@ -3302,7 +3302,7 @@ listTags.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::listTags
-* @see app/Http/Controllers/Api/TagController.php:26
+* @see app/Http/Controllers/Api/TagController.php:28
 * @route '/api/tags'
 */
 listTags.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -3312,7 +3312,7 @@ listTags.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::listTags
-* @see app/Http/Controllers/Api/TagController.php:26
+* @see app/Http/Controllers/Api/TagController.php:28
 * @route '/api/tags'
 */
 listTags.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -3322,7 +3322,7 @@ listTags.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::listTags
-* @see app/Http/Controllers/Api/TagController.php:26
+* @see app/Http/Controllers/Api/TagController.php:28
 * @route '/api/tags'
 */
 const listTagsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -3332,7 +3332,7 @@ const listTagsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::listTags
-* @see app/Http/Controllers/Api/TagController.php:26
+* @see app/Http/Controllers/Api/TagController.php:28
 * @route '/api/tags'
 */
 listTagsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -3342,7 +3342,7 @@ listTagsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::listTags
-* @see app/Http/Controllers/Api/TagController.php:26
+* @see app/Http/Controllers/Api/TagController.php:28
 * @route '/api/tags'
 */
 listTagsForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -3359,7 +3359,7 @@ listTags.form = listTagsForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::createTag
-* @see app/Http/Controllers/Api/TagController.php:45
+* @see app/Http/Controllers/Api/TagController.php:47
 * @route '/api/tags'
 */
 export const createTag = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -3374,7 +3374,7 @@ createTag.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::createTag
-* @see app/Http/Controllers/Api/TagController.php:45
+* @see app/Http/Controllers/Api/TagController.php:47
 * @route '/api/tags'
 */
 createTag.url = (options?: RouteQueryOptions) => {
@@ -3383,7 +3383,7 @@ createTag.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::createTag
-* @see app/Http/Controllers/Api/TagController.php:45
+* @see app/Http/Controllers/Api/TagController.php:47
 * @route '/api/tags'
 */
 createTag.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -3393,7 +3393,7 @@ createTag.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::createTag
-* @see app/Http/Controllers/Api/TagController.php:45
+* @see app/Http/Controllers/Api/TagController.php:47
 * @route '/api/tags'
 */
 const createTagForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -3403,7 +3403,7 @@ const createTagForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'>
 
 /**
 * @see \Heptapod\Http\Controllers\Api\TagController::createTag
-* @see app/Http/Controllers/Api/TagController.php:45
+* @see app/Http/Controllers/Api/TagController.php:47
 * @route '/api/tags'
 */
 createTagForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

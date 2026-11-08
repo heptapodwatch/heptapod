@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\SyncCronTasksController::__invoke
-* @see app/Http/Controllers/Api/SyncCronTasksController.php:20
+* @see app/Http/Controllers/Api/SyncCronTasksController.php:22
 * @route '/api/monitors/{monitor}/cron-checks/sync'
 */
 const SyncCronTasksController = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ SyncCronTasksController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SyncCronTasksController::__invoke
-* @see app/Http/Controllers/Api/SyncCronTasksController.php:20
+* @see app/Http/Controllers/Api/SyncCronTasksController.php:22
 * @route '/api/monitors/{monitor}/cron-checks/sync'
 */
 SyncCronTasksController.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ SyncCronTasksController.url = (args: { monitor: number | { id: number } } | [mon
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SyncCronTasksController::__invoke
-* @see app/Http/Controllers/Api/SyncCronTasksController.php:20
+* @see app/Http/Controllers/Api/SyncCronTasksController.php:22
 * @route '/api/monitors/{monitor}/cron-checks/sync'
 */
 SyncCronTasksController.post = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ SyncCronTasksController.post = (args: { monitor: number | { id: number } } | [mo
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SyncCronTasksController::__invoke
-* @see app/Http/Controllers/Api/SyncCronTasksController.php:20
+* @see app/Http/Controllers/Api/SyncCronTasksController.php:22
 * @route '/api/monitors/{monitor}/cron-checks/sync'
 */
 const SyncCronTasksControllerForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const SyncCronTasksControllerForm = (args: { monitor: number | { id: number } } 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\SyncCronTasksController::__invoke
-* @see app/Http/Controllers/Api/SyncCronTasksController.php:20
+* @see app/Http/Controllers/Api/SyncCronTasksController.php:22
 * @route '/api/monitors/{monitor}/cron-checks/sync'
 */
 SyncCronTasksControllerForm.post = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckSummaryController::__invoke
-* @see app/Http/Controllers/Api/CheckSummaryController.php:17
+* @see app/Http/Controllers/Api/CheckSummaryController.php:19
 * @route '/api/monitors/{monitor}/check-summary/{checkType}'
 */
 const CheckSummaryController = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ CheckSummaryController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckSummaryController::__invoke
-* @see app/Http/Controllers/Api/CheckSummaryController.php:17
+* @see app/Http/Controllers/Api/CheckSummaryController.php:19
 * @route '/api/monitors/{monitor}/check-summary/{checkType}'
 */
 CheckSummaryController.url = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions) => {
@@ -44,7 +44,7 @@ CheckSummaryController.url = (args: { monitor: number | { id: number }, checkTyp
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckSummaryController::__invoke
-* @see app/Http/Controllers/Api/CheckSummaryController.php:17
+* @see app/Http/Controllers/Api/CheckSummaryController.php:19
 * @route '/api/monitors/{monitor}/check-summary/{checkType}'
 */
 CheckSummaryController.get = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -54,7 +54,7 @@ CheckSummaryController.get = (args: { monitor: number | { id: number }, checkTyp
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckSummaryController::__invoke
-* @see app/Http/Controllers/Api/CheckSummaryController.php:17
+* @see app/Http/Controllers/Api/CheckSummaryController.php:19
 * @route '/api/monitors/{monitor}/check-summary/{checkType}'
 */
 CheckSummaryController.head = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -64,7 +64,7 @@ CheckSummaryController.head = (args: { monitor: number | { id: number }, checkTy
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckSummaryController::__invoke
-* @see app/Http/Controllers/Api/CheckSummaryController.php:17
+* @see app/Http/Controllers/Api/CheckSummaryController.php:19
 * @route '/api/monitors/{monitor}/check-summary/{checkType}'
 */
 const CheckSummaryControllerForm = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -74,7 +74,7 @@ const CheckSummaryControllerForm = (args: { monitor: number | { id: number }, ch
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckSummaryController::__invoke
-* @see app/Http/Controllers/Api/CheckSummaryController.php:17
+* @see app/Http/Controllers/Api/CheckSummaryController.php:19
 * @route '/api/monitors/{monitor}/check-summary/{checkType}'
 */
 CheckSummaryControllerForm.get = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -84,7 +84,7 @@ CheckSummaryControllerForm.get = (args: { monitor: number | { id: number }, chec
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckSummaryController::__invoke
-* @see app/Http/Controllers/Api/CheckSummaryController.php:17
+* @see app/Http/Controllers/Api/CheckSummaryController.php:19
 * @route '/api/monitors/{monitor}/check-summary/{checkType}'
 */
 CheckSummaryControllerForm.head = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

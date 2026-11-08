@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::store
-* @see app/Http/Controllers/Api/RunController.php:38
+* @see app/Http/Controllers/Api/RunController.php:40
 * @route '/api/checks/{check}/runs'
 */
 export const store = (args: { check: string | number } | [check: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::store
-* @see app/Http/Controllers/Api/RunController.php:38
+* @see app/Http/Controllers/Api/RunController.php:40
 * @route '/api/checks/{check}/runs'
 */
 store.url = (args: { check: string | number } | [check: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -43,7 +43,7 @@ store.url = (args: { check: string | number } | [check: string | number ] | stri
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::store
-* @see app/Http/Controllers/Api/RunController.php:38
+* @see app/Http/Controllers/Api/RunController.php:40
 * @route '/api/checks/{check}/runs'
 */
 store.post = (args: { check: string | number } | [check: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -53,7 +53,7 @@ store.post = (args: { check: string | number } | [check: string | number ] | str
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::store
-* @see app/Http/Controllers/Api/RunController.php:38
+* @see app/Http/Controllers/Api/RunController.php:40
 * @route '/api/checks/{check}/runs'
 */
 const storeForm = (args: { check: string | number } | [check: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -63,7 +63,7 @@ const storeForm = (args: { check: string | number } | [check: string | number ] 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::store
-* @see app/Http/Controllers/Api/RunController.php:38
+* @see app/Http/Controllers/Api/RunController.php:40
 * @route '/api/checks/{check}/runs'
 */
 storeForm.post = (args: { check: string | number } | [check: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -75,7 +75,7 @@ store.form = storeForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::show
-* @see app/Http/Controllers/Api/RunController.php:70
+* @see app/Http/Controllers/Api/RunController.php:72
 * @route '/api/runs/{attemptRef}'
 */
 export const show = (args: { attemptRef: string | number } | [attemptRef: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -90,7 +90,7 @@ show.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::show
-* @see app/Http/Controllers/Api/RunController.php:70
+* @see app/Http/Controllers/Api/RunController.php:72
 * @route '/api/runs/{attemptRef}'
 */
 show.url = (args: { attemptRef: string | number } | [attemptRef: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -117,7 +117,7 @@ show.url = (args: { attemptRef: string | number } | [attemptRef: string | number
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::show
-* @see app/Http/Controllers/Api/RunController.php:70
+* @see app/Http/Controllers/Api/RunController.php:72
 * @route '/api/runs/{attemptRef}'
 */
 show.get = (args: { attemptRef: string | number } | [attemptRef: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -127,7 +127,7 @@ show.get = (args: { attemptRef: string | number } | [attemptRef: string | number
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::show
-* @see app/Http/Controllers/Api/RunController.php:70
+* @see app/Http/Controllers/Api/RunController.php:72
 * @route '/api/runs/{attemptRef}'
 */
 show.head = (args: { attemptRef: string | number } | [attemptRef: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -137,7 +137,7 @@ show.head = (args: { attemptRef: string | number } | [attemptRef: string | numbe
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::show
-* @see app/Http/Controllers/Api/RunController.php:70
+* @see app/Http/Controllers/Api/RunController.php:72
 * @route '/api/runs/{attemptRef}'
 */
 const showForm = (args: { attemptRef: string | number } | [attemptRef: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -147,7 +147,7 @@ const showForm = (args: { attemptRef: string | number } | [attemptRef: string | 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::show
-* @see app/Http/Controllers/Api/RunController.php:70
+* @see app/Http/Controllers/Api/RunController.php:72
 * @route '/api/runs/{attemptRef}'
 */
 showForm.get = (args: { attemptRef: string | number } | [attemptRef: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -157,7 +157,7 @@ showForm.get = (args: { attemptRef: string | number } | [attemptRef: string | nu
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RunController::show
-* @see app/Http/Controllers/Api/RunController.php:70
+* @see app/Http/Controllers/Api/RunController.php:72
 * @route '/api/runs/{attemptRef}'
 */
 showForm.head = (args: { attemptRef: string | number } | [attemptRef: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

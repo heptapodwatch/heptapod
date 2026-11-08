@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers\Api;
 
 use Carbon\CarbonImmutable;
+use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\CreateSite;
 use Heptapod\Actions\DeleteSite;
 use Heptapod\Actions\UpdateSite;
@@ -25,6 +26,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 
+#[Group('Monitors')]
 final class MonitorController extends Controller
 {
     use ResolvesApiPrincipal;

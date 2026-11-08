@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::index
-* @see app/Http/Controllers/Api/CronTaskController.php:23
+* @see app/Http/Controllers/Api/CronTaskController.php:25
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 export const index = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::index
-* @see app/Http/Controllers/Api/CronTaskController.php:23
+* @see app/Http/Controllers/Api/CronTaskController.php:25
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 index.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ index.url = (args: { monitor: number | { id: number } } | [monitor: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::index
-* @see app/Http/Controllers/Api/CronTaskController.php:23
+* @see app/Http/Controllers/Api/CronTaskController.php:25
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 index.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -59,7 +59,7 @@ index.get = (args: { monitor: number | { id: number } } | [monitor: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::index
-* @see app/Http/Controllers/Api/CronTaskController.php:23
+* @see app/Http/Controllers/Api/CronTaskController.php:25
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 index.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -69,7 +69,7 @@ index.head = (args: { monitor: number | { id: number } } | [monitor: number | { 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::index
-* @see app/Http/Controllers/Api/CronTaskController.php:23
+* @see app/Http/Controllers/Api/CronTaskController.php:25
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 const indexForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ const indexForm = (args: { monitor: number | { id: number } } | [monitor: number
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::index
-* @see app/Http/Controllers/Api/CronTaskController.php:23
+* @see app/Http/Controllers/Api/CronTaskController.php:25
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 indexForm.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -89,7 +89,7 @@ indexForm.get = (args: { monitor: number | { id: number } } | [monitor: number |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::index
-* @see app/Http/Controllers/Api/CronTaskController.php:23
+* @see app/Http/Controllers/Api/CronTaskController.php:25
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 indexForm.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -106,7 +106,7 @@ index.form = indexForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::create
-* @see app/Http/Controllers/Api/CronTaskController.php:30
+* @see app/Http/Controllers/Api/CronTaskController.php:32
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 export const create = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -121,7 +121,7 @@ create.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::create
-* @see app/Http/Controllers/Api/CronTaskController.php:30
+* @see app/Http/Controllers/Api/CronTaskController.php:32
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 create.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -154,7 +154,7 @@ create.url = (args: { monitor: number | { id: number } } | [monitor: number | { 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::create
-* @see app/Http/Controllers/Api/CronTaskController.php:30
+* @see app/Http/Controllers/Api/CronTaskController.php:32
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 create.post = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -164,7 +164,7 @@ create.post = (args: { monitor: number | { id: number } } | [monitor: number | {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::create
-* @see app/Http/Controllers/Api/CronTaskController.php:30
+* @see app/Http/Controllers/Api/CronTaskController.php:32
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 const createForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -174,7 +174,7 @@ const createForm = (args: { monitor: number | { id: number } } | [monitor: numbe
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::create
-* @see app/Http/Controllers/Api/CronTaskController.php:30
+* @see app/Http/Controllers/Api/CronTaskController.php:32
 * @route '/api/monitors/{monitor}/cron-checks'
 */
 createForm.post = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -186,7 +186,7 @@ create.form = createForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::update
-* @see app/Http/Controllers/Api/CronTaskController.php:40
+* @see app/Http/Controllers/Api/CronTaskController.php:42
 * @route '/api/cron-checks/{cronTask}'
 */
 export const update = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -201,7 +201,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::update
-* @see app/Http/Controllers/Api/CronTaskController.php:40
+* @see app/Http/Controllers/Api/CronTaskController.php:42
 * @route '/api/cron-checks/{cronTask}'
 */
 update.url = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -228,7 +228,7 @@ update.url = (args: { cronTask: string | number } | [cronTask: string | number ]
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::update
-* @see app/Http/Controllers/Api/CronTaskController.php:40
+* @see app/Http/Controllers/Api/CronTaskController.php:42
 * @route '/api/cron-checks/{cronTask}'
 */
 update.put = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -238,7 +238,7 @@ update.put = (args: { cronTask: string | number } | [cronTask: string | number ]
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::update
-* @see app/Http/Controllers/Api/CronTaskController.php:40
+* @see app/Http/Controllers/Api/CronTaskController.php:42
 * @route '/api/cron-checks/{cronTask}'
 */
 const updateForm = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -253,7 +253,7 @@ const updateForm = (args: { cronTask: string | number } | [cronTask: string | nu
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::update
-* @see app/Http/Controllers/Api/CronTaskController.php:40
+* @see app/Http/Controllers/Api/CronTaskController.php:42
 * @route '/api/cron-checks/{cronTask}'
 */
 updateForm.put = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -270,7 +270,7 @@ update.form = updateForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::destroy
-* @see app/Http/Controllers/Api/CronTaskController.php:49
+* @see app/Http/Controllers/Api/CronTaskController.php:51
 * @route '/api/cron-checks/{cronTask}'
 */
 export const destroy = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -285,7 +285,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::destroy
-* @see app/Http/Controllers/Api/CronTaskController.php:49
+* @see app/Http/Controllers/Api/CronTaskController.php:51
 * @route '/api/cron-checks/{cronTask}'
 */
 destroy.url = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -312,7 +312,7 @@ destroy.url = (args: { cronTask: string | number } | [cronTask: string | number 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::destroy
-* @see app/Http/Controllers/Api/CronTaskController.php:49
+* @see app/Http/Controllers/Api/CronTaskController.php:51
 * @route '/api/cron-checks/{cronTask}'
 */
 destroy.delete = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -322,7 +322,7 @@ destroy.delete = (args: { cronTask: string | number } | [cronTask: string | numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::destroy
-* @see app/Http/Controllers/Api/CronTaskController.php:49
+* @see app/Http/Controllers/Api/CronTaskController.php:51
 * @route '/api/cron-checks/{cronTask}'
 */
 const destroyForm = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -337,7 +337,7 @@ const destroyForm = (args: { cronTask: string | number } | [cronTask: string | n
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CronTaskController::destroy
-* @see app/Http/Controllers/Api/CronTaskController.php:49
+* @see app/Http/Controllers/Api/CronTaskController.php:51
 * @route '/api/cron-checks/{cronTask}'
 */
 destroyForm.delete = (args: { cronTask: string | number } | [cronTask: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

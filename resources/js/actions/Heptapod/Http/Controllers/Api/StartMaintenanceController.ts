@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\StartMaintenanceController::__invoke
-* @see app/Http/Controllers/Api/StartMaintenanceController.php:19
+* @see app/Http/Controllers/Api/StartMaintenanceController.php:21
 * @route '/api/monitors/{monitor}/start-maintenance'
 */
 const StartMaintenanceController = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ StartMaintenanceController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\StartMaintenanceController::__invoke
-* @see app/Http/Controllers/Api/StartMaintenanceController.php:19
+* @see app/Http/Controllers/Api/StartMaintenanceController.php:21
 * @route '/api/monitors/{monitor}/start-maintenance'
 */
 StartMaintenanceController.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ StartMaintenanceController.url = (args: { monitor: number | { id: number } } | [
 
 /**
 * @see \Heptapod\Http\Controllers\Api\StartMaintenanceController::__invoke
-* @see app/Http/Controllers/Api/StartMaintenanceController.php:19
+* @see app/Http/Controllers/Api/StartMaintenanceController.php:21
 * @route '/api/monitors/{monitor}/start-maintenance'
 */
 StartMaintenanceController.post = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ StartMaintenanceController.post = (args: { monitor: number | { id: number } } | 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\StartMaintenanceController::__invoke
-* @see app/Http/Controllers/Api/StartMaintenanceController.php:19
+* @see app/Http/Controllers/Api/StartMaintenanceController.php:21
 * @route '/api/monitors/{monitor}/start-maintenance'
 */
 const StartMaintenanceControllerForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const StartMaintenanceControllerForm = (args: { monitor: number | { id: number }
 
 /**
 * @see \Heptapod\Http\Controllers\Api\StartMaintenanceController::__invoke
-* @see app/Http/Controllers/Api/StartMaintenanceController.php:19
+* @see app/Http/Controllers/Api/StartMaintenanceController.php:21
 * @route '/api/monitors/{monitor}/start-maintenance'
 */
 StartMaintenanceControllerForm.post = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

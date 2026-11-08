@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::store
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:19
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:21
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 export const store = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::store
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:19
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:21
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 store.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -43,7 +43,7 @@ store.url = (args: { incident: string | number } | [incident: string | number ] 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::store
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:19
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:21
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 store.post = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -53,7 +53,7 @@ store.post = (args: { incident: string | number } | [incident: string | number ]
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::store
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:19
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:21
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 const storeForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -63,7 +63,7 @@ const storeForm = (args: { incident: string | number } | [incident: string | num
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::store
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:19
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:21
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 storeForm.post = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -75,7 +75,7 @@ store.form = storeForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::destroy
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:28
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:30
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 export const destroy = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -90,7 +90,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::destroy
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:28
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:30
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 destroy.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -117,7 +117,7 @@ destroy.url = (args: { incident: string | number } | [incident: string | number 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::destroy
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:28
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:30
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 destroy.delete = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -127,7 +127,7 @@ destroy.delete = (args: { incident: string | number } | [incident: string | numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::destroy
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:28
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:30
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 const destroyForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -142,7 +142,7 @@ const destroyForm = (args: { incident: string | number } | [incident: string | n
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentRemindersController::destroy
-* @see app/Http/Controllers/Api/IncidentRemindersController.php:28
+* @see app/Http/Controllers/Api/IncidentRemindersController.php:30
 * @route '/api/internal/incidents/{incident}/snooze'
 */
 destroyForm.delete = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

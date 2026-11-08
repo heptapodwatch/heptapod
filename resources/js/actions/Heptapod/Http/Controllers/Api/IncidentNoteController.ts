@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::show
-* @see app/Http/Controllers/Api/IncidentNoteController.php:20
+* @see app/Http/Controllers/Api/IncidentNoteController.php:22
 * @route '/api/internal/incidents/{incident}/note'
 */
 export const show = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ show.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::show
-* @see app/Http/Controllers/Api/IncidentNoteController.php:20
+* @see app/Http/Controllers/Api/IncidentNoteController.php:22
 * @route '/api/internal/incidents/{incident}/note'
 */
 show.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -43,7 +43,7 @@ show.url = (args: { incident: string | number } | [incident: string | number ] |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::show
-* @see app/Http/Controllers/Api/IncidentNoteController.php:20
+* @see app/Http/Controllers/Api/IncidentNoteController.php:22
 * @route '/api/internal/incidents/{incident}/note'
 */
 show.get = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -53,7 +53,7 @@ show.get = (args: { incident: string | number } | [incident: string | number ] |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::show
-* @see app/Http/Controllers/Api/IncidentNoteController.php:20
+* @see app/Http/Controllers/Api/IncidentNoteController.php:22
 * @route '/api/internal/incidents/{incident}/note'
 */
 show.head = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -63,7 +63,7 @@ show.head = (args: { incident: string | number } | [incident: string | number ] 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::show
-* @see app/Http/Controllers/Api/IncidentNoteController.php:20
+* @see app/Http/Controllers/Api/IncidentNoteController.php:22
 * @route '/api/internal/incidents/{incident}/note'
 */
 const showForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -73,7 +73,7 @@ const showForm = (args: { incident: string | number } | [incident: string | numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::show
-* @see app/Http/Controllers/Api/IncidentNoteController.php:20
+* @see app/Http/Controllers/Api/IncidentNoteController.php:22
 * @route '/api/internal/incidents/{incident}/note'
 */
 showForm.get = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -83,7 +83,7 @@ showForm.get = (args: { incident: string | number } | [incident: string | number
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::show
-* @see app/Http/Controllers/Api/IncidentNoteController.php:20
+* @see app/Http/Controllers/Api/IncidentNoteController.php:22
 * @route '/api/internal/incidents/{incident}/note'
 */
 showForm.head = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -100,7 +100,7 @@ show.form = showForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::update
-* @see app/Http/Controllers/Api/IncidentNoteController.php:28
+* @see app/Http/Controllers/Api/IncidentNoteController.php:30
 * @route '/api/internal/incidents/{incident}/note'
 */
 export const update = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -115,7 +115,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::update
-* @see app/Http/Controllers/Api/IncidentNoteController.php:28
+* @see app/Http/Controllers/Api/IncidentNoteController.php:30
 * @route '/api/internal/incidents/{incident}/note'
 */
 update.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -142,7 +142,7 @@ update.url = (args: { incident: string | number } | [incident: string | number ]
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::update
-* @see app/Http/Controllers/Api/IncidentNoteController.php:28
+* @see app/Http/Controllers/Api/IncidentNoteController.php:30
 * @route '/api/internal/incidents/{incident}/note'
 */
 update.put = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -152,7 +152,7 @@ update.put = (args: { incident: string | number } | [incident: string | number ]
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::update
-* @see app/Http/Controllers/Api/IncidentNoteController.php:28
+* @see app/Http/Controllers/Api/IncidentNoteController.php:30
 * @route '/api/internal/incidents/{incident}/note'
 */
 const updateForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -167,7 +167,7 @@ const updateForm = (args: { incident: string | number } | [incident: string | nu
 
 /**
 * @see \Heptapod\Http\Controllers\Api\IncidentNoteController::update
-* @see app/Http/Controllers/Api/IncidentNoteController.php:28
+* @see app/Http/Controllers/Api/IncidentNoteController.php:30
 * @route '/api/internal/incidents/{incident}/note'
 */
 updateForm.put = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

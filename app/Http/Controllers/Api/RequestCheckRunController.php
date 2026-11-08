@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers\Api;
 
+use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\RequestCheckRun;
 use Heptapod\Checks\Execution\RunOrigin;
 use Heptapod\Http\Controllers\Controller;
@@ -14,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 
+#[Group('Check runs')]
 final class RequestCheckRunController extends Controller
 {
     public function __invoke(Request $request, Check $check, RequestCheckRun $run): CheckResource

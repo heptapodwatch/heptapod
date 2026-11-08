@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\EnableCheckController::__invoke
-* @see app/Http/Controllers/Api/EnableCheckController.php:15
+* @see app/Http/Controllers/Api/EnableCheckController.php:17
 * @route '/api/checks/{check}/enable'
 */
 const EnableCheckController = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ EnableCheckController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\EnableCheckController::__invoke
-* @see app/Http/Controllers/Api/EnableCheckController.php:15
+* @see app/Http/Controllers/Api/EnableCheckController.php:17
 * @route '/api/checks/{check}/enable'
 */
 EnableCheckController.url = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ EnableCheckController.url = (args: { check: number | { id: number } } | [check: 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\EnableCheckController::__invoke
-* @see app/Http/Controllers/Api/EnableCheckController.php:15
+* @see app/Http/Controllers/Api/EnableCheckController.php:17
 * @route '/api/checks/{check}/enable'
 */
 EnableCheckController.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ EnableCheckController.post = (args: { check: number | { id: number } } | [check:
 
 /**
 * @see \Heptapod\Http\Controllers\Api\EnableCheckController::__invoke
-* @see app/Http/Controllers/Api/EnableCheckController.php:15
+* @see app/Http/Controllers/Api/EnableCheckController.php:17
 * @route '/api/checks/{check}/enable'
 */
 const EnableCheckControllerForm = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const EnableCheckControllerForm = (args: { check: number | { id: number } } | [c
 
 /**
 * @see \Heptapod\Http\Controllers\Api\EnableCheckController::__invoke
-* @see app/Http/Controllers/Api/EnableCheckController.php:15
+* @see app/Http/Controllers/Api/EnableCheckController.php:17
 * @route '/api/checks/{check}/enable'
 */
 EnableCheckControllerForm.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

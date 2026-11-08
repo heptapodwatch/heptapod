@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers\Api;
 
+use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\StopMaintenance;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\Site;
@@ -12,6 +13,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 
+#[Group('Maintenance')]
 final class StopMaintenanceController extends Controller
 {
     public function __invoke(Request $request, Site $monitor, StopMaintenance $stop): Response

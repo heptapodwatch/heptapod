@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckRunController::__invoke
-* @see app/Http/Controllers/Api/CheckRunController.php:19
+* @see app/Http/Controllers/Api/CheckRunController.php:21
 * @route '/api/monitors/{monitor}/checks/{checkType}/runs'
 */
 const CheckRunController = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ CheckRunController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckRunController::__invoke
-* @see app/Http/Controllers/Api/CheckRunController.php:19
+* @see app/Http/Controllers/Api/CheckRunController.php:21
 * @route '/api/monitors/{monitor}/checks/{checkType}/runs'
 */
 CheckRunController.url = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions) => {
@@ -44,7 +44,7 @@ CheckRunController.url = (args: { monitor: number | { id: number }, checkType: s
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckRunController::__invoke
-* @see app/Http/Controllers/Api/CheckRunController.php:19
+* @see app/Http/Controllers/Api/CheckRunController.php:21
 * @route '/api/monitors/{monitor}/checks/{checkType}/runs'
 */
 CheckRunController.get = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -54,7 +54,7 @@ CheckRunController.get = (args: { monitor: number | { id: number }, checkType: s
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckRunController::__invoke
-* @see app/Http/Controllers/Api/CheckRunController.php:19
+* @see app/Http/Controllers/Api/CheckRunController.php:21
 * @route '/api/monitors/{monitor}/checks/{checkType}/runs'
 */
 CheckRunController.head = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -64,7 +64,7 @@ CheckRunController.head = (args: { monitor: number | { id: number }, checkType: 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckRunController::__invoke
-* @see app/Http/Controllers/Api/CheckRunController.php:19
+* @see app/Http/Controllers/Api/CheckRunController.php:21
 * @route '/api/monitors/{monitor}/checks/{checkType}/runs'
 */
 const CheckRunControllerForm = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -74,7 +74,7 @@ const CheckRunControllerForm = (args: { monitor: number | { id: number }, checkT
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckRunController::__invoke
-* @see app/Http/Controllers/Api/CheckRunController.php:19
+* @see app/Http/Controllers/Api/CheckRunController.php:21
 * @route '/api/monitors/{monitor}/checks/{checkType}/runs'
 */
 CheckRunControllerForm.get = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -84,7 +84,7 @@ CheckRunControllerForm.get = (args: { monitor: number | { id: number }, checkTyp
 
 /**
 * @see \Heptapod\Http\Controllers\Api\CheckRunController::__invoke
-* @see app/Http/Controllers/Api/CheckRunController.php:19
+* @see app/Http/Controllers/Api/CheckRunController.php:21
 * @route '/api/monitors/{monitor}/checks/{checkType}/runs'
 */
 CheckRunControllerForm.head = (args: { monitor: number | { id: number }, checkType: string | number } | [monitor: number | { id: number }, checkType: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

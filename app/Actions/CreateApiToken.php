@@ -13,19 +13,26 @@ use Illuminate\Validation\ValidationException;
 
 final class CreateApiToken
 {
-    private const array HistoricalAbilities = ['identity:read', 'monitors:read', 'monitors:write', 'checks:read', 'checks:write', 'checks:snooze', 'incidents:read', 'incidents:note', 'uptime:read', 'downtime:read', 'tags:read', 'tags:write', 'maintenance:read', 'maintenance:write'];
+    /** The abilities of the write and manage presets. */
+    public const array HistoricalAbilities = ['identity:read', 'monitors:read', 'monitors:write', 'checks:read', 'checks:write', 'checks:snooze', 'incidents:read', 'incidents:note', 'uptime:read', 'downtime:read', 'tags:read', 'tags:write', 'maintenance:read', 'maintenance:write'];
 
     public const array Abilities = [...self::HistoricalAbilities, 'activity:read', 'upcoming:read', 'checks:run'];
+
+    public const array ReadPreset = ['identity:read', 'monitors:read', 'checks:read', 'incidents:read', 'uptime:read', 'downtime:read', 'tags:read', 'maintenance:read'];
+
+    public const array AgentReadPreset = ['identity:read', 'monitors:read', 'checks:read', 'incidents:read', 'activity:read', 'upcoming:read'];
+
+    /** Abilities only Owners and Admins can issue. */
+    public const array AdminAbilities = ['monitors:write', 'checks:write', 'checks:run', 'maintenance:write'];
 
     /** @return array{read: list<string>, write: list<string>, manage: list<string>, agent-read: list<string>} */
     public function presets(User $user): array
     {
         $allowed = $this->allowedAbilities($user);
         $historical = array_values(array_intersect(self::HistoricalAbilities, $allowed));
-        $read = array_values(array_intersect(['identity:read', 'monitors:read', 'checks:read', 'incidents:read', 'uptime:read', 'downtime:read', 'tags:read', 'maintenance:read'], $allowed));
 
-        return ['read' => $read, 'write' => $historical, 'manage' => $historical,
-            'agent-read' => array_values(array_intersect(['identity:read', 'monitors:read', 'checks:read', 'incidents:read', 'activity:read', 'upcoming:read'], $allowed))];
+        return ['read' => array_values(array_intersect(self::ReadPreset, $allowed)), 'write' => $historical, 'manage' => $historical,
+            'agent-read' => array_values(array_intersect(self::AgentReadPreset, $allowed))];
     }
 
     /** @param list<string> $abilities */
@@ -53,6 +60,6 @@ final class CreateApiToken
     private function allowedAbilities(User $user): array
     {
         return $user->hasAnyRole(['Owner', 'Admin']) ? self::Abilities
-            : array_values(array_diff(self::Abilities, ['monitors:write', 'checks:write', 'checks:run', 'maintenance:write']));
+            : array_values(array_diff(self::Abilities, self::AdminAbilities));
     }
 }

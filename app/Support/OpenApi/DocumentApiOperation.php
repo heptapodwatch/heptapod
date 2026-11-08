@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Support\OpenApi;
 
 use Dedoc\Scramble\Contracts\OperationTransformer;
+use Dedoc\Scramble\Support\Generator\MediaType;
 use Dedoc\Scramble\Support\Generator\Operation;
 use Dedoc\Scramble\Support\Generator\Parameter;
 use Dedoc\Scramble\Support\Generator\Reference;
@@ -12,6 +13,7 @@ use Dedoc\Scramble\Support\Generator\RequestBodyObject;
 use Dedoc\Scramble\Support\Generator\Response;
 use Dedoc\Scramble\Support\Generator\Schema;
 use Dedoc\Scramble\Support\Generator\Types\IntegerType;
+use Dedoc\Scramble\Support\Generator\Types\ObjectType;
 use Dedoc\Scramble\Support\Generator\Types\StringType;
 use Dedoc\Scramble\Support\Generator\Types\Type;
 use Dedoc\Scramble\Support\Generator\Types\UnknownType;
@@ -22,8 +24,9 @@ use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 
 /**
  * Applies ApiContract to one /api operation before Scramble enforces "no unknown schema":
- * bearer security and `x-sanctum-abilities` from the route middleware, the real error envelopes,
- * explicit agent responses and the declared resolutions of unknown leaves.
+ * bearer security and `x-sanctum-abilities` from the route middleware, summary and descriptions, the real error
+ * envelopes, explicit agent responses, the declared resolutions of unknown leaves, closed inferred response objects,
+ * rate-limit headers and the ApiExamples bodies.
  * Unknown leaves without a declaration stay unknown, so `scramble:export --fail-on-unknown` fails.
  */
 final class DocumentApiOperation implements OperationTransformer
@@ -42,19 +45,29 @@ final class DocumentApiOperation implements OperationTransformer
         $name = str_starts_with($routeName, 'api.') ? substr($routeName, 4) : throw new \LogicException("OpenAPI: route {$routeName} is outside the api. name group.");
         $middleware = array_values(array_filter($route->gatherMiddleware(), is_string(...)));
         $protected = in_array('auth:sanctum', $middleware, true);
-        if ($operation->summary === '') {
+        $summary = ApiContract::operationSummaries()[$name] ?? null;
+        if ($summary !== null) {
+            self::$applied['summary:'.$name] = true;
+            $operation->summary($summary);
+        } elseif ($operation->summary === '') {
             // Readable name for renderers and linters; the operationId stays the contract.
-            $operation->summary(ucfirst(strtolower(Str::headline(str_replace('.', ' ', $name)))));
+            $operation->summary(ucfirst(strtolower(Str::headline(Str::afterLast($name, '.')))));
         }
         $description = ApiContract::operationDescriptions()[$name] ?? null;
         if ($description !== null) {
             self::$applied['description:'.$name] = true;
-            $operation->description($description);
         }
         if ($protected) {
-            $operation->setExtensionProperty('sanctum-abilities', $this->abilities($middleware, $name));
+            $abilities = $this->abilities($middleware, $name);
+            $operation->setExtensionProperty('sanctum-abilities', $abilities);
+            $all = implode(' and ', array_map(static fn (string $ability): string => '`'.$ability.'`', $abilities['all']));
+            $any = implode(' or ', array_map(static fn (string $ability): string => '`'.$ability.'`', $abilities['any']));
+            $description = $description === null ? null : $description."\n\nToken abilities: ".implode(', and ', array_filter([$all, $any], static fn (string $part): bool => $part !== '')).'.';
         } else {
             $operation->security = [];
+        }
+        if ($description !== null) {
+            $operation->description($description);
         }
 
         if (in_array($name, ApiContract::idempotent(), true)) {
@@ -71,6 +84,16 @@ final class DocumentApiOperation implements OperationTransformer
                 Parameter::make('page[number]', 'query')->setSchema(RawSchema::schema(['type' => 'integer', 'minimum' => 1, 'default' => 1]))->description('Page number (bracket dialect).'.$mixed),
                 Parameter::make('page[size]', 'query')->setSchema(RawSchema::schema(['type' => 'integer', 'minimum' => 1, 'maximum' => 200, 'default' => 200]))->description('Page size (bracket dialect).'.$mixed),
             ]);
+        }
+        $parameterDescriptions = ApiContract::parameterDescriptions();
+        foreach ($operation->parameters as $parameter) {
+            if ($parameter instanceof Parameter) {
+                $key = array_key_exists($name.' '.$parameter->name, $parameterDescriptions) ? $name.' '.$parameter->name : $parameter->name;
+                if (array_key_exists($key, $parameterDescriptions)) {
+                    self::$applied['parameter:'.$key] = true;
+                    $parameter->description($parameterDescriptions[$key]);
+                }
+            }
         }
 
         $body = ApiContract::requestBodies()[$name] ?? null;
@@ -108,7 +131,14 @@ final class DocumentApiOperation implements OperationTransformer
                 $responses[] = $response;
             }
         }
+        $examples = ApiExamples::responses()[$name] ?? [];
         foreach ($explicit ?? [] as $code => $response) {
+            if (array_key_exists($code, $examples)) {
+                self::$applied['example:'.$name.' '.$code] = true;
+                $response = array_replace_recursive($response, ['content' => ['application/json' => ['example' => $examples[$code]]]]);
+            }
+            /** @var array<string, mixed> $response */
+            $response = array_replace_recursive($response, ['headers' => $this->rateLimitHeaders()]);
             $responses[] = new RawResponse($code, $response);
         }
         $statuses = array_keys($errorCodes + array_fill_keys(array_keys($problems), true) + ($protected ? [401 => true, 403 => true] : []) + [429 => true]);
@@ -119,6 +149,39 @@ final class DocumentApiOperation implements OperationTransformer
         $operation->responses = $responses;
 
         $this->walk($operation, ['', 'paths', $operation->path, $operation->method]);
+
+        // After the walk: wrapping a schema in a MediaType moves the pointers that leafResolutions() are keyed by.
+        foreach ($operation->responses ?? [] as $response) {
+            if ($response instanceof RawResponse || ! $response instanceof Response || (int) $response->code >= 300) {
+                continue;
+            }
+            $response->setDescription($response->description !== '' ? $response->description : match ((int) $response->code) {
+                200 => 'OK.', 201 => 'Created.', 204 => 'Done; the body is empty.', default => throw new \LogicException("OpenAPI: {$name} has no description for HTTP {$response->code}."),
+            });
+            foreach ($this->rateLimitHeaders() as $header => $reference) {
+                $response->addHeader($header, Reference::fromUri($reference['$ref']));
+            }
+            if (isset($response->content['application/json']) && array_key_exists((int) $response->code, $examples)) {
+                self::$applied['example:'.$name.' '.$response->code] = true;
+                $response->addContent('application/json', $this->mediaType($response->getMediaType('application/json'))->setExample($examples[(int) $response->code]));
+            }
+        }
+        $requestExample = ApiExamples::requests()[$name] ?? null;
+        if ($operation->requestBodyObject instanceof RequestBodyObject && $requestExample !== null) {
+            self::$applied['example:'.$name.' request'] = true;
+            $operation->requestBodyObject->addContent('application/json', $this->mediaType($operation->requestBodyObject->getContent('application/json'))->setExample($requestExample));
+        }
+    }
+
+    private function mediaType(MediaType|Reference $content): MediaType
+    {
+        return $content instanceof MediaType ? $content : throw new \LogicException('OpenAPI: a JSON body is a media type reference.');
+    }
+
+    /** @return array<string, array{'$ref': string}> */
+    private function rateLimitHeaders(): array
+    {
+        return ['X-RateLimit-Limit' => ['$ref' => '#/components/headers/X-RateLimit-Limit'], 'X-RateLimit-Remaining' => ['$ref' => '#/components/headers/X-RateLimit-Remaining']];
     }
 
     /**
@@ -150,13 +213,14 @@ final class DocumentApiOperation implements OperationTransformer
     {
         $ref = static fn (string $name): array => ['$ref' => '#/components/schemas/'.$name];
         $problem = $codes === [] ? null : ['allOf' => [$ref('Problem'), ['type' => 'object', 'properties' => ['code' => ['type' => 'string', 'enum' => $codes]]]]];
-        [$description, $schema] = match ($status) {
-            401 => ['Missing, invalid, expired or session-only credentials, or a disabled user.', $ref('Unauthenticated')],
-            403 => ['The token lacks a required ability, or the user\'s role or client access does not allow this action.', $ref('ErrorMessage')],
-            404 => ['Not found or not visible to this token.', $ref('ErrorMessage')],
-            422 => ['Invalid input.', $ref('ValidationError')],
-            429 => ['Rate limited: 60 requests per minute per source IP before authentication, and 60 per minute per user and per token. See Retry-After.', $ref('TooManyRequests')],
-            409, 410 => ['Domain error.', null],
+        // The example names are the shared error examples of ApiExamples::errors().
+        [$description, $schema, $example] = match ($status) {
+            401 => ['Missing, invalid, expired or session-only credentials, or a disabled user.', $ref('Unauthenticated'), 'Unauthenticated'],
+            403 => ['The token lacks a required ability, or the user\'s role or client access does not allow this action.', $ref('ErrorMessage'), 'Forbidden'],
+            404 => ['Not found or not visible to this token.', $ref('ErrorMessage'), 'NotFound'],
+            422 => ['Invalid input.', $ref('ValidationError'), 'ValidationFailed'],
+            429 => ['Rate limited: 60 requests per minute per source IP before authentication, and 60 per minute per user and per token. See Retry-After.', $ref('TooManyRequests'), 'TooManyRequests'],
+            409, 410 => ['Domain error.', null, null],
             default => throw new \LogicException("OpenAPI: no error envelope for HTTP {$status}."),
         };
         $schema = match (true) {
@@ -170,8 +234,9 @@ final class DocumentApiOperation implements OperationTransformer
             $description .= "\n- `{$code}`: ".($descriptions[$code] ?? throw new \LogicException("OpenAPI: problem code {$code} needs a description."));
         }
 
-        return ['description' => $description, ...($status === 429 ? ['headers' => ['Retry-After' => ['description' => 'Seconds to wait before retrying.', 'schema' => ['type' => 'string']]]] : []),
-            'content' => ['application/json' => ['schema' => $schema]]];
+        return ['description' => $description,
+            ...($status === 429 ? ['headers' => ['Retry-After' => ['$ref' => '#/components/headers/Retry-After'], 'X-RateLimit-Reset' => ['$ref' => '#/components/headers/X-RateLimit-Reset']]] : []),
+            'content' => ['application/json' => ['schema' => $schema, ...($example === null ? [] : ['examples' => [$example => ['$ref' => '#/components/examples/'.$example]]])]]];
     }
 
     /** @param list<int|string> $path Scramble's diagnostic pointer segments, so declarations can copy SE001 locations. */
@@ -245,6 +310,10 @@ final class DocumentApiOperation implements OperationTransformer
             }
 
             return $item;
+        }
+        if ($item instanceof ObjectType && $item->properties !== [] && ! $item->additionalProperties instanceof Type && (($path[1] ?? null) === 'components' || ($path[4] ?? null) === 'responses')) {
+            // Inferred response objects are literal arrays: every key they can have is declared, so examples cannot drift.
+            $item->additionalProperties(new RawSchema(false));
         }
         $this->walk($item, $path);
 

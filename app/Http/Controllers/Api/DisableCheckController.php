@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers\Api;
 
+use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\DisableCheck;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\Check;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 
+#[Group('Checks')]
 final class DisableCheckController extends Controller
 {
     public function __invoke(Check $check, DisableCheck $disable): JsonResponse
