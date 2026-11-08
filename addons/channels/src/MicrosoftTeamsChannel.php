@@ -66,8 +66,8 @@ final class MicrosoftTeamsChannel extends TransportChannel
         }
         $response = $this->http($recipient)
             ->withBody($body, 'application/json')->post($recipient)->throw();
-        // Connectors acknowledge with "1"; Workflows can return an empty body. Other bodies signal failure even on HTTP 200.
-        if (! $response->successful() || ($response->body() !== '' && trim($response->body()) !== '1')) {
+        // Workflows accepts with an empty body; any other body signals failure even on HTTP 200.
+        if (! $response->successful() || $response->body() !== '') {
             return $this->failure($destination, $response);
         }
 

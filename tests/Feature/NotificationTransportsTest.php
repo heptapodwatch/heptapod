@@ -40,7 +40,7 @@ function notificationTransports(): array
         'mail' => [['email' => 'operator@example.com'], '', []],
         'slack' => [['channel' => 'C123', 'token' => 'private-token'], 'https://slack.com/api/chat.postMessage', ['ok' => true, 'ts' => '123.456']],
         'discord' => [['channel' => '123', 'token' => 'private-token'], 'https://discord.com/api/channels/123/messages', ['id' => '321']],
-        'microsoftTeams' => [['url' => 'https://teams.example/private-token'], 'https://teams.example/private-token', '1'],
+        'microsoftTeams' => [['url' => 'https://teams.example/private-token'], 'https://teams.example/private-token', ''],
         'telegram' => [['chat_id' => '123', 'token' => 'private-token'], 'https://api.telegram.org/botprivate-token/sendMessage', ['ok' => true, 'result' => ['message_id' => 456]]],
         'pushover' => [['user_key' => str_repeat('u', 30), 'token' => 'private-token'], 'https://api.pushover.net/1/messages.json', ['status' => 1, 'request' => '789']],
         'ntfy' => [['server' => 'https://ntfy.example', 'topic' => 'private-token', 'token' => 'private-token'], 'https://ntfy.example', ['id' => 'abc']],
@@ -357,7 +357,7 @@ it('rejects HTTP-200 provider failures rather than claiming delivery', function 
     'Discord' => ['discord', ['code' => 50001, 'message' => 'private-token']],
 ]);
 
-it('interprets Microsoft Teams connector and workflow acknowledgements', function (string $body, int $status, string $expectedStatus, ?string $expectedReason): void {
+it('interprets Microsoft Teams workflow acknowledgements', function (string $body, int $status, string $expectedStatus, ?string $expectedReason): void {
     [$values, $url] = notificationTransports()['microsoftTeams'];
     Http::preventStrayRequests();
     Http::fake([$url => Http::response($body, $status, ['Content-Type' => 'text/plain'])]);
@@ -374,11 +374,10 @@ it('interprets Microsoft Teams connector and workflow acknowledgements', functio
     }
     Http::assertSentCount(1);
 })->with([
-    'connector success' => ['1', 200, 'sent', null],
-    'connector success with whitespace' => [" 1\n", 200, 'sent', null],
     'workflow accepted' => ['', 202, 'sent', null],
     'workflow success' => ['', 200, 'sent', null],
-    'connector throttled' => ['Microsoft Teams endpoint returned HTTP error 429', 200, 'failed', 'notifications.transport_failed'],
+    'retired connector acknowledgement' => ['1', 200, 'failed', 'notifications.transport_failed'],
+    'throttled body' => ['Microsoft Teams endpoint returned HTTP error 429', 200, 'failed', 'notifications.transport_failed'],
     'other provider error' => ['private-token', 200, 'failed', 'notifications.transport_failed'],
     'non-empty whitespace' => [' ', 200, 'failed', 'notifications.transport_failed'],
 ]);
