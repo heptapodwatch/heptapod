@@ -118,10 +118,11 @@ Heptapod needs a Workflows webhook URL. Office 365 connector URLs do not work.
 | ----- | ----------- | ----------- |
 | URL   | Webhook URL | `https://…` |
 
-| Heptapod shows                  | Fix                                                                     |
-| ------------------------------- | ----------------------------------------------------------------------- |
-| `HTTP 4xx — RequestException`   | The workflow was deleted, turned off or needs sign-in. Create it again. |
-| Test sent, but nothing in Teams | Open the workflow's run history in Workflows.                           |
+| Heptapod shows                      | Fix                                                                                                              |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `HTTP 429 — RequestException`       | Teams is throttling requests. Wait a minute and send the test again.                                             |
+| Other `HTTP 4xx — RequestException` | Check the URL. In Workflows, turn the workflow on and repair its connection; if it was deleted, create it again. |
+| Test sent, but nothing in Teams     | Open the workflow's run history in Workflows.                                                                    |
 
 ### Telegram
 
@@ -129,19 +130,19 @@ Heptapod needs a bot token and a chat ID.
 
 1. In Telegram, send `/newbot` to @BotFather and follow the prompts. Copy the token it replies with.
 2. Add the bot to your group. For a channel, make it an admin that can post messages.
-3. In the group, send `/start@your_bot_name`.
-4. Open `https://api.telegram.org/bot<token>/getUpdates` in a browser (the URL contains your token; keep it private) and copy the number after `"chat":{"id":`.
+3. In the group, send `/start@your_bot_name`. In a channel, publish any post.
+4. Open `https://api.telegram.org/bot<token>/getUpdates` in a browser (the URL contains your token; keep it private). Find the last entry whose `"title"` is your group or channel and copy its `"chat":{"id":…}` number.
 
 | Field   | Value     | Format                                                   |
 | ------- | --------- | -------------------------------------------------------- |
 | Chat ID | Chat ID   | groups are negative, e.g. `-1001234567890`; keep the `-` |
 | Token   | Bot token | `123456789:AA…`                                          |
 
-| Heptapod shows                                              | Fix                                                       |
-| ----------------------------------------------------------- | --------------------------------------------------------- |
-| `HTTP 400 — RequestException — Bad Request: chat not found` | Check the chat ID and that the bot is in the group.       |
-| `HTTP 400 — … group chat was upgraded to a supergroup chat` | Repeat steps 3–4 and use the new ID starting with `-100`. |
-| `HTTP 401 — RequestException — Unauthorized`                | Send `/token` to @BotFather and paste the new token.      |
+| Heptapod shows                                              | Fix                                                                   |
+| ----------------------------------------------------------- | --------------------------------------------------------------------- |
+| `HTTP 400 — RequestException — Bad Request: chat not found` | Check the chat ID and that the bot is in the group.                   |
+| `HTTP 400 — … group chat was upgraded to a supergroup chat` | Repeat steps 3–4; the last entry has the new ID starting with `-100`. |
+| `HTTP 401 — RequestException — Unauthorized`                | Send `/token` to @BotFather and paste the new token.                  |
 
 ### Pushover
 
