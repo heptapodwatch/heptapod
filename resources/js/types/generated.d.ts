@@ -1872,6 +1872,7 @@ readonly start_redirect_summary_key: string | null,
 readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly timezones: string[],
 readonly check_settings: Heptapod.Data.Ui.CheckSettingsData[],
+readonly check_options: Heptapod.Data.Ui.CheckOptionData[],
 };
 export type SitesFilterData = {
 readonly search: string | null,

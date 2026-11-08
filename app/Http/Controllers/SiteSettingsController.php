@@ -6,6 +6,7 @@ namespace Heptapod\Http\Controllers;
 
 use Heptapod\Actions\DeleteSite;
 use Heptapod\Actions\UpdateSiteSettings;
+use Heptapod\Exceptions\CheckConfigurationValidationException;
 use Heptapod\Http\Requests\UpdateSiteAlertSensitivityRequest;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
@@ -15,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -37,7 +39,11 @@ final class SiteSettingsController extends Controller
         $attributes = $request->except(['_token', '_method']);
         /** @var array<string, mixed> $timing */
         $timing = $request->safe()->only(['alert_after_minutes', 'alert_recovery_checks']);
-        $update($user, $site, $attributes, $timing, $request->exists('client_id') ? $request->integer('client_id') : null);
+        try {
+            $update($user, $site, $attributes, $timing, $request->exists('client_id') ? $request->integer('client_id') : null);
+        } catch (CheckConfigurationValidationException $exception) {
+            throw ValidationException::withMessages($exception->formErrors());
+        }
 
         return back();
     }

@@ -60,12 +60,7 @@ final class AddSiteController extends Controller
         try {
             $site = $create($clientId, $attributes, $detection);
         } catch (CheckConfigurationValidationException $exception) {
-            $errors = [];
-            foreach ($exception->errors() as $path => $messages) {
-                $field = preg_replace('/^(?:values\.|'.preg_quote($exception->check->value, '/').'_check_settings\.)/', '', $path);
-                $errors['checks.'.$exception->check->value.'.'.$field] = $messages;
-            }
-            throw ValidationException::withMessages($errors);
+            throw ValidationException::withMessages($exception->formErrors());
         }
 
         return redirect()->route('sites.show', ['site' => $site->id]);

@@ -582,7 +582,7 @@ icon.form = iconForm
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::settings
-* @see app/Http/Controllers/SiteSettingsController.php:23
+* @see app/Http/Controllers/SiteSettingsController.php:25
 * @route '/sites/{site}/settings'
 */
 export const settings = (args: { site: string | number } | [site: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -597,7 +597,7 @@ settings.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::settings
-* @see app/Http/Controllers/SiteSettingsController.php:23
+* @see app/Http/Controllers/SiteSettingsController.php:25
 * @route '/sites/{site}/settings'
 */
 settings.url = (args: { site: string | number } | [site: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -624,7 +624,7 @@ settings.url = (args: { site: string | number } | [site: string | number ] | str
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::settings
-* @see app/Http/Controllers/SiteSettingsController.php:23
+* @see app/Http/Controllers/SiteSettingsController.php:25
 * @route '/sites/{site}/settings'
 */
 settings.get = (args: { site: string | number } | [site: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -634,7 +634,7 @@ settings.get = (args: { site: string | number } | [site: string | number ] | str
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::settings
-* @see app/Http/Controllers/SiteSettingsController.php:23
+* @see app/Http/Controllers/SiteSettingsController.php:25
 * @route '/sites/{site}/settings'
 */
 settings.head = (args: { site: string | number } | [site: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -644,7 +644,7 @@ settings.head = (args: { site: string | number } | [site: string | number ] | st
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::settings
-* @see app/Http/Controllers/SiteSettingsController.php:23
+* @see app/Http/Controllers/SiteSettingsController.php:25
 * @route '/sites/{site}/settings'
 */
 const settingsForm = (args: { site: string | number } | [site: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -654,7 +654,7 @@ const settingsForm = (args: { site: string | number } | [site: string | number ]
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::settings
-* @see app/Http/Controllers/SiteSettingsController.php:23
+* @see app/Http/Controllers/SiteSettingsController.php:25
 * @route '/sites/{site}/settings'
 */
 settingsForm.get = (args: { site: string | number } | [site: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -664,7 +664,7 @@ settingsForm.get = (args: { site: string | number } | [site: string | number ] |
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::settings
-* @see app/Http/Controllers/SiteSettingsController.php:23
+* @see app/Http/Controllers/SiteSettingsController.php:25
 * @route '/sites/{site}/settings'
 */
 settingsForm.head = (args: { site: string | number } | [site: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -681,7 +681,7 @@ settings.form = settingsForm
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::update
-* @see app/Http/Controllers/SiteSettingsController.php:31
+* @see app/Http/Controllers/SiteSettingsController.php:33
 * @route '/sites/{site}'
 */
 export const update = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -696,7 +696,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::update
-* @see app/Http/Controllers/SiteSettingsController.php:31
+* @see app/Http/Controllers/SiteSettingsController.php:33
 * @route '/sites/{site}'
 */
 update.url = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -729,7 +729,7 @@ update.url = (args: { site: number | { id: number } } | [site: number | { id: nu
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::update
-* @see app/Http/Controllers/SiteSettingsController.php:31
+* @see app/Http/Controllers/SiteSettingsController.php:33
 * @route '/sites/{site}'
 */
 update.patch = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -739,7 +739,7 @@ update.patch = (args: { site: number | { id: number } } | [site: number | { id: 
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::update
-* @see app/Http/Controllers/SiteSettingsController.php:31
+* @see app/Http/Controllers/SiteSettingsController.php:33
 * @route '/sites/{site}'
 */
 const updateForm = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -754,7 +754,7 @@ const updateForm = (args: { site: number | { id: number } } | [site: number | { 
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::update
-* @see app/Http/Controllers/SiteSettingsController.php:31
+* @see app/Http/Controllers/SiteSettingsController.php:33
 * @route '/sites/{site}'
 */
 updateForm.patch = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -771,7 +771,7 @@ update.form = updateForm
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::destroy
-* @see app/Http/Controllers/SiteSettingsController.php:45
+* @see app/Http/Controllers/SiteSettingsController.php:51
 * @route '/sites/{site}'
 */
 export const destroy = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -786,7 +786,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::destroy
-* @see app/Http/Controllers/SiteSettingsController.php:45
+* @see app/Http/Controllers/SiteSettingsController.php:51
 * @route '/sites/{site}'
 */
 destroy.url = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -819,7 +819,7 @@ destroy.url = (args: { site: number | { id: number } } | [site: number | { id: n
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::destroy
-* @see app/Http/Controllers/SiteSettingsController.php:45
+* @see app/Http/Controllers/SiteSettingsController.php:51
 * @route '/sites/{site}'
 */
 destroy.delete = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -829,7 +829,7 @@ destroy.delete = (args: { site: number | { id: number } } | [site: number | { id
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::destroy
-* @see app/Http/Controllers/SiteSettingsController.php:45
+* @see app/Http/Controllers/SiteSettingsController.php:51
 * @route '/sites/{site}'
 */
 const destroyForm = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -844,7 +844,7 @@ const destroyForm = (args: { site: number | { id: number } } | [site: number | {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::destroy
-* @see app/Http/Controllers/SiteSettingsController.php:45
+* @see app/Http/Controllers/SiteSettingsController.php:51
 * @route '/sites/{site}'
 */
 destroyForm.delete = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

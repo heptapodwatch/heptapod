@@ -30,6 +30,9 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { CheckSettingsSheet } from '@/components/check-settings-sheet';
 import { checkSettingsSummary } from '@/lib/check-setting-facts';
+import { checkNeedsSetup, siteCheckOrder } from '@/components/site-checks-list';
+import type { FieldValue } from '@/types/monitoring';
+import { eligibleSiteCheck } from '@/lib/site-create-draft';
 import { ConfirmDialog, confirmVisit } from '@/components/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -68,6 +71,7 @@ export default function SiteSettings({
     alert_sensitivity_bounds,
     timezones,
     check_settings,
+    check_options,
 }: Heptapod.Data.Ui.SiteSettingsPageData) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -75,6 +79,33 @@ export default function SiteSettings({
     const checkSettings = new Map(
         check_settings.map((check) => [check.check_id, check]),
     );
+    // Every installed type in the wizard's order with the site's check of that type; a type without one is created
+    // on Save when turned on. A stored check of a type that is no longer installed keeps its row.
+    const checkRows = [
+        ...check_options.map((option) => ({
+            key: option.key,
+            label_key: option.label_key,
+            option,
+            check: site.checks.find((check) => check.key === option.key),
+        })),
+        ...site.checks
+            .filter(
+                (check) =>
+                    !check_options.some((option) => option.key === check.key),
+            )
+            .map((check) => ({
+                key: check.key,
+                label_key: check.label_key,
+                option: undefined,
+                check,
+            })),
+    ].sort(
+        (left, right) =>
+            siteCheckOrder.indexOf(left.key) -
+            siteCheckOrder.indexOf(right.key),
+    );
+    const [setupCheck, setSetupCheck] =
+        useState<Heptapod.Data.Ui.CheckOptionData | null>(null);
     const iconForm = useForm<{ icon?: string }>({});
     const iconPending = icon_manual_result?.key === 'icons.queued';
     const reloadPage = useLiveReload(
@@ -123,7 +154,30 @@ export default function SiteSettings({
         checks: site.checks
             .filter((check) => check.enabled)
             .map((check) => check.key),
+        // Draft settings of types without a check, keyed `<type>.<field>` as in the add-site wizard.
+        settings: {} as Record<string, FieldValue>,
     });
+    // The add-site wizard's reason why a type cannot run for this site, against the address being edited. Scheduled
+    // tasks are only created through the API, so the reason applies to a type the site has no check of.
+    const unavailableReason = (row: (typeof checkRows)[number]) =>
+        !row.option ||
+        eligibleSiteCheck(row.option, form.data.url) ||
+        (row.check && row.option.key === 'cron')
+            ? undefined
+            : row.option.unavailable_reason
+              ? t(row.option.unavailable_reason)
+              : row.option.key === 'cron'
+                ? t(
+                      'Scheduled tasks are added through the API. Create a token in Settings → API tokens.',
+                  )
+                : t('add_site.unavailable.https_hint');
+    // A saved-on check stays switchable so it can be turned off; every other row with a reason cannot be turned on.
+    const blocked = (row: (typeof checkRows)[number]) =>
+        !row.check?.enabled && unavailableReason(row) !== undefined;
+    const newChecks = checkRows.filter(
+        (row) =>
+            !row.check && !blocked(row) && form.data.checks.includes(row.key),
+    );
     const { probe, probeState, probeError, runProbe, clearProbe } =
         useSiteUrlProbe(form.data.url, false, site.id);
     const loadDeletionImpact = () => {
@@ -148,11 +202,32 @@ export default function SiteSettings({
     };
     const save = (event: React.SubmitEvent<HTMLFormElement>) => {
         event.preventDefault();
-        form.transform(({ tags, ...data }) =>
+        form.transform(({ tags, settings, ...data }) =>
             archivedClient
                 ? { client_id: data.client_id }
                 : {
                       ...data,
+                      checks: data.checks.filter(
+                          (key) =>
+                              !checkRows.some(
+                                  (row) => row.key === key && blocked(row),
+                              ),
+                      ),
+                      ...Object.fromEntries(
+                          newChecks.map(({ key }) => [
+                              key + '_check_settings',
+                              Object.fromEntries(
+                                  Object.entries(settings)
+                                      .filter(([name]) =>
+                                          name.startsWith(key + '.'),
+                                      )
+                                      .map(([name, value]) => [
+                                          name.slice(key.length + 1),
+                                          value,
+                                      ]),
+                              ),
+                          ]),
+                      ),
                       tags: [
                           ...new Set(
                               tags
@@ -175,9 +250,18 @@ export default function SiteSettings({
                     checks: saved.checks
                         .filter((check) => check.enabled)
                         .map((check) => check.key),
+                    settings: {},
                 };
                 form.setDefaults(values);
                 form.setData(values);
+            },
+            onError: (errors) => {
+                const refused = newChecks.find(({ key }) =>
+                    Object.keys(errors).some((name) =>
+                        name.startsWith(`checks.${key}.`),
+                    ),
+                );
+                if (refused?.option) setSetupCheck(refused.option);
             },
         });
     };
@@ -323,21 +407,26 @@ export default function SiteSettings({
                             )}
                             className="divide-y rounded-lg border"
                         >
-                            {site.checks.map((check) => {
-                                const settings = checkSettings.get(check.id);
+                            {checkRows.map((row) => {
+                                const { key, label_key, check, option } = row;
+                                const settings =
+                                    check && checkSettings.get(check.id);
+                                const reason = unavailableReason(row);
+                                const id = `settings-check-${check?.id ?? key}`;
+                                const summary =
+                                    reason ??
+                                    (settings &&
+                                        checkSettingsSummary(
+                                            settings,
+                                            t,
+                                            format,
+                                        ).join(' · '));
                                 return (
                                     <SiteCheckField
-                                        key={check.id}
-                                        id={`settings-check-${check.id}`}
-                                        label={t(check.label_key)}
-                                        summary={
-                                            settings &&
-                                            checkSettingsSummary(
-                                                settings,
-                                                t,
-                                                format,
-                                            ).join(' · ')
-                                        }
+                                        key={key}
+                                        id={id}
+                                        label={t(label_key)}
+                                        summary={summary}
                                         action={
                                             settings?.can_update && (
                                                 <CheckSettingsSheet
@@ -349,9 +438,7 @@ export default function SiteSettings({
                                                     triggerLabel={t(
                                                         'checks.settings_section.configure',
                                                         {
-                                                            check: t(
-                                                                check.label_key,
-                                                            ),
+                                                            check: t(label_key),
                                                         },
                                                     )}
                                                 />
@@ -359,43 +446,57 @@ export default function SiteSettings({
                                         }
                                         control={
                                             <Switch
-                                                id={`settings-check-${check.id}`}
-                                                aria-label={t(check.label_key)}
+                                                id={id}
+                                                aria-label={t(label_key)}
                                                 aria-describedby={
-                                                    settings
-                                                        ? `settings-check-${check.id}-summary`
+                                                    summary
+                                                        ? `${id}-summary`
                                                         : undefined
                                                 }
-                                                disabled={archivedClient}
-                                                checked={form.data.checks.includes(
-                                                    check.key,
-                                                )}
-                                                onCheckedChange={(selected) =>
+                                                disabled={
+                                                    archivedClient ||
+                                                    blocked(row)
+                                                }
+                                                checked={
+                                                    !blocked(row) &&
+                                                    form.data.checks.includes(
+                                                        key,
+                                                    )
+                                                }
+                                                onCheckedChange={(selected) => {
                                                     form.setData(
                                                         'checks',
                                                         selected
                                                             ? [
                                                                   ...form.data
                                                                       .checks,
-                                                                  check.key,
+                                                                  key,
                                                               ]
                                                             : form.data.checks.filter(
-                                                                  (key) =>
-                                                                      key !==
-                                                                      check.key,
+                                                                  (
+                                                                      selectedKey,
+                                                                  ) =>
+                                                                      selectedKey !==
+                                                                      key,
                                                               ),
+                                                    );
+                                                    // As in the wizard, a new check is never saved without its required settings.
+                                                    if (
+                                                        selected &&
+                                                        !check &&
+                                                        option &&
+                                                        checkNeedsSetup(
+                                                            option,
+                                                            form.data.settings,
+                                                        )
                                                     )
-                                                }
+                                                        setSetupCheck(option);
+                                                }}
                                             />
                                         }
                                     />
                                 );
                             })}
-                            {!site.checks.length && (
-                                <p className="p-3 text-sm text-muted-foreground">
-                                    {t('No checks configured')}
-                                </p>
-                            )}
                         </div>
                         <InputError
                             field="settings-checks"
@@ -625,6 +726,38 @@ export default function SiteSettings({
                     </div>
                 </FormSection>
             </PageContainer>
+            {setupCheck && (
+                <CheckSettingsSheet
+                    check={setupCheck}
+                    settings={form.data.settings}
+                    errors={Object.fromEntries(
+                        Object.entries(form.errors)
+                            .filter(([name]) =>
+                                name.startsWith(`checks.${setupCheck.key}.`),
+                            )
+                            .map(([name, message]) => [
+                                name.slice('checks.'.length),
+                                message,
+                            ]),
+                    )}
+                    onClose={() => {
+                        // Cancelled without its required settings, the new check stays off.
+                        if (checkNeedsSetup(setupCheck, form.data.settings))
+                            form.setData(
+                                'checks',
+                                form.data.checks.filter(
+                                    (key) => key !== setupCheck.key,
+                                ),
+                            );
+                        setSetupCheck(null);
+                    }}
+                    onApply={(settings) => {
+                        form.setData('settings', settings);
+                        form.clearErrors();
+                        setSetupCheck(null);
+                    }}
+                />
+            )}
             {createClientName !== null && (
                 <ClientCreateSheet
                     initialName={createClientName}
