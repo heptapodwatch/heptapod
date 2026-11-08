@@ -19,7 +19,7 @@ sidebar:
 ```
 
 - `title`: the feature or the task as the UI names it. No "Overview", "Introduction" or "How it works".
-- `description`: one sentence, 50–160 characters, that answers "what does this page help me do". It renders under the title and feeds `llms.txt` and search, so it must stand alone.
+- `description`: one sentence, 50–160 characters, that answers "what does this page help me do". It is page metadata for search and `llms.txt`, not visible on the page, so it must stand alone.
 
 ## Page types
 
@@ -79,7 +79,7 @@ Use the glossary in `.agents/skills/heptapod-ui-rules` exactly:
 - **Down**: an uptime outage. Never call another check "down".
 - **Failed**: a check result. **Check error**: Heptapod could not check.
 - **Warning**, **Incident**, **Up**, **Maintenance** as in the UI.
-- Roles: Owner, Admin, Member. Owners and Admins see the whole instance; Members see only their assigned clients.
+- Roles: Owner, Admin, Member. Owners and Admins see and change the whole instance; Members read only, and a Member limited to assigned clients sees only those clients.
 - "Follow" means only "send me these alerts".
 
 ## Public docs
@@ -90,4 +90,4 @@ Use the glossary in `.agents/skills/heptapod-ui-rules` exactly:
 
 ## Guard
 
-`php scripts/check-docs.php` (part of `scripts/ci-checks.sh php-static`) fails a page without a one-line `description`, a sentence over 30 words or a banned word. Pages not yet rewritten are listed in the script; remove a page from that list when you rewrite it.
+`php scripts/check-docs.php` (part of `scripts/ci-checks.sh php-static`) fails a page without a one-line `description`, a sentence over 30 words or a banned word. Pages not yet rewritten are listed in the script and skip the sentence and word checks; remove a page from that list when you rewrite it.

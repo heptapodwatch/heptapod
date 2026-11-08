@@ -1,4 +1,7 @@
-# Hetzner deployment
+---
+title: Hetzner deployment
+description: Server sizes and steps for a Hetzner Cloud installation.
+---
 
 Release images are `ghcr.io/heptapodwatch/heptapod-app` and `ghcr.io/heptapodwatch/heptapod-lighthouse`. The release's `compose.prod.yaml` defines the image defaults.
 

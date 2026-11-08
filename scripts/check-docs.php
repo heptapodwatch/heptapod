@@ -6,7 +6,7 @@ declare(strict_types=1);
 $root = dirname(__DIR__);
 // The operator reference is not synced to the website.
 $internal = ['docs/deploy/operations.md'];
-// Pages written before the style rules. Remove a page here when you rewrite it.
+// Pages written before the style rules skip the sentence and word checks. Remove a page here when you rewrite it.
 $notYetRewritten = [
     'docs/api.md',
     'docs/checks/broken-links-and-mixed-content.md',
@@ -26,7 +26,7 @@ $failures = [];
 $checked = 0;
 foreach ($pages as $file) {
     $path = substr((string) $file, strlen($root) + 1);
-    if (in_array($path, [...$internal, ...$notYetRewritten], true)) {
+    if (in_array($path, $internal, true)) {
         continue;
     }
     $checked++;
@@ -38,6 +38,9 @@ foreach ($pages as $file) {
     }
     if (preg_match('/^description: (\S.{0,159})$/m', $parts[1], $description) !== 1 || preg_match('/[.!?] \S/', $description[1]) === 1) {
         $failures[] = $path.': description must be one sentence of at most 160 characters on one line';
+    }
+    if (in_array($path, $notYetRewritten, true)) {
+        continue;
     }
     $offset = substr_count($parts[1], "\n") + 3;
     $inCode = false;

@@ -23,7 +23,7 @@ The list shows 50 windows per page, each **Planned**, **Active** or **Done**. Fi
 ## What happens during a window
 
 - A window is active from its start, inclusive, until its end, exclusive. It ends on its own.
-- Checks keep running. Incidents open, recover and stay visible as usual.
+- Incidents open, recover and stay visible as usual.
 - A muted window sends no opening or recovery alerts. It also stops all reminders for its sites, including reminders for incidents that opened before the window.
 - An unmuted window changes no notifications.
 - Client and tag windows include the sites that belong to the client or tag at check time. Sites added later join automatically.
@@ -33,20 +33,21 @@ The list shows 50 windows per page, each **Planned**, **Active** or **Done**. Fi
 
 With **Alert if still failing at the end** on, each incident that opened during a muted window and is still open at its end gets one alert. It follows the normal routing of each channel: categories, site mutes, quiet hours and digests.
 
-- Each uptime outage (Down) gets its own opening alert per channel, with the channel's alert sensitivity and the note "Maintenance has ended. This interruption is still ongoing."
+- Each uptime outage (Down) gets its own opening alert per channel, with its saved alert sensitivity. Its note reads "Maintenance has ended. This interruption is still ongoing."
 - All other failing checks of a site share one message per channel: "[After maintenance] _site_ is still failing". It waits for the latest due time among its checks. Uptime delays do not hold it back.
+- An uptime incident without saved alert sensitivity joins this shared message.
 - A channel gets only the checks whose categories it receives. A site with no matching channel sends nothing.
 - A check grouped under the site's uptime outage is covered by the outage alert.
 - An incident that recovered before the end gets no catch-up. A waiting catch-up is dropped when all its incidents recover.
 - Active check snoozes still suppress their incidents.
 - While another muted window on the site is still active, the catch-up waits for it.
-- When overlapping muted windows cover an incident, the catch-up belongs to the window with catch-up on, then the window ending first, then the lowest ID.
+- When overlapping muted windows cover an incident, the catch-up belongs to the window with catch-up on, then the window ending first.
 - A site that leaves a shared window early gets its catch-up when it leaves. The other sites wait for the window's end.
 - The catch-up counts as the opening alert. Later reminders and the recovery alert follow from it.
 
 Catch-up alerts need the notification worker. Sent means the mail server or chat service accepted the message, not that someone read it.
 
-With **Alert if still failing at the end** off, a still-open Down incident sends its first alert at the window end or its alert-sensitivity due time, whichever is later. Its first reminder follows one hour after that alert, then every 4 and 24 hours. See [notifications](./notifications.md) for channels, alert sensitivity and reminders.
+With **Alert if still failing at the end** off, a still-open Down incident sends its first alert at the window end or its alert-sensitivity due time, whichever is later. The first reminder follows one hour after that alert, the second four hours later, then every 24 hours. See [notifications](./notifications.md) for channels, alert sensitivity and reminders.
 
 ## End, skip or delete a window
 
@@ -65,9 +66,9 @@ Every change is audited.
 ## Who sees which window
 
 - Owners and Admins see and change every window.
-- Members see site and client windows of their assigned clients, without write controls.
-- Members never see tag windows, because sites outside their clients may join the tag later.
-- For a site in an active tag window, a Member's site header shows only that maintenance is active and whether alerts are muted.
+- Members see every window without write controls.
+- Members limited to assigned clients see only the site and client windows of those clients. They never see tag windows, because sites outside their clients may join the tag later.
+- For a site in an active tag window, such a Member's site header shows only that maintenance is active and whether alerts are muted.
 
 ## Recurring windows
 
@@ -79,7 +80,7 @@ Every change is audited.
 
 ## Live updates
 
-The list and site headers update when a window starts or ends. The scheduler's `heptapod:announce-maintenance-boundaries` command sends these updates every minute, best-effort; a page reload always shows the current state. Changes from window boundaries or another tab wait behind **N new changes**. Your own edits appear at once. See [interface behavior](./ui.md) for buffering limits.
+The list and site headers update when a window starts or ends. They are sent every minute, best-effort; a page reload always shows the current state. Changes from window boundaries or another tab wait behind **N new changes**. Your own edits appear at once. See [interface behavior](./ui.md) for buffering limits.
 
 ## API
 

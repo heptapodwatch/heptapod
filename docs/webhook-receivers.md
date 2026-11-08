@@ -1,4 +1,7 @@
-# Verify webhook deliveries
+---
+title: Verify webhook deliveries
+description: Verify the signature, timestamp and payload of a webhook delivery.
+---
 
 Webhook channels require HTTPS. Set the channel's boolean `allow_insecure_http` to `true` only for an explicitly trusted HTTP receiver (for example, a local fixture). HTTP exposes the payload and signature to the network; signatures do not encrypt data. The flag defaults to false when omitted.
 

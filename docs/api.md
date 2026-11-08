@@ -1,4 +1,7 @@
-# Heptapod API
+---
+title: Heptapod API
+description: Tokens, abilities and endpoints of the Heptapod API.
+---
 
 The API base URL is `https://your-instance.example/api`. Send a personal-access token in `Authorization: Bearer <token>` and use `Accept: application/json`.
 
