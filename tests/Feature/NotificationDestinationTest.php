@@ -293,6 +293,12 @@ it('enforces the core secret minimum on destination saves and permits explicit c
     expect(array_key_exists('token', $destination->refresh()->config_secrets))->toBeFalse();
 })->with(['a', 'ab', 'abc', '   ', '  ab  ']);
 
+it('accepts ntfy topics up to the 64 characters an ntfy server allows', function (): void {
+    $schema = app(ChannelRegistry::class)->get('ntfy')->configSchema();
+    expect(fn () => $schema->validateConfig(['server' => 'https://ntfy.example', 'topic' => str_repeat('a', 64)]))->not->toThrow(ValidationException::class);
+    expect(fn () => $schema->validateConfig(['server' => 'https://ntfy.example', 'topic' => str_repeat('a', 65)]))->toThrow(ValidationException::class);
+});
+
 it('requires an explicit boolean opt-in for insecure webhook destinations', function (): void {
     $schema = app(ChannelRegistry::class)->get('webhook')->configSchema();
     expect(fn () => NotificationDestination::factory()->create(['channel' => 'webhook', 'config' => $schema->validateConfig(['url' => 'http://hooks.example/receiver', 'secret' => 'private-signing-secret'])]))->toThrow(ValidationException::class);
