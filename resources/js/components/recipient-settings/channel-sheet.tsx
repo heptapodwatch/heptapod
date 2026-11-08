@@ -85,6 +85,7 @@ export function ChannelSheet({
     const [siteIds, setSiteIds] = useState<number[]>(channel.muted_site_ids);
     const [confirmRemoval, setConfirmRemoval] = useState(false);
     const [error, setError] = useState('');
+    const [testDiagnosis, setTestDiagnosis] = useState<string | null>(null);
     const save = useHttpRequest<{ preferences: Grid }>({ preferences: saved });
     const mute = useHttpRequest();
     const test = useHttpRequest<
@@ -214,9 +215,15 @@ export function ChannelSheet({
                                             channel.status === 'needs_attention'
                                         }
                                         onClick={() => {
+                                            setTestDiagnosis(null);
                                             void test
                                                 .post(sendTest.url(channel.id))
                                                 .then((result) => {
+                                                    setTestDiagnosis(
+                                                        result.status === 'sent'
+                                                            ? null
+                                                            : result.diagnosis,
+                                                    );
                                                     if (
                                                         result.status === 'sent'
                                                     )
@@ -343,6 +350,11 @@ export function ChannelSheet({
                             </p>
                         </TruncatedText>
                         <LastOutcome channel={channel} />
+                        {/* The provider's own reason, redacted server-side; the toast only says that the test failed. */}
+                        <InputError
+                            message={testDiagnosis}
+                            className="break-words"
+                        />
                         {channel.account_mail && (
                             <p>{t('recipient_settings.account_address')}</p>
                         )}

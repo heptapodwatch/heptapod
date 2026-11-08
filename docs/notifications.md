@@ -58,7 +58,7 @@ The instance Owner can inspect the active transport in **Settings → Instance**
 
 Add a channel under **Settings → Notifications**, **Settings → My notifications** or **Client → Notifications** with **Add channel**, then open it and press **Send test**. Heptapod uses a token or webhook URL that you create, not an "Add to Slack" sign-in: a self-hosted instance has no fixed sign-in address, and the token stays on your instance.
 
-If a test fails, Heptapod shows "Notification provider rejected delivery or could not be reached." The exact reason, as listed in the tables below, is in the app log (`Notification transport failed.`) and on failed deliveries in an incident's **Timeline**.
+If a test fails, the channel sheet shows the provider's reason, as listed in the tables below. Failed alerts show it in the incident's **Timeline**.
 
 Email: see [Email setup](#email-setup). Webhook: see [Verify webhook deliveries](./webhook-receivers.md).
 
