@@ -174,7 +174,6 @@ $pluralExceptions = [
     '{{changes}} records changed · {{count}} records' => 'design fixture',
     '{{count}} new changes ↑' => 'callers pick "{{count}} new change ↑" for one',
     'Incident export exceeds :count rows. Narrow the filters.' => 'the export limit constant is far above one',
-    'uptime.history_title' => 'only called with 45 or 90 days',
     'sites.list_attention' => 'no counted noun: ":count with failures or warnings"',
     '{{count}} clients' => 'design fixture',
     'mixed_content.readable_only' => 'legacy summary; MixedContentCheck presents readable_only_one/_other',

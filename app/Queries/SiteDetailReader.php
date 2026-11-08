@@ -60,6 +60,7 @@ use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\Support\RedactionContext;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Spatie\LaravelData\Lazy;
@@ -224,17 +225,21 @@ final readonly class SiteDetailReader
         );
     }
 
-    /** Uptime outages that started in the last 30 days, with the Incidents summary's duration, and the Performance tab's latest hourly average. */
+    /** Uptime outages overlapping the last 30 days with Uptime's own downtime (maintenance and unmonitored time excluded), and the Performance tab's latest hourly average. */
     private function record(int $siteId, int $uptimeCheckId): SiteRecordData
     {
-        $now = CarbonImmutable::now('UTC')->format('Y-m-d H:i:s.uP');
-        $duration = 'greatest(0, extract(epoch from (coalesce(resolved_at, ?::timestamptz) - first_failure_at)))';
+        $now = CarbonImmutable::now('UTC');
+        $from = $now->subDays(30);
         $outages = DB::table('incidents')->where('site_id', $siteId)->where('check_id', $uptimeCheckId)->where('cause', IncidentCause::Failed->value)
-            ->where('first_failure_at', '>=', CarbonImmutable::now('UTC')->subDays(30)->format('Y-m-d H:i:s.uP'))
-            ->selectRaw("count(*) AS outage_count, coalesce(sum($duration), 0) AS downtime_seconds, max(first_failure_at) AS last_started_at", [$now])->first();
-        if ($outages === null || ! is_numeric($outages->outage_count) || ! is_numeric($outages->downtime_seconds)) {
+            ->where('first_failure_at', '<', $now->format('Y-m-d H:i:s.uP'))
+            ->where(static fn (QueryBuilder $overlap): QueryBuilder => $overlap->where('first_failure_at', '>=', $from->format('Y-m-d H:i:s.uP'))
+                ->orWhereNull('resolved_at')->orWhere('resolved_at', '>', $from->format('Y-m-d H:i:s.uP')))
+            ->selectRaw('count(*) AS outage_count, max(first_failure_at) AS last_started_at')->first();
+        if ($outages === null || ! is_numeric($outages->outage_count)) {
             throw new \LogicException('Site outage aggregate is invalid.');
         }
+        [, $downtimeMs] = $this->uptime->durations([$uptimeCheckId], $from, $now)[$uptimeCheckId]
+            ?? throw new \LogicException('The uptime window must cover its own check.');
         $lastStartedAt = $outages->last_started_at;
         if ($lastStartedAt !== null && ! is_string($lastStartedAt)) {
             throw new \LogicException('Site outage start must be a timestamp.');
@@ -243,7 +248,7 @@ final readonly class SiteDetailReader
         $hours = array_slice($this->hourlyResponses($uptimeCheckId)['average']->points, -24);
         $response = array_find(array_reverse($hours), static fn (ResponsePointData $point): bool => $point->value !== null)?->value;
 
-        return new SiteRecordData((int) $outages->outage_count, (int) round((float) $outages->downtime_seconds),
+        return new SiteRecordData((int) $outages->outage_count, intdiv($downtimeMs, 1000),
             $lastStartedAt === null ? null : CarbonImmutable::parse($lastStartedAt)->utc()->toIso8601String(), $response);
     }
 
@@ -262,7 +267,7 @@ final readonly class SiteDetailReader
         return $next;
     }
 
-    /** How many channels the one-line "Who gets this" names: every explained channel that is told now or later; null when the check never reports the category. */
+    /** How many channels the one-line "Who gets this" names: every channel told now or later, or already alerted about the open episode; null when the check never reports the category. */
     private function alertChannels(User $user, int $checkId, NotificationCategory $category): ?int
     {
         $check = Check::query()->with('site.client')->findOrFail($checkId);
@@ -271,7 +276,8 @@ final readonly class SiteDetailReader
             return null;
         }
 
-        return count(array_filter($explanation['recipients'], static fn (array $recipient): bool => $recipient['status'] !== 'not_sent'));
+        return count(array_filter($explanation['recipients'], static fn (array $recipient): bool => $recipient['status'] !== 'not_sent'
+            || $recipient['reason'] === 'notifications.suppression.episode_already_alerted'));
     }
 
     /** @return list<RunAllCheckData> */

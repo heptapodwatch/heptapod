@@ -4,15 +4,20 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Heptapod\Addons\Dns\DnsPersistence;
+use Heptapod\Addons\Uptime\UptimeMetrics;
 use Heptapod\Checks\Execution\ClaimService;
 use Heptapod\Checks\Execution\RunOrigin;
+use Heptapod\Checks\Recording\RecordableRun;
+use Heptapod\Checks\Recording\ResultRecorder;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\CheckKey;
+use Heptapod\Contracts\CheckOutcome;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\DnsLookupResult;
 use Heptapod\Contracts\DnsResolver;
 use Heptapod\Contracts\LatestRunEvidence;
+use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Enums\ClientScope;
@@ -23,6 +28,7 @@ use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\CheckRunRollupHourly;
 use Heptapod\Models\Client;
+use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
 use Heptapod\Models\MaintenancePeriod;
@@ -30,8 +36,11 @@ use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\RecurringMaintenancePeriod;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
+use Heptapod\Settings\InstanceSettings;
+use Heptapod\Testing\ClaimedRun;
 use Heptapod\Testing\FakeDnsResolver;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -274,12 +283,12 @@ function siteDeferredProps(string $path, string $props): array
         'X-Inertia-Partial-Component' => 'sites/show', 'X-Inertia-Partial-Data' => $props])->assertOk()->json('props');
 }
 
-it('records every uptime outage of the last 30 days, not only the 20 newest incidents', function (): void {
+it('records every uptime outage of the last 30 days with Uptime\'s downtime, not only the 20 newest incidents', function (): void {
     $now = CarbonImmutable::parse('2026-10-01T12:00:00Z');
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
-    $site = Site::factory()->create();
-    $uptime = Check::factory()->for($site)->create(['type' => CheckKey::Uptime]);
+    $site = Site::factory()->create(['created_at' => $now->subDays(40)]);
+    $uptime = Check::factory()->for($site)->create(['type' => CheckKey::Uptime, 'created_at' => $now->subDays(40), 'first_result_at' => $now->subDays(40)]);
     $certificate = Check::factory()->for($site)->create(['type' => CheckKey::CertificateHealth]);
     foreach (range(1, 24) as $day) {
         $start = $now->subDays($day);
@@ -287,8 +296,12 @@ it('records every uptime outage of the last 30 days, not only the 20 newest inci
     }
     $open = $now->subMinutes(5);
     Incident::factory()->for($uptime)->create(['opened_at' => $open, 'first_failure_at' => $open]);
+    // Started before the window and still down inside it: counts, with only its last day as downtime.
+    Incident::factory()->for($uptime)->create(['opened_at' => $now->subDays(31), 'first_failure_at' => $now->subDays(31), 'resolved_at' => $now->subDays(29)]);
+    // Maintenance covers the first 4 of the 10 minutes on day 5, as it does for the uptime percentage.
+    MaintenancePeriod::factory()->create(['site_id' => $site->id, 'starts_at' => $now->subDays(5), 'ends_at' => $now->subDays(5)->addMinutes(4)]);
     // Not outages of the window: before it, a check error, and another check's failure.
-    Incident::factory()->for($uptime)->create(['opened_at' => $now->subDays(31), 'first_failure_at' => $now->subDays(31), 'resolved_at' => $now->subDays(30)]);
+    Incident::factory()->for($uptime)->create(['opened_at' => $now->subDays(33), 'first_failure_at' => $now->subDays(33), 'resolved_at' => $now->subDays(32)]);
     Incident::factory()->for($uptime)->create(['cause' => IncidentCause::Errored, 'opened_at' => $now->subDays(2), 'first_failure_at' => $now->subDays(2), 'resolved_at' => $now->subDays(2)->addHour()]);
     Incident::factory()->for($certificate)->create(['opened_at' => $now->subDays(3), 'first_failure_at' => $now->subDays(3), 'resolved_at' => $now->subDays(2)]);
     // The Performance tab's number: the newest measured hourly average.
@@ -297,7 +310,7 @@ it('records every uptime outage of the last 30 days, not only the 20 newest inci
 
     $this->actingAs($owner);
     expect(siteDeferredProps('/sites/'.$site->id, 'record')['record'])->toEqual([
-        'outage_count' => 25, 'downtime_seconds' => 24 * 600 + 300,
+        'outage_count' => 26, 'downtime_seconds' => 24 * 600 - 240 + 300 + 86400,
         'last_outage_started_at' => $open->toIso8601String(), 'response_ms' => 400,
     ]);
 });
@@ -321,6 +334,9 @@ it('lists the next maintenance window and expiries of this site only', function 
     expect(array_map(static fn (array $item): array => [$item['type'], $item['date']], $upcoming))->toBe([
         ['maintenance', '2026-10-01T23:00:00+00:00'], ['domain', '2027-04-19T00:00:00+00:00'],
     ]);
+    // Pausing stops the checks, not the expiry: the site's own overview keeps its known dates.
+    $site->forceFill(['paused_at' => now()])->save();
+    expect(array_column(siteDeferredProps('/sites/'.$site->id, 'upcoming')['upcoming'], 'type'))->toBe(['maintenance', 'domain']);
 });
 
 it('counts the channels an outage of the site or a failure of a check would reach now', function (): void {
@@ -339,6 +355,30 @@ it('counts the channels an outage of the site or a failure of a check would reac
         ->and(siteDeferredProps('/sites/'.$site->id.'/checks/'.$uptime->id, 'alert_channels')['alert_channels'])->toBe(1);
     $uptime->update(['enabled' => false]);
     expect(siteDeferredProps('/sites/'.$site->id, 'alert_channels')['alert_channels'])->toBeNull();
+});
+
+it('keeps counting a channel once it has been alerted about the open outage', function (): void {
+    Mail::fake();
+    config(['mail.default' => 'smtp']);
+    $settings = app(InstanceSettings::class);
+    $settings->alert_after_minutes = 10;
+    $settings->save();
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $uptime = Check::factory()->create(['type' => CheckKey::Uptime, 'failure_threshold' => 1]);
+    notificationRoute(NotificationDestination::factory()->create(), [NotificationCategory::Outage]);
+    $at = CarbonImmutable::now('UTC');
+    $context = ClaimedRun::start($uptime->fresh(), $at);
+    app(ResultRecorder::class)->record(new RecordableRun($uptime->id, $context->claimToken, $at, $at,
+        new CheckOutcome(RunResult::Failed, 'uptime.status', [], new UptimeMetrics(null, null, null, null, null, 0.01,
+            array_fill_keys(['namelookup_time', 'connect_time', 'appconnect_time', 'starttransfer_time', 'pretransfer_time', 'redirect_time', 'total_time', 'header_size', 'size_download', 'speed_download'], null), '2026-10-01'))));
+    dispatchNotifications();
+    $this->travel(10)->minutes();
+    dispatchNotifications();
+    expect(Delivery::query()->where('state', DeliveryState::Sent)->count())->toBe(1);
+
+    $this->actingAs($owner);
+    expect(siteDeferredProps('/sites/'.$uptime->site_id, 'alert_channels')['alert_channels'])->toBe(1);
 });
 
 it('preserves nested public header names while masking their secrets in UI and API settings', function (CheckKey $key, string $field): void {

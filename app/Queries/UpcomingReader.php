@@ -84,9 +84,10 @@ final readonly class UpcomingReader
         $visibleIds = $this->sites->visibleSiteIds($user);
         /** @var Collection<int|string, SiteRow> $sites */
         $sites = DB::table('sites')->join('clients', 'clients.id', '=', 'sites.client_id')
-            ->whereIntegerInRaw('sites.id', $visibleIds)->whereNull('sites.paused_at')->whereNull('sites.marked_for_deletion_at')
+            ->whereIntegerInRaw('sites.id', $visibleIds)->whereNull('sites.marked_for_deletion_at')
             ->when($clientId !== null, static fn (Builder $query): Builder => $query->where('sites.client_id', $clientId))
-            ->when($siteId !== null, static fn (Builder $query): Builder => $query->where('sites.id', $siteId))
+            // Pausing stops checks, not expiry: one requested site keeps its known dates, the portfolio leaves paused sites out.
+            ->when($siteId !== null, static fn (Builder $query): Builder => $query->where('sites.id', $siteId), static fn (Builder $query): Builder => $query->whereNull('sites.paused_at'))
             ->select('sites.id', 'sites.client_id', 'sites.url', 'sites.friendly_name', 'sites.icon_hash', 'sites.icon_backing')
             ->selectRaw(Client::displayNameSql().' AS client_name', [__('No client')])->get()->keyBy('id');
         $items = [];

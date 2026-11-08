@@ -32,6 +32,7 @@ import { useCheckHeadline } from '@/hooks/use-check-headline';
 import { useFormat } from '@/hooks/use-format';
 import { focusRingClass } from '@/lib/interaction';
 import { bySeverity, checkState, isAttentionState } from '@/lib/status';
+import type { SiteState } from '@/types/monitoring';
 import { cn } from '@/lib/utils';
 import { show as incidentShow } from '@/routes/incidents';
 import { index as maintenanceIndex } from '@/routes/maintenance';
@@ -50,6 +51,11 @@ type AttentionItem = {
 };
 
 const attentionColumns = 'sm:grid-cols-[8.5rem_minmax(0,1fr)_11rem_8rem]';
+
+/** An unavailable check cannot run at all, so on its own site it needs attention too. */
+function needsAttention(state: SiteState): boolean {
+    return isAttentionState(state) || state === 'unavailable';
+}
 
 function checkHref(siteId: number, check: Check): string {
     return check.open_incident_id !== null
@@ -74,7 +80,7 @@ export function SiteOverviewContent({ page }: { page: Page }) {
             ) || a.id - b.id,
     );
     const attentionChecks = checks.filter(
-        (check) => check.enabled && isAttentionState(checkState(check)),
+        (check) => check.enabled && needsAttention(checkState(check)),
     );
     const maintenance =
         page.maintenance?.state === 'active' ? page.maintenance : null;
@@ -121,11 +127,14 @@ export function SiteOverviewContent({ page }: { page: Page }) {
         ...attentionChecks.map((check) => ({
             key: `check:${check.id}`,
             state: checkState(check),
-            what: format.issueHeadline({
-                ...check,
-                check: check.key,
-                fallback: headline(check),
-            }),
+            // An unavailable check's cause is its missing capability, not its last retained result.
+            what: check.unavailable_reason
+                ? headline(check)
+                : format.issueHeadline({
+                      ...check,
+                      check: check.key,
+                      fallback: headline(check),
+                  }),
             detail: t(check.label_key),
             when: check.open_incident_started_at ? (
                 <MonitoringTime
@@ -139,7 +148,7 @@ export function SiteOverviewContent({ page }: { page: Page }) {
                     mode="since"
                     prefix={t('Checked')}
                 />
-            ) : (
+            ) : check.unavailable_reason ? null : (
                 t('Awaiting first result')
             ),
             link: {
@@ -272,7 +281,8 @@ export function SiteOverviewContent({ page }: { page: Page }) {
                     <SiteCheckRows siteId={site.id} checks={otherChecks} />
                 </section>
             )}
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            {/* Side by side only from xl: narrower, the Uptime card's title and Open check collide (DE at 1024). */}
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                 <Card className="min-w-0">
                     <CardHeader>
                         <CardTitle>{t('Recent events')}</CardTitle>
