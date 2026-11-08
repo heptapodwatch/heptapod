@@ -71,6 +71,10 @@ The app does not serve an API guide at `/docs/api`. Operators distributing these
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) to contribute and [DEVELOPMENT.md](DEVELOPMENT.md) to run Heptapod from source. Follow the [Code of Conduct](CODE_OF_CONDUCT.md), and report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
+## Acknowledgements
+
+Heptapod owes a lot to [Oh Dear](https://ohdear.app). Its focus on what someone who looks after websites actually needs to know shaped many of our choices. If you need the highest reliability, with monitoring that runs independently of your own infrastructure and uptime checks from several locations around the world, Oh Dear is a great choice. Thank you to Mattias Geniar and Freek Van der Herten for building it, and to [Spatie](https://spatie.be) for the open-source packages Heptapod runs on. Heptapod is an independent project and is not affiliated with or endorsed by Oh Dear.
+
 ## License
 
 [AGPL-3.0-or-later](LICENSE).
