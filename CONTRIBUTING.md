@@ -4,41 +4,17 @@ Open an issue at https://github.com/heptapodwatch/heptapod/issues before startin
 
 ## Development setup
 
-Install Git and Docker with Compose. The demo and smoke scripts also need Bash, curl, jq and standard Unix tools. Follow the [README development setup](README.md#development), including creation of the external `heptapod-heavy-locks` volume. PHP, Composer and Node run in the app container; host installations are not required.
-
-Install the Git hooks from the running stack:
-
-```sh
-docker compose exec app npm run hooks:install
-```
-
-For the demo scripts, set `COMPOSE_PROJECT_NAME` in `.env` to this checkout's existing project name, shown by `docker compose config --format json | jq -r .name`. Do not reuse another checkout's project name. Build with the source-input label required by the stale-image guard, then seed the demo scenario and verify the main pages:
-
-```sh
-DEV_IMAGE_INPUT_HASH=$(./scripts/dev-image-hash.sh) docker compose build
-./scripts/dev-up.sh attention
-./scripts/smoke.sh
-```
-
-`dev-up.sh` resets that checkout's database and queues. Never use it on a real instance or a checkout containing production data. Demo login is `test@example.test` / `password`. Keep development ports local and use synthetic data in examples, screenshots and reports.
+Set up a checkout, seed demo data and run the tools as described in [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Checks and hooks
 
-Run commands through `docker compose exec app …`. The [README tooling section](README.md#tooling) lists formatting, spelling, type, static-analysis, dependency and build commands. Pre-push runs the static checks; CI also enforces generated-file, production image, deployment OPS and security gates.
+Run commands through `docker compose exec app …`. The [tooling section](DEVELOPMENT.md#tooling) lists formatting, spelling, type, static-analysis, dependency and build commands. Pre-push runs the static checks; CI also enforces generated-file, production image, deployment OPS and security gates. Tests need the [offline check fixtures](DEVELOPMENT.md#offline-check-fixtures).
 
-Tests need the offline check fixtures; the test runner stops before any test when they are unreachable. Start them once per stack:
-
-```sh
-docker compose --profile fixtures up -d --wait fixtures fixtures-alt dns-fixtures
-```
-
-Rootless Docker and Podman cannot bind the default `FIXTURES_HTTPS_ALT_PORT` 444; set it in `.env` to a free port of 1024 or above first. See [offline check fixtures](README.md#offline-check-fixtures) for the other fixture ports.
-
-Application tests run in CI, and the PHP Gate, non-quarantined Feature/Unit tests, architecture tests and Vitest block merges. Run affected PHP tests with `docker compose exec app bash scripts/run-tests.sh focused <test-file>` or the non-quarantined Feature/Unit suites with `docker compose exec app bash scripts/run-tests.sh ci-php`. Use random order and record the seed; see [operations](docs/deploy/operations.md#development-test-hooks) for commands and isolation rules. Browser, mutation and coverage suites remain disabled. The `composer test:types` static type-coverage gate remains enabled. Describe actual commands, results and manual verification in the pull request.
+Application tests run in CI, and the PHP Gate, non-quarantined Feature/Unit tests, architecture tests and Vitest block merges. Run the affected tests as shown in [tooling](DEVELOPMENT.md#tooling), in random order, and record the seed; see [operations](docs/deploy/operations.md#development-test-hooks) for commands and isolation rules. Browser, mutation and coverage suites remain disabled. The `composer test:types` static type-coverage gate remains enabled. Describe actual commands, results and manual verification in the pull request.
 
 Tests use real Postgres and Redis, fixed clocks, isolated database state and fake external seams. Add regression coverage through feature entry points; do not use real network calls, sleeps or retries. A failure with no code cause is quarantined in a separate commit and tracked in a public issue with a responsible maintainer, not hidden with a skip. A quarantined file re-enters after five green isolated runs.
 
-Keep hooks enabled. Pre-commit formats staged files and runs checks; commit-msg enforces [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), for example `fix: preserve paused check state`. Stage whole files: formatter fixes can stage other working-copy changes in the same file. Hooks require the checkout's stack to be running.
+Keep the [Git hooks](DEVELOPMENT.md#git-hooks) enabled. Pre-commit formats staged files and runs checks; commit-msg enforces Conventional Commits. Hooks require the checkout's stack to be running.
 
 ## Pull requests
 

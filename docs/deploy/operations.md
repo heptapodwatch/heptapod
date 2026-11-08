@@ -131,6 +131,29 @@ The installation directory keeps `.env.prod` and `.heptapod/` (lifecycle state a
 
 `./scripts/install.sh --domain monitor.example.com` creates a mode-0600 `.env.prod` from the example if missing. OpenSSL generates missing DB/backup passwords, Reverb app ID/key/secret, and a 32-byte Laravel APP_KEY on the host; existing secrets are preserved. Docker Compose parses managed keys (APP_KEY, DB_PASSWORD, BACKUP_ARCHIVE_PASSWORD, REVERB_APP_ID, REVERB_APP_KEY, REVERB_APP_SECRET, APP_URL, SERVER_NAME and mode keys) in spaced, exported, quoted and colon-delimited forms. The installer appends a value only when Compose resolves it empty and the file does not mention its name. Empty definitions, multiple lines mentioning a key, and conflicting shell overrides abort before changing an existing file or its permissions; the file is never sourced as shell. Remove an empty definition to allow generation. Other variables, including REDIS_PASSWORD, are not edited. Repeating installation with the same domain preserves configuration without rotating keys. A different configured domain aborts; edit APP_URL and SERVER_NAME in `.env.prod` before changing domains. The script requires the domain argument. With `--owner-email you@example.com`, it creates the first verified Owner after startup and prints a generated 32-character password **once**; store it in a password manager. It uses letters, digits, and the symbol `-` so console formatting cannot alter it. Generated passwords use local strength validation without a breach-service request; `--password-stdin` applies the full production password policy, including its breach check. Without this flag, it prompts for the Owner email on a TTY (empty input skips). Without a TTY, it skips Owner creation and prints the command to run later. On a rerun with an existing `.env.prod`, services are not started or restarted and Owner creation is skipped. Existing secrets are preserved; only missing configuration keys are appended and listed by name. An unchanged configuration remains byte-identical. A read-only `docker compose --env-file .env.prod ps -q app` check chooses the printed next step: upgrade a running app, or explicitly start a configured instance with no running app. Use `./scripts/install.sh --help` for all installation flags. To create the first Owner later, run `dc exec -T app php artisan heptapod:user:create-owner --email=you@example.com --no-interaction`. To supply your own password without putting it in shell history or process arguments, pipe it to `dc exec -T app php artisan heptapod:user:create-owner --email=you@example.com --password-stdin --no-interaction` (a trailing newline is removed). Invalid/taken emails and a second Owner fail; the command does not support additional Owners. If locked out, use **Forgot password** on the login page: Fortify emails a reset link to the Owner's address. Restore email delivery or a backup if that mailbox is unavailable; the installer never rotates an existing Owner's password. Compose starts with `up -d --wait`; only the app entrypoint migrates, under a PostgreSQL session advisory lock. Migration/lock failures exit nonzero before the HTTP server starts. Worker services wait for app health. The source-rebuild sequence below is for an initialized checkout only: installation must create `.env.prod` and its required secrets first. Allow additional disk space for source builds.
 
+### Install from a Git checkout
+
+First install Docker Engine, Docker Compose v5 (tested 5.1.2), Git and OpenSSL using the [fresh Ubuntu VPS prerequisites](hetzner.md#fresh-vps-prerequisites).
+
+After adding your account to the Docker group, **log out and log back in**. In the new session, confirm access before cloning:
+
+```sh
+docker ps
+```
+
+Continue only when this succeeds without sudo.
+
+```sh
+REPOSITORY_URL='https://github.com/heptapodwatch/heptapod.git'
+RELEASE_TAG='v0.1.1'
+INSTALL_DIR="$HOME/heptapod"
+git clone --depth 1 --branch "$RELEASE_TAG" "$REPOSITORY_URL" "$INSTALL_DIR" && cd "$INSTALL_DIR" && ./scripts/install.sh --domain monitor.example.com --owner-email owner@example.com --without-browser
+```
+
+If the first clone failed, remove its partial destination directory before cloning again; never remove an existing installation or its data.
+
+Use an exact published release tag, not a moving branch. The clone fetches the installer and its configuration before running it. Rerunning the installer preserves existing secrets and does not start or restart an instance with `.env.prod`; follow its printed first-start or upgrade instructions. To upgrade a Git checkout, check out the new tag first (`git fetch --tags && git checkout <tag>`), then run `./scripts/upgrade.sh`.
+
 ### Install a release export without Git
 
 The one-line installer automates this. To do it by hand, create its release folder layout as root from the verified bundle; the bundle's `REVISION` file holds the full 40-character lowercase commit SHA. For another export, obtain that SHA from the release publisher, not a branch name or an abbreviated SHA. The registry must contain images for that same published commit:
