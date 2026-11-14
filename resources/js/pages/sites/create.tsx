@@ -136,6 +136,9 @@ function AddSiteForm({
     const defaultClientId = String(
         selected_client_id ?? (clients.length === 1 ? clients[0]!.id : ''),
     );
+    const defaultChecks = checks
+        .filter((check) => check.recommended && !check.unavailable_reason)
+        .map((check) => check.key);
     const form = useForm({
         url: initial.draft?.url ?? '',
         // The client the page was opened for beats an older draft's client.
@@ -144,17 +147,13 @@ function AddSiteForm({
         ),
         friendly_name: initial.draft?.friendly_name ?? '',
         tags: initial.draft?.tags ?? '',
-        checks:
-            initial.draft?.checks ??
-            checks
-                .filter(
-                    (check) => check.recommended && !check.unavailable_reason,
-                )
-                .map((check) => check.key),
+        checks: initial.draft?.checks ?? defaultChecks,
         settings: initial.draft?.settings ?? ({} as Record<string, FieldValue>),
     });
     useEffect(() => {
         if (!edited.current || draftUnavailable) return;
+        // One write per edit: the probe's check refresh or an opened sheet never renews `saved_at`.
+        edited.current = false;
         const draft = siteCreateDraft(
             {
                 ...form.data,
@@ -169,9 +168,19 @@ function AddSiteForm({
             !draft.url &&
             !draft.friendly_name.trim() &&
             !draft.tags.trim() &&
-            !Object.keys(draft.settings).length &&
-            !draft.changedChecks.length &&
-            draft.client_id === defaultClientId;
+            draft.client_id === defaultClientId &&
+            // Unchanged checks follow the recommendation; a changed one is back at its default when it matches the page's own.
+            draft.changedChecks.every(
+                (key) =>
+                    draft.checks.includes(key) === defaultChecks.includes(key),
+            ) &&
+            Object.entries(draft.settings).every(([key, value]) => {
+                const dot = key.indexOf('.');
+                const field = checks.find(
+                    (check) => check.key === key.slice(0, dot),
+                )?.config_schema.fields[key.slice(dot + 1)];
+                return JSON.stringify(value) === JSON.stringify(field?.default);
+            });
         try {
             if (untouched) localStorage.removeItem(draftKey);
             else localStorage.setItem(draftKey, JSON.stringify(draft));
@@ -191,12 +200,15 @@ function AddSiteForm({
         window.addEventListener('storage', onStorage);
         return () => window.removeEventListener('storage', onStorage);
     }, [draftKey]);
+    /** False when storage refused; the page then keeps its form and shows `sites.draft.unavailable`. */
     const clearDraft = () => {
         edited.current = false;
         try {
             localStorage.removeItem(draftKey);
+            return true;
         } catch {
             setDraftUnavailable(true);
+            return false;
         }
     };
     const {
@@ -421,8 +433,7 @@ function AddSiteForm({
                                         size="sm"
                                         disabled={form.processing}
                                         onClick={() => {
-                                            clearDraft();
-                                            onStartOver();
+                                            if (clearDraft()) onStartOver();
                                         }}
                                     >
                                         {t('sites.draft.start_over')}

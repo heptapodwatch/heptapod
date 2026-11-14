@@ -465,13 +465,67 @@ it('restores a draft changed within two hours and removes an older one', () => {
     expect(localStorage.getItem(storageKey())).toBeNull();
 });
 
-it('saves no draft for an untouched form and removes it once every field is back at its default', async () => {
+it('saves no draft for an untouched form, keeps the time of the last edit and removes the draft once every value is back at its default', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-14T12:00:00Z'));
+    vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+            recommended_checks: ['uptime', 'dns'],
+            failure: null,
+            status: 200,
+        }),
+    } as Response);
     render(
-        <AddSite {...options} selected_client_id={options.clients[1]!.id} />,
+        <AddSite
+            {...options}
+            selected_client_id={options.clients[1]!.id}
+            checks={options.checks.map((check) =>
+                check.key === 'uptime'
+                    ? {
+                          ...check,
+                          config_schema: {
+                              fields: {
+                                  ...check.config_schema.fields,
+                                  timeout: {
+                                      ...check.config_schema.fields.timeout!,
+                                      default: 10,
+                                  },
+                              },
+                          },
+                      }
+                    : check,
+            )}
+        />,
     );
     expect(localStorage.getItem(storageKey())).toBeNull();
-    await enterAddress();
-    expect(stored().url).toBe('https://shop.example.test/');
+    fireEvent.change(urlField(), {
+        target: { value: 'https://shop.example.test' },
+    });
+    expect(stored().saved_at).toBe('2026-11-14T12:00:00.000Z');
+    vi.setSystemTime(new Date('2026-11-14T12:05:00Z'));
+    // The address check changes the checks and opening a sheet changes the page; neither is an edit.
+    fireEvent.blur(urlField());
+    await waitFor(() => expect(switchState('checks.dns.label')).toBe('true'));
+    const settings = () =>
+        screen.getAllByRole('button', {
+            name: 'add_site.settings.for_check',
+        })[0]!;
+    fireEvent.click(settings());
+    expect(stored().saved_at).toBe('2026-11-14T12:00:00.000Z');
+    fireEvent.change(screen.getByLabelText('Timeout'), {
+        target: { value: '17' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    fireEvent.click(settings());
+    fireEvent.change(screen.getByLabelText('Timeout'), {
+        target: { value: '10' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'checks.dns.label' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'checks.dns.label' }));
+    expect(stored().settings['uptime.timeout']).toBe(10);
+    expect(stored().saved_at).toBe('2026-11-14T12:05:00.000Z');
     fireEvent.change(urlField(), { target: { value: '' } });
     expect(localStorage.getItem(storageKey())).toBeNull();
 });
@@ -504,6 +558,21 @@ it('starts over from a restored draft with a fresh form on the same page', () =>
     expect(screen.queryByText('sites.draft.restored')).toBeNull();
     expect(localStorage.getItem(storageKey())).toBeNull();
     expect(visit).not.toHaveBeenCalled();
+});
+
+it('keeps the form and says so when Start over cannot remove the draft', () => {
+    restoreDraft({ friendly_name: 'Shop' });
+    render(<AddSite {...options} />);
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+        throw new DOMException('denied', 'SecurityError');
+    });
+    fireEvent.click(
+        screen.getByRole('button', { name: 'sites.draft.start_over' }),
+    );
+    expect(screen.getByText('sites.draft.unavailable')).not.toBeNull();
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe(
+        'Shop',
+    );
 });
 
 it('stops writing the draft after another tab removed it until the next edit here', async () => {
