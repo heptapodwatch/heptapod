@@ -104,6 +104,7 @@ A sensitivity has four settings. A preset fills all four; you can then change ea
 - Alert sensitivity delays or skips alerts only. Incidents, check results and uptime history stay complete.
 - **Alert after** and **Recovery after** apply to new interruptions, not to a running episode.
 - **Wait for a confirming run** and **Down reminders** apply at once, also to open incidents.
+- **What you would receive** shows example outages for the current settings: one shorter than the alert delay, one that crosses it and, with **After 1 h, 4 h, then daily**, one long enough for a reminder. Each example names its length and the number of messages. A numbered marker above the five-minute squares shows when each message goes out, and the list below names it. With **Wait for a confirming run** on, a short example shows a check that fails once and sends nothing.
 
 ### Uptime outages
 
