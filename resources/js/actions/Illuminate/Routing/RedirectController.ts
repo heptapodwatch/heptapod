@@ -677,8 +677,9 @@ RedirectController4b87d2df7e3aa853f6720faea796e36c.form = RedirectController4b87
 
 /**
 * Multiple routes resolve to \Illuminate\Routing\RedirectController::RedirectController, so this export is a
-* dictionary keyed by URI rather than a callable. Call a specific route with `RedirectController['<uri>'](...)`,
-* or import the route by name from your generated `routes/` directory.
+* dictionary keyed by URI rather than a callable, with the verbs prefixed where two routes share a URI.
+* Call a specific route with `RedirectController['<key>'](...)`, or import the route by name from your
+* generated `routes/` directory.
 */
 const RedirectController = {
     '/': RedirectController980bb49ee7ae63891f1d891d2fbcf1c9,
