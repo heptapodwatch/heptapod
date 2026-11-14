@@ -781,5 +781,8 @@
     "Clear filters to see the next 90 days.": "Filter entfernen, um die nächsten 90 Tage zu sehen.",
     "No changes in the last 24 hours.": "Keine Änderungen in den letzten 24 Stunden.",
     "State changes of your sites and checks appear here.": "Statusänderungen Ihrer Websites und Prüfungen erscheinen hier.",
-    "Clear filters to see the last 24 hours.": "Filter entfernen, um die letzten 24 Stunden zu sehen."
+    "Clear filters to see the last 24 hours.": "Filter entfernen, um die letzten 24 Stunden zu sehen.",
+    "replicator.remove": "{{name}} entfernen",
+    "replicator.max_reached_one": "Höchstens {{formattedCount}} Eintrag.",
+    "replicator.max_reached_other": "Höchstens {{formattedCount}} Einträge."
 }
