@@ -23,7 +23,7 @@
     "alert_sensitivity.checks_bounds": ":min–:max good checks",
     "alert_sensitivity.recovery_confirmed_one": "Recovery is confirmed after :count good check.",
     "alert_sensitivity.recovery_confirmed_other": "Recovery is confirmed after :count good checks.",
-    "alert_sensitivity.footer": "The alert delay and recovery checks apply to new outages; confirmation and reminders apply at once. Incidents and check results stay complete.",
+    "alert_sensitivity.footer": "The alert delay and recovery checks apply to new outages, confirmation and reminders at once; incidents and check results stay complete.",
     "alert_sensitivity.team_default": "Team default · :preset",
     "alert_sensitivity.inherit_description": "Use the settings from Settings · Alert sensitivity, including future changes.",
     "alert_sensitivity.override": ":preset · override",
