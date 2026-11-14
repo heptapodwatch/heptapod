@@ -19,7 +19,12 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { index as sitesIndex, store as sitesStore } from '@/routes/sites';
 import type { CheckKey, FieldValue } from '@/types/monitoring';
-import { eligibleSiteCheck, siteCreateDraft } from '@/lib/site-create-draft';
+import {
+    eligibleSiteCheck,
+    siteCreateDraft,
+    siteCreateDraftLifetime,
+} from '@/lib/site-create-draft';
+import { useFormat } from '@/hooks/use-format';
 import { checkNeedsSetup, SiteChecksList } from '@/components/site-checks-list';
 import { CheckSettingsSheet } from '@/components/check-settings-sheet';
 import { TextLink } from '@/components/text-link';
@@ -39,17 +44,41 @@ const fieldOrder = [
 /** How far the page has revealed: 0 Address, 1 + Client, 2 + Details and Checks. A revealed section never collapses. */
 type Revealed = 0 | 1 | 2;
 
-export default function AddSite({
+export default function AddSite(props: Heptapod.Data.Ui.AddSitePageData) {
+    // Start over remounts the form for a fresh state; clients created on this page stay choosable.
+    const [formKey, setFormKey] = useState(0);
+    const [createdClients, setCreatedClients] = useState<
+        Heptapod.Data.Ui.ClientData[]
+    >([]);
+    return (
+        <AddSiteForm
+            key={formKey}
+            {...props}
+            createdClients={createdClients}
+            onClientCreated={(created) =>
+                setCreatedClients((current) => [...current, created])
+            }
+            onStartOver={() => setFormKey((key) => key + 1)}
+        />
+    );
+}
+
+function AddSiteForm({
     clients: suppliedClients,
     checks,
     selected_client_id,
     can_create_site,
     timezones,
-}: Heptapod.Data.Ui.AddSitePageData) {
+    createdClients,
+    onClientCreated,
+    onStartOver,
+}: Heptapod.Data.Ui.AddSitePageData & {
+    createdClients: Heptapod.Data.Ui.ClientData[];
+    onClientCreated: (client: Heptapod.Data.Ui.ClientData) => void;
+    onStartOver: () => void;
+}) {
     const { t } = useTranslation();
-    const [createdClients, setCreatedClients] = useState<
-        Heptapod.Data.Ui.ClientData[]
-    >([]);
+    const format = useFormat();
     const clients = useMemo(
         () => [
             ...suppliedClients,
@@ -79,12 +108,13 @@ export default function AddSite({
             return { draft: null, unavailable: false };
         try {
             const stored = localStorage.getItem(draftKey);
-            return {
-                draft: stored
-                    ? siteCreateDraft(JSON.parse(stored), options)
-                    : null,
-                unavailable: false,
-            };
+            if (!stored) return { draft: null, unavailable: false };
+            const draft = siteCreateDraft(JSON.parse(stored), options);
+            const age = Date.now() - Date.parse(draft.saved_at);
+            if (age >= 0 && age <= siteCreateDraftLifetime)
+                return { draft, unavailable: false };
+            localStorage.removeItem(draftKey);
+            return { draft: null, unavailable: false };
         } catch (error) {
             if (error instanceof SyntaxError)
                 return { draft: null, unavailable: false };
@@ -94,22 +124,24 @@ export default function AddSite({
     const [draftUnavailable, setDraftUnavailable] = useState(
         initial.unavailable,
     );
-    const draftCleared = useRef(false);
+    // Set by a user change, cleared by save, Discard and another tab removing the draft: only edits write a draft.
+    const edited = useRef(false);
     const [openChecks, setOpenChecks] = useState<CheckKey[]>(
         initial.draft?.openChecks ?? [],
     );
     const changedChecks = useRef(
         new Set<CheckKey>(initial.draft?.changedChecks),
     );
+    // Preselect only without a real choice: in a multi-client team the first client is a wrong-client trap.
+    const defaultClientId = String(
+        selected_client_id ?? (clients.length === 1 ? clients[0]!.id : ''),
+    );
     const form = useForm({
         url: initial.draft?.url ?? '',
-        // Preselect only without a real choice: in a multi-client team the first client is a wrong-client trap.
-        client_id:
-            initial.draft?.client_id ||
-            String(
-                selected_client_id ??
-                    (clients.length === 1 ? clients[0]!.id : ''),
-            ),
+        // The client the page was opened for beats an older draft's client.
+        client_id: String(
+            selected_client_id ?? (initial.draft?.client_id || defaultClientId),
+        ),
         friendly_name: initial.draft?.friendly_name ?? '',
         tags: initial.draft?.tags ?? '',
         checks:
@@ -122,28 +154,45 @@ export default function AddSite({
         settings: initial.draft?.settings ?? ({} as Record<string, FieldValue>),
     });
     useEffect(() => {
-        if (draftCleared.current || draftUnavailable) return;
+        if (!edited.current || draftUnavailable) return;
+        const draft = siteCreateDraft(
+            {
+                ...form.data,
+                openChecks,
+                changedChecks: [...changedChecks.current],
+                omitted: initial.draft?.omitted,
+                saved_at: new Date().toISOString(),
+            },
+            options,
+        );
+        const untouched =
+            !draft.url &&
+            !draft.friendly_name.trim() &&
+            !draft.tags.trim() &&
+            !Object.keys(draft.settings).length &&
+            !draft.changedChecks.length &&
+            draft.client_id === defaultClientId;
         try {
-            localStorage.setItem(
-                draftKey,
-                JSON.stringify(
-                    siteCreateDraft(
-                        {
-                            ...form.data,
-                            openChecks,
-                            changedChecks: [...changedChecks.current],
-                            omitted: initial.draft?.omitted,
-                        },
-                        options,
-                    ),
-                ),
-            );
+            if (untouched) localStorage.removeItem(draftKey);
+            else localStorage.setItem(draftKey, JSON.stringify(draft));
         } catch {
             setDraftUnavailable(true);
         }
     }, [form.data, openChecks, draftKey, draftUnavailable, clients, checks]);
+    useEffect(() => {
+        // Another tab saved the site or discarded the draft (clear() reports no key); write again only after a new edit here.
+        const onStorage = (event: StorageEvent) => {
+            if (
+                (event.key === draftKey || event.key === null) &&
+                event.newValue === null
+            )
+                edited.current = false;
+        };
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
+    }, [draftKey]);
     const clearDraft = () => {
-        draftCleared.current = true;
+        edited.current = false;
         try {
             localStorage.removeItem(draftKey);
         } catch {
@@ -361,6 +410,35 @@ export default function AddSite({
                 <PageHeader
                     title={t('Add site')}
                     description={t('pages.add_site.description')}
+                    notices={
+                        initial.draft ? (
+                            <Alert
+                                tone="info"
+                                action={
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={form.processing}
+                                        onClick={() => {
+                                            clearDraft();
+                                            onStartOver();
+                                        }}
+                                    >
+                                        {t('sites.draft.start_over')}
+                                    </Button>
+                                }
+                            >
+                                <AlertTitle>
+                                    {t('sites.draft.restored', {
+                                        time: format.time(
+                                            initial.draft.saved_at,
+                                        ),
+                                    })}
+                                </AlertTitle>
+                            </Alert>
+                        ) : undefined
+                    }
                 />
                 <form
                     noValidate
@@ -405,6 +483,7 @@ export default function AddSite({
                             placeholder="https://shop.example"
                             value={form.data.url}
                             onChange={(event) => {
+                                edited.current = true;
                                 form.setData('url', event.target.value);
                                 form.clearErrors('url');
                                 clearProbe();
@@ -421,6 +500,7 @@ export default function AddSite({
                             probeState={probeState}
                             probeError={probeError}
                             onUseAddress={(url) => {
+                                edited.current = true;
                                 clearProbe();
                                 form.setData('url', url);
                             }}
@@ -449,6 +529,7 @@ export default function AddSite({
                                     }
                                     value={form.data.client_id}
                                     onValueChange={(value) => {
+                                        edited.current = true;
                                         form.setData('client_id', value);
                                         form.clearErrors('client_id');
                                     }}
@@ -471,6 +552,7 @@ export default function AddSite({
                                         value={form.data.friendly_name}
                                         placeholder={host ?? undefined}
                                         onChange={(event) => {
+                                            edited.current = true;
                                             form.setData(
                                                 'friendly_name',
                                                 event.target.value,
@@ -482,6 +564,7 @@ export default function AddSite({
                                     <SiteTagsField
                                         value={form.data.tags}
                                         onChange={(event) => {
+                                            edited.current = true;
                                             form.setData(
                                                 'tags',
                                                 event.target.value,
@@ -561,6 +644,7 @@ export default function AddSite({
                                     canManage={can_create_site}
                                     onSettings={(key) => setOpenChecks([key])}
                                     onToggle={(key, enabled) => {
+                                        edited.current = true;
                                         changedChecks.current.add(key);
                                         if (key === 'uptime' && !enabled)
                                             changedChecks.current.add(
@@ -673,6 +757,7 @@ export default function AddSite({
                             setOpenChecks([]);
                         }}
                         onApply={(settings) => {
+                            edited.current = true;
                             form.setData('settings', settings);
                             form.clearErrors();
                             setOpenChecks([]);
@@ -685,7 +770,8 @@ export default function AddSite({
                     timezones={timezones}
                     onClose={() => setNewClientName(null)}
                     onCreated={(created) => {
-                        setCreatedClients((current) => [...current, created]);
+                        onClientCreated(created);
+                        edited.current = true;
                         form.setData('client_id', String(created.id));
                         setNewClientName(null);
                     }}

@@ -33,6 +33,8 @@
     "Choose a client for this site.": "Wählen Sie einen Kunden für diese Website.",
     "We check the address before adding the site": "Wir prüfen die Adresse, bevor wir die Website hinzufügen",
     "sites.draft.secrets_omitted": "Geheimnisse, Anfrage-Header und -Inhalte sowie Zugangsdaten, Abfragen und Fragmente in URLs werden nicht im Entwurf gespeichert. Geben Sie diese vor dem Speichern erneut ein.",
+    "sites.draft.restored": "Ihre unvollständige Eingabe von {{time}} wurde wiederhergestellt",
+    "sites.draft.start_over": "Neu beginnen",
     "sites.draft.unavailable": "Dieser Browser kann den Entwurf nicht speichern oder löschen. Lassen Sie diese Seite geöffnet, damit Ihre Änderungen nicht verloren gehen.",
     "clients.create_inline": "Neuen Kunden „{{name}}“ anlegen",
     "combobox.search": "Optionen suchen",
