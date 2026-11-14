@@ -57,16 +57,16 @@ export function SecurityAdvisoryList({
                                         advisory.cve,
                                         advisory.severity &&
                                             t('Severity: {{severity}}', {
-                                                severity:
-                                                    advisory.severity in
-                                                    severityLabels
-                                                        ? t(
-                                                              severityLabels[
-                                                                  advisory
-                                                                      .severity
-                                                              ] as string,
-                                                          )
-                                                        : advisory.severity,
+                                                severity: Object.hasOwn(
+                                                    severityLabels,
+                                                    advisory.severity,
+                                                )
+                                                    ? t(
+                                                          severityLabels[
+                                                              advisory.severity
+                                                          ] as string,
+                                                      )
+                                                    : advisory.severity,
                                             }),
                                         t('Affected versions: {{versions}}', {
                                             versions:

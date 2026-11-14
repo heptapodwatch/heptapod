@@ -113,7 +113,9 @@ it('filters the Sites list by open advisory, package and advisory ID within the 
         ->and(advisorySiteIds('filter[package]=dompdf/dompdf'))->toBe([$all->site_id])
         ->and(advisorySiteIds('filter[advisory]='.$phpmailerCve))->toBe([$all->site_id, $mailer->site_id])
         ->and(advisorySiteIds('filter[advisory]='.urlencode('https://github.com/advisories/GHSA-97m3-52wr-xvv2')))->toBe([$all->site_id])
-        ->and(advisorySiteIds('filter[package]=vendor/unknown'))->toBe([]);
+        ->and(advisorySiteIds('filter[package]=vendor/unknown'))->toBe([])
+        // An advisory link may contain commas; it is one identity, not a list.
+        ->and(advisorySiteIds('filter[advisory]='.urlencode('https://example.com/advisory/a,b')))->toBe([]);
     $this->get('/sites?filter[package]=dompdf/dompdf')->assertInertia(fn (Assert $page): Assert => $page
         ->where('filters.package', 'dompdf/dompdf')->where('pagination.total', 1));
 

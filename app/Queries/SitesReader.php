@@ -210,10 +210,10 @@ final readonly class SitesReader
                 }),
                 AllowedFilter::callback('package', static function (Builder $query, mixed $value) use ($advisories): void {
                     $advisories($query, package: is_string($value) ? $value : throw new \LogicException('Package filter must be validated as a string.'));
-                }),
+                })->delimiter(''),
                 AllowedFilter::callback('advisory', static function (Builder $query, mixed $value) use ($advisories): void {
                     $advisories($query, advisoryId: is_string($value) ? $value : throw new \LogicException('Advisory filter must be validated as a string.'));
-                }),
+                })->delimiter(''),
                 AllowedFilter::callback('tag', static function (Builder $query, mixed $value): void {
                     if (! is_string($value)) {
                         throw new \LogicException('Tag filter must be validated as a string.');
