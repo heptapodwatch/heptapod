@@ -61,7 +61,7 @@ export function AppSidebar({
         <Sidebar
             collapsible="icon"
             variant="sidebar"
-            className="border-r border-sidebar-border"
+            className="left-[max(0px,calc((100%-var(--shell-width))/2))] border-r border-sidebar-border"
         >
             <SidebarHeader>
                 <SidebarMenu>
