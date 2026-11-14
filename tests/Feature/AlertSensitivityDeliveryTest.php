@@ -32,6 +32,19 @@ beforeEach(function (): void {
         NotificationCategory::CheckError, NotificationCategory::Recovery]);
 });
 
+/**
+ * An hourly DNS check whose regular slot is fixed at minute 30:56 of each hour. CheckSchedule spreads checks over the
+ * interval by their ID; a sequence-assigned ID would move the regular slot with test order, before or after the
+ * 10-minute confirming re-run.
+ */
+function hourlyDnsCheck(): Check
+{
+    $check = Check::factory()->create(['id' => 1000155, 'type' => CheckKey::Dns, 'interval_seconds' => 3600, 'failure_threshold' => 1]);
+    expect(crc32((string) $check->id) % 3600)->toBe(1856);
+
+    return $check;
+}
+
 function sensitivityRun(Check $check, RunResult $result): void
 {
     $curl = array_fill_keys(['namelookup_time', 'connect_time', 'appconnect_time', 'starttransfer_time', 'pretransfer_time', 'redirect_time', 'total_time', 'header_size', 'size_download', 'speed_download'], null);
@@ -59,7 +72,7 @@ it('keeps a 26-minute outage quiet and alerts a 31-minute one under Relaxed', fu
 })->with(['26 minutes' => [26, 0], '31 minutes' => [31, 2]]);
 
 it('sends a Check error of an hourly check only once the re-run 10 minutes later confirms it', function (RunResult $rerun, int $alerts): void {
-    $check = Check::factory()->create(['type' => CheckKey::Dns, 'interval_seconds' => 3600, 'failure_threshold' => 1]);
+    $check = hourlyDnsCheck();
     sensitivityRun($check, RunResult::Errored);
     expect(Incident::query()->where('check_id', $check->id)->sole()->resolved_at)->toBeNull()
         ->and($check->refresh()->next_run_at->toIso8601String())->toBe('2026-10-28T12:10:00+00:00');
@@ -81,12 +94,12 @@ it('sends a Check error of an hourly check only once the re-run 10 minutes later
 })->with(['one-off' => [RunResult::Succeeded, 0], 'confirmed' => [RunResult::Errored, 1]]);
 
 it('does not let a different problem confirm an alert and waits for the new problem to repeat', function (): void {
-    $check = Check::factory()->create(['type' => CheckKey::Dns, 'interval_seconds' => 3600, 'failure_threshold' => 1]);
+    $check = hourlyDnsCheck();
     sensitivityRun($check, RunResult::Errored);
     $this->travelTo($check->refresh()->next_run_at);
     // The re-run fails differently: the Check error is not confirmed, and the Failed result needs its own re-run.
     sensitivityRun($check, RunResult::Failed);
-    expect($check->refresh()->next_run_at->lessThanOrEqualTo(CarbonImmutable::parse('2026-10-28T12:20:00Z')))->toBeTrue();
+    expect($check->refresh()->next_run_at->toIso8601String())->toBe('2026-10-28T12:20:00+00:00');
     $this->travel(5)->minutes();
     dispatchNotifications();
     Http::assertNothingSent();
@@ -107,7 +120,7 @@ it('does not let a different problem confirm an alert and waits for the new prob
 it('keeps an unconfirmed Check error out of the digest until its confirming run repeats it', function (): void {
     $digest = notificationRoute(notificationWebhook(), [NotificationCategory::CheckError], NotificationMode::Digest);
     notificationSchedule($digest, ['digest_time' => '13:00']);
-    $check = Check::factory()->create(['type' => CheckKey::Dns, 'interval_seconds' => 3600, 'failure_threshold' => 1]);
+    $check = hourlyDnsCheck();
     sensitivityRun($check, RunResult::Errored);
     // The confirming run is late: the digest at 13:00 leaves the alert out and keeps it waiting.
     $this->travelTo(CarbonImmutable::parse('2026-10-28T13:00:00Z'));
