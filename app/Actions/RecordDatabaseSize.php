@@ -21,15 +21,20 @@ final readonly class RecordDatabaseSize
         if (DB::table('database_size_samples')->where('sampled_on', $at->toDateString())->exists()) {
             return null;
         }
-        $since = $at->subDay();
         $intake = [];
+        $intakeTables = [];
         foreach (DatabaseDataClass::cases() as $class) {
             $column = $class->intakeColumn();
             if ($column !== null) {
-                $intake[$class->value] = DB::table($column[0])->where($column[1], '>=', $since->format('Y-m-d H:i:s.uP'))
-                    ->where($column[1], '<', $at->format('Y-m-d H:i:s.uP'))->count();
+                $until = $column[2] === null ? $at : $at->startOf($column[2]);
+                $intake[$class->value] = DB::table($column[0])->where($column[1], '>=', $until->subDay()->format('Y-m-d H:i:s.uP'))
+                    ->where($column[1], '<', $until->format('Y-m-d H:i:s.uP'))->count();
+                $intakeTables[] = $column[0];
             }
         }
+        // Bytes per row divide by the planner's row estimate, which is unknown (-1) before a table's first ANALYZE and stale
+        // until autovacuum catches up. ANALYZE reads a bounded sample per table (and partition), so a daily run is cheap.
+        DB::statement('ANALYZE '.implode(', ', $intakeTables));
         /** @var int $totalBytes */
         $totalBytes = DB::scalar('SELECT pg_database_size(current_database())');
         DB::table('database_size_samples')->insertOrIgnore([

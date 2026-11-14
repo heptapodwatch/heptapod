@@ -6,6 +6,8 @@ use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\DiskSpaceReader;
 use Heptapod\Models\Check;
+use Heptapod\Models\CheckRunRollupDaily;
+use Heptapod\Models\CheckRunRollupHourly;
 use Heptapod\Models\Event;
 use Heptapod\Models\User;
 use Heptapod\SystemHealth\DiskReadException;
@@ -57,7 +59,22 @@ it('records one catalog sample per UTC day with the last 24 hours of intake and 
     // Monthly partitions count under check_runs, so the projection sees one table per data class.
     expect($tables)->toHaveKeys(['check_runs', 'events', 'database_size_samples'])
         ->and(array_filter(array_keys($tables), static fn (string $table): bool => str_starts_with($table, 'check_runs_')))->toBe([])
-        ->and($tables['events']['bytes'])->toBeGreaterThan(0);
+        ->and($tables['events']['bytes'])->toBeGreaterThan(0)
+        // The sampler analyzes intake tables, so the row estimate is the real count, not the unknown -1 of a fresh table.
+        ->and($tables['events']['rows'])->toBe(3);
+
+    // Just after midnight the rollup intake is yesterday's complete buckets, never the bucket still filling.
+    $checks = Check::factory()->count(3)->create();
+    foreach ($checks as $check) {
+        CheckRunRollupDaily::factory()->for($check)->create(['bucket_start' => '2026-10-06T00:00:00Z']);
+        CheckRunRollupHourly::factory()->for($check)->create(['bucket_start' => '2026-10-06T00:00:00Z']);
+    }
+    CheckRunRollupDaily::factory()->for($checks[0])->create(['bucket_start' => '2026-10-07T00:00:00Z']);
+    CheckRunRollupHourly::factory()->for($checks[0])->create(['bucket_start' => '2026-10-07T00:00:00Z']);
+    $this->travelTo(CarbonImmutable::parse('2026-10-07T00:00:05Z'));
+    $this->artisan('heptapod:record-database-size')->assertSuccessful();
+    expect(json_decode(DB::table('database_size_samples')->where('sampled_on', '2026-10-07')->value('intake'), true))
+        ->toMatchArray(['hourly_rollups' => 3, 'daily_rollups' => 3]);
 
     $this->actingAs($this->owner)->getJson('/settings/system/data')->assertOk()
         ->assertJsonPath('health.databaseGrowth.sampleCount', 2)->assertJsonPath('health.databaseGrowth.measured', false);
@@ -106,6 +123,10 @@ it('estimates unbounded growth from the current intake before a week of samples 
         ->and($growth['disk'])->toBe(['path' => '/fixture/postgres', 'failure' => null, 'freeBytes' => 950_000, 'fillsOn' => '2026-10-16', 'spareBytes' => null])
         ->and($growth['classes'][4])->toMatchArray(['dataClass' => 'history', 'retentionDays' => 365, 'retentionEnforced' => false,
             'retentionVariable' => 'MONITORING_HISTORY_RETENTION_DAYS']);
+
+    // Five days later the free space is read again; only growth after today counts against it, not the days since the sample.
+    $this->travelTo(CarbonImmutable::parse('2026-10-11T12:00:00Z'));
+    $this->getJson('/settings/system/data')->assertOk()->assertJsonPath('health.databaseGrowth.disk.fillsOn', '2026-10-21');
 });
 
 it('says plainly when the database disk cannot be read instead of guessing its free space', function (?string $path, ?DiskReadFailure $failure): void {
@@ -129,4 +150,10 @@ it('attributes only existing tables to the check results that addon retention pr
 
     // A renamed addon table would otherwise drop silently into Other and lose its retention plateau.
     expect($tables)->not->toBeEmpty()->each(fn ($table) => $table->toBeString()->and(Schema::hasTable($table->value))->toBeTrue());
+    // Rows that a pruned table's deletes cascade into leave with it, so their table belongs to the same class.
+    $cascading = array_column(DB::select(
+        "SELECT DISTINCT conrelid::regclass::text AS name FROM pg_constraint WHERE contype = 'f' AND confdeltype = 'c' AND confrelid::regclass::text = ANY(?::text[]) ORDER BY 1",
+        ['{'.implode(',', $tables).'}'],
+    ), 'name');
+    expect($cascading)->not->toBeEmpty()->and(array_diff($cascading, $tables))->toBe([]);
 });

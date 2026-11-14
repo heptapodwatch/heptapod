@@ -31,15 +31,20 @@ enum DatabaseDataClass: string
         };
     }
 
-    /** @return array{0: string, 1: string}|null The table and indexed timestamp whose 24-hour row count is the daily intake. */
+    /**
+     * The table and indexed timestamp whose rows in one day are the daily intake. Rollups name their bucket unit: their
+     * window ends at the current bucket's start, so it holds complete buckets only and never the one still filling.
+     *
+     * @return array{0: string, 1: string, 2: 'hour'|'day'|null}|null
+     */
     public function intakeColumn(): ?array
     {
         return match ($this) {
-            self::CheckResults => ['check_runs', 'ended_at'],
-            self::Attempts => ['check_run_attempts', 'requested_at'],
-            self::HourlyRollups => ['check_run_rollups_hourly', 'bucket_start'],
-            self::DailyRollups => ['check_run_rollups_daily', 'bucket_start'],
-            self::History => ['events', 'occurred_at'],
+            self::CheckResults => ['check_runs', 'ended_at', null],
+            self::Attempts => ['check_run_attempts', 'requested_at', null],
+            self::HourlyRollups => ['check_run_rollups_hourly', 'bucket_start', 'hour'],
+            self::DailyRollups => ['check_run_rollups_daily', 'bucket_start', 'day'],
+            self::History => ['events', 'occurred_at', null],
             self::Other => null,
         };
     }

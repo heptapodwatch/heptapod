@@ -270,7 +270,7 @@ export function DatabaseGrowth({ growth }: { growth: Growth | null }) {
             </Card>
             <div className="@container/table overflow-hidden rounded-lg border">
                 <ListHeader
-                    className="grid-cols-[minmax(0,1fr)_6rem_6rem_minmax(0,20rem)] sm:grid"
+                    className="@[48rem]/table:grid @[48rem]/table:grid-cols-[minmax(0,1fr)_6rem_6rem_minmax(0,20rem)]"
                     aria-hidden="true"
                 >
                     <span>{t('Data')}</span>
@@ -285,7 +285,7 @@ export function DatabaseGrowth({ growth }: { growth: Growth | null }) {
                             className={cn(
                                 listRowPadding,
                                 tableRowStyle,
-                                'grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-1 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_6rem_6rem_minmax(0,20rem)]',
+                                'grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-1 last:border-b-0 @[48rem]/table:grid-cols-[minmax(0,1fr)_6rem_6rem_minmax(0,20rem)]',
                             )}
                         >
                             <span className="min-w-0 text-cell">
@@ -295,13 +295,13 @@ export function DatabaseGrowth({ growth }: { growth: Growth | null }) {
                                 <span className="sr-only">{t('Now')}: </span>
                                 {format.bytes(item.bytes)}
                             </span>
-                            <span className="col-span-2 font-mono text-cell tabular-nums sm:col-span-1">
-                                <span className="font-sans text-xs text-muted-foreground sm:sr-only">
+                            <span className="col-span-2 font-mono text-cell tabular-nums @[48rem]/table:col-span-1">
+                                <span className="font-sans text-xs text-muted-foreground @[48rem]/table:sr-only">
                                     {t('In one year')}:{' '}
                                 </span>
                                 {format.bytes(item.in365DaysBytes)}
                             </span>
-                            <span className="col-span-2 min-w-0 text-xs text-muted-foreground sm:col-span-1">
+                            <span className="col-span-2 min-w-0 text-xs text-muted-foreground @[48rem]/table:col-span-1">
                                 <span className="sr-only">
                                     {t('Retention')}:{' '}
                                 </span>

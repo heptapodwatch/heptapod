@@ -80,7 +80,7 @@ final readonly class DatabaseGrowth
                 $class['class'], $class['bytes'], (int) round(self::size($class, self::HorizonDays)), $class['class']->configuredDays($policy),
                 $class['retentionDays'] !== null, $class['class']->retentionVariable(),
             ), $classes)),
-            $this->disk($latestOn, $breakpoints, $total),
+            $this->disk($latestOn, $total),
         );
     }
 
@@ -167,10 +167,11 @@ final readonly class DatabaseGrowth
     }
 
     /**
-     * @param  list<int>  $breakpoints
-     * @param  callable(int): int  $total
+     * Free space is read now, so only growth after today counts against it, whatever the age of the latest sample.
+     *
+     * @param  callable(int): int  $total  projected size n days after the latest sample
      */
-    private function disk(CarbonImmutable $latestOn, array $breakpoints, callable $total): DatabaseDiskData
+    private function disk(CarbonImmutable $latestOn, callable $total): DatabaseDiskData
     {
         $path = $this->disks->postgresDataPath();
         if ($path === null) {
@@ -181,17 +182,14 @@ final readonly class DatabaseGrowth
         } catch (RuntimeException $exception) {
             return new DatabaseDiskData($path, $exception instanceof DiskReadException ? $exception->reason : DiskReadFailure::ReadFailed, null, null, null);
         }
-        $now = $total(0);
-        for ($index = 1, $count = count($breakpoints); $index < $count; $index++) {
-            [$from, $to] = [$breakpoints[$index - 1], $breakpoints[$index]];
-            [$grownFrom, $grownTo] = [$total($from) - $now, $total($to) - $now];
-            if ($grownTo > $free) {
-                $day = $from + (int) ceil(($free - $grownFrom) / ($grownTo - $grownFrom) * ($to - $from));
-
+        $today = max(0, (int) $latestOn->diffInDays(CarbonImmutable::now('UTC')->startOfDay()));
+        $sizeToday = $total($today);
+        for ($day = $today + 1; $day <= $today + self::HorizonDays; $day++) {
+            if ($total($day) - $sizeToday > $free) {
                 return new DatabaseDiskData($path, null, $free, $latestOn->addDays($day)->toDateString(), null);
             }
         }
 
-        return new DatabaseDiskData($path, null, $free, null, $free - ($total(self::HorizonDays) - $now));
+        return new DatabaseDiskData($path, null, $free, null, $free - ($total($today + self::HorizonDays) - $sizeToday));
     }
 }

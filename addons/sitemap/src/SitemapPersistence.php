@@ -261,7 +261,7 @@ final readonly class SitemapPersistence implements FindingsExportProvider, Findi
 
     public function prunedTables(): array
     {
-        return ['sitemap_snapshots'];
+        return ['sitemap_snapshots', 'sitemap_findings'];
     }
 
     public function prune(CarbonImmutable $before): void

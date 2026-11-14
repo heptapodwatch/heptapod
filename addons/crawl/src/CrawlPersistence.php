@@ -525,7 +525,7 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
 
     public function prunedTables(): array
     {
-        return ['crawl_snapshots', 'crawl_collections'];
+        return ['crawl_snapshots', 'crawl_findings', 'mixed_content_findings', 'crawl_collections'];
     }
 
     public function prune(CarbonImmutable $before): void

@@ -16,9 +16,9 @@ final class DatabaseDiskData extends Data
         public readonly ?string $path,
         public readonly ?DiskReadFailure $failure,
         public readonly ?int $freeBytes,
-        /** The first day on which the projected growth exceeds the free space, within one year. */
+        /** The first day on which the growth projected from today exceeds today's free space, within one year from today. */
         public readonly ?string $fillsOn,
-        /** Free space left after one year of projected growth, when the disk does not fill. */
+        /** Free space left after one more year of projected growth, when the disk does not fill. */
         public readonly ?int $spareBytes,
     ) {}
 }
