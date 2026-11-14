@@ -29,7 +29,7 @@ final class DatabaseGrowthData extends Data
         /** Set only when every growing class is bounded by an enforced retention window. */
         public readonly ?int $plateauBytes,
         public readonly ?string $plateauOn,
-        /** Growth per 30 days once the bounded classes have levelled off; null when the database levels off. */
+        /** Growth per 30 days once the bounded classes have leveled off; null when the database levels off. */
         public readonly ?int $monthlyGrowthBytes,
         public readonly array $classes,
         public readonly DatabaseDiskData $disk,
