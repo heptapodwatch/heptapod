@@ -27,6 +27,8 @@ final class SystemHealthData extends Data
         public readonly array $browserServices,
         public readonly HealthMetric $reverb,
         public readonly int $databaseBytes,
+        /** Null until the first daily size sample exists. */
+        public readonly ?DatabaseGrowthData $databaseGrowth,
         public readonly int $failedJobsTotal,
         public readonly HealthMetric $recentFailedJobs,
         public readonly ?string $lastExternalPing,

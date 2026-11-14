@@ -28,14 +28,23 @@ final readonly class DiskSpaceIssues
             $workspace = dirname($workspace);
         }
         $paths[] = $workspace;
-        $postgres = config('heptapod.system_issues.postgres_data_path');
-        if (is_string($postgres) && $postgres !== '') {
+        $postgres = $this->postgresDataPath();
+        if ($postgres !== null) {
             $paths[] = $postgres;
-        } elseif (is_dir('/var/lib/postgresql/data')) {
-            $paths[] = '/var/lib/postgresql/data';
         }
 
         return array_values(array_unique($paths));
+    }
+
+    /** The configured PostgreSQL data path, else the default one when it is mounted into this container. */
+    public function postgresDataPath(): ?string
+    {
+        $postgres = config('heptapod.system_issues.postgres_data_path');
+        if (is_string($postgres) && $postgres !== '') {
+            return $postgres;
+        }
+
+        return is_dir('/var/lib/postgresql/data') ? '/var/lib/postgresql/data' : null;
     }
 
     /** @return array<string, int|string|null>|null */

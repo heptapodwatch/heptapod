@@ -18,7 +18,7 @@ use Laravel\Horizon\SupervisorOptions;
 
 final readonly class ReadSystemHealth
 {
-    public function __construct(private MasterSupervisorRepository $masters, private SupervisorRepository $supervisors, private CheckDataMaintenanceRecord $checkDataMaintenance, private MailTransportRecord $mailTransport) {}
+    public function __construct(private MasterSupervisorRepository $masters, private SupervisorRepository $supervisors, private CheckDataMaintenanceRecord $checkDataMaintenance, private MailTransportRecord $mailTransport, private DatabaseGrowth $databaseGrowth) {}
 
     public function __invoke(): SystemHealthData
     {
@@ -90,6 +90,7 @@ final readonly class ReadSystemHealth
             $browserServices,
             $this->reverbHealth(),
             $databaseBytes,
+            $this->databaseGrowth->read(),
             DB::table('failed_jobs')->count(),
             new HealthMetric($recentFailed > 0 ? HealthStatus::Warn : HealthStatus::Ok, $recentFailed),
             $this->cachedTimestamp(config()->string('heptapod.health.external_ping_cache_key')),

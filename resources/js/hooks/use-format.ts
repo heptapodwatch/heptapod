@@ -281,6 +281,20 @@ export function useFormat() {
               });
     return {
         number,
+        /** Binary megabytes, gigabytes or terabytes, whichever keeps the value at 1 or above; the unit label follows the locale. */
+        bytes: (value: number) => {
+            const unit =
+                value >= 1024 ** 4
+                    ? (['terabyte', 4] as const)
+                    : value >= 1024 ** 3
+                      ? (['gigabyte', 3] as const)
+                      : (['megabyte', 2] as const);
+            return number(value / 1024 ** unit[1], {
+                style: 'unit',
+                unit: unit[0],
+                maximumFractionDigits: 1,
+            });
+        },
         uptimePercentage: (percentage: number, precision = 2) =>
             formatUptimePercentage(percentage, i18n.language, precision),
         milliseconds,

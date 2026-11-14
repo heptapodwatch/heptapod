@@ -129,6 +129,11 @@ final readonly class LighthousePersistence implements RunPersistence
             in_array($evidence['device_emulation'] ?? null, ['mobile', 'desktop'], true) ? $evidence['device_emulation'] : null, $scores);
     }
 
+    public function prunedTables(): array
+    {
+        return ['lighthouse_reports'];
+    }
+
     public function prune(CarbonImmutable $before): void
     {
         // Baseline scores live separately and survive raw-report retention.

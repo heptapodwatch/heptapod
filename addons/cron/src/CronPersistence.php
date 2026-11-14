@@ -123,6 +123,11 @@ final readonly class CronPersistence implements RunPersistence
         });
     }
 
+    public function prunedTables(): array
+    {
+        return ['cron_run_tasks', 'cron_pings'];
+    }
+
     public function prune(CarbonImmutable $before): void
     {
         $baselines = DB::table('cron_run_tasks')->selectRaw('DISTINCT ON (cron_check_id) run_id')

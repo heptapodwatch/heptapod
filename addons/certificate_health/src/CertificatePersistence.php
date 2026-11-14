@@ -165,6 +165,11 @@ final class CertificatePersistence implements RunPersistence
         ]];
     }
 
+    public function prunedTables(): array
+    {
+        return ['certificate_health_snapshots'];
+    }
+
     public function prune(CarbonImmutable $before): void
     {
         // Preserve the certificate-bearing baseline even after errors or a long pause.

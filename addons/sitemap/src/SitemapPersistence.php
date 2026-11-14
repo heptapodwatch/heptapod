@@ -259,6 +259,11 @@ final readonly class SitemapPersistence implements FindingsExportProvider, Findi
         })();
     }
 
+    public function prunedTables(): array
+    {
+        return ['sitemap_snapshots', 'sitemap_findings'];
+    }
+
     public function prune(CarbonImmutable $before): void
     {
         $latest = DB::table('sitemap_snapshots')->selectRaw('DISTINCT ON (check_id) id')
