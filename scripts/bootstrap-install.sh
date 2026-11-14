@@ -89,6 +89,15 @@ HELP
         HEPTAPOD_LIFECYCLE_LOCK_FD=9 exec "$dir/scripts/install.sh" --revision "$(cat "$dir/REVISION")" "${install_args[@]}" < /dev/null
     fi
 
+    # The release decides whether this host is supported, so resolve it before --install-docker changes the host.
+    if [ -z "$version" ]; then
+        command -v curl >/dev/null 2>&1 || fail 'curl is required to resolve the latest release. Install it with: apt-get install -y ca-certificates curl'
+        version=$(curl -fsSL "$release_api/releases/latest" | grep -o '"tag_name": *"[^"]*"' | head -n 1 | sed 's/.*"\([^"]*\)"$/\1/') ||
+            fail "Cannot read the latest release from $release_api/releases/latest; pass --version."
+        [[ "$version" =~ $tag_pattern ]] || fail "The latest release has an unexpected tag '$version' (expected vX.Y.Z); pass --version."
+        require_release_images "$architecture" "$version"
+    fi
+
     local missing='' tool
     for tool in curl tar gzip sha256sum flock openssl jq; do
         command -v "$tool" >/dev/null 2>&1 || missing="$missing $tool"
@@ -107,12 +116,6 @@ or follow https://docs.docker.com/engine/install/$os_id/ and run this installer 
     fi
     [ -z "$missing" ] || fail "Missing required tools:$missing. Install them with: apt-get install -y ca-certificates curl tar gzip coreutils util-linux openssl jq"
 
-    if [ -z "$version" ]; then
-        version=$(curl -fsSL "$release_api/releases/latest" | grep -o '"tag_name": *"[^"]*"' | head -n 1 | sed 's/.*"\([^"]*\)"$/\1/') ||
-            fail "Cannot read the latest release from $release_api/releases/latest; pass --version."
-        [[ "$version" =~ $tag_pattern ]] || fail "The latest release has an unexpected tag '$version' (expected vX.Y.Z); pass --version."
-        require_release_images "$architecture" "$version"
-    fi
     echo "Installing Heptapod $version into $dir"
 
     # Hold the destination's lifecycle lock from publication through the installer, which takes it over.

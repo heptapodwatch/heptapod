@@ -38,13 +38,19 @@ cat > "$work/bin/mv" <<'SH'
 if [ -n "${STUB_KILL_MV_TO:-}" ] && [ "$1" = -T ] && [ "$3" = "$STUB_KILL_MV_TO" ]; then kill -KILL 0; fi
 exec "$REAL_MV" "$@"
 SH
-chmod +x "$work/bin/id" "$work/bin/uname" "$work/bin/docker" "$work/bin/flock" "$work/bin/stat" "$work/bin/mv"
+# --install-docker must never reach apt-get in these tests; a call is recorded and fails.
+cat > "$work/bin/apt-get" <<'SH'
+#!/bin/sh
+echo "apt-get $*" >> "$APT_LOG"
+exit 1
+SH
+chmod +x "$work/bin/apt-get" "$work/bin/id" "$work/bin/uname" "$work/bin/docker" "$work/bin/flock" "$work/bin/stat" "$work/bin/mv"
 printf 'ID=ubuntu\nVERSION_CODENAME=noble\n' > "$work/ubuntu"
 printf 'ID=fedora\n' > "$work/fedora"
 REAL_FLOCK=$(command -v flock)
 REAL_STAT=$(command -v stat)
 REAL_MV=$(command -v mv)
-export REAL_FLOCK REAL_STAT REAL_MV PATH="$work/bin:$PATH" HEPTAPOD_OS_RELEASE="$work/ubuntu" INSTALL_LOG="$work/install.log"
+export APT_LOG="$work/apt-get.log" REAL_FLOCK REAL_STAT REAL_MV PATH="$work/bin:$PATH" HEPTAPOD_OS_RELEASE="$work/ubuntu" INSTALL_LOG="$work/install.log"
 export HEPTAPOD_RELEASE_API="file://$work/api" HEPTAPOD_RELEASE_DOWNLOAD="file://$work/release"
 
 # A fake bundle in the release format with the real lifecycle and publication helpers. Its installer takes the
@@ -147,6 +153,8 @@ STUB_ARCH=armv7l refuses 'Unsupported architecture armv7l: Heptapod publishes im
 STUB_ARCH=aarch64 refuses 'Heptapod v0.4.0 has no arm64 images; they exist from v0.4.1 on. Pass --version with a newer release' --domain a.example.com --version v0.4.0 --dir "$work/a"
 printf '{"tag_name": "v0.4.0"}' > "$work/api/releases/latest"
 STUB_ARCH=aarch64 refuses 'Heptapod v0.4.0 has no arm64 images' --domain a.example.com --dir "$work/a"
+STUB_NO_DOCKER=true STUB_ARCH=aarch64 refuses 'Heptapod v0.4.0 has no arm64 images' --install-docker --domain a.example.com --dir "$work/a"
+[ ! -e "$work/apt-get.log" ]
 printf '{\n  "url": "fixture",\n  "tag_name": "v2.0.0",\n  "name": "Heptapod v2.0.0"\n}\n' > "$work/api/releases/latest"
 [ ! -e "$work/a" ]
 [ ! -e "$work/install.log" ]

@@ -37,9 +37,13 @@ jobs:
             exit 1
           fi
       # The pull above proves only the runner's architecture. The hosted installer accepts arm64 hosts for every
-      # release from v0.4.1 on, so a release must publish both.
+      # release from v0.4.1 on, so those releases must publish both; older releases are amd64 only.
       - name: Require amd64 and arm64 images of the tag commit
         run: |
+          if [ "$(printf '%s\n' v0.4.1 "$TAG" | sort -V | head -n 1)" != v0.4.1 ]; then
+            echo "::notice::$TAG predates arm64 images; only the amd64 images were checked."
+            exit 0
+          fi
           for image in app lighthouse; do
             reference="$(bash scripts/image-reference.sh "$image"):$(git rev-parse HEAD)"
             if ! docker manifest inspect "$reference" | jq -e '[.manifests[]?.platform | select(.os == "linux") | .architecture] | index("amd64") != null and index("arm64") != null' > /dev/null; then
