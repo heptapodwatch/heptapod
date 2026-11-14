@@ -200,8 +200,8 @@ require_release_images() {
     local major minor patch
     [ "$1" = aarch64 ] || return 0
     IFS=. read -r major minor patch <<< "${2#v}"
-    (( 10#$major > 0 || 10#$minor > 4 || (10#$minor == 4 && 10#$patch >= 1) )) ||
-        fail "Heptapod $2 has no arm64 images; they exist from v0.4.1 on. Pass --version with a newer release, or build from source as described in docs/deploy/operations.md."
+    (( 10#$major > 0 || 10#$minor >= 5 )) ||
+        fail "Heptapod $2 has no arm64 images; they exist from v0.5.0 on. Pass --version with a newer release, or build from source as described in docs/deploy/operations.md."
 }
 
 fail() {
