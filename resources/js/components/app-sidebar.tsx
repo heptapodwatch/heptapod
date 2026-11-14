@@ -61,7 +61,8 @@ export function AppSidebar({
         <Sidebar
             collapsible="icon"
             variant="sidebar"
-            className="border-r border-sidebar-border"
+            // left snaps with the centred wrapper; only width animates, in step with the gap. The ::before fill carries the sidebar surface to the left viewport edge.
+            className="left-[max(0px,calc((100%-var(--shell-width))/2))] border-r border-sidebar-border transition-[width] before:absolute before:inset-y-0 before:right-full before:w-screen before:bg-sidebar"
         >
             <SidebarHeader>
                 <SidebarMenu>

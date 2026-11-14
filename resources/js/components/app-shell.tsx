@@ -17,5 +17,13 @@ export function AppShell({ children, variant = 'sidebar' }: Props) {
         );
     }
 
-    return <SidebarProvider defaultOpen={isOpen}>{children}</SidebarProvider>;
+    // Sidebar + the 80rem PageContainer form one block, centred once the viewport is wider; AppSidebar offsets its fixed column by the same width.
+    return (
+        <SidebarProvider
+            defaultOpen={isOpen}
+            className="mx-auto max-w-(--shell-width) [--shell-width:calc(var(--sidebar-width)+80rem)] has-data-[collapsible=icon]:[--shell-width:calc(var(--sidebar-width-icon)+80rem)]"
+        >
+            {children}
+        </SidebarProvider>
+    );
 }
