@@ -59,7 +59,9 @@ Result: after the first run, the **Application health** tab lists the reported c
 An open advisory makes the **Security advisories** component **Failed**. The check then follows the usual [failure alerts](../notifications.md).
 
 - The component lists each advisory under its package: title, CVE when known, severity when known, affected versions, report date and a link to the advisory.
-- A run that reports no advisories clears the list.
+- **Sites affected** opens the **Sites** list filtered to that package or advisory.
+- On the **Sites** list, the advisories filter set to **With advisories** shows every site with at least one open advisory.
+- A run that reports no advisories clears the list and removes the site from the filter.
 - A **Check error** or a skipped advisories result keeps the last reported advisories.
 
 ## Results

@@ -409,11 +409,15 @@
     "Security advisories": "Sicherheitshinweise",
     "{{count}} open advisories_one": "{{formattedCount}} offener Sicherheitshinweis",
     "{{count}} open advisories_other": "{{formattedCount}} offene Sicherheitshinweise",
+    "Sites affected": "Betroffene Websites",
+    "Sites affected by {{name}}": "Von {{name}} betroffene Websites",
     "Severity: {{severity}}": "Schweregrad: {{severity}}",
     "Low": "Niedrig",
     "Medium": "Mittel",
     "High": "Hoch",
     "Affected versions: {{versions}}": "Betroffene Versionen: {{versions}}",
     "Reported {{date}}": "Gemeldet am {{date}}",
-    "Showing first 100 advisories": "Erste 100 Sicherheitshinweise angezeigt"
+    "Showing first 100 advisories": "Erste 100 Sicherheitshinweise angezeigt",
+    "With advisories": "Mit Hinweisen",
+    "All advisories": "Alle Hinweise"
 }

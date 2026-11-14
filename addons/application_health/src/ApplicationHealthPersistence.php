@@ -8,11 +8,20 @@ use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
+use Heptapod\Contracts\SecurityAdvisoryIndex;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
-final class ApplicationHealthPersistence implements RunPersistence
+final class ApplicationHealthPersistence implements RunPersistence, SecurityAdvisoryIndex
 {
+    public function affectedChecks(?string $package = null, ?string $advisoryId = null): Builder
+    {
+        return DB::table('application_health_advisories')->select('check_id')
+            ->when($package !== null, static fn (Builder $query): Builder => $query->where('package', $package))
+            ->when($advisoryId !== null, static fn (Builder $query): Builder => $query->where('advisory_id', $advisoryId));
+    }
+
     /**
      * Identities are immediate; snapshots become baselines only after recorder acceptance.
      *

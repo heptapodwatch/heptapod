@@ -3,8 +3,12 @@
 declare(strict_types=1);
 
 use Heptapod\Contracts\CheckResult;
+use Heptapod\Contracts\Http\FetchFailure;
+use Heptapod\Contracts\Http\FetchFailureKind;
 use Heptapod\Contracts\Http\FetchResult;
+use Heptapod\Enums\ClientScope;
 use Heptapod\Models\Check;
+use Heptapod\Models\Client;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -46,6 +50,22 @@ function runAdvisories(Check $check, array|FetchResult $payload): void
     runApplicationHealth($check);
 }
 
+/** @return list<int> */
+function advisorySiteIds(string $query): array
+{
+    $ids = [];
+    test()->get('/sites?'.$query)->assertOk()->assertInertia(function (Assert $page) use (&$ids): Assert {
+        return $page->loadDeferredProps(['list'], function (Assert $list) use (&$ids): Assert {
+            $ids = array_column($list->toArray()['props']['sites'], 'id');
+
+            return $list;
+        });
+    });
+    sort($ids);
+
+    return $ids;
+}
+
 it('shows the advisories of a failed spatie security advisories result in the check detail', function (): void {
     $check = advisoriesSiteCheck(Site::factory()->create());
     runAdvisories($check, spatieAdvisoriesPayload());
@@ -71,4 +91,44 @@ it('shows the advisories of a failed spatie security advisories result in the ch
             ->where('history.components.1.name', 'Database')
             ->where('history.components.1.advisories', null)
             ->where('history.more_advisories', false));
+});
+
+it('filters the Sites list by open advisory, package and advisory ID within the viewer scope', function (): void {
+    [$agency, $client] = Client::factory()->count(2)->create();
+    $all = advisoriesSiteCheck(Site::factory()->for($agency)->create());
+    $mailer = advisoriesSiteCheck(Site::factory()->for($client)->create());
+    $healthy = advisoriesSiteCheck(Site::factory()->for($client)->create());
+    runAdvisories($all, spatieAdvisoriesPayload());
+    runAdvisories($mailer, spatieAdvisoriesPayload(['phpmailer/phpmailer']));
+    runAdvisories($healthy, spatieAdvisoriesPayload(status: 'ok'));
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $member = User::factory()->create(['client_scope' => ClientScope::Restricted]);
+    $member->assignRole('Member');
+    $member->clients()->attach($client);
+    $phpmailerCve = spatieAdvisoriesPayload()['checkResults'][0]['meta']['phpmailer/phpmailer'][0]['cve'];
+
+    $this->actingAs($owner);
+    expect(advisorySiteIds('filter[advisories]=1'))->toBe([$all->site_id, $mailer->site_id])
+        ->and(advisorySiteIds('filter[package]=dompdf/dompdf'))->toBe([$all->site_id])
+        ->and(advisorySiteIds('filter[advisory]='.$phpmailerCve))->toBe([$all->site_id, $mailer->site_id])
+        ->and(advisorySiteIds('filter[advisory]='.urlencode('https://github.com/advisories/GHSA-97m3-52wr-xvv2')))->toBe([$all->site_id])
+        ->and(advisorySiteIds('filter[package]=vendor/unknown'))->toBe([]);
+    $this->get('/sites?filter[package]=dompdf/dompdf')->assertInertia(fn (Assert $page): Assert => $page
+        ->where('filters.package', 'dompdf/dompdf')->where('pagination.total', 1));
+
+    $this->actingAs($member);
+    expect(advisorySiteIds('filter[advisories]=1'))->toBe([$mailer->site_id])
+        ->and(advisorySiteIds('filter[package]=dompdf/dompdf'))->toBe([]);
+    $this->get('/sites?filter[advisory]='.$phpmailerCve)->assertInertia(fn (Assert $page): Assert => $page->where('pagination.total', 1));
+
+    // A Check error and a skipped advisories result verify nothing, so the advisories stay open; an ok result clears them.
+    runAdvisories($mailer, new FetchResult(failure: new FetchFailure(FetchFailureKind::Connect)));
+    runAdvisories($all, spatieAdvisoriesPayload(status: 'skipped'));
+    $this->actingAs($owner);
+    expect(advisorySiteIds('filter[advisories]=1'))->toBe([$all->site_id, $mailer->site_id]);
+    runAdvisories($all, spatieAdvisoriesPayload(status: 'ok'));
+    expect(advisorySiteIds('filter[advisories]=1'))->toBe([$mailer->site_id]);
+    $mailer->update(['enabled' => false]);
+    expect(advisorySiteIds('filter[advisories]=1'))->toBe([]);
 });

@@ -88,15 +88,17 @@ export function ApplicationHealthDetail({
                                                 : component.short_summary ||
                                                   component.status}
                                         </p>
-                                        {component.advisories?.length ? (
+                                    </div>
+                                    {component.advisories?.length ? (
+                                        <div className="basis-full">
                                             <SecurityAdvisoryList
                                                 advisories={
                                                     component.advisories
                                                 }
                                                 more={history.more_advisories}
                                             />
-                                        ) : null}
-                                    </div>
+                                        </div>
+                                    ) : null}
                                 </li>
                             ))}
                         </ul>

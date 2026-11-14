@@ -1913,6 +1913,9 @@ readonly tag: string | null,
 readonly sort: string,
 readonly check: Heptapod.Contracts.CheckKey | null,
 readonly attention: boolean,
+readonly advisories: boolean,
+readonly package: string | null,
+readonly advisory: string | null,
 };
 export type SitesIndexPageData = {
 readonly sites?: Heptapod.Data.Ui.SiteRowData[],

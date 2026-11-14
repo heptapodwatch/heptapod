@@ -1115,6 +1115,9 @@ export function sitesPageFixture(
             tag: null,
             check: null,
             attention: false,
+            advisories: false,
+            package: null,
+            advisory: null,
             sort: 'status',
         },
         tiles: {

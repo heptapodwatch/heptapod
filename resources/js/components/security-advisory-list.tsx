@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { TextLink } from '@/components/text-link';
 import { useFormat } from '@/hooks/use-format';
+import { index as sitesIndex } from '@/routes/sites';
 
 type Advisory = Heptapod.Addons.ApplicationHealth.SecurityAdvisoryData;
 
@@ -23,12 +24,25 @@ export function SecurityAdvisoryList({
     const format = useFormat();
     const packages = Map.groupBy(advisories, (advisory) => advisory.package);
     return (
-        <div className="space-y-4 pt-2">
+        <div className="space-y-4">
             {[...packages].map(([name, items]) => (
                 <section key={name} aria-label={name} className="space-y-2">
-                    <h4 className="font-mono text-sm font-medium break-all">
-                        {name}
-                    </h4>
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                        <p className="font-mono text-sm font-medium break-all">
+                            {name}
+                        </p>
+                        <TextLink
+                            variant="secondary"
+                            href={sitesIndex.url({
+                                query: { 'filter[package]': name },
+                            })}
+                            aria-label={t('Sites affected by {{name}}', {
+                                name,
+                            })}
+                        >
+                            {t('Sites affected')}
+                        </TextLink>
+                    </div>
                     <ul className="space-y-3">
                         {items.map((advisory, index) => (
                             <li
@@ -66,6 +80,26 @@ export function SecurityAdvisoryList({
                                     ]
                                         .filter(Boolean)
                                         .join(' · ')}
+                                    {' · '}
+                                    <TextLink
+                                        variant="secondary"
+                                        href={sitesIndex.url({
+                                            query: {
+                                                'filter[advisory]':
+                                                    advisory.advisory_id,
+                                            },
+                                        })}
+                                        aria-label={t(
+                                            'Sites affected by {{name}}',
+                                            {
+                                                name:
+                                                    advisory.cve ??
+                                                    advisory.title,
+                                            },
+                                        )}
+                                    >
+                                        {t('Sites affected')}
+                                    </TextLink>
                                 </p>
                             </li>
                         ))}
