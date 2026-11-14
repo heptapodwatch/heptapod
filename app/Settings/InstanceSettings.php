@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Settings;
 
 use Heptapod\Contracts\Mail\MailDesign;
+use Heptapod\Enums\AlertReminders;
 use Spatie\LaravelSettings\Settings;
 
 final class InstanceSettings extends Settings
@@ -20,6 +21,10 @@ final class InstanceSettings extends Settings
     public int $alert_after_minutes;
 
     public int $alert_recovery_checks;
+
+    public bool $alert_confirms_other_checks;
+
+    public AlertReminders $alert_reminders;
 
     /** When this instance started classifying ReclassifiedCheckError outcomes as Check errors. */
     public string $check_error_reclassified_at;

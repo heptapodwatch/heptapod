@@ -39,7 +39,7 @@ it('inherits uptime alert timing when the settings form submits a blank threshol
     $owner->assignRole('Owner');
     $check = Check::factory()->create(['type' => CheckKey::Uptime]);
     $site = $check->site;
-    $site->update(['alert_after_minutes' => 5, 'alert_recovery_checks' => 3]);
+    $site->update(['alert_after_minutes' => 5, 'alert_recovery_checks' => 3, 'alert_confirms_other_checks' => true, 'alert_reminders' => 'standard']);
     $url = '/sites/'.$site->id.'/checks/'.$check->id;
 
     $this->actingAs($owner)->from($url)->patch($url, ['failed_notification_threshold' => ''])

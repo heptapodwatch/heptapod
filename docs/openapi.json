@@ -2139,6 +2139,9 @@
                                 "minimum": 1,
                                 "type": "integer"
                             },
+                            "confirms_other_checks": {
+                                "type": "boolean"
+                            },
                             "inherited": {
                                 "type": "boolean"
                             },
@@ -2159,6 +2162,13 @@
                                 "maximum": 10,
                                 "minimum": 1,
                                 "type": "integer"
+                            },
+                            "reminders": {
+                                "enum": [
+                                    "standard",
+                                    "daily"
+                                ],
+                                "type": "string"
                             }
                         },
                         "readOnly": true,
@@ -2166,6 +2176,8 @@
                             "preset",
                             "alert_after_minutes",
                             "recovery_checks",
+                            "confirms_other_checks",
+                            "reminders",
                             "inherited"
                         ],
                         "type": "object"
@@ -3709,7 +3721,7 @@
                                     "performance_unavailable": null,
                                     "settings": {
                                         "uptime_check_settings": {
-                                            "failed_notification_threshold": 10,
+                                            "failed_notification_threshold": 30,
                                             "frequency_unit": "minute",
                                             "frequency_value": 1
                                         }
@@ -7610,10 +7622,12 @@
                                     "data": [
                                         {
                                             "alert_sensitivity": {
-                                                "alert_after_minutes": 10,
+                                                "alert_after_minutes": 30,
+                                                "confirms_other_checks": true,
                                                 "inherited": true,
                                                 "preset": "relaxed",
-                                                "recovery_checks": 3
+                                                "recovery_checks": 3,
+                                                "reminders": "daily"
                                             },
                                             "badge_id": "00000000-0000-4000-8000-000000000123",
                                             "broken_links_check_settings": {
@@ -7649,7 +7663,7 @@
                                                     "performance_unavailable": null,
                                                     "settings": {
                                                         "uptime_check_settings": {
-                                                            "failed_notification_threshold": 10,
+                                                            "failed_notification_threshold": 30,
                                                             "frequency_unit": "minute",
                                                             "frequency_value": 1
                                                         }
@@ -7770,7 +7784,7 @@
                                             "type": "http",
                                             "updated_at": "2026-10-01 07:25:00",
                                             "uptime_check_settings": {
-                                                "failed_notification_threshold": 10,
+                                                "failed_notification_threshold": 30,
                                                 "frequency_unit": "minute",
                                                 "frequency_value": 1
                                             },
@@ -8906,10 +8920,12 @@
                             "application/json": {
                                 "example": {
                                     "alert_sensitivity": {
-                                        "alert_after_minutes": 10,
+                                        "alert_after_minutes": 30,
+                                        "confirms_other_checks": true,
                                         "inherited": true,
                                         "preset": "relaxed",
-                                        "recovery_checks": 3
+                                        "recovery_checks": 3,
+                                        "reminders": "daily"
                                     },
                                     "badge_id": "00000000-0000-4000-8000-000000000123",
                                     "broken_links_check_settings": {
@@ -8945,7 +8961,7 @@
                                             "performance_unavailable": null,
                                             "settings": {
                                                 "uptime_check_settings": {
-                                                    "failed_notification_threshold": 10,
+                                                    "failed_notification_threshold": 30,
                                                     "frequency_unit": "minute",
                                                     "frequency_value": 1
                                                 }
@@ -9066,7 +9082,7 @@
                                     "type": "http",
                                     "updated_at": "2026-10-01 07:25:00",
                                     "uptime_check_settings": {
-                                        "failed_notification_threshold": 10,
+                                        "failed_notification_threshold": 30,
                                         "frequency_unit": "minute",
                                         "frequency_value": 1
                                     },
@@ -9190,10 +9206,12 @@
                             "application/json": {
                                 "example": {
                                     "alert_sensitivity": {
-                                        "alert_after_minutes": 10,
+                                        "alert_after_minutes": 30,
+                                        "confirms_other_checks": true,
                                         "inherited": true,
                                         "preset": "relaxed",
-                                        "recovery_checks": 3
+                                        "recovery_checks": 3,
+                                        "reminders": "daily"
                                     },
                                     "badge_id": "00000000-0000-4000-8000-000000000123",
                                     "broken_links_check_settings": {
@@ -9229,7 +9247,7 @@
                                             "performance_unavailable": null,
                                             "settings": {
                                                 "uptime_check_settings": {
-                                                    "failed_notification_threshold": 10,
+                                                    "failed_notification_threshold": 30,
                                                     "frequency_unit": "minute",
                                                     "frequency_value": 1
                                                 }
@@ -9350,7 +9368,7 @@
                                     "type": "http",
                                     "updated_at": "2026-10-01 07:25:00",
                                     "uptime_check_settings": {
-                                        "failed_notification_threshold": 10,
+                                        "failed_notification_threshold": 30,
                                         "frequency_unit": "minute",
                                         "frequency_value": 1
                                     },
@@ -9565,10 +9583,12 @@
                             "application/json": {
                                 "example": {
                                     "alert_sensitivity": {
-                                        "alert_after_minutes": 10,
+                                        "alert_after_minutes": 30,
+                                        "confirms_other_checks": true,
                                         "inherited": true,
                                         "preset": "relaxed",
-                                        "recovery_checks": 3
+                                        "recovery_checks": 3,
+                                        "reminders": "daily"
                                     },
                                     "badge_id": "00000000-0000-4000-8000-000000000123",
                                     "broken_links_check_settings": {
@@ -9604,7 +9624,7 @@
                                             "performance_unavailable": null,
                                             "settings": {
                                                 "uptime_check_settings": {
-                                                    "failed_notification_threshold": 10,
+                                                    "failed_notification_threshold": 30,
                                                     "frequency_unit": "minute",
                                                     "frequency_value": 1
                                                 }
@@ -9725,7 +9745,7 @@
                                     "type": "http",
                                     "updated_at": "2026-10-01 07:25:00",
                                     "uptime_check_settings": {
-                                        "failed_notification_threshold": 10,
+                                        "failed_notification_threshold": 30,
                                         "frequency_unit": "minute",
                                         "frequency_value": 1
                                     },
@@ -10818,10 +10838,12 @@
                             "application/json": {
                                 "example": {
                                     "alert_sensitivity": {
-                                        "alert_after_minutes": 10,
+                                        "alert_after_minutes": 30,
+                                        "confirms_other_checks": true,
                                         "inherited": true,
                                         "preset": "relaxed",
-                                        "recovery_checks": 3
+                                        "recovery_checks": 3,
+                                        "reminders": "daily"
                                     },
                                     "badge_id": "00000000-0000-4000-8000-000000000123",
                                     "broken_links_check_settings": {
@@ -10857,7 +10879,7 @@
                                             "performance_unavailable": null,
                                             "settings": {
                                                 "uptime_check_settings": {
-                                                    "failed_notification_threshold": 10,
+                                                    "failed_notification_threshold": 30,
                                                     "frequency_unit": "minute",
                                                     "frequency_value": 1
                                                 }
@@ -10979,7 +11001,7 @@
                                     "type": "http",
                                     "updated_at": "2026-10-01 07:25:00",
                                     "uptime_check_settings": {
-                                        "failed_notification_threshold": 10,
+                                        "failed_notification_threshold": 30,
                                         "frequency_unit": "minute",
                                         "frequency_value": 1
                                     },

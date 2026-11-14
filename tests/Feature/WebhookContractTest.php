@@ -44,6 +44,10 @@ beforeEach(function (): void {
     $settings->save();
     Http::preventStrayRequests();
     Http::fake(['https://receiver.example.test/*' => Http::response('', 200)]);
+    $alertSettings = app(InstanceSettings::class);
+    // The webhook contract, not alert sensitivity: the former team behaviour.
+    $alertSettings->alert_confirms_other_checks = false;
+    $alertSettings->save();
 });
 
 function webhookContractChannel(string $locale): NotificationDestination

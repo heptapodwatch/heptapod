@@ -20,11 +20,11 @@ use Heptapod\Data\Ui\IncidentsIndexData;
 use Heptapod\Data\Ui\IncidentSummaryData;
 use Heptapod\Data\Ui\IncidentTimelineEntryData;
 use Heptapod\Data\Ui\PaginationData;
-use Heptapod\Enums\AlertSensitivity;
 use Heptapod\Enums\DeliveryGroupOutcome;
 use Heptapod\Enums\DeliveryOutcome;
 use Heptapod\Enums\IncidentCause;
 use Heptapod\Events\EventPresenter;
+use Heptapod\Events\Notifications\AlertConfirmation;
 use Heptapod\Events\Notifications\NotificationEventTypes;
 use Heptapod\Events\Notifications\UptimeAlertEpisode;
 use Heptapod\Incidents\UptimeDependencies;
@@ -558,6 +558,7 @@ final readonly class IncidentsReader
                 UptimeDependencies::SuppressionReason => __('notifications.suppression.uptime_dependency'),
                 'destination_disabled' => __('Paused'),
                 'recovered_within_alert_delay' => __('notifications.suppression.recovered_within_alert_delay'),
+                AlertConfirmation::SuppressionReason => __('notifications.suppression.recovered_before_confirmation'),
                 'episode_already_alerted' => __('notifications.suppression.episode_already_alerted'),
                 'episode_continued' => __('notifications.suppression.episode_continued'),
                 'superseded_by_maintenance_catch_up' => __('notifications.suppression.superseded_by_maintenance_catch_up'),
@@ -573,11 +574,9 @@ final readonly class IncidentsReader
             } elseif (! $delivery->suppressed && $delivery->state === DeliveryState::Pending
                 && UptimeAlertEpisode::isOpeningEvent($event)
                 && $event->incident !== null && UptimeAlertEpisode::appliesTo($event->incident) && $delivery->next_attempt_at->isFuture()) {
-                $delay = UptimeAlertEpisode::timing($event->incident);
                 $diagnosis = __('notifications.alert_delay_due', [
                     'time' => $delivery->next_attempt_at->setTimezone($user->timezone ?? app(InstanceSettings::class)->timezone)->format('Y-m-d H:i T'),
-                    'preset' => $delay->preset instanceof AlertSensitivity ? __('alert_sensitivity.preset.'.$delay->preset->value.'.label') : __('alert_sensitivity.custom'),
-                    'minutes' => $delay->alertAfterMinutes,
+                    'minutes' => UptimeAlertEpisode::alertAfterMinutes($event->incident),
                 ]);
             }
             if ($diagnosis !== null && ! is_string($diagnosis)) {

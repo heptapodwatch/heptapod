@@ -51,6 +51,10 @@ beforeEach(function (): void {
     $settings->save();
     Storage::fake('local');
     Queue::fake();
+    $alertSettings = app(InstanceSettings::class);
+    // Mail design, not alert sensitivity: the former team behaviour.
+    $alertSettings->alert_confirms_other_checks = false;
+    $alertSettings->save();
 });
 
 function mailDesignTransport(): ArrayTransport

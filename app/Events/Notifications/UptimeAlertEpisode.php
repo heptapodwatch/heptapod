@@ -34,13 +34,15 @@ final class UptimeAlertEpisode
         return $incident->alert_episode_started_at ?? throw new \LogicException('An alert episode requires its start time.');
     }
 
-    public static function timing(Incident $incident): AlertDelay
+    /** The episode keeps the uptime timing it opened with. */
+    public static function alertAfterMinutes(Incident $incident): int
     {
-        return new AlertDelay(
-            $incident->alert_after_minutes ?? throw new \LogicException('An alert episode requires its minute snapshot.'),
-            $incident->alert_recovery_checks ?? throw new \LogicException('An alert episode requires its recovery snapshot.'),
-            false,
-        );
+        return $incident->alert_after_minutes ?? throw new \LogicException('An alert episode requires its minute snapshot.');
+    }
+
+    public static function recoveryChecks(Incident $incident): int
+    {
+        return $incident->alert_recovery_checks ?? throw new \LogicException('An alert episode requires its recovery snapshot.');
     }
 
     /** @return array{alert_episode_started_at: CarbonImmutable, alert_after_minutes: int, alert_recovery_checks: int}|array{} */
@@ -53,16 +55,18 @@ final class UptimeAlertEpisode
         $previousQuery->getQuery()->orderByDesc('opened_at')->orderByDesc('id');
         $previous = $previousQuery->first();
         $started = $firstFailure;
-        $timing = AlertDelay::for($check->site ?? throw new \LogicException('An uptime check requires its site.'), app(InstanceSettings::class));
+        $sensitivity = EffectiveAlertSensitivity::for($check->site ?? throw new \LogicException('An uptime check requires its site.'), app(InstanceSettings::class));
+        $minutes = $sensitivity->alertAfterMinutes;
+        $checks = $sensitivity->recoveryChecks;
         if ($previous instanceof Incident && self::appliesTo($previous) && $previous->resolved_at !== null
             && ! Event::query()->where('incident_id', $previous->id)->where('type', 'incident.resolved')->where('suppression_reason', 'monitoring_stopped')->getQuery()->exists()
             && ! self::recoveryConfirmed($previous, $firstFailure->subMicrosecond())) {
-            $timing = self::timing($previous);
+            $minutes = self::alertAfterMinutes($previous);
+            $checks = self::recoveryChecks($previous);
             $started = self::start($previous);
         }
 
-        return ['alert_episode_started_at' => $started,
-            'alert_after_minutes' => $timing->alertAfterMinutes, 'alert_recovery_checks' => $timing->recoveryChecks];
+        return ['alert_episode_started_at' => $started, 'alert_after_minutes' => $minutes, 'alert_recovery_checks' => $checks];
     }
 
     /** A muted cause change does not replace the episode's eligible opening alert. */
@@ -116,7 +120,7 @@ final class UptimeAlertEpisode
 
     public static function alertDue(Incident $incident): CarbonImmutable
     {
-        return self::start($incident)->addMinutes(self::timing($incident)->alertAfterMinutes - 1);
+        return self::start($incident)->addMinutes(self::alertAfterMinutes($incident) - 1);
     }
 
     public static function notBefore(Event $event): ?CarbonImmutable
@@ -125,13 +129,12 @@ final class UptimeAlertEpisode
         if ($incident === null || ! self::appliesTo($incident)) {
             return null;
         }
-        $timing = self::timing($incident);
         if (self::isOpeningEvent($event)) {
             return self::alertDue($incident);
         }
         if ($event->type === 'incident.resolved') {
             return ($incident->resolved_at ?? throw new \LogicException('A recovery must have its resolution time.'))->addSeconds(
-                ($timing->recoveryChecks - 1) * ($incident->check ?? throw new \LogicException('An episode requires its check.'))->interval_seconds,
+                (self::recoveryChecks($incident) - 1) * ($incident->check ?? throw new \LogicException('An episode requires its check.'))->interval_seconds,
             );
         }
 
@@ -149,7 +152,7 @@ final class UptimeAlertEpisode
         if ($until->lessThan($from)) {
             return false;
         }
-        $required = self::timing($incident)->recoveryChecks;
+        $required = self::recoveryChecks($incident);
         $streaks = DB::table('check_runs')->where('check_id', $incident->check_id)
             ->where('ended_at', '>=', $from->format('Y-m-d H:i:s.uP'))->where('ended_at', '<=', $until->format('Y-m-d H:i:s.uP'))
             ->selectRaw('count(*) FILTER (WHERE result = ?) OVER (ORDER BY ended_at, id ROWS BETWEEN ? PRECEDING AND CURRENT ROW) AS good', [CheckResult::Succeeded->value, $required - 1]);

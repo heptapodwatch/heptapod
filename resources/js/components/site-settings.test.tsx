@@ -69,6 +69,8 @@ it('shows a failing check indicator in the settings navigation, not just on chec
     const sensitivity = {
         alert_after_minutes: 5,
         alert_recovery_checks: 2,
+        alert_confirms_other_checks: false,
+        alert_reminders: 'standard' as const,
         inherited: false,
         preset: null,
     };
@@ -123,6 +125,8 @@ it('makes the whole check row the toggle target, not only the switch', () => {
     const sensitivity = {
         alert_after_minutes: 5,
         alert_recovery_checks: 2,
+        alert_confirms_other_checks: false,
+        alert_reminders: 'standard' as const,
         inherited: false,
         preset: null,
     };
@@ -189,6 +193,8 @@ it('saves a check from its settings row without submitting or discarding the sit
     const sensitivity = {
         alert_after_minutes: 5,
         alert_recovery_checks: 2,
+        alert_confirms_other_checks: false,
+        alert_reminders: 'standard' as const,
         inherited: false,
         preset: null,
     };
@@ -293,6 +299,8 @@ it('checks only a changed address on blur and includes the current site in the p
     const sensitivity = {
         alert_after_minutes: 5,
         alert_recovery_checks: 2,
+        alert_confirms_other_checks: false,
+        alert_reminders: 'standard' as const,
         inherited: false,
         preset: null,
     };

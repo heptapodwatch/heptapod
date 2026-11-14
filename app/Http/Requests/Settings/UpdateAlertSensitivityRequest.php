@@ -8,6 +8,7 @@ use Heptapod\Concerns\AlertSensitivityValidationRules;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rules\Enum;
 
 final class UpdateAlertSensitivityRequest extends FormRequest
 {
@@ -20,12 +21,9 @@ final class UpdateAlertSensitivityRequest extends FormRequest
         return $user instanceof User && $user->hasAnyRole(['Owner', 'Admin']);
     }
 
-    /** @return array<string, list<string>> */
+    /** @return array<string, list<string|Enum>> */
     public function rules(): array
     {
-        return [
-            'alert_after_minutes' => ['required', 'integer', $this->alertAfterMinutesRange(app(InstanceSettings::class)->alert_after_minutes, $this->input('alert_after_minutes'))],
-            'alert_recovery_checks' => ['required', 'integer', $this->alertRecoveryChecksRange()],
-        ];
+        return $this->alertSensitivityRules(app(InstanceSettings::class)->alert_after_minutes, false);
     }
 }

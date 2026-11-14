@@ -13,7 +13,7 @@ use Heptapod\Checks\PerformanceAvailability;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\EngineMessage;
-use Heptapod\Events\Notifications\AlertDelay;
+use Heptapod\Events\Notifications\EffectiveAlertSensitivity;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckSnooze;
 use Heptapod\Settings\InstanceSettings;
@@ -75,7 +75,7 @@ final class CheckResource extends JsonResource
                 default => [60, 'minute'],
             };
             $settings += ['failed_notification_threshold' => $check->type === CheckKey::Uptime
-                ? AlertDelay::for($check->site ?? throw new \LogicException('An uptime check needs its site.'), app(InstanceSettings::class))->alertAfterMinutes
+                ? EffectiveAlertSensitivity::for($check->site ?? throw new \LogicException('An uptime check needs its site.'), app(InstanceSettings::class))->alertAfterMinutes
                 : $check->failure_threshold, 'frequency_value' => intdiv($check->interval_seconds, $multiplier), 'frequency_unit' => $unit];
         }
 

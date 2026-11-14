@@ -33,7 +33,7 @@ it('starts a fresh alert episode after a confirmed recovery even when a single f
     Http::fake(['https://receiver.test/alerts' => Http::response([], 200)]);
     notificationRule(notificationWebhook());
     $check = Check::factory()->create(['failure_threshold' => 2]);
-    $check->site->update(['alert_after_minutes' => 5, 'alert_recovery_checks' => 3]);
+    $check->site->update(['alert_after_minutes' => 5, 'alert_recovery_checks' => 3, 'alert_confirms_other_checks' => true, 'alert_reminders' => 'standard']);
     $start = CarbonImmutable::parse('2026-10-20T21:08:00Z');
     foreach ([RunResult::Failed, RunResult::Failed, RunResult::Succeeded] as $minute => $result) {
         recordEpisodeRun($check, $result, $start->addMinutes($minute));
@@ -69,7 +69,7 @@ it('holds a due recovery alert while a good check is missing and sends it with t
     Http::fake(['https://receiver.test/alerts' => Http::response([], 200)]);
     notificationRoute(notificationWebhook(), [NotificationCategory::Outage, NotificationCategory::Recovery]);
     $check = Check::factory()->create(['failure_threshold' => 1]);
-    $check->site->update(['alert_after_minutes' => 2, 'alert_recovery_checks' => 3]);
+    $check->site->update(['alert_after_minutes' => 2, 'alert_recovery_checks' => 3, 'alert_confirms_other_checks' => false, 'alert_reminders' => 'standard']);
     $at = CarbonImmutable::parse('2026-11-13T19:49:00Z');
     foreach ([RunResult::Failed, RunResult::Failed, RunResult::Failed, RunResult::Succeeded, RunResult::Succeeded] as $minute => $result) {
         recordEpisodeRun($check, $result, $at->addMinutes($minute));

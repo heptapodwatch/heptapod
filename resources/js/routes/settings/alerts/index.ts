@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Settings\AlertSensitivityController::edit
-* @see app/Http/Controllers/Settings/AlertSensitivityController.php:23
+* @see app/Http/Controllers/Settings/AlertSensitivityController.php:24
 * @route '/settings/alerts'
 */
 export const edit = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ edit.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\AlertSensitivityController::edit
-* @see app/Http/Controllers/Settings/AlertSensitivityController.php:23
+* @see app/Http/Controllers/Settings/AlertSensitivityController.php:24
 * @route '/settings/alerts'
 */
 edit.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ edit.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\AlertSensitivityController::edit
-* @see app/Http/Controllers/Settings/AlertSensitivityController.php:23
+* @see app/Http/Controllers/Settings/AlertSensitivityController.php:24
 * @route '/settings/alerts'
 */
 edit.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ edit.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\AlertSensitivityController::edit
-* @see app/Http/Controllers/Settings/AlertSensitivityController.php:23
+* @see app/Http/Controllers/Settings/AlertSensitivityController.php:24
 * @route '/settings/alerts'
 */
 edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\AlertSensitivityController::edit
-* @see app/Http/Controllers/Settings/AlertSensitivityController.php:23
+* @see app/Http/Controllers/Settings/AlertSensitivityController.php:24
 * @route '/settings/alerts'
 */
 const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\AlertSensitivityController::edit
-* @see app/Http/Controllers/Settings/AlertSensitivityController.php:23
+* @see app/Http/Controllers/Settings/AlertSensitivityController.php:24
 * @route '/settings/alerts'
 */
 editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\AlertSensitivityController::edit
-* @see app/Http/Controllers/Settings/AlertSensitivityController.php:23
+* @see app/Http/Controllers/Settings/AlertSensitivityController.php:24
 * @route '/settings/alerts'
 */
 editForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ edit.form = editForm
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\AlertSensitivityController::update
-* @see app/Http/Controllers/Settings/AlertSensitivityController.php:35
+* @see app/Http/Controllers/Settings/AlertSensitivityController.php:36
 * @route '/settings/alerts'
 */
 export const update = (options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -97,7 +97,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\AlertSensitivityController::update
-* @see app/Http/Controllers/Settings/AlertSensitivityController.php:35
+* @see app/Http/Controllers/Settings/AlertSensitivityController.php:36
 * @route '/settings/alerts'
 */
 update.url = (options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ update.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\AlertSensitivityController::update
-* @see app/Http/Controllers/Settings/AlertSensitivityController.php:35
+* @see app/Http/Controllers/Settings/AlertSensitivityController.php:36
 * @route '/settings/alerts'
 */
 update.put = (options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -116,7 +116,7 @@ update.put = (options?: RouteQueryOptions): RouteDefinition<'put'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\AlertSensitivityController::update
-* @see app/Http/Controllers/Settings/AlertSensitivityController.php:35
+* @see app/Http/Controllers/Settings/AlertSensitivityController.php:36
 * @route '/settings/alerts'
 */
 const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -131,7 +131,7 @@ const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\AlertSensitivityController::update
-* @see app/Http/Controllers/Settings/AlertSensitivityController.php:35
+* @see app/Http/Controllers/Settings/AlertSensitivityController.php:36
 * @route '/settings/alerts'
 */
 updateForm.put = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

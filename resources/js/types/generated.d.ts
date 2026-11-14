@@ -905,6 +905,8 @@ readonly timezones: string[],
 export type AlertSensitivityData = {
 readonly alert_after_minutes: number,
 readonly alert_recovery_checks: number,
+readonly alert_confirms_other_checks: boolean,
+readonly alert_reminders: Heptapod.Enums.AlertReminders,
 readonly inherited: boolean,
 readonly preset: Heptapod.Enums.AlertSensitivity | null,
 };
@@ -2000,6 +2002,7 @@ readonly failed_seconds: number,
 }
 }
 namespace Enums {
+export type AlertReminders = 'standard' | 'daily';
 export type AlertSensitivity = 'strict' | 'balanced' | 'relaxed' | 'patient';
 export type BucketStatus = 'failed' | 'interrupted' | 'errored' | 'warning' | 'ok' | 'maintenance' | 'no_data';
 export type CheckPendingReason = 'dns_accept_recheck';

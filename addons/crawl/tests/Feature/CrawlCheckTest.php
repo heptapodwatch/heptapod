@@ -16,6 +16,7 @@ use Heptapod\Addons\Crawl\CrawlPersistence;
 use Heptapod\Addons\Crawl\CrawlTargetUnavailable;
 use Heptapod\Addons\Crawl\MixedContentFinding;
 use Heptapod\Addons\Crawl\NotCrawlableReason;
+use Heptapod\Checks\Execution\CheckExecutor;
 use Heptapod\Checks\Execution\ClaimService;
 use Heptapod\Checks\Execution\RunOrigin;
 use Heptapod\Checks\Recording\RecordableRun;
@@ -44,6 +45,7 @@ use Heptapod\Models\CheckRun;
 use Heptapod\Models\Event;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
+use Heptapod\Settings\InstanceSettings;
 use Heptapod\Testing\ClaimedRun;
 use Heptapod\Testing\FakeOutboundHttp;
 use Illuminate\Log\Events\MessageLogged;
@@ -706,6 +708,25 @@ it('reuses matching scheduled crawls but invalidates changed config and legacy s
     expect($fake->requests)->toHaveCount(3)
         ->and(DB::table('crawl_snapshots')->orderByDesc('id')->value('config_fingerprint'))->toHaveLength(64);
 });
+
+it('crawls again for the run that confirms a Failed alert instead of reusing the cached crawl', function (bool $confirms): void {
+    $settings = app(InstanceSettings::class);
+    $settings->alert_confirms_other_checks = $confirms;
+    $settings->save();
+    $check = crawlCheck();
+    $check->update(['interval_seconds' => 86400]);
+    recordCrawl(crawlContext($check));
+    expect($check->refresh()->latest_run_result)->toBe(CheckResult::Failed);
+
+    // The scheduled run 10 minutes later finds the cached crawl still fresh; only a confirming run crawls again.
+    $this->travel(10)->minutes();
+    DB::table('checks')->where('id', $check->id)->update(['next_run_at' => now()]);
+    expect(app(ClaimService::class)->dispatchDue())->toBe(1);
+    app(CheckExecutor::class)->execute($check->id, $check->refresh()->claim_token, 300);
+
+    $run = CheckRun::query()->where('check_id', $check->id)->orderByDesc('id')->firstOrFail();
+    expect(str_contains(json_encode($run->evidence, JSON_THROW_ON_ERROR), 'crawl.collection_reused'))->toBe(! $confirms);
+})->with(['confirming run' => [true], 'no confirmation' => [false]]);
 
 it('loads legacy stored reason strings without changing their evaluation', function (string $reason, NotCrawlableReason $typed): void {
     $check = crawlCheck(config: ['respect_robots' => false, 'max_depth' => 0]);

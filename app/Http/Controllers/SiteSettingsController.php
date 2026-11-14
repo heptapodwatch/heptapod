@@ -38,7 +38,7 @@ final class SiteSettingsController extends Controller
         /** @var array<string, mixed> $attributes */
         $attributes = $request->except(['_token', '_method']);
         /** @var array<string, mixed> $timing */
-        $timing = $request->safe()->only(['alert_after_minutes', 'alert_recovery_checks']);
+        $timing = $request->safe()->only(['alert_after_minutes', 'alert_recovery_checks', 'alert_confirms_other_checks', 'alert_reminders']);
         try {
             $update($user, $site, $attributes, $timing, $request->exists('client_id') ? $request->integer('client_id') : null);
         } catch (CheckConfigurationValidationException $exception) {

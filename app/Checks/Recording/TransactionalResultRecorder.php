@@ -26,6 +26,7 @@ use Heptapod\Contracts\SecretRedactor;
 use Heptapod\Enums\IncidentCause;
 use Heptapod\Events\EventOutbox;
 use Heptapod\Events\LiveSignal;
+use Heptapod\Events\Notifications\AlertConfirmation;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Events\RecordedRunSignal;
 use Heptapod\Incidents\IncidentTransitions;
@@ -234,6 +235,12 @@ final readonly class TransactionalResultRecorder implements ResultRecorder
             }
             // The stored result sends state.changed below, so a cleared mark needs no signal of its own.
             $this->clearSlot($check, $run->endedAt);
+            // A run that opened an incident or changed its cause gets its confirming re-run soon, not a full hourly or daily interval later.
+            $rerunAfter = AlertConfirmation::rerunAfterSeconds($check);
+            if (($incident?->wasRecentlyCreated === true || $incident?->wasChanged('cause') === true) && $incident->resolved_at === null
+                && $rerunAfter < $check->interval_seconds && AlertConfirmation::required($check, $site)) {
+                $check->update(['next_run_at' => min($check->next_run_at, $run->endedAt->addSeconds($rerunAfter))]);
+            }
             $runOutcome = in_array($outcome->result, [RunResult::Failed, RunResult::Errored], true) ? RunPhase::Failed : RunPhase::Done;
             $attempt->update(['phase' => $runOutcome, 'finished_at' => $run->endedAt, 'check_run_id' => $stored->id]);
             LiveSignal::forRun('run.finished', $site, $check->id, $run->startedAt, $attempt->actor?->name, outcome: $runOutcome,

@@ -63,7 +63,7 @@ final readonly class CrawlCollector
         return $cache->lock('crawl:site:'.$context->siteId, Config::integer('heptapod.crawl.timeout_seconds') + 30)
             ->block(Config::integer('heptapod.crawl.lock_wait_seconds'), function () use ($context, $config, $fingerprint): CrawlArtifact {
                 $cached = DB::table('crawl_collections')->where('site_id', $context->siteId)->value('artifact');
-                if (! $context->manualRun && is_string($cached)) {
+                if (! $context->manualRun && ! $context->confirmsAlert && is_string($cached)) {
                     $artifact = CrawlArtifact::from(json_decode($cached, true, flags: JSON_THROW_ON_ERROR));
                     if ($this->fresh($artifact, $context, $fingerprint)) {
                         $artifact->notes[] = new CheckRunPresentationPartData('crawl.collection_reused', ['date' => $artifact->collected_at]);

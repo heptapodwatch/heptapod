@@ -16,7 +16,7 @@ export default function Alerts(
                 description={t('alert_sensitivity.page_description')}
             />
             <TeamAlertSensitivity
-                key={`${props.saved.alert_after_minutes}-${props.saved.alert_recovery_checks}`}
+                key={`${props.saved.alert_after_minutes}-${props.saved.alert_recovery_checks}-${props.saved.alert_confirms_other_checks}-${props.saved.alert_reminders}`}
                 {...props}
             />
         </>

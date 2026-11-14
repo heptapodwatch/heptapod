@@ -43,8 +43,8 @@ enum AlertSensitivity: string
         return match ($this) {
             self::Strict => 2,
             self::Balanced => 5,
-            self::Relaxed => 10,
-            self::Patient => 30,
+            self::Relaxed => 30,
+            self::Patient => 60,
         };
     }
 
@@ -53,10 +53,23 @@ enum AlertSensitivity: string
         return $this === self::Strict ? 1 : 3;
     }
 
-    public static function fromTiming(int $minutes, int $checks): ?self
+    /** Failed and Check error alerts of other checks wait for the next run to show the same problem. */
+    public function confirmsOtherChecks(): bool
+    {
+        return $this !== self::Strict;
+    }
+
+    public function reminders(): AlertReminders
+    {
+        return in_array($this, [self::Relaxed, self::Patient], true) ? AlertReminders::Daily : AlertReminders::Standard;
+    }
+
+    /** The preset whose four settings equal these values; null is Custom. */
+    public static function matching(int $minutes, int $checks, bool $confirmsOtherChecks, AlertReminders $reminders): ?self
     {
         foreach (self::cases() as $preset) {
-            if ($preset->alertAfterMinutes() === $minutes && $preset->recoveryChecks() === $checks) {
+            if ($preset->alertAfterMinutes() === $minutes && $preset->recoveryChecks() === $checks
+                && $preset->confirmsOtherChecks() === $confirmsOtherChecks && $preset->reminders() === $reminders) {
                 return $preset;
             }
         }

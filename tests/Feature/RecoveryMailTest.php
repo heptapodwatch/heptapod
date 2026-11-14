@@ -27,6 +27,10 @@ beforeEach(function (): void {
     config(['mail.default' => 'smtp']);
     Http::preventStrayRequests();
     Http::fake([]);
+    $alertSettings = app(InstanceSettings::class);
+    // Recovery mail, not alert sensitivity: the former team behaviour.
+    $alertSettings->alert_confirms_other_checks = false;
+    $alertSettings->save();
 });
 
 it('names the resolved opening reason and time in recovery mail without changing its subject', function (CheckKey $type, string $locale, string $subject, ?string $resolved): void {

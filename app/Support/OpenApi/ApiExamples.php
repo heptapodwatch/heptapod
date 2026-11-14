@@ -162,7 +162,7 @@ final class ApiExamples
         return ['id' => 1, 'team_id' => 1, 'type' => 'http', 'url' => 'https://example.com', 'uses_https' => true, 'sort_url' => 'example.com', 'label' => 'example.com',
             'group_name' => 'Websites', 'client_ref' => 'client:1', 'client_name' => 'Internal', 'tags' => ['production'], 'description' => null, 'notes' => null,
             'latest_run_date' => $fresh ? null : '2026-10-01 07:30:00', 'summarized_check_result' => $result('failed'),
-            'alert_sensitivity' => ['preset' => 'relaxed', 'alert_after_minutes' => 10, 'recovery_checks' => 3, 'inherited' => true],
+            'alert_sensitivity' => ['preset' => 'relaxed', 'alert_after_minutes' => 30, 'recovery_checks' => 3, 'confirms_other_checks' => true, 'reminders' => 'daily', 'inherited' => true],
             'checks' => $checks, 'badge_id' => '00000000-0000-4000-8000-000000000123', 'marked_for_deletion_at' => null, 'crawler_headers' => null,
             'send_report_to_emails' => null, 'include_check_types_in_report' => null, 'created_at' => self::Created, 'updated_at' => self::Created,
             'uptime_check_settings' => self::settings('uptime'), 'broken_links_check_settings' => self::settings('broken_links'),
@@ -182,7 +182,7 @@ final class ApiExamples
     private static function settings(string $type): array|\stdClass
     {
         return match ($type) {
-            'uptime' => ['failed_notification_threshold' => 10, 'frequency_value' => 1, 'frequency_unit' => 'minute'],
+            'uptime' => ['failed_notification_threshold' => 30, 'frequency_value' => 1, 'frequency_unit' => 'minute'],
             'broken_links' => ['failed_notification_threshold' => 1, 'frequency_value' => 1, 'frequency_unit' => 'day'],
             'certificate_health' => ['failed_notification_threshold' => 1, 'frequency_value' => 60, 'frequency_unit' => 'minute'],
             default => new \stdClass,

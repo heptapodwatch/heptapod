@@ -57,8 +57,8 @@ it('sets up all-site alerts on the first owners account email and leaves later e
     expect($destination->enabled)->toBeTrue();
     expect($destination->account_mail)->toBeTrue();
     expect($destination->destinationConfig()->string('email'))->toBe('owner@example.test');
-    // Every site (no mutes); everything immediate except Changes (off for everyone) and System (on for Owners).
-    expect(firstOwnerGrid($destination->id))->toBe(['changes' => 'off', 'check_error' => 'immediate', 'expiring' => 'immediate', 'failure' => 'immediate',
+    // Every site (no mutes); everything immediate except Changes (off for everyone), Check error (digest) and System (on for Owners).
+    expect(firstOwnerGrid($destination->id))->toBe(['changes' => 'off', 'check_error' => 'digest', 'expiring' => 'immediate', 'failure' => 'immediate',
         'outage' => 'immediate', 'recovery' => 'immediate', 'system' => 'immediate', 'warning' => 'immediate']);
     expect(DB::table('notification_site_mutes')->count())->toBe(0);
     // The shell's coverage signal speaks about the sites the viewer can see.

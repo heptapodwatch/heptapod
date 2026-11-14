@@ -15,7 +15,8 @@ export function RadioCards<T extends string>({
     describedBy,
 }: ({ label: string; labelledBy?: never } | { label?: never; labelledBy: string }) & {
     value: T;
-    options: { value: T; label: string; description: string; badge?: ReactNode }[];
+    /** A disabled option shows a state the user reaches another way (alert sensitivity's derived Custom). */
+    options: { value: T; label: string; description: string; badge?: ReactNode; disabled?: boolean }[];
     onChange: (value: T) => void;
     disabled?: boolean;
     /** A validation error on the choice: aria-invalid on the group; pass the error id in describedBy. */
@@ -47,6 +48,7 @@ export function RadioCards<T extends string>({
                         <RadioMark
                             id={`${id}-${option.value}`}
                             value={option.value}
+                            disabled={option.disabled}
                             className="mt-0.5"
                             aria-labelledby={`${id}-${option.value}-label`}
                             aria-describedby={`${id}-${option.value}-description`}
