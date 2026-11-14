@@ -270,11 +270,14 @@ function AddSiteForm({
     if (reachable > revealed) setRevealed(reachable);
     // Set by Enter/Tab, cleared by any other key or a pointer: a section revealed after a keyboard finish takes focus.
     const finishedByKeyboard = useRef(false);
+    // A focus move waits a frame; this form unmounting (navigation, Start over) cancels it, so it never lands on the next page's field with the same id.
+    const focusFrame = useRef(0);
+    useEffect(() => () => cancelAnimationFrame(focusFrame.current), []);
     useEffect(() => {
         if (!finishedByKeyboard.current || revealed === restored) return;
         finishedByKeyboard.current = false;
         // After the combobox popover has returned focus to its trigger.
-        requestAnimationFrame(() =>
+        focusFrame.current = requestAnimationFrame(() =>
             document
                 .getElementById(revealed === 2 ? 'site-name' : 'site-client')
                 ?.focus(),
@@ -292,7 +295,7 @@ function AddSiteForm({
         )?.[1];
         if (!id) return;
         // After the render that reveals every section; the checks group itself is not focusable, its first switch is.
-        requestAnimationFrame(() => {
+        focusFrame.current = requestAnimationFrame(() => {
             const target =
                 id === 'site-checks'
                     ? document.querySelector<HTMLElement>(
