@@ -50,7 +50,7 @@
 curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --domain monitor.example.com --owner-email owner@example.com --without-browser
 ```
 
-You need an Ubuntu or Debian server (amd64) with 2 vCPU, 4 GB RAM and 40 GB disk, a domain pointing to it and inbound TCP 80/443. For Lighthouse, drop `--without-browser` and use 4 vCPU and 8 GB RAM.
+You need an Ubuntu or Debian server (amd64 or arm64) with 2 vCPU, 4 GB RAM and 40 GB disk, a domain pointing to it and inbound TCP 80/443. For Lighthouse, drop `--without-browser` and use 4 vCPU and 8 GB RAM.
 
 The installer verifies the release bundle, writes the configuration, starts the stack and creates the first Owner. Upgrade with `cd /opt/heptapod && sudo ./scripts/upgrade.sh`.
 
