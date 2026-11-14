@@ -23,7 +23,7 @@
     "alert_sensitivity.checks_bounds": ":min–:max erfolgreiche Prüfungen",
     "alert_sensitivity.recovery_confirmed_one": "Die Wiederherstellung gilt nach :count erfolgreichen Prüfung als bestätigt.",
     "alert_sensitivity.recovery_confirmed_other": "Die Wiederherstellung gilt nach :count erfolgreichen Prüfungen als bestätigt.",
-    "alert_sensitivity.footer": "Alarmverzögerung und Wiederherstellungsprüfungen gelten für neue Unterbrechungen, Bestätigung und Erinnerungen sofort; Störungen und Prüfergebnisse bleiben vollständig.",
+    "alert_sensitivity.footer": "Alarmverzögerung und Wiederherstellungsprüfungen gelten für neue Ausfälle, Bestätigung und Erinnerungen sofort; Störungen und Prüfergebnisse bleiben vollständig.",
     "alert_sensitivity.team_default": "Teamstandard · :preset",
     "alert_sensitivity.inherit_description": "Die Einstellungen aus Einstellungen · Alarm-Empfindlichkeit übernehmen, auch bei künftigen Änderungen.",
     "alert_sensitivity.override": ":preset · eigene Einstellung",
