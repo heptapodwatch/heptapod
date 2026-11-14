@@ -20,7 +20,7 @@ final class PruneHistoryCommand extends Command
     public function handle(HistoryRetention $retention, CheckDataMaintenance $maintenance): int
     {
         $policy = RetentionPolicy::fromConfig();
-        if (! $this->option('dry-run')) {
+        if ($this->option('dry-run') !== true) {
             $this->error('History deletion is not available yet. Use --dry-run. Only hourly rollup maintenance supports deletion.');
 
             return self::FAILURE;

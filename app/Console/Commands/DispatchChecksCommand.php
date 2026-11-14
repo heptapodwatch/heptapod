@@ -37,7 +37,7 @@ final class DispatchChecksCommand extends Command
                 $evaluatedAt = hrtime(true);
                 $this->evaluateWhileSchedulerStale($evaluate);
             }
-            if ($this->option('once')) {
+            if ($this->option('once') === true) {
                 break;
             }
             while (! $stopping && hrtime(true) - $tick < 5_000_000_000) {

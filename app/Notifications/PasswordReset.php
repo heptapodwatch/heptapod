@@ -11,9 +11,6 @@ use Illuminate\Mail\Mailable;
 
 final class PasswordReset extends ResetPassword
 {
-    /** Laravel supports Mailable output; its parent method's PHPDoc still only lists MailMessage.
-     * @phpstan-ignore method.childReturnType
-     */
     public function toMail(mixed $notifiable): Mailable
     {
         if (! $notifiable instanceof User) {

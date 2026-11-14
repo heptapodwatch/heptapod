@@ -31,12 +31,18 @@ final class CreateAccessLinkCommand extends Command
     public function handle(RenewInvitationLink $renewLink): int
     {
         $type = $this->option('type');
-        $email = Str::lower(trim($this->argument('email')));
+        $email = $this->argument('email');
         if (! in_array($type, ['invite', 'reset'], true)) {
             $this->error('Supply --type=invite or --type=reset.');
 
             return self::FAILURE;
         }
+        if (! is_string($email)) {
+            $this->error('Supply one account or invitation email.');
+
+            return self::FAILURE;
+        }
+        $email = Str::lower(trim($email));
         if ($type === 'invite') {
             $subject = Invitation::query()->where('email', $email)->first();
             if ($subject === null) {

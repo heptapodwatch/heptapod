@@ -25,7 +25,7 @@ final class ImportOhDearCommand extends Command
 
             return self::FAILURE;
         }
-        $dryRun = $this->option('dry-run');
+        $dryRun = $this->option('dry-run') === true;
         $plan = $import($token, $dryRun);
         $this->info(__('import.description'));
         if ($dryRun) {

@@ -55,7 +55,7 @@ final class ReclassifyLinksCommand extends Command
 
     private function reclassify(FindingReclassifier $reclassifier, EventOutbox $outbox, CauseSummary $summaries, bool $dryRun): int
     {
-        if ((string) $this->option('policy') !== (string) $reclassifier->policyVersion()) {
+        if ($this->option('policy') !== (string) $reclassifier->policyVersion()) {
             $this->error(__('reclassify_links.unknown_policy', ['version' => $reclassifier->policyVersion()]));
 
             return self::FAILURE;
