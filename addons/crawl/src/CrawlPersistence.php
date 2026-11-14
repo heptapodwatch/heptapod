@@ -523,6 +523,11 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
         DB::table('crawl_snapshots')->where('run_id', $runId)->where('claim_token', $claimToken)->whereNull('run_ended_at')->delete();
     }
 
+    public function prunedTables(): array
+    {
+        return ['crawl_snapshots', 'crawl_collections'];
+    }
+
     public function prune(CarbonImmutable $before): void
     {
         $baselines = DB::table('crawl_snapshots')->selectRaw('DISTINCT ON (check_id) id')->whereNotNull('run_ended_at')->orderBy('check_id')->orderByDesc('run_ended_at')->orderByDesc('run_id');

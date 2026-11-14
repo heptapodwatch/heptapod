@@ -2005,6 +2005,7 @@ export type BucketStatus = 'failed' | 'interrupted' | 'errored' | 'warning' | 'o
 export type CheckPendingReason = 'dns_accept_recheck';
 export type ClientAvatarSource = 'uploaded' | 'chosen-site' | 'automatic' | 'initials' | 'generic-initials';
 export type ClientScope = 'all' | 'restricted';
+export type DatabaseDataClass = 'check_results' | 'attempts' | 'hourly_rollups' | 'daily_rollups' | 'history' | 'other';
 export type DeliveryGroupOutcome = 'accepted' | 'logged' | 'failed' | 'suppressed' | 'pending' | 'mixed' | 'unrecorded';
 export type DeliveryOutcome = 'accepted' | 'rejected' | 'failed' | 'logged' | 'suppressed' | 'pending' | 'sending';
 export type FreshnessSuppression = 'down' | 'maintenance' | 'snooze' | 'uptime_error';
@@ -2041,6 +2042,42 @@ readonly lastSuccessSeconds: number | null,
 readonly lastFailureAt: string | null,
 readonly consecutiveFailures: number,
 };
+export type DatabaseDiskData = {
+readonly path: string | null,
+readonly failure: Heptapod.SystemHealth.DiskReadFailure | null,
+readonly freeBytes: number | null,
+readonly fillsOn: string | null,
+readonly spareBytes: number | null,
+};
+export type DatabaseGrowthClassData = {
+readonly dataClass: Heptapod.Enums.DatabaseDataClass,
+readonly bytes: number,
+readonly in365DaysBytes: number,
+readonly retentionDays: number | null,
+readonly retentionEnforced: boolean,
+readonly retentionVariable: string | null,
+};
+export type DatabaseGrowthData = {
+readonly sampledAt: string,
+readonly sampleCount: number,
+readonly measured: boolean,
+readonly history: {
+date: string,
+bytes: number,
+}[],
+readonly projection: {
+date: string,
+bytes: number,
+}[],
+readonly in30DaysBytes: number,
+readonly in90DaysBytes: number,
+readonly in365DaysBytes: number,
+readonly plateauBytes: number | null,
+readonly plateauOn: string | null,
+readonly monthlyGrowthBytes: number | null,
+readonly classes: Heptapod.SystemHealth.DatabaseGrowthClassData[],
+readonly disk: Heptapod.SystemHealth.DatabaseDiskData,
+};
 export type DiskReadFailure = 'missing' | 'invalid_capacity' | 'read_failed';
 export type HealthMetric = {
 readonly status: Heptapod.Enums.HealthStatus,
@@ -2069,6 +2106,7 @@ readonly scheduler: Heptapod.SystemHealth.HealthMetric,
 readonly browserServices: Record<string, Heptapod.SystemHealth.HealthMetric>,
 readonly reverb: Heptapod.SystemHealth.HealthMetric,
 readonly databaseBytes: number,
+readonly databaseGrowth: Heptapod.SystemHealth.DatabaseGrowthData | null,
 readonly failedJobsTotal: number,
 readonly recentFailedJobs: Heptapod.SystemHealth.HealthMetric,
 readonly lastExternalPing: string | null,

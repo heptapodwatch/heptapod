@@ -89,6 +89,11 @@ final class DomainPersistence implements RunPersistence
         return ['run_id' => $row->run_id, 'snapshot' => $snapshot];
     }
 
+    public function prunedTables(): array
+    {
+        return ['domain_snapshots'];
+    }
+
     public function prune(CarbonImmutable $before): void
     {
         // The last accepted observation survives errors and raw-run retention.

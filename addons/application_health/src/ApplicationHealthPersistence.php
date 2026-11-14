@@ -156,6 +156,11 @@ final class ApplicationHealthPersistence implements RunPersistence
         DB::table('application_health_snapshots')->where('run_id', $runId)->where('claim_token', $claimToken)->whereNull('run_ended_at')->delete();
     }
 
+    public function prunedTables(): array
+    {
+        return ['application_health_snapshots'];
+    }
+
     public function prune(CarbonImmutable $before): void
     {
         DB::table('application_health_snapshots')->where('run_ended_at', '<', $before->format('Y-m-d H:i:s.uP'))->delete();

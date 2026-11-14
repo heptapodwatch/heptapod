@@ -12,6 +12,7 @@ Schedule::command('heptapod:maintain-check-data')->hourly()->withoutOverlapping(
 
 Schedule::command('heptapod:generate-maintenance')->daily()->withoutOverlapping();
 Schedule::command('heptapod:prune-api-idempotency')->hourly()->withoutOverlapping();
+Schedule::command('heptapod:record-database-size')->hourly()->withoutOverlapping();
 Schedule::command('heptapod:client-messages:sweep')->daily()->withoutOverlapping();
 Schedule::command('heptapod:resume-due-sites')->everyMinute()->withoutOverlapping();
 // No overlap mutex: the claim's FOR UPDATE SKIP LOCKED already serializes concurrent ticks, and a killed run must not hold a mutex.

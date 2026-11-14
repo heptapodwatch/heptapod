@@ -285,6 +285,11 @@ final class DnsPersistence implements RunPersistence
         DB::table('dns_observations')->where('run_id', $runId)->where('claim_token', $claimToken)->whereNull('run_ended_at')->delete();
     }
 
+    public function prunedTables(): array
+    {
+        return ['dns_observations', 'dns_history_items'];
+    }
+
     public function prune(CarbonImmutable $before): void
     {
         // Baselines and reset generations outlive raw retention so old attempts cannot become current again.

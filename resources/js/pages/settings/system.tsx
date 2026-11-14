@@ -21,6 +21,7 @@ import {
 import { cn } from '@/lib/utils';
 import { focusRingClass } from '@/lib/interaction';
 import { StatTile } from '@/components/stat-tile';
+import { DatabaseGrowth } from '@/components/database-growth';
 import { useFormat } from '@/hooks/use-format';
 import { data as readData } from '@/routes/settings/system';
 import { TextLink } from '@/components/text-link';
@@ -397,7 +398,9 @@ export default function System({ systemPage }: { systemPage: Page }) {
                             maximumFractionDigits: 1,
                         }),
                     })}
-                    meta={t('Current database size. Growth is not measured.')}
+                    meta={t(
+                        'Current database size. Growth is projected below.',
+                    )}
                 />
             </div>
             <section aria-labelledby="queue-heading" className="space-y-2">
@@ -711,6 +714,7 @@ export default function System({ systemPage }: { systemPage: Page }) {
                     )}
                 </p>
             </section>
+            <DatabaseGrowth growth={health.databaseGrowth} />
         </PageContainer>
     );
 }
