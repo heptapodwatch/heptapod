@@ -61,7 +61,8 @@ export function AppSidebar({
         <Sidebar
             collapsible="icon"
             variant="sidebar"
-            className="left-[max(0px,calc((100%-var(--shell-width))/2))] border-r border-sidebar-border"
+            // left snaps with the centred wrapper; only width animates, in step with the gap.
+            className="left-[max(0px,calc((100%-var(--shell-width))/2))] border-r border-sidebar-border transition-[width]"
         >
             <SidebarHeader>
                 <SidebarMenu>
