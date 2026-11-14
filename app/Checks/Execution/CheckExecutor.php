@@ -36,6 +36,7 @@ use Heptapod\Contracts\StaleEvaluation;
 use Heptapod\Contracts\TargetAvailabilityException;
 use Heptapod\Contracts\TlsFailureReason;
 use Heptapod\Events\LiveSignal;
+use Heptapod\Events\Notifications\AlertConfirmation;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\CheckRunAttempt;
@@ -192,7 +193,8 @@ final readonly class CheckExecutor
             }
 
             return new CheckContext($site->id, $check->id, $runId, $claimToken, $site->url, $at, $at->addSeconds($timeout),
-                $config, $site->crawler_headers ?? [], $this->previousResult($check), $this->history, manualRun: $check->manual_run, uptimeIntervalSeconds: $check->type === CheckKey::Performance ? app(UptimeDependency::class)->check($site->id)?->interval_seconds : null);
+                $config, $site->crawler_headers ?? [], $this->previousResult($check), $this->history, manualRun: $check->manual_run, uptimeIntervalSeconds: $check->type === CheckKey::Performance ? app(UptimeDependency::class)->check($site->id)?->interval_seconds : null,
+                confirmsAlert: AlertConfirmation::awaitsConfirmingRun($check, $site));
         });
     }
 

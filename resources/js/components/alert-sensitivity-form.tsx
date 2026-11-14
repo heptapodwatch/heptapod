@@ -35,6 +35,8 @@ export function TeamAlertSensitivity({
 }) {
     const { t } = useTranslation();
     const form = useForm<SensitivityDraft>(draftOf(saved));
+    // Discard also drops typed text the draft could not hold (an unparsable number lives in the fields).
+    const [draftKey, setDraftKey] = useState(0);
     return (
         <form
             noValidate
@@ -62,6 +64,7 @@ export function TeamAlertSensitivity({
                 detail={t('alert_sensitivity.intro_detail')}
             >
                 <AlertSensitivityOptions
+                    key={draftKey}
                     value={form.data}
                     savedMinutes={saved.alert_after_minutes}
                     bounds={bounds}
@@ -82,7 +85,10 @@ export function TeamAlertSensitivity({
                 <FormSecondaryAction
                     size="sm"
                     disabled={!form.isDirty || form.processing}
-                    onClick={() => form.resetAndClearErrors()}
+                    onClick={() => {
+                        form.resetAndClearErrors();
+                        setDraftKey((key) => key + 1);
+                    }}
                 >
                     {t('Discard')}
                 </FormSecondaryAction>

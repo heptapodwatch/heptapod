@@ -102,7 +102,8 @@ A sensitivity has four settings. A preset fills all four; you can then change ea
 - The page shows the preset that matches all four settings, otherwise **Custom**.
 - A site set to **Team default** shows the team's settings read-only. Choose a preset to override them.
 - Alert sensitivity delays or skips alerts only. Incidents, check results and uptime history stay complete.
-- A change applies to new interruptions, not to a running episode.
+- **Alert after** and **Recovery after** apply to new interruptions, not to a running episode.
+- **Wait for a confirming run** and **Down reminders** apply at once, also to open incidents.
 
 ### Uptime outages
 
@@ -114,10 +115,13 @@ A sensitivity has four settings. A preset fills all four; you can then change ea
 
 ### Other checks
 
-With **Wait for a confirming run**, a **Failed** or **Check error** of any other check alerts only when the next run shows a problem too.
+With **Wait for a confirming run**, a **Failed** or **Check error** of any other check alerts only when the next run shows the same result.
 
 - Hourly and daily checks run again 10 minutes after the first bad result. Other checks wait for their next scheduled run.
+- The confirming run checks the site again. A crawl does not reuse the earlier crawl.
 - A problem that is gone on the next run stays in the incident list. Neither its opening alert nor its recovery is sent.
+- A change from **Check error** to **Failed**, or back, is a new problem that waits for its own confirming run.
+- Digests include an alert only after its confirming run.
 - Without it, the first bad result alerts at once.
 
 The API exposes alert sensitivity on monitors; see [monitors and checks](./api.md#monitors-and-checks).

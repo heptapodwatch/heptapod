@@ -182,7 +182,7 @@ final class ApiExamples
     private static function settings(string $type): array|\stdClass
     {
         return match ($type) {
-            'uptime' => ['failed_notification_threshold' => 10, 'frequency_value' => 1, 'frequency_unit' => 'minute'],
+            'uptime' => ['failed_notification_threshold' => 30, 'frequency_value' => 1, 'frequency_unit' => 'minute'],
             'broken_links' => ['failed_notification_threshold' => 1, 'frequency_value' => 1, 'frequency_unit' => 'day'],
             'certificate_health' => ['failed_notification_threshold' => 1, 'frequency_value' => 60, 'frequency_unit' => 'minute'],
             default => new \stdClass,

@@ -10,6 +10,7 @@ use Heptapod\Contracts\Notifications\AlertSeverity;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Contracts\NotificationSuppression;
 use Heptapod\Contracts\SuppressionSubject;
+use Heptapod\Events\Notifications\AlertConfirmation;
 use Heptapod\Events\Notifications\NotificationEventTypes;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Events\Notifications\NotificationTiming;
@@ -88,6 +89,18 @@ final readonly class EmitNotificationDigests
                         if ($source->state === DeliveryState::Pending) {
                             $source->update(['suppressed' => true, 'suppression_reason' => $event->site_id === null ? 'site_deleted' : 'monitoring_stopped', 'suppression_evaluated_at' => $at]);
                         }
+
+                        continue;
+                    }
+                    // A digest carries only alerts their confirming run has confirmed; a pending one waits for the next digest.
+                    $confirmation = $source->state === DeliveryState::Pending && AlertConfirmation::appliesTo($event)
+                        ? AlertConfirmation::state($event) : AlertConfirmation::Confirmed;
+                    if ($confirmation === AlertConfirmation::Pending) {
+                        continue;
+                    }
+                    if ($confirmation === AlertConfirmation::Refuted) {
+                        $source->update(['suppressed' => true, 'suppression_reason' => AlertConfirmation::SuppressionReason, 'suppression_evaluated_at' => $at]);
+                        $source->announceChanges();
 
                         continue;
                     }

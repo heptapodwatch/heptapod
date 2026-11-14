@@ -178,21 +178,19 @@ final readonly class ClaimNotificationDelivery
                     return null;
                 }
             }
-            if (AlertConfirmation::appliesTo($event)) {
-                $incident = $event->incident ?? throw new \LogicException('An incident opening must have its incident.');
-                if (! AlertConfirmation::confirmed($incident)) {
-                    if ($incident->resolved_at !== null) {
-                        $delivery->update(['suppressed' => true, 'suppression_reason' => AlertConfirmation::SuppressionReason, 'suppression_evaluated_at' => $at,
-                            'claim_token' => null, 'lease_until' => null]);
-                    } else {
-                        // The confirming run is late or still running: look again in a minute.
-                        $delivery->update(['state' => DeliveryState::Pending, 'next_attempt_at' => $at->addMinute(),
-                            'claim_token' => null, 'lease_until' => null]);
-                    }
-                    $delivery->announceChanges();
-
-                    return null;
+            $confirmation = AlertConfirmation::appliesTo($event) ? AlertConfirmation::state($event) : AlertConfirmation::Confirmed;
+            if ($confirmation !== AlertConfirmation::Confirmed) {
+                if ($confirmation === AlertConfirmation::Refuted) {
+                    $delivery->update(['suppressed' => true, 'suppression_reason' => AlertConfirmation::SuppressionReason, 'suppression_evaluated_at' => $at,
+                        'claim_token' => null, 'lease_until' => null]);
+                } else {
+                    // The confirming run is late or still running: look again in a minute.
+                    $delivery->update(['state' => DeliveryState::Pending, 'next_attempt_at' => $at->addMinute(),
+                        'claim_token' => null, 'lease_until' => null]);
                 }
+                $delivery->announceChanges();
+
+                return null;
             }
             $resolvedAt = $event->incident?->resolved_at;
             if ($episode === null && $event->type === 'incident.opened' && $resolvedAt !== null

@@ -3721,7 +3721,7 @@
                                     "performance_unavailable": null,
                                     "settings": {
                                         "uptime_check_settings": {
-                                            "failed_notification_threshold": 10,
+                                            "failed_notification_threshold": 30,
                                             "frequency_unit": "minute",
                                             "frequency_value": 1
                                         }
@@ -7663,7 +7663,7 @@
                                                     "performance_unavailable": null,
                                                     "settings": {
                                                         "uptime_check_settings": {
-                                                            "failed_notification_threshold": 10,
+                                                            "failed_notification_threshold": 30,
                                                             "frequency_unit": "minute",
                                                             "frequency_value": 1
                                                         }
@@ -7784,7 +7784,7 @@
                                             "type": "http",
                                             "updated_at": "2026-10-01 07:25:00",
                                             "uptime_check_settings": {
-                                                "failed_notification_threshold": 10,
+                                                "failed_notification_threshold": 30,
                                                 "frequency_unit": "minute",
                                                 "frequency_value": 1
                                             },
@@ -8961,7 +8961,7 @@
                                             "performance_unavailable": null,
                                             "settings": {
                                                 "uptime_check_settings": {
-                                                    "failed_notification_threshold": 10,
+                                                    "failed_notification_threshold": 30,
                                                     "frequency_unit": "minute",
                                                     "frequency_value": 1
                                                 }
@@ -9082,7 +9082,7 @@
                                     "type": "http",
                                     "updated_at": "2026-10-01 07:25:00",
                                     "uptime_check_settings": {
-                                        "failed_notification_threshold": 10,
+                                        "failed_notification_threshold": 30,
                                         "frequency_unit": "minute",
                                         "frequency_value": 1
                                     },
@@ -9247,7 +9247,7 @@
                                             "performance_unavailable": null,
                                             "settings": {
                                                 "uptime_check_settings": {
-                                                    "failed_notification_threshold": 10,
+                                                    "failed_notification_threshold": 30,
                                                     "frequency_unit": "minute",
                                                     "frequency_value": 1
                                                 }
@@ -9368,7 +9368,7 @@
                                     "type": "http",
                                     "updated_at": "2026-10-01 07:25:00",
                                     "uptime_check_settings": {
-                                        "failed_notification_threshold": 10,
+                                        "failed_notification_threshold": 30,
                                         "frequency_unit": "minute",
                                         "frequency_value": 1
                                     },
@@ -9624,7 +9624,7 @@
                                             "performance_unavailable": null,
                                             "settings": {
                                                 "uptime_check_settings": {
-                                                    "failed_notification_threshold": 10,
+                                                    "failed_notification_threshold": 30,
                                                     "frequency_unit": "minute",
                                                     "frequency_value": 1
                                                 }
@@ -9745,7 +9745,7 @@
                                     "type": "http",
                                     "updated_at": "2026-10-01 07:25:00",
                                     "uptime_check_settings": {
-                                        "failed_notification_threshold": 10,
+                                        "failed_notification_threshold": 30,
                                         "frequency_unit": "minute",
                                         "frequency_value": 1
                                     },
@@ -10879,7 +10879,7 @@
                                             "performance_unavailable": null,
                                             "settings": {
                                                 "uptime_check_settings": {
-                                                    "failed_notification_threshold": 10,
+                                                    "failed_notification_threshold": 30,
                                                     "frequency_unit": "minute",
                                                     "frequency_value": 1
                                                 }
@@ -11001,7 +11001,7 @@
                                     "type": "http",
                                     "updated_at": "2026-10-01 07:25:00",
                                     "uptime_check_settings": {
-                                        "failed_notification_threshold": 10,
+                                        "failed_notification_threshold": 30,
                                         "frequency_unit": "minute",
                                         "frequency_value": 1
                                     },

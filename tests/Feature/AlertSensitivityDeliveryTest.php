@@ -10,10 +10,13 @@ use Heptapod\Checks\Recording\ResultRecorder;
 use Heptapod\Contracts\CheckError;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckOutcome;
+use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Enums\NotificationCategory;
+use Heptapod\Enums\NotificationMode;
 use Heptapod\Models\Check;
 use Heptapod\Models\Delivery;
+use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
 use Heptapod\Testing\ClaimedRun;
 use Illuminate\Support\Facades\Http;
@@ -36,6 +39,7 @@ function sensitivityRun(Check $check, RunResult $result): void
         $check->type === CheckKey::Uptime => new CheckOutcome($result, $result === RunResult::Failed ? 'uptime.status' : 'uptime.succeeded', [],
             new UptimeMetrics($result === RunResult::Failed ? 503 : 200, null, null, null, null, 0.1, $curl, now()->toIso8601String())),
         $result === RunResult::Errored => new CheckOutcome($result, 'checks.engine.errored', [], null, error: new CheckError(RuntimeException::class, 'Resolver timed out')),
+        $result === RunResult::Failed => new CheckOutcome($result, 'dns.issue.records_missing', ['types' => 'AAAA'], new DnsMetrics(1, 1, false)),
         default => new CheckOutcome($result, 'dns.succeeded', [], new DnsMetrics(1, 0, false)),
     };
     $context = ClaimedRun::start($check, CarbonImmutable::now('UTC')->subSecond());
@@ -75,3 +79,43 @@ it('sends a Check error of an hourly check only once the re-run 10 minutes later
             ->and(Delivery::query()->where('suppression_reason', 'recovered_before_confirmation')->count())->toBe(1);
     }
 })->with(['one-off' => [RunResult::Succeeded, 0], 'confirmed' => [RunResult::Errored, 1]]);
+
+it('does not let a different problem confirm an alert and waits for the new problem to repeat', function (): void {
+    $check = Check::factory()->create(['type' => CheckKey::Dns, 'interval_seconds' => 3600, 'failure_threshold' => 1]);
+    sensitivityRun($check, RunResult::Errored);
+    $this->travelTo($check->refresh()->next_run_at);
+    // The re-run fails differently: the Check error is not confirmed, and the Failed result needs its own re-run.
+    sensitivityRun($check, RunResult::Failed);
+    expect($check->refresh()->next_run_at->lessThanOrEqualTo(CarbonImmutable::parse('2026-10-28T12:20:00Z')))->toBeTrue();
+    $this->travel(5)->minutes();
+    dispatchNotifications();
+    Http::assertNothingSent();
+    expect(Delivery::query()->where('suppression_reason', 'recovered_before_confirmation')->count())->toBe(1);
+
+    $this->travelTo($check->next_run_at);
+    sensitivityRun($check, RunResult::Failed);
+    $this->travel(1)->minutes();
+    dispatchNotifications();
+    Http::assertSentCount(1);
+    // The confirmed Failed alert also carries the recovery.
+    sensitivityRun($check, RunResult::Succeeded);
+    $this->travel(1)->minutes();
+    dispatchNotifications();
+    Http::assertSentCount(2);
+});
+
+it('keeps an unconfirmed Check error out of the digest until its confirming run repeats it', function (): void {
+    $digest = notificationRoute(notificationWebhook(), [NotificationCategory::CheckError], NotificationMode::Digest);
+    notificationSchedule($digest, ['digest_time' => '13:00']);
+    $check = Check::factory()->create(['type' => CheckKey::Dns, 'interval_seconds' => 3600, 'failure_threshold' => 1]);
+    sensitivityRun($check, RunResult::Errored);
+    // The confirming run is late: the digest at 13:00 leaves the alert out and keeps it waiting.
+    $this->travelTo(CarbonImmutable::parse('2026-10-28T13:00:00Z'));
+    dispatchNotifications();
+    expect(Event::query()->where('type', 'notification.digest')->count())->toBe(0)
+        ->and(Delivery::query()->where('destination_id', $digest->id)->sole()->only(['state', 'suppressed']))->toEqual(['state' => DeliveryState::Pending, 'suppressed' => false]);
+
+    // The confirming run at 13:00 repeats the Check error: the digest due now carries it.
+    sensitivityRun($check, RunResult::Errored);
+    expect(Event::query()->where('type', 'notification.digest')->count())->toBe(1);
+});

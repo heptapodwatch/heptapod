@@ -235,9 +235,10 @@ final readonly class TransactionalResultRecorder implements ResultRecorder
             }
             // The stored result sends state.changed below, so a cleared mark needs no signal of its own.
             $this->clearSlot($check, $run->endedAt);
-            // The run that opened an incident gets its confirming re-run soon, not a full hourly or daily interval later.
+            // A run that opened an incident or changed its cause gets its confirming re-run soon, not a full hourly or daily interval later.
             $rerunAfter = AlertConfirmation::rerunAfterSeconds($check);
-            if ($incident?->wasRecentlyCreated === true && $rerunAfter < $check->interval_seconds && AlertConfirmation::required($check, $site)) {
+            if (($incident?->wasRecentlyCreated === true || $incident?->wasChanged('cause') === true) && $incident->resolved_at === null
+                && $rerunAfter < $check->interval_seconds && AlertConfirmation::required($check, $site)) {
                 $check->update(['next_run_at' => min($check->next_run_at, $run->endedAt->addSeconds($rerunAfter))]);
             }
             $runOutcome = in_array($outcome->result, [RunResult::Failed, RunResult::Errored], true) ? RunPhase::Failed : RunPhase::Done;

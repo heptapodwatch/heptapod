@@ -28,6 +28,8 @@ final readonly class CheckContext implements \JsonSerializable
         public bool $manualRun = false,
         public PolicyRefusals $policyRefusals = new PolicyRefusals,
         public ?int $uptimeIntervalSeconds = null,
+        /** This run decides whether a Failed or Check error alerts: it must observe the site again, never reuse cached evidence. */
+        public bool $confirmsAlert = false,
     ) {}
 
     public function withAcceptanceRevision(int $revision): self

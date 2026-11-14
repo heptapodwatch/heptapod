@@ -121,10 +121,11 @@ final class Delivery extends Model
         }
     }
 
+    /** The channel's accepted alert for this incident: its opening, a cause change (an unconfirmed opening is never sent) or a reminder. */
     public static function alertedIncident(int $incidentId, int $destinationId): ?self
     {
         $deliveries = self::query();
-        $openings = DB::table('events')->select('id')->where('incident_id', $incidentId)->whereIn('type', ['incident.opened', 'incident.still_down']);
+        $openings = DB::table('events')->select('id')->where('incident_id', $incidentId)->whereIn('type', ['incident.opened', 'incident.cause_changed', 'incident.still_down']);
         $catchUps = DB::table('maintenance_catch_up_incidents')->select('event_id')->where('incident_id', $incidentId);
         $deliveries->getQuery()->where('destination_id', $destinationId)->where('state', DeliveryState::Sent->value)
             ->whereIn('event_id', $openings->union($catchUps))->orderByDesc('sent_at');
@@ -141,7 +142,7 @@ final class Delivery extends Model
      */
     public static function incidentOpenerChannels(Incident $incident, array $destinationIds): array
     {
-        $openings = DB::table('events')->select('id')->where('incident_id', $incident->id)->whereIn('type', ['incident.opened', 'incident.still_down']);
+        $openings = DB::table('events')->select('id')->where('incident_id', $incident->id)->whereIn('type', ['incident.opened', 'incident.cause_changed', 'incident.still_down']);
         $catchUps = DB::table('maintenance_catch_up_incidents')->select('event_id')->where('incident_id', $incident->id);
         /** @var list<int> $alerted */
         $alerted = DB::table('deliveries')->whereIntegerInRaw('destination_id', $destinationIds)->where('state', DeliveryState::Sent->value)
