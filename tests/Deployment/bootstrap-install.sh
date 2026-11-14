@@ -86,6 +86,8 @@ SH
 publish v1.0.0 1111111111111111111111111111111111111111
 publish v2.0.0 2222222222222222222222222222222222222222
 publish v3.0.0 3333333333333333333333333333333333333333 v1.0.0
+# The first release with arm64 images.
+publish v0.4.1 0401040104010401040104010401040104010401
 # Rewrites the MANIFEST so that it lists every file in the bundle directory, REVISION last.
 relist() {
     { find . -type f ! -name REVISION | LC_ALL=C sort; echo ./REVISION; } > ../MANIFEST.new
@@ -141,10 +143,21 @@ refuses 'Invalid --version v2.0.0-rc.1: Heptapod publishes only vX.Y.Z release t
 refuses '--dir must be an absolute path' --domain a.example.com --dir relative
 STUB_UID=1000 refuses 'Run as root' --domain a.example.com --dir "$work/a"
 HEPTAPOD_OS_RELEASE="$work/fedora" refuses "Unsupported operating system 'fedora'" --domain a.example.com --dir "$work/a"
-STUB_ARCH=aarch64 refuses 'Unsupported architecture aarch64: published Heptapod images are amd64-only' --domain a.example.com --dir "$work/a"
+STUB_ARCH=armv7l refuses 'Unsupported architecture armv7l: Heptapod publishes images for amd64 (x86_64) and arm64 (aarch64).' --domain a.example.com --dir "$work/a"
+STUB_ARCH=aarch64 refuses 'Heptapod v0.4.0 has no arm64 images; they exist from v0.4.1 on. Pass --version with a newer release' --domain a.example.com --version v0.4.0 --dir "$work/a"
+printf '{"tag_name": "v0.4.0"}' > "$work/api/releases/latest"
+STUB_ARCH=aarch64 refuses 'Heptapod v0.4.0 has no arm64 images' --domain a.example.com --dir "$work/a"
+printf '{\n  "url": "fixture",\n  "tag_name": "v2.0.0",\n  "name": "Heptapod v2.0.0"\n}\n' > "$work/api/releases/latest"
 [ ! -e "$work/a" ]
 [ ! -e "$work/install.log" ]
-printf 'PASS: argument, root, OS and architecture errors stop before any download or write\n'
+printf 'PASS: argument, root, OS and architecture errors, and an arm64 host with a release before v0.4.1, stop before any download or write\n'
+
+STUB_ARCH=aarch64 bootstrap --domain arm.example.com --version v0.4.1 --dir "$work/arm" < /dev/null > /dev/null
+published "$work/arm" v0.4.1
+grep -Fxq 'arm held --revision 0401040104010401040104010401040104010401 --domain arm.example.com' "$work/install.log"
+STUB_ARCH=aarch64 bootstrap --domain arm2.example.com --dir "$work/arm2" < /dev/null > /dev/null
+published "$work/arm2" v2.0.0
+printf 'PASS: an arm64 host installs v0.4.1 and the latest release\n'
 
 STUB_NO_DOCKER=true refuses "curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --install-docker --domain a.example.com --owner-email you@example.com --dir $work/a" \
     --domain a.example.com --owner-email you@example.com --dir "$work/a"

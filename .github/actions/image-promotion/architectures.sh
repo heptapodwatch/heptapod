@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The repository variable is optional; an explicitly empty value is invalid.
 set -euo pipefail
-value=${HEPTAPOD_IMAGE_ARCHES-amd64}
+value=${HEPTAPOD_IMAGE_ARCHES-amd64,arm64}
 if [[ ! $value =~ ^(amd64|arm64)(,(amd64|arm64))*$ ]]; then
   echo "::error::Invalid HEPTAPOD_IMAGE_ARCHES '$value'; expected a nonempty comma list of amd64, arm64" >&2
   exit 1

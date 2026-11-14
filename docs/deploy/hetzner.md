@@ -7,20 +7,18 @@ This page adds the Hetzner Cloud specifics to the [install guide](https://heptap
 
 ## Server types
 
-| Setup                                    | Server type  | Size                                |
-| ---------------------------------------- | ------------ | ----------------------------------- |
-| Without Lighthouse (`--without-browser`) | CX23         | amd64, 2 vCPU, 4 GB RAM, 40 GB disk |
-| With Lighthouse (installer default)      | CX33         | amd64, 4 vCPU, 8 GB RAM, 80 GB disk |
-| Arm alternatives, source builds only     | CAX11, CAX21 | arm64, 2/4/40 and 4/8/80            |
+| Setup                                    | amd64 | arm64 | Size                         |
+| ---------------------------------------- | ----- | ----- | ---------------------------- |
+| Without Lighthouse (`--without-browser`) | CX23  | CAX11 | 2 vCPU, 4 GB RAM, 40 GB disk |
+| With Lighthouse (installer default)      | CX33  | CAX21 | 4 vCPU, 8 GB RAM, 80 GB disk |
 
-- Use Ubuntu 24.04 amd64. The release images `ghcr.io/heptapodwatch/heptapod-app` and `ghcr.io/heptapodwatch/heptapod-lighthouse` are amd64 only.
-- An arm64 instance built from source upgrades with `./scripts/upgrade.sh --build`.
+- Use Ubuntu 24.04. The release images `ghcr.io/heptapodwatch/heptapod-app` and `ghcr.io/heptapodwatch/heptapod-lighthouse` exist for amd64 and, from v0.4.1 on, for arm64.
 - Keep at least 12 GiB free on the Docker filesystem: 6 GiB for images and 6 GiB for backups. Larger data needs more backup space.
 - Capacity depends on the mix of checks, not only the number of sites. See the [capacity table](operations.md#installation-and-capacity).
 
 ## Prepare the server
 
-1. Create the server with Ubuntu 24.04 amd64.
+1. Create the server with Ubuntu 24.04.
 2. In the Hetzner firewall, allow inbound TCP 22, 80 and 443 only.
 3. Point a DNS A record at the server. Add AAAA only with working IPv6.
 
@@ -35,7 +33,7 @@ curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --install-docker 
 ```
 
 - `--install-docker` installs Docker Engine, the Compose plugin, curl, jq and OpenSSL as in the prerequisites below. It changes nothing when Docker is already installed.
-- Leave out `--without-browser` on a CX33 to run Lighthouse.
+- Leave out `--without-browser` on a CX33 or CAX21 to run Lighthouse.
 - The installer prints the first Owner's password once. Public registration is disabled.
 
 The [install guide](https://heptapod.watch/docs/getting-started/install/) explains every step and option, a Git checkout and a reverse proxy.

@@ -36,6 +36,17 @@ jobs:
             echo "::error::Images for $TAG ($(git rev-parse HEAD)) are not published. Wait for Production images on main to publish this commit, then run this workflow manually for $TAG."
             exit 1
           fi
+      # The pull above proves only the runner's architecture. The hosted installer accepts arm64 hosts for every
+      # release from v0.4.1 on, so a release must publish both.
+      - name: Require amd64 and arm64 images of the tag commit
+        run: |
+          for image in app lighthouse; do
+            reference="$(bash scripts/image-reference.sh "$image"):$(git rev-parse HEAD)"
+            if ! docker manifest inspect "$reference" | jq -e '[.manifests[]?.platform | select(.os == "linux") | .architecture] | index("amd64") != null and index("arm64") != null' > /dev/null; then
+              echo "::error::$reference has no linux/amd64 and linux/arm64 index. Publish both architectures (HEPTAPOD_IMAGE_ARCHES) before attaching the bundle for $TAG."
+              exit 1
+            fi
+          done
       - name: Build the bundle
         run: bash scripts/build-release-bundle.sh "$TAG" "$(git rev-parse HEAD)" "$RUNNER_TEMP/bundle"
       - name: Attach the bundle and its checksum to the release

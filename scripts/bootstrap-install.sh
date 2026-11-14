@@ -22,7 +22,7 @@ main() {
                 cat <<'HELP'
 Usage: curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --domain monitor.example.com [options]
 
-Installs a published Heptapod release on Ubuntu or Debian (amd64) without Git:
+Installs a published Heptapod release on Ubuntu or Debian (amd64 or arm64) without Git:
 downloads the release bundle, verifies its SHA-256 checksum, unpacks it into
 --dir/releases/TAG, points --dir/current at it and runs its scripts/install.sh.
 .env.prod and .heptapod/ stay in --dir; every bundle file is reached through
@@ -68,7 +68,13 @@ HELP
         ubuntu|debian) ;;
         *) fail "Unsupported operating system '${os_id:-unknown}'. This installer supports Ubuntu and Debian; elsewhere install Docker Engine and Compose v5 yourself and follow the manual installation in docs/deploy/operations.md." ;;
     esac
-    [ "$(uname -m)" = x86_64 ] || fail "Unsupported architecture $(uname -m): published Heptapod images are amd64-only. Source builds are described in docs/deploy/operations.md."
+    local architecture
+    architecture=$(uname -m)
+    case "$architecture" in
+        x86_64|aarch64) ;;
+        *) fail "Unsupported architecture $architecture: Heptapod publishes images for amd64 (x86_64) and arm64 (aarch64). Source builds are described in docs/deploy/operations.md." ;;
+    esac
+    [ -z "$version" ] || require_release_images "$architecture" "$version"
 
     local quoted_dir
     printf -v quoted_dir %q "$dir"
@@ -105,6 +111,7 @@ or follow https://docs.docker.com/engine/install/$os_id/ and run this installer 
         version=$(curl -fsSL "$release_api/releases/latest" | grep -o '"tag_name": *"[^"]*"' | head -n 1 | sed 's/.*"\([^"]*\)"$/\1/') ||
             fail "Cannot read the latest release from $release_api/releases/latest; pass --version."
         [[ "$version" =~ $tag_pattern ]] || fail "The latest release has an unexpected tag '$version' (expected vX.Y.Z); pass --version."
+        require_release_images "$architecture" "$version"
     fi
     echo "Installing Heptapod $version into $dir"
 
@@ -182,6 +189,16 @@ refuse_unsafe_state() {
             fail "$state_path is a symlink or owned by another user; nothing was changed."
         fi
     done
+}
+
+# Releases up to v0.4.0 publish amd64 images only; the release bundle workflow requires both architectures for
+# every later release. Refuses before anything changes instead of at the image pull.
+require_release_images() {
+    local major minor patch
+    [ "$1" = aarch64 ] || return 0
+    IFS=. read -r major minor patch <<< "${2#v}"
+    (( 10#$major > 0 || 10#$minor > 4 || (10#$minor == 4 && 10#$patch >= 1) )) ||
+        fail "Heptapod $2 has no arm64 images; they exist from v0.4.1 on. Pass --version with a newer release, or build from source as described in docs/deploy/operations.md."
 }
 
 fail() {
