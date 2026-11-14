@@ -138,7 +138,11 @@ final class UptimeAlertEpisode
         return null;
     }
 
-    /** Latest R observations, not elapsed time: a missing run or an intervening failure cannot confirm recovery. */
+    /**
+     * R consecutive good observations at any point since the resolve, not elapsed time: a missing run or an intervening failure
+     * cannot confirm recovery, and a later single failure cannot undo a confirmed one. The scan walks the run index forward
+     * and stops at the first complete streak.
+     */
     public static function recoveryConfirmed(Incident $incident, CarbonImmutable $until): bool
     {
         $from = $incident->resolved_at ?? throw new \LogicException('Recovery confirmation needs a resolved incident.');
@@ -146,11 +150,11 @@ final class UptimeAlertEpisode
             return false;
         }
         $required = self::timing($incident)->recoveryChecks;
-        $results = DB::table('check_runs')->where('check_id', $incident->check_id)
+        $streaks = DB::table('check_runs')->where('check_id', $incident->check_id)
             ->where('ended_at', '>=', $from->format('Y-m-d H:i:s.uP'))->where('ended_at', '<=', $until->format('Y-m-d H:i:s.uP'))
-            ->orderByDesc('ended_at')->orderByDesc('id')->limit($required)->pluck('result');
+            ->selectRaw('count(*) FILTER (WHERE result = ?) OVER (ORDER BY ended_at, id ROWS BETWEEN ? PRECEDING AND CURRENT ROW) AS good', [CheckResult::Succeeded->value, $required - 1]);
 
-        return $results->count() === $required && $results->every(static fn (mixed $result): bool => $result === CheckResult::Succeeded->value);
+        return DB::query()->fromSub($streaks, 'streaks')->where('good', $required)->exists();
     }
 
     public static function laterIncident(Incident $incident): ?Incident
