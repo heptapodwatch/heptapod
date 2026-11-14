@@ -45,7 +45,7 @@ final class ApiSpec
         '/components/schemas/Monitor/properties/application_health_check_settings/properties/secret' => ['reason' => 'Health secret is write-only and serializes as ********, including uninstalled snapshots; omitted or masked writes retain the previous value'],
         '/components/schemas/UptimeCheckSettings/properties/frequency_unit' => ['reason' => 'The real Oh Dear API returns hour/day (sanitized live data); the pinned spec is incomplete', 'enum' => ['minute', 'hour', 'day', null]],
         '/components/schemas/UptimeCheckSettings/properties/failed_notification_threshold' => ['reason' => 'Uptime notification minutes in 1..1000; null inherits the team default. Incident opening remains unchanged; other checks keep failed-check-count semantics.'],
-        '/components/schemas/Monitor/properties/alert_sensitivity' => ['reason' => 'Additional read-only effective timing: preset, alert_after_minutes, recovery_checks and inherited. Writes use uptime failed_notification_threshold only.'],
+        '/components/schemas/Monitor/properties/alert_sensitivity' => ['reason' => 'Additional read-only effective sensitivity: preset, alert_after_minutes, recovery_checks, confirms_other_checks, reminders and inherited. Writes use uptime failed_notification_threshold only.'],
         '/paths/~1checks~1{checkId}~1snooze/post' => ['reason' => 'Uninstalled addons reject enable, config, request-run and snooze with 422; disable, unsnooze and monitor delete remain allowed cleanup'],
         '/paths/~1monitors/get/parameters' => ['reason' => 'SDK scalar page/per_page supported alongside bracketed pages; mixed dialects rejected'],
     ];

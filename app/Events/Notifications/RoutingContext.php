@@ -31,6 +31,7 @@ final readonly class RoutingContext
         }
         $types = app(NotificationEventTypes::class);
 
-        return new self($site, $category, $types->severity($event), $types->critical($event), UptimeAlertEpisode::notBefore($event));
+        return new self($site, $category, $types->severity($event), $types->critical($event),
+            UptimeAlertEpisode::notBefore($event) ?? AlertConfirmation::notBefore($event));
     }
 }

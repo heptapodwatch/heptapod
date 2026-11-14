@@ -10,6 +10,7 @@ use Heptapod\Contracts\Findings\FindingsRow;
 use Heptapod\Contracts\Findings\UnavailableFindingsSnapshot;
 use Heptapod\Contracts\OhDear\CheckSummaryData;
 use Heptapod\Contracts\RunReference;
+use Heptapod\Enums\AlertReminders;
 use Heptapod\Enums\AlertSensitivity;
 use Heptapod\Enums\FreshnessSuppression;
 
@@ -191,10 +192,12 @@ final class ApiContract
     {
         $string = ['type' => 'string'];
         $sensitivity = ['type' => 'object', 'readOnly' => true, 'additionalProperties' => false,
-            'required' => ['preset', 'alert_after_minutes', 'recovery_checks', 'inherited'],
+            'required' => ['preset', 'alert_after_minutes', 'recovery_checks', 'confirms_other_checks', 'reminders', 'inherited'],
             'properties' => ['preset' => ['type' => ['string', 'null'], 'enum' => [...array_column(AlertSensitivity::cases(), 'value'), null]],
                 'alert_after_minutes' => ['type' => 'integer', 'minimum' => AlertSensitivity::MinStoredMinutes, 'maximum' => AlertSensitivity::MaxStoredMinutes],
                 'recovery_checks' => ['type' => 'integer', 'minimum' => AlertSensitivity::MinRecoveryChecks, 'maximum' => AlertSensitivity::MaxRecoveryChecks],
+                'confirms_other_checks' => ['type' => 'boolean'],
+                'reminders' => ['type' => 'string', 'enum' => array_column(AlertReminders::cases(), 'value')],
                 'inherited' => ['type' => 'boolean']]];
 
         return [

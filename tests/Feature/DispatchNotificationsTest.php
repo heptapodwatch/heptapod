@@ -21,6 +21,7 @@ use Heptapod\Contracts\Notifications\ChannelRegistry;
 use Heptapod\Contracts\Notifications\DeliveryResult;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Contracts\RunResult;
+use Heptapod\Enums\AlertReminders;
 use Heptapod\Enums\NotificationMode;
 use Heptapod\Jobs\SendNotification;
 use Heptapod\Models\Check;
@@ -55,6 +56,11 @@ require_once __DIR__.'/../Support/NotificationChannels.php';
 // Provider outcomes, not the local log/array mailer: phpunit's array mailer now records mail as logged (8e3a8e4e).
 beforeEach(function (): void {
     config(['mail.default' => 'smtp']);
+    // Routing, rendering and the standard reminder cadence, not alert confirmation: a non-uptime failure is due at once.
+    $settings = app(InstanceSettings::class);
+    $settings->alert_confirms_other_checks = false;
+    $settings->alert_reminders = AlertReminders::Standard;
+    $settings->save();
 });
 
 it('adds every channel that covers the site and lets a site mute silence one channel', function (): void {

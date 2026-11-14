@@ -34,16 +34,16 @@ To connect a chat service, see [channel setup](./channels.md). To receive webhoo
 
 ## Defaults
 
-| Channel                         | Starts with                                                      |
-| ------------------------------- | ---------------------------------------------------------------- |
-| A new team channel              | Every category except Changes and System                         |
-| The first Owner's account email | Every category except Changes, plus System                       |
-| Another person's account email  | Outage, Failure and Recovery, for every site they can see        |
-| A client channel                | Nothing. No alert reaches a client until you turn a category on. |
+| Channel                         | Starts with                                                                           |
+| ------------------------------- | ------------------------------------------------------------------------------------- |
+| A new team channel              | Every category except Changes and System; Check error as Digest                       |
+| The first Owner's account email | Every category except Changes, plus System; Check error as Digest                     |
+| Another person's account email  | Outage, Failure and Recovery, plus Check error as Digest, for every site they can see |
+| A client channel                | Nothing. No alert reaches a client until you turn a category on.                      |
 
 - System is never offered to clients or Members.
 - The Owner role always gets System at its account email, also in quiet hours. That row is locked.
-- Digest cells are off by default.
+- Check error is the only Digest cell by default.
 
 ## Manage a channel
 
@@ -87,22 +87,38 @@ Digests are in beta. They may repeat warnings, include outdated ones, or count a
 
 ## Alert sensitivity
 
-Alert sensitivity decides how long an uptime outage lasts before anyone is told. Set the team default in **Settings → Alert sensitivity**, or override it in the site settings under **Alerts**. Sites use Relaxed unless you choose another.
+Alert sensitivity decides when a problem sends an alert and how often Down reminders follow. Set the team default in **Settings → Alert sensitivity**, or override it in the site settings under **Alerts**. Sites use Relaxed unless you choose another.
 
-| Preset       | Alert at failed minute | Good checks to confirm recovery |
-| ------------ | ---------------------- | ------------------------------- |
-| **Strict**   | 2                      | 1                               |
-| **Balanced** | 5                      | 3                               |
-| **Relaxed**  | 10                     | 3                               |
-| **Patient**  | 30                     | 3                               |
-| **Custom**   | 2–60                   | 1–10                            |
+A sensitivity has four settings. A preset fills all four; you can then change each one.
 
-- It applies to uptime outages and uptime check errors only. Incidents and uptime history are not affected.
+| Preset       | Alert after (failed minutes) | Recovery after (good checks) | Other checks: wait for a confirming run | Down reminders             |
+| ------------ | ---------------------------- | ---------------------------- | --------------------------------------- | -------------------------- |
+| **Strict**   | 2                            | 1                            | No                                      | After 1 h, 4 h, then daily |
+| **Balanced** | 5                            | 3                            | Yes                                     | After 1 h, 4 h, then daily |
+| **Relaxed**  | 30                           | 3                            | Yes                                     | Once a day                 |
+| **Patient**  | 60                           | 3                            | Yes                                     | Once a day                 |
+| **Custom**   | 2–60                         | 1–10                         | Yes or No                               | Either                     |
+
+- The page shows the preset that matches all four settings, otherwise **Custom**.
+- A site set to **Team default** shows the team's settings read-only. Choose a preset to override them.
+- Alert sensitivity delays or skips alerts only. Incidents, check results and uptime history stay complete.
+- A change applies to new interruptions, not to a running episode.
+
+### Uptime outages
+
+- **Alert after** counts failed minutes from the first failed check. It also applies to uptime check errors.
 - An interruption shorter than the delay stays in the incident list without an alert.
 - A short recovery without enough good checks stays in the same episode, with one opening alert per channel. Its Since time and duration cover the episode.
 - Missing checks do not confirm a recovery. A failure resets the good-check count.
-- A change applies to new interruptions, not to a running episode.
 - A value set by import or API outside the **Custom** range stays visible with its real numbers. To change those minutes, choose a value in range.
+
+### Other checks
+
+With **Wait for a confirming run**, a **Failed** or **Check error** of any other check alerts only when the next run shows a problem too.
+
+- Hourly and daily checks run again 10 minutes after the first bad result. Other checks wait for their next scheduled run.
+- A problem that is gone on the next run stays in the incident list. Neither its opening alert nor its recovery is sent.
+- Without it, the first bad result alerts at once.
 
 The API exposes alert sensitivity on monitors; see [monitors and checks](./api.md#monitors-and-checks).
 
@@ -110,12 +126,12 @@ The API exposes alert sensitivity on monitors; see [monitors and checks](./api.m
 
 Only open uptime Down incidents send reminders. Other incidents send an opening and a resolution alert; their recovery title says Resolved.
 
-- The first reminder comes one hour after the opening alert, the second four hours later, then one every 24 hours.
+- The site's alert sensitivity sets the schedule. **After 1 h, 4 h, then daily** sends the first reminder one hour after the opening alert, the second four hours later, then one every 24 hours. **Once a day** sends one every 24 hours.
 - Only channels whose opening alert was accepted get reminders. Reminders stay at least one hour apart per channel.
 - Quiet hours do not delay outage reminders. An incident snooze stops them.
 - Muted maintenance stops reminders while active, also for incidents opened before it. See [maintenance](./maintenance.md).
 - After a snooze or maintenance ends, one overdue reminder goes out, never a burst. Snoozes and maintenance do not reset the sequence.
-- A recovery ends the sequence. A new incident starts again at one hour.
+- A recovery ends the sequence. A new incident starts the schedule again.
 
 ## Recovery alerts
 

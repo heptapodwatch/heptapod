@@ -9,7 +9,7 @@ use Heptapod\Checks\FreshnessSnapshot;
 use Heptapod\Checks\History\RollupReader;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckResult;
-use Heptapod\Events\Notifications\AlertDelay;
+use Heptapod\Events\Notifications\EffectiveAlertSensitivity;
 use Heptapod\Models\Check;
 use Heptapod\Models\Site;
 use Heptapod\Settings\InstanceSettings;
@@ -64,7 +64,7 @@ final class MonitorResource extends JsonResource
         foreach ($checks as $check) {
             $check->setRelation('site', $site);
         }
-        $delay = AlertDelay::for($site, app(InstanceSettings::class));
+        $sensitivity = EffectiveAlertSensitivity::for($site, app(InstanceSettings::class));
         $responseTimes = $this->responseTimes ?? self::responseTimes(collect([$site]));
         $result = CheckResult::Pending;
         foreach ([CheckResult::Failed, CheckResult::Errored, CheckResult::Warning, CheckResult::Succeeded, CheckResult::Pending] as $candidate) {
@@ -89,8 +89,9 @@ final class MonitorResource extends JsonResource
                 return $name;
             })->values()->all(), 'description' => $site->description, 'notes' => $site->notes,
             'latest_run_date' => $latest?->utc()->format('Y-m-d H:i:s'), 'summarized_check_result' => $result->value,
-            'alert_sensitivity' => ['preset' => $delay->preset?->value, 'alert_after_minutes' => $delay->alertAfterMinutes,
-                'recovery_checks' => $delay->recoveryChecks, 'inherited' => $delay->inherited],
+            'alert_sensitivity' => ['preset' => $sensitivity->preset?->value, 'alert_after_minutes' => $sensitivity->alertAfterMinutes,
+                'recovery_checks' => $sensitivity->recoveryChecks, 'confirms_other_checks' => $sensitivity->confirmsOtherChecks,
+                'reminders' => $sensitivity->reminders->value, 'inherited' => $sensitivity->inherited],
             'checks' => $checks->map(fn (Check $check): array => new CheckResource($check, $responseTimes, $this->freshness)->resolve($request))->all(),
             'badge_id' => $site->badge_id, 'marked_for_deletion_at' => $site->marked_for_deletion_at?->utc()->format('Y-m-d H:i:s'),
             'crawler_headers' => null, 'send_report_to_emails' => $site->send_report_to_emails, 'include_check_types_in_report' => $site->include_check_types_in_report,

@@ -29,7 +29,7 @@ final readonly class UpdateSiteSettings
                 $site = ($this->move)($user, $site, $clientId);
             }
             /** @var array<string, mixed> $siteAttributes */
-            $siteAttributes = Arr::except($attributes, ['client_id', 'alert_after_minutes', 'alert_recovery_checks']);
+            $siteAttributes = Arr::except($attributes, ['client_id', 'alert_after_minutes', 'alert_recovery_checks', 'alert_confirms_other_checks', 'alert_reminders']);
             if ($siteAttributes === [] && $timing === []) {
                 return;
             }

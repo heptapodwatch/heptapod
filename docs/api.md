@@ -258,9 +258,9 @@ Tested operations:
 - Frequencies take 1–60 minutes, hours or days. Failure thresholds take 1–1000.
 - Unsupported monitor types, settings, probe locations and check types return 422.
 - Complex optional settings, such as Lighthouse notification thresholds, are set through the API.
-- Uptime `failed_notification_threshold` is the failed minutes before an alert (1–1000), not the incident-opening threshold. `null` inherits the team setting. Up to 2 confirms recovery with one good check, higher values with three.
+- Uptime `failed_notification_threshold` is the failed minutes before an alert (1–1000), not the incident-opening threshold. `null` inherits the team setting. Up to 2 confirms recovery with one good check, higher values with three. Confirmation and reminders keep their effective values.
 - Other check types keep `failed_notification_threshold` as a failed-check count.
-- Monitor responses show the effective, read-only `alert_sensitivity`: `preset`, `alert_after_minutes`, `recovery_checks`, `inherited`. See [alert sensitivity](./notifications.md#alert-sensitivity).
+- Monitor responses show the effective, read-only `alert_sensitivity`: `preset`, `alert_after_minutes`, `recovery_checks`, `confirms_other_checks`, `reminders` (`standard` or `daily`), `inherited`. See [alert sensitivity](./notifications.md#alert-sensitivity).
 
 ### Metrics
 

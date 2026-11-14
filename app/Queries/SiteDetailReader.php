@@ -50,7 +50,7 @@ use Heptapod\Enums\AlertSensitivity;
 use Heptapod\Enums\FreshnessSuppression;
 use Heptapod\Enums\IncidentCause;
 use Heptapod\Enums\NotificationCategory;
-use Heptapod\Events\Notifications\AlertDelay;
+use Heptapod\Events\Notifications\EffectiveAlertSensitivity;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\Client;
@@ -119,8 +119,8 @@ final readonly class SiteDetailReader
         return new SiteSettingsPageData($site, $this->client($user, $site),
             $stored->resume_at?->toIso8601String(), DB::table('checks')->where('site_id', $siteId)->count(),
             DB::table('incidents')->where('site_id', $siteId)->count(),
-            AlertSensitivityData::fromDelay(AlertDelay::for($stored, $this->instanceSettings)),
-            AlertSensitivityData::fromDelay(AlertDelay::team($this->instanceSettings)),
+            AlertSensitivityData::fromEffective(EffectiveAlertSensitivity::for($stored, $this->instanceSettings)),
+            AlertSensitivityData::fromEffective(EffectiveAlertSensitivity::team($this->instanceSettings)),
             AlertSensitivityData::presets(), AlertSensitivity::bounds(), Lazy::inertia(fn (): int => $this->resultCount($user, $siteId)), $this->runAllChecks($site),
             $this->maintenance($user, $siteId), $stored->icon_fetched_at?->toIso8601String(), $stored->icon_manual_result, $redirectTarget, $redirectSummary, $this->sites->clientChoices($user), \DateTimeZone::listIdentifiers(),
             $this->checkSettings($site, array_values($checksQuery->get()->all()), static fn (Check $check): bool => Gate::forUser($user)->allows('update', $check)),

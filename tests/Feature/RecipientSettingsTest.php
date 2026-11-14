@@ -103,10 +103,11 @@ it('creates team, own and client channels with the design defaults and refuses a
         ->and(NotificationDestination::query()->findOrFail($clientChannel)->client_id)->toBe($client->id)
         ->and(NotificationDestination::query()->findOrFail($own)->user_id)->toBe($member->id);
     // Design 1.3: team hears everything except Changes and System; clients nothing; a Member's channel outages, failures and recoveries.
-    expect(recipientGrid($team))->toBe(['changes' => 'off', 'check_error' => 'immediate', 'expiring' => 'immediate', 'failure' => 'immediate',
+    // Check errors go to the daily digest on team and personal channels.
+    expect(recipientGrid($team))->toBe(['changes' => 'off', 'check_error' => 'digest', 'expiring' => 'immediate', 'failure' => 'immediate',
         'outage' => 'immediate', 'recovery' => 'immediate', 'system' => 'off', 'warning' => 'immediate']);
     expect(array_unique(recipientGrid($clientChannel)))->toBe(['changes' => 'off']);
-    expect(recipientGrid($own))->toBe(['changes' => 'off', 'check_error' => 'off', 'expiring' => 'off', 'failure' => 'immediate',
+    expect(recipientGrid($own))->toBe(['changes' => 'off', 'check_error' => 'digest', 'expiring' => 'off', 'failure' => 'immediate',
         'outage' => 'immediate', 'recovery' => 'immediate', 'system' => 'off', 'warning' => 'off']);
 });
 
@@ -507,17 +508,17 @@ it('exposes the grid each channel started with as its defaults, for every recipi
 
     $teamChannels = collect($this->getJson(route('settings.notifications.team.data'))->json('channels'))->keyBy('id');
     // Design 1.3; a changed cell leaves the baseline alone, and a channel made outside the actions has none.
-    expect($teamChannels[$team]['defaults'])->toBe(['changes' => 'off', 'check_error' => $now, 'expiring' => $now, 'failure' => $now,
+    expect($teamChannels[$team]['defaults'])->toBe(['changes' => 'off', 'check_error' => 'digest', 'expiring' => $now, 'failure' => $now,
         'outage' => $now, 'recovery' => $now, 'system' => 'off', 'warning' => $now])
         ->and($teamChannels[$team]['preferences']['warning'])->toBe('digest')
         ->and($teamChannels[$factoryMade->id]['defaults'])->toBeNull();
-    expect($this->getJson(route('settings.notifications.data'))->json('channels.0.defaults'))->toBe(['changes' => 'off', 'check_error' => 'off',
+    expect($this->getJson(route('settings.notifications.data'))->json('channels.0.defaults'))->toBe(['changes' => 'off', 'check_error' => 'digest',
         'expiring' => 'off', 'failure' => $now, 'outage' => $now, 'recovery' => $now, 'system' => $now, 'warning' => 'off']);
     expect($this->actingAs($firstOwner)->getJson(route('settings.notifications.data'))->json('channels.0.defaults'))->toBe(['changes' => 'off',
-        'check_error' => $now, 'expiring' => $now, 'failure' => $now, 'outage' => $now, 'recovery' => $now, 'system' => $now, 'warning' => $now]);
+        'check_error' => 'digest', 'expiring' => $now, 'failure' => $now, 'outage' => $now, 'recovery' => $now, 'system' => $now, 'warning' => $now]);
     // A Member never sees System, so their defaults leave it out like their grid does.
     expect($this->actingAs($member)->getJson(route('settings.notifications.data'))->json('channels.0.defaults'))->toBe(['changes' => 'off',
-        'check_error' => 'off', 'expiring' => 'off', 'failure' => $now, 'outage' => $now, 'recovery' => $now, 'warning' => 'off']);
+        'check_error' => 'digest', 'expiring' => 'off', 'failure' => $now, 'outage' => $now, 'recovery' => $now, 'warning' => 'off']);
 });
 
 it('keeps the grid every existing channel has as its baseline when the defaults column arrives', function (): void {

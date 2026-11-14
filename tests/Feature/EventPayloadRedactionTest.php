@@ -21,6 +21,7 @@ use Heptapod\Models\Incident;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\User;
+use Heptapod\Settings\InstanceSettings;
 use Heptapod\Testing\ClaimedRun;
 use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Support\Facades\Http;
@@ -35,6 +36,10 @@ beforeEach(function (): void {
     config(['mail.default' => 'smtp']);
     Http::preventStrayRequests();
     Http::fake([]);
+    $alertSettings = app(InstanceSettings::class);
+    // Payload redaction, not alert sensitivity: the former team behaviour.
+    $alertSettings->alert_confirms_other_checks = false;
+    $alertSettings->save();
 });
 
 /** Records one errored crawl run whose cause names a discovered URL, then renders the event in Activity and the alert mail. */

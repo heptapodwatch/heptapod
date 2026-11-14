@@ -10,6 +10,7 @@ use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Enums\IncidentResolutionReason;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\RecipientKind;
+use Heptapod\Events\Notifications\AlertConfirmation;
 use Heptapod\Events\Notifications\NotificationEventTypes;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Events\Notifications\NotificationTiming;
@@ -172,6 +173,22 @@ final readonly class ClaimNotificationDelivery
                 if ($sending instanceof Delivery) {
                     $delivery->update(['state' => DeliveryState::Pending, 'next_attempt_at' => $sending->lease_until,
                         'claim_token' => null, 'lease_until' => null]);
+                    $delivery->announceChanges();
+
+                    return null;
+                }
+            }
+            if (AlertConfirmation::appliesTo($event)) {
+                $incident = $event->incident ?? throw new \LogicException('An incident opening must have its incident.');
+                if (! AlertConfirmation::confirmed($incident)) {
+                    if ($incident->resolved_at !== null) {
+                        $delivery->update(['suppressed' => true, 'suppression_reason' => AlertConfirmation::SuppressionReason, 'suppression_evaluated_at' => $at,
+                            'claim_token' => null, 'lease_until' => null]);
+                    } else {
+                        // The confirming run is late or still running: look again in a minute.
+                        $delivery->update(['state' => DeliveryState::Pending, 'next_attempt_at' => $at->addMinute(),
+                            'claim_token' => null, 'lease_until' => null]);
+                    }
                     $delivery->announceChanges();
 
                     return null;

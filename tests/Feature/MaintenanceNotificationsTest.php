@@ -13,6 +13,7 @@ use Heptapod\Contracts\CheckOutcome;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
 use Heptapod\Contracts\RunResult;
+use Heptapod\Enums\AlertReminders;
 use Heptapod\Events\Notifications\NotificationMessage;
 use Heptapod\Jobs\DispatchNotifications;
 use Heptapod\Models\Check;
@@ -24,12 +25,22 @@ use Heptapod\Models\Incident;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
+use Heptapod\Settings\InstanceSettings;
 use Heptapod\Testing\ClaimedRun;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Symfony\Component\Process\Process;
 
 require_once __DIR__.'/../Support/NotificationChannels.php';
+
+beforeEach(function (): void {
+    $alertSettings = app(InstanceSettings::class);
+    // Maintenance catch-up, not alert sensitivity: the former team behaviour.
+    $alertSettings->alert_after_minutes = 10;
+    $alertSettings->alert_confirms_other_checks = false;
+    $alertSettings->alert_reminders = AlertReminders::Standard;
+    $alertSettings->save();
+});
 
 function maintenanceDestination(): NotificationDestination
 {

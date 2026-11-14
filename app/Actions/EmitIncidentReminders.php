@@ -9,8 +9,10 @@ use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\Notifications\DeliveryState;
+use Heptapod\Enums\AlertReminders;
 use Heptapod\Enums\IncidentCause;
 use Heptapod\Events\EventOutbox;
+use Heptapod\Events\Notifications\EffectiveAlertSensitivity;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Events\Notifications\UptimeAlertEpisode;
 use Heptapod\Models\Check;
@@ -18,6 +20,7 @@ use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
 use Heptapod\Models\MaintenancePeriod;
+use Heptapod\Settings\InstanceSettings;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -27,14 +30,14 @@ final readonly class EmitIncidentReminders
 
     public function __invoke(): void
     {
-        $intervals = config('notifications.renotify_intervals_seconds');
-        if ($intervals === null) {
+        $standard = config('notifications.renotify_intervals_seconds');
+        if ($standard === null) {
             return;
         }
-        if (! is_array($intervals) || ! array_is_list($intervals) || $intervals === []) {
+        if (! is_array($standard) || ! array_is_list($standard) || $standard === []) {
             throw new \LogicException('Re-notify intervals must be a non-empty list of positive seconds or null.');
         }
-        foreach ($intervals as $interval) {
+        foreach ($standard as $interval) {
             if (! is_int($interval) || $interval < 1) {
                 throw new \LogicException('Re-notify intervals must be positive seconds.');
             }
@@ -43,7 +46,7 @@ final readonly class EmitIncidentReminders
         $query->whereHas('check', static fn (Builder $checks): Builder => $checks->where('type', CheckKey::Uptime));
         $query->getQuery()->whereNull('resolved_at')->where('cause', IncidentCause::Failed->value);
         foreach ($query->lazyById(100) as $candidate) {
-            DB::transaction(function () use ($candidate, $intervals): void {
+            DB::transaction(function () use ($candidate, $standard): void {
                 // Reminders lock the uptime check before its incident; they never acquire the site lock.
                 $checks = Check::query()->whereKey($candidate->check_id);
                 NotificationLocks::forUpdate($checks->getQuery());
@@ -87,6 +90,7 @@ final readonly class EmitIncidentReminders
                         return;
                     }
                 }
+                $intervals = EffectiveAlertSensitivity::for($site, app(InstanceSettings::class))->reminders === AlertReminders::Daily ? [86400] : $standard;
                 $since = $last->occurred_at ?? $incident->opened_at;
                 if ($opening?->sent_at !== null) {
                     $since = max($since, $opening->sent_at);

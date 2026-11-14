@@ -47,7 +47,7 @@ With **Alert if still failing at the end** on, each incident that opened during 
 
 Catch-up alerts need the notification worker. Sent means the mail server or chat service accepted the message, not that someone read it.
 
-With **Alert if still failing at the end** off, a still-open Down incident sends its first alert at the window end or its alert-sensitivity due time, whichever is later. The first reminder follows one hour after that alert, the second four hours later, then every 24 hours. See [notifications](./notifications.md) for channels, alert sensitivity and reminders.
+With **Alert if still failing at the end** off, a still-open Down incident sends its first alert at the window end or its alert-sensitivity due time, whichever is later. Reminders then follow the site's [reminder schedule](./notifications.md#reminders). See [notifications](./notifications.md) for channels, alert sensitivity and reminders.
 
 ## End, skip or delete a window
 

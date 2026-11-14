@@ -42,6 +42,7 @@ use Heptapod\Models\Incident;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
+use Heptapod\Settings\InstanceSettings;
 use Heptapod\Testing\FakeDnsResolver;
 use Heptapod\Testing\OffsetDatabaseClock;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -73,6 +74,10 @@ beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-22T12:00:00Z'));
     Queue::fake();
     app()->instance(DnsResolver::class, new FakeDnsResolver);
+    $alertSettings = app(InstanceSettings::class);
+    // DNS acceptance, not alert sensitivity: the former team behaviour.
+    $alertSettings->alert_confirms_other_checks = false;
+    $alertSettings->save();
 });
 
 /** @param array<string, mixed> $config */

@@ -12,8 +12,10 @@ use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\Schema\Field;
 use Heptapod\Contracts\Schema\FieldType;
 use Heptapod\Enums\AlertSensitivity;
+use Heptapod\Events\Notifications\EffectiveAlertSensitivity;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\Check;
+use Heptapod\Settings\InstanceSettings;
 use Heptapod\Support\SecretMerge;
 use Heptapod\Support\SecretReentry;
 use Illuminate\Support\Arr;
@@ -80,8 +82,12 @@ final readonly class UpdateCheckConfig
                 $minutes = $schedule['failed_notification_threshold'];
                 if ($check->type === CheckKey::Uptime) {
                     $site = $check->site ?? throw new \LogicException('Uptime timing requires its site.');
+                    // The API writes only the uptime delay; confirmation and reminders keep their effective values.
+                    $current = EffectiveAlertSensitivity::for($site, app(InstanceSettings::class));
                     $site->update(['alert_after_minutes' => $minutes,
-                        'alert_recovery_checks' => $minutes === null ? null : AlertSensitivity::recoveryChecksFor($minutes)]);
+                        'alert_recovery_checks' => $minutes === null ? null : AlertSensitivity::recoveryChecksFor($minutes),
+                        'alert_confirms_other_checks' => $minutes === null ? null : $current->confirmsOtherChecks,
+                        'alert_reminders' => $minutes === null ? null : $current->reminders]);
                 } else {
                     $check->failure_threshold = $minutes ?? throw new \LogicException('Only uptime timing may inherit.');
                 }

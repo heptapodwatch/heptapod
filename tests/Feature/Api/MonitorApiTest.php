@@ -12,6 +12,7 @@ use Heptapod\Contracts\Http\FetchResult;
 use Heptapod\Contracts\Http\OutboundHttp;
 use Heptapod\Contracts\Http\RedirectPolicy;
 use Heptapod\Contracts\RunResult;
+use Heptapod\Enums\AlertReminders;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\Site;
@@ -255,8 +256,11 @@ it('round trips bounded minute hour and day schedules for every configured check
     foreach ($checks as $check) {
         expect($check->interval_seconds)->toBe($seconds);
         if ($check->type === CheckKey::Uptime) {
+            // The API writes the uptime delay only; confirmation and reminders keep the team's Relaxed values.
             expect($check->site->alert_after_minutes)->toBe(3)
-                ->and($check->site->alert_recovery_checks)->toBe(3);
+                ->and($check->site->alert_recovery_checks)->toBe(3)
+                ->and($check->site->alert_confirms_other_checks)->toBeTrue()
+                ->and($check->site->alert_reminders)->toBe(AlertReminders::Daily);
         } else {
             expect($check->failure_threshold)->toBe(3);
         }
@@ -278,7 +282,7 @@ it('round trips bounded minute hour and day schedules for every configured check
 it('inherits uptime alert timing when a blank threshold is saved through the API', function (string $blank): void {
     $check = Check::factory()->create(['type' => CheckKey::Uptime]);
     $site = $check->site;
-    $site->update(['alert_after_minutes' => 5, 'alert_recovery_checks' => 3]);
+    $site->update(['alert_after_minutes' => 5, 'alert_recovery_checks' => 3, 'alert_confirms_other_checks' => true, 'alert_reminders' => 'standard']);
 
     $this->putJson('/api/monitors/'.$site->id, ['uptime_check_settings' => ['failed_notification_threshold' => $blank]])->assertOk();
 
@@ -289,7 +293,7 @@ it('inherits uptime alert timing when a blank threshold is saved through the API
 it('rejects invalid uptime thresholds with exact errors and leaves alert timing unchanged', function (int|string $value, array $messages): void {
     $check = Check::factory()->create(['type' => CheckKey::Uptime]);
     $site = $check->site;
-    $site->update(['alert_after_minutes' => 5, 'alert_recovery_checks' => 3]);
+    $site->update(['alert_after_minutes' => 5, 'alert_recovery_checks' => 3, 'alert_confirms_other_checks' => true, 'alert_reminders' => 'standard']);
 
     $this->putJson('/api/monitors/'.$site->id, ['uptime_check_settings' => ['failed_notification_threshold' => $value]])
         ->assertUnprocessable()->assertJsonPath('errors.failed_notification_threshold', $messages);

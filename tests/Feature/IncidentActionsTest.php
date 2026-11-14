@@ -6,18 +6,24 @@ use Carbon\CarbonImmutable;
 use Heptapod\Actions\EmitIncidentReminders;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\Notifications\DeliveryState;
+use Heptapod\Enums\AlertReminders;
 use Heptapod\Enums\ClientScope;
 use Heptapod\Models\Check;
 use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
 use Heptapod\Models\User;
+use Heptapod\Settings\InstanceSettings;
 use Illuminate\Support\Facades\DB;
 
 require_once __DIR__.'/../Support/NotificationChannels.php';
 
 beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-28T12:00:00Z'));
+    $alertSettings = app(InstanceSettings::class);
+    // Incident actions and the standard reminder cadence, not alert sensitivity: the former team behaviour.
+    $alertSettings->alert_reminders = AlertReminders::Standard;
+    $alertSettings->save();
 });
 
 it('persists incident notes, reminder snooze and site pause through web routes', function (): void {

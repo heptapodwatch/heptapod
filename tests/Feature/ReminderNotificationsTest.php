@@ -10,6 +10,7 @@ use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckOutcome;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\RunResult;
+use Heptapod\Enums\AlertReminders;
 use Heptapod\Enums\ClientScope;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Models\Check;
@@ -33,6 +34,7 @@ beforeEach(function (): void {
     // These cases test reminder cadence, not the alert delay: one minute makes the uptime opener due at once.
     $settings = app(InstanceSettings::class);
     $settings->alert_after_minutes = 1;
+    $settings->alert_reminders = AlertReminders::Standard;
     $settings->save();
 });
 
@@ -117,6 +119,23 @@ it('emits reminders after one hour then four hours then daily with fresh snooze 
     dispatchNotifications();
     expect(Event::query()->where('type', 'incident.still_down')->count())->toBe(4);
     Http::assertSentCount(4);
+});
+
+it('reminds of an ongoing outage once a day on a site whose sensitivity has daily reminders', function (): void {
+    Http::fake(['https://receiver.test/alerts' => Http::response([], 200)]);
+    notificationRule(notificationWebhook());
+    $event = reminderIncidentEvent();
+    $event->check->update(['latest_run_result' => CheckResult::Failed]);
+    $event->site->update(['alert_after_minutes' => 1, 'alert_recovery_checks' => 3, 'alert_confirms_other_checks' => true, 'alert_reminders' => AlertReminders::Daily]);
+    dispatchNotifications();
+    foreach (['2026-10-05T01:30:00Z' => 0, '2026-10-05T05:30:00Z' => 0, '2026-10-06T00:29:59Z' => 0, '2026-10-06T00:30:00Z' => 1,
+        '2026-10-07T00:29:59Z' => 1, '2026-10-07T00:30:00Z' => 2] as $at => $count) {
+        $this->travelTo(CarbonImmutable::parse($at));
+        dispatchNotifications();
+        dispatchNotifications();
+        expect(Event::query()->where('type', 'incident.still_down')->count())->toBe($count);
+    }
+    Http::assertSentCount(3);
 });
 
 it('sends the first outage reminder during personal quiet but stops due reminders during incident snooze', function (): void {

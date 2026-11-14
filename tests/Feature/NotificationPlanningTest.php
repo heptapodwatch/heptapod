@@ -51,6 +51,8 @@ beforeEach(function (): void {
     $settings->timezone = 'UTC';
     $settings->alert_after_minutes = 1;
     $settings->alert_recovery_checks = 1;
+    // Routing and quiet hours, not alert confirmation: a non-uptime failure is due at once.
+    $settings->alert_confirms_other_checks = false;
     $settings->save();
 });
 
@@ -324,7 +326,7 @@ it('gives invited Admins and Members the outage, failure and recovery defaults a
     $channel = NotificationDestination::query()->where('user_id', $user->id)->sole();
     expect($channel->account_mail)->toBeTrue()->and($channel->recipient_kind)->toBe(RecipientKind::User);
     expect(DB::table('notification_preferences')->where('destination_id', $channel->id)->orderBy('category')->pluck('mode', 'category')->all())
-        ->toBe(['changes' => 'off', 'check_error' => 'off', 'expiring' => 'off', 'failure' => 'immediate', 'outage' => 'immediate',
+        ->toBe(['changes' => 'off', 'check_error' => 'digest', 'expiring' => 'off', 'failure' => 'immediate', 'outage' => 'immediate',
             'recovery' => 'immediate', 'system' => $system, 'warning' => 'off']);
     expect(Invitation::query()->exists())->toBeFalse();
 })->with(['Admin' => ['Admin', 'off'], 'Member' => ['Member', 'off']]);

@@ -3,12 +3,14 @@ import { useForm } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import {
     AlertSensitivityOptions,
+    draftOf,
+    inheritedDraft,
+    sensitivityChoice,
     sensitivityLabel,
-    validTiming,
+    validSensitivity,
     type Sensitivity,
     type SensitivityBounds,
-    type SensitivityChoice,
-    type TimingDraft,
+    type SensitivityDraft,
 } from '@/components/alert-sensitivity-options';
 import {
     FormActions,
@@ -32,13 +34,7 @@ export function TeamAlertSensitivity({
     bounds: SensitivityBounds;
 }) {
     const { t } = useTranslation();
-    const [choice, setChoice] = useState<SensitivityChoice>(
-        saved.preset ?? 'custom',
-    );
-    const form = useForm<TimingDraft>({
-        alert_after_minutes: saved.alert_after_minutes,
-        alert_recovery_checks: saved.alert_recovery_checks,
-    });
+    const form = useForm<SensitivityDraft>(draftOf(saved));
     return (
         <form
             noValidate
@@ -46,7 +42,13 @@ export function TeamAlertSensitivity({
             data-team-alert-sensitivity
             onSubmit={(event) => {
                 event.preventDefault();
-                if (!validTiming(form.data, bounds, saved.alert_after_minutes))
+                if (
+                    !validSensitivity(
+                        form.data,
+                        bounds,
+                        saved.alert_after_minutes,
+                    )
+                )
                     return;
                 form.put(updateTeam.url(), {
                     preserveScroll: true,
@@ -62,11 +64,9 @@ export function TeamAlertSensitivity({
                 <AlertSensitivityOptions
                     value={form.data}
                     savedMinutes={saved.alert_after_minutes}
-                    choice={choice}
                     bounds={bounds}
                     presets={presets}
                     onChange={(value) => form.setData(value)}
-                    onChoice={setChoice}
                     errors={form.errors}
                     disabled={form.processing}
                 />
@@ -82,10 +82,7 @@ export function TeamAlertSensitivity({
                 <FormSecondaryAction
                     size="sm"
                     disabled={!form.isDirty || form.processing}
-                    onClick={() => {
-                        form.resetAndClearErrors();
-                        setChoice(saved.preset ?? 'custom');
-                    }}
+                    onClick={() => form.resetAndClearErrors()}
                 >
                     {t('Discard')}
                 </FormSecondaryAction>
@@ -96,7 +93,7 @@ export function TeamAlertSensitivity({
                     disabled={
                         !form.isDirty ||
                         form.processing ||
-                        !validTiming(
+                        !validSensitivity(
                             form.data,
                             bounds,
                             saved.alert_after_minutes,
@@ -126,18 +123,12 @@ function SiteSensitivitySheet({
     onClose: () => void;
 }) {
     const { t } = useTranslation();
-    const [choice, setChoice] = useState<SensitivityChoice>(
-        saved.inherited ? 'inherit' : (saved.preset ?? 'custom'),
+    const form = useForm<SensitivityDraft>(
+        saved.inherited ? inheritedDraft : draftOf(saved),
     );
-    const form = useForm<TimingDraft>({
-        alert_after_minutes: saved.inherited ? null : saved.alert_after_minutes,
-        alert_recovery_checks: saved.inherited
-            ? null
-            : saved.alert_recovery_checks,
-    });
     const valid =
-        choice === 'inherit' ||
-        validTiming(form.data, bounds, saved.alert_after_minutes);
+        sensitivityChoice(form.data, presets) === 'inherit' ||
+        validSensitivity(form.data, bounds, saved.alert_after_minutes);
     return (
         <Sheet
             open
@@ -179,12 +170,10 @@ function SiteSensitivitySheet({
                 <AlertSensitivityOptions
                     value={form.data}
                     savedMinutes={saved.alert_after_minutes}
-                    choice={choice}
                     bounds={bounds}
                     team={team}
                     presets={presets}
                     onChange={(value) => form.setData(value)}
-                    onChoice={setChoice}
                     errors={form.errors}
                     disabled={form.processing}
                 />

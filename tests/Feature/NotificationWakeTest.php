@@ -54,7 +54,7 @@ it('delivers committed incidents with a queued wake-up or the scheduler safety s
         'config' => app(ChannelRegistry::class)->get('webhook')->configSchema()->validateConfig(['url' => 'https://receiver.test/wake', 'secret' => 'wake-secret'])]);
     notificationRule($destination, 'check.failing');
     $check = Check::factory()->create(['failure_threshold' => 1]);
-    $check->site->update(['alert_after_minutes' => 1, 'alert_recovery_checks' => 1]);
+    $check->site->update(['alert_after_minutes' => 1, 'alert_recovery_checks' => 1, 'alert_confirms_other_checks' => false, 'alert_reminders' => 'standard']);
     $context = ClaimedRun::start($check, CarbonImmutable::now('UTC')->subSecond());
     $clientId = $check->site->client_id;
     $run = new RecordableRun($check->id, $context->claimToken, $context->startedAt, CarbonImmutable::now('UTC'),

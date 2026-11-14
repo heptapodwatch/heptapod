@@ -3,30 +3,69 @@ import { InfoTooltip } from '@/components/info-tooltip';
 import { SectionHeading } from '@/components/section-heading';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import InputError from '@/components/input-error';
+import InputError, { fieldErrorProps } from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import {
     NumberField,
     type NumberFieldValue,
 } from '@/components/ui/number-field';
 import { Label } from '@/components/ui/label';
+import { CheckboxField } from '@/components/ui/checkbox';
 import { RadioCards } from '@/components/ui/radio-cards';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 
 export type Sensitivity = Heptapod.Data.Ui.AlertSensitivityData;
 export type SensitivityBounds =
     Heptapod.Data.Ui.AlertSensitivitySettingsPageData['bounds'];
-export type TimingDraft = {
+/** The four settings saved together; all null at site level means "inherit the team default". */
+export type SensitivityDraft = {
     alert_after_minutes: number | null;
     alert_recovery_checks: number | null;
+    alert_confirms_other_checks: boolean | null;
+    alert_reminders: Heptapod.Enums.AlertReminders | null;
 };
 export type SensitivityChoice =
     | NonNullable<Sensitivity['preset']>
     | 'custom'
     | 'inherit';
 
-export function validTiming(
-    value: TimingDraft,
+export const inheritedDraft: SensitivityDraft = {
+    alert_after_minutes: null,
+    alert_recovery_checks: null,
+    alert_confirms_other_checks: null,
+    alert_reminders: null,
+};
+
+export function draftOf(value: Sensitivity): SensitivityDraft {
+    return {
+        alert_after_minutes: value.alert_after_minutes,
+        alert_recovery_checks: value.alert_recovery_checks,
+        alert_confirms_other_checks: value.alert_confirms_other_checks,
+        alert_reminders: value.alert_reminders,
+    };
+}
+
+/** The preset control is derived from the values: the preset they match, otherwise Custom. */
+export function sensitivityChoice(
+    value: SensitivityDraft,
+    presets: Sensitivity[],
+): SensitivityChoice {
+    if (value.alert_reminders === null) return 'inherit';
+    return (
+        presets.find(
+            (preset) =>
+                preset.alert_after_minutes === value.alert_after_minutes &&
+                preset.alert_recovery_checks === value.alert_recovery_checks &&
+                preset.alert_confirms_other_checks ===
+                    value.alert_confirms_other_checks &&
+                preset.alert_reminders === value.alert_reminders,
+        )?.preset ?? 'custom'
+    );
+}
+
+export function validSensitivity(
+    value: SensitivityDraft,
     bounds: SensitivityBounds,
     savedMinutes?: number,
 ): boolean {
@@ -42,7 +81,9 @@ export function validTiming(
         checks !== null &&
         Number.isInteger(checks) &&
         checks >= bounds.recovery_min &&
-        checks <= bounds.recovery_max
+        checks <= bounds.recovery_max &&
+        value.alert_confirms_other_checks !== null &&
+        value.alert_reminders !== null
     );
 }
 
@@ -61,17 +102,22 @@ export function sensitivityLabel(
           });
 }
 
+// The example strip: 24 squares of 5 minutes each, so the 60-minute preset fits.
+const squareMinutes = 5;
+const squares = 24;
+const squareOf = (minute: number) => Math.ceil(minute / squareMinutes);
+
 function TimingPin({
-    minute,
+    square,
     visible,
     recovery = false,
 }: {
-    minute: number;
+    square: number;
     visible: boolean;
     recovery?: boolean;
 }) {
     const { t } = useTranslation();
-    const minuteFraction = (minute - 0.5) / 24;
+    const minuteFraction = (square - 0.5) / squares;
     const pin = useRef<HTMLSpanElement>(null);
     const label = useRef<HTMLSpanElement>(null);
     const [labelOffset, setLabelOffset] = useState(0);
@@ -97,12 +143,12 @@ function TimingPin({
         return () => observer.disconnect();
     }, [minuteFraction]);
     const ring = useRef<HTMLSpanElement>(null);
-    const previous = useRef({ minute, visible });
+    const previous = useRef({ square, visible });
     useEffect(() => {
         const changed =
-            previous.current.minute !== minute ||
+            previous.current.square !== square ||
             previous.current.visible !== visible;
-        previous.current = { minute, visible };
+        previous.current = { square, visible };
         if (
             recovery ||
             !changed ||
@@ -130,7 +176,7 @@ function TimingPin({
             window.clearTimeout(timer);
             pulse?.cancel();
         };
-    }, [minute, visible, recovery]);
+    }, [square, visible, recovery]);
     return (
         <span
             ref={pin}
@@ -234,7 +280,7 @@ function TimingExample({
                     })}
                 </p>
             </div>
-            {[3, 14].map((duration) => {
+            {[26, 90].map((duration) => {
                 // This example uses the default two-failure incident opening, including for a saved API value of 1.
                 const alerted = alertMinute <= duration;
                 const recovery = duration + checks;
@@ -242,7 +288,7 @@ function TimingExample({
                     <div key={duration} className="space-y-1">
                         <p className="text-xs text-muted-foreground">
                             {t(
-                                duration === 3
+                                duration === 26
                                     ? 'alert_sensitivity.interruption'
                                     : 'alert_sensitivity.outage',
                             )}
@@ -252,18 +298,19 @@ function TimingExample({
                             aria-hidden="true"
                         >
                             <div className="absolute inset-x-0 top-[34px] grid grid-cols-24 gap-[3px]">
-                                {Array.from({ length: 24 }, (_, index) => (
+                                {Array.from({ length: squares }, (_, index) => (
                                     <span
                                         key={index}
                                         className={cn(
                                             'relative aspect-square max-h-[11px] rounded-[2px]',
-                                            index < duration
+                                            index * squareMinutes < duration
                                                 ? 'bg-(--status-down)'
                                                 : 'bg-muted-foreground/15',
                                         )}
                                     >
                                         {alerted &&
-                                            index + 1 === alertMinute && (
+                                            index + 1 ===
+                                                squareOf(alertMinute) && (
                                                 <span
                                                     data-alert-minute-cell
                                                     className="absolute -inset-[3px] rounded-full border border-foreground"
@@ -273,11 +320,14 @@ function TimingExample({
                                 ))}
                             </div>
                             <TimingPin
-                                minute={Math.min(alertMinute, 24)}
+                                square={Math.min(
+                                    squareOf(alertMinute),
+                                    squares,
+                                )}
                                 visible={alerted}
                             />
                             <TimingPin
-                                minute={recovery}
+                                square={Math.min(squareOf(recovery), squares)}
                                 visible={alerted}
                                 recovery
                             />
@@ -302,36 +352,38 @@ function TimingExample({
 
 export function AlertSensitivityOptions({
     value,
-    choice,
     presets,
     team,
     onChange,
-    onChoice,
     errors,
     disabled = false,
     savedMinutes,
     bounds,
 }: {
-    value: TimingDraft;
+    value: SensitivityDraft;
     bounds: SensitivityBounds;
     savedMinutes: number;
-    choice: SensitivityChoice;
     presets: Sensitivity[];
     team?: Sensitivity;
-    onChange: (value: TimingDraft) => void;
-    onChoice: (choice: SensitivityChoice) => void;
-    errors: Partial<Record<keyof TimingDraft, string>>;
+    onChange: (value: SensitivityDraft) => void;
+    errors: Partial<Record<keyof SensitivityDraft, string>>;
     disabled?: boolean;
 }) {
     const { t } = useTranslation();
     const id = useId();
-    const effective = choice === 'inherit' && team ? team : value;
-    // Unparsable typed text stays visible in the field; the draft holds null so validTiming blocks the save.
+    const choice = sensitivityChoice(value, presets);
+    const inheriting = choice === 'inherit';
+    // While inheriting, the fields show the team default read-only; picking a preset starts the override.
+    const effective = inheriting && team ? draftOf(team) : value;
+    const fieldsDisabled = disabled || inheriting;
+    // Unparsable typed text stays visible in the field; the draft holds null so validSensitivity blocks the save.
     const [unparsable, setUnparsable] = useState<
-        Partial<Record<keyof TimingDraft, string>>
+        Partial<Record<'alert_after_minutes' | 'alert_recovery_checks', string>>
     >({});
-    const numberField = (field: keyof TimingDraft) => ({
-        value: unparsable[field] ?? value[field],
+    const numberField = (
+        field: 'alert_after_minutes' | 'alert_recovery_checks',
+    ) => ({
+        value: unparsable[field] ?? effective[field],
         invalid: !!errors[field] || unparsable[field] !== undefined,
         onValueChange: (next: NumberFieldValue) => {
             setUnparsable((current) => ({
@@ -344,39 +396,34 @@ export function AlertSensitivityOptions({
             });
         },
     });
-    const errorFor = (field: keyof TimingDraft) =>
-        unparsable[field] !== undefined ? 'Enter a number.' : errors[field];
+    const errorFor = (field: keyof SensitivityDraft) =>
+        (field === 'alert_after_minutes' ||
+            field === 'alert_recovery_checks') &&
+        unparsable[field] !== undefined
+            ? 'Enter a number.'
+            : errors[field];
     const keepsExistingMinutes =
         value.alert_after_minutes === savedMinutes &&
         (savedMinutes < bounds.minutes_min ||
             savedMinutes > bounds.minutes_max);
     const select = (next: SensitivityChoice) => {
-        onChoice(next);
-        if (next === 'inherit')
-            onChange({
-                alert_after_minutes: null,
-                alert_recovery_checks: null,
-            });
-        else if (next === 'custom')
-            onChange({
-                alert_after_minutes: effective.alert_after_minutes,
-                alert_recovery_checks: effective.alert_recovery_checks,
-            });
-        else {
-            const preset = presets.find((item) => item.preset === next);
-            if (!preset)
-                throw new Error(`Unknown alert sensitivity preset: ${next}`);
-            onChange({
-                alert_after_minutes: preset.alert_after_minutes,
-                alert_recovery_checks: preset.alert_recovery_checks,
-            });
+        if (next === 'custom') return;
+        setUnparsable({});
+        if (next === 'inherit') {
+            onChange(inheritedDraft);
+            return;
         }
+        const preset = presets.find((item) => item.preset === next);
+        if (!preset)
+            throw new Error(`Unknown alert sensitivity preset: ${next}`);
+        onChange(draftOf(preset));
     };
     const options: {
         value: SensitivityChoice;
         label: string;
         description: string;
         badge?: React.ReactNode;
+        disabled?: boolean;
     }[] = presets.map((preset) => {
         if (preset.preset === null)
             throw new Error('A preset must have a named sensitivity.');
@@ -402,10 +449,12 @@ export function AlertSensitivityOptions({
             }),
             description: t('alert_sensitivity.inherit_description'),
         });
+    // Custom is never picked: it is what the control shows once the fields below match no preset.
     options.push({
         value: 'custom',
         label: t('alert_sensitivity.custom'),
         description: t('alert_sensitivity.custom_consequence'),
+        disabled: choice !== 'custom',
     });
     return (
         <div className="space-y-4">
@@ -416,90 +465,151 @@ export function AlertSensitivityOptions({
                 onChange={select}
                 disabled={disabled}
             />
-            {choice === 'custom' && (
-                <div className="grid gap-4 sm:grid-cols-2">
-                    {keepsExistingMinutes && (
-                        <p className="text-xs leading-relaxed text-muted-foreground sm:col-span-2">
-                            {t('alert_sensitivity.existing_custom', {
-                                min: bounds.minutes_min,
-                                max: bounds.minutes_max,
-                            })}{' '}
-                            <InfoTooltip>
-                                {t('alert_sensitivity.existing_custom.detail', {
-                                    min: bounds.minutes_min,
-                                    max: bounds.minutes_max,
-                                })}
-                            </InfoTooltip>
-                        </p>
-                    )}
-                    <div className="space-y-2">
-                        <Label htmlFor={`${id}-minutes`}>
-                            {t('alert_sensitivity.minutes_label')}
-                        </Label>
-                        <NumberField
-                            id={`${id}-minutes`}
-                            describedBy={`${id}-minutes-bounds ${id}-minutes-error`}
-                            {...numberField('alert_after_minutes')}
-                            min={
-                                keepsExistingMinutes
-                                    ? bounds.stored_minutes_min
-                                    : bounds.minutes_min
-                            }
-                            max={
-                                keepsExistingMinutes
-                                    ? bounds.stored_minutes_max
-                                    : bounds.minutes_max
-                            }
-                            required
-                            disabled={disabled}
-                        />
-                        <p
-                            id={`${id}-minutes-bounds`}
-                            className="text-xs text-muted-foreground"
-                        >
-                            {t('alert_sensitivity.minutes_bounds', {
+            <div
+                data-sensitivity-fields
+                className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2"
+            >
+                {keepsExistingMinutes && (
+                    <p className="text-xs leading-relaxed text-muted-foreground sm:col-span-2">
+                        {t('alert_sensitivity.existing_custom', {
+                            min: bounds.minutes_min,
+                            max: bounds.minutes_max,
+                        })}{' '}
+                        <InfoTooltip>
+                            {t('alert_sensitivity.existing_custom.detail', {
                                 min: bounds.minutes_min,
                                 max: bounds.minutes_max,
                             })}
-                        </p>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor={`${id}-checks`}>
-                            {t('alert_sensitivity.checks_label')}
-                        </Label>
-                        <NumberField
-                            id={`${id}-checks`}
-                            describedBy={`${id}-checks-bounds ${id}-checks-error`}
-                            {...numberField('alert_recovery_checks')}
-                            min={bounds.recovery_min}
-                            max={bounds.recovery_max}
-                            required
-                            disabled={disabled}
-                        />
-                        <p
-                            id={`${id}-checks-bounds`}
-                            className="text-xs text-muted-foreground"
-                        >
-                            {t('alert_sensitivity.checks_bounds', {
-                                min: bounds.recovery_min,
-                                max: bounds.recovery_max,
-                            })}
-                        </p>
-                    </div>
+                        </InfoTooltip>
+                    </p>
+                )}
+                <div className="space-y-2">
+                    <Label htmlFor={`${id}-minutes`}>
+                        {t('alert_sensitivity.minutes_label')}
+                    </Label>
+                    <NumberField
+                        id={`${id}-minutes`}
+                        describedBy={`${id}-minutes-bounds ${id}-minutes-error`}
+                        {...numberField('alert_after_minutes')}
+                        min={
+                            keepsExistingMinutes
+                                ? bounds.stored_minutes_min
+                                : bounds.minutes_min
+                        }
+                        max={
+                            keepsExistingMinutes
+                                ? bounds.stored_minutes_max
+                                : bounds.minutes_max
+                        }
+                        required
+                        disabled={fieldsDisabled}
+                    />
+                    <p
+                        id={`${id}-minutes-bounds`}
+                        className="text-xs text-muted-foreground"
+                    >
+                        {t('alert_sensitivity.minutes_bounds', {
+                            min: bounds.minutes_min,
+                            max: bounds.minutes_max,
+                        })}
+                    </p>
+                    <InputError
+                        id={`${id}-minutes-error`}
+                        message={errorFor('alert_after_minutes')}
+                    />
                 </div>
-            )}
-            <InputError
-                id={`${id}-minutes-error`}
-                message={errorFor('alert_after_minutes')}
-            />
-            <InputError
-                id={`${id}-checks-error`}
-                message={errorFor('alert_recovery_checks')}
-            />
-            {validTiming(
+                <div className="space-y-2">
+                    <Label htmlFor={`${id}-checks`}>
+                        {t('alert_sensitivity.checks_label')}
+                    </Label>
+                    <NumberField
+                        id={`${id}-checks`}
+                        describedBy={`${id}-checks-bounds ${id}-checks-error`}
+                        {...numberField('alert_recovery_checks')}
+                        min={bounds.recovery_min}
+                        max={bounds.recovery_max}
+                        required
+                        disabled={fieldsDisabled}
+                    />
+                    <p
+                        id={`${id}-checks-bounds`}
+                        className="text-xs text-muted-foreground"
+                    >
+                        {t('alert_sensitivity.checks_bounds', {
+                            min: bounds.recovery_min,
+                            max: bounds.recovery_max,
+                        })}
+                    </p>
+                    <InputError
+                        id={`${id}-checks-error`}
+                        message={errorFor('alert_recovery_checks')}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label id={`${id}-confirm-label`}>
+                        {t('alert_sensitivity.confirm_label')}
+                    </Label>
+                    <CheckboxField
+                        id={`${id}-confirm`}
+                        checked={effective.alert_confirms_other_checks === true}
+                        onCheckedChange={(checked) =>
+                            onChange({
+                                ...value,
+                                alert_confirms_other_checks: checked === true,
+                            })
+                        }
+                        description={t('alert_sensitivity.confirm_description')}
+                        disabled={fieldsDisabled}
+                        {...fieldErrorProps(
+                            `${id}-confirm`,
+                            errorFor('alert_confirms_other_checks'),
+                        )}
+                    >
+                        {t('alert_sensitivity.confirm_option')}
+                    </CheckboxField>
+                    <InputError
+                        field={`${id}-confirm`}
+                        message={errorFor('alert_confirms_other_checks')}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label id={`${id}-reminders-label`}>
+                        {t('alert_sensitivity.reminders_label')}
+                    </Label>
+                    <RadioGroup
+                        id={`${id}-reminders`}
+                        aria-labelledby={`${id}-reminders-label`}
+                        {...fieldErrorProps(
+                            `${id}-reminders`,
+                            errorFor('alert_reminders'),
+                        )}
+                        value={effective.alert_reminders ?? undefined}
+                        onValueChange={(next) =>
+                            onChange({
+                                ...value,
+                                alert_reminders:
+                                    next as Heptapod.Enums.AlertReminders,
+                            })
+                        }
+                        disabled={fieldsDisabled}
+                    >
+                        <RadioGroupItem value="standard">
+                            {t('alert_sensitivity.reminders.standard')}
+                        </RadioGroupItem>
+                        <RadioGroupItem value="daily">
+                            {t('alert_sensitivity.reminders.daily')}
+                        </RadioGroupItem>
+                    </RadioGroup>
+                    <InputError
+                        field={`${id}-reminders`}
+                        message={errorFor('alert_reminders')}
+                    />
+                </div>
+            </div>
+            {validSensitivity(
                 effective,
                 bounds,
-                choice === 'inherit' ? team?.alert_after_minutes : savedMinutes,
+                inheriting ? team?.alert_after_minutes : savedMinutes,
             ) &&
                 effective.alert_after_minutes !== null &&
                 effective.alert_recovery_checks !== null && (
