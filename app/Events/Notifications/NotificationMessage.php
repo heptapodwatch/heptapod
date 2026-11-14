@@ -15,6 +15,7 @@ use Heptapod\Contracts\Notifications\AlertMessage;
 use Heptapod\Contracts\Notifications\AlertSeverity;
 use Heptapod\Contracts\SecretRedactor;
 use Heptapod\Enums\NotificationCategory;
+use Heptapod\Enums\RecipientKind;
 use Heptapod\Enums\RetainedAlert;
 use Heptapod\Events\EventFacts;
 use Heptapod\Incidents\UptimeDependencies;
@@ -22,6 +23,7 @@ use Heptapod\Models\Client;
 use Heptapod\Models\Event;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
+use Heptapod\Models\SiteRepository;
 use Heptapod\Support\RedactionContext;
 
 final readonly class NotificationMessage
@@ -43,6 +45,20 @@ final readonly class NotificationMessage
             $event->type === 'incident.still_down' && ($type !== CheckKey::Uptime || $severity !== AlertSeverity::Down) => RetainedAlert::Reminder,
             default => null,
         };
+    }
+
+    /**
+     * The site's repository links for the team's and personal channels; a client channel never gets them.
+     *
+     * @return list<array{url: string, label: string|null}>
+     */
+    private function repositories(Site $site, bool $deletedSite, ?NotificationDestination $destination): array
+    {
+        if ($deletedSite || ! $destination instanceof NotificationDestination || $destination->recipient_kind === RecipientKind::Client) {
+            return [];
+        }
+
+        return array_values($site->repositories()->get()->map(static fn (SiteRepository $repository): array => ['url' => $repository->url, 'label' => $repository->label])->all());
     }
 
     /** $category is the delivery's retained category; it outlives an uninstalled add-on, whose routing keys are gone. */
@@ -103,7 +119,8 @@ final readonly class NotificationMessage
                 ['count' => $count, 'checks' => ''], $site->id, $site->displayName(),
                 SecretRedactor::redact($site->url, $context->secrets, $context->urls), null,
                 CarbonImmutable::parse($since)->utc(), null, 'failed', $deletedSite ? null : route('sites.show', ['site' => $site->id]), clientName: $destination?->channel === 'mail' ? $client->displayName($destination->effectiveLocale()) : $client->name, checkTypes: $checks,
-                mail: $destination?->channel === 'mail' ? $this->catchUps->build($event, $destination) : null);
+                mail: $destination?->channel === 'mail' ? $this->catchUps->build($event, $destination) : null,
+                repositories: $this->repositories($site, $deletedSite, $destination));
         }
         $severity = $this->types->severity($event);
         $title = match ($severity) {
@@ -189,6 +206,6 @@ final readonly class NotificationMessage
             mailContext: $mailContext,
             mail: $mail,
             presentation: $this->presentations->forEvent($event),
-            maintenanceEnded: ($event->payload['uptime_episode'] ?? false) === true || ($event->payload['maintenance_first_alert'] ?? false) === true);
+            maintenanceEnded: ($event->payload['uptime_episode'] ?? false) === true || ($event->payload['maintenance_first_alert'] ?? false) === true, repositories: $this->repositories($site, $deletedSite, $destination));
     }
 }

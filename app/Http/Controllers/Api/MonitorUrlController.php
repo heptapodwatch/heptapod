@@ -25,6 +25,6 @@ final class MonitorUrlController extends Controller
 
         return new MonitorResource($site->load(['checks' => static function (Relation $checks): void {
             $checks->getQuery()->getQuery()->orderBy('id');
-        }, 'checks.snoozes', 'tags', 'client']));
+        }, 'checks.snoozes', 'tags', 'client', 'repositories']));
     }
 }

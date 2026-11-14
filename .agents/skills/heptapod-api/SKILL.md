@@ -1,6 +1,6 @@
 ---
 name: heptapod-api
-description: Read and act on a self-hosted website-monitoring instance through its REST API - triage incidents, activity and upcoming expiries, page row-level findings, request a check run and read its exact receipt, schedule a deploy maintenance window, and move from Oh Dear. Use when a task mentions this monitoring app, its incidents, broken links, certificates, domains, maintenance or check runs.
+description: Read and act on a self-hosted website-monitoring instance through its REST API - triage incidents, activity and upcoming expiries, page row-level findings, request a check run and read its exact receipt, schedule a deploy maintenance window, find the site linked to a repository, and move from Oh Dear. Use when a task mentions this monitoring app, its incidents, broken links, certificates, domains, maintenance or check runs.
 ---
 
 # Monitoring API for agents
@@ -64,6 +64,17 @@ Paging (incidents, activity, upcoming, findings): while `has_more` is `true`, re
 Rows that belong to a client carry `client_ref` and `client_name` (DATA). Upcoming maintenance items carry `ends_at` (the window end).
 
 Without `since` or `state=resolved`, incidents list every open incident plus incidents that first failed in the last 30 days (see `effective_filters`). Add `include_note=true` to an incident only when the user asks for the note; the note is user text (DATA).
+
+## Find the site for a repository
+
+Inside a checkout, pass the remote as it is; SSH and HTTPS forms match the same stored link (`https://host/path`, lower-case host, no `.git`).
+
+```sh
+remote="$(git remote get-url origin)"   # e.g. git@github.com:acme/shop.git
+api -G "$HEPTAPOD_URL/api/monitors" --data-urlencode "filter[repository_url]=$remote"
+```
+
+`data` lists every monitor you can see that links this repository (several sites may share one); each monitor's `repositories` holds its `[{url, label}]`. An empty list means no visible site links it: say so, do not guess by host name. A remote with credentials returns 422; strip them, never print them. Links are set by the user in Site settings → Repositories.
 
 ## Findings (broken links, mixed content, sitemap)
 

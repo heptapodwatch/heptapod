@@ -14,6 +14,7 @@ use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Exceptions\CheckConfigurationValidationException;
 use Heptapod\Models\Check;
 use Heptapod\Models\Site;
+use Heptapod\Support\RepositoryUrl;
 use Heptapod\Support\SecretMerge;
 use Heptapod\Support\SecretReentry;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -25,7 +26,7 @@ use Illuminate\Validation\ValidationException;
 
 final readonly class UpdateSite
 {
-    public function __construct(private CheckRegistry $registry, private EnableCheck $enable, private DisableCheck $disable, private UpdateCheckConfig $configure, private SyncSiteTags $tags, private ClaimService $claims, private NormaliseSiteUrl $normalise, private SiteUrlDuplicates $duplicates) {}
+    public function __construct(private CheckRegistry $registry, private EnableCheck $enable, private DisableCheck $disable, private UpdateCheckConfig $configure, private SyncSiteTags $tags, private SyncSiteRepositories $repositories, private ClaimService $claims, private NormaliseSiteUrl $normalise, private SiteUrlDuplicates $duplicates) {}
 
     /** @param array<string, mixed> $attributes */
     public function __invoke(Site $site, array $attributes): Site
@@ -88,6 +89,9 @@ final readonly class UpdateSite
                     'crawler_headers' => ['sometimes', 'nullable', 'array'],
                     'send_report_to_emails' => ['sometimes', 'nullable', 'array'], 'send_report_to_emails.*' => ['email'],
                     'include_check_types_in_report' => ['sometimes', 'nullable', 'array'], 'include_check_types_in_report.*' => [Rule::in($this->registry->keys())],
+                    'repositories' => ['sometimes', 'array', 'list', 'max:'.RepositoryUrl::MaxPerSite], 'repositories.*' => ['array:url,label'],
+                    'repositories.*.url' => ['required', 'string', 'max:'.RepositoryUrl::MaxLength, RepositoryUrl::rule($attributes['repositories'] ?? null)],
+                    'repositories.*.label' => ['sometimes', 'nullable', 'string', 'max:255'],
                 ];
                 foreach (['crawler_headers', 'crawler_settings.headers'] as $path) {
                     $rules[$path.'.*'] = ['array:name,value'];
@@ -168,6 +172,11 @@ final readonly class UpdateSite
                     } elseif ($check->enabled) {
                         ($this->enable)($check);
                     }
+                }
+                if (array_key_exists('repositories', $data)) {
+                    /** @var list<array{url: string, label?: string|null}> $repositories */
+                    $repositories = $data['repositories'];
+                    ($this->repositories)($site, $repositories);
                 }
                 if (array_key_exists('tags', $data)) {
                     /** @var list<string> $tags */

@@ -2259,6 +2259,31 @@
                             "null"
                         ]
                     },
+                    "repositories": {
+                        "description": "Repository links in their saved order. Links only; Heptapod never signs in to the Git host.",
+                        "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                                "label": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                },
+                                "url": {
+                                    "description": "Canonical `https://host/path`.",
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "url",
+                                "label"
+                            ],
+                            "type": "object"
+                        },
+                        "maxItems": 10,
+                        "type": "array"
+                    },
                     "send_report_to_emails": {
                         "items": {
                             "type": "string"
@@ -2326,6 +2351,7 @@
                     "summarized_check_result",
                     "checks",
                     "alert_sensitivity",
+                    "repositories",
                     "badge_id",
                     "marked_for_deletion_at",
                     "crawler_headers",
@@ -7593,6 +7619,15 @@
                         }
                     },
                     {
+                        "description": "Only monitors linked to this repository. HTTPS and SSH remote forms are normalised like `repositories`; credentials or a non-repository address return 422.",
+                        "in": "query",
+                        "name": "filter[repository_url]",
+                        "schema": {
+                            "maxLength": 2048,
+                            "type": "string"
+                        }
+                    },
+                    {
                         "description": "Page number (bracket dialect). Use either page/per_page or page[number]/page[size]; mixing them returns 422.",
                         "in": "query",
                         "name": "page[number]",
@@ -7774,6 +7809,12 @@
                                             "latest_run_date": "2026-10-01 07:30:00",
                                             "marked_for_deletion_at": null,
                                             "notes": null,
+                                            "repositories": [
+                                                {
+                                                    "label": "Shop",
+                                                    "url": "https://github.com/acme/example-shop"
+                                                }
+                                            ],
                                             "send_report_to_emails": null,
                                             "sort_url": "example.com",
                                             "summarized_check_result": "failed",
@@ -8582,6 +8623,31 @@
                                         "required": [],
                                         "type": "object"
                                     },
+                                    "repositories": {
+                                        "description": "Replaces the stored links; `[]` removes all. Stored as `https://host/path` (lower-case host, no `.git`, no trailing slash); SSH remotes such as `git@github.com:org/repo.git` convert. Credentials in the URL, a repeated repository or more than 10 links return 422 on `repositories.N.url`.",
+                                        "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                                "label": {
+                                                    "maxLength": 255,
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "url": {
+                                                    "maxLength": 2048,
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "url"
+                                            ],
+                                            "type": "object"
+                                        },
+                                        "maxItems": 10,
+                                        "type": "array"
+                                    },
                                     "send_report_to_emails": {
                                         "items": {
                                             "type": "string"
@@ -9072,6 +9138,12 @@
                                     "latest_run_date": null,
                                     "marked_for_deletion_at": null,
                                     "notes": null,
+                                    "repositories": [
+                                        {
+                                            "label": "Shop",
+                                            "url": "https://github.com/acme/example-shop"
+                                        }
+                                    ],
                                     "send_report_to_emails": null,
                                     "sort_url": "example.com",
                                     "summarized_check_result": "pending",
@@ -9358,6 +9430,12 @@
                                     "latest_run_date": "2026-10-01 07:30:00",
                                     "marked_for_deletion_at": null,
                                     "notes": null,
+                                    "repositories": [
+                                        {
+                                            "label": "Shop",
+                                            "url": "https://github.com/acme/example-shop"
+                                        }
+                                    ],
                                     "send_report_to_emails": null,
                                     "sort_url": "example.com",
                                     "summarized_check_result": "failed",
@@ -9735,6 +9813,12 @@
                                     "latest_run_date": "2026-10-01 07:30:00",
                                     "marked_for_deletion_at": null,
                                     "notes": null,
+                                    "repositories": [
+                                        {
+                                            "label": "Shop",
+                                            "url": "https://github.com/acme/example-shop"
+                                        }
+                                    ],
                                     "send_report_to_emails": null,
                                     "sort_url": "example.com",
                                     "summarized_check_result": "failed",
@@ -9866,6 +9950,12 @@
                         "application/json": {
                             "example": {
                                 "friendly_name": "Example shop",
+                                "repositories": [
+                                    {
+                                        "label": "Shop",
+                                        "url": "git@github.com:acme/example-shop.git"
+                                    }
+                                ],
                                 "tags": [
                                     "production",
                                     "shop"
@@ -10505,6 +10595,31 @@
                                         "required": [],
                                         "type": "object"
                                     },
+                                    "repositories": {
+                                        "description": "Replaces the stored links; `[]` removes all. Stored as `https://host/path` (lower-case host, no `.git`, no trailing slash); SSH remotes such as `git@github.com:org/repo.git` convert. Credentials in the URL, a repeated repository or more than 10 links return 422 on `repositories.N.url`.",
+                                        "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                                "label": {
+                                                    "maxLength": 255,
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "url": {
+                                                    "maxLength": 2048,
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "url"
+                                            ],
+                                            "type": "object"
+                                        },
+                                        "maxItems": 10,
+                                        "type": "array"
+                                    },
                                     "send_report_to_emails": {
                                         "items": {
                                             "type": "string"
@@ -10990,6 +11105,12 @@
                                     "latest_run_date": "2026-10-01 07:30:00",
                                     "marked_for_deletion_at": null,
                                     "notes": null,
+                                    "repositories": [
+                                        {
+                                            "label": "Shop",
+                                            "url": "https://github.com/acme/example-shop"
+                                        }
+                                    ],
                                     "send_report_to_emails": null,
                                     "sort_url": "example.com",
                                     "summarized_check_result": "failed",

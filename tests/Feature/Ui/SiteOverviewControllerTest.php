@@ -208,9 +208,9 @@ it('holds site, check, and incident detail query budgets as related history grow
     // Upper budgets: page shell (auth, shell health, sidebar), the site/check/incident record and its bounded
     // history, presentation and freshness reads. e04c03b5d presentations, f80f6d32a freshness, 78bd4a4b episode
     // pages, 36aca5a1a avatars and 25458fc44/0a385128 shell health are batched reads, not per-history-row queries.
-    // Feed-visible events add their batched site, client, check and incident loads.
+    // Feed-visible events add their batched site, client, check and incident loads. The overview reads the site's repository links once.
     [$path, $budget, $rendered] = match ($page) {
-        'site' => ['/sites/'.$site->id, 55, static fn (array $props): int => count($props['events'])],
+        'site' => ['/sites/'.$site->id, 56, static fn (array $props): int => count($props['events'])],
         'check' => ['/sites/'.$site->id.'/checks/'.$check->id, 59, static fn (array $props): int => count($props['runs'])],
         'incident' => ['/incidents/'.$incident->id, 70, static fn (array $props): int => collect($props['timeline'])->where('event.type', 'incident.cause_changed')->count()],
     };

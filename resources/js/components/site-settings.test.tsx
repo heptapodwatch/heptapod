@@ -95,6 +95,7 @@ it('shows a failing check indicator in the settings navigation, not just on chec
             timezones={['UTC', 'Europe/Berlin']}
             check_settings={[]}
             check_options={[]}
+            repositories={[]}
             alert_sensitivity_bounds={{
                 minutes_min: 2,
                 minutes_max: 60,
@@ -151,6 +152,7 @@ it('makes the whole check row the toggle target, not only the switch', () => {
             timezones={['UTC']}
             check_settings={[]}
             check_options={[]}
+            repositories={[]}
             alert_sensitivity_bounds={{
                 minutes_min: 2,
                 minutes_max: 60,
@@ -219,6 +221,7 @@ it('saves a check from its settings row without submitting or discarding the sit
             timezones={['UTC']}
             check_settings={checkSettings}
             check_options={[]}
+            repositories={[]}
             alert_sensitivity_bounds={{
                 minutes_min: 2,
                 minutes_max: 60,
@@ -325,6 +328,7 @@ it('checks only a changed address on blur and includes the current site in the p
             timezones={['UTC']}
             check_settings={[]}
             check_options={[]}
+            repositories={[]}
             alert_sensitivity_bounds={{
                 minutes_min: 2,
                 minutes_max: 60,

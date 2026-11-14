@@ -67,6 +67,7 @@ final class WebhookChannel extends TransportChannel
             'rechecking' => $alert->message->recheckingChecks,
             'since' => $alert->message->since->toIso8601String(), 'downtime_seconds' => $alert->message->downtimeSeconds,
             'link' => $alert->message->link, 'is_test' => $alert->message->isTest,
+            'repositories' => $alert->message->repositories,
         ];
         $signer = new TimestampSigner(now()->getTimestamp());
         // Match Spatie's exact JSON bytes. Retries and queuing belong to the notification delivery outbox, not WebhookCallJob.

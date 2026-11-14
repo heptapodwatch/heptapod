@@ -17,7 +17,9 @@ use Heptapod\Http\Resources\OhDear\MonitorResource;
 use Heptapod\Http\Resources\OhDear\PaginatedCollection;
 use Heptapod\Models\Client;
 use Heptapod\Models\Site;
+use Heptapod\Models\SiteRepository;
 use Heptapod\Policies\SitePolicy;
+use Heptapod\Support\RepositoryUrl;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\JsonResponse;
@@ -34,10 +36,16 @@ final class MonitorController extends Controller
     public function index(PaginationRequest $request, SitePolicy $policy, NoResultFreshness $noResultFreshness): JsonResponse
     {
         $user = $this->principal($request);
-        Validator::make($request->all(), ['filter' => ['sometimes', 'array:team_id'], 'filter.team_id' => ['sometimes', 'integer', 'in:1']])->validate();
+        Validator::make($request->all(), ['filter' => ['sometimes', 'array:team_id,repository_url'], 'filter.team_id' => ['sometimes', 'integer', 'in:1'],
+            'filter.repository_url' => ['sometimes', 'string', 'max:'.RepositoryUrl::MaxLength, RepositoryUrl::rule()]])->validate();
         $query = $policy->visibleSites($user)->with(['checks' => static function (Relation $checks): void {
             $checks->getQuery()->getQuery()->orderBy('id');
-        }, 'checks.snoozes', 'tags', 'client']);
+        }, 'checks.snoozes', 'tags', 'client', 'repositories']);
+        $repositoryUrl = $request->input('filter.repository_url');
+        if (is_string($repositoryUrl)) {
+            $linked = SiteRepository::query()->getQuery()->select('site_id')->where('url', RepositoryUrl::canonical($repositoryUrl));
+            $query->getQuery()->whereIn('sites.id', $linked);
+        }
         $query->getQuery()->orderBy('id');
         $paginator = $query->paginate($request->pageSize(), ['*'], $request->pageParameter(), $request->pageNumber())->appends($request->except($request->pageParameter() === 'page' ? 'page' : 'page.number'));
 
@@ -55,7 +63,7 @@ final class MonitorController extends Controller
 
         return new MonitorResource($monitor->load(['checks' => static function (Relation $checks): void {
             $checks->getQuery()->getQuery()->orderBy('id');
-        }, 'checks.snoozes', 'tags', 'client']));
+        }, 'checks.snoozes', 'tags', 'client', 'repositories']));
     }
 
     public function store(Request $request, CreateSite $create): JsonResponse
@@ -69,7 +77,7 @@ final class MonitorController extends Controller
 
         return new MonitorResource($site->load(['checks' => static function (Relation $checks): void {
             $checks->getQuery()->getQuery()->orderBy('id');
-        }, 'checks.snoozes', 'tags', 'client']))->response()->setStatusCode(201);
+        }, 'checks.snoozes', 'tags', 'client', 'repositories']))->response()->setStatusCode(201);
     }
 
     public function update(Request $request, Site $monitor, UpdateSite $update): MonitorResource
@@ -81,7 +89,7 @@ final class MonitorController extends Controller
 
         return new MonitorResource($site->load(['checks' => static function (Relation $checks): void {
             $checks->getQuery()->getQuery()->orderBy('id');
-        }, 'checks.snoozes', 'tags', 'client']));
+        }, 'checks.snoozes', 'tags', 'client', 'repositories']));
     }
 
     public function destroy(Site $monitor, DeleteSite $delete): Response
