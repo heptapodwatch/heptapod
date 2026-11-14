@@ -43,7 +43,7 @@ final class ImportBackupCommand extends Command
         $this->report = [];
         $this->durations = [];
         $this->failureCode = 2;
-        if ($this->option('print-env-map')) {
+        if ($this->option('print-env-map') === true) {
             $this->table([__('Source key'), __('Target key / action')], array_map(static fn (string $key, string $target): array => [$key, __($target)], array_keys(LegacySourceMap::Environment), LegacySourceMap::Environment));
             $this->line(__('Set APP_NAME manually. Explicitly copy APP_KEY and BACKUP_ARCHIVE_PASSWORD unchanged; review MAIL_* separately. Generate a new DB_PASSWORD and new Reverb keys. No values are read or copied.'));
             $this->line(__('Disable startup migrations before starting the empty target. Keep workers stopped until review.'));
@@ -136,7 +136,7 @@ final class ImportBackupCommand extends Command
                 }
             }
             $this->report['source_environment_keys_present'] = array_values(array_intersect(array_keys(LegacySourceMap::Environment), $envKeys));
-            if (! $this->option('dry-run')) {
+            if ($this->option('dry-run') !== true) {
                 $this->step('restore', 4, fn () => $import->restore($dump, $sqlPath, $extraction.'/restore.log'));
                 $settings = $this->step('migrate', 5, fn (): array => $import->migrateRecordingSettings(function () use ($extraction): void {
                     $output = new BufferedOutput;
@@ -274,7 +274,7 @@ final class ImportBackupCommand extends Command
             }
         }
         if ($success) {
-            $this->info($this->option('dry-run')
+            $this->info($this->option('dry-run') === true
                 ? __('Dry run passed. No database rows or target storage files were written.')
                 : __('Import passed: table counts, sequences, storage and decryption verified. Maintenance mode remains on.'));
         }

@@ -21,7 +21,7 @@ final class RebalanceCheckScheduleCommand extends Command
 
     public function handle(DatabaseClock $clock): int
     {
-        $dryRun = $this->option('dry-run');
+        $dryRun = $this->option('dry-run') === true;
         $lastId = 0;
         /** @var int|null $maxId */
         $maxId = DB::table('checks')->max('id');

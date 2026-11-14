@@ -203,9 +203,9 @@ export const home = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 
 home.definition = {
-    methods: ["get","head","post","put","patch","delete","options"],
+    methods: ["get","head","post","put","patch","delete","options","query"],
     url: '/',
-} satisfies RouteDefinition<["get","head","post","put","patch","delete","options"]>
+} satisfies RouteDefinition<["get","head","post","put","patch","delete","options","query"]>
 
 /**
 * @see \Illuminate\Routing\RedirectController::__invoke
@@ -284,6 +284,16 @@ home.delete = (options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
 home.options = (options?: RouteQueryOptions): RouteDefinition<'options'> => ({
     url: home.url(options),
     method: 'options',
+})
+
+/**
+* @see \Illuminate\Routing\RedirectController::__invoke
+* @see vendor/laravel/framework/src/Illuminate/Routing/RedirectController.php:19
+* @route '/'
+*/
+home.query = (options?: RouteQueryOptions): RouteDefinition<'query'> => ({
+    url: home.url(options),
+    method: 'query',
 })
 
 /**
@@ -391,6 +401,21 @@ homeForm.options = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
     method: 'get',
 })
 
+/**
+* @see \Illuminate\Routing\RedirectController::__invoke
+* @see vendor/laravel/framework/src/Illuminate/Routing/RedirectController.php:19
+* @route '/'
+*/
+homeForm.query = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: home.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'QUERY',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
+
 home.form = homeForm
 
 /**
@@ -485,9 +510,9 @@ export const dashboard = (options?: RouteQueryOptions): RouteDefinition<'get'> =
 })
 
 dashboard.definition = {
-    methods: ["get","head","post","put","patch","delete","options"],
+    methods: ["get","head","post","put","patch","delete","options","query"],
     url: '/dashboard',
-} satisfies RouteDefinition<["get","head","post","put","patch","delete","options"]>
+} satisfies RouteDefinition<["get","head","post","put","patch","delete","options","query"]>
 
 /**
 * @see \Illuminate\Routing\RedirectController::__invoke
@@ -566,6 +591,16 @@ dashboard.delete = (options?: RouteQueryOptions): RouteDefinition<'delete'> => (
 dashboard.options = (options?: RouteQueryOptions): RouteDefinition<'options'> => ({
     url: dashboard.url(options),
     method: 'options',
+})
+
+/**
+* @see \Illuminate\Routing\RedirectController::__invoke
+* @see vendor/laravel/framework/src/Illuminate/Routing/RedirectController.php:19
+* @route '/dashboard'
+*/
+dashboard.query = (options?: RouteQueryOptions): RouteDefinition<'query'> => ({
+    url: dashboard.url(options),
+    method: 'query',
 })
 
 /**
@@ -671,6 +706,21 @@ dashboardForm.options = (options?: RouteQueryOptions): RouteFormDefinition<'get'
         }
     }),
     method: 'get',
+})
+
+/**
+* @see \Illuminate\Routing\RedirectController::__invoke
+* @see vendor/laravel/framework/src/Illuminate/Routing/RedirectController.php:19
+* @route '/dashboard'
+*/
+dashboardForm.query = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: dashboard.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'QUERY',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
 })
 
 dashboard.form = dashboardForm

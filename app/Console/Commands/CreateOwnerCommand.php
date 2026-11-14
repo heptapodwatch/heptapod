@@ -28,7 +28,7 @@ final class CreateOwnerCommand extends Command
     {
         $email = $this->option('email');
         $name = $this->option('name');
-        if (! is_string($email)) {
+        if (! is_string($email) || ($name !== null && ! is_string($name))) {
             $this->error('Supply --email and an optional --name.');
 
             return self::FAILURE;
@@ -36,7 +36,7 @@ final class CreateOwnerCommand extends Command
 
         try {
             Validator::make(['email' => $email], ['email' => ['required', 'string', 'email', 'max:255']])->validate();
-            $passwordStdin = $this->option('password-stdin');
+            $passwordStdin = $this->option('password-stdin') === true;
             if ($passwordStdin) {
                 $password = $this->readPassword();
             } else {
@@ -47,7 +47,7 @@ final class CreateOwnerCommand extends Command
                 }
                 $password = implode('', $characters);
             }
-            $user = $createOwner($email, $name ?? explode('@', $email, 2)[0], $password, $this->option('if-missing'), generatedPassword: ! $passwordStdin);
+            $user = $createOwner($email, $name ?? explode('@', $email, 2)[0], $password, $this->option('if-missing') === true, generatedPassword: ! $passwordStdin);
         } catch (ValidationException $exception) {
             $this->error('Owner creation failed: '.implode(', ', $exception->validator->errors()->all()));
 
