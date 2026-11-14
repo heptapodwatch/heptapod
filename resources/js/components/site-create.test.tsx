@@ -54,6 +54,7 @@ const restoreDraft = (draft: Record<string, unknown>) =>
         JSON.stringify({
             url: 'https://shop.example.test',
             client_id: String(options.clients[0]!.id),
+            saved_at: new Date().toISOString(),
             ...draft,
         }),
     );
@@ -359,6 +360,9 @@ it('never stores URL credentials, query, fragment, health secrets, request heade
         },
     });
     render(<AddSite {...withNested} />);
+    fireEvent.change(screen.getByLabelText('Name'), {
+        target: { value: 'Shop' },
+    });
     const draft = localStorage.getItem(storageKey())!;
     expect(draft).not.toMatch(
         /password|token=private|#private|health-private|header-private|body-private|nested-private/,
@@ -398,6 +402,9 @@ it('isolates drafts per user, rejects malformed storage and clamps removed clien
             )}
         />,
     );
+    fireEvent.change(urlField(), {
+        target: { value: 'https://second.example.test/shop' },
+    });
     expect(stored().client_id).toBe('');
     expect(stored().checks).toEqual(['uptime']);
     expect(clientField()).not.toBeNull();
@@ -436,6 +443,158 @@ it('clears the draft only on explicit discard or successful save, not validation
     });
     fireEvent.click(screen.getByRole('button', { name: 'Add site' }));
     await waitFor(() => expect(localStorage.getItem(storageKey())).toBeNull());
+});
+
+it('restores a draft changed within two hours and removes an older one', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-14T12:00:00Z'));
+    restoreDraft({ saved_at: '2026-11-14T10:01:00Z' });
+    let view = render(<AddSite {...options} />);
+    expect(urlField().value).toBe('https://shop.example.test/');
+    expect(screen.getByText('sites.draft.restored')).not.toBeNull();
+    view.unmount();
+    restoreDraft({ saved_at: '2026-11-14T09:59:00Z' });
+    view = render(<AddSite {...options} />);
+    expect(urlField().value).toBe('');
+    expect(screen.queryByText('sites.draft.restored')).toBeNull();
+    expect(localStorage.getItem(storageKey())).toBeNull();
+    view.unmount();
+    restoreDraft({ saved_at: undefined });
+    render(<AddSite {...options} />);
+    expect(urlField().value).toBe('');
+    expect(localStorage.getItem(storageKey())).toBeNull();
+});
+
+it('saves no draft for an untouched form, keeps the time of the last edit and removes the draft once every value is back at its default', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-14T12:00:00Z'));
+    vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+            recommended_checks: ['uptime', 'dns'],
+            failure: null,
+            status: 200,
+        }),
+    } as Response);
+    render(
+        <AddSite
+            {...options}
+            selected_client_id={options.clients[1]!.id}
+            checks={options.checks.map((check) =>
+                check.key === 'uptime'
+                    ? {
+                          ...check,
+                          config_schema: {
+                              fields: {
+                                  ...check.config_schema.fields,
+                                  timeout: {
+                                      ...check.config_schema.fields.timeout!,
+                                      default: 10,
+                                  },
+                              },
+                          },
+                      }
+                    : check,
+            )}
+        />,
+    );
+    expect(localStorage.getItem(storageKey())).toBeNull();
+    fireEvent.change(urlField(), {
+        target: { value: 'https://shop.example.test' },
+    });
+    expect(stored().saved_at).toBe('2026-11-14T12:00:00.000Z');
+    vi.setSystemTime(new Date('2026-11-14T12:05:00Z'));
+    // The address check changes the checks and opening a sheet changes the page; neither is an edit.
+    fireEvent.blur(urlField());
+    await waitFor(() => expect(switchState('checks.dns.label')).toBe('true'));
+    const settings = () =>
+        screen.getAllByRole('button', {
+            name: 'add_site.settings.for_check',
+        })[0]!;
+    fireEvent.click(settings());
+    expect(stored().saved_at).toBe('2026-11-14T12:00:00.000Z');
+    fireEvent.change(screen.getByLabelText('Timeout'), {
+        target: { value: '17' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    fireEvent.click(settings());
+    fireEvent.change(screen.getByLabelText('Timeout'), {
+        target: { value: '10' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'checks.dns.label' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'checks.dns.label' }));
+    expect(stored().settings['uptime.timeout']).toBe(10);
+    expect(stored().saved_at).toBe('2026-11-14T12:05:00.000Z');
+    fireEvent.change(urlField(), { target: { value: '' } });
+    expect(localStorage.getItem(storageKey())).toBeNull();
+});
+
+it('keeps the client the page was opened for over the client of a draft', () => {
+    restoreDraft({ friendly_name: 'Shop' });
+    render(
+        <AddSite {...options} selected_client_id={options.clients[1]!.id} />,
+    );
+    expect(
+        within(clientField()!).getByText(options.clients[1]!.name),
+    ).not.toBeNull();
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe(
+        'Shop',
+    );
+});
+
+it('starts over from a restored draft with a fresh form on the same page', () => {
+    const visit = vi.spyOn(router, 'visit').mockImplementation(() => {});
+    restoreDraft({ friendly_name: 'Shop' });
+    render(<AddSite {...options} />);
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe(
+        'Shop',
+    );
+    fireEvent.click(
+        screen.getByRole('button', { name: 'sites.draft.start_over' }),
+    );
+    expect(urlField().value).toBe('');
+    expect(clientField()).toBeNull();
+    expect(screen.queryByText('sites.draft.restored')).toBeNull();
+    expect(localStorage.getItem(storageKey())).toBeNull();
+    expect(visit).not.toHaveBeenCalled();
+});
+
+it('keeps the form and says so when Start over cannot remove the draft', () => {
+    restoreDraft({ friendly_name: 'Shop' });
+    render(<AddSite {...options} />);
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+        throw new DOMException('denied', 'SecurityError');
+    });
+    fireEvent.click(
+        screen.getByRole('button', { name: 'sites.draft.start_over' }),
+    );
+    expect(screen.getByText('sites.draft.unavailable')).not.toBeNull();
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe(
+        'Shop',
+    );
+});
+
+it('stops writing the draft after another tab removed it until the next edit here', async () => {
+    render(<AddSite {...options} />);
+    fireEvent.change(urlField(), {
+        target: { value: 'https://shop.example.test' },
+    });
+    expect(stored()).not.toBeNull();
+    localStorage.removeItem(storageKey());
+    act(() => {
+        window.dispatchEvent(
+            new StorageEvent('storage', { key: storageKey(), newValue: null }),
+        );
+    });
+    // The address check updates the recommended checks; that is no edit.
+    fireEvent.blur(urlField());
+    await waitFor(() => expect(clientField()).not.toBeNull());
+    expect(localStorage.getItem(storageKey())).toBeNull();
+    fireEvent.change(urlField(), {
+        target: { value: 'https://other.example.test' },
+    });
+    expect(stored().url).toBe('https://other.example.test/');
 });
 
 it('creates a client in a sheet with the normal form and selects it in place', async () => {
@@ -584,7 +743,7 @@ it('groups HTTPS-only checks of an HTTP address under the address, not under ins
 });
 
 it('applies check settings from a sheet, counts only differences from defaults and discards cancelled edits', () => {
-    restoreDraft({ checks: ['uptime'] });
+    restoreDraft({ checks: ['uptime'], settings: {} });
     render(
         <AddSite
             {...options}
@@ -643,7 +802,7 @@ it('opens the setup sheet when a check that needs settings is turned on and leav
     expect(switchState('checks.application_health.label')).toBe('false');
 });
 
-it('names the probe reason on recommended checks and refreshes recommendations on restore without overriding explicit choices', async () => {
+it('names the probe reason on recommended checks and refreshes recommendations on restore without overriding explicit choices or rewriting the draft', async () => {
     restoreDraft({
         checks: ['uptime', 'application_health'],
         changedChecks: ['lighthouse', 'mixed_content', 'application_health'],
@@ -705,13 +864,9 @@ it('names the probe reason on recommended checks and refreshes recommendations o
     expect(switchState('checks.lighthouse.label')).toBe('false');
     expect(switchState('checks.mixed_content.label')).toBe('false');
     expect(switchState('checks.application_health.label')).toBe('true');
-    expect(stored().checks.toSorted()).toEqual([
-        'application_health',
-        'broken_links',
-        'certificate_health',
-        'sitemap',
-        'uptime',
-    ]);
+    for (const key of ['broken_links', 'certificate_health', 'sitemap'])
+        expect(switchState(`checks.${key}.label`)).toBe('true');
+    expect(stored().checks).toEqual(['uptime', 'application_health']);
 });
 
 it('debounces the address check, aborts stale results and normalises on blur', async () => {

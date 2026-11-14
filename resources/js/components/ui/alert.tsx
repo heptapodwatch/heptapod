@@ -8,15 +8,15 @@ export type AlertTone = "info" | "warning" | "danger"
 
 /** The tone owns border, tint and icon colour; callers never pass colour classes (heptapod-ui-rules Callouts). */
 const alertVariants = cva(
-  "relative flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-sm",
+  "relative w-full rounded-lg border py-3 pr-4 pl-11 text-sm",
   {
     variants: {
       tone: {
-        info: "border-border bg-muted/40 [&>[data-slot=alert-icon]]:text-(--status-info)",
+        info: "border-border bg-muted/40 [&_[data-slot=alert-icon]]:text-(--status-info)",
         warning:
-          "border-(--status-warn)/40 bg-(--status-warn)/5 [&>[data-slot=alert-icon]]:text-(--status-warn)",
+          "border-(--status-warn)/40 bg-(--status-warn)/5 [&_[data-slot=alert-icon]]:text-(--status-warn)",
         danger:
-          "border-destructive/40 bg-destructive/5 [&>[data-slot=alert-icon]]:text-destructive",
+          "border-destructive/40 bg-destructive/5 [&_[data-slot=alert-icon]]:text-destructive",
       },
     },
   }
@@ -52,13 +52,15 @@ function Alert({
       className={alertVariants({ tone })}
       {...props}
     >
-      <Icon
-        data-slot="alert-icon"
-        aria-hidden="true"
-        className="mt-0.5 size-4 shrink-0"
-      />
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="min-w-0 flex-1 basis-64 space-y-0.5">{children}</div>
+      {/* Text and action share the first baseline, so a taller action (a button) moves the text with it. The icon sits
+          in the text column, one line high: it stays on the first text line with or without an inline or wrapped action. */}
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+        <div className="relative min-w-0 flex-1 basis-64 space-y-0.5">
+          <span aria-hidden="true" className="absolute top-0 -left-7 flex h-5 items-center">
+            <Icon data-slot="alert-icon" className="size-4" />
+          </span>
+          {children}
+        </div>
         {action !== undefined && (
           <div data-slot="alert-action" className="flex shrink-0 items-center gap-2">
             {action}

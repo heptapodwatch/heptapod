@@ -33,6 +33,8 @@
     "Choose a client for this site.": "Choose a client for this site.",
     "We check the address before adding the site": "We check the address before adding the site",
     "sites.draft.secrets_omitted": "Secrets, request headers and bodies, and URL credentials, query strings and fragments are not kept in drafts. Enter them again before saving.",
+    "sites.draft.restored": "Restored your unfinished entry from {{time}}",
+    "sites.draft.start_over": "Start over",
     "sites.draft.unavailable": "This browser cannot save or clear the draft. Keep this page open to avoid losing your changes.",
     "clients.create_inline": "Create client \"{{name}}\"",
     "combobox.search": "Search options",

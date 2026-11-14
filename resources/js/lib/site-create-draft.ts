@@ -13,7 +13,11 @@ export type SiteCreateDraft = {
     openChecks: CheckKey[];
     changedChecks: CheckKey[];
     omitted: boolean;
+    /** ISO time of the user's last change; an older draft than `siteCreateDraftLifetime` is not restored. */
+    saved_at: string;
 };
+
+export const siteCreateDraftLifetime = 2 * 60 * 60 * 1000;
 
 function record(value: unknown): value is Record<string, unknown> {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -156,6 +160,7 @@ export function siteCreateDraft(
         settings,
         openChecks: keys(input.openChecks),
         changedChecks: keys(input.changedChecks),
+        saved_at: typeof input.saved_at === 'string' ? input.saved_at : '',
         omitted:
             input.omitted === true ||
             Boolean(
