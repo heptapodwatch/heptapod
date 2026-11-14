@@ -37,10 +37,10 @@ jobs:
             exit 1
           fi
       # The pull above proves only the runner's architecture. The hosted installer accepts arm64 hosts for every
-      # release from v0.4.1 on, so those releases must publish both; older releases are amd64 only.
+      # release from v0.5.0 on, so those releases must publish both; older releases are amd64 only.
       - name: Require amd64 and arm64 images of the tag commit
         run: |
-          if [ "$(printf '%s\n' v0.4.1 "$TAG" | sort -V | head -n 1)" != v0.4.1 ]; then
+          if [ "$(printf '%s\n' v0.5.0 "$TAG" | sort -V | head -n 1)" != v0.5.0 ]; then
             echo "::notice::$TAG predates arm64 images; only the amd64 images were checked."
             exit 0
           fi
