@@ -14,6 +14,7 @@ use Heptapod\Contracts\Http\OutboundHttp;
 use Heptapod\Contracts\Http\RedirectPolicy;
 use Heptapod\Jobs\RunCheck;
 use Heptapod\Models\Check;
+use Heptapod\Models\Site;
 use Heptapod\Testing\FakeOutboundHttp;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -46,11 +47,11 @@ function respondApplicationHealth(Check $check, array|string|FetchResult $payloa
 }
 
 /** @param array<string, mixed> $config */
-function applicationHealthCheck(array $config = []): Check
+function applicationHealthCheck(array $config = [], ?Site $site = null): Check
 {
     $schema = app(CheckRegistry::class)->get(CheckKey::ApplicationHealth)->definition()->configSchema;
 
-    return Check::factory()->create(['type' => CheckKey::ApplicationHealth, 'config' => $schema->validateConfig([
+    return Check::factory()->for($site ?? Site::factory())->create(['type' => CheckKey::ApplicationHealth, 'config' => $schema->validateConfig([
         'result_url' => 'http://fixtures.test/application-health/ok', 'secret' => 'fixture-secret', ...$config,
     ])]);
 }

@@ -2,9 +2,11 @@ import { cn } from '@/lib/utils';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { listCardPadding } from '@/components/ui/table';
 import { useTranslation } from 'react-i18next';
+import { useFormat } from '@/hooks/use-format';
 import { MonitoringTime, StatusBadge } from '@/components/monitoring';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { parseResult, resultState } from '@/lib/status';
+import { SecurityAdvisoryList } from '@/components/security-advisory-list';
 
 export function ApplicationHealthDetail({
     history,
@@ -12,6 +14,7 @@ export function ApplicationHealthDetail({
     history: Heptapod.Addons.ApplicationHealth.ApplicationHealthDetailData;
 }) {
     const { t } = useTranslation();
+    const format = useFormat();
     return (
         <div className="space-y-4">
             <Card>
@@ -59,14 +62,40 @@ export function ApplicationHealthDetail({
                                             ),
                                         )}
                                     />
-                                    <div className="min-w-0 space-y-1">
+                                    <div className="min-w-0 flex-1 space-y-1">
                                         <strong className="block break-words">
-                                            {component.label || component.name}
+                                            {component.advisories
+                                                ? t('Security advisories')
+                                                : component.label ||
+                                                  component.name}
                                         </strong>
                                         <p className="break-words text-muted-foreground">
-                                            {component.short_summary ||
-                                                component.status}
+                                            {component.advisories?.length
+                                                ? t(
+                                                      '{{count}} open advisories',
+                                                      {
+                                                          count: component
+                                                              .advisories
+                                                              .length,
+                                                          formattedCount:
+                                                              format.number(
+                                                                  component
+                                                                      .advisories
+                                                                      .length,
+                                                              ),
+                                                      },
+                                                  )
+                                                : component.short_summary ||
+                                                  component.status}
                                         </p>
+                                        {component.advisories?.length ? (
+                                            <SecurityAdvisoryList
+                                                advisories={
+                                                    component.advisories
+                                                }
+                                                more={history.more_advisories}
+                                            />
+                                        ) : null}
                                     </div>
                                 </li>
                             ))}

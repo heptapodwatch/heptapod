@@ -405,5 +405,15 @@
     "checks.interval.days_other": "Alle {{formattedCount}} Tage",
     "checks.interval.seconds_one": "Jede Sekunde",
     "checks.interval.seconds_other": "Alle {{formattedCount}} Sekunden",
-    "checks.interval.mixed": "Alle {{interval}}"
+    "checks.interval.mixed": "Alle {{interval}}",
+    "Security advisories": "Sicherheitshinweise",
+    "{{count}} open advisories_one": "{{formattedCount}} offener Sicherheitshinweis",
+    "{{count}} open advisories_other": "{{formattedCount}} offene Sicherheitshinweise",
+    "Severity: {{severity}}": "Schweregrad: {{severity}}",
+    "Low": "Niedrig",
+    "Medium": "Mittel",
+    "High": "Hoch",
+    "Affected versions: {{versions}}": "Betroffene Versionen: {{versions}}",
+    "Reported {{date}}": "Gemeldet am {{date}}",
+    "Showing first 100 advisories": "Erste 100 Sicherheitshinweise angezeigt"
 }
