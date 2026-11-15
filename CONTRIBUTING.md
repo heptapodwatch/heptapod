@@ -26,3 +26,11 @@ Keep the [Git hooks](DEVELOPMENT.md#git-hooks) enabled. Pre-commit formats stage
 - Leave license changes and new dependencies for explicit maintainer review.
 
 Submit pull requests at https://github.com/heptapodwatch/heptapod/pulls. Report vulnerabilities through https://github.com/heptapodwatch/heptapod/security/advisories/new, not public issues.
+
+## Contributor License Agreement
+
+Before we can merge your first pull request, sign the [Contributor License Agreement](CLA.md). The CLA bot asks you on the pull request; reply once with the comment `I have read the CLA Document and I hereby sign the CLA`, and it covers all your later pull requests.
+
+You keep the copyright in your contribution and grant a license to use it, which includes licensing it under other terms. This keeps the option open to fund Heptapod through a managed or commercial offer. Heptapod's code stays AGPL-3.0-or-later for everyone, including your contribution.
+
+The Heptapod name and logo are not covered by the AGPL.

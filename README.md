@@ -77,4 +77,4 @@ Heptapod owes a lot to [Oh Dear](https://ohdear.app). Its focus on what someone 
 
 ## License
 
-[AGPL-3.0-or-later](LICENSE).
+[AGPL-3.0-or-later](LICENSE). The Heptapod name and logo are not covered by the AGPL. Contributions need a signed [Contributor License Agreement](CLA.md).
