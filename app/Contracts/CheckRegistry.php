@@ -9,6 +9,9 @@ final class CheckRegistry
     /** @var array<string, class-string<CheckType>> */
     private array $types = [];
 
+    /** @var array<string, CheckDefinition> */
+    private array $definitions = [];
+
     /** @var array<string, OhDearImportMapping> */
     private array $importMappings = [];
 
@@ -24,11 +27,13 @@ final class CheckRegistry
     {
         /** @var CheckType $instance */
         $instance = $this->container->make($type);
-        $key = $instance->definition()->key->value;
+        $definition = $instance->definition();
+        $key = $definition->key->value;
         if (isset($this->types[$key])) {
             throw new \LogicException("Check type already registered: {$key}");
         }
         $this->types[$key] = $type;
+        $this->definitions[$key] = $definition;
         if ($importMapping instanceof OhDearImportMapping) {
             $this->importMappings[$key] = $importMapping;
         }
@@ -44,15 +49,34 @@ final class CheckRegistry
         return $instance;
     }
 
-    public function availability(CheckKey $key): CheckAvailability
+    /** A check type's static metadata, read once at registration: list pages ask for it per check. */
+    public function definition(CheckKey $key): CheckDefinition
     {
-        // Callers ask once per check; building a type through the container only to learn it reports nothing dominated list pages.
-        if (! is_a($this->types[$key->value] ?? '', ReportsAvailability::class, true)) {
-            return new CheckAvailability;
+        return $this->definitions[$key->value] ?? throw new \LogicException("Check addon is not installed: {$key->value}");
+    }
+
+    /**
+     * The check type when it is installed and its class implements the contract. List pages ask per check, and
+     * building every type through the container only to learn it does not implement the contract dominated them.
+     *
+     * @template T of object
+     *
+     * @param  class-string<T>  $contract
+     * @return T|null
+     */
+    public function implementation(CheckKey $key, string $contract): ?object
+    {
+        if (! is_a($this->types[$key->value] ?? '', $contract, true)) {
+            return null;
         }
         $type = $this->get($key);
 
-        return $type instanceof ReportsAvailability ? $type->availability() : new CheckAvailability;
+        return $type instanceof $contract ? $type : null;
+    }
+
+    public function availability(CheckKey $key): CheckAvailability
+    {
+        return $this->implementation($key, ReportsAvailability::class)?->availability() ?? new CheckAvailability;
     }
 
     /** @return list<CheckKey> */

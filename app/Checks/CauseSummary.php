@@ -57,13 +57,11 @@ final readonly class CauseSummary
             $params = SecretRedactor::redactStringValues($params, RedactionContext::forSite($site, $check, $run instanceof CheckRun ? $run->evidence : []));
         }
 
-        if ($key !== null && in_array($check->type, $this->registry->keys(), true)) {
-            $presenter = $this->registry->get($check->type);
-            if ($presenter instanceof CheckSummaryPresenter) {
-                $presented = $presenter->presentSummary($key, $params);
-                $key = $presented->key;
-                $params = $presented->params;
-            }
+        $presenter = $key === null ? null : $this->registry->implementation($check->type, CheckSummaryPresenter::class);
+        if ($presenter !== null) {
+            $presented = $presenter->presentSummary($key, $params);
+            $key = $presented->key;
+            $params = $presented->params;
         }
 
         return ['key' => $key, 'params' => $params];

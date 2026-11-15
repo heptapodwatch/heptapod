@@ -17,7 +17,7 @@ final readonly class CheckFreshness
 
     public function threshold(Check $check): int
     {
-        $queue = in_array($check->type, $this->registry->keys(), true) ? $this->registry->get($check->type)->definition()->queue : 'checks-fast';
+        $queue = in_array($check->type, $this->registry->keys(), true) ? $this->registry->definition($check->type)->queue : 'checks-fast';
         $min = config()->integer('heptapod.freshness.queues.'.$queue.'.min_seconds');
         $max = config()->integer('heptapod.freshness.queues.'.$queue.'.max_seconds');
 
