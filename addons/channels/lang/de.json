@@ -1,5 +1,5 @@
 {
-    "emails.snooze_reminders": "Erinnerungen pausieren",
+    "emails.snooze_reminders": "Erinnerungen stummschalten",
     "notifications.channel.mail": "E-Mail",
     "notifications.channel.slack": "Slack",
     "notifications.channel.discord": "Discord",

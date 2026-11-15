@@ -1,6 +1,6 @@
 import { TooltipHint } from '@/components/truncated-text';
 import { PresentationChanges } from '@/components/presentation-changes';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFormat } from '@/hooks/use-format';
 import { Power } from 'lucide-react';
@@ -11,7 +11,9 @@ import { EmptyState } from '@/components/empty-state';
 import { Card, CardContent } from '@/components/ui/card';
 import { CheckConfiguration } from '@/components/check-configuration';
 import { CheckHistory } from '@/components/check-history';
-import { runState, statusLabels } from '@/lib/status';
+import { checkState, isSnoozed, runState, statusLabels } from '@/lib/status';
+import { AbsoluteTime } from '@/components/absolute-time';
+import { CheckSnoozeActions } from '@/components/check-snooze-actions';
 
 export function CheckTabLayout({
     page,
@@ -26,6 +28,8 @@ export function CheckTabLayout({
 }) {
     const { t } = useTranslation();
     const format = useFormat();
+    const [actionsOpen, setActionsOpen] = useState(false);
+    const snoozed = isSnoozed(page.check, Date.now());
     const freshness = page.schedule.freshness;
     if (freshness.lost_attempts > 0 && page.schedule.last_loss === null) {
         throw new Error(
@@ -83,19 +87,28 @@ export function CheckTabLayout({
                 metadata={
                     <div className="flex flex-wrap items-center gap-2.5">
                         <StatusBadge
-                            state={
-                                page.check.enabled
-                                    ? page.freshness_suppressed_by !== null
-                                        ? 'unavailable'
-                                        : page.check.state
-                                    : 'disabled'
-                            }
+                            state={checkState({
+                                ...page.check,
+                                freshness_suppressed_by:
+                                    page.freshness_suppressed_by,
+                            })}
                             label={
+                                !snoozed &&
+                                page.check.enabled &&
                                 page.freshness_suppressed_by !== null
                                     ? 'No current data'
                                     : undefined
                             }
+                            snoozed={snoozed}
                         />
+                        {snoozed && (
+                            <span className="text-xs text-muted-foreground">
+                                {t('Snoozed until')}{' '}
+                                <AbsoluteTime
+                                    value={page.check.snoozed_until!}
+                                />
+                            </span>
+                        )}
                         {page.check.enabled &&
                             page.freshness_suppressed_by === null &&
                             !page.check.pending_recheck &&
@@ -136,6 +149,20 @@ export function CheckTabLayout({
                     </div>
                 }
                 primaryAction={primaryAction}
+                secondaryActions={
+                    page.check.enabled && page.header.state !== 'paused' ? (
+                        <CheckSnoozeActions
+                            siteId={page.site.id}
+                            check={page.check}
+                            checkName={t(page.check.label_key)}
+                            canTurnOff={page.can_run}
+                            onDone={() => setActionsOpen(false)}
+                        />
+                    ) : undefined
+                }
+                secondaryOpen={actionsOpen}
+                onSecondaryOpenChange={setActionsOpen}
+                secondaryActionCount={primaryAction ? undefined : 1}
                 notices={
                     freshnessTimes !== null && (
                         <Alert tone="warning">

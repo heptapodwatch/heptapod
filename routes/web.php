@@ -15,6 +15,7 @@ use Heptapod\Http\Controllers\ClientMessagesController;
 use Heptapod\Http\Controllers\ClientMoveBlockersController;
 use Heptapod\Http\Controllers\ClientSettingsController;
 use Heptapod\Http\Controllers\ClientsIndexController;
+use Heptapod\Http\Controllers\DisableSiteCheckController;
 use Heptapod\Http\Controllers\EnableSiteCheckController;
 use Heptapod\Http\Controllers\EndMaintenanceController;
 use Heptapod\Http\Controllers\EndSiteMaintenanceController;
@@ -43,6 +44,7 @@ use Heptapod\Http\Controllers\RestoreClientController;
 use Heptapod\Http\Controllers\RotateCronPingUrlController;
 use Heptapod\Http\Controllers\RunsController;
 use Heptapod\Http\Controllers\SearchController;
+use Heptapod\Http\Controllers\SiteCheckSnoozeController;
 use Heptapod\Http\Controllers\SiteIconController;
 use Heptapod\Http\Controllers\SiteMonitoringController;
 use Heptapod\Http\Controllers\SiteOverviewController;
@@ -124,6 +126,9 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('sites/{site}/checks/{check}/findings.csv', FindingsExportController::class)->whereNumber(['site', 'check'])->name('sites.checks.findings');
     Route::patch('sites/{site}/checks/{check}', UpdateCheckSettingsController::class)->whereNumber(['site', 'check'])->name('sites.checks.update');
     Route::post('sites/{site}/checks/{check}/enable', EnableSiteCheckController::class)->whereNumber(['site', 'check'])->name('sites.checks.enable');
+    Route::post('sites/{site}/checks/{check}/disable', DisableSiteCheckController::class)->whereNumber(['site', 'check'])->name('sites.checks.disable');
+    Route::post('sites/{site}/checks/{check}/snooze', [SiteCheckSnoozeController::class, 'store'])->whereNumber(['site', 'check'])->name('sites.checks.snooze');
+    Route::delete('sites/{site}/checks/{check}/snooze', [SiteCheckSnoozeController::class, 'destroy'])->whereNumber(['site', 'check'])->name('sites.checks.unsnooze');
     Route::post('sites/{site}/checks/{check}/health/probe', HealthSettingsProbeController::class)
         ->whereNumber(['site', 'check'])->name('sites.checks.health.probe');
     Route::post('sites/{site}/checks/{check}/run', RequestCheckRunController::class)->whereNumber(['site', 'check'])->name('sites.checks.run');

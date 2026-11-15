@@ -137,5 +137,6 @@
     "No open incidents": "No open incidents",
     "An incident opens here when a site is down or a check fails.": "An incident opens here when a site is down or a check fails.",
     "No matching incidents": "No matching incidents",
-    "Clear filters to see open incidents.": "Clear filters to see open incidents."
+    "Clear filters to see open incidents.": "Clear filters to see open incidents.",
+    "Check snoozed until": "Check snoozed until"
 }

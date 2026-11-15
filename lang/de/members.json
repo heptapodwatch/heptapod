@@ -49,7 +49,7 @@
     "Replace legacy all-client access with the selected clients on save.": "Den bisherigen Zugriff auf alle Kunden beim Speichern durch die ausgewählten Kunden ersetzen.",
     "members.role.owner": "Kunden, Websites, Prüfungen, Team-Benachrichtigungen, Mitglieder und Instanzeinstellungen verwalten. Der Zugriff umfasst alle bestehenden und zukünftigen Kunden.",
     "members.role.admin": "Kunden, Websites, Prüfungen und Team-Benachrichtigungen verwalten sowie Mitglieder einladen und verwalten. Keine Verwaltung der Rollen Inhaber und Admin oder der Instanzeinstellungen. Der Zugriff umfasst alle bestehenden und zukünftigen Kunden.",
-    "members.role.member": "Ausgewählte Kunden und deren Websites ansehen, Notizen zu Störungen ergänzen und Erinnerungen pausieren. Keine Änderungen an Kunden, Websites, Prüfungen, Team-Benachrichtigungen oder Wartungsfenstern. Zukünftige Kunden müssen gesondert zugewiesen werden.",
+    "members.role.member": "Ausgewählte Kunden und deren Websites ansehen, Notizen zu Störungen ergänzen sowie Erinnerungen und Prüfungen stummschalten. Keine Änderungen an Kunden, Websites, Prüfungen, Team-Benachrichtigungen oder Wartungsfenstern. Zukünftige Kunden müssen gesondert zugewiesen werden.",
     "Select at least one client. Future clients are not included automatically.": "Wählen Sie mindestens einen Kunden aus. Zukünftige Kunden sind nicht automatisch enthalten.",
     "Archived assignments remain until you remove them.": "Zuordnungen zu archivierten Kunden bleiben bestehen, bis Sie sie entfernen.",
     "All current and future clients": "Alle bestehenden und zukünftigen Kunden"
