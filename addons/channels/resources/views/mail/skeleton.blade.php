@@ -4,8 +4,8 @@ $dark = ['bg'=>'#0d1013','card'=>'#13171b','line'=>'#262c33','soft'=>'#1c2127','
 $tone = $mail->tone->color();
 @endphp
 @if ($plain ?? false)
-@if ($mail->client !== null && $mail->site !== null)
-{!! $mail->client !!} · {!! $mail->site !!}
+@if ($mail->siteLine() !== null)
+{!! $mail->siteLine() !!}
 @endif
 {!! $mail->headline !!}
 @if ($mail->lead !== null)
@@ -58,16 +58,16 @@ if ($mail->avatarTile !== null) {
 <tr><td class="bar-down" style="height:3px;line-height:3px;font-size:0;background:#b42f28;border-radius:10px 10px 0 0;">&nbsp;</td></tr>
 @endif
 <tr><td class="px" style="padding:20px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="font-size:13px;">
-@if ($mail->client !== null && $mail->site !== null)
+@if ($mail->siteLine() !== null)
 <table role="presentation" cellpadding="0" cellspacing="0"><tr>
 @if ($mail->avatarTile !== null)
-<td class="avatar-letter" aria-hidden="true" align="center" valign="middle" style="width:20px;height:20px;line-height:20px;border-radius:10px;background:{{ $mail->avatarTile->background }};color:{{ $mail->avatarTile->foreground }};font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;font-weight:600;">{{ $mail->avatarTile->text }}</td><td style="width:5px;"></td>
+<td valign="middle"><div class="avatar-letter" aria-hidden="true" style="width:20px;height:20px;line-height:20px;text-align:center;border-radius:10px;background:{{ $mail->avatarTile->background }};color:{{ $mail->avatarTile->foreground }};font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;font-weight:600;">{{ $mail->avatarTile->text }}</div></td><td style="width:5px;"></td>
 @elseif ($mail->avatarCid !== null)
-<td><img src="cid:{{ $mail->avatarCid }}@heptapod" width="20" height="20" alt="" style="vertical-align:middle;border-radius:10px;border:0;"></td><td style="width:5px;"></td>
+<td valign="middle"><img src="cid:{{ $mail->avatarCid }}@heptapod" width="20" height="20" alt="" style="width:20px;height:20px;vertical-align:middle;border-radius:10px;border:0;"></td><td style="width:5px;"></td>
 @endif
-<td><span class="c-fg2" style="color:#3f4952;vertical-align:middle;">{{ $mail->client }} · {{ $mail->site }}</span></td></tr></table>
+<td><span class="c-fg2" style="color:#3f4952;vertical-align:middle;">{{ $mail->siteLine() }}</span></td></tr></table>
 @endif
-</td><td align="right" valign="middle"><img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="border:0;display:inline-block;"></td></tr></table></td></tr>
+</td><td align="right" valign="middle" style="padding-left:12px;"><img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="width:109px;height:20px;border:0;display:inline-block;"></td></tr></table></td></tr>
 <tr><td class="px" style="padding:22px 28px 28px;">
 <h1 class="h1 c-fg" style="margin:0 0 {{ $mail->lead !== null ? 8 : 12 }}px;font-size:21px;line-height:28px;font-weight:600;letter-spacing:-0.2px;color:#101418;">{{ $mail->headline }}</h1>
 @if ($mail->lead !== null)

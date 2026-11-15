@@ -37,4 +37,14 @@ final readonly class MailModel
         public ?LetterTile $avatarTile = null,
         public MailDesign $design = MailDesign::Branded,
     ) {}
+
+    /** The header line: client and site, or the name once when a client is named like its site. */
+    public function siteLine(): ?string
+    {
+        if ($this->client === null || $this->site === null) {
+            return null;
+        }
+
+        return $this->client === $this->site ? $this->site : $this->client.' · '.$this->site;
+    }
 }

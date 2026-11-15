@@ -55,7 +55,7 @@ final class MailTextLimits
 
     private static function block(EvidenceBlock $block): EvidenceBlock
     {
-        $cell = static fn (Cell $cell): Cell => new Cell(self::text($cell->text), $cell->mono, $cell->tone, self::optional($cell->badge), $cell->keepOnOneLine, self::optional($cell->plainHtmlText));
+        $cell = static fn (Cell $cell): Cell => new Cell(self::text($cell->text), $cell->mono, $cell->tone, self::optional($cell->badge), $cell->keepOnOneLine, self::optional($cell->plainHtmlText), $cell->inlineCode);
 
         return match (true) {
             $block instanceof NoteBlock => new NoteBlock(self::text($block->text), $block->tone),

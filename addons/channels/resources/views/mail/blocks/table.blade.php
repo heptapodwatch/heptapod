@@ -2,7 +2,7 @@
 {!! $block->title !!}
 {!! implode(' | ', $block->head) !!}
 @foreach ($block->rows as $row)
-{!! implode(' | ', array_map(static fn ($cell) => $cell->text.($cell->badge === null ? '' : ' ('.$cell->badge.')'), $row)) !!}
+{!! implode(' | ', array_map(static fn ($cell) => $cell->plainText().($cell->badge === null ? '' : ' ('.$cell->badge.')'), $row)) !!}
 @endforeach
 @if ($block->more !== null)
 {!! $block->more !!}

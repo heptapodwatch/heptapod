@@ -27,6 +27,7 @@
     "application_health.mail_results": "Health-Prüfungen",
     "application_health.mail_check": "Health-Prüfung",
     "application_health.mail_result": "Ergebnis",
+    "application_health.mail_security_advisories": "Sicherheitshinweise",
     "application_health.mail_more": "und :count weitere",
     "application_health.mail_healthy": ":count weitere Health-Prüfungen sind in Ordnung.",
     "application_health.mail_event.check.failing": "fehlgeschlagene Prüfungen und Prüffehler",
