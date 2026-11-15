@@ -35,6 +35,10 @@ pre-commit:
 
 pre-push:
     commands:
+        private-info:
+            # Git's pre-push stdin names the pushed refs; the guard checks those commits' messages.
+            use_stdin: true
+            run: php scripts/check-private-info.php --pushed
         checks:
             run: bash scripts/pre-push-step.sh checks 1200 bash scripts/ci-checks.sh
 
