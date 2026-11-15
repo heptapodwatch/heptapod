@@ -16,10 +16,10 @@ import {
     EventTimeline,
     MonitoringTime,
     responseTimeSummary,
-    Sparkline,
     StatusBadge,
     UptimeBar,
 } from '@/components/monitoring';
+import { Sparkline } from '@/components/sparkline';
 import { SectionHeading } from '@/components/section-heading';
 import { StatTile } from '@/components/stat-tile';
 import { TextLink } from '@/components/text-link';

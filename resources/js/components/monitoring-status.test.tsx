@@ -7,7 +7,8 @@ import {
     within,
 } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { CheckStrip, Sparkline, StatusBadge } from './monitoring';
+import { CheckStrip, StatusBadge } from './monitoring';
+import { Sparkline } from './sparkline';
 import { galleryChecks } from '@/fixtures/design';
 import { checkState } from '@/lib/status';
 import { TooltipProvider } from '@/components/ui/tooltip';
