@@ -5,12 +5,12 @@ set -eu
 case "${1:-}" in
     app) key=app ;;
     lighthouse) key=lighthouse ;;
-    *) echo 'Usage: scripts/image-reference.sh <app|lighthouse>' >&2; exit 2 ;;
+    *) echo 'An image component is required: run sh scripts/image-reference.sh app or sh scripts/image-reference.sh lighthouse. See https://heptapod.watch/docs/running-it/hetzner/#recover-a-failed-first-install' >&2; exit 2 ;;
 esac
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 reference=$(sed -nE "s|^x-$key-image: &$key-image \\$\\{[A-Z_]+:-([^}]+)\\}$|\\1|p" "$root/compose.prod.yaml")
 if [ "$(printf '%s\n' "$reference" | wc -l)" -ne 1 ] || ! printf '%s\n' "$reference" | grep -Eq '^ghcr\.io/[a-z0-9_-]+/[a-z0-9_-]+:main$'; then
-    echo "Invalid or missing x-$key-image default in compose.prod.yaml" >&2
+    echo "Invalid or missing x-$key-image default in compose.prod.yaml; inspect it with grep -n x-$key-image compose.prod.yaml and restore the file from your release before rerunning: https://heptapod.watch/docs/running-it/hetzner/#recover-a-failed-first-install" >&2
     exit 1
 fi
 printf '%s\n' "${reference%:main}"

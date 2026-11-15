@@ -40,67 +40,70 @@ Options:
   --revision SHA      Full published commit SHA for an export without Git.
   -h, --help          Show this help without changing configuration or services.
 
-Fresh installation requires a clean Git checkout of a published main commit,
-or a release export with --revision set to that release's full commit SHA,
-registry access, and at least 12 GiB free on the Docker data filesystem:
-6 GiB for image download/unpacking and 6 GiB for backup headroom.
+Fresh installation requires a Git checkout without changes to tracked files
+whose commit has published images in the registry (a release tag or a main
+commit), or a release export with --revision set to that release's full commit
+SHA; registry access to pull those images; and at least 12 GiB free on the
+Docker data filesystem: 6 GiB for image download/unpacking and 6 GiB for
+backup headroom. The default mode publishes host ports 80 and 443; if another
+service holds them, use --behind-proxy.
 HELP
             exit 0
             ;;
         --domain)
-            [ "$#" -ge 2 ] || { echo '--domain requires a DNS name' >&2; exit 1; }
+            [ "$#" -ge 2 ] || { echo '--domain requires a DNS name, e.g. --domain monitor.example.com. Install guide: https://heptapod.watch/docs/getting-started/install/' >&2; exit 1; }
             domain=$2
             shift 2
             ;;
         --app-url)
-            [ "$#" -ge 2 ] || { echo '--app-url requires an HTTPS URL' >&2; exit 1; }
+            [ "$#" -ge 2 ] || { echo '--app-url requires an HTTPS URL, e.g. --app-url https://monitor.example.com:8443. See https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy' >&2; exit 1; }
             app_url=$2
             app_url_given=1
             shift 2
             ;;
         --revision)
             if [ "$#" -lt 2 ] || ! printf '%s\n' "$2" | grep -Eq '^[a-f0-9]{40}$'; then
-                echo '--revision requires a full 40-character lowercase commit SHA' >&2; exit 1
+                echo '--revision requires a full 40-character lowercase commit SHA, e.g. --revision "$(cat REVISION)" in a release folder. Install guide: https://heptapod.watch/docs/getting-started/install/' >&2; exit 1
             fi
             revision=$2; shift 2 ;;
         --behind-proxy) behind_proxy=1; shift ;;
         --without-browser) browser=false; shift ;;
         --owner-email)
-            [ "$#" -ge 2 ] && [ -n "$2" ] || { echo '--owner-email requires an email address' >&2; exit 1; }
+            [ "$#" -ge 2 ] && [ -n "$2" ] || { echo '--owner-email requires an email address, e.g. --owner-email you@example.com. Install guide: https://heptapod.watch/docs/getting-started/install/' >&2; exit 1; }
             owner_email=$2; shift 2 ;;
         --port)
-            [ "$#" -ge 2 ] || { echo '--port requires a number' >&2; exit 1; }
+            [ "$#" -ge 2 ] || { echo '--port requires a number, e.g. --port 8380. See https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy' >&2; exit 1; }
             port=$2; port_given=1; shift 2 ;;
-        *) echo "Unknown argument: $1" >&2; exit 1 ;;
+        *) echo "Unknown argument: $1. List the options with: ./scripts/install.sh --help. Install guide: https://heptapod.watch/docs/getting-started/install/" >&2; exit 1 ;;
     esac
 done
-[ -n "$domain" ] || { echo 'Usage: ./scripts/install.sh --domain monitor.example.com' >&2; exit 1; }
+[ -n "$domain" ] || { echo 'Usage: ./scripts/install.sh --domain monitor.example.com (--domain is required). Install guide: https://heptapod.watch/docs/getting-started/install/' >&2; exit 1; }
 case "$domain" in
-    *[!a-zA-Z0-9.-]*|.*|*.|-*|*-) echo 'Use a DNS name without a scheme, port or path' >&2; exit 1 ;;
+    *[!a-zA-Z0-9.-]*|.*|*.|-*|*-) echo 'Use a DNS name without a scheme, port or path, e.g. --domain monitor.example.com. Install guide: https://heptapod.watch/docs/getting-started/install/' >&2; exit 1 ;;
 esac
 if [ "$app_url_given" = 1 ]; then
     case "$app_url" in
         "https://$domain") ;;
         "https://$domain":*)
             app_url_port=${app_url#"https://$domain":}
-            case "$app_url_port" in ''|*[!0-9]*) echo 'Invalid --app-url: use HTTPS with the --domain host and an optional port from 1 to 65535' >&2; exit 1 ;; esac
-            [ "${#app_url_port}" -le 5 ] && [ "$app_url_port" -ge 1 ] && [ "$app_url_port" -le 65535 ] || { echo 'Invalid --app-url: port must be from 1 to 65535' >&2; exit 1; }
+            case "$app_url_port" in ''|*[!0-9]*) echo "Invalid --app-url: use HTTPS with the --domain host and an optional port from 1 to 65535, e.g. --app-url https://$domain:8443. See https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy" >&2; exit 1 ;; esac
+            [ "${#app_url_port}" -le 5 ] && [ "$app_url_port" -ge 1 ] && [ "$app_url_port" -le 65535 ] || { echo "Invalid --app-url: port must be from 1 to 65535, e.g. --app-url https://$domain:8443. See https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy" >&2; exit 1; }
             ;;
-        *) echo 'Invalid --app-url: use HTTPS with the --domain host and an optional port from 1 to 65535' >&2; exit 1 ;;
+        *) echo "Invalid --app-url: use HTTPS with the --domain host and an optional port from 1 to 65535, e.g. --app-url https://$domain:8443. See https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy" >&2; exit 1 ;;
     esac
 else
     app_url=https://$domain
 fi
-case "$port" in ''|*[!0-9]*) echo 'Port must be an integer from 1 to 65535' >&2; exit 1 ;; esac
-[ "${#port}" -le 5 ] && [ "$port" -ge 1 ] && [ "$port" -le 65535 ] || { echo 'Port must be from 1 to 65535' >&2; exit 1; }
-[ "$port_given" = 0 ] || [ "$behind_proxy" = 1 ] || { echo '--port requires --behind-proxy' >&2; exit 1; }
+case "$port" in ''|*[!0-9]*) echo 'Port must be an integer from 1 to 65535, e.g. --port 8380. See https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy' >&2; exit 1 ;; esac
+[ "${#port}" -le 5 ] && [ "$port" -ge 1 ] && [ "$port" -le 65535 ] || { echo 'Port must be from 1 to 65535, e.g. --port 8380. See https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy' >&2; exit 1; }
+[ "$port_given" = 0 ] || [ "$behind_proxy" = 1 ] || { echo '--port requires --behind-proxy: add --behind-proxy, or drop --port to serve HTTPS on 80 and 443. See https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy' >&2; exit 1; }
 if [ "$behind_proxy" = 1 ] && [ -n "${HTTPS_PORT:-}" ]; then
-    echo '--behind-proxy conflicts with HTTPS_PORT' >&2; exit 1
+    echo '--behind-proxy conflicts with HTTPS_PORT: run unset HTTPS_PORT, then the install command again. See https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy' >&2; exit 1
 fi
 if [ "$behind_proxy" = 1 ] && [ -n "${COMPOSE_FILE:-}" ]; then
     case "${COMPOSE_FILE##*:}" in
         compose.proxy.yaml|./compose.proxy.yaml|"$PWD/compose.proxy.yaml") ;;
-        *) echo '--behind-proxy requires compose.proxy.yaml as the final COMPOSE_FILE; unset COMPOSE_FILE or add the override last' >&2; exit 1 ;;
+        *) echo '--behind-proxy requires compose.proxy.yaml as the final COMPOSE_FILE; unset COMPOSE_FILE or add the override last. See https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy' >&2; exit 1 ;;
     esac
 fi
 if [ "$behind_proxy" = 1 ]; then
@@ -109,10 +112,10 @@ else
     compose_files=${COMPOSE_FILE:-compose.prod.yaml}
 fi
 case "$compose_files" in
-    *[!A-Za-z0-9_./:+-]*) echo 'COMPOSE_FILE contains unsupported characters; use only letters, digits, _, ., /, :, + and -' >&2; exit 1 ;;
+    *[!A-Za-z0-9_./:+-]*) echo 'COMPOSE_FILE contains unsupported characters; use only letters, digits, _, ., /, :, + and -, or run unset COMPOSE_FILE. See https://heptapod.watch/docs/running-it/configuration/' >&2; exit 1 ;;
 esac
 if ! compose_help=$(docker compose config --help) || ! printf '%s\n' "$compose_help" | grep -q -- '--environment'; then
-    echo 'Docker Compose v5 (tested 5.1.2) with config --environment is required; upgrade Compose before installation' >&2
+    echo 'Docker Compose v5 (tested 5.1.2) with config --environment is required; check with docker compose version, upgrade Compose, then run the install command again: https://heptapod.watch/docs/running-it/hetzner/#other-linux-distributions' >&2
     exit 1
 fi
 # Parse the existing file (or fresh template) before creating state or writing configuration.
@@ -122,12 +125,24 @@ name_environment=$(printf 'services:\n  environment:\n    image: scratch\n' | do
 validate_backup_name \
     "$(printf '%s\n' "$name_environment" | awk '/^APP_NAME=/ {sub(/^APP_NAME=/, ""); print; found=1} END {if (!found) print "Heptapod"}')" \
     "$(printf '%s\n' "$name_environment" | awk '/^BACKUP_PATH=/ {sub(/^BACKUP_PATH=/, ""); print; found=1} END {if (!found) print "/backups"}')"
+# TLS mode publishes HTTP_PORT and HTTPS_PORT on all addresses, so a listener on the same port on any IPv4 or IPv6
+# address would make the start fail half-way. Without ss, Docker reports the conflict at the start instead.
+if [ ! -f .env.prod ] && [ "$behind_proxy" = 0 ] && command -v ss >/dev/null 2>&1; then
+    listeners=$(ss -Htln)
+    for host_port in "${HTTP_PORT:-80}" "${HTTPS_PORT:-443}"; do
+        host_port=${host_port##*:}
+        if printf '%s\n' "$listeners" | awk -v port="$host_port" '{ n = split($4, part, ":"); if (part[n] == port) found = 1 } END { exit !found }'; then
+            echo "Port $host_port is already in use on this host, so Heptapod cannot bind it; no configuration or services were created; rerunning is safe. Find the service with: sudo ss -Htlnp 'sport = :$host_port'. Stop it, or run unset HTTP_PORT HTTPS_PORT, then rerun your install command with --behind-proxy --port 8380 added and forward your proxy to that port: https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy" >&2
+            exit 1
+        fi
+    done
+fi
 acquire_lifecycle_lock
 # shellcheck source=scripts/worker-memory-preflight.sh
 . "$release_dir/scripts/worker-memory-preflight.sh"
 command -v openssl >/dev/null
 case "${COMPOSE_PROFILES:-}" in
-    *'*'*) echo 'Wildcard COMPOSE_PROFILES is not supported; select browser or disabled explicitly.' >&2; exit 1 ;;
+    *'*'*) echo 'Wildcard COMPOSE_PROFILES is not supported; select browser or disabled explicitly, e.g. unset COMPOSE_PROFILES and pass --without-browser to disable. See https://heptapod.watch/docs/running-it/configuration/' >&2; exit 1 ;;
 esac
 managed_keys='APP_KEY DB_PASSWORD BACKUP_ARCHIVE_PASSWORD REVERB_APP_ID REVERB_APP_KEY REVERB_APP_SECRET APP_URL SERVER_NAME HEPTAPOD_BROWSER_ENABLED COMPOSE_PROFILES COMPOSE_FILE'
 if [ "$behind_proxy" = 1 ]; then
@@ -152,7 +167,7 @@ else
             printf "Refusing a fresh install in %s: the Docker Compose project '%s' already exists on this host.\n" "$PWD" "$install_project"
             [ -z "$project_containers" ] || printf '%s\n' "$project_containers" | sed 's/^/  container: /'
             [ -z "$project_volumes" ] || printf '%s\n' "$project_volumes" | sed 's/^/  volume: /'
-            echo 'Heptapod supports one installation per host. Upgrade the existing one, or remove it and its volumes first.'
+            echo 'Heptapod supports one installation per host. From its installation directory, run ./scripts/upgrade.sh to upgrade the existing one: https://heptapod.watch/docs/running-it/updating/'
         } >&2
         exit 1
     fi
@@ -177,7 +192,7 @@ resolved_value() {
     printf '%s\n' "$1" | sed -n "s/^$2=//p"
 }
 case "$(resolved_value "$resolved" COMPOSE_PROFILES)" in
-    *'*'*) echo 'Wildcard COMPOSE_PROFILES is not supported; select browser or disabled explicitly.' >&2; exit 1 ;;
+    *'*'*) echo 'Wildcard COMPOSE_PROFILES is not supported; select browser or disabled explicitly, e.g. unset COMPOSE_PROFILES and pass --without-browser to disable. See https://heptapod.watch/docs/running-it/configuration/' >&2; exit 1 ;;
 esac
 missing_keys=
 # Validate every key before chmod or append: failure must preserve the whole file.
@@ -187,9 +202,9 @@ for key in $managed_keys; do
     mentions=$(grep -cE "(^|[^[:alnum:]_])$key([^[:alnum:]_]|$)" .env.prod || [ "$?" = 1 ])
     if { [ "$key" != COMPOSE_FILE ] || [ -n "$file_value" ]; } && [ "$value" != "$file_value" ] || [ "$mentions" -gt 1 ]; then
         if [ "$key" = COMPOSE_FILE ] && [ "$value" != "$file_value" ]; then
-            echo 'COMPOSE_FILE differs from .env.prod; export the original file list or edit .env.prod explicitly' >&2
+            echo 'COMPOSE_FILE differs from .env.prod; export the original file list or edit .env.prod explicitly, e.g. unset COMPOSE_FILE. See https://heptapod.watch/docs/running-it/configuration/' >&2
         else
-            echo "Ambiguous $key in .env.prod or shell environment; remove duplicate mentions/overrides" >&2
+            echo "Ambiguous $key in .env.prod or shell environment; remove duplicate mentions/overrides (grep -n $key .env.prod; unset $key). See https://heptapod.watch/docs/running-it/configuration/" >&2
         fi
         exit 1
     fi
@@ -198,7 +213,7 @@ for key in $managed_keys; do
     fi
     if [ -z "$value" ]; then
         if [ "$mentions" -ne 0 ]; then
-            echo "Compose resolves $key empty but .env.prod mentions it; remove the definition to generate a value" >&2
+            echo "Compose resolves $key empty but .env.prod mentions it; remove the definition to generate a value (grep -n $key .env.prod shows it). See https://heptapod.watch/docs/running-it/configuration/" >&2
             exit 1
         fi
         missing_keys="$missing_keys $key"
@@ -215,10 +230,10 @@ for key in $managed_keys; do
         if [ "$value" != "$expected" ]; then
             case "$key" in
                 HEPTAPOD_BROWSER_ENABLED|COMPOSE_PROFILES)
-                    echo 'Inconsistent browser selection: configure HEPTAPOD_BROWSER_ENABLED=true and COMPOSE_PROFILES=browser, or false and disabled; pass --without-browser for the disabled selection.' >&2 ;;
+                    echo 'Inconsistent browser selection: configure HEPTAPOD_BROWSER_ENABLED=true and COMPOSE_PROFILES=browser, or false and disabled; pass --without-browser for the disabled selection. See https://heptapod.watch/docs/running-it/configuration/' >&2 ;;
                 COMPOSE_FILE)
-                    echo 'COMPOSE_FILE differs from .env.prod; export the original file list or edit .env.prod explicitly' >&2 ;;
-                *) echo "$key: domain already configured as $value; change it in .env.prod or pass the same --domain" >&2 ;;
+                    echo 'COMPOSE_FILE differs from .env.prod; export the original file list or edit .env.prod explicitly, e.g. unset COMPOSE_FILE. See https://heptapod.watch/docs/running-it/configuration/' >&2 ;;
+                *) echo "$key: domain already configured as $value; change it in .env.prod or pass the same --domain. See https://heptapod.watch/docs/running-it/configuration/" >&2 ;;
             esac
             exit 1
         fi
@@ -307,13 +322,13 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     export HEPTAPOD_VERSION_BUILD
 fi
 case "$(resolved_value "$resolved" MAIL_MAILER)" in
-    ''|log) echo 'Warning: MAIL_MAILER is log. Capability links are redacted. Configure SMTP in .env.prod (MAIL_MAILER=smtp and MAIL_*) or use heptapod:user:access-link for invitation and password-reset links.' >&2 ;;
+    ''|log) echo 'Warning: MAIL_MAILER is log. Capability links are redacted. Configure SMTP in .env.prod (MAIL_MAILER=smtp and MAIL_*) or use heptapod:user:access-link for invitation and password-reset links. See https://heptapod.watch/docs/running-it/configuration/#email' >&2 ;;
 esac
 fresh_install_failed() {
     install_status=$?
     trap - EXIT
     [ "$install_status" -ne 0 ] || return 0
-    echo 'Fresh install failed. Fix image access/configuration, then paste this complete recovery block (rerunning install alone starts no services):' >&2
+    echo 'Fresh install failed. Fix image access/configuration, then paste this complete recovery block (rerunning install alone starts no services): https://heptapod.watch/docs/running-it/hetzner/#recover-a-failed-first-install' >&2
     print_install_recovery >&2
     exit "$install_status"
 }
@@ -326,6 +341,15 @@ resolve_release_images "$browser"
 pin_release_images
 require_worker_memory
 docker compose --env-file .env.prod up -d --wait --wait-timeout 300
+if [ "$behind_proxy" = 1 ]; then
+    # The proxy's connection reaches the app from an address in one of the app's networks; on rootless Podman it is the
+    # container's own, changing IP. So the hint trusts the subnets, never one IP, and is printed, not written.
+    trusted_subnets=$(docker inspect --format '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' "$(docker compose --env-file .env.prod ps -q app)" |
+        xargs docker network inspect --format '{{range .IPAM.Config}}{{println .Subnet}}{{end}}' | awk NF | paste -sd, -)
+    echo "Behind your proxy, signed links (email verification) fail until the app trusts the proxy's HTTPS headers. Your proxy reaches the app from inside this installation's Docker networks. To trust them, run:"
+    printf "  sed -i 's|^TRUSTED_PROXIES=.*|TRUSTED_PROXIES=%s|' .env.prod && docker compose --env-file .env.prod up -d --wait\n" "$trusted_subnets"
+    echo "Check: after one request through your proxy, docker compose --env-file .env.prod logs app | grep -o '\"remote_ip\":\"[^\"]*\"' | tail -n 1 shows an address in these subnets. Recheck after 'docker compose down'; recreated networks can get new subnets. See https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy"
+fi
 if [ -z "$owner_email" ] && [ -t 0 ]; then
     printf 'Owner email (empty to create later): '
     IFS= read -r owner_email

@@ -6,14 +6,14 @@ require_deployment_disk() {
     required_kb=${1:-12582912}
     [ "$required_kb" -ge 12582912 ] || required_kb=12582912
     docker_root=$(docker info --format '{{.DockerRootDir}}')
-    [ -n "$docker_root" ] || { echo 'Cannot locate Docker data root; deployment refused.' >&2; exit 1; }
+    [ -n "$docker_root" ] || { echo 'Cannot locate Docker data root; deployment refused. Check that docker info works, then run the command again: https://heptapod.watch/docs/getting-started/install/#server-size' >&2; exit 1; }
     disk_usage=$(df -Pk "$docker_root")
     free_kb=$(printf '%s\n' "$disk_usage" | awk 'END { print $4 }')
     case "$free_kb" in
-        ''|*[!0-9]*) echo "Cannot measure free disk space on Docker data root: $docker_root; deployment refused." >&2; exit 1 ;;
+        ''|*[!0-9]*) echo "Cannot measure free disk space on Docker data root: $docker_root; deployment refused. Check df -Pk $docker_root, then run the command again: https://heptapod.watch/docs/getting-started/install/#server-size" >&2; exit 1 ;;
     esac
     if ! awk -v free="$free_kb" -v required="$required_kb" 'BEGIN { exit !(free >= required) }'; then
-        echo "Insufficient disk space on Docker data root $docker_root: ${free_kb} KiB free; require ${required_kb} KiB (minimum 12 GiB: 6 GiB image pull/unpack + 6 GiB backup headroom; source builds also require 2 x expected build size). Free disk space; deployment refused before service changes." >&2
+        echo "Insufficient disk space on Docker data root $docker_root: ${free_kb} KiB free; require ${required_kb} KiB (minimum 12 GiB: 6 GiB image pull/unpack + 6 GiB backup headroom; source builds also require 2 x expected build size). Free disk space (docker system df shows what Docker uses); deployment refused before service changes. Sizes: https://heptapod.watch/docs/getting-started/install/#server-size" >&2
         exit 1
     fi
 }

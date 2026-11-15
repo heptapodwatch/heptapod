@@ -12,7 +12,11 @@ export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-ops-rollback-proof}"
 port=${ROLLBACK_PORT:-21600}
 base_app=$APP_IMAGE
 unset APP_IMAGE LIGHTHOUSE_IMAGE APP_KEY DB_PASSWORD BACKUP_ARCHIVE_PASSWORD APP_URL SERVER_NAME COMPOSE_FILE COMPOSE_PROFILES HEPTAPOD_BROWSER_ENABLED HTTP_PORT HTTPS_PORT
-mkdir "$fresh/scripts"
+mkdir "$fresh/scripts" "$fresh/ss-bin"
+# No host listeners: the install port preflight must not depend on what this host serves on 80/443.
+printf '#!/bin/sh\n' > "$fresh/ss-bin/ss"
+chmod +x "$fresh/ss-bin/ss"
+export PATH="$fresh/ss-bin:$PATH"
 cp "$root/compose.prod.yaml" "$root/.env.prod.example" "$fresh/"
 printf '\nBACKUP_PATH=/app/storage/operator-backups\n' >> "$fresh/.env.prod.example"
 cp "$root/scripts/"*.sh "$root/scripts/diagnostics-filter.jq" "$root/scripts/upgrade-backup-retention.php" "$fresh/scripts/"

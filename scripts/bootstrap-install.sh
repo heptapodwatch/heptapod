@@ -15,6 +15,8 @@ main() {
     local tag_pattern='^v[0-9]+\.[0-9]+\.[0-9]+$'
     local version='' dir=/opt/heptapod install_docker=false domain_given=false
     local -a install_args=() given_args=("$@")
+    local install_guide='Install guide: https://heptapod.watch/docs/getting-started/install/'
+    local other_linux='https://heptapod.watch/docs/running-it/hetzner/#other-linux-distributions'
 
     while [ "$#" -gt 0 ]; do
         case "$1" in
@@ -22,7 +24,8 @@ main() {
                 cat <<'HELP'
 Usage: curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --domain monitor.example.com [options]
 
-Installs a published Heptapod release on Ubuntu or Debian (amd64 or arm64) without Git:
+Installs a published Heptapod release on Linux (amd64 or arm64) without Git; tested
+on Ubuntu and Debian, other distributions need Docker Engine and Compose v5 first:
 downloads the release bundle, verifies its SHA-256 checksum, unpacks it into
 --dir/releases/TAG, points --dir/current at it and runs its scripts/install.sh.
 .env.prod and .heptapod/ stay in --dir; every bundle file is reached through
@@ -36,46 +39,50 @@ Options:
   --without-browser     Disable browser services (recommended for 4 GB hosts).
   --version TAG         Release tag, e.g. v0.2.0 (default: the latest release).
   --dir PATH            Installation directory (default: /opt/heptapod).
-  --install-docker      Install Docker Engine and Compose from Docker's apt repository if missing.
+  --install-docker      Install Docker Engine and Compose from Docker's apt repository if missing
+                        (Ubuntu and Debian only).
   --app-url URL, --behind-proxy, --port NUMBER
                         Passed to scripts/install.sh; see
-                        https://github.com/heptapodwatch/heptapod/blob/main/docs/deploy/operations.md#behind-an-existing-reverse-proxy
+                        https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy
+
+Other Linux distributions: https://heptapod.watch/docs/running-it/hetzner/#other-linux-distributions
 HELP
                 return 0 ;;
-            --version) [ "$#" -ge 2 ] || fail '--version requires a release tag'; version=$2; shift 2 ;;
-            --dir) [ "$#" -ge 2 ] && [ -n "$2" ] || fail '--dir requires a path'; dir=$2; shift 2 ;;
+            --version) [ "$#" -ge 2 ] || fail "--version requires a release tag: pass --version vX.Y.Z with a tag from https://github.com/heptapodwatch/heptapod/releases. See https://heptapod.watch/docs/getting-started/install/"; version=$2; shift 2 ;;
+            --dir) [ "$#" -ge 2 ] && [ -n "$2" ] || fail "--dir requires an absolute path, e.g. --dir /opt/heptapod. $install_guide"; dir=$2; shift 2 ;;
             --install-docker) install_docker=true; shift ;;
             --without-browser|--behind-proxy) install_args+=("$1"); shift ;;
             --domain|--owner-email|--app-url|--port)
-                [ "$#" -ge 2 ] || fail "$1 requires a value"
+                [ "$#" -ge 2 ] || fail "$1 requires a value, e.g. $1 $(case "$1" in --domain) echo monitor.example.com ;; --owner-email) echo you@example.com ;; --app-url) echo https://monitor.example.com ;; *) echo 8380 ;; esac). $install_guide"
                 [ "$1" != --domain ] || domain_given=true
                 install_args+=("$1" "$2"); shift 2 ;;
-            *) fail "Unknown argument: $1 (see --help)" ;;
+            *) fail "Unknown argument: $1. List the options with: curl -fsSL https://heptapod.watch/install.sh | bash -s -- --help. $install_guide" ;;
         esac
     done
-    [ "$domain_given" = true ] || fail 'Usage: curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --domain monitor.example.com'
-    [ -z "$version" ] || [[ "$version" =~ $tag_pattern ]] || fail "Invalid --version $version: Heptapod publishes only vX.Y.Z release tags, e.g. v0.1.0."
-    case "$dir" in /*) ;; *) fail '--dir must be an absolute path' ;; esac
+    [ "$domain_given" = true ] || fail "--domain is required. Run: curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --domain monitor.example.com. $install_guide"
+    [ -z "$version" ] || [[ "$version" =~ $tag_pattern ]] || fail "Invalid --version $version: Heptapod publishes only vX.Y.Z release tags. Pass one from https://github.com/heptapodwatch/heptapod/releases. See https://heptapod.watch/docs/getting-started/install/"
+    case "$dir" in /*) ;; *) fail "--dir must be an absolute path, e.g. --dir /opt/heptapod. $install_guide" ;; esac
 
     # Before the root check: on a laptop the usual mistake is running this locally instead of on the server.
-    [ "$(uname -s)" != Darwin ] || fail 'This installer sets up a Linux server (Ubuntu or Debian, amd64 or arm64), not this Mac. Connect to your server over SSH and run the command there. Install guide: https://heptapod.watch/docs/getting-started/install/'
-    [ "$(id -u)" -eq 0 ] || fail 'Run as root: curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- …'
-    local os_id='' os_codename=''
+    [ "$(uname -s)" != Darwin ] || fail 'This installer sets up a Linux server (amd64 or arm64), not this Mac. Connect to your server over SSH and run the command there. Install guide: https://heptapod.watch/docs/getting-started/install/'
+    [ "$(id -u)" -eq 0 ] || fail "Run as root: add sudo, as in curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --domain monitor.example.com. $install_guide"
+    local os_id='' os_codename='' os_name=''
     if [ -r "$os_release" ]; then
         # shellcheck source=/dev/null
         os_id=$(. "$os_release" && printf '%s' "${ID:-}")
         # shellcheck source=/dev/null
         os_codename=$(. "$os_release" && printf '%s' "${VERSION_CODENAME:-}")
+        # shellcheck source=/dev/null
+        os_name=$(. "$os_release" && printf '%s' "${PRETTY_NAME:-${ID:-}}")
     fi
-    case "$os_id" in
-        ubuntu|debian) ;;
-        *) fail "Unsupported operating system '${os_id:-unknown}'. This installer supports Ubuntu and Debian; elsewhere install Docker Engine and Compose v5 yourself and follow the Git checkout installation: https://heptapod.watch/docs/getting-started/install/#install-from-a-git-checkout" ;;
-    esac
+    # Docker's apt repository, which --install-docker uses, exists for Ubuntu and Debian only.
+    local apt_docker=false
+    case "$os_id" in ubuntu|debian) apt_docker=true ;; esac
     local architecture
     architecture=$(uname -m)
     case "$architecture" in
         x86_64|aarch64) ;;
-        *) fail "Unsupported architecture $architecture: Heptapod publishes images for amd64 (x86_64) and arm64 (aarch64). Source builds are described in https://github.com/heptapodwatch/heptapod/blob/main/docs/deploy/operations.md#installation-and-capacity" ;;
+        *) fail "Unsupported architecture $architecture: Heptapod publishes images for amd64 (x86_64) and arm64 (aarch64) only. Use an amd64 or arm64 server: https://heptapod.watch/docs/getting-started/install/#server-size" ;;
     esac
     [ -z "$version" ] || require_release_images "$architecture" "$version"
 
@@ -94,10 +101,15 @@ HELP
 
     # The release decides whether this host is supported, so resolve it before --install-docker changes the host.
     if [ -z "$version" ]; then
-        command -v curl >/dev/null 2>&1 || fail 'curl is required to resolve the latest release. Install it with: apt-get install -y ca-certificates curl'
+        if ! command -v curl >/dev/null 2>&1; then
+            if command -v apt-get >/dev/null 2>&1; then
+                fail "curl is required to resolve the latest release. Install it with: apt-get install -y ca-certificates curl. $install_guide"
+            fi
+            fail "curl is required to resolve the latest release. Install curl with your package manager, then run this command again: $other_linux"
+        fi
         version=$(curl -fsSL "$release_api/releases/latest" | grep -o '"tag_name": *"[^"]*"' | head -n 1 | sed 's/.*"\([^"]*\)"$/\1/') ||
-            fail "Cannot read the latest release from $release_api/releases/latest; pass --version."
-        [[ "$version" =~ $tag_pattern ]] || fail "The latest release has an unexpected tag '$version' (expected vX.Y.Z); pass --version."
+            fail "Cannot read the latest release from $release_api/releases/latest (network or GitHub API limit). Pass a release from https://github.com/heptapodwatch/heptapod/releases with --version. See https://heptapod.watch/docs/getting-started/install/"
+        [[ "$version" =~ $tag_pattern ]] || fail "The latest release has an unexpected tag '$version' (expected vX.Y.Z). Pass a release from https://github.com/heptapodwatch/heptapod/releases with --version. See https://heptapod.watch/docs/getting-started/install/"
         require_release_images "$architecture" "$version"
     fi
 
@@ -106,25 +118,33 @@ HELP
         command -v "$tool" >/dev/null 2>&1 || missing="$missing $tool"
     done
     if ! { command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; }; then
-        if [ "$install_docker" = true ]; then
+        if [ "$apt_docker" = false ]; then
+            fail "Docker Engine with Compose v5 is required, and on ${os_name:-this system} this installer cannot install it (--install-docker uses Docker's apt repository for Ubuntu and Debian). Install it from https://docs.docker.com/engine/install/ for your distribution, then run this command again without --install-docker: $other_linux"
+        elif [ "$install_docker" = true ]; then
             install_docker_engine "$os_id" "$os_codename"
             missing=''
         else
             fail "Docker Engine with the Compose plugin is required. Install it from Docker's apt repository with this installer:
   curl -fsSL https://heptapod.watch/install.sh | sudo bash -s --$(printf ' %q' --install-docker "${given_args[@]}")
-or follow https://docs.docker.com/engine/install/$os_id/ and run this installer again."
+or follow https://docs.docker.com/engine/install/$os_id/ and run this installer again. Guide: https://heptapod.watch/docs/running-it/hetzner/#fresh-vps-prerequisites"
         fi
     elif [ "$install_docker" = true ]; then
         echo 'Docker Engine and Compose are already installed; --install-docker changes nothing.'
     fi
-    [ -z "$missing" ] || fail "Missing required tools:$missing. Install them with: apt-get install -y ca-certificates curl tar gzip coreutils util-linux openssl jq"
+    if [ -n "$missing" ]; then
+        if command -v apt-get >/dev/null 2>&1; then
+            fail "Missing required tools:$missing. Install them with: apt-get install -y ca-certificates curl tar gzip coreutils util-linux openssl jq. $install_guide"
+        fi
+        fail "Missing required tools:$missing. Install them with your package manager (flock comes with util-linux, sha256sum with coreutils), then run this command again: $other_linux"
+    fi
+    [ "$apt_docker" = true ] || echo "${os_name:-This Linux distribution} is not tested; Ubuntu and Debian are."
 
     echo "Installing Heptapod $version into $dir"
 
     # Hold the destination's lifecycle lock from publication through the installer, which takes it over.
     lock_destination "$dir"
     check_destination "$dir"
-    [ "$installed" = false ] || fail "$dir was installed while this installer waited; nothing was changed. Run the installer again to validate that installation."
+    [ "$installed" = false ] || fail "$dir was installed while this installer waited; nothing was changed. Run the same command again to validate that installation. $install_guide"
 
     cd "$dir"
     # An interrupted earlier run left at most stray .tmp folders and release folders, which never reach .env.prod:
@@ -138,18 +158,18 @@ or follow https://docs.docker.com/engine/install/$os_id/ and run this installer 
     trap 'rm -rf "$stage"' EXIT
     mkdir "$stage"
     for file in "$name" "$name.sha256"; do
-        curl -fsSL -o "$stage/$file" "$release_download/$version/$file" || fail "Cannot download $release_download/$version/$file"
+        curl -fsSL -o "$stage/$file" "$release_download/$version/$file" || fail "Cannot download $release_download/$version/$file; nothing was installed. Check the network and that $version is listed on https://github.com/heptapodwatch/heptapod/releases, then run the same command again. See https://heptapod.watch/docs/getting-started/install/"
     done
     local expected actual
     expected=$(awk 'NR == 1 { print $1 }' "$stage/$name.sha256")
     actual=$(sha256sum "$stage/$name" | awk '{ print $1 }')
     [[ "$expected" =~ ^[a-f0-9]{64}$ ]] && [ "$actual" = "$expected" ] ||
-        fail "Checksum mismatch for $name: expected $expected, got $actual. Nothing was installed."
+        fail "Checksum mismatch for $name: expected $expected, got $actual. Nothing was installed. Run the same command again; if it repeats, report it at https://github.com/heptapodwatch/heptapod/issues. See https://heptapod.watch/docs/getting-started/install/"
     tar -xzf "$stage/$name" -C "$stage" --no-same-owner
     # The verified bundle is the release whose installer runs next: its own helpers validate it against its
     # MANIFEST, publish it as releases/<tag> and point current at it.
     sh -ec '. "$1/scripts/lifecycle-lock.sh"; . "$1/scripts/release-image.sh"; publish_release_dir "$1" "$2"' sh "$bundle" "$version" ||
-        fail "Publishing $version failed (see above); a release older than the release folder layout cannot be installed with this installer."
+        fail "Publishing $version failed (see above); v0.1.1 and earlier predate release folders and cannot be installed with this installer. Pass a newer release from https://github.com/heptapodwatch/heptapod/releases with --version and run the command again. See https://heptapod.watch/docs/getting-started/install/"
     revision=$(cat "releases/$version/REVISION")
 
     # The owner prompt reads the terminal; stdin is this piped script.
@@ -169,10 +189,10 @@ check_destination() {
     refuse_unsafe_state "$1"
     if [ -f "$1/.env.prod" ]; then
         [ ! -e "$1/.git" ] && [ -L "$1/current" ] && [ -f "$1/REVISION" ] && [ -f "$1/scripts/install.sh" ] ||
-            fail "$1 has a .env.prod but is not a release folder installation (current -> releases/<tag>); nothing was changed."
+            fail "$1 has a .env.prod but is not a release folder installation (current -> releases/<tag>); nothing was changed. Choose another --dir, or manage that installation from its own directory as in https://heptapod.watch/docs/running-it/updating/"
         installed=true
     elif [ -n "$(find "$1" -mindepth 1 -maxdepth 1 ! -name .heptapod ! \( -name releases -type d \) ! \( -name current -type l \) ! \( -name .current.tmp -type l \) ! -lname 'current/*' -print -quit)" ]; then
-        fail "$1 is not empty and is not an earlier Heptapod installation; choose an empty --dir. Nothing was changed."
+        fail "$1 is not empty and is not an earlier Heptapod installation; nothing was changed. Rerun with an empty or new directory, e.g. --dir /opt/heptapod-new. Install guide: https://heptapod.watch/docs/getting-started/install/"
     fi
 }
 
@@ -182,7 +202,7 @@ lock_destination() {
     mkdir -p "$1/.heptapod"
     chmod 700 "$1/.heptapod"
     exec 9> "$1/.heptapod/lifecycle.lock"
-    flock -n 9 || fail "Another Heptapod install, upgrade or rollback is running in $1; nothing was changed."
+    flock -n 9 || fail "Another Heptapod install, upgrade or rollback is running in $1; nothing was changed. Wait for it to finish, then run the same command again: https://heptapod.watch/docs/running-it/updating/"
 }
 
 # A planted .heptapod, lock or releases symlink would redirect chmod, the lock and publication outside the
@@ -192,7 +212,7 @@ refuse_unsafe_state() {
     for state_path in "$1/.heptapod" "$1/.heptapod/lifecycle.lock" "$1/releases" "$1/current"; do
         if { [ -L "$state_path" ] && [ "$state_path" != "$1/current" ]; } ||
             { { [ -e "$state_path" ] || [ -L "$state_path" ]; } && [ "$(stat -c %u "$state_path")" != 0 ] && [ "$(stat -c %u "$state_path")" != "$(id -u)" ]; }; then
-            fail "$state_path is a symlink or owned by another user; nothing was changed."
+            fail "$state_path is a symlink or owned by another user; nothing was changed. Inspect it with ls -ld -- $(printf %q "$state_path"); correct its ownership or rerun with a new directory, e.g. --dir /opt/heptapod-new. Install guide: https://heptapod.watch/docs/getting-started/install/"
         fi
     done
 }
@@ -204,7 +224,7 @@ require_release_images() {
     [ "$1" = aarch64 ] || return 0
     IFS=. read -r major minor patch <<< "${2#v}"
     (( 10#$major > 0 || 10#$minor >= 5 )) ||
-        fail "Heptapod $2 has no arm64 images; they exist from v0.5.0 on. Pass --version with a newer release, or build from source as described in https://github.com/heptapodwatch/heptapod/blob/main/docs/deploy/operations.md#installation-and-capacity"
+        fail "Heptapod $2 has no arm64 images; they exist from v0.5.0 on. Pass a newer release from https://github.com/heptapodwatch/heptapod/releases with --version. See https://heptapod.watch/docs/getting-started/install/"
 }
 
 fail() {
@@ -215,7 +235,7 @@ fail() {
 # Docker's apt repository, as in docs/deploy/hetzner.md "Fresh VPS prerequisites"; never a piped get.docker.com.
 install_docker_engine() {
     local os_id=$1 codename=$2
-    [ -n "$codename" ] || fail 'VERSION_CODENAME is missing from /etc/os-release; cannot select the Docker apt repository.'
+    [ -n "$codename" ] || fail 'VERSION_CODENAME is missing from /etc/os-release, so the Docker apt repository cannot be selected. Install Docker Engine and Compose v5 from https://docs.docker.com/engine/install/, then run this command again without --install-docker: https://heptapod.watch/docs/running-it/hetzner/#fresh-vps-prerequisites'
     echo "Installing Docker Engine and Compose from https://download.docker.com/linux/$os_id ($codename)"
     apt-get update
     apt-get install -y ca-certificates curl tar gzip coreutils util-linux openssl jq

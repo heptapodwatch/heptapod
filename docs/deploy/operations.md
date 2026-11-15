@@ -111,7 +111,7 @@ Two development-only seams are ignored when `APP_ENV=production`. `HEPTAPOD_DEV_
 
 Addons declare required system binaries in `addons/<name>/composer.json` under `extra.heptapod.system-requirements` (for example, `["dig"]`); CI verifies them in every configured native production app architecture and the development image.
 
-Requires Docker Compose v5 (tested 5.1.2). The installer checks that `docker compose config --help` lists `--environment` before creating or changing `.env.prod`; an unsupported installation aborts without changing the file or its permissions.
+Requires Docker Compose v5 (newest version we verified: 5.7.0). The installer checks that `docker compose config --help` lists `--environment` before creating or changing `.env.prod`; an unsupported installation aborts without changing the file or its permissions.
 
 Run from the checkout. Commands below use:
 
@@ -135,7 +135,9 @@ The installation directory keeps `.env.prod` and `.heptapod/` (lifecycle state a
 
 ### Install from a Git checkout
 
-First install Docker Engine, Docker Compose v5 (tested 5.1.2), Git and OpenSSL using the [fresh Ubuntu VPS prerequisites](hetzner.md#fresh-vps-prerequisites).
+Any Linux host with Docker Engine, Docker Compose v5 (newest version we verified: 5.7.0), Git and OpenSSL works. The [fresh Ubuntu VPS prerequisites](hetzner.md#fresh-vps-prerequisites) show one way to install them; [other Linux distributions](hetzner.md#other-linux-distributions) lists the requirements and Docker checks for the rest. The one-line installer also runs there once Docker is installed; only `--install-docker` needs Ubuntu or Debian.
+
+The default mode needs host ports 80 and 443 free. If another service holds them (another web server, Tailscale Serve), install [behind your own reverse proxy](#behind-an-existing-reverse-proxy) with `--behind-proxy` instead.
 
 After adding your account to the Docker group, **log out and log back in**. In the new session, confirm access before cloning:
 
@@ -147,7 +149,7 @@ Continue only when this succeeds without sudo.
 
 ```sh
 REPOSITORY_URL='https://github.com/heptapodwatch/heptapod.git'
-RELEASE_TAG='v0.1.1'
+RELEASE_TAG='vX.Y.Z' # the current release tag from https://github.com/heptapodwatch/heptapod/releases
 INSTALL_DIR="$HOME/heptapod"
 git clone --depth 1 --branch "$RELEASE_TAG" "$REPOSITORY_URL" "$INSTALL_DIR" && cd "$INSTALL_DIR" && ./scripts/install.sh --domain monitor.example.com --owner-email owner@example.com --without-browser
 ```
@@ -171,6 +173,8 @@ for entry in $(sed 's|^\./||; s|/.*||' current/MANIFEST | sort -u); do ln -s "cu
 ```
 
 A Git checkout still selects its own HEAD and requires a clean tree. In an export, missing revision information fails with a recovery block that accepts the full SHA without Git. If image access fails, fix it and paste the complete printed recovery block; it retains `--revision`'s value and pins verified image digests before startup. If no revision was supplied, replace the marked SHA placeholder first. Rerunning the installer with the original flags only validates the existing configuration and prints the next step; it does not start services. Subsequent `scripts/upgrade.sh` upgrades need this release folder layout or a Git checkout; a bundle unpacked anywhere else refuses to run.
+
+In the default mode a fresh installation first checks with `ss -Htln` that nothing listens on port 80 or 443 (or `HTTP_PORT`/`HTTPS_PORT`), on any IPv4 or IPv6 address. If a port is taken, it names the port and stops before it writes `.env.prod` or creates a container or volume; free the port or add `--behind-proxy --port 8380` and run the same command again. Without `ss` the check is skipped and Docker reports the conflict at startup.
 
 If the first installation fails before the app starts, the installer prints a complete recovery block ending in `# END INSTALL RECOVERY`. Fix the image-access, network or port error, then paste that whole block: it resolves and pins the verified release images before it starts services and creates the Owner. Do not run a plain `docker compose up` instead; until the images are pinned, the production defaults select the moving `:main` images. Rerunning the installer with the original flags starts nothing and prints the same block again while no release image is pinned. Only an installation whose images are already pinned and that is stopped starts with the commands below, which the rerun then prints. Replace the email; create the first Owner only after the health wait succeeds:
 
@@ -518,12 +522,23 @@ links and WebAuthn allowed origins. Do not publish
 8080 on all interfaces. Dockerized proxies can instead join the backend network,
 use `app:8080`, and remove host ports with a Compose override.
 
-Set `TRUSTED_PROXIES` to the proxy's actual source IP or a narrowly scoped CIDR,
-then recreate all application containers. Inspect the app access log's `remote_ip`;
-do not infer the peer from the bridge gateway or assume it is 127.0.0.1.
-Rootless Podman port forwarding can present a peer address different from the network
-gateway. `TRUSTED_PROXIES` must match the actual trusted peer seen by the app;
-trusting a guessed gateway can leave HTTPS requests interpreted as HTTP.
+A proxy on the same host reaches the app through the loopback port, but the peer address
+the app sees is not necessarily 127.0.0.1. On rootless Podman it is the app container's
+own IP on one of its networks, and it changes whenever the container is recreated. Trust the subnets of the installation's
+networks, not one IP. After a `--behind-proxy` installation the installer prints the
+ready-to-paste command with this host's subnets; it does not write them itself. To compute
+the value again, for example after `docker compose down` recreated the networks:
+
+```sh
+docker inspect --format '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' "$(dc ps -q app)" | xargs docker network inspect --format '{{range .IPAM.Config}}{{println .Subnet}}{{end}}' | awk NF | paste -sd, -
+```
+
+Set `TRUSTED_PROXIES=<those subnets>` in `.env.prod` and run `dc up -d --wait`. Check that
+`dc logs app | grep -o '"remote_ip":"[^"]*"' | tail -n 1` shows an address in those subnets
+after a request through your proxy, and that an email verification link opens. Trusting
+these subnets also trusts Heptapod's own containers on those networks to set forwarded
+headers. A proxy on another host or in another network needs its own source address or
+CIDR instead; read it from the app access log's `remote_ip`.
 Verify HTTPS redirects, same-origin assets and WebSocket upgrades through the public
 proxy after recreating the app. Trusting the forwarding peer can also trust **every host-local caller** of the loopback listener, not only the reverse proxy. A local process can forge forwarded host, scheme and client IP; this also affects link generation and IP-based throttling. This topology assumes trusted host-local workloads. There is no wildcard default.
 Do not set `*` or trust a network containing untrusted clients. The proxy must

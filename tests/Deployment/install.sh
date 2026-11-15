@@ -19,7 +19,11 @@ services:
             SERVER_NAME: http://localhost:8080
             SESSION_SECURE_COOKIE: 'false'
 YAML
-mkdir "$fresh/scripts"
+mkdir "$fresh/scripts" "$fresh/ss-bin"
+# No host listeners: the install port preflight must not depend on what this host serves on 80/443.
+printf '#!/bin/sh\n' > "$fresh/ss-bin/ss"
+chmod +x "$fresh/ss-bin/ss"
+export PATH="$fresh/ss-bin:$PATH"
 cp "$root/compose.prod.yaml" "$root/compose.proxy.yaml" "$root/.env.prod.example" "$fresh/"
 cp "$root/scripts/install.sh" "$root/scripts/check-disk.sh" "$root/scripts/lifecycle-lock.sh" "$root/scripts/release-image.sh" "$root/scripts/image-reference.sh" "$root/scripts/worker-memory-preflight.sh" "$fresh/scripts/"
 # shellcheck source=tests/Deployment/release-fixture.sh

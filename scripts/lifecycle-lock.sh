@@ -25,11 +25,11 @@ normalize_backup_path() {
 validate_backup_name() {
     backup_namespace=$(normalize_backup_path "$1")
     if [ -z "$backup_namespace" ]; then
-        echo 'APP_NAME must resolve to a non-empty backup name; choose another APP_NAME.' >&2
+        echo 'APP_NAME must resolve to a non-empty backup name; inspect it with grep -n APP_NAME .env.prod and choose another APP_NAME: https://heptapod.watch/docs/running-it/backups/' >&2
         return 1
     fi
     if [ "$backup_namespace" = upgrade-lifecycle ]; then
-        echo 'APP_NAME resolves to reserved backup name upgrade-lifecycle; choose another APP_NAME.' >&2
+        echo 'APP_NAME resolves to reserved backup name upgrade-lifecycle; inspect it with grep -n APP_NAME .env.prod and choose another APP_NAME: https://heptapod.watch/docs/running-it/backups/' >&2
         return 1
     fi
     backup_root=$(printf '%s' "${2-/backups}" | tr '\\' '/')
@@ -41,7 +41,7 @@ validate_backup_name() {
     case "$daily_backup_directory/" in "$lifecycle_backup_directory/"*) backup_overlap=true ;; esac
     case "$lifecycle_backup_directory/" in "$daily_backup_directory/"*) backup_overlap=true ;; esac
     if [ "$backup_overlap" = true ]; then
-        echo 'Daily backup directory overlaps reserved /backups/upgrade-lifecycle; choose another APP_NAME or BACKUP_PATH.' >&2
+        echo 'Daily backup directory overlaps reserved /backups/upgrade-lifecycle; inspect with grep -nE "APP_NAME|BACKUP_PATH" .env.prod and choose another value: https://heptapod.watch/docs/running-it/backups/' >&2
         return 1
     fi
 }
@@ -54,14 +54,14 @@ enter_instance_root() {
     instance_root=$release_dir
     if [ -f "$release_dir/RELEASE" ]; then
         if [ "$(basename -- "$(dirname -- "$release_dir")")" != releases ]; then
-            echo "Refusing $release_dir: a release bundle runs from releases/<tag> below its installation directory, as the one-line installer publishes it (see docs/deploy/operations.md). Nothing was changed." >&2
+            echo "Refusing $release_dir: a release bundle runs from releases/<tag> below its installation directory, as the one-line installer publishes it. Nothing was changed. Run curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --domain monitor.example.com instead: https://heptapod.watch/docs/getting-started/install/" >&2
             exit 1
         fi
         instance_root=$(dirname -- "$(dirname -- "$release_dir")")
     fi
     cd "$instance_root" || exit 1
     if [ -e .git ] && { [ -e current ] || [ -L current ]; }; then
-        echo "Refusing $PWD: it holds both a Git checkout (.git) and a release folder link (current). Remove the one this installation does not use. Nothing was changed." >&2
+        echo "Refusing $PWD: it holds both a Git checkout (.git) and a release folder link (current). Inspect with ls -ld .git current and remove the one this installation does not use. Nothing was changed. See https://heptapod.watch/docs/running-it/updating/" >&2
         exit 1
     fi
     # Read-only before any write; acquire_lifecycle_lock checks again under the lock.
@@ -80,26 +80,26 @@ release_entries() {
 # through a root symlink current/<entry> owned by root or this user.
 check_release_links() {
     if ! [ -L current ] || ! owned_by_us current || [ "$(readlink current)" != "releases/${release_dir##*/}" ]; then
-        echo "Refusing $PWD/current: expected a symlink to releases/${release_dir##*/}, the release of this script, owned by root or you. Run the lifecycle scripts as $PWD/scripts/<name>.sh. Nothing was changed." >&2
+        echo "Refusing $PWD/current: expected a symlink to releases/${release_dir##*/}, the release of this script, owned by root or you. Run the lifecycle scripts as $PWD/scripts/<name>.sh. Nothing was changed. See https://heptapod.watch/docs/running-it/updating/" >&2
         exit 1
     fi
     for release_entry in $(release_entries "$release_dir"); do
         if ! [ -L "$release_entry" ] || ! owned_by_us "$release_entry" || [ "$(readlink "$release_entry")" != "current/$release_entry" ]; then
-            echo "Refusing $PWD/$release_entry: expected a symlink to current/$release_entry owned by root or you. Nothing was changed." >&2
+            echo "Refusing $PWD/$release_entry: expected a symlink to current/$release_entry owned by root or you. Nothing was changed. Inspect with ls -ld -- $(shell_quote "$PWD/$release_entry") and restore the expected link. See https://heptapod.watch/docs/running-it/updating/" >&2
             exit 1
         fi
     done
 }
 
 acquire_lifecycle_lock() {
-    command -v flock >/dev/null 2>&1 || { echo 'flock (util-linux) is required for install/upgrade/rollback.' >&2; exit 1; }
+    command -v flock >/dev/null 2>&1 || { echo 'flock (util-linux) is required for install/upgrade/rollback; install util-linux with your package manager and check command -v flock before rerunning: https://heptapod.watch/docs/running-it/hetzner/#other-linux-distributions' >&2; exit 1; }
     umask 077
     # A planted symlink would redirect chmod, the lock file or a bundle publication outside the installation.
     state_paths="$lifecycle_dir $lifecycle_dir/lifecycle.lock"
     if [ "$release_dir" != "$PWD" ]; then state_paths="$state_paths releases"; fi
     for state_path in $state_paths; do
         if [ -L "$state_path" ] || { [ -e "$state_path" ] && ! owned_by_us "$state_path"; }; then
-            echo "Refusing $PWD/$state_path: it is a symlink or owned by another user. Nothing was changed." >&2
+            echo "Refusing $PWD/$state_path: it is a symlink or owned by another user. Nothing was changed. Inspect with ls -ld -- $(shell_quote "$PWD/$state_path") and correct its type or ownership before rerunning: https://heptapod.watch/docs/running-it/updating/" >&2
             exit 1
         fi
     done
@@ -112,7 +112,7 @@ acquire_lifecycle_lock() {
     if ! [ "$lock_handoff" = 9 ] || [ "$(readlink -f "/proc/$$/fd/9")" != "$(readlink -f "$lifecycle_dir/lifecycle.lock")" ]; then
         exec 9>"$lifecycle_dir/lifecycle.lock"
     fi
-    flock -n 9 || { echo 'Another install/upgrade/rollback is running; lifecycle lock held.' >&2; exit 1; }
+    flock -n 9 || { echo 'Another install/upgrade/rollback is running; lifecycle lock held. Wait for it to finish, then run the command again: https://heptapod.watch/docs/running-it/updating/' >&2; exit 1; }
     # Only a lock holder swaps current, so from here on it stays this release.
     if [ "$release_dir" != "$PWD" ]; then check_release_links; fi
 }

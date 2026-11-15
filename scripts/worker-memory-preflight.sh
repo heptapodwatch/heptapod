@@ -18,7 +18,7 @@ host_memory_mib() {
     meminfo=${HEPTAPOD_HOST_MEMINFO:-/proc/meminfo}
     total_kib=$(awk '$1 == "MemTotal:" { print $2 }' "$meminfo") || total_kib=
     case "$total_kib" in
-        ''|*[!0-9]*) echo "Cannot read MemTotal from $meminfo; memory profile and preflight need it." >&2; exit 1 ;;
+        ''|*[!0-9]*) echo "Cannot read MemTotal from $meminfo; memory profile and preflight need it. Check with: grep MemTotal $meminfo. Sizes: https://heptapod.watch/docs/getting-started/install/#server-size" >&2; exit 1 ;;
     esac
     echo $((total_kib / 1024))
 }
@@ -40,13 +40,13 @@ select_memory_profile() {
 require_worker_memory() {
     total_mib=$(host_memory_mib)
     model=$(docker compose --env-file .env.prod config) || {
-        echo 'Worker memory preflight could not read the Compose model; see the error above.' >&2
+        echo 'Worker memory preflight could not read the Compose model; see the error above and check with: docker compose --env-file .env.prod config. See https://heptapod.watch/docs/running-it/configuration/' >&2
         exit 1
     }
     caps_mib=$(printf '%s\n' "$model" | awk '$1 == "mem_limit:" { value = $2; gsub(/"/, "", value); sum += value } END { printf "%d", sum / 1048576 }')
     available_mib=$((total_mib - host_memory_reserve_mib))
     if [ "$caps_mib" -gt "$available_mib" ]; then
-        echo "Memory preflight failed: the enabled services' caps total ${caps_mib} MiB, but this host has ${total_mib} MiB RAM minus a ${host_memory_reserve_mib} MiB host reserve (${available_mib} MiB). Lower HORIZON_MEMORY_LIMIT and HEPTAPOD_CRAWL_MEMORY_LIMIT_MB to the small profile (${small_horizon_memory_limit}, ${small_crawl_memory_limit_mb}), disable browser services, or add RAM." >&2
+        echo "Memory preflight failed: the enabled services' caps total ${caps_mib} MiB, but this host has ${total_mib} MiB RAM minus a ${host_memory_reserve_mib} MiB host reserve (${available_mib} MiB). Lower HORIZON_MEMORY_LIMIT and HEPTAPOD_CRAWL_MEMORY_LIMIT_MB to the small profile (${small_horizon_memory_limit}, ${small_crawl_memory_limit_mb}), disable browser services (--without-browser), or add RAM. Sizes: https://heptapod.watch/docs/getting-started/install/#server-size" >&2
         exit 1
     fi
     services=$(docker compose --env-file .env.prod config --services) || exit 1
@@ -57,7 +57,7 @@ require_worker_memory() {
     # The command's verdict goes to stderr so it stays beside a refusal when callers capture stdout.
     if ! docker compose --env-file .env.prod run --rm --no-deps -T --entrypoint sh horizon -ec \
         'mkdir -p "$LARAVEL_STORAGE_PATH/framework/cache"; exec php artisan heptapod:worker-memory' >&2; then
-        echo 'Worker memory preflight did not pass; see the message above (it names the required HORIZON_MEMORY_LIMIT when the cap is too small).' >&2
+        echo 'Worker memory preflight did not pass; see the message above (it names the required HORIZON_MEMORY_LIMIT when the cap is too small); set it in .env.prod and run the command again: https://heptapod.watch/docs/getting-started/install/#server-size' >&2
         exit 1
     fi
 }
