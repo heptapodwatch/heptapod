@@ -41,6 +41,7 @@ The user-visible result after the change.
 ## Acceptance criteria
 - [ ] One observable, testable statement per line (route, screen state, API field, notification, CLI output).
 - [ ] EN and DE copy for every new user-facing text.
+- [ ] Docs: the `docs/` page to change, or "none, because ...".
 
 ## Non-goals
 - Things a reasonable implementer could add but must not.

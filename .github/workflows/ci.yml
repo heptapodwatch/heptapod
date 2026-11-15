@@ -107,6 +107,21 @@ jobs:
           if [ "$dev_image" = false ]; then
             echo 'Development image build, Dockerfile lint, addon binaries and vulnerability report skipped: no image or validation inputs changed.' >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Warn when a feature changes copy without docs
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # Advisory, never blocking. The body is read at the PR event, so a later body edit shows up with the next push.
+          case "$PR_TITLE" in feat*) ;; *) exit 0 ;; esac
+          case "$PR_BODY" in *'Docs: none, because'*) exit 0 ;; esac
+          paths=$(git diff --name-only "$(git merge-base "$PR_BASE" "$HEAD")" "$HEAD")
+          if grep -qE '^(addons/[^/]+/)?lang/' <<<"$paths" && ! grep -q '^docs/' <<<"$paths"; then
+            echo '::warning title=User docs missing::This feature changes lang/ but no page in docs/. Update the docs page, or write "Docs: none, because ..." in the PR body.'
+          fi
 
   checks:
     needs: candidate
