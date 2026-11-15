@@ -69,7 +69,7 @@ The app does not serve an API guide at `/docs/api`. Operators distributing these
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) to contribute and [DEVELOPMENT.md](DEVELOPMENT.md) to run Heptapod from source. Follow the [Code of Conduct](CODE_OF_CONDUCT.md), and report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) to contribute and [DEVELOPMENT.md](DEVELOPMENT.md) to run Heptapod from source. Follow the [Code of Conduct](.github/CODE_OF_CONDUCT.md), and report vulnerabilities privately as described in [SECURITY.md](.github/SECURITY.md).
 
 ## Acknowledgements
 

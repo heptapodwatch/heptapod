@@ -107,7 +107,7 @@ if [[ ${1:-} == tia || ${1:-} == pre-push ]]; then
         printf 'TIA bypassed: schema/addon resource change: %s\n' "${tia_bypass_paths[@]}"
     fi
 
-    tia_fingerprint=$( { sha256sum phpunit.browser.xml; find docker/fixtures -type f -print0 | sort -z | xargs -0 sha256sum; } | sha256sum)
+    tia_fingerprint=$( { sha256sum tests/Browser/phpunit.xml; find docker/fixtures -type f -print0 | sort -z | xargs -0 sha256sum; } | sha256sum)
     tia_fingerprint=${tia_fingerprint%% *}
     TIA_FRESH=
     if [[ -f .phpunit.cache/tia-fingerprint ]]; then
@@ -162,7 +162,7 @@ case "${1:-}" in
         if (( ${#tia_bypass_paths[@]} > 0 )); then
             run_test_group bash -c 'php -d memory_limit=1G vendor/bin/pest --testsuite=Arch && vendor/bin/pest --testsuite=Feature,Unit --parallel --processes=4 && vendor/bin/pest --testsuite=Browser'
         else
-            run_test_group bash -c 'php -d memory_limit=1024M vendor/bin/pest --tia ${TIA_FRESH:+--fresh} --parallel --processes=4 --passthru-php="-d memory_limit=1024M" && HEPTAPOD_TIA_BROWSER=1 vendor/bin/pest -c phpunit.browser.xml --tia ${TIA_FRESH:+--fresh}'
+            run_test_group bash -c 'php -d memory_limit=1024M vendor/bin/pest --tia ${TIA_FRESH:+--fresh} --parallel --processes=4 --passthru-php="-d memory_limit=1024M" && HEPTAPOD_TIA_BROWSER=1 vendor/bin/pest -c tests/Browser/phpunit.xml --tia ${TIA_FRESH:+--fresh}'
             printf '%s\n' "$tia_fingerprint" > .phpunit.cache/tia-fingerprint
         fi
         ;;
@@ -170,7 +170,7 @@ case "${1:-}" in
         log=$(mktemp)
         worker_marker=$(mktemp)
         result=0
-        test_command='php -d memory_limit=1024M vendor/bin/pest --tia ${TIA_FRESH:+--fresh} --parallel --processes=4 --passthru-php="-d memory_limit=1024M" && HEPTAPOD_TIA_BROWSER=1 vendor/bin/pest -c phpunit.browser.xml --tia ${TIA_FRESH:+--fresh}'
+        test_command='php -d memory_limit=1024M vendor/bin/pest --tia ${TIA_FRESH:+--fresh} --parallel --processes=4 --passthru-php="-d memory_limit=1024M" && HEPTAPOD_TIA_BROWSER=1 vendor/bin/pest -c tests/Browser/phpunit.xml --tia ${TIA_FRESH:+--fresh}'
         if (( ${#tia_bypass_paths[@]} > 0 )); then
             test_command='php -d memory_limit=1G vendor/bin/pest --testsuite=Arch && vendor/bin/pest --testsuite=Feature,Unit --parallel --processes=4 && vendor/bin/pest --testsuite=Browser'
         fi

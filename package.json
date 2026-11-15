@@ -93,5 +93,10 @@
         },
         "vite": "$vite",
         "vitest": "$vitest"
+    },
+    "commitlint": {
+        "extends": [
+            "@commitlint/config-conventional"
+        ]
     }
 }

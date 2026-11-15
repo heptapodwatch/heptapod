@@ -9,7 +9,7 @@ export default defineConfig({
     },
     test: {
         environment: 'jsdom',
-        setupFiles: ['./vitest.setup.ts'],
+        setupFiles: ['./resources/js/test/setup.ts'],
         fakeTimers: { now: Date.parse('2026-10-21T12:00:00Z') },
         retry: 0,
         sequence: { shuffle: true },
