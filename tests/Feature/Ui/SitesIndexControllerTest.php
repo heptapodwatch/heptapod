@@ -241,26 +241,30 @@ it('batches the check strip and recent sparkline within a fixed query budget', f
         CheckRun::factory()->for($check)->create(['started_at' => now()->subMinutes(2), 'ended_at' => now()->subMinute(), 'result' => RunResult::Succeeded, 'metrics' => ['total_time_in_seconds' => ($index + 1) / 1000]]);
     }
     $this->actingAs($user)->get('/sites')->assertInertia(fn (Assert $page): Assert => $page
-        ->missing('sites')->where('pagination.total', $count));
-    DB::enableQueryLog();
-    DB::flushQueryLog();
+        ->missing('sites')->missing('sites_history')->where('pagination.total', $count));
+    $partial = function (string $prop): array {
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        $response = $this->get('/sites', ['X-Inertia-Partial-Component' => 'sites/index', 'X-Inertia-Partial-Data' => $prop])->assertOk();
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
 
-    $response = $this->get('/sites', [
-        'X-Inertia-Partial-Component' => 'sites/index',
-        'X-Inertia-Partial-Data' => 'sites',
-    ]);
-    $queries = DB::getQueryLog();
-    DB::disableQueryLog();
-    $response->assertOk()->assertInertia(fn (Assert $page): Assert => $page->component('sites/index')
-        ->has('sites', 50)->missing('pagination')->has('sites.0.checks', 1)->has('sites.0.response', 1)
-        ->where('sites.0.uptime', null));
-    expect(count($queries))->toBeLessThanOrEqual(24);
-    $sampleQueries = array_filter($queries, fn (array $query): bool => str_contains($query['query'], 'FROM list_response_buckets'));
-    expect($sampleQueries)->toHaveCount(1);
-    $props = $response->inertiaProps();
-    foreach ($props['sites'] as $row) {
-        $index = $sites->search(fn (Site $site): bool => $site->id === $row['id']);
-        expect($row['response'][0]['value'])->toEqual($index + 1);
+        return [$response, $queries, array_filter($queries, fn (array $query): bool => str_contains($query['query'], 'FROM list_response_buckets'))];
+    };
+
+    [$rows, $queries, $sampleQueries] = $partial('sites');
+    $rows->assertInertia(fn (Assert $page): Assert => $page->component('sites/index')
+        ->has('sites', 50)->missing('sites_history')->missing('pagination')->has('sites.0.checks', 1));
+    expect(count($queries))->toBeLessThanOrEqual(24)->and($sampleQueries)->toBeEmpty();
+
+    [$history, $queries, $sampleQueries] = $partial('sites_history');
+    $history->assertInertia(fn (Assert $page): Assert => $page->component('sites/index')
+        ->has('sites_history', 50)->missing('sites')->where('sites_history.0.uptime', null));
+    expect(count($queries))->toBeLessThanOrEqual(12)->and($sampleQueries)->toHaveCount(1);
+    foreach ($history->inertiaProps()['sites_history'] as $row) {
+        $index = $sites->search(fn (Site $site): bool => $site->id === $row['site_id']);
+        expect(array_values(array_filter($row['response']['values'], fn (?int $value): bool => $value !== null)))->toBe([$index + 1])
+            ->and($row['response']['step_seconds'])->toBe(1080)->and($row['response']['marks'])->toBe([]);
     }
 })->with([50, 300]);
 

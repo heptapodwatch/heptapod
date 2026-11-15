@@ -1,4 +1,10 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import {
+    cleanup,
+    fireEvent,
+    render,
+    screen,
+    within,
+} from '@testing-library/react';
 import type { ComponentProps, ReactNode } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ActivityIndex from '@/pages/activity/index';
@@ -10,6 +16,7 @@ import UpcomingIndex from '@/pages/upcoming/index';
 
 // Every list page with a filter bar picks its EmptyState variant from its own filters (heptapod-ui-rules Lists):
 // first-run copy (plus the create action for managers) by default, "No matching …" while a filter differs from its default.
+const routerGet = vi.hoisted(() => vi.fn());
 vi.mock('@inertiajs/react', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@inertiajs/react')>()),
     Head: () => null,
@@ -32,7 +39,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
     }),
     router: {
         on: () => () => {},
-        get: vi.fn(),
+        get: routerGet,
         visit: vi.fn(),
         reload: vi.fn(),
         replace: vi.fn(),
@@ -226,6 +233,18 @@ it.each([
         expectFiltered('No matching sites');
     },
 );
+
+it('Sites: a filter change reloads the rows together with their uptime and sparkline history', () => {
+    sites({ tag: 'prod' }, true);
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(routerGet).toHaveBeenLastCalledWith(
+        expect.any(String),
+        expect.anything(),
+        expect.objectContaining({
+            only: expect.arrayContaining(['sites', 'sites_history']),
+        }),
+    );
+});
 
 function upcoming(changes: {
     days?: string;

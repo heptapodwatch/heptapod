@@ -18,9 +18,10 @@ import { useBufferedChanges } from '@/hooks/use-buffered-changes';
 import { useFlip } from '@/hooks/use-flip';
 import { PendingChanges } from '@/components/pending-changes';
 import { Globe, Plus } from 'lucide-react';
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable } from '@/components/data-table';
+import { listResponsePoints } from '@/components/monitoring';
 import { SegmentedControl } from '@/components/segmented-control';
 import { EmptyState } from '@/components/empty-state';
 import { SitesAttentionBand } from '@/components/sites-attention-band';
@@ -44,6 +45,7 @@ import {
 
 export default function SitesIndex({
     sites,
+    sites_history,
     clients,
     tags,
     summary,
@@ -58,6 +60,7 @@ export default function SitesIndex({
         ['state.changed'],
         [
             'sites',
+            'sites_history',
             'pagination',
             'summary',
             'clients',
@@ -189,7 +192,7 @@ export default function SitesIndex({
             },
             {
                 ...searchOptions,
-                only: ['sites', 'pagination', 'filters'],
+                only: ['sites', 'sites_history', 'pagination', 'filters'],
                 preserveState: true,
                 preserveScroll: true,
             },
@@ -373,6 +376,7 @@ export default function SitesIndex({
                     {sites && (
                         <SitesList
                             sites={sites}
+                            history={sites_history}
                             clients={clients}
                             pagination={pagination}
                             hasFilters={hasFilters}
@@ -388,6 +392,7 @@ export default function SitesIndex({
 
 function SitesList({
     sites,
+    history,
     clients,
     pagination,
     hasFilters,
@@ -395,6 +400,7 @@ function SitesList({
     onSort,
 }: {
     sites: Heptapod.Data.Ui.SiteRowData[];
+    history: Heptapod.Data.Ui.SiteHistoryData[] | undefined;
     clients: Heptapod.Data.Ui.ClientData[];
     pagination: Heptapod.Data.Ui.PaginationData;
     hasFilters: boolean;
@@ -403,8 +409,23 @@ function SitesList({
 }) {
     const { t } = useTranslation();
     const format = useFormat();
+    // Merged before buffering, so a held row keeps the history it was shown with.
+    const rows = useMemo(() => {
+        if (history === undefined) return sites;
+        const byId = new Map(history.map((entry) => [entry.site_id, entry]));
+        return sites.map((site) => {
+            const entry = byId.get(site.id);
+            return entry
+                ? {
+                      ...site,
+                      uptime: entry.uptime,
+                      response: listResponsePoints(entry.response),
+                  }
+                : site;
+        });
+    }, [sites, history]);
     const buffered = useBufferedChanges(
-        sites,
+        rows,
         (site) => site.id,
         undefined,
         undefined,
@@ -425,6 +446,7 @@ function SitesList({
                         clients={clients}
                         full
                         serverMode
+                        historyLoading={history === undefined}
                         onSort={(sort) => onSort(sort)}
                         onSelect={(site) => router.visit(siteShow.url(site.id))}
                         siteHref={(site) => siteShow.url(site.id)}

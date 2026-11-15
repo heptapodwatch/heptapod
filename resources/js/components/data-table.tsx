@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     Table,
     listCardPadding,
@@ -77,6 +78,7 @@ type SiteTableCellOptions = {
     siteHref?: (site: SiteDto) => string;
     clientFor: (site: SiteDto) => Heptapod.Data.Ui.ClientData;
     runs: ReturnType<typeof useStreamState>['runs'];
+    historyLoading: boolean;
 };
 const SiteTableCellContext = createContext<SiteTableCellOptions | null>(null);
 function useSiteTableCellOptions() {
@@ -172,6 +174,8 @@ function SiteTableResponseCell({
 }: CellContext<typeof features, SiteDto, unknown>) {
     const { t } = useTranslation();
     const format = useFormat();
+    const { historyLoading } = useSiteTableCellOptions();
+    if (historyLoading) return <Skeleton className="h-6 w-20" />;
     return (
         <>
             <div aria-hidden="true">
@@ -229,7 +233,10 @@ export function DataTable({
     showClient = true,
     onSort,
     siteHref,
+    historyLoading = false,
 }: {
+    /** Uptime and response arrive after the rows; their cells hold a skeleton of the same size until then. */
+    historyLoading?: boolean;
     onPrefetch?: (site: SiteDto) => void;
     clients: Heptapod.Data.Ui.ClientData[];
     serverMode?: boolean;
@@ -356,19 +363,22 @@ export function DataTable({
         ...(!full ? [statusColumn] : []),
         columnHelper.accessor('uptime', {
             header: t('Uptime 30d'),
-            cell: ({ row }) => (
-                <span
-                    className={cn(
-                        'text-xs',
-                        !hasUptimeCheck(row.original) &&
-                            'text-muted-foreground',
-                        row.original.uptime !== null &&
-                            'font-mono tabular-nums',
-                    )}
-                >
-                    {percentage(row.original)}
-                </span>
-            ),
+            cell: ({ row }) =>
+                historyLoading ? (
+                    <Skeleton className="ml-auto h-4 w-14" />
+                ) : (
+                    <span
+                        className={cn(
+                            'text-xs',
+                            !hasUptimeCheck(row.original) &&
+                                'text-muted-foreground',
+                            row.original.uptime !== null &&
+                                'font-mono tabular-nums',
+                        )}
+                    >
+                        {percentage(row.original)}
+                    </span>
+                ),
         }),
         columnHelper.accessor('checked_at', {
             header: t('Checked'),
@@ -499,17 +509,21 @@ export function DataTable({
                     <span className="text-muted-foreground">
                         {t('30-day uptime')}
                     </span>
-                    <span
-                        className={
-                            !hasUptimeCheck(site)
-                                ? 'text-muted-foreground'
-                                : site.uptime === null
-                                  ? ''
-                                  : 'font-mono tabular-nums'
-                        }
-                    >
-                        {percentage(site)}
-                    </span>
+                    {historyLoading ? (
+                        <Skeleton className="h-4 w-14" />
+                    ) : (
+                        <span
+                            className={
+                                !hasUptimeCheck(site)
+                                    ? 'text-muted-foreground'
+                                    : site.uptime === null
+                                      ? ''
+                                      : 'font-mono tabular-nums'
+                            }
+                        >
+                            {percentage(site)}
+                        </span>
+                    )}
                 </span>
             </>
         );
@@ -558,6 +572,7 @@ export function DataTable({
                         siteHref,
                         clientFor,
                         runs,
+                        historyLoading,
                     }}
                 >
                     <Table className={full ? 'table-auto' : 'table-fixed'}>

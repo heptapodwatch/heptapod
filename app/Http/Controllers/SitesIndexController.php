@@ -63,7 +63,9 @@ final class SitesIndexController extends Controller
         };
 
         return Inertia::render('sites/index', new SitesIndexPageData(
-            sites: Lazy::inertiaDeferred(static fn (): array => $reader->rowPayloads($read()->getCollection()), 'list'),
+            sites: Lazy::inertiaDeferred(static fn (): array => $reader->rowPayloads($read()->getCollection(), includeHistory: false), 'list'),
+            // A second group so the rows render before the uptime and sparkline history arrives.
+            sites_history: Lazy::inertiaDeferred(static fn (): array => $reader->history($read()->getCollection()), 'history'),
             pagination: Lazy::closure(static function () use ($read): PaginationData {
                 $page = $read();
 

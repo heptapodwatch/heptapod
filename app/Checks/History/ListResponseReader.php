@@ -11,6 +11,9 @@ use InvalidArgumentException;
 
 final class ListResponseReader
 {
+    /** The list_response_buckets grid: date_bin(interval '18 minutes', …) from the UTC epoch. */
+    public const int BucketSeconds = 1080;
+
     /**
      * The lower bound snaps up to the UTC epoch grid; the newest bucket remains partial.
      *

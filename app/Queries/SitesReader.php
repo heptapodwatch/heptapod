@@ -60,7 +60,8 @@ use Spatie\Tags\Tag;
  * @phpstan-type ResponsePointProjection array{time: string, value: float|null, failure_count: int, error_count: int, warning_count: int, failure_status: value-of<BucketStatus>|null}
  * @phpstan-type SiteIdentityProjection array{id: int, name: string, url: string, client_id: int, state: value-of<SiteStatus>, icon_url: string|null, icon_backing: value-of<SiteIconBacking>}
  * @phpstan-type CheckRunProjection array{check_id: int, phase: value-of<RunPhase>, attempt_id: int|null, queue: string|null, queue_position: int|null, progress_n: int|null, progress_total: int|null, phase_label: string|null, started_at: string|null, actor: string|null, due_at: string|null, can_cancel: bool, requested_at: string|null}
- * @phpstan-type CheckStripProjection array{pending_recheck: bool, freshness_suppressed_by: value-of<FreshnessSuppression>|null, freshness_suppression_label_key: string|null, dependency_headline_key: string|null, not_fresh: bool, state: value-of<SiteStatus>, id: int, key: value-of<CheckKey>, label_key: string, icon_id: string, enabled: bool, result: value-of<CheckResult>, open_incident_id: int|null, open_incident_started_at: string|null, summary: string|null, summary_params: array<string, string|int|float|bool|null>, checked_at: string|null, snoozed_until: string|null, meta_label: string|null, meta: string|null, unavailable_reason: string|null, run: CheckRunProjection|null, open_incident_requires_complete_recovery: bool, uptime_parent_incident_id: int|null, affected_checks: list<string>, uptime_recheck_after: string|null, held_after_recovery: bool, next_run_at: string|null, presentation?: array<array-key, mixed>|null}
+ * @phpstan-type CheckStripProjection array{pending_recheck: bool, freshness_suppressed_by: value-of<FreshnessSuppression>|null, freshness_suppression_label_key: string|null, dependency_headline_key: string|null, not_fresh: bool, state: value-of<SiteStatus>, id: int, key: value-of<CheckKey>, label_key: string, icon_id: string, enabled: bool, result: value-of<CheckResult>, open_incident_id: int|null, open_incident_started_at: string|null, summary: string|null, summary_params: array<string, string|int|float|bool|null>, checked_at: string|null, snoozed_until: string|null, unavailable_reason: string|null, run: CheckRunProjection|null, open_incident_requires_complete_recovery: bool, uptime_parent_incident_id: int|null, affected_checks: list<string>, held_after_recovery: bool, next_run_at: string|null, presentation?: array<array-key, mixed>|null}
+ * @phpstan-type SiteHistoryProjection array{site_id: int, uptime: float|null, response: array{start: string, step_seconds: int, values: list<int|null>, marks: list<array{slot: int, failure_count: int, error_count: int, warning_count: int, failure_status: value-of<BucketStatus>|null}>}}
  * @phpstan-type SiteRowProjection array{id: int, name: string, url: string, client_id: int, tags: list<string>, state: value-of<SiteStatus>, uptime: float|null, response: list<ResponsePointProjection>, checks: list<CheckStripProjection>, checked_at: string|null, identity: SiteIdentityProjection}
  */
 final readonly class SitesReader
@@ -492,7 +493,6 @@ final readonly class SitesReader
                         ? array_values($openIncidents->filter(static fn (Incident $dependent): bool => UptimeDependencies::isGrouped($dependent)
                             && UptimeDependencies::parentId($dependent) === $incident->id)
                             ->map(static fn (Incident $dependent): string => ($dependent->check ?? throw new \LogicException('Dependent check missing.'))->type->value)->all()) : [],
-                    uptime_recheck_after: $grouped ? UptimeDependencies::recheckAfter($incident) : null,
                     held_after_recovery: isset($held[$incident->id ?? 0]),
                     next_run_at: $this->timestamp(new DateTimeImmutable($nextRunAt)),
                     presentation: $presentation,
@@ -512,7 +512,7 @@ final readonly class SitesReader
                     'open_incident_id' => $data->open_incident_id, 'open_incident_started_at' => $data->open_incident_started_at,
                     'summary' => $data->summary, 'summary_params' => $data->summary_params,
                     'checked_at' => $data->checked_at, 'snoozed_until' => $data->snoozed_until,
-                    'meta_label' => $data->meta_label, 'meta' => $data->meta, 'unavailable_reason' => $data->unavailable_reason,
+                    'unavailable_reason' => $data->unavailable_reason,
                     'run' => $run instanceof CheckRunStateData ? [
                         'check_id' => $run->check_id, 'phase' => $run->phase->value, 'attempt_id' => $run->attempt_id,
                         'queue' => $run->queue, 'queue_position' => $run->queue_position, 'progress_n' => $run->progress_n,
@@ -521,7 +521,7 @@ final readonly class SitesReader
                     ] : null,
                     'open_incident_requires_complete_recovery' => $data->open_incident_requires_complete_recovery,
                     'uptime_parent_incident_id' => $data->uptime_parent_incident_id, 'affected_checks' => $data->affected_checks,
-                    'uptime_recheck_after' => $data->uptime_recheck_after, 'held_after_recovery' => $data->held_after_recovery,
+                    'held_after_recovery' => $data->held_after_recovery,
                     'next_run_at' => $data->next_run_at,
                     ...($includePresentations ? ['presentation' => $data->presentation?->toArray()] : []),
                 ];
@@ -543,6 +543,43 @@ final readonly class SitesReader
                 'identity' => ['id' => $identity->id, 'name' => $identity->name, 'url' => $identity->url, 'client_id' => $identity->client_id,
                     'state' => $identity->state->value, 'icon_url' => $identity->icon_url, 'icon_backing' => $identity->icon_backing->value],
             ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * The Sites list loads this after its rows: the 30-day uptime and the 24 h peak-response series as slots on the
+     * list bucket grid, one entry per site (an empty series without an uptime check).
+     *
+     * @param  Collection<int, Site>  $sites  Sites from projected(), never an unscoped model collection.
+     * @return list<SiteHistoryProjection>
+     */
+    public function history(Collection $sites): array
+    {
+        /** @var array<int, int> $uptimeIds */
+        $uptimeIds = Check::query()->getQuery()->whereIn('site_id', $sites->map(static fn (Site $site): int => $site->id)->all())->where('type', CheckKey::Uptime->value)->pluck('id', 'site_id')->all();
+        $until = CarbonImmutable::now('UTC');
+        $from = $until->subDay();
+        $samples = $this->history->read(array_values($uptimeIds), $from, $until);
+        $uptimePercentages = $this->uptime->percentages(array_values($uptimeIds), $until->subDays(30), $until);
+        $step = ListResponseReader::BucketSeconds;
+        $start = (int) ceil($from->getTimestamp() / $step) * $step;
+        $slots = intdiv($until->getTimestamp() - $start, $step) + 1;
+        $rows = [];
+        foreach ($sites as $site) {
+            $values = array_fill(0, $slots, null);
+            $marks = [];
+            foreach (isset($uptimeIds[$site->id]) ? $samples[$uptimeIds[$site->id]] : [] as $bucket) {
+                $slot = intdiv(new DateTimeImmutable($bucket['bucket_start'])->getTimestamp() - $start, $step);
+                $values[$slot] = $bucket['maximum_ms'] === null ? null : (int) round($bucket['maximum_ms']);
+                if ($bucket['failed_count'] > 0 || $bucket['errored_count'] > 0 || $bucket['warning_count'] > 0 || $bucket['failure_status'] !== null) {
+                    $marks[] = ['slot' => $slot, 'failure_count' => $bucket['failed_count'], 'error_count' => $bucket['errored_count'],
+                        'warning_count' => $bucket['warning_count'], 'failure_status' => $bucket['failure_status']?->value];
+                }
+            }
+            $rows[] = ['site_id' => $site->id, 'uptime' => isset($uptimeIds[$site->id]) ? ($uptimePercentages[$uptimeIds[$site->id]] ?? null) : null,
+                'response' => ['start' => gmdate('Y-m-d\TH:i:s\Z', $start), 'step_seconds' => $step, 'values' => array_values($values), 'marks' => $marks]];
         }
 
         return $rows;

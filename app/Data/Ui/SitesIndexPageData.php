@@ -14,13 +14,15 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 final class SitesIndexPageData extends Data
 {
     /**
-     * @param  InertiaDeferred|list<SiteRowData>  $sites
+     * @param  InertiaDeferred|list<SiteRowData>  $sites  Rows without uptime and response; those arrive in $sites_history.
+     * @param  InertiaDeferred|list<SiteHistoryData>  $sites_history
      * @param  ClosureLazy|list<ClientData>  $clients
      * @param  ClosureLazy|list<TagData>  $tags
      * @param  ClosureLazy|list<SiteRowData>  $needs_attention
      */
     public function __construct(
         public readonly InertiaDeferred|array $sites,
+        public readonly InertiaDeferred|array $sites_history,
         public readonly ClosureLazy|PaginationData $pagination,
         public readonly ClosureLazy|SitesFilterData $filters,
         public readonly ClosureLazy|array $clients,
