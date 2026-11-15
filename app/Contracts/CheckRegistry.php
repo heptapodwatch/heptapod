@@ -46,7 +46,8 @@ final class CheckRegistry
 
     public function availability(CheckKey $key): CheckAvailability
     {
-        if (! in_array($key, $this->keys(), true)) {
+        // Callers ask once per check; building a type through the container only to learn it reports nothing dominated list pages.
+        if (! is_a($this->types[$key->value] ?? '', ReportsAvailability::class, true)) {
             return new CheckAvailability;
         }
         $type = $this->get($key);
