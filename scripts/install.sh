@@ -132,7 +132,7 @@ if [ ! -f .env.prod ] && [ "$behind_proxy" = 0 ] && command -v ss >/dev/null 2>&
     for host_port in "${HTTP_PORT:-80}" "${HTTPS_PORT:-443}"; do
         host_port=${host_port##*:}
         if printf '%s\n' "$listeners" | awk -v port="$host_port" '{ n = split($4, part, ":"); if (part[n] == port) found = 1 } END { exit !found }'; then
-            echo "Port $host_port is already in use on this host, so Heptapod cannot serve HTTPS on ports 80 and 443; no configuration or services were created; rerunning is safe. Find the service with: sudo ss -Htlnp 'sport = :$host_port'. Stop it, or rerun your install command with --behind-proxy --port 8380 added and forward your proxy to that port: https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy" >&2
+            echo "Port $host_port is already in use on this host, so Heptapod cannot bind it; no configuration or services were created; rerunning is safe. Find the service with: sudo ss -Htlnp 'sport = :$host_port'. Stop it, or run unset HTTP_PORT HTTPS_PORT, then rerun your install command with --behind-proxy --port 8380 added and forward your proxy to that port: https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy" >&2
             exit 1
         fi
     done

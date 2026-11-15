@@ -249,6 +249,18 @@ printf 'PASS: a fresh install refuses an existing Compose project (volume, unlab
 # A listener on 80 or 443, on any IPv4 or IPv6 address, stops a fresh TLS install before anything exists: no .env.prod,
 # no container, no volume. Listeners on other ports do not count.
 rm -rf .heptapod
+# Custom TLS ports must be named accurately, with a proxy rerun that clears conflicting overrides.
+for host_port in 18080 18443; do
+    status=0
+    HTTP_PORT=18080 HTTPS_PORT=18443 STUB_SS_LISTENERS="LISTEN 0 4096 [::]:$host_port [::]:*" \
+        ./scripts/install.sh --domain monitor.example.com > port.log 2>&1 || status=$?
+    [ "$status" != 0 ]
+    grep -Fq "Port $host_port is already in use on this host, so Heptapod cannot bind it" port.log || { cat port.log >&2; exit 1; }
+    grep -Fq 'run unset HTTP_PORT HTTPS_PORT, then rerun your install command with --behind-proxy --port 8380 added' port.log || { cat port.log >&2; exit 1; }
+    [ ! -e .env.prod ]
+    [ ! -e .heptapod ]
+done
+printf 'PASS: custom TLS port conflicts name the checked port and explain clearing overrides before a proxy rerun\n'
 for listener in '0.0.0.0:80 0.0.0.0:*|80' '[::]:443 [::]:*|443' '100.64.0.1:443 0.0.0.0:*|443' '*:80 *:*|80'; do
     status=0
     STUB_SS_LISTENERS="LISTEN 0 4096 127.0.0.1:8443 0.0.0.0:*
