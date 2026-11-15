@@ -8,7 +8,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SitesStateRing } from '@/components/sites-state-ring';
 import { StateSentence } from '@/components/foundation-primitives';
-import { MonitoringTime, StatusBadge } from '@/components/monitoring';
+import {
+    MonitoringTime,
+    StatusBadge,
+    StatusDot,
+} from '@/components/monitoring';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { ListHeader, ListRow } from '@/components/ui/table';
@@ -16,7 +20,12 @@ import { useFlip } from '@/hooks/use-flip';
 import { cn } from '@/lib/utils';
 import { useFormat } from '@/hooks/use-format';
 import { useCheckHeadline } from '@/hooks/use-check-headline';
-import { isAttentionState, runState, stateCountOrder } from '@/lib/status';
+import {
+    isAttentionState,
+    isSnoozed,
+    runState,
+    stateCountOrder,
+} from '@/lib/status';
 import { show as incidentShow } from '@/routes/incidents';
 import { team as teamNotifications } from '@/routes/settings/notifications';
 import { index as sitesIndex, show as siteShow } from '@/routes/sites';
@@ -422,6 +431,15 @@ export function SitesAttentionBand({
                                                   },
                                               )
                                             : undefined;
+                                    // The check keeps failing while snoozed; only its alerts are silenced, so it stays in the band.
+                                    const snoozedText =
+                                        check && isSnoozed(check, Date.now())
+                                            ? t('Snoozed until {{time}}', {
+                                                  time: format.timestamp(
+                                                      check.snoozed_until!,
+                                                  ),
+                                              })
+                                            : undefined;
                                     const incidentOpen =
                                         check?.open_incident_id != null;
                                     const attentionTime = incidentOpen
@@ -455,6 +473,29 @@ export function SitesAttentionBand({
                                                           )
                                                         : site.name}
                                                 </p>
+                                                {check && snoozedText && (
+                                                    <TruncatedText
+                                                        content={snoozedText}
+                                                    >
+                                                        <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                                                            <StatusDot
+                                                                state={
+                                                                    check.state
+                                                                }
+                                                                label={
+                                                                    snoozedText
+                                                                }
+                                                                snoozed
+                                                            />
+                                                            <span
+                                                                data-truncate
+                                                                className="truncate"
+                                                            >
+                                                                {snoozedText}
+                                                            </span>
+                                                        </p>
+                                                    </TruncatedText>
+                                                )}
                                                 {affectedText && (
                                                     <TruncatedText
                                                         content={affectedText}

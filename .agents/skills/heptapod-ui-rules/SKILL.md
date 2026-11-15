@@ -34,7 +34,7 @@ Add a new pattern to this skill before implementing it. Reuse shared components;
 | System health (Operations page) | System health | Systemzustand |
 | Routing (the Team settings page and its rules) | Routing | Routing ("Routing-Regeln"; never "Weiterleitung", which is an HTTP redirect) |
 | Paused (a paused **site** only; checks are never "paused") | Paused / Pause site | Pausiert / Website pausieren |
-| Snooze (a check keeps running, its alerts wait; also incident reminders) | Snooze / Snoozed until … / End snooze | Stummschalten / Stummgeschaltet bis … / Stummschaltung beenden (never "pausieren") |
+| Snooze (a check keeps running, its alerts are not sent; also incident reminders) | Snooze / Snoozed until … / End snooze | Stummschalten / Stummgeschaltet bis … / Stummschaltung beenden (never "pausieren") |
 | A turned-off check | Turned off (strip tooltip) / Off (badge) / Turn check off / Turn on | Ausgeschaltet / Aus / Prüfung ausschalten / Einschalten |
 
 - `scripts/check-translations.php` fails a DE value that says "nicht erreichbar" for an EN "down" key, "Verfügbarkeit"/"Uptime" for an EN "uptime" key, "Check" for an EN "check" key, "Eigentümer" for an EN "owner" key, "Backup" for an EN "backup" key, "Worker" for an EN "worker" key or "Agents"/"Coding-Agent" for an EN "agent" key. Technical endpoints ("Health endpoint unreachable") keep "nicht erreichbar": they are not the Down state.
@@ -77,7 +77,7 @@ Add a new pattern to this skill before implementing it. Reuse shared components;
 | Running | sweeping arc | — | Running |
 | Any result | its status shape | its status shape | the glossary word |
 
-  A snoozed check keeps its result in counts and attention (a snoozed failure still needs attention); only its alerts wait. The paused-site shape (outline ring with drawn bars) stays a site state: the site row, never a check slot.
+  A snoozed check keeps its result in counts and attention (a snoozed failure still needs attention, and the Sites attention band and an open incident show "Snoozed until …" beside the cause); only its alerts are silenced, never replayed. The paused-site shape (outline ring with drawn bars) stays a site state: the site row, never a check slot.
 - Check header actions (CheckTabLayout): Run check is primary (Owner/Admin); one secondary "Snooze ▾" menu (For 1 hour · For 1 day · For 7 days · Until a date… (SheetForm with DateTimeField in the account timezone), separator, Turn check off… for Owner/Admin only, with a ConfirmDialog stating that it stops running and its open incident closes without a recovery alert). Members may snooze. While snoozed the header shows "Snoozed until …" and the action is End snooze; a turned-off check shows "This check is turned off." and Turn on. Below 768 px the choices are items of More actions themselves (`useInActionsMenu`), not a nested menu. A paused site offers no snooze.
 - Status chips use `StatusBadge`; compact status marks use `StatusDot`. Keep domain-specific translated labels, but map them to the shared semantic shape. System-health failures use `check-error`, never the uptime-only `down` halo. Tags, roles, counts and other metadata stay neutral badges.
 

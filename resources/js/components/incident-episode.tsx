@@ -58,7 +58,12 @@ import {
 import { useRunState } from '@/hooks/use-live';
 import { currentRunState } from '@/lib/live-store';
 import { checkTypes } from '@/lib/check-types';
-import { incidentCauseState, runState, statusLabels } from '@/lib/status';
+import {
+    incidentCauseState,
+    isSnoozed,
+    runState,
+    statusLabels,
+} from '@/lib/status';
 import { findingsTimestamp } from '@/lib/findings-export';
 import { findings as findingsCsv } from '@/routes/sites/checks';
 import {
@@ -368,6 +373,26 @@ export function IncidentEpisode({
                                     <span className="font-mono tabular-nums">
                                         #{format.number(incident.id)}
                                     </span>,
+                                    // The check's own snooze silences its alerts; the reminder snooze below is separate.
+                                    ...(check && isSnoozed(check, now)
+                                        ? [
+                                              <span className="inline-flex items-center gap-1.5">
+                                                  <StatusDot
+                                                      state={check.state}
+                                                      label={t(
+                                                          'Check snoozed until',
+                                                      )}
+                                                      snoozed
+                                                  />
+                                                  {t('Check snoozed until')}{' '}
+                                                  <AbsoluteTime
+                                                      value={
+                                                          check.snoozed_until!
+                                                      }
+                                                  />
+                                              </span>,
+                                          ]
+                                        : []),
                                 ]}
                             />
                         </>

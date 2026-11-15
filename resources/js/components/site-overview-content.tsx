@@ -358,8 +358,7 @@ function useCheckRow(siteId: number) {
     const headline = useCheckHeadline();
     return (check: Check): SiteCheckRow => {
         const snoozed = isSnoozed(check, Date.now());
-        // A snoozed check keeps its result; its gap without data is explained by the snooze itself.
-        const state = snoozed ? check.state : checkState(check);
+        const state = checkState(check);
         return {
             key: `check:${check.id}`,
             checkId: check.id,
@@ -446,7 +445,7 @@ export function SiteCheckList({
                             href={row.href ?? undefined}
                             name={row.what}
                         />
-                        <p className="truncate text-xs text-muted-foreground">
+                        <p className="text-xs break-words text-muted-foreground">
                             {row.detail}
                         </p>
                     </div>

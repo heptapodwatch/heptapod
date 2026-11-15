@@ -167,14 +167,21 @@ export const deliveryOutcomeStates = {
 } as const satisfies Record<Heptapod.Enums.DeliveryOutcome, SiteState>;
 
 /**
- * The shown state of a check. The server sends Off (`disabled`) for a turned-off check; a freshness-suppressed gap
- * has no current result, so it reads in the no-result (pending) shape, never Off.
+ * The shown state of a check. The server sends Off (`disabled`) for a turned-off check. A snoozed check keeps its result
+ * (a snoozed failure still needs attention). A freshness-suppressed gap otherwise has no current result, so it reads in
+ * the no-result (pending) shape, never Off.
  */
 export function checkState(check: {
     state: SiteState;
     freshness_suppressed_by?: Heptapod.Enums.FreshnessSuppression | null;
+    snoozed_until?: string | null;
 }): SiteState {
-    return check.state !== 'disabled' && check.freshness_suppressed_by
+    return check.state !== 'disabled' &&
+        check.freshness_suppressed_by &&
+        !isSnoozed(
+            { state: check.state, snoozed_until: check.snoozed_until ?? null },
+            Date.now(),
+        )
         ? 'pending'
         : check.state;
 }

@@ -436,7 +436,7 @@
     "Turn off the {{check}} check?": "Prüfung „{{check}}“ ausschalten?",
     "check_snooze.turn_off_consequence": "Sie läuft nicht mehr, und ihre offene Störung wird ohne Entwarnung geschlossen. Bisherige Ergebnisse bleiben sichtbar.",
     "Snooze check": "Prüfung stummschalten",
-    "check_snooze.sheet_description": "Die Prüfung läuft weiter; bis zum gewählten Zeitpunkt gibt es keine Benachrichtigungen.",
+    "check_snooze.sheet_description": "Die Prüfung läuft weiter; bis zum gewählten Zeitpunkt sendet sie keine Benachrichtigungen.",
     "Snooze until": "Stummschalten bis",
     "check_snooze.until_invalid": "Wählen Sie einen Zeitpunkt in der Zukunft, höchstens 365 Tage voraus.",
     "Turned off": "Ausgeschaltet",

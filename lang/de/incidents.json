@@ -137,5 +137,6 @@
     "No open incidents": "Keine offenen Störungen",
     "An incident opens here when a site is down or a check fails.": "Eine Störung erscheint hier, wenn eine Website ausgefallen ist oder eine Prüfung fehlschlägt.",
     "No matching incidents": "Keine passenden Störungen",
-    "Clear filters to see open incidents.": "Filter entfernen, um offene Störungen zu sehen."
+    "Clear filters to see open incidents.": "Filter entfernen, um offene Störungen zu sehen.",
+    "Check snoozed until": "Prüfung stummgeschaltet bis"
 }

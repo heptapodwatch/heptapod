@@ -87,15 +87,11 @@ export function CheckTabLayout({
                 metadata={
                     <div className="flex flex-wrap items-center gap-2.5">
                         <StatusBadge
-                            state={
-                                snoozed
-                                    ? page.check.state
-                                    : checkState({
-                                          state: page.check.state,
-                                          freshness_suppressed_by:
-                                              page.freshness_suppressed_by,
-                                      })
-                            }
+                            state={checkState({
+                                ...page.check,
+                                freshness_suppressed_by:
+                                    page.freshness_suppressed_by,
+                            })}
                             label={
                                 !snoozed &&
                                 page.check.enabled &&

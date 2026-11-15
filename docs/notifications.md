@@ -158,7 +158,7 @@ When a site is Down, a Lighthouse, sitemap, broken-links or mixed-content failur
 
 ## Snooze one check
 
-Select **Snooze** on a check's page and choose 1 hour, 1 day, 7 days or **Until a date…**. The check keeps running and recording results; its alerts wait until the snooze ends. **End snooze** ends it early. Members can snooze.
+Select **Snooze** on a check's page and choose 1 hour, 1 day, 7 days or **Until a date…**. The check keeps running and recording results but sends no alerts. A problem that starts during the snooze is not alerted after it ends. **End snooze** ends it early. Members can snooze.
 
 Result: the header shows **Snoozed until …**, and the Sites list keeps the check's result colour with the pause bars cut out.
 

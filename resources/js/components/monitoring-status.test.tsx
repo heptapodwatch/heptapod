@@ -9,6 +9,7 @@ import {
 import { afterEach, expect, it, vi } from 'vitest';
 import { CheckStrip, Sparkline, StatusBadge } from './monitoring';
 import { galleryChecks } from '@/fixtures/design';
+import { checkState } from '@/lib/status';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import type { ResponsePointDto } from '@/types/monitoring';
 
@@ -184,5 +185,20 @@ it('draws each check slot from its own state: snoozed keeps the result colour, t
             .queryAllByRole('img')
             .some((element) => element.dataset.state === 'paused'),
     ).toBe(false);
+    vi.useRealTimers();
+});
+
+it('keeps a snoozed failure failed when an uptime outage also suppresses its freshness gap', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-03T12:00:00Z'));
+    const gap = {
+        state: 'failed' as const,
+        freshness_suppressed_by: 'down' as const,
+    };
+    // Attention, counts and sorting read this state: a snooze silences alerts, it never hides the failure.
+    expect(checkState({ ...gap, snoozed_until: '2026-10-03T13:00:00Z' })).toBe(
+        'failed',
+    );
+    expect(checkState({ ...gap, snoozed_until: null })).toBe('pending');
     vi.useRealTimers();
 });

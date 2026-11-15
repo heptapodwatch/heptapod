@@ -436,7 +436,7 @@
     "Turn off the {{check}} check?": "Turn off the {{check}} check?",
     "check_snooze.turn_off_consequence": "It stops running and its open incident closes without a recovery alert. Results so far stay visible.",
     "Snooze check": "Snooze check",
-    "check_snooze.sheet_description": "The check keeps running; no alerts until the time you pick.",
+    "check_snooze.sheet_description": "The check keeps running; it sends no alerts until the time you pick.",
     "Snooze until": "Snooze until",
     "check_snooze.until_invalid": "Choose a time in the future, at most 365 days ahead.",
     "Turned off": "Turned off",

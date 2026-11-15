@@ -98,7 +98,7 @@
 
 /* Snoozed: a filled disc in the result's colour with the pause bars cut out, so a snoozed failure stays red. The paused-site
    shape is an outline ring with drawn bars; this one is solid with knocked-out bars. */
-.status-ring[data-snoozed] {
+.status-ring[data-snoozed][data-state] {
     background: currentColor;
     box-shadow: none;
     border: 0;
@@ -109,7 +109,7 @@
     mask-composite: exclude;
 }
 
-.status-ring[data-snoozed]::after {
+.status-ring[data-snoozed][data-state]::after {
     content: none;
 }
 
