@@ -62,8 +62,8 @@ it('shows no measured uptime before the first result', function (): void {
     $this->actingAs($owner);
 
     $this->get('/sites')->assertInertia(fn (Assert $page): Assert => $page
-        ->loadDeferredProps(['list'], fn (Assert $list): Assert => $list
-            ->has('sites', 1)->where('sites.0.id', $site->id)->where('sites.0.uptime', null)));
+        ->loadDeferredProps(['history'], fn (Assert $history): Assert => $history
+            ->has('sites_history', 1)->where('sites_history.0.site_id', $site->id)->where('sites_history.0.uptime', null)));
     $this->get('/sites/'.$site->id)->assertInertia(fn (Assert $page): Assert => $page
         ->where('uptime_ranges', ['hours24' => null, 'days7' => null, 'days30' => null, 'days90' => null]));
     $history = app(HistoryReader::class)->read($owner, $site->id, $check->id);
@@ -86,8 +86,8 @@ it('shows measured uptime after the first recorded success', function (): void {
 
     expect($check->refresh()->first_result_at)->toEqual(CarbonImmutable::parse('2026-10-19T23:10:01Z'));
     $this->actingAs($owner)->get('/sites')->assertInertia(fn (Assert $page): Assert => $page
-        ->loadDeferredProps(['list'], fn (Assert $list): Assert => $list
-            ->has('sites', 1)->where('sites.0.id', $site->id)->where('sites.0.uptime', 100)));
+        ->loadDeferredProps(['history'], fn (Assert $history): Assert => $history
+            ->has('sites_history', 1)->where('sites_history.0.site_id', $site->id)->where('sites_history.0.uptime', 100)));
     $this->get('/sites/'.$site->id)->assertInertia(fn (Assert $page): Assert => $page
         ->where('uptime_ranges', ['hours24' => 100, 'days7' => 100, 'days30' => 100, 'days90' => 100]));
     $history = app(HistoryReader::class)->read($owner, $site->id, $check->id);

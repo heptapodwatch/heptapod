@@ -1050,14 +1050,11 @@ readonly summary: string | null,
 readonly summary_params: Record<string, string | number | boolean | null>,
 readonly checked_at: string | null,
 readonly snoozed_until: string | null,
-readonly meta_label: string | null,
-readonly meta: string | null,
 readonly unavailable_reason: string | null,
 readonly run: Heptapod.Data.Ui.CheckRunStateData | null,
 readonly open_incident_requires_complete_recovery: boolean,
 readonly uptime_parent_incident_id: number | null,
 readonly affected_checks: string[],
-readonly uptime_recheck_after: string | null,
 readonly held_after_recovery: boolean,
 readonly next_run_at: string | null,
 readonly presentation: Heptapod.Contracts.CheckRunPresentationData | null,
@@ -1466,6 +1463,19 @@ readonly invitation: Heptapod.Data.Ui.InvitationData | null,
 readonly token?: string,
 readonly passwordRules?: string,
 };
+export type ListResponseMarkData = {
+readonly slot: number,
+readonly failure_count: number,
+readonly error_count: number,
+readonly warning_count: number,
+readonly failure_status: Heptapod.Enums.BucketStatus | null,
+};
+export type ListResponseSeriesData = {
+readonly start: string,
+readonly step_seconds: number,
+readonly values: (number| null)[],
+readonly marks: Heptapod.Data.Ui.ListResponseMarkData[],
+};
 export type MaintenanceIndexPageData = {
 readonly windows: Heptapod.Data.Ui.MaintenanceWindowData[],
 readonly next_page: number | null,
@@ -1788,6 +1798,11 @@ action_key: string,
 href: string,
 }[],
 };
+export type SiteHistoryData = {
+readonly site_id: number,
+readonly uptime: number | null,
+readonly response: Heptapod.Data.Ui.ListResponseSeriesData,
+};
 export type SiteIdentityData = {
 readonly id: number,
 readonly name: string,
@@ -1919,6 +1934,7 @@ readonly advisory: string | null,
 };
 export type SitesIndexPageData = {
 readonly sites?: Heptapod.Data.Ui.SiteRowData[],
+readonly sites_history?: Heptapod.Data.Ui.SiteHistoryData[],
 readonly pagination: Heptapod.Data.Ui.PaginationData,
 readonly filters: Heptapod.Data.Ui.SitesFilterData,
 readonly clients: Heptapod.Data.Ui.ClientData[],

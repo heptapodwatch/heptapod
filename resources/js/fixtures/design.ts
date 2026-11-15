@@ -237,7 +237,6 @@ export const sites: SiteDto[] = names.map((name, index) => {
                               : null,
                     uptime_parent_incident_id: null,
                     affected_checks: [],
-                    uptime_recheck_after: null,
                     held_after_recovery: false,
                     dependency_headline_key: null,
                     next_run_at: null,
@@ -443,7 +442,6 @@ export const galleryChecks: CheckDto[] = (
         open_incident_id: null,
         uptime_parent_incident_id: null,
         affected_checks: [],
-        uptime_recheck_after: null,
         held_after_recovery: false,
         dependency_headline_key: null,
         next_run_at: null,
@@ -459,10 +457,10 @@ export const galleryChecks: CheckDto[] = (
 function checkSummary(
     key: CheckKey,
     result: CheckDto['result'],
-): Pick<CheckDto, 'summary' | 'summary_params' | 'meta' | 'meta_label'> {
+): Pick<CheckDto, 'summary' | 'summary_params'> {
     const defaults: Record<
         CheckKey,
-        [string, Record<string, string | number>, string, string]
+        [string, Record<string, string | number>]
     > = {
         uptime: [
             'HTTP {{status}} · {{time}} ms',
@@ -475,8 +473,6 @@ function checkSummary(
                           ? 2400
                           : 182,
             },
-            'Retries',
-            result === 'failed' ? '2' : '0',
         ],
         performance: [
             'p95 {{time}} ms',
@@ -488,34 +484,24 @@ function checkSummary(
                           ? 2400
                           : 640,
             },
-            'Window',
-            '24h',
         ],
         certificate_health: [
             'Valid · expires in {{days}} days',
             { days: result === 'warning' ? 9 : 71 },
-            'Issuer',
-            "Let's Encrypt R11",
         ],
         domain: [
             'Expires {{date}}',
             { date: result === 'warning' ? '2026-10-09' : '2027-03-14' },
-            'Registrar',
-            'INWX',
         ],
         dns: [
             result === 'warning'
                 ? '{{changes}} records changed · {{count}} records'
                 : 'No changes · {{count}} records',
             { count: 12, changes: 2 },
-            'Last checked',
-            '',
         ],
         sitemap: [
             '{{count}} URLs · {{issues}} issues',
             { count: 412, issues: result === 'warning' ? 3 : 0 },
-            'Last checked',
-            '',
         ],
         broken_links: [
             '{{count}} broken ({{internal}} internal)',
@@ -523,16 +509,12 @@ function checkSummary(
                 count: ['failed', 'warning'].includes(result) ? 3 : 0,
                 internal: ['failed', 'warning'].includes(result) ? 2 : 0,
             },
-            'URLs scanned',
-            '412',
         ],
         mixed_content: [
             result === 'warning'
                 ? '{{count}} insecure resources'
                 : 'None found',
             { count: 3 },
-            'URLs scanned',
-            '412',
         ],
         lighthouse: [
             'Performance {{performance}} · Accessibility {{accessibility}} · Best practices {{practices}} · SEO {{seo}}',
@@ -543,40 +525,30 @@ function checkSummary(
                 practices: 96,
                 seo: 100,
             },
-            'Device',
-            'Mobile',
         ],
         cron: [
             result === 'warning'
                 ? 'Ping late by {{duration}}'
                 : 'Next run in {{duration}}',
             { duration: 240 },
-            'Last ping',
-            '',
         ],
         application_health: [
             result === 'warning'
                 ? '{{count}} checks · {{warnings}} warning'
                 : '{{count}} checks · {{warnings}} warnings',
             { count: 8, warnings: result === 'warning' ? 1 : 0 },
-            'Last checked',
-            '',
         ],
     };
-    const [summary, summary_params, meta_label, meta] = defaults[key];
+    const [summary, summary_params] = defaults[key];
     if (result === 'pending')
         return {
             summary: 'Awaiting first result',
             summary_params: {},
-            meta_label: 'Last checked',
-            meta: '—',
         };
     if (result === 'errored-or-timed-out')
         return {
             summary: 'Check timed out after {{duration}}',
             summary_params: { duration: 10 },
-            meta_label: 'Retries',
-            meta: '2',
         };
     const failures: Partial<Record<CheckKey, string>> = {
         certificate_health: 'Certificate expired',
@@ -590,8 +562,6 @@ function checkSummary(
     return {
         summary: result === 'failed' && failures[key] ? failures[key] : summary,
         summary_params,
-        meta_label,
-        meta,
     };
 }
 // Each check owns its configuration and measured quantity; none inherits HTTP fields.

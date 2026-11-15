@@ -338,6 +338,30 @@ export function responseTimeSummary(
         .join(' · ');
 }
 
+/** Expands a compact list series into sparkline points. Slots without a value or mark had no bucket and are skipped, as the list always has. */
+export function listResponsePoints(
+    series: Heptapod.Data.Ui.ListResponseSeriesData,
+): ResponsePointDto[] {
+    const start = Date.parse(series.start);
+    const marks = new Map(series.marks.map((mark) => [mark.slot, mark]));
+    return series.values.flatMap((value, slot) => {
+        const mark = marks.get(slot);
+        if (value === null && mark === undefined) return [];
+        return [
+            {
+                time: new Date(
+                    start + slot * series.step_seconds * 1000,
+                ).toISOString(),
+                value,
+                failure_count: mark?.failure_count ?? 0,
+                error_count: mark?.error_count ?? 0,
+                warning_count: mark?.warning_count ?? 0,
+                failure_status: mark?.failure_status ?? null,
+            },
+        ];
+    });
+}
+
 export function Sparkline({
     data,
     state = 'ok',

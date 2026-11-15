@@ -12,15 +12,16 @@ import {
 import { PageHeader } from '@/components/page-header';
 import { MonitoringHealthNotices } from '@/components/monitoring-health-notices';
 import { PageContainer } from '@/components/page-container';
-import { Deferred, Head, Link, router } from '@inertiajs/react';
+import { Deferred, Head, Link, router, usePage } from '@inertiajs/react';
 import { useLiveReload } from '@/hooks/use-live';
 import { useBufferedChanges } from '@/hooks/use-buffered-changes';
 import { useFlip } from '@/hooks/use-flip';
 import { PendingChanges } from '@/components/pending-changes';
 import { Globe, Plus } from 'lucide-react';
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable } from '@/components/data-table';
+import { listResponsePoints } from '@/components/monitoring';
 import { SegmentedControl } from '@/components/segmented-control';
 import { EmptyState } from '@/components/empty-state';
 import { SitesAttentionBand } from '@/components/sites-attention-band';
@@ -44,6 +45,7 @@ import {
 
 export default function SitesIndex({
     sites,
+    sites_history,
     clients,
     tags,
     summary,
@@ -58,6 +60,7 @@ export default function SitesIndex({
         ['state.changed'],
         [
             'sites',
+            'sites_history',
             'pagination',
             'summary',
             'clients',
@@ -68,6 +71,7 @@ export default function SitesIndex({
             'overallHealth',
         ],
     );
+    const page = usePage();
     const listRef = useRef<HTMLDivElement>(null);
     const { t } = useTranslation();
     const format = useFormat();
@@ -179,6 +183,21 @@ export default function SitesIndex({
             advisory: filters.advisory,
             ...changes,
         };
+        // Inertia applies an async response whenever the path matches, so a first-load deferred group still in
+        // flight would answer for the old filters and overwrite this visit's rows and URL. Cancel those loads and
+        // request their props with this visit instead.
+        const pendingDeferred = Object.values({
+            ...page.initialDeferredProps,
+            ...page.deferredProps,
+        })
+            .flat()
+            .filter(
+                (prop) =>
+                    (page.props as Record<string, unknown>)[prop] === undefined,
+            );
+        if (pendingDeferred.length > 0) {
+            router.cancelAll({ prefetch: false, sync: false });
+        }
         router.get(
             sitesIndex.url(),
             {
@@ -189,7 +208,15 @@ export default function SitesIndex({
             },
             {
                 ...searchOptions,
-                only: ['sites', 'pagination', 'filters'],
+                only: [
+                    ...new Set([
+                        'sites',
+                        'sites_history',
+                        'pagination',
+                        'filters',
+                        ...pendingDeferred,
+                    ]),
+                ],
                 preserveState: true,
                 preserveScroll: true,
             },
@@ -373,6 +400,7 @@ export default function SitesIndex({
                     {sites && (
                         <SitesList
                             sites={sites}
+                            history={sites_history}
                             clients={clients}
                             pagination={pagination}
                             hasFilters={hasFilters}
@@ -388,6 +416,7 @@ export default function SitesIndex({
 
 function SitesList({
     sites,
+    history,
     clients,
     pagination,
     hasFilters,
@@ -395,6 +424,7 @@ function SitesList({
     onSort,
 }: {
     sites: Heptapod.Data.Ui.SiteRowData[];
+    history: Heptapod.Data.Ui.SiteHistoryData[] | undefined;
     clients: Heptapod.Data.Ui.ClientData[];
     pagination: Heptapod.Data.Ui.PaginationData;
     hasFilters: boolean;
@@ -403,8 +433,23 @@ function SitesList({
 }) {
     const { t } = useTranslation();
     const format = useFormat();
+    // Merged before buffering, so a held row keeps the history it was shown with.
+    const rows = useMemo(() => {
+        if (history === undefined) return sites;
+        const byId = new Map(history.map((entry) => [entry.site_id, entry]));
+        return sites.map((site) => {
+            const entry = byId.get(site.id);
+            return entry
+                ? {
+                      ...site,
+                      uptime: entry.uptime,
+                      response: listResponsePoints(entry.response),
+                  }
+                : site;
+        });
+    }, [sites, history]);
     const buffered = useBufferedChanges(
-        sites,
+        rows,
         (site) => site.id,
         undefined,
         undefined,
@@ -425,6 +470,7 @@ function SitesList({
                         clients={clients}
                         full
                         serverMode
+                        historyLoading={history === undefined}
                         onSort={(sort) => onSort(sort)}
                         onSelect={(site) => router.visit(siteShow.url(site.id))}
                         siteHref={(site) => siteShow.url(site.id)}
