@@ -1,5 +1,6 @@
 {
     "strings": {
+        "CLA.md": ["mail@jonaslist.de"],
         ".agents/skills/testing-best-practices/rules/finding-features.md": [
             "taylor@laravel.com"
         ],
