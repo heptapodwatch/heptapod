@@ -377,14 +377,15 @@ final readonly class SitesReader
             }
         }
 
-        return $this->projectRows($sites, $includeHistory, $includePresentations, $this->noResultFreshness->snapshot($notFresh, $at));
+        return $this->projectRows($sites, $includeHistory, $includePresentations, $this->noResultFreshness->snapshot($notFresh, $at), array_fill_keys($notFresh->modelKeys(), true));
     }
 
     /**
      * @param  EloquentCollection<int, Site>  $sites
+     * @param  array<array-key, true>  $notFreshIds
      * @return list<SiteRowProjection>
      */
-    private function projectRows(EloquentCollection $sites, bool $includeHistory, bool $includePresentations, FreshnessSnapshot $freshness): array
+    private function projectRows(EloquentCollection $sites, bool $includeHistory, bool $includePresentations, FreshnessSnapshot $freshness, array $notFreshIds): array
     {
         $at = $freshness->at;
         $incidentIds = [];
@@ -476,7 +477,7 @@ final readonly class SitesReader
                     ];
                 }
                 $metadata = $checkMetadata[$key->value];
-                $notFresh = $this->freshness->state($check, $at)->state === 'not_fresh';
+                $notFresh = isset($notFreshIds[$checkId]);
                 /** @var string $nextRunAt */
                 $nextRunAt = $check->getRawOriginal('next_run_at');
                 // CheckStripData remains the authority for the derived check state.

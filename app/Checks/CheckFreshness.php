@@ -29,7 +29,7 @@ final readonly class CheckFreshness
         $site = $check->site ?? throw new LogicException('Freshness requires an existing site.');
 
         return $check->enabled && $site->paused_at === null && $site->marked_for_deletion_at === null
-            && ! in_array($check->type, $this->registry->unavailableKeys(), true);
+            && $this->registry->availability($check->type)->reason === null;
     }
 
     public function state(Check $check, CarbonImmutable $now): CheckFreshnessData
