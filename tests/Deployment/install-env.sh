@@ -242,6 +242,27 @@ PATH="$PWD/failing-ps:$PATH" ./scripts/install.sh --domain monitor.example.com >
 [ ! -e .env.prod ]
 grep -Fq 'Cannot connect to the Docker daemon' foreign.log
 printf 'PASS: a fresh install refuses an existing Compose project (volume, unlabelled container) and stops when containers cannot be listed\n'
+# A host port held by another service is named with both ways out; once it is free, the printed recovery block starts
+# the half-created installation.
+conflict_port=${INSTALL_ENV_CONFLICT_PORT:-18391}
+printf "services:\n    app:\n        ports: ['127.0.0.1:%s:8080']\n" "$conflict_port" > port.yaml
+docker run -d --name "${COMPOSE_PROJECT_NAME}-port-holder" -p "127.0.0.1:$conflict_port:8080" alpine:3 sleep 300 > /dev/null
+status=0
+COMPOSE_FILE="$COMPOSE_FILE:$fresh/port.yaml" ./scripts/install.sh --domain monitor.example.com > port.log 2>&1 || status=$?
+docker rm -f "${COMPOSE_PROJECT_NAME}-port-holder" > /dev/null
+[ "$status" != 0 ] || { cat port.log >&2; exit 1; }
+grep -Fqx "Host port $conflict_port is already in use by another service (for example a web server or Tailscale Serve)." port.log || { cat port.log >&2; exit 1; }
+grep -Fq 'installer again with --behind-proxy --port <free port>' port.log
+grep -Fqx "       cd '$PWD' && docker compose --env-file .env.prod down -v && rm .env.prod" port.log
+grep -Fq 'https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy' port.log
+# The fixture app has no PHP, so the recovery block runs up to its health wait, not the Owner step.
+sed -n '/^# BEGIN INSTALL RECOVERY$/,/^) # END INSTALL RECOVERY$/p' port.log | sed '/create-owner\|Owner email/d' > port-recovery.sh
+grep -q 'up -d --wait' port-recovery.sh
+sh port-recovery.sh > port-recovered.log 2>&1 || { cat port-recovered.log >&2; exit 1; }
+[ -n "$(dc ps -q --status running app)" ]
+dc down -v
+rm .env.prod
+printf 'PASS: a taken host port is named with both ways out; the printed recovery block starts the installation once it is free\n'
 ./scripts/install.sh --domain monitor.example.com --app-url https://monitor.example.com:8443
 [ "$(resolved APP_URL)" = https://monitor.example.com:8443 ]
 cp .env.prod before.env

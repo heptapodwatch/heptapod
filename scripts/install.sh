@@ -40,10 +40,13 @@ Options:
   --revision SHA      Full published commit SHA for an export without Git.
   -h, --help          Show this help without changing configuration or services.
 
-Fresh installation requires a clean Git checkout of a published main commit,
-or a release export with --revision set to that release's full commit SHA,
-registry access, and at least 12 GiB free on the Docker data filesystem:
-6 GiB for image download/unpacking and 6 GiB for backup headroom.
+Fresh installation requires a Git checkout without changes to tracked files
+whose commit has published images in the registry (a release tag or a main
+commit), or a release export with --revision set to that release's full commit
+SHA; registry access to pull those images; and at least 12 GiB free on the
+Docker data filesystem: 6 GiB for image download/unpacking and 6 GiB for
+backup headroom. The default mode publishes host ports 80 and 443; if another
+service holds them, use --behind-proxy.
 HELP
             exit 0
             ;;
@@ -325,7 +328,40 @@ release_checkout "$revision"
 resolve_release_images "$browser"
 pin_release_images
 require_worker_memory
-docker compose --env-file .env.prod up -d --wait --wait-timeout 300
+# Compose output stays live; the copy lets a host port conflict end with a clear message instead of Docker's raw error.
+compose_up_log=$(mktemp)
+compose_up_status=$({ { docker compose --env-file .env.prod up -d --wait --wait-timeout 300 2>&1 || echo "$?" >&4; } | tee "$compose_up_log" >&2; } 4>&1)
+if [ -n "$compose_up_status" ]; then
+    # Docker Engine: "failed to bind host port 0.0.0.0:80/tcp: address already in use" or "Bind for 0.0.0.0:80 failed:
+    # port is already allocated"; rootless Podman: "listen tcp 0.0.0.0:80: bind: address already in use".
+    busy_port=$(sed -n -e 's/.*[^0-9]\([0-9][0-9]*\) failed: port is already allocated.*/\1/p' \
+        -e 's/.*[^0-9]\([0-9][0-9]*\)\(\/tcp\)\{0,1\}\(: bind\)\{0,1\}: address already in use.*/\1/p' "$compose_up_log" | head -n 1)
+    rm -f "$compose_up_log"
+    if [ -n "$busy_port" ] && [ "$behind_proxy" = 0 ]; then
+        {
+            echo
+            echo "Host port $busy_port is already in use by another service (for example a web server or Tailscale Serve)."
+            echo 'The default mode publishes ports 80 and 443 itself for HTTPS and needs both free. Either:'
+            echo '  1. Stop the other service so ports 80 and 443 are free, then paste the recovery block below.'
+            echo '  2. Or keep your own proxy in front: remove this unfinished installation (it holds no data yet), then run the'
+            echo '     installer again with --behind-proxy --port <free port> and forward HTTPS from your proxy to that port:'
+            printf '       cd %s && docker compose --env-file .env.prod down -v && rm .env.prod\n' "$(shell_quote "$PWD")"
+            echo '     https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy'
+            echo
+        } >&2
+    fi
+    exit "$compose_up_status"
+fi
+rm -f "$compose_up_log"
+if [ "$behind_proxy" = 1 ]; then
+    # The proxy's connection reaches the app from an address in one of the app's networks; on rootless Podman it is the
+    # container's own, changing IP. So the hint trusts the subnets, never one IP, and is printed, not written.
+    trusted_subnets=$(docker inspect --format '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' "$(docker compose --env-file .env.prod ps -q app)" |
+        xargs docker network inspect --format '{{range .IPAM.Config}}{{println .Subnet}}{{end}}' | awk NF | paste -sd, -)
+    echo "Behind your proxy, signed links (email verification) fail until the app trusts the proxy's HTTPS headers. Your proxy reaches the app from inside this installation's Docker networks. To trust them, run:"
+    printf "  sed -i 's|^TRUSTED_PROXIES=.*|TRUSTED_PROXIES=%s|' .env.prod && docker compose --env-file .env.prod up -d --wait\n" "$trusted_subnets"
+    echo "Check: after one request through your proxy, docker compose --env-file .env.prod logs app | grep -o '\"remote_ip\":\"[^\"]*\"' | tail -n 1 shows an address in these subnets. Recheck after 'docker compose down'; recreated networks can get new subnets."
+fi
 if [ -z "$owner_email" ] && [ -t 0 ]; then
     printf 'Owner email (empty to create later): '
     IFS= read -r owner_email

@@ -22,7 +22,7 @@ This page adds the Hetzner Cloud specifics to the [install guide](https://heptap
 2. In the Hetzner firewall, allow inbound TCP 22, 80 and 443 only.
 3. Point a DNS A record at the server. Add AAAA only with working IPv6.
 
-Caddy handles TLS on its own.
+Caddy handles TLS on its own. The default mode needs host ports 80 and 443 free. If another service holds them (another web server, Tailscale Serve), use `--behind-proxy`.
 
 ## Install with the one-line installer
 
@@ -62,7 +62,7 @@ docker ps
 ```
 
 - Continue only when `docker ps` works without sudo.
-- Docker Compose v5 is required (tested 5.1.2). `docker compose config --help` must list `--environment`. The installer checks this.
+- Docker Compose v5 is required (newest version we verified: 5.7.0). `docker compose config --help` must list `--environment`. The installer checks this.
 - For a release bundle without Git, use the [export installation command](operations.md#install-a-release-export-without-git).
 
 ## Recover a failed first install
