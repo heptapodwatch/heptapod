@@ -3,7 +3,7 @@ title: Hetzner deployment
 description: Server sizes and steps for a Hetzner Cloud installation.
 ---
 
-This page adds the Hetzner Cloud specifics to the [install guide](https://heptapod.watch/docs/getting-started/install/): server type, firewall, Docker on a fresh Ubuntu VPS and recovery from a failed first install.
+This page adds the Hetzner Cloud specifics to the [install guide](https://heptapod.watch/docs/getting-started/install/): server type, firewall, Docker on a fresh Ubuntu VPS, other Linux distributions and recovery from a failed first install.
 
 ## Server types
 
@@ -22,7 +22,7 @@ This page adds the Hetzner Cloud specifics to the [install guide](https://heptap
 2. In the Hetzner firewall, allow inbound TCP 22, 80 and 443 only.
 3. Point a DNS A record at the server. Add AAAA only with working IPv6.
 
-Caddy handles TLS on its own. The default mode needs host ports 80 and 443 free. If another service holds them (another web server, Tailscale Serve), use `--behind-proxy`.
+Caddy handles TLS on its own. The default mode needs host ports 80 and 443 free. If another web server or proxy holds them, use `--behind-proxy`.
 
 ## Install with the one-line installer
 
@@ -64,6 +64,51 @@ docker ps
 - Continue only when `docker ps` works without sudo.
 - Docker Compose v5 is required (newest version we verified: 5.7.0). `docker compose config --help` must list `--environment`. The installer checks this.
 - For a release bundle without Git, use the [export installation command](operations.md#install-a-release-export-without-git).
+
+## Other Linux distributions
+
+The one-line installer is tested on Ubuntu and Debian. On another Linux distribution it installs once Docker is there, and prints that the distribution is not tested. It does not install Docker there: `--install-docker` uses Docker's apt repository.
+
+Requirements:
+
+- An amd64 (x86_64) or arm64 (aarch64) server.
+- Docker Engine with Docker Compose v5.
+- Bash, curl, tar, gzip, awk, grep, sed, OpenSSL and jq.
+- coreutils (including sha256sum, df and sync), findutils (find and xargs), and flock (util-linux).
+- Git for the Git checkout path.
+- Host ports 80 and 443 free. If another web server or proxy holds them, use `--behind-proxy`.
+
+Install Docker Engine for your distribution from [Docker's install guide](https://docs.docker.com/engine/install/), then start it and check both versions:
+
+```sh
+sudo systemctl enable --now docker
+sudo docker version
+sudo docker compose version
+```
+
+`docker compose version` must report version 5. The installer checks for the required `config --environment` option.
+
+Then install with one of these paths. Add `--without-browser` on a 4 GB server.
+
+- The one-line installer, as root, into `/opt/heptapod`:
+
+    ```sh
+    curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --domain monitor.example.com --owner-email you@example.com
+    ```
+
+- A Git checkout, as a user in the `docker` group. Replace `vX.Y.Z` with the current tag from the [releases page](https://github.com/heptapodwatch/heptapod/releases):
+
+    ```sh
+    RELEASE_TAG='vX.Y.Z'
+    git clone --depth 1 --branch "$RELEASE_TAG" https://github.com/heptapodwatch/heptapod.git "$HOME/heptapod" && cd "$HOME/heptapod" && ./scripts/install.sh --domain monitor.example.com --owner-email you@example.com
+    ```
+
+Rootless containers and SELinux:
+
+- For rootless Docker, use the Git checkout path as the user running Docker, without sudo. Rootless Docker cannot publish ports below 1024 by default. Add `--behind-proxy --port 8380` and let your [reverse proxy](https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy) serve HTTPS.
+- Behind a proxy, set `TRUSTED_PROXIES` to the line the installer prints. It lists the subnets of the installation's Docker networks, because the address the app sees for your proxy can change when a container is recreated.
+- Use Docker Engine, not Podman, for installation. Podman can report multiple digests for a release image, which the installer refuses to pin.
+- The shipped production configuration uses named Docker volumes, not host bind mounts, so it needs no host-directory relabelling. If you add bind mounts on SELinux, label them for container access; do not disable SELinux.
 
 ## Recover a failed first install
 

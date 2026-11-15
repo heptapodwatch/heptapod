@@ -135,7 +135,7 @@ The installation directory keeps `.env.prod` and `.heptapod/` (lifecycle state a
 
 ### Install from a Git checkout
 
-Any Linux host with Docker Engine, Docker Compose v5 (newest version we verified: 5.7.0), Git and OpenSSL works; the one-line installer is the only part limited to Ubuntu and Debian. The [fresh Ubuntu VPS prerequisites](hetzner.md#fresh-vps-prerequisites) show one way to install them.
+Any Linux host with Docker Engine, Docker Compose v5 (newest version we verified: 5.7.0), Git and OpenSSL works. The [fresh Ubuntu VPS prerequisites](hetzner.md#fresh-vps-prerequisites) show one way to install them; [other Linux distributions](hetzner.md#other-linux-distributions) lists the requirements and Docker checks for the rest. The one-line installer also runs there once Docker is installed; only `--install-docker` needs Ubuntu or Debian.
 
 The default mode needs host ports 80 and 443 free. If another service holds them (another web server, Tailscale Serve), install [behind your own reverse proxy](#behind-an-existing-reverse-proxy) with `--behind-proxy` instead.
 
@@ -174,7 +174,7 @@ for entry in $(sed 's|^\./||; s|/.*||' current/MANIFEST | sort -u); do ln -s "cu
 
 A Git checkout still selects its own HEAD and requires a clean tree. In an export, missing revision information fails with a recovery block that accepts the full SHA without Git. If image access fails, fix it and paste the complete printed recovery block; it retains `--revision`'s value and pins verified image digests before startup. If no revision was supplied, replace the marked SHA placeholder first. Rerunning the installer with the original flags only validates the existing configuration and prints the next step; it does not start services. Subsequent `scripts/upgrade.sh` upgrades need this release folder layout or a Git checkout; a bundle unpacked anywhere else refuses to run.
 
-If a host port is already in use, the installer names the port and stops. Free ports 80 and 443 and paste the recovery block, or remove the unfinished installation as the message shows (`docker compose --env-file .env.prod down -v && rm .env.prod`; it holds no data yet) and install again with `--behind-proxy`.
+In the default mode a fresh installation first checks with `ss -Htln` that nothing listens on port 80 or 443 (or `HTTP_PORT`/`HTTPS_PORT`), on any IPv4 or IPv6 address. If a port is taken, it names the port and stops before it writes `.env.prod` or creates a container or volume; free the port or add `--behind-proxy --port 8380` and run the same command again. Without `ss` the check is skipped and Docker reports the conflict at startup.
 
 If the first installation fails before the app starts, the installer prints a complete recovery block ending in `# END INSTALL RECOVERY`. Fix the image-access, network or port error, then paste that whole block: it resolves and pins the verified release images before it starts services and creates the Owner. Do not run a plain `docker compose up` instead; until the images are pinned, the production defaults select the moving `:main` images. Rerunning the installer with the original flags starts nothing and prints the same block again while no release image is pinned. Only an installation whose images are already pinned and that is stopped starts with the commands below, which the rerun then prints. Replace the email; create the first Owner only after the health wait succeeds:
 

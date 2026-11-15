@@ -6,7 +6,11 @@ fresh=$(mktemp -d)
 export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-prod-env-test}"
 export COMPOSE_FILE="$fresh/compose.yaml"
 unset APP_KEY DB_PASSWORD BACKUP_ARCHIVE_PASSWORD APP_URL SERVER_NAME HEPTAPOD_BROWSER_ENABLED COMPOSE_PROFILES
-mkdir "$fresh/scripts"
+mkdir "$fresh/scripts" "$fresh/ss-bin"
+# Host listeners never decide these installs: the port preflight reads STUB_SS_LISTENERS (lines as ss -Htln prints them).
+printf '#!/bin/sh\nprintf "%%s" "${STUB_SS_LISTENERS:-}"\n' > "$fresh/ss-bin/ss"
+chmod +x "$fresh/ss-bin/ss"
+export PATH="$fresh/ss-bin:$PATH"
 cp "$root/scripts/install.sh" "$root/scripts/check-disk.sh" "$root/scripts/lifecycle-lock.sh" "$root/scripts/release-image.sh" "$root/scripts/image-reference.sh" "$root/scripts/worker-memory-preflight.sh" "$fresh/scripts/"
 # shellcheck source=tests/Deployment/release-fixture.sh
 . "$root/tests/Deployment/release-fixture.sh"
@@ -242,27 +246,41 @@ PATH="$PWD/failing-ps:$PATH" ./scripts/install.sh --domain monitor.example.com >
 [ ! -e .env.prod ]
 grep -Fq 'Cannot connect to the Docker daemon' foreign.log
 printf 'PASS: a fresh install refuses an existing Compose project (volume, unlabelled container) and stops when containers cannot be listed\n'
-# A host port held by another service is named with both ways out; once it is free, the printed recovery block starts
-# the half-created installation.
-conflict_port=${INSTALL_ENV_CONFLICT_PORT:-18391}
-printf "services:\n    app:\n        ports: ['127.0.0.1:%s:8080']\n" "$conflict_port" > port.yaml
-docker run -d --name "${COMPOSE_PROJECT_NAME}-port-holder" -p "127.0.0.1:$conflict_port:8080" alpine:3 sleep 300 > /dev/null
-status=0
-COMPOSE_FILE="$COMPOSE_FILE:$fresh/port.yaml" ./scripts/install.sh --domain monitor.example.com > port.log 2>&1 || status=$?
-docker rm -f "${COMPOSE_PROJECT_NAME}-port-holder" > /dev/null
-[ "$status" != 0 ] || { cat port.log >&2; exit 1; }
-grep -Fqx "Host port $conflict_port is already in use by another service (for example a web server or Tailscale Serve)." port.log || { cat port.log >&2; exit 1; }
-grep -Fq 'installer again with --behind-proxy --port <free port>' port.log
-grep -Fqx "       cd '$PWD' && docker compose --env-file .env.prod down -v && rm .env.prod" port.log
-grep -Fq 'https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy' port.log
-# The fixture app has no PHP, so the recovery block runs up to its health wait, not the Owner step.
-sed -n '/^# BEGIN INSTALL RECOVERY$/,/^) # END INSTALL RECOVERY$/p' port.log | sed '/create-owner\|Owner email/d' > port-recovery.sh
-grep -q 'up -d --wait' port-recovery.sh
-sh port-recovery.sh > port-recovered.log 2>&1 || { cat port-recovered.log >&2; exit 1; }
-[ -n "$(dc ps -q --status running app)" ]
+# A listener on 80 or 443, on any IPv4 or IPv6 address, stops a fresh TLS install before anything exists: no .env.prod,
+# no container, no volume. Listeners on other ports do not count.
+rm -rf .heptapod
+for listener in '0.0.0.0:80 0.0.0.0:*|80' '[::]:443 [::]:*|443' '100.64.0.1:443 0.0.0.0:*|443' '*:80 *:*|80'; do
+    status=0
+    STUB_SS_LISTENERS="LISTEN 0 4096 127.0.0.1:8443 0.0.0.0:*
+LISTEN 0 4096 ${listener%|*}
+" ./scripts/install.sh --domain monitor.example.com > port.log 2>&1 || status=$?
+    [ "$status" != 0 ] || { cat port.log >&2; exit 1; }
+    [ ! -e .heptapod ]
+    grep -Fq "Port ${listener#*|} is already in use on this host" port.log || { cat port.log >&2; exit 1; }
+    grep -Fq "rerun your install command with --behind-proxy --port 8380 added" port.log
+    grep -Fq 'https://heptapod.watch/docs/getting-started/install/#behind-an-existing-reverse-proxy' port.log
+    [ ! -e .env.prod ]
+    [ -z "$(docker ps -aq --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME")" ]
+    [ -z "$(docker volume ls -q --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME")" ]
+done
+STUB_SS_LISTENERS='LISTEN 0 4096 0.0.0.0:8080 0.0.0.0:*
+LISTEN 0 4096 [::]:4430 [::]:*
+LISTEN 0 4096 127.0.0.1:1443 0.0.0.0:*
+' ./scripts/install.sh --domain monitor.example.com > port.log 2>&1 || { cat port.log >&2; exit 1; }
 dc down -v
 rm .env.prod
-printf 'PASS: a taken host port is named with both ways out; the printed recovery block starts the installation once it is free\n'
+printf 'PASS: a listener on port 80 or 443 (IPv4, IPv6, any address) stops a fresh install before anything is created; other ports do not\n'
+# A host without the optional ss tool still installs; keep the real Docker/Compose entry point.
+mkdir no-ss
+for tool in awk bash cat chmod df dirname docker flock git grep head id mkdir mktemp mv openssl podman readlink rm sed sh stat sync tr wc; do
+    if tool_path=$(command -v "$tool"); then ln -s "$tool_path" "no-ss/$tool"; fi
+done
+PATH="$fresh/no-ss" ./scripts/install.sh --domain monitor.example.com > no-ss.log 2>&1 || { cat no-ss.log >&2; exit 1; }
+[ -n "$(dc ps -q --status running app)" ]
+if grep -q 'ss:.*not found' no-ss.log; then cat no-ss.log >&2; exit 1; fi
+dc down -v
+rm .env.prod
+printf 'PASS: a host without ss installs without a missing-command warning\n'
 ./scripts/install.sh --domain monitor.example.com --app-url https://monitor.example.com:8443
 [ "$(resolved APP_URL)" = https://monitor.example.com:8443 ]
 cp .env.prod before.env

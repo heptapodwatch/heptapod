@@ -75,7 +75,9 @@ else
     exec "$REAL_DF" "$@"
 fi
 SH
-chmod +x "$fresh/bin/docker" "$fresh/bin/git" "$fresh/bin/df"
+# No host listeners: the install port preflight must not depend on what this host serves on 80/443.
+printf '#!/bin/sh\n' > "$fresh/bin/ss"
+chmod +x "$fresh/bin/docker" "$fresh/bin/git" "$fresh/bin/df" "$fresh/bin/ss"
 export PATH="$fresh/bin:$PATH"
 cd "$fresh"
 # shellcheck source=scripts/lifecycle-lock.sh
@@ -312,7 +314,7 @@ grep -q 'Unset exported LIGHTHOUSE_IMAGE' empty-lighthouse-export.log
 if grep -q 'php artisan down\|backup:run' docker-operations.log; then exit 1; fi
 cmp failure-before.env .env.prod
 if STUB_DIRTY=true env -u COMPOSE_FILE ./scripts/upgrade.sh > dirty.log 2>&1; then exit 1; fi
-grep -q 'Dirty checkout has no published image; use --build' dirty.log
+grep -q 'Dirty checkout has no published image; inspect git diff' dirty.log
 # All lifecycle entry points share the lock.
 flock "$fresh/$lifecycle_dir/lifecycle.lock" sh -c 'touch lock-held; sleep 5' &
 lock_pid=$!

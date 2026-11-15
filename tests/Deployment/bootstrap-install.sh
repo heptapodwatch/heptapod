@@ -46,7 +46,7 @@ exit 1
 SH
 chmod +x "$work/bin/apt-get" "$work/bin/id" "$work/bin/uname" "$work/bin/docker" "$work/bin/flock" "$work/bin/stat" "$work/bin/mv"
 printf 'ID=ubuntu\nVERSION_CODENAME=noble\n' > "$work/ubuntu"
-printf 'ID=fedora\n' > "$work/fedora"
+printf 'ID=fedora\nPRETTY_NAME="Fedora Linux 44"\n' > "$work/fedora"
 REAL_FLOCK=$(command -v flock)
 REAL_STAT=$(command -v stat)
 REAL_MV=$(command -v mv)
@@ -141,7 +141,7 @@ published() {
 }
 
 bootstrap --help | grep -Fq 'Usage: curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --domain'
-refuses 'Usage: curl -fsSL' --dir "$work/a"
+refuses '--domain is required. Run: curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- --domain monitor.example.com.' --dir "$work/a"
 refuses 'Unknown argument: --revision' --domain a.example.com --revision 1111111111111111111111111111111111111111
 refuses '--owner-email requires a value' --domain a.example.com --owner-email
 refuses 'Invalid --version main' --domain a.example.com --version main
@@ -150,9 +150,8 @@ refuses '--dir must be an absolute path' --domain a.example.com --dir relative
 STUB_UID=1000 refuses 'Run as root' --domain a.example.com --dir "$work/a"
 # A Mac has no /etc/os-release and usually no sudo yet: the hint must come before the root and OS checks.
 STUB_KERNEL=Darwin STUB_UID=501 HEPTAPOD_OS_RELEASE="$work/missing" refuses 'not this Mac. Connect to your server over SSH and run the command there. Install guide: https://heptapod.watch/docs/getting-started/install/' --domain a.example.com --dir "$work/a"
-HEPTAPOD_OS_RELEASE="$work/fedora" refuses "Unsupported operating system 'fedora'" --domain a.example.com --dir "$work/a"
-STUB_ARCH=armv7l refuses 'Unsupported architecture armv7l: Heptapod publishes images for amd64 (x86_64) and arm64 (aarch64).' --domain a.example.com --dir "$work/a"
-STUB_ARCH=aarch64 refuses 'Heptapod v0.4.0 has no arm64 images; they exist from v0.5.0 on. Pass --version with a newer release' --domain a.example.com --version v0.4.0 --dir "$work/a"
+STUB_ARCH=armv7l refuses 'Unsupported architecture armv7l: Heptapod publishes images for amd64 (x86_64) and arm64 (aarch64) only.' --domain a.example.com --dir "$work/a"
+STUB_ARCH=aarch64 refuses 'Heptapod v0.4.0 has no arm64 images; they exist from v0.5.0 on. Pass a newer release' --domain a.example.com --version v0.4.0 --dir "$work/a"
 printf '{"tag_name": "v0.4.0"}' > "$work/api/releases/latest"
 STUB_ARCH=aarch64 refuses 'Heptapod v0.4.0 has no arm64 images' --domain a.example.com --dir "$work/a"
 STUB_NO_DOCKER=true STUB_ARCH=aarch64 refuses 'Heptapod v0.4.0 has no arm64 images' --install-docker --domain a.example.com --dir "$work/a"
@@ -160,7 +159,7 @@ STUB_NO_DOCKER=true STUB_ARCH=aarch64 refuses 'Heptapod v0.4.0 has no arm64 imag
 printf '{\n  "url": "fixture",\n  "tag_name": "v2.0.0",\n  "name": "Heptapod v2.0.0"\n}\n' > "$work/api/releases/latest"
 [ ! -e "$work/a" ]
 [ ! -e "$work/install.log" ]
-printf 'PASS: argument, root, OS and architecture errors, and an arm64 host with a release before v0.5.0, stop before any download or write\n'
+printf 'PASS: argument, root and architecture errors, and an arm64 host with a release before v0.5.0, stop before any download or write\n'
 
 STUB_ARCH=aarch64 bootstrap --domain arm.example.com --version v0.5.0 --dir "$work/arm" < /dev/null > /dev/null
 published "$work/arm" v0.5.0
@@ -173,6 +172,38 @@ STUB_NO_DOCKER=true refuses "curl -fsSL https://heptapod.watch/install.sh | sudo
     --domain a.example.com --owner-email you@example.com --dir "$work/a"
 [ ! -e "$work/a" ]
 printf 'PASS: missing Docker prints the exact --install-docker rerun and changes nothing\n'
+# Other distributions: Docker is never installed without Docker's apt repository; with Docker present the install
+# continues with a one-line note.
+for docker_flag in --install-docker ''; do
+    # shellcheck disable=SC2086 # an empty flag is no argument
+    STUB_NO_DOCKER=true HEPTAPOD_OS_RELEASE="$work/fedora" refuses 'Docker Engine with Compose v5 is required, and on Fedora Linux 44 this installer cannot install it' \
+        $docker_flag --domain a.example.com --dir "$work/a"
+    grep -Fq 'https://docs.docker.com/engine/install/' "$work/out.log"
+    grep -Fq 'https://heptapod.watch/docs/running-it/hetzner/#other-linux-distributions' "$work/out.log"
+done
+[ ! -e "$work/apt-get.log" ]
+[ ! -e "$work/a" ]
+HEPTAPOD_OS_RELEASE="$work/fedora" bootstrap --domain fedora.example.com --version v1.0.0 --dir "$work/fedora-install" < /dev/null > "$work/fedora.log"
+grep -Fxq 'Fedora Linux 44 is not tested; Ubuntu and Debian are.' "$work/fedora.log"
+published "$work/fedora-install" v1.0.0
+bootstrap --domain ubuntu.example.com --version v1.0.0 --dir "$work/ubuntu-install" < /dev/null > "$work/ubuntu.log"
+if grep -q 'is not tested' "$work/ubuntu.log"; then echo 'Ubuntu got the not-tested note' >&2; exit 1; fi
+printf 'PASS: another distribution without Docker is refused untouched, also with --install-docker; with Docker it installs with a not-tested note\n'
+
+# No apt and no jq: name the missing executable, not an apt command the operator cannot run.
+mkdir "$work/no-apt"
+for tool in bash curl tar gzip sha256sum flock openssl; do
+    ln -s "$(command -v "$tool")" "$work/no-apt/$tool"
+done
+for tool in id uname docker; do ln -s "$work/bin/$tool" "$work/no-apt/$tool"; done
+status=0
+PATH="$work/no-apt" HEPTAPOD_OS_RELEASE="$work/fedora" bash "$root/scripts/bootstrap-install.sh" --domain a.example.com --version v1.0.0 --dir "$work/a" > "$work/no-apt.log" 2>&1 || status=$?
+[ "$status" != 0 ]
+grep -Fq 'Missing required tools: jq. Install them with your package manager' "$work/no-apt.log"
+grep -Fq 'https://heptapod.watch/docs/running-it/hetzner/#other-linux-distributions' "$work/no-apt.log"
+if grep -q 'apt-get' "$work/no-apt.log"; then cat "$work/no-apt.log" >&2; exit 1; fi
+[ ! -e "$work/a" ]
+printf 'PASS: missing tools without apt are named with distribution-neutral instructions before any write\n'
 
 bootstrap --domain a.example.com --without-browser --owner-email you@example.com --dir "$work/a" < /dev/null > "$work/latest.log"
 grep -Fxq 'a held --revision 2222222222222222222222222222222222222222 --domain a.example.com --without-browser --owner-email you@example.com' "$work/install.log"
@@ -302,7 +333,7 @@ for hostile in v4.0.0 v5.0.0 v6.0.0 v7.0.0 v8.0.0 v8.1.0; do
     [ ! -e "$work/d/.env.prod" ]
     [ ! -s "$work/d/.heptapod/lifecycle.lock" ]
 done
-refuses 'Publishing v0.1.1 failed (see above); a release older than the release folder layout cannot be installed with this installer.' --domain d.example.com --version v0.1.1 --dir "$work/d"
+refuses 'Publishing v0.1.1 failed (see above); v0.1.1 and earlier predate release folders and cannot be installed with this installer.' --domain d.example.com --version v0.1.1 --dir "$work/d"
 unpublished "$work/d"
 refuses "Cannot download file://$work/release/v9.9.9/heptapod-v9.9.9.tar.gz" --domain d.example.com --version v9.9.9 --dir "$work/d"
 printf '{"tag_name": "main"}' > "$work/api/releases/latest"

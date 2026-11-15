@@ -7,7 +7,11 @@ root=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 base_app=$APP_IMAGE
 fresh=$(mktemp -d)
 evidence=${OPS_EVIDENCE_DIR:-$(mktemp -d)}
-mkdir -p "$evidence" "$fresh/scripts" "$fresh/bin"
+mkdir -p "$evidence" "$fresh/scripts" "$fresh/bin" "$fresh/ss-bin"
+# No host listeners: the install port preflight must not depend on what this host serves on 80/443.
+printf '#!/bin/sh\n' > "$fresh/ss-bin/ss"
+chmod +x "$fresh/ss-bin/ss"
+export PATH="$fresh/ss-bin:$PATH"
 export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-ops-upgrade-recovery}"
 port=${RECOVERY_PORT:-21700}
 unset APP_IMAGE LIGHTHOUSE_IMAGE APP_KEY DB_PASSWORD BACKUP_ARCHIVE_PASSWORD APP_URL SERVER_NAME COMPOSE_FILE COMPOSE_PROFILES HEPTAPOD_BROWSER_ENABLED HTTP_PORT HTTPS_PORT
