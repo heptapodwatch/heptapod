@@ -57,7 +57,7 @@ final class SitesIndexController extends Controller
         $attention = null;
         $readAttention = static function () use ($reader, $user, $partial, $readIndex, &$attention): array {
             return $attention ??= $partial ? $reader->attention($user) : [
-                'rows' => $reader->rowPayloads($readIndex()['attention'], includeHistory: false, includePresentations: true),
+                'rows' => $reader->attentionRowPayloads($readIndex()['attention']),
                 'total' => $readIndex()['summary']->attention,
             ];
         };

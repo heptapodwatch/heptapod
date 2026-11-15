@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Queries;
 
 use Carbon\CarbonImmutable;
+use Closure;
 use DateTimeImmutable;
 use DateTimeZone;
 use Heptapod\Checks\CauseSummary;
@@ -172,7 +173,7 @@ final readonly class SitesReader
         $attention = $this->attentionQuery($this->projected($user));
         $total = (clone $attention)->getQuery()->count();
 
-        return ['rows' => $this->rowPayloads($attention->get(), includeHistory: false, includePresentations: true), 'total' => $total];
+        return ['rows' => $this->attentionRowPayloads($attention->get()), 'total' => $total];
     }
 
     /** @return LengthAwarePaginator<int, Site> */
@@ -386,6 +387,31 @@ final readonly class SitesReader
      */
     public function rowPayloads(Collection $sites, bool $includeHistory = true, bool $includePresentations = false): array
     {
+        return $this->payloads($sites, $includeHistory, $includePresentations ? static fn (): bool => true : null);
+    }
+
+    /**
+     * Rows of the Sites attention band. The band shows the headline of one check per site: the uptime check of a
+     * down site, a check with an open incident, or a check with a non-OK result (the SitesAttentionBand component). Only
+     * those checks get a presentation; it is the costly part of a row.
+     *
+     * @param  Collection<int, Site>  $sites  Sites from projected(), never an unscoped model collection.
+     * @return list<SiteRowProjection>
+     */
+    public function attentionRowPayloads(Collection $sites): array
+    {
+        return $this->payloads($sites, false, static fn (Check $check, ?Incident $incident, Site $site): bool => $incident instanceof Incident
+            || in_array($check->latest_run_result, [CheckResult::Warning, CheckResult::Failed, CheckResult::Errored], true)
+            || ($check->type === CheckKey::Uptime && $site->getAttribute('state') === SiteStatus::Down->value));
+    }
+
+    /**
+     * @param  Collection<int, Site>  $sites
+     * @param  (Closure(Check, ?Incident, Site): bool)|null  $presents  Which checks get a presentation; null: none, and no presentation key.
+     * @return list<SiteRowProjection>
+     */
+    private function payloads(Collection $sites, bool $includeHistory, ?Closure $presents): array
+    {
         $sites = new EloquentCollection($sites->all());
         $sites->load(['tags', 'checks.snoozes' => function (Relation $relation): void {
             $relation->getQuery()->getQuery()->whereNull('component_type')->whereNull('unsnoozed_at')->where('starts_at', '<=', now()->format('Y-m-d H:i:s.uP'))->where('ends_at', '>', now()->format('Y-m-d H:i:s.uP'));
@@ -403,15 +429,16 @@ final readonly class SitesReader
             }
         }
 
-        return $this->projectRows($sites, $includeHistory, $includePresentations, $this->noResultFreshness->snapshot($notFresh, $at), array_fill_keys($notFresh->modelKeys(), true));
+        return $this->projectRows($sites, $includeHistory, $presents, $this->noResultFreshness->snapshot($notFresh, $at), array_fill_keys($notFresh->modelKeys(), true));
     }
 
     /**
      * @param  EloquentCollection<int, Site>  $sites
+     * @param  (Closure(Check, ?Incident, Site): bool)|null  $presents
      * @param  array<array-key, true>  $notFreshIds
      * @return list<SiteRowProjection>
      */
-    private function projectRows(EloquentCollection $sites, bool $includeHistory, bool $includePresentations, FreshnessSnapshot $freshness, array $notFreshIds): array
+    private function projectRows(EloquentCollection $sites, bool $includeHistory, ?Closure $presents, FreshnessSnapshot $freshness, array $notFreshIds): array
     {
         $at = $freshness->at;
         $incidentIds = [];
@@ -486,7 +513,7 @@ final readonly class SitesReader
                 $run = $runs->get($checkId);
                 $summary = $this->summaries->project($check, $run);
                 $presentation = null;
-                if ($includePresentations) {
+                if ($presents instanceof Closure && $presents($check, $incident, $site)) {
                     $presentation = $incident instanceof Incident
                         ? $this->presentations->forIncident($incident, $run, isset($held[$incident->id]))
                         : ($run instanceof CheckRun ? $this->presentations->forInput($check, new CheckRunPresentationInput(
@@ -548,7 +575,7 @@ final readonly class SitesReader
                     'uptime_parent_incident_id' => $data->uptime_parent_incident_id, 'affected_checks' => $data->affected_checks,
                     'held_after_recovery' => $data->held_after_recovery,
                     'next_run_at' => $data->next_run_at,
-                    ...($includePresentations ? ['presentation' => $data->presentation?->toArray()] : []),
+                    ...($presents instanceof Closure ? ['presentation' => $data->presentation?->toArray()] : []),
                 ];
             }
             $tags = $site->tags->map(static function (Tag $tag): string {
