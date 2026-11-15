@@ -17,6 +17,7 @@ import UpcomingIndex from '@/pages/upcoming/index';
 // Every list page with a filter bar picks its EmptyState variant from its own filters (heptapod-ui-rules Lists):
 // first-run copy (plus the create action for managers) by default, "No matching …" while a filter differs from its default.
 const routerGet = vi.hoisted(() => vi.fn());
+const routerCancelAll = vi.hoisted(() => vi.fn());
 vi.mock('@inertiajs/react', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@inertiajs/react')>()),
     Head: () => null,
@@ -27,6 +28,11 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
     Deferred: ({ children }: { children: ReactNode }) => <>{children}</>,
     usePage: () => ({
         url: '/',
+        // First-load deferred groups whose props have not arrived yet.
+        deferredProps: {
+            sidebar: ['upcomingCount'],
+            history: ['sites_history'],
+        },
         props: {
             timezone: 'UTC',
             overallHealth: {
@@ -40,6 +46,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
     router: {
         on: () => () => {},
         get: routerGet,
+        cancelAll: routerCancelAll,
         visit: vi.fn(),
         reload: vi.fn(),
         replace: vi.fn(),
@@ -234,14 +241,23 @@ it.each([
     },
 );
 
-it('Sites: a filter change reloads the rows together with their uptime and sparkline history', () => {
+it('Sites: a filter change reloads the rows with their history and replaces first-load deferred requests still in flight', () => {
     sites({ tag: 'prod' }, true);
     fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    // A superseded deferred response would overwrite the new rows and URL; its props come with this visit instead.
+    expect(routerCancelAll).toHaveBeenCalledWith({
+        prefetch: false,
+        sync: false,
+    });
     expect(routerGet).toHaveBeenLastCalledWith(
         expect.any(String),
         expect.anything(),
         expect.objectContaining({
-            only: expect.arrayContaining(['sites', 'sites_history']),
+            only: expect.arrayContaining([
+                'sites',
+                'sites_history',
+                'upcomingCount',
+            ]),
         }),
     );
 });

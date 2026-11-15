@@ -12,7 +12,7 @@ import {
 import { PageHeader } from '@/components/page-header';
 import { MonitoringHealthNotices } from '@/components/monitoring-health-notices';
 import { PageContainer } from '@/components/page-container';
-import { Deferred, Head, Link, router } from '@inertiajs/react';
+import { Deferred, Head, Link, router, usePage } from '@inertiajs/react';
 import { useLiveReload } from '@/hooks/use-live';
 import { useBufferedChanges } from '@/hooks/use-buffered-changes';
 import { useFlip } from '@/hooks/use-flip';
@@ -71,6 +71,7 @@ export default function SitesIndex({
             'overallHealth',
         ],
     );
+    const page = usePage();
     const listRef = useRef<HTMLDivElement>(null);
     const { t } = useTranslation();
     const format = useFormat();
@@ -182,6 +183,21 @@ export default function SitesIndex({
             advisory: filters.advisory,
             ...changes,
         };
+        // Inertia applies an async response whenever the path matches, so a first-load deferred group still in
+        // flight would answer for the old filters and overwrite this visit's rows and URL. Cancel those loads and
+        // request their props with this visit instead.
+        const pendingDeferred = Object.values({
+            ...page.initialDeferredProps,
+            ...page.deferredProps,
+        })
+            .flat()
+            .filter(
+                (prop) =>
+                    (page.props as Record<string, unknown>)[prop] === undefined,
+            );
+        if (pendingDeferred.length > 0) {
+            router.cancelAll({ prefetch: false, sync: false });
+        }
         router.get(
             sitesIndex.url(),
             {
@@ -192,7 +208,15 @@ export default function SitesIndex({
             },
             {
                 ...searchOptions,
-                only: ['sites', 'sites_history', 'pagination', 'filters'],
+                only: [
+                    ...new Set([
+                        'sites',
+                        'sites_history',
+                        'pagination',
+                        'filters',
+                        ...pendingDeferred,
+                    ]),
+                ],
                 preserveState: true,
                 preserveScroll: true,
             },
