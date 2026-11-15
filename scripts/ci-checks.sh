@@ -5,6 +5,14 @@ source scripts/orphaned-test-servers.sh
 trap sweep_orphaned_test_servers EXIT
 trap 'exit 143' TERM
 
+# Without a TTY (agents, hooks, CI) per-file progress lands as one line or walls of thousands of dots; show only results there.
+if [ -t 1 ]; then
+    collapse_progress() { "$@"; }
+else
+    # Pint and Peck have no flag for this, and their quiet modes also hide the findings.
+    collapse_progress() { "$@" | sed -E 's/(.)\1{49,}/\1\1\1[…]/g'; }
+fi
+
 case "${1:-all}" in
     php)
         # CI runs these three groups as parallel jobs; the hook runs them in sequence.
@@ -27,15 +35,21 @@ case "${1:-all}" in
         composer normalize:check
         composer validate --strict
         composer deps:check
-        composer fmt:check
-        composer peck
+        collapse_progress composer fmt:check
+        collapse_progress composer peck
         ;;
     php-rector)
         composer rector:check
         ;;
     php-analyse)
-        composer analyse
-        composer test:types
+        if [ -t 1 ]; then
+            composer analyse
+            composer test:types
+        else
+            # No progress bar; list only files below 100 % instead of one dotted line per file.
+            composer analyse -- --no-progress
+            composer test:types -- --compact
+        fi
         ;;
     frontend)
         npm run check
