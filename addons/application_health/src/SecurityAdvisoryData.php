@@ -31,7 +31,9 @@ final class SecurityAdvisoryData extends Data
     ) {}
 
     /**
-     * The spatie meta is {"vendor/package": [{title, link, cve?, severity?, affectedVersions, reportedAt}]}.
+     * The spatie meta is {"vendor/package": [{title, link, cve?, severity?, affectedVersions, reportedAt}]}. Version 1.2 of the
+     * check (the last one for PHP 8.2) sends cve and severity as null instead of leaving them out, plus extra keys.
+     *
      * Meta of any other shape carries no structured advisories; the component still shows its reported status and message.
      *
      * @param  array<int|string, mixed>  $meta
@@ -49,15 +51,15 @@ final class SecurityAdvisoryData extends Data
                 $validator = Validator::make(is_array($entry) ? $entry : [], [
                     'title' => ['required', 'string', 'max:1000'],
                     'link' => ['required', 'string', 'max:2048', 'url:http,https'],
-                    'cve' => ['sometimes', 'string', 'max:64'],
-                    'severity' => ['sometimes', 'string', 'max:32'],
+                    'cve' => ['sometimes', 'nullable', 'string', 'max:64'],
+                    'severity' => ['sometimes', 'nullable', 'string', 'max:32'],
                     'affectedVersions' => ['required', 'string', 'max:1000'],
                     'reportedAt' => ['required', 'date_format:Y-m-d H:i:s'],
                 ]);
                 if ($validator->fails() || count($advisories) === self::MaxAdvisories) {
                     return [];
                 }
-                /** @var array{title: string, link: string, cve?: string, severity?: string, affectedVersions: string, reportedAt: string} $advisory */
+                /** @var array{title: string, link: string, cve?: string|null, severity?: string|null, affectedVersions: string, reportedAt: string} $advisory */
                 $advisory = $validator->validated();
                 $advisories[] = new self($package, $advisory['cve'] ?? $advisory['link'], $advisory['title'], $advisory['link'],
                     $advisory['cve'] ?? null, $advisory['severity'] ?? null, $advisory['affectedVersions'],

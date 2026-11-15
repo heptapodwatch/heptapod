@@ -1,0 +1,56 @@
+{
+    "finishedAt": 1794696173,
+    "checkResults": [
+        {
+            "name": "SecurityAdvisories",
+            "label": "Security Advisories",
+            "notificationMessage": "Security advisories found for `laravel/framework` and `phenx/php-svg-lib`",
+            "shortSummary": "Failed",
+            "status": "failed",
+            "meta": {
+                "laravel/framework": [
+                    {
+                        "advisoryId": "PKSA-yxbx-3c9s-cjt9",
+                        "packageName": "laravel/framework",
+                        "remoteId": "GHSA-63hm-g96r-2m2q",
+                        "title": "Laravel: Task Output Injection - Concurrency Process",
+                        "link": "https://github.com/advisories/GHSA-63hm-g96r-2m2q",
+                        "cve": "CVE-2026-128083",
+                        "affectedVersions": ">=13.0.0,<13.40.0|<12.71.0",
+                        "source": "GitHub",
+                        "reportedAt": "2026-11-13 18:54:31",
+                        "composerRepository": "https://packagist.org",
+                        "severity": "low",
+                        "sources": [
+                            {
+                                "name": "GitHub",
+                                "remoteId": "GHSA-63hm-g96r-2m2q"
+                            }
+                        ]
+                    }
+                ],
+                "phenx/php-svg-lib": [
+                    {
+                        "advisoryId": "PKSA-synthetic-null-fields",
+                        "packageName": "phenx/php-svg-lib",
+                        "remoteId": "GHSA-97m3-52wr-xvv2",
+                        "title": "Dompdf's usage of vulnerable version of phenx/php-svg-lib leads to restriction bypass and potential RCE",
+                        "link": "https://github.com/advisories/GHSA-97m3-52wr-xvv2",
+                        "cve": null,
+                        "affectedVersions": "<0.5.2",
+                        "source": "GitHub",
+                        "reportedAt": "2024-02-22 18:15:41",
+                        "composerRepository": "https://packagist.org",
+                        "severity": null,
+                        "sources": [
+                            {
+                                "name": "GitHub",
+                                "remoteId": "GHSA-97m3-52wr-xvv2"
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}

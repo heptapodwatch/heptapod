@@ -93,6 +93,26 @@ it('shows the advisories of a failed spatie security advisories result in the ch
             ->where('history.more_advisories', false));
 });
 
+it('stores the advisories of the 1.2 check, which sends null CVE and severity values and extra keys', function (): void {
+    // spatie/security-advisories-health-check 1.2 (the last line for PHP 8.2) puts the unfiltered Packagist advisory into
+    // the meta: null cve/severity and extra keys such as advisoryId and sources.
+    $payload = json_decode(file_get_contents(__DIR__.'/../Fixtures/spatie-security-advisories-1.2.json'), true, flags: JSON_THROW_ON_ERROR);
+    $payload['finishedAt'] = time();
+    $check = advisoriesSiteCheck(Site::factory()->create());
+    runAdvisories($check, $payload);
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+
+    $this->actingAs($owner)->get('/sites/'.$check->site_id.'/checks/'.$check->id)->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('history.components.0.advisories', 2)
+            ->where('history.components.0.advisories.0.cve', 'CVE-2026-128083')
+            ->where('history.components.0.advisories.0.severity', 'low')
+            ->where('history.components.0.advisories.1.cve', null)
+            ->where('history.components.0.advisories.1.severity', null)
+            ->where('history.components.0.advisories.1.advisory_id', 'https://github.com/advisories/GHSA-97m3-52wr-xvv2'));
+});
+
 it('filters the Sites list by open advisory, package and advisory ID within the viewer scope', function (): void {
     [$agency, $client] = Client::factory()->count(2)->create();
     $all = advisoriesSiteCheck(Site::factory()->for($agency)->create());
