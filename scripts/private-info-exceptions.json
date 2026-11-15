@@ -782,6 +782,7 @@
             "zdenek.sustr@cesnet.cz"
         ],
         "tests/Deployment/diagnostics-filter.sh": ["/home/user/"],
+        "tests/Feature/SiteRepositoriesTest.php": ["secret@github.com"],
         "tests/Fixtures/OhDear/ohdear-openapi.yml": [
             "support@ohdear.app",
             "user@clientcompany.com",
