@@ -12,7 +12,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 final class ApplicationHealthDetailData extends CheckHistoryData
 {
     /**
-     * @param  list<array{name: string, label: string, status: string, short_summary: string, latest_result: string}>  $components
+     * @param  list<array{name: string, label: string, status: string, short_summary: string, latest_result: string, advisories: list<SecurityAdvisoryData>|null}>  $components
      * @param  list<array{run_id: int, ended_at: string, result: string, reason: string|null, http_status: int|null, response_time_ms: float|null}>  $attempts
      */
     public function __construct(
@@ -22,6 +22,7 @@ final class ApplicationHealthDetailData extends CheckHistoryData
         public readonly array $components,
         public readonly bool $more_components,
         public readonly array $attempts,
+        public readonly bool $more_advisories,
     ) {
         parent::__construct(CheckKey::ApplicationHealth);
     }

@@ -179,6 +179,9 @@ const siteFilters: Heptapod.Data.Ui.SitesFilterData = {
     sort: 'attention',
     check: null,
     attention: false,
+    advisories: false,
+    package: null,
+    advisory: null,
 };
 function sites(
     filters: Partial<Heptapod.Data.Ui.SitesFilterData>,

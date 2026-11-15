@@ -21,6 +21,7 @@ label: string,
 status: string,
 short_summary: string,
 latest_result: string,
+advisories: Heptapod.Addons.ApplicationHealth.SecurityAdvisoryData[] | null,
 }[],
 readonly more_components: boolean,
 readonly attempts: {
@@ -31,6 +32,7 @@ reason: string | null,
 http_status: number | null,
 response_time_ms: number | null,
 }[],
+readonly more_advisories: boolean,
 readonly check_type: Heptapod.Contracts.CheckKey,
 };
 export type ApplicationHealthEvidence = {
@@ -46,6 +48,16 @@ readonly warning: number,
 readonly failed: number,
 readonly finished_at: number | null,
 readonly response_time_in_seconds: number | null,
+};
+export type SecurityAdvisoryData = {
+readonly package: string,
+readonly advisory_id: string,
+readonly title: string,
+readonly link: string,
+readonly cve: string | null,
+readonly severity: string | null,
+readonly affected_versions: string,
+readonly reported_at: string,
 };
 }
 namespace CertificateHealth {
@@ -1901,6 +1913,9 @@ readonly tag: string | null,
 readonly sort: string,
 readonly check: Heptapod.Contracts.CheckKey | null,
 readonly attention: boolean,
+readonly advisories: boolean,
+readonly package: string | null,
+readonly advisory: string | null,
 };
 export type SitesIndexPageData = {
 readonly sites?: Heptapod.Data.Ui.SiteRowData[],

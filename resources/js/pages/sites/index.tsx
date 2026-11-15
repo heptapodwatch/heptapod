@@ -75,13 +75,22 @@ export default function SitesIndex({
         filters.search ?? '',
         (search, options) => visit({ search }, filters.sort, options),
     );
+    const advisoryValue = filters.advisory
+        ? `advisory:${filters.advisory}`
+        : filters.package
+          ? `package:${filters.package}`
+          : filters.advisories
+            ? 'any'
+            : 'all';
+    const clearAdvisories = { advisories: null, package: null, advisory: null };
     const hasFilters = Boolean(
         filters.search ||
         filters.client_id ||
         filters.state ||
         filters.tag ||
         filters.check ||
-        filters.attention,
+        filters.attention ||
+        advisoryValue !== 'all',
     );
     const checkFilter = (
         <Select
@@ -103,6 +112,38 @@ export default function SitesIndex({
                         {t(check.label)}
                     </SelectItem>
                 ))}
+            </SelectContent>
+        </Select>
+    );
+    const advisoryFilter = (
+        <Select
+            value={advisoryValue}
+            onValueChange={(value) =>
+                visit({
+                    ...clearAdvisories,
+                    advisories: value === 'any' ? '1' : null,
+                })
+            }
+        >
+            <FilterSelectTrigger
+                aria-label={t('Security advisories')}
+                onClear={
+                    advisoryValue !== 'all'
+                        ? () => visit(clearAdvisories)
+                        : null
+                }
+            >
+                <SelectValue />
+            </FilterSelectTrigger>
+            <SelectContent>
+                <SelectItem value="all">{t('All advisories')}</SelectItem>
+                <SelectItem value="any">{t('With advisories')}</SelectItem>
+                {/* Package and advisory filters come from the Sites affected links of an application health check. */}
+                {advisoryValue.includes(':') && (
+                    <SelectItem value={advisoryValue}>
+                        {filters.advisory ?? filters.package}
+                    </SelectItem>
+                )}
             </SelectContent>
         </Select>
     );
@@ -133,6 +174,9 @@ export default function SitesIndex({
             state: filters.state,
             tag: filters.tag,
             check: filters.check,
+            advisories: filters.advisories ? '1' : null,
+            package: filters.package,
+            advisory: filters.advisory,
             ...changes,
         };
         router.get(
@@ -217,6 +261,7 @@ export default function SitesIndex({
                                 state: null,
                                 tag: null,
                                 check: null,
+                                ...clearAdvisories,
                             })
                         }
                         activeCount={
@@ -226,6 +271,7 @@ export default function SitesIndex({
                                 filters.tag,
                                 filters.check,
                                 filters.attention,
+                                advisoryValue !== 'all',
                             ].filter(Boolean).length
                         }
                         search={
@@ -311,6 +357,7 @@ export default function SitesIndex({
                         </Select>
                         {checkFilter}
                         {tagFilter}
+                        {advisoryFilter}
                     </FilterBar>
                 </div>
                 <Deferred

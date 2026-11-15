@@ -20,5 +20,8 @@ final class SitesFilterData extends Data
         public readonly string $sort,
         public readonly ?CheckKey $check = null,
         public readonly bool $attention = false,
+        public readonly bool $advisories = false,
+        public readonly ?string $package = null,
+        public readonly ?string $advisory = null,
     ) {}
 }

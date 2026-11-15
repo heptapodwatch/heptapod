@@ -8,11 +8,20 @@ use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
+use Heptapod\Contracts\SecurityAdvisoryIndex;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
-final class ApplicationHealthPersistence implements RunPersistence
+final class ApplicationHealthPersistence implements RunPersistence, SecurityAdvisoryIndex
 {
+    public function affectedChecks(?string $package = null, ?string $advisoryId = null): Builder
+    {
+        return DB::table('application_health_advisories')->select('check_id')
+            ->when($package !== null, static fn (Builder $query): Builder => $query->where('package', $package))
+            ->when($advisoryId !== null, static fn (Builder $query): Builder => $query->where('advisory_id', $advisoryId));
+    }
+
     /**
      * Identities are immediate; snapshots become baselines only after recorder acceptance.
      *
@@ -45,6 +54,12 @@ final class ApplicationHealthPersistence implements RunPersistence
         /** @var (\stdClass&object{run_id: int, run_ended_at: string})|null $valid */
         $rows = DB::table('application_health_components')->where('check_id', $checkId)->where('active', true)
             ->whereNotNull('snapshot')->orderBy('id')->limit(51)->get(['snapshot', 'run_id', 'run_ended_at']);
+        $advisories = array_map(static function (object $advisory): SecurityAdvisoryData {
+            /** @var \stdClass&object{package: string, advisory_id: string, title: string, link: string, cve: string|null, severity: string|null, affected_versions: string, reported_at: string} $advisory */
+            return new SecurityAdvisoryData($advisory->package, $advisory->advisory_id, $advisory->title, $advisory->link, $advisory->cve,
+                $advisory->severity, $advisory->affected_versions, CarbonImmutable::parse($advisory->reported_at)->utc()->toIso8601String());
+        }, DB::table('application_health_advisories')->where('check_id', $checkId)
+            ->orderBy('package')->orderByDesc('reported_at')->orderBy('id')->limit(101)->get()->all());
         $components = [];
         foreach ($rows->take(50) as $row) {
             /** @var \stdClass&object{snapshot: string, run_id: int, run_ended_at: string} $row */
@@ -56,6 +71,7 @@ final class ApplicationHealthPersistence implements RunPersistence
                 'status' => mb_substr($snapshot['status'], 0, 160),
                 'short_summary' => mb_substr($snapshot['shortSummary'], 0, 160),
                 'latest_result' => $snapshot['latest_result'],
+                'advisories' => $snapshot['name'] === SecurityAdvisoryData::Component ? array_slice($advisories, 0, 100) : null,
             ];
             $valid ??= (object) ['run_id' => $row->run_id, 'run_ended_at' => $row->run_ended_at];
         }
@@ -78,7 +94,7 @@ final class ApplicationHealthPersistence implements RunPersistence
 
         return new ApplicationHealthDetailData($valid?->run_id, $valid === null ? null : CarbonImmutable::parse($valid->run_ended_at)->utc()->toIso8601String(),
             $valid !== null && $lastAttemptAt !== null && CarbonImmutable::parse($lastAttemptAt)->greaterThan(CarbonImmutable::parse($valid->run_ended_at)),
-            $components, $rows->count() > 50, $attempts);
+            $components, $rows->count() > 50, $attempts, count($advisories) > 100);
     }
 
     public function stage(CheckContext $context, string $dataset, array $rows): void
@@ -136,7 +152,7 @@ final class ApplicationHealthPersistence implements RunPersistence
 
                 return;
             }
-            /** @var list<array{snapshot: array{id: int}, change_identity: string}> $components */
+            /** @var list<array{snapshot: array{id: int, name: string, meta: array<int|string, mixed>, latest_result: string}, change_identity: string}> $components */
             $components = json_decode($row->components, true, flags: JSON_THROW_ON_ERROR);
             $endedAt = $run->endedAt->format('Y-m-d H:i:s.uP');
             DB::table('application_health_components')->where('check_id', $row->check_id)->update(['active' => false]);
@@ -147,8 +163,31 @@ final class ApplicationHealthPersistence implements RunPersistence
                     'run_id' => $run->id, 'run_ended_at' => $endedAt, 'updated_at' => $endedAt,
                 ]);
             }
+            $this->replaceAdvisories($row->check_id, $components);
             $query->update(['run_ended_at' => $endedAt]);
         });
+    }
+
+    /**
+     * A skipped advisories component verified nothing, so the previous advisories stay open.
+     *
+     * @param  list<array{snapshot: array{name: string, meta: array<int|string, mixed>, latest_result: string}}>  $components
+     */
+    private function replaceAdvisories(int $checkId, array $components): void
+    {
+        $component = array_find($components, static fn (array $component): bool => $component['snapshot']['name'] === SecurityAdvisoryData::Component)['snapshot'] ?? null;
+        if ($component !== null && $component['latest_result'] === 'pending') {
+            return;
+        }
+        DB::table('application_health_advisories')->where('check_id', $checkId)->delete();
+        $rows = array_map(static fn (SecurityAdvisoryData $advisory): array => [
+            'check_id' => $checkId, 'package' => $advisory->package, 'advisory_id' => $advisory->advisory_id,
+            'title' => $advisory->title, 'link' => $advisory->link, 'cve' => $advisory->cve, 'severity' => $advisory->severity,
+            'affected_versions' => $advisory->affected_versions, 'reported_at' => $advisory->reported_at,
+        ], $component === null ? [] : SecurityAdvisoryData::fromSpatieMeta($component['meta']));
+        foreach (array_chunk($rows, 500) as $chunk) {
+            DB::table('application_health_advisories')->insert($chunk);
+        }
     }
 
     public function discard(int $runId, string $claimToken): void

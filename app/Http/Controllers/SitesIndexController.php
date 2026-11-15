@@ -31,13 +31,16 @@ final class SitesIndexController extends Controller
         abort_unless($user instanceof User, 401);
         abort_unless($user->hasAnyRole(['Owner', 'Admin', 'Member']), 403);
         Validator::make($request->all(), [
-            'filter' => ['sometimes', 'array:search,client_id,state,tag,check,attention'],
+            'filter' => ['sometimes', 'array:search,client_id,state,tag,check,attention,advisories,package,advisory'],
             'filter.search' => ['sometimes', 'nullable', 'string', 'max:255'],
             'filter.client_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'filter.state' => ['sometimes', 'nullable', Rule::enum(SiteStatus::class)],
             'filter.tag' => ['sometimes', 'nullable', 'string', 'max:255'],
             'filter.check' => ['sometimes', 'nullable', Rule::enum(CheckKey::class)],
             'filter.attention' => ['sometimes', 'boolean'],
+            'filter.advisories' => ['sometimes', 'boolean'],
+            'filter.package' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'filter.advisory' => ['sometimes', 'nullable', 'string', 'max:2048'],
             'sort' => ['sometimes', 'string', 'max:100'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ])->validate();

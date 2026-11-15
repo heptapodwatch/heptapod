@@ -405,5 +405,22 @@
     "checks.interval.days_other": "Every {{formattedCount}} days",
     "checks.interval.seconds_one": "Every second",
     "checks.interval.seconds_other": "Every {{formattedCount}} seconds",
-    "checks.interval.mixed": "Every {{interval}}"
+    "checks.interval.mixed": "Every {{interval}}",
+    "Security advisories": "Security advisories",
+    "{{count}} open advisories_one": "{{formattedCount}} open advisory",
+    "{{count}} open advisories_other": "{{formattedCount}} open advisories",
+    "Sites affected": "Sites affected",
+    "Sites affected by {{name}}": "Sites affected by {{name}}",
+    "Low": "Low",
+    "Medium": "Medium",
+    "High": "High",
+    "Showing first 100 advisories": "Showing first 100 advisories",
+    "With advisories": "With advisories",
+    "All advisories": "All advisories",
+    "{{count}} advisories_one": "{{formattedCount}} advisory",
+    "{{count}} advisories_other": "{{formattedCount}} advisories",
+    "Severity": "Severity",
+    "Advisory": "Advisory",
+    "Affected": "Affected",
+    "Reported": "Reported"
 }

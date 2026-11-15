@@ -61,6 +61,15 @@ final class AgencyDemoSeeder extends Seeder
 {
     use RecordsReviewRuns;
 
+    /** Hosts whose health endpoint reports spatie security advisories in the current run, with the advisory packages. */
+    private const array AdvisoryPackages = [
+        'app.kestrelmobility.example' => ['dompdf/dompdf', 'phenx/php-svg-lib', 'phpmailer/phpmailer'],
+        'shop.osterberghaus.example' => ['phpmailer/phpmailer'],
+        'booking.calloway-hotels.example' => ['dompdf/dompdf', 'phenx/php-svg-lib'],
+        'tickets.lumenfilmfestival.example' => ['phpmailer/phpmailer'],
+        'donate.fenwicktrust.example' => [],
+    ];
+
     public function run(): void
     {
         if (! app()->environment(['local', 'testing'])) {
@@ -164,12 +173,13 @@ final class AgencyDemoSeeder extends Seeder
                         if (in_array($host, ['donate.fenwicktrust.example', 'api.kestrelmobility.example'], true)) {
                             $keys[] = CheckKey::Cron;
                         }
-                        if ($host === 'app.kestrelmobility.example') {
+                        if (isset(self::AdvisoryPackages[$host])) {
                             $keys[] = CheckKey::ApplicationHealth;
                         }
                         foreach ($keys as $key) {
                             $checks[$key->value] = $this->check($site, $key, $now);
                         }
+                        /** @var array{uptime: Check, performance: Check, certificate_health: Check, dns: Check, domain: Check, broken_links?: Check, sitemap?: Check, lighthouse?: Check, cron?: Check, application_health?: Check} $checks */
                         $tasks = isset($checks['cron']) ? $this->tasks($checks['cron'], $host, $now) : [];
                         // Daily uptime/performance and weekly addon samples span 30 days without minute-by-minute bulk.
                         foreach (range(30, 1) as $day) {
@@ -204,7 +214,7 @@ final class AgencyDemoSeeder extends Seeder
                             $this->evaluate($checks['uptime'], $at, history: app(DatabaseHistoryReader::class));
                             $this->evaluate($checks['performance'], $at->addSeconds(2), history: app(DatabaseHistoryReader::class));
                         }
-                        $this->httpResponses($http, $host, 0.34 + ($index % 8) * 0.04, broken: $host === 'lumenfilmfestival.example');
+                        $this->httpResponses($http, $host, 0.34 + ($index % 8) * 0.04, broken: $host === 'lumenfilmfestival.example', advisories: true);
                         $this->evaluate($checks['uptime'], $now->subMinutes(30), history: app(DatabaseHistoryReader::class));
                         $this->evaluate($checks['performance'], $now->subMinutes(29), history: app(DatabaseHistoryReader::class));
                         if ($host === 'api.kestrelmobility.example') {
@@ -265,9 +275,34 @@ final class AgencyDemoSeeder extends Seeder
         return $check->refresh();
     }
 
-    private function httpResponses(FakeOutboundHttp $http, string $host, float $seconds, bool $down = false, bool $broken = false): void
+    /**
+     * The captured spatie/security-advisories-health-check result, narrowed to the host's packages; no packages reports ok.
+     *
+     * @param  list<string>  $packages
+     * @return array<string, mixed>
+     */
+    private static function securityAdvisories(array $packages): array
     {
-        $http->respondUsing(static function (FetchRequest $request) use ($host, $seconds, $down, $broken): FetchResult {
+        $fixture = file_get_contents(base_path('addons/application_health/tests/Fixtures/spatie-security-advisories.json'));
+        if ($fixture === false) {
+            throw new \RuntimeException('Agency security advisories fixture is missing.');
+        }
+        /** @var array{checkResults: list<array{meta: array<string, mixed>}>} $payload */
+        $payload = json_decode($fixture, true, flags: JSON_THROW_ON_ERROR);
+        $component = $payload['checkResults'][0];
+        $component['meta'] = array_intersect_key($component['meta'], array_flip($packages));
+        if ($packages === []) {
+            return [...$component, 'status' => 'ok', 'notificationMessage' => 'No security vulnerability advisories found', 'shortSummary' => 'Ok'];
+        }
+        $names = array_map(static fn (string $package): string => '`'.$package.'`', $packages);
+        $last = array_pop($names);
+
+        return [...$component, 'notificationMessage' => 'Security advisories found for '.($names === [] ? $last : implode(', ', $names).' and '.$last)];
+    }
+
+    private function httpResponses(FakeOutboundHttp $http, string $host, float $seconds, bool $down = false, bool $broken = false, bool $advisories = false): void
+    {
+        $http->respondUsing(static function (FetchRequest $request) use ($host, $seconds, $down, $broken, $advisories): FetchResult {
             if (parse_url($request->url, PHP_URL_HOST) !== $host) {
                 throw new \LogicException('Unexpected agency fixture HTTP target.');
             }
@@ -284,6 +319,7 @@ final class AgencyDemoSeeder extends Seeder
                 '/health' => json_encode(['finishedAt' => CarbonImmutable::now()->getTimestamp(), 'checkResults' => [
                     ['name' => 'database', 'label' => 'Database', 'status' => 'ok', 'shortSummary' => 'Connected'],
                     ['name' => 'queue', 'label' => 'Queue', 'status' => 'ok', 'shortSummary' => 'Running'],
+                    ...($advisories && isset(self::AdvisoryPackages[$host]) ? [self::securityAdvisories(self::AdvisoryPackages[$host])] : []),
                 ]], JSON_THROW_ON_ERROR),
                 default => '<html><body><h1>Welcome</h1>'.($broken ? '<a href="/programme-2025">Programme</a><a href="/press-kit">Press kit</a><a href="/venues/riverside">Riverside venue</a>' : '').'</body></html>',
             };

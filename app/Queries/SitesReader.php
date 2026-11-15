@@ -19,6 +19,7 @@ use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\CheckRunPresentationData;
 use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\RunPhase;
+use Heptapod\Contracts\SecurityAdvisoryIndex;
 use Heptapod\Data\Ui\CheckRunStateData;
 use Heptapod\Data\Ui\CheckStripData;
 use Heptapod\Data\Ui\ClientData;
@@ -43,6 +44,7 @@ use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\Request;
@@ -182,6 +184,7 @@ final readonly class SitesReader
     {
         $sortName = $this->orderByName(...);
         $sortStatus = $this->orderByStatus(...);
+        $advisories = $this->advisoryFilter(...);
         $builder = QueryBuilder::for($query, $request)
             ->allowedFilters(
                 AllowedFilter::partial('search', 'name'),
@@ -200,6 +203,17 @@ final readonly class SitesReader
                         $checks->where('type', $value)->where('enabled', true);
                     });
                 }),
+                AllowedFilter::callback('advisories', static function (Builder $query, mixed $value) use ($advisories): void {
+                    if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+                        $advisories($query);
+                    }
+                }),
+                AllowedFilter::callback('package', static function (Builder $query, mixed $value) use ($advisories): void {
+                    $advisories($query, package: is_string($value) ? $value : throw new \LogicException('Package filter must be validated as a string.'));
+                })->delimiter(''),
+                AllowedFilter::callback('advisory', static function (Builder $query, mixed $value) use ($advisories): void {
+                    $advisories($query, advisoryId: is_string($value) ? $value : throw new \LogicException('Advisory filter must be validated as a string.'));
+                })->delimiter(''),
                 AllowedFilter::callback('tag', static function (Builder $query, mixed $value): void {
                     if (! is_string($value)) {
                         throw new \LogicException('Tag filter must be validated as a string.');
@@ -214,6 +228,18 @@ final readonly class SitesReader
         $builder->getEloquentBuilder()->getQuery()->orderBy('sites.id');
 
         return $builder;
+    }
+
+    /** @param Builder<Model> $query Spatie query filters pass the projected site query untyped. */
+    private function advisoryFilter(Builder $query, ?string $package = null, ?string $advisoryId = null): void
+    {
+        $index = $this->registry->get(CheckKey::ApplicationHealth)->persistence();
+        if (! $index instanceof SecurityAdvisoryIndex) {
+            throw new \LogicException('Application health persistence must implement SecurityAdvisoryIndex.');
+        }
+        $query->whereHas('checks', static function (Builder $checks) use ($index, $package, $advisoryId): void {
+            $checks->getQuery()->where('enabled', true)->whereIn('checks.id', $index->affectedChecks($package, $advisoryId));
+        });
     }
 
     /**
@@ -282,7 +308,9 @@ final readonly class SitesReader
             $request->filled('filter.tag') ? $request->string('filter.tag')->toString() : null,
             $request->string('sort', 'status')->toString(),
             $request->filled('filter.check') ? CheckKey::from($request->string('filter.check')->toString()) : null,
-            $request->boolean('filter.attention'));
+            $request->boolean('filter.attention'), $request->boolean('filter.advisories'),
+            $request->filled('filter.package') ? $request->string('filter.package')->toString() : null,
+            $request->filled('filter.advisory') ? $request->string('filter.advisory')->toString() : null);
     }
 
     /**
