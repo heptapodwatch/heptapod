@@ -1,15 +1,15 @@
 ---
 title: Application health
-description: Read a Laravel or Statamic site's health endpoint and list its open security advisories per package.
+description: Read a Laravel site's health endpoint and list its open security advisories per package.
 sidebar:
     order: 3
 ---
 
 The application health check reads a health endpoint in the Oh Dear format and shows each reported component. With the spatie security advisories check, it also lists the site's open security advisories.
 
-## Report security advisories from a Laravel or Statamic site
+## Report security advisories from a Laravel site
 
-Run these steps in the site's project. Statamic is a Laravel app, so the steps are the same.
+Run these steps in the site's Laravel project.
 
 1. Install the packages:
 
@@ -58,8 +58,9 @@ Result: after the first run, the **Application health** tab lists the reported c
 
 An open advisory makes the **Security advisories** component **Failed**. The check then follows the usual [failure alerts](../notifications.md).
 
-- The component lists each advisory under its package: title, CVE when known, severity when known, affected versions, report date and a link to the advisory.
-- **Sites affected** opens the **Sites** list filtered to that package or advisory.
+- The component shows one row per package with its highest severity and the advisory count. The most severe package is open first.
+- An open package lists each advisory: severity when known, title with a link to the advisory, CVE when known, affected versions and report date.
+- **Sites affected** opens the **Sites** list filtered to that package.
 - On the **Sites** list, the advisories filter set to **With advisories** shows every site with at least one open advisory.
 - A run that reports no advisories clears the list and removes the site from the filter.
 - A **Check error** or a skipped advisories result keeps the last reported advisories.

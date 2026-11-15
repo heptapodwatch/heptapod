@@ -411,13 +411,16 @@
     "{{count}} open advisories_other": "{{formattedCount}} open advisories",
     "Sites affected": "Sites affected",
     "Sites affected by {{name}}": "Sites affected by {{name}}",
-    "Severity: {{severity}}": "Severity: {{severity}}",
     "Low": "Low",
     "Medium": "Medium",
     "High": "High",
-    "Affected versions: {{versions}}": "Affected versions: {{versions}}",
-    "Reported {{date}}": "Reported {{date}}",
     "Showing first 100 advisories": "Showing first 100 advisories",
     "With advisories": "With advisories",
-    "All advisories": "All advisories"
+    "All advisories": "All advisories",
+    "{{count}} advisories_one": "{{formattedCount}} advisory",
+    "{{count}} advisories_other": "{{formattedCount}} advisories",
+    "Severity": "Severity",
+    "Advisory": "Advisory",
+    "Affected": "Affected",
+    "Reported": "Reported"
 }
