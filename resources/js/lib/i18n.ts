@@ -4,15 +4,12 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 export type Locale = 'en' | 'de';
 
-const coreCatalogs = import.meta.glob('/lang/*/*.json', {
-    eager: true,
-    import: 'default',
-}) as Record<string, Record<string, string>>;
+type CatalogModule = typeof import('@/lib/catalogs/en');
 
-const addonCatalogs = import.meta.glob('/addons/*/lang/*.json', {
-    eager: true,
-    import: 'default',
-}) as Record<string, Record<string, string>>;
+const catalogModules: Record<Locale, () => Promise<CatalogModule>> = {
+    en: () => import('@/lib/catalogs/en'),
+    de: () => import('@/lib/catalogs/de'),
+};
 
 export function mergeCatalogs(
     root: Record<string, string>,
@@ -26,21 +23,17 @@ export function mergeCatalogs(
     return { ...root, ...addon };
 }
 
-function catalog(locale: Locale): Record<string, string> {
+function catalog({ core, addons }: CatalogModule): Record<string, string> {
     let entries: Record<string, string> = {};
-    for (const [path, area] of Object.entries(coreCatalogs).sort(([a], [b]) =>
+    for (const [, area] of Object.entries(core).sort(([a], [b]) =>
         a.localeCompare(b),
     )) {
-        if (path.startsWith(`/lang/${locale}/`)) {
-            entries = mergeCatalogs(entries, area);
-        }
+        entries = mergeCatalogs(entries, area);
     }
-    for (const [path, addon] of Object.entries(addonCatalogs).sort(([a], [b]) =>
+    for (const [, addon] of Object.entries(addons).sort(([a], [b]) =>
         a.localeCompare(b),
     )) {
-        if (path.endsWith(`/${locale}.json`)) {
-            entries = mergeCatalogs(entries, addon);
-        }
+        entries = mergeCatalogs(entries, addon);
     }
     return Object.fromEntries(
         Object.entries(entries).map(([key, value]) => [
@@ -62,17 +55,32 @@ function catalog(locale: Locale): Record<string, string> {
     );
 }
 
+/** Adds a locale's catalog once; the app shell preloads the page locale's (resources/views/app.blade.php). */
+export async function loadLocale(locale: Locale): Promise<void> {
+    if (i18n.hasResourceBundle(locale, 'translation')) return;
+    i18n.addResourceBundle(
+        locale,
+        'translation',
+        catalog(await catalogModules[locale]()),
+    );
+}
+
+const initialLocale: Locale =
+    typeof document !== 'undefined' && document.documentElement.lang === 'de'
+        ? 'de'
+        : 'en';
+
 void i18n.use(initReactI18next).init({
-    resources: {
-        en: { translation: catalog('en') },
-        de: { translation: catalog('de') },
-    },
-    lng: typeof document === 'undefined' ? 'en' : document.documentElement.lang,
+    resources: {},
+    lng: initialLocale,
     fallbackLng: 'en',
     keySeparator: false,
     nsSeparator: false,
     interpolation: { escapeValue: false },
 });
+
+/** Resolves once the page locale's catalog is loaded; the app renders after it (resources/js/app.tsx). */
+export const i18nReady = loadLocale(initialLocale);
 
 const formatter = i18n.services.formatter;
 if (!formatter)
@@ -90,7 +98,7 @@ formatter.add(
 function synchronizeLocale(locale: Locale): void {
     document.documentElement.lang = locale;
     if (i18n.language !== locale) {
-        void i18n.changeLanguage(locale);
+        void loadLocale(locale).then(() => i18n.changeLanguage(locale));
     }
 }
 

@@ -7,6 +7,11 @@ vi.useFakeTimers({ toFake: ['Date'] });
 beforeEach(() => vi.useFakeTimers({ toFake: ['Date'] }));
 afterEach(() => vi.useRealTimers());
 
+// The app loads one catalog per page; tests switch languages directly with i18n.changeLanguage().
+const { i18nReady, loadLocale } = await import('@/lib/i18n');
+await i18nReady;
+await loadLocale('de');
+
 // The app root owns the one TooltipProvider (resources/js/app.tsx) and the app shell the one FormActionsDock;
 // every rendered component gets the same ones here.
 vi.mock('@testing-library/react', async (importOriginal) => {

@@ -275,7 +275,7 @@ const inertia = {
         return { url: new URL(url, window.location.href), method, only };
     },
     page(url: string, component: string) {
-        return { url, component, props: {} };
+        return { url, component, props: { locale: 'en' } };
     },
 };
 
