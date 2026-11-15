@@ -16,7 +16,8 @@ function assertSanitizedFixtureHosts(array $paths): void
             foreach ($matches[0] as $hostname) {
                 // Public advisory databases are the real source of the captured security-advisories payload.
                 if (($hostname === 'ohdear.app' && str_starts_with($value, 'https://ohdear.app/api/')) || ($hostname === 'fixture-sitemap.xml' && in_array($value, ['/fixture-sitemap.xml', 'fixture-sitemap.xml'], true))
-                    || ($hostname === 'github.com' && preg_match('#^https://github\.com/(advisories/GHSA-|[\w.-]+/[\w.-]+/releases/tag/)#', $value) === 1) || ($hostname === 'nvd.nist.gov' && str_starts_with($value, 'https://nvd.nist.gov/vuln/detail/CVE-'))) {
+                    || ($hostname === 'github.com' && preg_match('#^https://github\.com/(advisories/GHSA-|[\w.-]+/[\w.-]+/releases/tag/)#', $value) === 1) || ($hostname === 'nvd.nist.gov' && str_starts_with($value, 'https://nvd.nist.gov/vuln/detail/CVE-'))
+                    || ($hostname === 'packagist.org' && $value === 'https://packagist.org')) {
                     continue;
                 }
                 expect(strtolower($hostname))->toEndWith('.example');
