@@ -118,8 +118,9 @@ if [ -n "${OPS_BASELINE_UPGRADE:-}" ]; then
     grep -q 'Upgrade requires a running app instance' "$evidence/stopped-app-before-fix.log"
 fi
 db_bytes=$(dc exec -T postgres sh -ec 'psql -X -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select pg_database_size(current_database())"')
-remaining_kb=$(awk -v bytes="$db_bytes" 'BEGIN { printf "%.0f", 2*bytes/1024 }')
-printf 'simulated free=%s KiB; DB size=%s bytes; remaining need=%s KiB\n' "$remaining_kb" "$db_bytes" "$remaining_kb" > "$evidence/resume-space.log"
+# Heartbeats/backup history can grow before resume; allow 1 MiB above the DB-only measurement.
+remaining_kb=$(awk -v bytes="$db_bytes" 'BEGIN { printf "%.0f", 2*bytes/1024 + 1024 }')
+printf 'simulated free=%s KiB (includes 1 MiB headroom); DB size=%s bytes\n' "$remaining_kb" "$db_bytes" > "$evidence/resume-space.log"
 if [ -n "${OPS_BASELINE_UPGRADE:-}" ]; then
     if FIX_FREE_KB="$remaining_kb" PATH="$fresh/bin:$PATH" sh scripts/upgrade-before-fix1.sh --resume > "$evidence/low-space-before-fix.log" 2>&1; then exit 1; fi
     grep -q 'Insufficient disk space' "$evidence/low-space-before-fix.log"
