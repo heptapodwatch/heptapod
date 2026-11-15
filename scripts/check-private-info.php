@@ -6,9 +6,9 @@ require dirname(__DIR__).'/vendor/autoload.php';
 
 use Symfony\Component\Process\Process;
 
-$usage = "Usage: php scripts/check-private-info.php [--all] [--base <ref>] [--text <file>]...\n";
-$options = getopt('', ['all', 'base:', 'text:'], $restIndex);
-if ($restIndex !== $argc || $options === [] || is_array($options['base'] ?? null)) {
+$usage = "Usage: php scripts/check-private-info.php [--all] [--base <ref> | --pushed] [--text <file>]...\n";
+$options = getopt('', ['all', 'base:', 'pushed', 'text:'], $restIndex);
+if ($restIndex !== $argc || $options === [] || is_array($options['base'] ?? null) || (isset($options['base']) && isset($options['pushed']))) {
     fwrite(STDERR, $usage);
     exit(2);
 }
@@ -22,7 +22,7 @@ $git = static function (string ...$arguments): string {
 $root = rtrim($git('rev-parse', '--show-toplevel'));
 chdir($root);
 $policyPath = 'scripts/private-info-exceptions.json';
-/** @var array{strings: array<string, list<string>>, emailFiles: array<string, string>} $policy */
+/** @var array{strings: array<string, list<string>>} $policy */
 $policy = json_decode((string) file_get_contents($policyPath), true, flags: JSON_THROW_ON_ERROR);
 $rules = [
     'home path' => '~(?<![\w.-])/(?:home|Users)/[\w.-]+/|\b[A-Za-z]:\\\\+Users\\\\+[\w.-]+~',
@@ -50,27 +50,17 @@ if (is_file($localPatternsPath)) {
 
 $failures = [];
 $scan = static function (string $label, string $text, ?string $path) use (&$failures, $rules, $allowedEmail, $localPatterns, $policy, $policyPath): void {
-    $exceptions = match ($path) {
+    // Approved values count only as complete matches in their named file, so a longer address around one still fails.
+    $exceptions = array_flip(match ($path) {
         null => [],
-        // The policy may name every excepted string; the rest of it is checked like any other file.
+        // The policy names every excepted value; the rest of it is checked like any other file.
         $policyPath => array_merge(...array_values($policy['strings'])),
         default => $policy['strings'][$path] ?? [],
-    };
-    foreach ($exceptions as $exception) {
-        if (! str_contains($text, $exception)) {
-            $failures[] = $label.': stale exception '.json_encode($exception);
-        }
-    }
-    // Exact approved strings in their named files only; new occurrences anywhere else fail.
-    $text = str_replace($exceptions, '', $text);
+    });
+    $used = [];
     $active = $localPatterns;
     foreach ($rules as $name => $pattern) {
-        $applies = match ($name) {
-            'email address' => ! isset($policy['emailFiles'][$path ?? '']),
-            'local URL in user-facing docs' => $path !== null && str_starts_with($path, 'docs/') && $path !== 'docs/deploy/operations.md',
-            default => true,
-        };
-        if ($applies) {
+        if ($name !== 'local URL in user-facing docs' || ($path !== null && str_starts_with($path, 'docs/') && $path !== 'docs/deploy/operations.md')) {
             $active[$name] = $pattern;
         }
     }
@@ -80,8 +70,18 @@ $scan = static function (string $label, string $text, ?string $path) use (&$fail
             if ($name === 'email address' && preg_match($allowedEmail, $match) === 1) {
                 continue;
             }
+            if (isset($exceptions[$match])) {
+                $used[$match] = true;
+
+                continue;
+            }
             // Report only the match, never the surrounding line.
             $failures[] = $label.':'.(substr_count($text, "\n", 0, $offset) + 1).': '.$name.': '.$match;
+        }
+    }
+    if ($path !== $policyPath) {
+        foreach (array_keys(array_diff_key($exceptions, $used)) as $stale) {
+            $failures[] = $label.': stale exception '.json_encode($stale);
         }
     }
 };
@@ -106,9 +106,21 @@ foreach (array_unique($paths) as $path) {
     $checkedFiles++;
     $scan($path, (string) file_get_contents($path), $path);
 }
+$commitRange = $base !== null ? [$base.'..HEAD'] : [];
+if (isset($options['pushed'])) {
+    // Git's pre-push stdin: "<local ref> <local sha> <remote ref> <remote sha>" per pushed ref. Deleted refs push no commits.
+    foreach (file('php://stdin', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+        $localSha = explode(' ', $line)[1] ?? throw new RuntimeException('Unexpected pre-push input: '.$line);
+        if (trim($localSha, '0') !== '') {
+            $commitRange[] = $localSha;
+        }
+    }
+    // Every commit no remote has yet, which also covers new branches and force pushes.
+    $commitRange = $commitRange === [] ? [] : [...$commitRange, '--not', '--remotes'];
+}
 $checkedCommits = 0;
-if ($base !== null) {
-    foreach (array_filter(array_map(ltrim(...), explode("\x1e", $git('log', '--format=%H%x00%B%x1e', $base.'..HEAD')))) as $commit) {
+if ($commitRange !== []) {
+    foreach (array_filter(array_map(ltrim(...), explode("\x1e", $git('log', '--format=%H%x00%B%x1e', ...$commitRange)))) as $commit) {
         [$sha, $message] = explode("\0", $commit, 2);
         $checkedCommits++;
         $scan('commit '.substr($sha, 0, 12).' message', $message, null);

@@ -18,18 +18,19 @@ if [ -d "$HOME/.local/share/heptapod-docker" ]; then
     export DOCKER_CONFIG="$HOME/.local/share/heptapod-docker"
     export PATH="$DOCKER_CONFIG/bin:$PATH"
 fi
-if ! docker compose exec -T app true; then
+# Preparatory execs read from /dev/null: they would otherwise drain Git's pre-push stdin (the pushed refs) before Lefthook sees it.
+if ! docker compose exec -T app true </dev/null; then
     echo "Heptapod hooks need this checkout's app container; start the stack: docker compose up -d" >&2
     exit 1
 fi
 if [ "${1:-}" = run ] && [ "${2:-}" = pre-push ]; then
-    docker compose exec -T app mkdir -p .phpunit.cache
+    docker compose exec -T app mkdir -p .phpunit.cache </dev/null
     # A new test can still start between this check and the fixture recreation.
-    if ! docker compose exec -T app flock -n .phpunit.cache/pest.lock true; then
+    if ! docker compose exec -T app flock -n .phpunit.cache/pest.lock true </dev/null; then
         echo 'another Pest run is active in this checkout — wait or stop it' >&2
         exit 1
     fi
-    docker compose --profile fixtures up -d --force-recreate --wait fixtures fixtures-alt
+    docker compose --profile fixtures up -d --force-recreate --wait fixtures fixtures-alt </dev/null
 fi
 git_dir=$(git rev-parse --absolute-git-dir)
 common_dir=$(git rev-parse --path-format=absolute --git-common-dir)
