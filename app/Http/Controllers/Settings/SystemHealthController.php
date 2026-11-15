@@ -17,19 +17,22 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\LaravelData\Lazy;
 
 final class SystemHealthController extends Controller
 {
     public function edit(Request $request, ReadSystemHealth $health, ShellHealthReader $activity): Response
     {
+        $user = $this->viewer($request);
+
         return Inertia::render('settings/system', new SystemPageData(
-            systemPage: $this->data($request, $health, $activity),
+            systemPage: Lazy::closure(fn (): SystemHealthPageData => $this->data($user, $health, $activity)),
         ));
     }
 
     public function __invoke(Request $request, ReadSystemHealth $health, UpdateStatusReader $updates, ShellHealthReader $activity): JsonResponse
     {
-        $page = $this->data($request, $health, $activity);
+        $page = $this->data($this->viewer($request), $health, $activity);
         /** @var array{reverb: array{error?: string|null}, browserServices: array<string, array{error?: string|null}>}&array<string, mixed> $data */
         $data = $page->health->toArray();
         unset($data['reverb']['error']);
@@ -41,10 +44,16 @@ final class SystemHealthController extends Controller
             'observed_at' => $page->observed_at, 'last_result_at' => $page->last_result_at, 'check_errors' => $page->check_errors]);
     }
 
-    private function data(Request $request, ReadSystemHealth $health, ShellHealthReader $activity): SystemHealthPageData
+    private function viewer(Request $request): User
     {
         $user = $request->user();
         abort_unless($user instanceof User && $user->hasAnyRole(['Owner', 'Admin']), 403);
+
+        return $user;
+    }
+
+    private function data(User $user, ReadSystemHealth $health, ShellHealthReader $activity): SystemHealthPageData
+    {
         $reading = $health();
         $safe = SystemHealthData::from([
             ...$reading->toArray(),

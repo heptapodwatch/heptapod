@@ -60,6 +60,7 @@ case "${1:-all}" in
             test -z "$(git ls-files --others --exclude-standard AGENTS.md .agents boost.json)"
             test -z "$(git ls-files --others --exclude-standard resources/js/actions resources/js/routes resources/js/wayfinder resources/js/types)"
             npm run build
+            node scripts/check-bundle-size.mjs
         )
         ;;
     all)

@@ -38,9 +38,9 @@ import {
     StatusBadge,
     StatusDot,
     CheckStrip,
-    Sparkline,
     responseTimeSummary,
 } from '@/components/monitoring';
+import { Sparkline } from '@/components/sparkline';
 import {
     bySeverity,
     isAttentionState,

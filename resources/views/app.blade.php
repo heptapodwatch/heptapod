@@ -47,7 +47,7 @@
         @fonts
 
         @viteReactRefresh
-        @vite(['resources/css/app.css', 'resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
+        @vite(['resources/css/app.css', 'resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx", 'resources/js/lib/catalogs/'.app()->getLocale().'.ts'])
         <x-inertia::head>
             <title>Heptapod</title>
         </x-inertia::head>

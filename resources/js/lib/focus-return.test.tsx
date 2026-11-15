@@ -31,7 +31,7 @@ type PageObject = {
 const checkPage = (errors: Record<string, string> = {}): PageObject => ({
     component: 'sites/checks/show',
     url: '/sites/1/checks/111',
-    props: { errors },
+    props: { errors, locale: 'en' },
     version: null,
 });
 
@@ -146,7 +146,7 @@ it('(c) neither restores nor runs a custom restoration while a visit to another 
     responses.push({
         component: 'activity/index',
         url: '/activity',
-        props: { errors: {} },
+        props: { errors: {}, locale: 'en' },
         version: null,
     });
     holdNext = true;

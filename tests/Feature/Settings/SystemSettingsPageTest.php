@@ -24,7 +24,13 @@ it('projects measured health and a sample timestamp to the page and refresh endp
     DB::table('failed_jobs')->insert(['uuid' => Str::uuid(), 'connection' => 'redis', 'queue' => 'checks-fast', 'payload' => '{}', 'exception' => 'private-exception', 'failed_at' => now()]);
     config(['heptapod.health.browser_urls' => ['lighthouse' => 'http://private-probe.test/health', 'gotenberg' => null]]);
     Http::preventStrayRequests();
-    Http::fake(['http://private-probe.test/health' => Http::failedConnection('private-probe-detail')]);
+    $probes = 0;
+    // Pooled requests that fail to connect are not recorded, so the fake counts the probes itself.
+    Http::fake(['http://private-probe.test/health' => function () use (&$probes) {
+        $probes++;
+
+        return Http::failedConnection('private-probe-detail');
+    }]);
     Cache::store('redis')->forget(config('heptapod.health.scheduler_cache_key'));
 
     $response = $this->actingAs($user)->get('/settings/system')->assertOk()->assertInertia(fn (Assert $page): Assert => $page
@@ -41,7 +47,7 @@ it('projects measured health and a sample timestamp to the page and refresh endp
         ->assertJsonPath('health.dispatcher.value', 200)->assertJsonPath('health.recentFailedJobs.value', 1)
         ->assertJsonMissingPath('health.browserServices.lighthouse.error')->assertJsonMissingPath('health.reverb.error');
     expect($json->getContent())->not->toContain('private-probe', 'private-exception');
-    Http::assertSentCount(2);
+    expect($probes)->toBe(2);
 })->with(['Owner', 'Admin']);
 
 it('keeps system health page and refresh restricted to verified Owners and Admins', function (): void {

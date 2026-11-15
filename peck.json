@@ -84,6 +84,7 @@
             "serializers",
             "smtp",
             "sonner",
+            "sparkline",
             "ssrf",
             "supervisord",
             "symlink",

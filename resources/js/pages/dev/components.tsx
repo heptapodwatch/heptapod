@@ -20,8 +20,6 @@ import {
     StateSentence,
     CheckStrip,
     UptimeBar,
-    Sparkline,
-    MetricTile,
     EventTimeline,
     AttentionRow,
     ClientMark,
@@ -40,6 +38,7 @@ import {
     HealthIndicator,
     type RunState,
 } from '@/components/foundation-primitives';
+import { MetricTile, Sparkline } from '@/components/sparkline';
 import {
     gallerySites,
     galleryChecks,

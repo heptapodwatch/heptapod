@@ -6,6 +6,8 @@ use Carbon\CarbonImmutable;
 use Heptapod\Enums\HealthStatus;
 use Heptapod\Models\DispatcherHeartbeat;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Pool;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -60,12 +62,9 @@ final readonly class ReadSystemHealth
         /** @var array<object{name: string, status: string, processes: array<string, int>}> $masters */
         $masters = $this->masters->all();
         $masterRunning = collect($masters)->contains(fn (object $master): bool => $master->status === 'running');
-        $browserServices = [];
         /** @var array<string, string|null> $urls */
         $urls = config()->array('heptapod.health.browser_urls');
-        foreach ($urls as $name => $url) {
-            $browserServices[$name] = $this->browserHealth($url);
-        }
+        $browserServices = $this->browserHealth($urls);
         $query = DispatcherHeartbeat::query();
         $query->getQuery()->orderByDesc('last_seen_at');
         $dispatcherAt = $query->first()?->getAttribute('last_seen_at');
@@ -186,18 +185,35 @@ final readonly class ReadSystemHealth
         return new HealthMetric(HealthStatus::Ok, null);
     }
 
-    private function browserHealth(?string $url): HealthMetric
+    /**
+     * Probes the services at once: an unreachable one costs its timeout, and the page should not pay it once per service.
+     *
+     * @param  array<string, string|null>  $urls
+     * @return array<string, HealthMetric>
+     */
+    private function browserHealth(array $urls): array
     {
-        if ($url === null) {
-            return new HealthMetric(HealthStatus::NotConfigured, null);
-        }
-        try {
-            $response = Http::timeout(3)->get($url);
+        $probed = array_filter($urls, is_string(...));
+        $responses = $probed === [] ? [] : Http::pool(static function (Pool $pool) use ($probed): array {
+            $requests = [];
+            foreach ($probed as $name => $url) {
+                $requests[] = $pool->as($name)->timeout(3)->get($url);
+            }
 
-            return new HealthMetric($response->successful() ? HealthStatus::Ok : HealthStatus::Down, $response->status());
-        } catch (ConnectionException $exception) {
-            // Health probes are the boundary: unreachable is an explicit operational failure, not a fallback.
-            return new HealthMetric(HealthStatus::Down, null, $exception->getMessage());
+            return $requests;
+        });
+        $metrics = [];
+        foreach ($urls as $name => $url) {
+            $response = $responses[$name] ?? null;
+            $metrics[$name] = match (true) {
+                $url === null => new HealthMetric(HealthStatus::NotConfigured, null),
+                $response instanceof Response => new HealthMetric($response->successful() ? HealthStatus::Ok : HealthStatus::Down, $response->status()),
+                // Health probes are the boundary: unreachable is an explicit operational failure, not a fallback.
+                $response instanceof ConnectionException => new HealthMetric(HealthStatus::Down, null, $response->getMessage()),
+                default => throw new \UnexpectedValueException("Browser service probe for {$name} returned no response."),
+            };
         }
+
+        return $metrics;
     }
 }
