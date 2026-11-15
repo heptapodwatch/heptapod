@@ -87,6 +87,10 @@ export function Sparkline({
             ? responseTimeSummary(data, t, format)
             : [t(label), summary].filter(Boolean).join(' · ');
     const point = selected === null ? undefined : data[selected];
+    const points = hasLine ? sparklinePoints(data) : [];
+    const selectedPoint = selected === null ? undefined : points[selected];
+    const color =
+        state === 'ok' ? 'var(--muted-foreground)' : statusColor[state];
     const values = (point ? [point] : data).flatMap((item) =>
         item.value === null ? [] : [item.value],
     );
@@ -98,6 +102,7 @@ export function Sparkline({
                     className="relative block h-6 w-20 rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     tabIndex={decorative ? undefined : 0}
                     onFocus={() => setSelected(null)}
+                    onBlur={() => setSelected(null)}
                     onPointerLeave={() => setSelected(null)}
                     onPointerMove={(event) => {
                         const rect =
@@ -148,15 +153,19 @@ export function Sparkline({
                             <Curve
                                 type="monotone"
                                 layout="horizontal"
-                                points={sparklinePoints(data)}
-                                stroke={
-                                    state === 'ok'
-                                        ? 'var(--muted-foreground)'
-                                        : statusColor[state]
-                                }
+                                points={points}
+                                stroke={color}
                                 strokeWidth={1.5}
                                 fill="none"
                                 className="recharts-line-curve"
+                            />
+                        )}
+                        {selectedPoint?.y != null && (
+                            <circle
+                                cx={selectedPoint.x}
+                                cy={selectedPoint.y}
+                                r={4}
+                                fill={color}
                             />
                         )}
                     </svg>
