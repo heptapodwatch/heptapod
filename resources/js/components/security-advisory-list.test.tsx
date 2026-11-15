@@ -59,7 +59,7 @@ it('opens the most severe package first and toggles each package with a disclosu
     // Within the open package: severity first.
     expect(
         [...rowsOf('zzz/critical').querySelectorAll('tr')].map(
-            (row) => row.querySelectorAll('td')[2]!.textContent,
+            (row) => row.querySelector('td:nth-child(2) p')!.textContent,
         ),
     ).toEqual(['CVE-4', 'CVE-3']);
 

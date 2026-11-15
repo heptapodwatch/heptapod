@@ -229,7 +229,7 @@ export default function ClientsIndex({
                                                     clientShow.url(client.id),
                                                 )}
                                             >
-                                                <TableCell>
+                                                <TableCell column="name">
                                                     <EntityLink
                                                         name={client.name}
                                                         href={clientShow.url(
