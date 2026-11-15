@@ -136,7 +136,23 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   )
 }
 
-function TableCell({ className, ...props }: React.ComponentProps<"td">) {
+/**
+ * Column roles for cells with unbounded text. Cells are nowrap by default, so in the auto table layout one long
+ * unbreakable value sets its column's minimum and starves the wrapping column. A role bounds the cell's content box:
+ * the primary text column wraps and never narrows below a readable minimum; a name column (one line that truncates with
+ * its tooltip) keeps the same minimum and adds no intrinsic width (`contain: inline-size`), so a long name truncates
+ * instead of widening the table; a code or metadata column is capped and wraps at the text's own break points (`|`,
+ * `,`, `/`), breaking anywhere only as a fallback.
+ * `breakAfter` makes a code value's top-level separator the only break: each part (a `|` range) gets its own line.
+ */
+const tableColumnContent = {
+  primary: "min-w-48 whitespace-normal [overflow-wrap:anywhere]",
+  name: "min-w-48 [contain:inline-size]",
+  code: "min-w-36 max-w-56 font-mono text-xs whitespace-normal [overflow-wrap:anywhere]",
+} as const
+
+function TableCell({ className, column, breakAfter, children, ...props }: React.ComponentProps<"td"> & { column?: keyof typeof tableColumnContent; breakAfter?: string }) {
+  const parts = breakAfter !== undefined && typeof children === "string" ? children.split(breakAfter).map((part, index, all) => (index < all.length - 1 ? part + breakAfter : part)) : null
   return (
     <td
       data-slot="table-cell"
@@ -146,7 +162,13 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
         className
       )}
       {...props}
-    />
+    >
+      {column ? (
+        <div className={tableColumnContent[column]}>
+          {parts ? parts.map((part, index) => <span key={index} className="inline-block max-w-full">{part}</span>) : children}
+        </div>
+      ) : children}
+    </td>
   )
 }
 

@@ -31,9 +31,9 @@ body{margin:0;padding:0}a{color:inherit}
 <tr><td class="bar-down" style="height:3px;line-height:3px;font-size:0;background:#b42f28;border-radius:10px 10px 0 0;">&nbsp;</td></tr>
 <tr><td class="px" style="padding:20px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="font-size:13px;">
 <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-<td class="avatar-letter" aria-hidden="true" align="center" valign="middle" style="width:20px;height:20px;line-height:20px;border-radius:10px;background:#4B4B57;color:#ffffff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;font-weight:600;">EA</td><td style="width:5px;"></td>
+<td valign="middle"><div class="avatar-letter" aria-hidden="true" style="width:20px;height:20px;line-height:20px;text-align:center;border-radius:10px;background:#4B4B57;color:#ffffff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;font-weight:600;">EA</div></td><td style="width:5px;"></td>
 <td><span class="c-fg2" style="color:#3f4952;vertical-align:middle;">Example Agency · api.example.test</span></td></tr></table>
-</td><td align="right" valign="middle"><img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="border:0;display:inline-block;"></td></tr></table></td></tr>
+</td><td align="right" valign="middle" style="padding-left:12px;"><img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="width:109px;height:20px;border:0;display:inline-block;"></td></tr></table></td></tr>
 <tr><td class="px" style="padding:22px 28px 28px;">
 <h1 class="h1 c-fg" style="margin:0 0 12px;font-size:21px;line-height:28px;font-weight:600;letter-spacing:-0.2px;color:#101418;">api.example.test is down: HTTP 503 Service Unavailable.</h1>
 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;"><tr><td class="chip-down" style="border:1px solid #b42f28;border-radius:11px;padding:1px 9px;font-size:12px;font-weight:600;color:#b42f28;white-space:nowrap;">Down</td><td class="c-fg3" style="padding-left:10px;font-size:12.5px;color:#5c6771;">since 00:29 UTC · #{id}</td></tr></table>
@@ -46,12 +46,9 @@ body{margin:0;padding:0}a{color:inherit}
 <td class="c-fg3" style="color:#5c6771;font-size:11px;padding:0 10px 6px 0;">Response</td>
 </tr>
 <tr>
-<td valign="top" class="bd-soft" style="padding:6px 10px 6px 0;border-top:1px solid #e1e5e8;"><span class="c-fg" style="color:#101418;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:12px;word-break:break-word;">00:30:00 UTC</span>
-</td>
-<td valign="top" class="bd-soft" style="padding:6px 10px 6px 0;border-top:1px solid #e1e5e8;"><span class="c-down" style="color:#b42f28;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:12px;word-break:break-word;">HTTP 503 Service Unavailable</span>
-</td>
-<td valign="top" class="bd-soft" style="padding:6px 10px 6px 0;border-top:1px solid #e1e5e8;"><span class="c-fg" style="color:#101418;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:12px;word-break:break-word;">No response</span>
-</td>
+<td valign="top" class="bd-soft" style="padding:6px 10px 6px 0;border-top:1px solid #e1e5e8;"><span class="c-fg" style="color:#101418;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:12px;word-break:break-word;">00:30:00 UTC</span></td>
+<td valign="top" class="bd-soft" style="padding:6px 10px 6px 0;border-top:1px solid #e1e5e8;"><span class="c-down" style="color:#b42f28;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:12px;word-break:break-word;">HTTP 503 Service Unavailable</span></td>
+<td valign="top" class="bd-soft" style="padding:6px 10px 6px 0;border-top:1px solid #e1e5e8;"><span class="c-fg" style="color:#101418;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:12px;word-break:break-word;">No response</span></td>
 </tr>
 </table>
 </td></tr></table>
@@ -96,9 +93,9 @@ body{margin:0;padding:0}a{color:inherit}
 <tr><td class="bar-down" style="height:3px;line-height:3px;font-size:0;background:#b42f28;border-radius:10px 10px 0 0;">&nbsp;</td></tr>
 <tr><td class="px" style="padding:20px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="font-size:13px;">
 <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-<td class="avatar-letter" aria-hidden="true" align="center" valign="middle" style="width:20px;height:20px;line-height:20px;border-radius:10px;background:#4B4B57;color:#ffffff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;font-weight:600;">EA</td><td style="width:5px;"></td>
+<td valign="middle"><div class="avatar-letter" aria-hidden="true" style="width:20px;height:20px;line-height:20px;text-align:center;border-radius:10px;background:#4B4B57;color:#ffffff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;font-weight:600;">EA</div></td><td style="width:5px;"></td>
 <td><span class="c-fg2" style="color:#3f4952;vertical-align:middle;">Example Agency · api.example.test</span></td></tr></table>
-</td><td align="right" valign="middle"><img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="border:0;display:inline-block;"></td></tr></table></td></tr>
+</td><td align="right" valign="middle" style="padding-left:12px;"><img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="width:109px;height:20px;border:0;display:inline-block;"></td></tr></table></td></tr>
 <tr><td class="px" style="padding:22px 28px 28px;">
 <h1 class="h1 c-fg" style="margin:0 0 12px;font-size:21px;line-height:28px;font-weight:600;letter-spacing:-0.2px;color:#101418;">api.example.test is still down after 1 h 1 min.</h1>
 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;"><tr><td class="chip-down" style="border:1px solid #b42f28;border-radius:11px;padding:1px 9px;font-size:12px;font-weight:600;color:#b42f28;white-space:nowrap;">Down</td><td class="c-fg3" style="padding-left:10px;font-size:12.5px;color:#5c6771;">since 00:29 UTC · #{id}</td></tr></table>
@@ -147,9 +144,9 @@ body{margin:0;padding:0}a{color:inherit}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-card" style="background:#ffffff;border:1px solid #d3d8dc;border-radius:10px;">
 <tr><td class="px" style="padding:20px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="font-size:13px;">
 <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-<td class="avatar-letter" aria-hidden="true" align="center" valign="middle" style="width:20px;height:20px;line-height:20px;border-radius:10px;background:#4B4B57;color:#ffffff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;font-weight:600;">EA</td><td style="width:5px;"></td>
+<td valign="middle"><div class="avatar-letter" aria-hidden="true" style="width:20px;height:20px;line-height:20px;text-align:center;border-radius:10px;background:#4B4B57;color:#ffffff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;font-weight:600;">EA</div></td><td style="width:5px;"></td>
 <td><span class="c-fg2" style="color:#3f4952;vertical-align:middle;">Example Agency · api.example.test</span></td></tr></table>
-</td><td align="right" valign="middle"><img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="border:0;display:inline-block;"></td></tr></table></td></tr>
+</td><td align="right" valign="middle" style="padding-left:12px;"><img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="width:109px;height:20px;border:0;display:inline-block;"></td></tr></table></td></tr>
 <tr><td class="px" style="padding:22px 28px 28px;">
 <h1 class="h1 c-fg" style="margin:0 0 12px;font-size:21px;line-height:28px;font-weight:600;letter-spacing:-0.2px;color:#101418;">api.example.test is up again after 1 h 1 min.</h1>
 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;"><tr><td class="chip-ok" style="border:1px solid #2c6a4e;border-radius:11px;padding:1px 9px;font-size:12px;font-weight:600;color:#2c6a4e;white-space:nowrap;">Recovered</td><td class="c-fg3" style="padding-left:10px;font-size:12.5px;color:#5c6771;">down 00:29 UTC – 01:30 UTC · #{id} resolved</td></tr></table>
@@ -159,10 +156,8 @@ body{margin:0;padding:0}a{color:inherit}
 <tr><td style="padding:0 0 16px;"><p class="c-fg3" style="margin:0 0 8px;color:#5c6771;font-size:12px;">What changed</p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-sunken" style="background:#f5f6f7;border:1px solid #e1e5e8;border-radius:8px;"><tr><td style="padding:12px 14px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-<tr><td valign="top" class="c-fg3" style="color:#5c6771;font-size:12px;padding:3px 12px 3px 0;width:38%;">At opening</td><td valign="top" style="padding:3px 0;"><span class="c-fg" style="color:#101418;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:12px;word-break:break-word;">HTTP 503 Service Unavailable · 00:30 UTC</span>
-</td></tr>
-<tr><td valign="top" class="c-fg3" style="color:#5c6771;font-size:12px;padding:3px 12px 3px 0;width:38%;">At recovery</td><td valign="top" style="padding:3px 0;"><span class="c-ok" style="color:#2c6a4e;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:12px;word-break:break-word;">Site is reachable · 01:30 UTC</span>
-</td></tr>
+<tr><td valign="top" class="c-fg3" style="color:#5c6771;font-size:12px;padding:3px 12px 3px 0;width:38%;">At opening</td><td valign="top" style="padding:3px 0;"><span class="c-fg" style="color:#101418;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:12px;word-break:break-word;">HTTP 503 Service Unavailable · 00:30 UTC</span></td></tr>
+<tr><td valign="top" class="c-fg3" style="color:#5c6771;font-size:12px;padding:3px 12px 3px 0;width:38%;">At recovery</td><td valign="top" style="padding:3px 0;"><span class="c-ok" style="color:#2c6a4e;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:12px;word-break:break-word;">Site is reachable · 01:30 UTC</span></td></tr>
 </table></td></tr></table>
 </td></tr>
 </table>
@@ -201,7 +196,7 @@ body{margin:0;padding:0}a{color:inherit}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;"><tr><td>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-card" style="background:#ffffff;border:1px solid #d3d8dc;border-radius:10px;">
 <tr><td class="px" style="padding:20px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="font-size:13px;">
-</td><td align="right" valign="middle"><img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="border:0;display:inline-block;"></td></tr></table></td></tr>
+</td><td align="right" valign="middle" style="padding-left:12px;"><img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="width:109px;height:20px;border:0;display:inline-block;"></td></tr></table></td></tr>
 <tr><td class="px" style="padding:22px 28px 28px;">
 <h1 class="h1 c-fg" style="margin:0 0 8px;font-size:21px;line-height:28px;font-weight:600;letter-spacing:-0.2px;color:#101418;">Daily summary</h1>
 <p class="c-fg2" style="margin:0 0 14px;font-size:14px;line-height:21px;color:#3f4952;">1 alert is still open.</p>

@@ -148,7 +148,12 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
         }
         $rows = [];
         foreach (array_slice($components, 0, 5) as $component) {
-            $rows[] = [new Cell($component->label !== '' ? $component->label : $component->name), new Cell(mb_strcut($component->notificationMessage !== '' ? $component->notificationMessage : $component->shortSummary, 0, 1024, 'UTF-8'), tone: $component->latest_result === 'failed' ? MailTone::Failed : ($component->latest_result === 'warning' ? MailTone::Warning : MailTone::Recovered))];
+            $label = $component->name === SecurityAdvisoryData::Component ? __('application_health.mail_security_advisories', locale: $locale) : ($component->label !== '' ? $component->label : $component->name);
+            if (! is_string($label)) {
+                throw new \LogicException('Application health component label must be text.');
+            }
+            // Health messages use Markdown backticks for package and service names.
+            $rows[] = [new Cell($label, keepOnOneLine: true), new Cell(mb_strcut($component->notificationMessage !== '' ? $component->notificationMessage : $component->shortSummary, 0, 1024, 'UTF-8'), tone: $component->latest_result === 'failed' ? MailTone::Failed : ($component->latest_result === 'warning' ? MailTone::Warning : MailTone::Recovered), inlineCode: true)];
         }
         $healthy = count(array_filter($evidence->components, static fn (ApplicationHealthComponent $component): bool => $component->latest_result === 'succeeded'));
 

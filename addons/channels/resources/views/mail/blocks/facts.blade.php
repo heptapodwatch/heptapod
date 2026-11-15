@@ -1,7 +1,7 @@
 @if ($plain)
 {!! $block->title !!}
 @foreach ($block->rows as $row)
-{!! $row['label'] !!}: {!! $row['value']->text !!}{!! $row['value']->badge === null ? '' : ' ('.$row['value']->badge.')' !!}
+{!! $row['label'] !!}: {!! $row['value']->plainText() !!}{!! $row['value']->badge === null ? '' : ' ('.$row['value']->badge.')' !!}
 @endforeach
 @else
 @if ($block->title !== '')

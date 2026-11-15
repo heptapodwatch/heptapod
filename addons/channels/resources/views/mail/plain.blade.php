@@ -3,8 +3,8 @@
 <body style="margin:0;padding:0;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">{{ $mail->preheader }}</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
-@if ($mail->client !== null && $mail->site !== null)
-<p style="margin:0 0 12px;">{{ $mail->client }} · {{ $mail->site }}</p>
+@if ($mail->siteLine() !== null)
+<p style="margin:0 0 12px;">{{ $mail->siteLine() }}</p>
 @endif
 <p style="margin:0 0 12px;"><strong>{{ $mail->headline }}</strong></p>
 @if ($mail->lead !== null)

@@ -166,7 +166,8 @@ function PackageSummary({
 
 /**
  * The open advisories of a spatie security advisories result: one summary row per package that expands to its advisories.
- * Desktop is one table, so columns line up across packages; below md the advisories are stacked cards.
+ * Desktop is one table, so columns line up across packages; the CVE sits under the title so four columns fit the
+ * narrow check-detail card. Below a 40rem container the advisories are stacked cards.
  */
 export function SecurityAdvisoryList({
     advisories,
@@ -193,8 +194,8 @@ export function SecurityAdvisoryList({
     const reported = (advisory: Advisory) =>
         format.calendarDate(advisory.reported_at);
     return (
-        <div className="space-y-2">
-            <div className="hidden overflow-hidden rounded-lg border md:block">
+        <div className="@container/advisories space-y-2">
+            <div className="hidden overflow-hidden rounded-lg border @[40rem]/advisories:block">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -202,7 +203,6 @@ export function SecurityAdvisoryList({
                                 {t('Severity')}
                             </TableHead>
                             <TableHead>{t('Advisory')}</TableHead>
-                            <TableHead>CVE</TableHead>
                             <TableHead>{t('Affected')}</TableHead>
                             <TableHead className="text-right">
                                 {t('Reported')}
@@ -219,7 +219,7 @@ export function SecurityAdvisoryList({
                             >
                                 <TableRow>
                                     <TableCell
-                                        colSpan={5}
+                                        colSpan={4}
                                         className="whitespace-normal"
                                     >
                                         <PackageSummary
@@ -244,18 +244,20 @@ export function SecurityAdvisoryList({
                                                 advisory={advisory}
                                             />
                                         </TableCell>
-                                        <TableCell className="whitespace-normal">
+                                        <TableCell column="primary">
                                             <TextLink
                                                 external
                                                 href={advisory.link}
                                             >
                                                 {advisory.title}
                                             </TextLink>
+                                            {advisory.cve && (
+                                                <p className="font-mono text-xs text-muted-foreground">
+                                                    {advisory.cve}
+                                                </p>
+                                            )}
                                         </TableCell>
-                                        <TableCell className="font-mono">
-                                            {advisory.cve ?? '—'}
-                                        </TableCell>
-                                        <TableCell className="font-mono">
+                                        <TableCell column="code" breakAfter="|">
                                             {advisory.affected_versions}
                                         </TableCell>
                                         <TableCell className="text-right font-mono">
@@ -268,7 +270,7 @@ export function SecurityAdvisoryList({
                     })}
                 </Table>
             </div>
-            <ul className="divide-y rounded-lg border md:hidden">
+            <ul className="divide-y rounded-lg border @[40rem]/advisories:hidden">
                 {groups.map((group, index) => {
                     const cards = `${id}-cards-${index}`;
                     const isOpen = open.has(group.name);

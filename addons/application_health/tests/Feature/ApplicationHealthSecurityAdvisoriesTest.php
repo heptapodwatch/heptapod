@@ -6,12 +6,21 @@ use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\Http\FetchFailure;
 use Heptapod\Contracts\Http\FetchFailureKind;
 use Heptapod\Contracts\Http\FetchResult;
+use Heptapod\Contracts\Notifications\ChannelRegistry;
+use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Enums\ClientScope;
+use Heptapod\Jobs\SendNotification;
 use Heptapod\Models\Check;
 use Heptapod\Models\Client;
+use Heptapod\Models\Delivery;
+use Heptapod\Models\Event;
+use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
+use Illuminate\Mail\Transport\ArrayTransport;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia as Assert;
+use Symfony\Component\Mime\Email;
 
 require_once __DIR__.'/../Pest.php';
 
@@ -93,6 +102,26 @@ it('shows the advisories of a failed spatie security advisories result in the ch
             ->where('history.more_advisories', false));
 });
 
+it('stores the advisories of the 1.2 check, which sends null CVE and severity values and extra keys', function (): void {
+    // spatie/security-advisories-health-check 1.2 (the last line for PHP 8.2) puts the unfiltered Packagist advisory into
+    // the meta: null cve/severity and extra keys such as advisoryId and sources.
+    $payload = json_decode(file_get_contents(__DIR__.'/../Fixtures/spatie-security-advisories-1.2.json'), true, flags: JSON_THROW_ON_ERROR);
+    $payload['finishedAt'] = time();
+    $check = advisoriesSiteCheck(Site::factory()->create());
+    runAdvisories($check, $payload);
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+
+    $this->actingAs($owner)->get('/sites/'.$check->site_id.'/checks/'.$check->id)->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('history.components.0.advisories', 2)
+            ->where('history.components.0.advisories.0.cve', 'CVE-2026-128083')
+            ->where('history.components.0.advisories.0.severity', 'low')
+            ->where('history.components.0.advisories.1.cve', null)
+            ->where('history.components.0.advisories.1.severity', null)
+            ->where('history.components.0.advisories.1.advisory_id', 'https://github.com/advisories/GHSA-97m3-52wr-xvv2'));
+});
+
 it('filters the Sites list by open advisory, package and advisory ID within the viewer scope', function (): void {
     [$agency, $client] = Client::factory()->count(2)->create();
     $all = advisoriesSiteCheck(Site::factory()->for($agency)->create());
@@ -133,4 +162,32 @@ it('filters the Sites list by open advisory, package and advisory ID within the 
     expect(advisorySiteIds('filter[advisories]=1'))->toBe([$mailer->site_id]);
     $mailer->update(['enabled' => false]);
     expect(advisorySiteIds('filter[advisories]=1'))->toBe([]);
+});
+
+it('names the advisories in the alert mail as code in HTML and as plain names in the text part', function (): void {
+    config(['mail.default' => 'smtp']);
+    $transport = new ArrayTransport;
+    Mail::mailer()->setSymfonyTransport($transport);
+    $client = Client::factory()->create(['name' => 'Marktladen']);
+    $check = advisoriesSiteCheck(Site::factory()->for($client)->create(['friendly_name' => 'Marktladen']));
+    $payload = json_decode(file_get_contents(__DIR__.'/../Fixtures/spatie-security-advisories-1.2.json'), true, flags: JSON_THROW_ON_ERROR);
+    // A second failing run confirms the opening alert.
+    foreach ([1, 2] as $run) {
+        $payload['finishedAt'] = time();
+        runAdvisories($check, $payload);
+    }
+    $channel = NotificationDestination::factory()->create(['channel' => 'mail', 'locale' => 'en',
+        'config' => app(ChannelRegistry::class)->get('mail')->configSchema()->validateConfig(['email' => 'ops@example.test'])]);
+    $event = Event::query()->where('check_id', $check->id)->where('type', 'incident.opened')->sole();
+    $delivery = Delivery::query()->create(['event_id' => $event->id, 'destination_id' => $channel->id, 'next_attempt_at' => now(), 'suppression_evaluated_at' => now()]);
+
+    app()->call(new SendNotification($delivery->id)->handle(...));
+
+    expect($delivery->refresh()->state)->toBe(DeliveryState::Sent);
+    $mail = $transport->messages()->sole()->getOriginalMessage();
+    assert($mail instanceof Email);
+    expect($mail->getTextBody())->toContain("Marktladen\n", 'Security advisories | Security advisories found for laravel/framework and phenx/php-svg-lib')
+        ->not->toContain('`', 'Marktladen · Marktladen')
+        ->and($mail->getHtmlBody())->toContain('>laravel/framework</code>', '>phenx/php-svg-lib</code>', '>Security advisories</span>')
+        ->not->toContain('`', 'Marktladen · Marktladen');
 });

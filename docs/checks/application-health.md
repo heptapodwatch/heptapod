@@ -42,7 +42,7 @@ Run these steps in the site's Laravel project.
 
 Result: `https://example.com/oh-dear-health-check-results` answers with JSON when the request sends the secret in the `oh-dear-health-check-secret` header. Without the header it answers `403`.
 
-The cache keeps the site from asking Packagist for advisories on every check run. Keep the default check name `SecurityAdvisories`: Heptapod lists advisories only for a component with that name.
+The cache keeps the site from asking Packagist for advisories on every check run. On PHP 8.2, Composer installs version 1.2 of the check, which has no `cacheResultsForMinutes()`: use `SecurityAdvisoriesCheck::new()` without it. Keep the default check name `SecurityAdvisories`: Heptapod lists advisories only for a component with that name.
 
 ## Connect the endpoint
 

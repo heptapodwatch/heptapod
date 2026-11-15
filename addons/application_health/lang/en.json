@@ -27,6 +27,7 @@
     "application_health.mail_results": "Health checks",
     "application_health.mail_check": "Health check",
     "application_health.mail_result": "Result",
+    "application_health.mail_security_advisories": "Security advisories",
     "application_health.mail_more": "and :count more",
     "application_health.mail_healthy": ":count other health checks pass.",
     "application_health.mail_event.check.failing": "failed checks and check errors",

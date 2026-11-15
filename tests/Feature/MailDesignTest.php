@@ -285,7 +285,7 @@ it('uses a neutral dash instead of stored initials for No client in branded mail
 
     $mail = mailDesignSend(mailDesignChannel('en'), $event, $transport);
 
-    expect($mail->getHtmlBody())->toContain('>—</td>', 'background:#e1e5e8;color:#5c6771;')->not->toContain('>CUSTOM</td>', '>I</td>');
+    expect($mail->getHtmlBody())->toContain('>—</div>', 'background:#e1e5e8;color:#5c6771;')->not->toContain('>CUSTOM</div>', '>I</div>');
 });
 
 it('attaches no inline image parts to a Plain mail and keeps the lockup and avatar on a Branded one', function (bool $internal): void {
