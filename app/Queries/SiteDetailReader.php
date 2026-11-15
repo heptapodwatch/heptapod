@@ -42,6 +42,7 @@ use Heptapod\Data\Ui\RunAllCheckData;
 use Heptapod\Data\Ui\SiteIdentityData;
 use Heptapod\Data\Ui\SiteOverviewPageData;
 use Heptapod\Data\Ui\SiteRecordData;
+use Heptapod\Data\Ui\SiteRepositoryData;
 use Heptapod\Data\Ui\SiteRowData;
 use Heptapod\Data\Ui\SiteSettingsPageData;
 use Heptapod\Data\Ui\UpcomingItemData;
@@ -124,7 +125,8 @@ final readonly class SiteDetailReader
             AlertSensitivityData::presets(), AlertSensitivity::bounds(), Lazy::inertia(fn (): int => $this->resultCount($user, $siteId)), $this->runAllChecks($site),
             $this->maintenance($user, $siteId), $stored->icon_fetched_at?->toIso8601String(), $stored->icon_manual_result, $redirectTarget, $redirectSummary, $this->sites->clientChoices($user), \DateTimeZone::listIdentifiers(),
             $this->checkSettings($site, array_values($checksQuery->get()->all()), static fn (Check $check): bool => Gate::forUser($user)->allows('update', $check)),
-            array_map(fn (CheckKey $key): CheckOptionData => CheckOptionData::fromType($this->registry->get($key)), $this->registry->keys()));
+            array_map(fn (CheckKey $key): CheckOptionData => CheckOptionData::fromType($this->registry->get($key)), $this->registry->keys()),
+            SiteRepositoryData::forSite($siteId));
     }
 
     /**
@@ -225,6 +227,7 @@ final readonly class SiteDetailReader
             lighthouse: Lazy::inertiaDeferred(fn (): ?CheckHistoryData => $lighthouse instanceof CheckStripData
                 ? $this->checkHistory($user, Check::query()->with('site')->findOrFail($lighthouse->id)) : null, 'overview'),
             can_move: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
+            repositories: Lazy::closure(static fn (): array => SiteRepositoryData::forSite($siteId)),
         );
     }
 

@@ -1820,6 +1820,7 @@ readonly upcoming?: Heptapod.Data.Ui.UpcomingItemData[],
 readonly alert_channels?: number | null,
 readonly lighthouse?: Heptapod.Contracts.CheckHistoryData | null,
 readonly can_move: boolean,
+readonly repositories: Heptapod.Data.Ui.SiteRepositoryData[],
 };
 export type SiteProbeData = {
 readonly final_url: string | null,
@@ -1844,6 +1845,10 @@ readonly outage_count: number,
 readonly downtime_seconds: number,
 readonly last_outage_started_at: string | null,
 readonly response_ms: number | null,
+};
+export type SiteRepositoryData = {
+readonly url: string,
+readonly label: string | null,
 };
 export type SiteRowData = {
 readonly id: number,
@@ -1886,6 +1891,7 @@ readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly timezones: string[],
 readonly check_settings: Heptapod.Data.Ui.CheckSettingsData[],
 readonly check_options: Heptapod.Data.Ui.CheckOptionData[],
+readonly repositories: Heptapod.Data.Ui.SiteRepositoryData[],
 };
 export type SitesFilterData = {
 readonly search: string | null,

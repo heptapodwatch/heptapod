@@ -12,6 +12,7 @@ use Heptapod\Contracts\CheckResult;
 use Heptapod\Events\Notifications\EffectiveAlertSensitivity;
 use Heptapod\Models\Check;
 use Heptapod\Models\Site;
+use Heptapod\Models\SiteRepository;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -92,6 +93,7 @@ final class MonitorResource extends JsonResource
             'alert_sensitivity' => ['preset' => $sensitivity->preset?->value, 'alert_after_minutes' => $sensitivity->alertAfterMinutes,
                 'recovery_checks' => $sensitivity->recoveryChecks, 'confirms_other_checks' => $sensitivity->confirmsOtherChecks,
                 'reminders' => $sensitivity->reminders->value, 'inherited' => $sensitivity->inherited],
+            'repositories' => $site->repositories->map(static fn (SiteRepository $repository): array => ['url' => $repository->url, 'label' => $repository->label])->values()->all(),
             'checks' => $checks->map(fn (Check $check): array => new CheckResource($check, $responseTimes, $this->freshness)->resolve($request))->all(),
             'badge_id' => $site->badge_id, 'marked_for_deletion_at' => $site->marked_for_deletion_at?->utc()->format('Y-m-d H:i:s'),
             'crawler_headers' => null, 'send_report_to_emails' => $site->send_report_to_emails, 'include_check_types_in_report' => $site->include_check_types_in_report,

@@ -781,5 +781,8 @@
     "Clear filters to see the next 90 days.": "Clear filters to see the next 90 days.",
     "No changes in the last 24 hours.": "No changes in the last 24 hours.",
     "State changes of your sites and checks appear here.": "State changes of your sites and checks appear here.",
-    "Clear filters to see the last 24 hours.": "Clear filters to see the last 24 hours."
+    "Clear filters to see the last 24 hours.": "Clear filters to see the last 24 hours.",
+    "replicator.remove": "Remove {{name}}",
+    "replicator.max_reached_one": "Up to {{formattedCount}} entry.",
+    "replicator.max_reached_other": "Up to {{formattedCount}} entries."
 }

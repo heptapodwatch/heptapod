@@ -27,7 +27,7 @@ final class ApiExamples
         return [
             'createMonitor' => ['team_id' => 1, 'type' => 'http', 'url' => 'https://example.com', 'group_name' => 'Websites', 'tags' => ['production'],
                 'checks' => ['uptime', 'broken_links', 'cron', 'certificate_health'], 'uptime_check_settings' => ['frequency_value' => 1, 'frequency_unit' => 'minute']],
-            'updateMonitor' => ['friendly_name' => 'Example shop', 'tags' => ['production', 'shop']],
+            'updateMonitor' => ['friendly_name' => 'Example shop', 'tags' => ['production', 'shop'], 'repositories' => [['url' => 'git@github.com:acme/example-shop.git', 'label' => 'Shop']]],
             'createTag' => ['team_id' => 1, 'name' => 'production', 'monitors' => [1]],
             'requestCheckRun' => ['httpClientHeaders' => [['name' => 'X-Monitor', 'value' => 'heptapod']]],
             'snoozeCheck' => ['snooze_until' => '2026-10-01T09:30:00Z'],
@@ -163,6 +163,7 @@ final class ApiExamples
             'group_name' => 'Websites', 'client_ref' => 'client:1', 'client_name' => 'Internal', 'tags' => ['production'], 'description' => null, 'notes' => null,
             'latest_run_date' => $fresh ? null : '2026-10-01 07:30:00', 'summarized_check_result' => $result('failed'),
             'alert_sensitivity' => ['preset' => 'relaxed', 'alert_after_minutes' => 30, 'recovery_checks' => 3, 'confirms_other_checks' => true, 'reminders' => 'daily', 'inherited' => true],
+            'repositories' => [['url' => 'https://github.com/acme/example-shop', 'label' => 'Shop']],
             'checks' => $checks, 'badge_id' => '00000000-0000-4000-8000-000000000123', 'marked_for_deletion_at' => null, 'crawler_headers' => null,
             'send_report_to_emails' => null, 'include_check_types_in_report' => null, 'created_at' => self::Created, 'updated_at' => self::Created,
             'uptime_check_settings' => self::settings('uptime'), 'broken_links_check_settings' => self::settings('broken_links'),

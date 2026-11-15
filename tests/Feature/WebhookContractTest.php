@@ -76,7 +76,9 @@ function webhookContractEvents(): array
 {
     return [
         'uptime opened' => static function (NotificationDestination $channel): Event {
-            $check = webhookContractCheck(webhookContractSite('opened'), CheckKey::Uptime);
+            $site = webhookContractSite('opened');
+            $site->repositories()->create(['url' => 'https://github.com/golden/shop', 'label' => 'Shop', 'position' => 0]);
+            $check = webhookContractCheck($site, CheckKey::Uptime);
             $incident = Incident::factory()->for($check)->create(['site_id' => $check->site_id, 'opened_at' => now()->subMinutes(4),
                 'first_failure_at' => now()->subMinutes(5), 'evidence' => ['summary' => 'causes.http', 'summary_params' => ['status' => 503]]]);
 
@@ -291,7 +293,7 @@ it('sends System issue webhooks with the alert keys and null site and check fiel
         $body = json_decode($request['body'], true, flags: JSON_THROW_ON_ERROR);
         // Same keys as every alert payload; the instance is the subject, so site and check fields are null.
         expect(array_keys($body))->toBe(['event_id', 'destination_id', 'severity', 'cause', 'title', 'summary', 'headline', 'changes', 'details',
-            'site_id', 'site_label', 'site_url', 'check_type', 'also_affected', 'rechecking', 'since', 'downtime_seconds', 'link', 'is_test']);
+            'site_id', 'site_label', 'site_url', 'check_type', 'also_affected', 'rechecking', 'since', 'downtime_seconds', 'link', 'is_test', 'repositories']);
         expect([$body['site_id'], $body['site_label'], $body['site_url'], $body['check_type']])->toBe([null, null, null, null]);
         $golden[$name] = webhookContractGolden($request);
     }

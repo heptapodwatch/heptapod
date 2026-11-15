@@ -1,0 +1,13 @@
+{
+    "repositories.title": "Repositorys",
+    "repositories.description": "Nur Links; Heptapod meldet sich nicht bei Ihrem Git-Host an.",
+    "repositories.add": "Repository hinzufügen",
+    "repositories.url": "URL",
+    "repositories.label": "Bezeichnung",
+    "repositories.label_placeholder": "z. B. Backend",
+    "repositories.row": "Repository {{number}}",
+    "repositories.empty": "Noch kein Repository verknüpft.",
+    "repositories.invalid": "Geben Sie eine Repository-Adresse ein, etwa https://github.com/org/repo oder git@github.com:org/repo.git.",
+    "repositories.credentials": "Entfernen Sie die Zugangsdaten aus der Adresse; Heptapod speichert nur Links.",
+    "repositories.duplicate": "Dieses Repository ist bereits verknüpft."
+}

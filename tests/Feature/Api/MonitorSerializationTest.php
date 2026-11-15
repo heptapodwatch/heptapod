@@ -112,8 +112,8 @@ it('serializes monitors with constant queries and preserves performance availabi
     DB::disableQueryLog();
     expect(count($queries))->toBeLessThanOrEqual($fewQueries, 'monitor serialization grew from '.$fewQueries.' to '.count($queries).' queries as monitors grew from 2 to '.$count);
     // Upper budget: token auth, the monitor page and its batched checks, incidents and freshness; ded7eb579's
-    // three performance-availability batch lookups replace per-monitor queries.
-    expect($fewQueries)->toBeLessThanOrEqual(16, 'monitor serialization used '.$fewQueries.' queries, over its budget of 16');
+    // three performance-availability batch lookups replace per-monitor queries; repository links are one batched load.
+    expect($fewQueries)->toBeLessThanOrEqual(17, 'monitor serialization used '.$fewQueries.' queries, over its budget of 17');
     expect(collect($queries)->filter(fn (array $query): bool => str_contains($query['query'], 'FROM check_runs'))->count())->toBe(1);
     $performance = collect($response->json('data.0.checks'))->firstWhere('type', 'performance');
     expect($performance['average_response_time_in_ms'])->toBeNull();

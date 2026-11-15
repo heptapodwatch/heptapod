@@ -135,6 +135,15 @@ final class Site extends Model
         return $this->hasMany(Check::class);
     }
 
+    /** @return HasMany<SiteRepository, $this> */
+    public function repositories(): HasMany
+    {
+        $repositories = $this->hasMany(SiteRepository::class);
+        $repositories->getQuery()->getQuery()->orderBy('position');
+
+        return $repositories;
+    }
+
     /** @return HasMany<Incident, $this> */
     public function incidents(): HasMany
     {

@@ -13,6 +13,7 @@ use Heptapod\Contracts\RunReference;
 use Heptapod\Enums\AlertReminders;
 use Heptapod\Enums\AlertSensitivity;
 use Heptapod\Enums\FreshnessSuppression;
+use Heptapod\Support\RepositoryUrl;
 
 /**
  * The parts of the /api contract Scramble cannot infer from code: error envelopes, the agent endpoints' array
@@ -203,7 +204,7 @@ final class ApiContract
         return [
             'MonitorResource' => ['type' => 'object', 'additionalProperties' => false,
                 'required' => ['id', 'team_id', 'type', 'url', 'uses_https', 'sort_url', 'label', 'group_name', 'client_ref', 'client_name', 'tags', 'description', 'notes', 'latest_run_date', 'summarized_check_result',
-                    'checks', 'alert_sensitivity', 'badge_id', 'marked_for_deletion_at', 'crawler_headers', 'send_report_to_emails', 'include_check_types_in_report', 'created_at', 'updated_at'],
+                    'checks', 'alert_sensitivity', 'repositories', 'badge_id', 'marked_for_deletion_at', 'crawler_headers', 'send_report_to_emails', 'include_check_types_in_report', 'created_at', 'updated_at'],
                 'properties' => ['id' => ['type' => 'integer'], 'team_id' => ['type' => 'integer', 'const' => 1], 'type' => ['type' => 'string', 'const' => 'http'],
                     'url' => $string, 'uses_https' => ['type' => 'boolean'], 'sort_url' => $string, 'label' => $string, 'group_name' => ['type' => ['string', 'null']],
                     'client_ref' => ['type' => 'string', 'pattern' => '^client:[0-9]+$'], 'client_name' => ['type' => 'string', 'description' => self::ClientName],
@@ -211,6 +212,9 @@ final class ApiContract
                     'latest_run_date' => ['type' => ['string', 'null'], 'description' => 'UTC, Y-m-d H:i:s.'],
                     'summarized_check_result' => ['type' => 'string', 'enum' => ['pending', 'succeeded', 'warning', 'failed', 'errored-or-timed-out']],
                     'alert_sensitivity' => $sensitivity,
+                    'repositories' => ['type' => 'array', 'maxItems' => RepositoryUrl::MaxPerSite, 'description' => 'Repository links in their saved order. Links only; Heptapod never signs in to the Git host.',
+                        'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['url', 'label'],
+                            'properties' => ['url' => ['type' => 'string', 'description' => 'Canonical `https://host/path`.'], 'label' => ['type' => ['string', 'null']]]]],
                     'checks' => ['type' => 'array', 'items' => ['$ref' => self::Ref.'CheckResource']], 'badge_id' => ['type' => ['string', 'null']],
                     'marked_for_deletion_at' => ['type' => ['string', 'null']], 'crawler_headers' => ['type' => 'null', 'description' => 'Secret-bearing; never returned.'],
                     'send_report_to_emails' => ['type' => ['array', 'null'], 'items' => $string], 'include_check_types_in_report' => ['type' => ['array', 'null'], 'items' => $string],
@@ -338,6 +342,9 @@ final class ApiContract
             'crawler_settings' => ['type' => 'object', 'additionalProperties' => false, 'properties' => ['headers' => ['type' => 'array', 'items' => $header]]],
             'crawler_headers' => ['type' => ['array', 'null'], 'items' => $header],
             'send_report_to_emails' => $nullableStrings, 'include_check_types_in_report' => ['type' => ['array', 'null'], 'items' => ['$ref' => self::Ref.'CheckKey']],
+            'repositories' => ['type' => 'array', 'maxItems' => RepositoryUrl::MaxPerSite, 'description' => 'Replaces the stored links; `[]` removes all. Stored as `https://host/path` (lower-case host with international names as `xn--`, no `.git`, no trailing slash); SSH remotes such as `git@github.com:org/repo.git` convert. Credentials in the URL or a repeated repository return 422 on `repositories.N.url`, more than 10 links on `repositories`.',
+                'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['url'],
+                    'properties' => ['url' => ['type' => 'string', 'maxLength' => RepositoryUrl::MaxLength], 'label' => ['type' => ['string', 'null'], 'maxLength' => 255]]]],
             ...$fields->checkSettings()]];
 
         // Mirrors the `date_format:Y-m-d H:i` rule of MaintenancePeriodController: windows have minute precision like the web form.
@@ -586,6 +593,7 @@ final class ApiContract
             'page' => $page,
             'per_page' => $perPage,
             'filter[team_id]' => 'Team filter of the Oh Dear format. The only team is 1.',
+            'filter[repository_url]' => 'Only monitors linked to this repository. HTTPS and SSH remote forms are normalised like `repositories`; credentials or a non-repository address return 422.',
             'filter[started_after]' => 'Only runs started at or after this time. '.$utcFilter,
             'filter[started_before]' => 'Only runs started at or before this time. '.$utcFilter,
             'filter[result]' => 'Only runs with this result. `failed` includes Check errors.',

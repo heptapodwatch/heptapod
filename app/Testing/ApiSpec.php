@@ -46,6 +46,7 @@ final class ApiSpec
         '/components/schemas/UptimeCheckSettings/properties/frequency_unit' => ['reason' => 'The real Oh Dear API returns hour/day (sanitized live data); the pinned spec is incomplete', 'enum' => ['minute', 'hour', 'day', null]],
         '/components/schemas/UptimeCheckSettings/properties/failed_notification_threshold' => ['reason' => 'Uptime notification minutes in 1..1000; null inherits the team default. Incident opening remains unchanged; other checks keep failed-check-count semantics.'],
         '/components/schemas/Monitor/properties/alert_sensitivity' => ['reason' => 'Additional read-only effective sensitivity: preset, alert_after_minutes, recovery_checks, confirms_other_checks, reminders and inherited. Writes use uptime failed_notification_threshold only.'],
+        '/components/schemas/Monitor/properties/repositories' => ['reason' => 'Additional repository links [{url, label}]; written with repositories on create and update, reverse lookup with filter[repository_url].'],
         '/paths/~1checks~1{checkId}~1snooze/post' => ['reason' => 'Uninstalled addons reject enable, config, request-run and snooze with 422; disable, unsnooze and monitor delete remain allowed cleanup'],
         '/paths/~1monitors/get/parameters' => ['reason' => 'SDK scalar page/per_page supported alongside bracketed pages; mixed dialects rejected'],
     ];

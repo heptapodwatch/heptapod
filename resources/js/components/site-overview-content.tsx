@@ -22,6 +22,7 @@ import {
 } from '@/components/monitoring';
 import { SectionHeading } from '@/components/section-heading';
 import { StatTile } from '@/components/stat-tile';
+import { TextLink } from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -77,6 +78,7 @@ export function SiteOverviewContent({ page }: { page: Page }) {
     const attentionId = useId();
     const checksId = useId();
     const { site } = page;
+    const repositoryFacts = useRepositoryFacts(page.repositories);
     // Enabled checks by severity, turned-off ones last.
     const checks = [...site.checks].sort(
         (a, b) =>
@@ -186,12 +188,16 @@ export function SiteOverviewContent({ page }: { page: Page }) {
                                         <Skeleton className="h-[2lh] w-72 max-w-full sm:h-[1lh]" />
                                     ),
                                 },
+                                ...repositoryFacts,
                             ]}
                         />
                     </div>
                 }
             >
-                <SiteRecordLines page={page} />
+                <SiteRecordLines
+                    page={page}
+                    repositoryFacts={repositoryFacts}
+                />
             </Deferred>
             {uptime && (
                 // One row from xl only: narrower, a card's title and Open check collide (DE at 1024).
@@ -251,8 +257,43 @@ export function SiteOverviewContent({ page }: { page: Page }) {
     );
 }
 
+/** The site's repository links as one record line (none without links): label, then the link without its scheme. */
+function useRepositoryFacts(
+    repositories: Heptapod.Data.Ui.SiteRepositoryData[],
+) {
+    const { t } = useTranslation();
+    if (repositories.length === 0) return [];
+    return [
+        {
+            label: t('repositories.title'),
+            value: (
+                <ul className="flex flex-wrap gap-x-4 gap-y-1">
+                    {repositories.map((repository) => (
+                        <li key={repository.url} className="min-w-0">
+                            {repository.label && (
+                                <span className="mr-1.5 text-muted-foreground">
+                                    {repository.label}
+                                </span>
+                            )}
+                            <TextLink external url href={repository.url}>
+                                {repository.url.replace(/^https:\/\//, '')}
+                            </TextLink>
+                        </li>
+                    ))}
+                </ul>
+            ),
+        },
+    ];
+}
+
 /** Last 30 days and Coming up, in words you can read out on a client call. */
-function SiteRecordLines({ page }: { page: Page }) {
+function SiteRecordLines({
+    page,
+    repositoryFacts,
+}: {
+    page: Page;
+    repositoryFacts: { label: string; value: ReactNode }[];
+}) {
     const { t } = useTranslation();
     const format = useFormat();
     const { record, upcoming = [] } = page;
@@ -300,6 +341,7 @@ function SiteRecordLines({ page }: { page: Page }) {
                             ? coming.join(' · ')
                             : t('site_overview.coming_nothing'),
                     },
+                    ...repositoryFacts,
                 ]}
             />
         </div>

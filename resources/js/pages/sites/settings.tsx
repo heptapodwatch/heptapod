@@ -41,6 +41,7 @@ import { ConfirmDialog, confirmVisit } from '@/components/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFormat } from '@/hooks/use-format';
+import { ReplicatorField } from '@/components/replicator-field';
 import {
     index as sitesIndex,
     update as siteUpdate,
@@ -54,6 +55,14 @@ const iconRefreshOutcomes = new Set([
     'icons.unavailable',
     'icons.throttled',
 ]);
+
+/** The saved links as editable rows; an empty label is the empty string, which the server stores as none. */
+function repositoryRows(repositories: Heptapod.Data.Ui.SiteRepositoryData[]) {
+    return repositories.map((repository) => ({
+        url: repository.url,
+        label: repository.label ?? '',
+    }));
+}
 
 export default function SiteSettings({
     site,
@@ -76,6 +85,7 @@ export default function SiteSettings({
     timezones,
     check_settings,
     check_options,
+    repositories,
 }: Heptapod.Data.Ui.SiteSettingsPageData) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -175,6 +185,7 @@ export default function SiteSettings({
             .map((check) => check.key),
         // Draft settings of types without a check, keyed `<type>.<field>` as in the add-site wizard.
         settings: {} as Record<string, FieldValue>,
+        repositories: repositoryRows(repositories),
     });
     // The add-site wizard's reason why a type cannot run for this site, against the address being edited. Scheduled
     // tasks are only created through the API, so the reason applies to a type the site has no check of.
@@ -270,6 +281,9 @@ export default function SiteSettings({
                         .filter((check) => check.enabled)
                         .map((check) => check.key),
                     settings: {},
+                    repositories: repositoryRows(
+                        props.repositories as Heptapod.Data.Ui.SiteRepositoryData[],
+                    ),
                 };
                 form.setDefaults(values);
                 form.setData(values);
@@ -410,6 +424,50 @@ export default function SiteSettings({
                                 />
                             </div>
                         </div>
+                    </FormSection>
+                    <FormSection
+                        title={t('repositories.title')}
+                        description={t('repositories.description')}
+                    >
+                        <ReplicatorField
+                            id="site-repositories"
+                            label={t('repositories.title')}
+                            columns={[
+                                {
+                                    key: 'url',
+                                    label: t('repositories.url'),
+                                    placeholder: 'https://github.com/org/repo',
+                                    mono: true,
+                                },
+                                {
+                                    key: 'label',
+                                    label: t('repositories.label'),
+                                    placeholder: t(
+                                        'repositories.label_placeholder',
+                                    ),
+                                    narrow: true,
+                                },
+                            ]}
+                            rows={form.data.repositories}
+                            onRowsChange={(rows) =>
+                                form.setData('repositories', rows)
+                            }
+                            max={10}
+                            addLabel={t('repositories.add')}
+                            rowName={(index) =>
+                                t('repositories.row', { number: index + 1 })
+                            }
+                            empty={t('repositories.empty')}
+                            error={(index, key) =>
+                                (
+                                    form.errors as Record<
+                                        string,
+                                        string | undefined
+                                    >
+                                )[`repositories.${index}.${key}`]
+                            }
+                            disabled={archivedClient || form.processing}
+                        />
                     </FormSection>
                     <FormSection
                         title={t('Checks')}

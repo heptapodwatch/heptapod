@@ -42,5 +42,7 @@ final class SiteSettingsPageData extends Data
         public readonly array $check_settings = [],
         /** @var list<CheckOptionData> Every installed check type, as the add-site wizard offers it, so the Checks section can turn on a type the site has no check for. */
         public readonly array $check_options = [],
+        /** @var list<SiteRepositoryData> */
+        public readonly array $repositories = [],
     ) {}
 }

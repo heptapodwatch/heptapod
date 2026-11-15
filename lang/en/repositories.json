@@ -1,0 +1,13 @@
+{
+    "repositories.title": "Repositories",
+    "repositories.description": "Links only; Heptapod does not sign in to your Git host.",
+    "repositories.add": "Add repository",
+    "repositories.url": "URL",
+    "repositories.label": "Label",
+    "repositories.label_placeholder": "e.g. Backend",
+    "repositories.row": "Repository {{number}}",
+    "repositories.empty": "No repository linked yet.",
+    "repositories.invalid": "Enter a repository address such as https://github.com/org/repo or git@github.com:org/repo.git.",
+    "repositories.credentials": "Remove the credentials from the address; Heptapod stores links only.",
+    "repositories.duplicate": "This repository is already linked."
+}
