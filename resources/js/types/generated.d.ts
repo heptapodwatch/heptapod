@@ -622,6 +622,11 @@ readonly id: number,
 readonly endedAt: string,
 };
 export type RunResult = 'succeeded' | 'warning' | 'failed' | 'errored-or-timed-out';
+export type SecurityAdvisoryPackageData = {
+readonly package: string,
+readonly sites: number,
+readonly severity: string | null,
+};
 export type SuppressionComponent = 'cron' | 'application_health';
 export type SuppressionDecision = {
 readonly suppressed: boolean,
@@ -1944,6 +1949,7 @@ readonly can_create: boolean,
 readonly tiles: Heptapod.Data.Ui.DashboardTilesData,
 readonly needs_attention: Heptapod.Data.Ui.SiteRowData[],
 readonly needs_attention_total: number,
+readonly advisory_packages: Heptapod.Contracts.SecurityAdvisoryPackageData[],
 };
 export type SystemHealthPageData = {
 readonly health: Heptapod.SystemHealth.SystemHealthData,

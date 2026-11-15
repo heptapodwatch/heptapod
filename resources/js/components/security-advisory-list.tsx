@@ -51,15 +51,14 @@ const severities: Record<
 };
 
 /** Severity is website-reported text: only the four known values get a label and tone. */
-function knownSeverity(advisory: Advisory): Severity | null {
-    return advisory.severity !== null &&
-        Object.hasOwn(severities, advisory.severity)
-        ? (advisory.severity as Severity)
+function knownSeverity(severity: string | null): Severity | null {
+    return severity !== null && Object.hasOwn(severities, severity)
+        ? (severity as Severity)
         : null;
 }
 
 function rank(advisory: Advisory): number {
-    const severity = knownSeverity(advisory);
+    const severity = knownSeverity(advisory.severity);
     return severity === null ? 0 : severities[severity].rank;
 }
 
@@ -82,13 +81,15 @@ function packageGroups(advisories: Advisory[]) {
         );
 }
 
-function SeverityBadge({ advisory }: { advisory: Advisory }) {
+export function SeverityBadge({
+    severity: reported,
+}: {
+    severity: string | null;
+}) {
     const { t } = useTranslation();
-    const severity = knownSeverity(advisory);
+    const severity = knownSeverity(reported);
     if (severity === null) {
-        return advisory.severity ? (
-            <Badge variant="outline">{advisory.severity}</Badge>
-        ) : null;
+        return reported ? <Badge variant="outline">{reported}</Badge> : null;
     }
     return (
         <Badge
@@ -144,7 +145,7 @@ function PackageSummary({
                     <span className="font-mono font-medium [overflow-wrap:anywhere]">
                         {name}
                     </span>
-                    <SeverityBadge advisory={top} />
+                    <SeverityBadge severity={top.severity} />
                     <span className="whitespace-nowrap text-muted-foreground">
                         {t('{{count}} advisories', {
                             count: items.length,
@@ -241,7 +242,7 @@ export function SecurityAdvisoryList({
                                     <TableRow key={advisory.advisory_id}>
                                         <TableCell>
                                             <SeverityBadge
-                                                advisory={advisory}
+                                                severity={advisory.severity}
                                             />
                                         </TableCell>
                                         <TableCell column="primary">
@@ -297,7 +298,9 @@ export function SecurityAdvisoryList({
                                             listCardPadding,
                                         )}
                                     >
-                                        <SeverityBadge advisory={advisory} />
+                                        <SeverityBadge
+                                            severity={advisory.severity}
+                                        />
                                         <div>
                                             <TextLink
                                                 external

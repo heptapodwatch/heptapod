@@ -21,6 +21,8 @@ export type ComboboxOption = {
     mark?: ReactNode;
     /** Muted second line in the list; the trigger shows it only in its tooltip. */
     secondary?: string;
+    /** Badge leading the second line in the list only (an advisory package's severity); never in the trigger. */
+    badge?: ReactNode;
     /** Extra text the search matches against (host, offset, client…). */
     searchText?: string;
     /** Options sharing a group render under one heading, in first-seen order. */
@@ -37,11 +39,12 @@ function optionContent(option: ComboboxOption): ReactNode {
     return (
         <>
             {option.mark}
-            {option.secondary ? (
+            {option.secondary || option.badge ? (
                 <span className="min-w-0">
                     <span className="block truncate">{option.label}</span>
-                    <span className="block truncate text-xs text-muted-foreground">
-                        {option.secondary}
+                    <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                        {option.badge}
+                        <span className="truncate">{option.secondary}</span>
                     </span>
                 </span>
             ) : (

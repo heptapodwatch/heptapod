@@ -417,6 +417,7 @@
     "Showing first 100 advisories": "Showing first 100 advisories",
     "With advisories": "With advisories",
     "All advisories": "All advisories",
+    "Packages": "Packages",
     "{{count}} advisories_one": "{{formattedCount}} advisory",
     "{{count}} advisories_other": "{{formattedCount}} advisories",
     "Severity": "Severity",

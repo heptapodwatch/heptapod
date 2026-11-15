@@ -20,6 +20,7 @@ use Heptapod\Contracts\CheckRunPresentationData;
 use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\RunPhase;
 use Heptapod\Contracts\SecurityAdvisoryIndex;
+use Heptapod\Contracts\SecurityAdvisoryPackageData;
 use Heptapod\Data\Ui\CheckRunStateData;
 use Heptapod\Data\Ui\CheckStripData;
 use Heptapod\Data\Ui\ClientData;
@@ -234,13 +235,26 @@ final readonly class SitesReader
     /** @param Builder<Model> $query Spatie query filters pass the projected site query untyped. */
     private function advisoryFilter(Builder $query, ?string $package = null, ?string $advisoryId = null): void
     {
+        $index = $this->advisoryIndex();
+        $query->whereHas('checks', static function (Builder $checks) use ($index, $package, $advisoryId): void {
+            $checks->getQuery()->where('enabled', true)->whereIn('checks.id', $index->affectedChecks($package, $advisoryId));
+        });
+    }
+
+    /** @return list<SecurityAdvisoryPackageData> */
+    public function advisoryPackages(User $user): array
+    {
+        return $this->advisoryIndex()->packages($this->policy->visibleSiteIds($user));
+    }
+
+    private function advisoryIndex(): SecurityAdvisoryIndex
+    {
         $index = $this->registry->get(CheckKey::ApplicationHealth)->persistence();
         if (! $index instanceof SecurityAdvisoryIndex) {
             throw new \LogicException('Application health persistence must implement SecurityAdvisoryIndex.');
         }
-        $query->whereHas('checks', static function (Builder $checks) use ($index, $package, $advisoryId): void {
-            $checks->getQuery()->where('enabled', true)->whereIn('checks.id', $index->affectedChecks($package, $advisoryId));
-        });
+
+        return $index;
     }
 
     /**

@@ -1113,6 +1113,7 @@ export function sitesPageFixture(
         },
         needs_attention: attention.slice(0, 5),
         needs_attention_total: attention.length,
+        advisory_packages: [],
     };
 }
 function schemaField(

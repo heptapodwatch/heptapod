@@ -6,20 +6,47 @@ namespace Heptapod\Addons\ApplicationHealth;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckContext;
+use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\SecurityAdvisoryIndex;
+use Heptapod\Contracts\SecurityAdvisoryPackageData;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 final class ApplicationHealthPersistence implements RunPersistence, SecurityAdvisoryIndex
 {
+    private const array SeverityRanks = ['critical' => 4, 'high' => 3, 'medium' => 2, 'low' => 1];
+
     public function affectedChecks(?string $package = null, ?string $advisoryId = null): Builder
     {
         return DB::table('application_health_advisories')->select('check_id')
             ->when($package !== null, static fn (Builder $query): Builder => $query->where('package', $package))
             ->when($advisoryId !== null, static fn (Builder $query): Builder => $query->where('advisory_id', $advisoryId));
+    }
+
+    public function packages(array $siteIds): array
+    {
+        $rank = 'CASE severity';
+        foreach (self::SeverityRanks as $severity => $value) {
+            $rank .= " WHEN '{$severity}' THEN {$value}";
+        }
+        // shortcut: lists the 100 most severe packages; a longer tail stays reachable through each check's Sites affected link.
+        $rows = DB::table('application_health_advisories')
+            ->join('checks', 'checks.id', '=', 'application_health_advisories.check_id')
+            ->where('checks.type', CheckKey::ApplicationHealth->value)->where('checks.enabled', true)
+            ->whereIntegerInRaw('checks.site_id', $siteIds)
+            ->groupBy('package')
+            ->selectRaw('package, count(DISTINCT checks.site_id)::int AS sites, max('.$rank.' ELSE 0 END)::int AS severity_rank')
+            ->orderByDesc('severity_rank')->orderByDesc('sites')->orderBy('package')->limit(100)->get()->all();
+
+        return array_values(array_map(static function (object $row): SecurityAdvisoryPackageData {
+            /** @var \stdClass&object{package: string, sites: int, severity_rank: int} $row */
+            $severity = array_search($row->severity_rank, self::SeverityRanks, true);
+
+            return new SecurityAdvisoryPackageData($row->package, $row->sites, $severity === false ? null : $severity);
+        }, $rows));
     }
 
     /**

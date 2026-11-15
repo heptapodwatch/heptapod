@@ -37,6 +37,7 @@ import {
 import { useFormat } from '@/hooks/use-format';
 import { statusLabels } from '@/lib/status';
 import { checkTypes } from '@/lib/check-types';
+import { SeverityBadge } from '@/components/security-advisory-list';
 import {
     show as siteShow,
     index as sitesIndex,
@@ -55,6 +56,7 @@ export default function SitesIndex({
     tiles,
     needs_attention,
     needs_attention_total,
+    advisory_packages,
 }: Heptapod.Data.Ui.SitesIndexPageData) {
     useLiveReload(
         ['state.changed'],
@@ -68,6 +70,7 @@ export default function SitesIndex({
             'tiles',
             'needs_attention',
             'needs_attention_total',
+            'advisory_packages',
             'overallHealth',
         ],
     );
@@ -119,37 +122,50 @@ export default function SitesIndex({
             </SelectContent>
         </Select>
     );
+    const packageOptions = advisory_packages.map((item) => ({
+        value: `package:${item.package}`,
+        label: item.package,
+        secondary: t('{{count}} sites', {
+            count: item.sites,
+            formattedCount: format.number(item.sites),
+        }),
+        badge: <SeverityBadge severity={item.severity} />,
+        group: t('Packages'),
+    }));
     const advisoryFilter = (
-        <Select
+        <FilterCombobox
+            ariaLabel={t('Security advisories')}
+            options={[
+                { value: 'all', label: t('All advisories') },
+                { value: 'any', label: t('With advisories') },
+                ...packageOptions,
+                // An advisory ID, or a package no longer listed, comes from a check's Sites affected link.
+                ...(advisoryValue.includes(':') &&
+                !packageOptions.some((option) => option.value === advisoryValue)
+                    ? [
+                          {
+                              value: advisoryValue,
+                              label: (filters.advisory ?? filters.package)!,
+                          },
+                      ]
+                    : []),
+            ]}
             value={advisoryValue}
             onValueChange={(value) =>
                 visit({
-                    ...clearAdvisories,
                     advisories: value === 'any' ? '1' : null,
+                    package: value.startsWith('package:')
+                        ? value.slice('package:'.length)
+                        : null,
+                    advisory: value.startsWith('advisory:')
+                        ? value.slice('advisory:'.length)
+                        : null,
                 })
             }
-        >
-            <FilterSelectTrigger
-                aria-label={t('Security advisories')}
-                onClear={
-                    advisoryValue !== 'all'
-                        ? () => visit(clearAdvisories)
-                        : null
-                }
-            >
-                <SelectValue />
-            </FilterSelectTrigger>
-            <SelectContent>
-                <SelectItem value="all">{t('All advisories')}</SelectItem>
-                <SelectItem value="any">{t('With advisories')}</SelectItem>
-                {/* Package and advisory filters come from the Sites affected links of an application health check. */}
-                {advisoryValue.includes(':') && (
-                    <SelectItem value={advisoryValue}>
-                        {filters.advisory ?? filters.package}
-                    </SelectItem>
-                )}
-            </SelectContent>
-        </Select>
+            onClear={
+                advisoryValue !== 'all' ? () => visit(clearAdvisories) : null
+            }
+        />
     );
     const tagFilter = (
         <FilterCombobox

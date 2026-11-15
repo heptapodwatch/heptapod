@@ -127,7 +127,11 @@ it('filters the Sites list by open advisory, package and advisory ID within the 
     $all = advisoriesSiteCheck(Site::factory()->for($agency)->create());
     $mailer = advisoriesSiteCheck(Site::factory()->for($client)->create());
     $healthy = advisoriesSiteCheck(Site::factory()->for($client)->create());
-    runAdvisories($all, spatieAdvisoriesPayload());
+    $allPayload = spatieAdvisoriesPayload();
+    // dompdf/dompdf ranks by its highest severity, below the critical packages despite its name.
+    $allPayload['checkResults'][0]['meta']['dompdf/dompdf'] = array_map(static fn (array $advisory): array => [...$advisory, 'severity' => 'medium'],
+        $allPayload['checkResults'][0]['meta']['dompdf/dompdf']);
+    runAdvisories($all, $allPayload);
     runAdvisories($mailer, spatieAdvisoriesPayload(['phpmailer/phpmailer']));
     runAdvisories($healthy, spatieAdvisoriesPayload(status: 'ok'));
     $owner = User::factory()->create();
@@ -137,7 +141,11 @@ it('filters the Sites list by open advisory, package and advisory ID within the 
     $member->clients()->attach($client);
     $phpmailerCve = spatieAdvisoriesPayload()['checkResults'][0]['meta']['phpmailer/phpmailer'][0]['cve'];
 
-    $this->actingAs($owner);
+    $this->actingAs($owner)->get('/sites')->assertInertia(fn (Assert $page): Assert => $page->where('advisory_packages', [
+        ['package' => 'phpmailer/phpmailer', 'sites' => 2, 'severity' => 'critical'],
+        ['package' => 'phenx/php-svg-lib', 'sites' => 1, 'severity' => 'critical'],
+        ['package' => 'dompdf/dompdf', 'sites' => 1, 'severity' => 'medium'],
+    ]));
     expect(advisorySiteIds('filter[advisories]=1'))->toBe([$all->site_id, $mailer->site_id])
         ->and(advisorySiteIds('filter[package]=dompdf/dompdf'))->toBe([$all->site_id])
         ->and(advisorySiteIds('filter[advisory]='.$phpmailerCve))->toBe([$all->site_id, $mailer->site_id])
@@ -148,7 +156,9 @@ it('filters the Sites list by open advisory, package and advisory ID within the 
     $this->get('/sites?filter[package]=dompdf/dompdf')->assertInertia(fn (Assert $page): Assert => $page
         ->where('filters.package', 'dompdf/dompdf')->where('pagination.total', 1));
 
-    $this->actingAs($member);
+    $this->actingAs($member)->get('/sites')->assertInertia(fn (Assert $page): Assert => $page->where('advisory_packages', [
+        ['package' => 'phpmailer/phpmailer', 'sites' => 1, 'severity' => 'critical'],
+    ]));
     expect(advisorySiteIds('filter[advisories]=1'))->toBe([$mailer->site_id])
         ->and(advisorySiteIds('filter[package]=dompdf/dompdf'))->toBe([]);
     $this->get('/sites?filter[advisory]='.$phpmailerCve)->assertInertia(fn (Assert $page): Assert => $page->where('pagination.total', 1));
@@ -162,6 +172,7 @@ it('filters the Sites list by open advisory, package and advisory ID within the 
     expect(advisorySiteIds('filter[advisories]=1'))->toBe([$mailer->site_id]);
     $mailer->update(['enabled' => false]);
     expect(advisorySiteIds('filter[advisories]=1'))->toBe([]);
+    $this->get('/sites')->assertInertia(fn (Assert $page): Assert => $page->where('advisory_packages', []));
 });
 
 it('names the advisories in the alert mail as code in HTML and as plain names in the text part', function (): void {
