@@ -212,7 +212,9 @@ final readonly class RunsReader
     public function lateCount(User $user): int
     {
         $checkQuery = Check::query()->with('site');
-        $checkQuery->getQuery()->whereIn('site_id', $this->policy->activeVisibleSiteIds($user))->where('enabled', true);
+        // Every page's sidebar asks this: load only checks past their due time plus grace, CheckRunsReader::state() decides the rest.
+        $checkQuery->getQuery()->whereIn('site_id', $this->policy->activeVisibleSiteIds($user))->where('enabled', true)
+            ->whereRaw("next_run_at + greatest(60, ceil(interval_seconds * 0.1)) * interval '1 second' < ?::timestamptz", [CarbonImmutable::now('UTC')->format('Y-m-d H:i:s.uP')]);
         $checks = $checkQuery->get();
         $attemptQuery = CheckRunAttempt::query()->with('actor');
         $attemptQuery->getQuery()->whereIn('check_id', $checks->pluck('id')->all())->whereIn('phase', [RunPhase::Queued, RunPhase::Running]);
