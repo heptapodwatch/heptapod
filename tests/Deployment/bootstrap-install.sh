@@ -14,7 +14,7 @@ echo "${STUB_UID:-0}"
 SH
 cat > "$work/bin/uname" <<'SH'
 #!/bin/sh
-echo "${STUB_ARCH:-x86_64}"
+if [ "${1:-}" = -s ]; then echo "${STUB_KERNEL:-Linux}"; else echo "${STUB_ARCH:-x86_64}"; fi
 SH
 cat > "$work/bin/docker" <<'SH'
 #!/bin/sh
@@ -148,6 +148,8 @@ refuses 'Invalid --version main' --domain a.example.com --version main
 refuses 'Invalid --version v2.0.0-rc.1: Heptapod publishes only vX.Y.Z release tags' --domain a.example.com --version v2.0.0-rc.1
 refuses '--dir must be an absolute path' --domain a.example.com --dir relative
 STUB_UID=1000 refuses 'Run as root' --domain a.example.com --dir "$work/a"
+# A Mac has no /etc/os-release and usually no sudo yet: the hint must come before the root and OS checks.
+STUB_KERNEL=Darwin STUB_UID=501 HEPTAPOD_OS_RELEASE="$work/missing" refuses 'not this Mac. Connect to your server over SSH and run the command there. Install guide: https://heptapod.watch/docs/getting-started/install/' --domain a.example.com --dir "$work/a"
 HEPTAPOD_OS_RELEASE="$work/fedora" refuses "Unsupported operating system 'fedora'" --domain a.example.com --dir "$work/a"
 STUB_ARCH=armv7l refuses 'Unsupported architecture armv7l: Heptapod publishes images for amd64 (x86_64) and arm64 (aarch64).' --domain a.example.com --dir "$work/a"
 STUB_ARCH=aarch64 refuses 'Heptapod v0.4.0 has no arm64 images; they exist from v0.5.0 on. Pass --version with a newer release' --domain a.example.com --version v0.4.0 --dir "$work/a"
