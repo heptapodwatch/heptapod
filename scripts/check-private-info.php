@@ -27,7 +27,7 @@ $policy = json_decode((string) file_get_contents($policyPath), true, flags: JSON
 $rules = [
     'home path' => '~(?<![\w.-])/(?:home|Users)/[\w.-]+/|\b[A-Za-z]:\\\\+Users\\\\+[\w.-]+~',
     'tailnet host' => '~(?<![\w-])(?:[a-z0-9-]+\.)+(?:ts|tailscale)\.net\b~i',
-    'email address' => '~[\w.%+-]+@(?:[a-z0-9-]+\.)+[a-z]{2,}\b~i',
+    'email address' => '~(?<![/\w.%+-])[\w.%+-]+@(?:[a-z0-9-]+\.)+[a-z]{2,}\b(?![:\w-])~i',
     'local URL in user-facing docs' => '~https?://(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]):\d+~i',
 ];
 // Reserved example domains, the project's own public addresses and GitHub's public no-reply addresses.

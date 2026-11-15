@@ -44,8 +44,9 @@ test('every tracked file is checked against the generic and local patterns', fun
     File::ensureDirectoryExists($this->repository.'/docs');
     File::put($this->repository.'/docs/install.md', "Open http://localhost:8080 after the install.\n");
     File::ensureDirectoryExists($this->repository.'/tests');
-    // Negatives: reserved example domains, an excepted fixture address and a local URL outside docs/. A longer address around the excepted one still fails.
-    File::put($this->repository.'/tests/fixture.yml', 'contact: vendor@'.'upstream-api.io'."\nsupport: private-vendor@".'upstream-api.io'."\nowner: owner@example.com\nreply: team@site.test\nurl: http://localhost:8080\n");
+    // Negatives: reserved example domains, an excepted fixture address, a local URL outside docs/, an SSH remote and URL
+    // credentials (neither is an email address). A longer address around the excepted one still fails.
+    File::put($this->repository.'/tests/fixture.yml', 'contact: vendor@'.'upstream-api.io'."\nsupport: private-vendor@".'upstream-api.io'."\nowner: owner@example.com\nreply: team@site.test\nurl: http://localhost:8080\nremote: git@".'github.com'.":org/repo.git\ntoken: https://token@".'github.com'."/org/repo\n");
     ($this->git)('add', '.');
     ($this->git)('commit', '--quiet', '-m', 'chore: seed');
 
