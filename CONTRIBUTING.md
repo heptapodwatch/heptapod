@@ -1,6 +1,6 @@
 # Contributing to Heptapod
 
-Open an issue at https://github.com/heptapodwatch/heptapod/issues before starting a large change. Describe the user outcome, scope and a way to verify it. Keep fixes focused. Follow the [Code of Conduct](CODE_OF_CONDUCT.md); use [private security reporting](SECURITY.md) for vulnerabilities.
+Open an issue at https://github.com/heptapodwatch/heptapod/issues before starting a large change. Describe the user outcome, scope and a way to verify it. Keep fixes focused. Follow the [Code of Conduct](.github/CODE_OF_CONDUCT.md); use [private security reporting](.github/SECURITY.md) for vulnerabilities.
 
 ## Development setup
 

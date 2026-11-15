@@ -2,7 +2,7 @@
 
 Heptapod is an open-source, self-hosted monitoring suite for freelancers and small agencies. It brings website checks, application health, opt-in notifications and client reporting into one instance that the operator controls.
 
-This document describes product requirements and planned capabilities, not a guarantee that every feature ships in the current release. Use the [README](README.md) and [operator documentation](docs/deploy/operations.md) for supported installation and operation.
+This document describes product requirements and planned capabilities, not a guarantee that every feature ships in the current release. Use the [README](../README.md) and [operator documentation](../docs/deploy/operations.md) for supported installation and operation.
 
 ## Users and problem
 
@@ -89,7 +89,7 @@ Following a site or scope means receiving alerts, not accepting work. Notificati
 
 The API supports bearer tokens, client-scoped access and documented error responses. Operators can manage monitors, request runs, inspect check results and history, and manage maintenance and scheduled tasks within the supported API surface.
 
-Oh Dear compatibility targets documented monitor and check operations, application-health JSON and scheduled-task integration. It does not imply compatibility with every vendor endpoint. The [API guide](docs/api.md) defines the supported surface.
+Oh Dear compatibility targets documented monitor and check operations, application-health JSON and scheduled-task integration. It does not imply compatibility with every vendor endpoint. The [API guide](../docs/api.md) defines the supported surface.
 
 Import is optional. It previews supported monitors, settings, tags, scheduled tasks and maintenance definitions before applying changes. Unsupported or invalid settings must be reported explicitly. Import examples and evaluation fixtures use synthetic data, not captured customer accounts.
 
@@ -136,4 +136,4 @@ Core monitoring, access, notifications and operation come first. API coverage, o
 
 Release evaluation uses synthetic sites and accounts. It covers initial setup, a real completed check, a failure and recovery, notification outcomes, API access boundaries, backup and restore, and an upgrade with persistent data. It does not require access to any contributor's machine, account or network.
 
-Formatting, spelling, lint, type checks, static analysis, generated declarations and dependency audits are active gates. Production image, deployment OPS and security checks remain active. Application tests run in CI, and the PHP Gate, non-quarantined PHP tests, architecture tests and Vitest block merges; Browser, mutation and coverage suites remain disabled, and type coverage remains in the static gate. Run affected tests with `docker compose exec app bash scripts/run-tests.sh focused <test-file>` or the PHP suites with `docker compose exec app bash scripts/run-tests.sh ci-php`, using random order and a recorded seed as shown in [operations](docs/deploy/operations.md#development-test-hooks). See [CONTRIBUTING.md](CONTRIBUTING.md) for the contributor workflow.
+Formatting, spelling, lint, type checks, static analysis, generated declarations and dependency audits are active gates. Production image, deployment OPS and security checks remain active. Application tests run in CI, and the PHP Gate, non-quarantined PHP tests, architecture tests and Vitest block merges; Browser, mutation and coverage suites remain disabled, and type coverage remains in the static gate. Run affected tests with `docker compose exec app bash scripts/run-tests.sh focused <test-file>` or the PHP suites with `docker compose exec app bash scripts/run-tests.sh ci-php`, using random order and a recorded seed as shown in [operations](../docs/deploy/operations.md#development-test-hooks). See [CONTRIBUTING.md](../CONTRIBUTING.md) for the contributor workflow.

@@ -141,7 +141,7 @@ docker compose exec app npm run hooks:install
 - Renovate groups minor/patch updates and the vite-plus/Vite/Vitest ecosystem; other majors get separate PRs.
 - Renovate updates FrankenPHP's exact tag and digest. Keep its PHP patch aligned with Composer's `config.platform.php` and CI's `php-version`.
 - Release-please uses the manifest and the `simple` release type, because this full-stack application is not an npm or Composer library.
-- `version.txt` is the application version, starting at 0.0.0 before the first 0.1 release. Neither dependency manifest gets a library version.
+- `.github/release-please/version.txt` is the application version, starting at 0.0.0 before the first 0.1 release. Neither dependency manifest gets a library version.
 - Release-please runs only through manual `workflow_dispatch` until the release policy is decided.
 
 ## Browser and developer login

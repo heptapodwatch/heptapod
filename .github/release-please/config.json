@@ -4,7 +4,8 @@
         ".": {
             "release-type": "simple",
             "package-name": "heptapod",
-            "include-v-in-tag": true
+            "include-v-in-tag": true,
+            "version-file": ".github/release-please/version.txt"
         }
     }
 }

@@ -1,3 +1,5 @@
+import type { RenderOptions } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, beforeEach, vi } from 'vitest';
 
 // Freeze module initialization as well as each test; hooks may opt into fake timers.
@@ -13,11 +15,11 @@ vi.mock('@testing-library/react', async (importOriginal) => {
     const { createElement } = await import('react');
     const { TooltipProvider } = await import('@/components/ui/tooltip');
     const { FormActionsDock } = await import('@/components/form-section');
-    const render: typeof library.render = (ui, options) => {
+    const render = ((ui: ReactNode, options?: RenderOptions) => {
         const Wrapper = options?.wrapper;
         return library.render(ui, {
             ...options,
-            wrapper: ({ children }) =>
+            wrapper: ({ children }: { children: ReactNode }) =>
                 createElement(
                     TooltipProvider,
                     null,
@@ -29,7 +31,7 @@ vi.mock('@testing-library/react', async (importOriginal) => {
                             : children,
                     ),
                 ),
-        } as typeof options);
-    };
+        });
+    }) as typeof library.render;
     return { ...library, render };
 });
