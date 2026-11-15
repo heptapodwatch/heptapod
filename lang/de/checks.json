@@ -417,6 +417,7 @@
     "Showing first 100 advisories": "Erste 100 Sicherheitshinweise angezeigt",
     "With advisories": "Mit Hinweisen",
     "All advisories": "Alle Hinweise",
+    "Showing the 100 most severe packages": "Die 100 schwerwiegendsten Pakete werden angezeigt",
     "Packages": "Pakete",
     "{{count}} advisories_one": "{{formattedCount}} Hinweis",
     "{{count}} advisories_other": "{{formattedCount}} Hinweise",

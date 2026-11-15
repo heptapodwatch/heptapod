@@ -35,5 +35,6 @@ final class SitesIndexPageData extends Data
         public readonly ClosureLazy|array $needs_attention,
         public readonly ClosureLazy|int $needs_attention_total,
         public readonly ClosureLazy|array $advisory_packages,
+        public readonly ClosureLazy|bool $more_advisory_packages,
     ) {}
 }

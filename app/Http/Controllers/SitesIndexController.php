@@ -61,6 +61,10 @@ final class SitesIndexController extends Controller
                 'total' => $readIndex()['summary']->attention,
             ];
         };
+        $packages = null;
+        $readPackages = static function () use ($reader, $user, &$packages): array {
+            return $packages ??= $reader->advisoryPackages($user);
+        };
 
         return Inertia::render('sites/index', new SitesIndexPageData(
             sites: Lazy::inertiaDeferred(static fn (): array => $reader->rowPayloads($read()->getCollection(), includeHistory: false), 'list'),
@@ -79,7 +83,8 @@ final class SitesIndexController extends Controller
             tiles: Lazy::closure(static fn (): DashboardTilesData => $summaries->read($user, siteStates: $partial ? null : $readIndex()['states'])[0]),
             needs_attention: Lazy::closure(static fn (): array => $readAttention()['rows']),
             needs_attention_total: Lazy::closure(static fn (): int => $readAttention()['total']),
-            advisory_packages: Lazy::closure(static fn (): array => $reader->advisoryPackages($user)),
+            advisory_packages: Lazy::closure(static fn (): array => $readPackages()['packages']),
+            more_advisory_packages: Lazy::closure(static fn (): bool => $readPackages()['more']),
         ));
     }
 }

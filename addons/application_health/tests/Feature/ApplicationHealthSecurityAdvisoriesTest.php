@@ -172,7 +172,16 @@ it('filters the Sites list by open advisory, package and advisory ID within the 
     expect(advisorySiteIds('filter[advisories]=1'))->toBe([$mailer->site_id]);
     $mailer->update(['enabled' => false]);
     expect(advisorySiteIds('filter[advisories]=1'))->toBe([]);
-    $this->get('/sites')->assertInertia(fn (Assert $page): Assert => $page->where('advisory_packages', []));
+    $this->get('/sites')->assertInertia(fn (Assert $page): Assert => $page->where('advisory_packages', [])->where('more_advisory_packages', false));
+
+    // The picker lists the 100 most severe packages and says when there are more.
+    $many = spatieAdvisoriesPayload(['phpmailer/phpmailer']);
+    $advisory = $many['checkResults'][0]['meta']['phpmailer/phpmailer'][0];
+    $many['checkResults'][0]['meta'] = array_combine(array_map(static fn (int $n): string => sprintf('vendor/package-%03d', $n), range(1, 101)),
+        array_map(static fn (int $n): array => [[...$advisory, 'cve' => 'CVE-2026-'.(10000 + $n), 'link' => $advisory['link'].'-'.$n]], range(1, 101)));
+    runAdvisories($all, $many);
+    $this->get('/sites')->assertInertia(fn (Assert $page): Assert => $page->has('advisory_packages', 100)
+        ->where('advisory_packages.0.package', 'vendor/package-001')->where('more_advisory_packages', true));
 });
 
 it('names the advisories in the alert mail as code in HTML and as plain names in the text part', function (): void {

@@ -57,6 +57,7 @@ export default function SitesIndex({
     needs_attention,
     needs_attention_total,
     advisory_packages,
+    more_advisory_packages,
 }: Heptapod.Data.Ui.SitesIndexPageData) {
     useLiveReload(
         ['state.changed'],
@@ -71,6 +72,7 @@ export default function SitesIndex({
             'needs_attention',
             'needs_attention_total',
             'advisory_packages',
+            'more_advisory_packages',
             'overallHealth',
         ],
     );
@@ -164,6 +166,11 @@ export default function SitesIndex({
             }
             onClear={
                 advisoryValue !== 'all' ? () => visit(clearAdvisories) : null
+            }
+            notice={
+                more_advisory_packages
+                    ? t('Showing the 100 most severe packages')
+                    : undefined
             }
         />
     );

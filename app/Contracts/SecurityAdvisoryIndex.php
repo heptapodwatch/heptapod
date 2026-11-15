@@ -13,10 +13,10 @@ interface SecurityAdvisoryIndex
     public function affectedChecks(?string $package = null, ?string $advisoryId = null): Builder;
 
     /**
-     * Packages with an open advisory on an enabled check of these sites, most severe first, then by affected sites and name.
+     * Packages with an open advisory on these checks, most severe first, then by affected sites and name.
      *
-     * @param  list<int>  $siteIds
+     * @param  Builder  $checkIds  A core query selecting the authorized, enabled application health check IDs.
      * @return list<SecurityAdvisoryPackageData>
      */
-    public function packages(array $siteIds): array;
+    public function packages(Builder $checkIds, int $limit): array;
 }

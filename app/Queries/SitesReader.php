@@ -67,6 +67,8 @@ use Spatie\Tags\Tag;
  */
 final readonly class SitesReader
 {
+    private const int AdvisoryPackageLimit = 100;
+
     public function __construct(private SitePolicy $policy, private SiteState $states, private ListResponseReader $history, private UptimeReader $uptime, private CauseSummary $summaries, private CheckRegistry $registry, private CheckRunsReader $checkRuns, private CheckRunPresentations $presentations, private CheckFreshness $freshness, private NoResultFreshness $noResultFreshness) {}
 
     /** @return Builder<Site> */
@@ -241,10 +243,19 @@ final readonly class SitesReader
         });
     }
 
-    /** @return list<SecurityAdvisoryPackageData> */
+    /**
+     * The picker lists the most severe packages; `more` tells it that others exist.
+     *
+     * @return array{packages: list<SecurityAdvisoryPackageData>, more: bool}
+     */
     public function advisoryPackages(User $user): array
     {
-        return $this->advisoryIndex()->packages($this->policy->visibleSiteIds($user));
+        $checks = Check::query()->getQuery()->select('checks.id')
+            ->where('type', CheckKey::ApplicationHealth->value)->where('enabled', true)
+            ->whereIntegerInRaw('site_id', $this->policy->visibleSiteIds($user));
+        $packages = $this->advisoryIndex()->packages($checks, self::AdvisoryPackageLimit + 1);
+
+        return ['packages' => array_slice($packages, 0, self::AdvisoryPackageLimit), 'more' => count($packages) > self::AdvisoryPackageLimit];
     }
 
     private function advisoryIndex(): SecurityAdvisoryIndex

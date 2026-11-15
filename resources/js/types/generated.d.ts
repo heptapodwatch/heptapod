@@ -1950,6 +1950,7 @@ readonly tiles: Heptapod.Data.Ui.DashboardTilesData,
 readonly needs_attention: Heptapod.Data.Ui.SiteRowData[],
 readonly needs_attention_total: number,
 readonly advisory_packages: Heptapod.Contracts.SecurityAdvisoryPackageData[],
+readonly more_advisory_packages: boolean,
 };
 export type SystemHealthPageData = {
 readonly health: Heptapod.SystemHealth.SystemHealthData,

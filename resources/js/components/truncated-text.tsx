@@ -280,7 +280,7 @@ function useHint({
             (inRow && rowFocus) ||
             !(element instanceof HTMLElement) ||
             element.matches(interactive) ||
-            element.closest('a[href], button, label') !== null
+            element.closest('a[href], button, label, [role="option"]') !== null
         ) {
             return;
         }

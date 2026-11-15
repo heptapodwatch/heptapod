@@ -11,7 +11,7 @@ import {
     CommandEmpty,
 } from '@/components/ui/command';
 import { selectTriggerClassName } from '@/components/ui/select';
-import { TooltipHint } from '@/components/truncated-text';
+import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import { cn } from '@/lib/utils';
 
 export type ComboboxOption = {
@@ -41,14 +41,18 @@ function optionContent(option: ComboboxOption): ReactNode {
             {option.mark}
             {option.secondary || option.badge ? (
                 <span className="min-w-0">
-                    <span className="block truncate">{option.label}</span>
+                    <TruncatedText content={option.label}>
+                        <span className="block truncate">{option.label}</span>
+                    </TruncatedText>
                     <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
                         {option.badge}
                         <span className="truncate">{option.secondary}</span>
                     </span>
                 </span>
             ) : (
-                <span className="min-w-0 truncate">{option.label}</span>
+                <TruncatedText content={option.label}>
+                    <span className="min-w-0 truncate">{option.label}</span>
+                </TruncatedText>
             )}
         </>
     );
@@ -101,11 +105,14 @@ export function Combobox({
     describedBy,
     ariaLabel,
     required = false,
+    notice,
 }: {
     id?: string;
     options: ComboboxOption[];
     value: string;
     onValueChange: (value: string) => void;
+    /** Muted line below the options, e.g. that a capped list omits entries. */
+    notice?: string;
     create?: ComboboxCreate;
     disabled?: boolean;
     invalid?: boolean;
@@ -220,6 +227,11 @@ export function Combobox({
                                 </CommandGroup>
                             )}
                         </CommandList>
+                        {notice && (
+                            <p className="border-t px-3 py-2 text-xs text-muted-foreground">
+                                {notice}
+                            </p>
+                        )}
                     </Command>
                 </Popover.Content>
             </Popover.Portal>
