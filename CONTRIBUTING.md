@@ -22,7 +22,7 @@ Keep the [Git hooks](DEVELOPMENT.md#git-hooks) enabled. Pre-commit formats stage
 - Follow existing patterns and the repository's `AGENTS.md` rules. Keep identifiers and package namespaces unchanged unless the change explicitly requires it.
 - Put user-facing text in the English and German translation catalogs.
 - Regenerate tracked routes and data types when their source changes.
-- Do not include secrets, captured account data, private paths or internal service addresses.
+- Do not include secrets, captured account data, private paths or internal service addresses. The [private information guard](DEVELOPMENT.md#private-information-guard) checks files and commit messages, and with `--text` your pull request body.
 - Leave license changes and new dependencies for explicit maintainer review.
 
 Submit pull requests at https://github.com/heptapodwatch/heptapod/pulls. Report vulnerabilities through https://github.com/heptapodwatch/heptapod/security/advisories/new, not public issues.

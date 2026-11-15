@@ -1,0 +1,18 @@
+{
+    "strings": {
+        ".agents/skills/testing-best-practices/rules/finding-features.md": [
+            "taylor@laravel.com"
+        ],
+        "resources/public_suffix_list.dat": ["*.c.ts.net"],
+        "tests/Deployment/diagnostics-filter.sh": ["/home/user/"],
+        "tests/Fixtures/OhDear/ohdear-openapi.yml": [
+            "support@ohdear.app",
+            "user@clientcompany.com",
+            "admin@clientcompany.com"
+        ]
+    },
+    "emailFiles": {
+        "composer.lock": "Package author addresses published on Packagist.",
+        "resources/public_suffix_list.dat": "Registry contact addresses published in the upstream Public Suffix List."
+    }
+}

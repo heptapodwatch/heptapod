@@ -19,6 +19,12 @@ case "${1:-all}" in
         php scripts/check-mail-tones.php
         php scripts/check-import-notices.php
         php scripts/check-brand-name.php
+        # The hook also checks the messages of unpushed commits; CI's shallow checkout has no origin/main.
+        if git rev-parse --verify --quiet origin/main >/dev/null; then
+            php scripts/check-private-info.php --all --base origin/main
+        else
+            php scripts/check-private-info.php --all
+        fi
         php scripts/check-gate-tests.php
         php scripts/check-clock-ownership.php
         php scripts/check-ui-primitives.php

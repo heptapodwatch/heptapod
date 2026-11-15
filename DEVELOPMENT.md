@@ -119,6 +119,10 @@ docker compose exec app npm audit --audit-level=high
 - Production app and Lighthouse images have HIGH/CRITICAL gates on amd64 and arm64. Official runtime image scans are report-only and need upstream review. See [operations](docs/deploy/operations.md) for image and capacity caveats.
 - The development image includes headless Chromium and Playwright's OS dependencies. The separate browser service supports manual CDP sessions.
 
+## Private information guard
+
+`scripts/check-private-info.php` runs in the static checks, so pre-push and CI both enforce it. It fails on home directory paths, Tailscale host names (`*.ts.net`), email addresses outside the reserved example domains and the project's own public addresses, and `localhost` URLs with a port in user-facing `docs/`. `--all` checks every tracked file, `--base origin/main` the changed files and the commit messages since that base (pre-push checks both), and `--text <file>` a pull request body before you open it: `docker compose exec app php scripts/check-private-info.php --text pr-body.md`. Add your own host names, domains or site names as one regex per line to `info/private-info-patterns` in the Git common directory (`git rev-parse --git-common-dir`); Git never tracks it, and all worktrees and the hook container share it. Hits print only the match. A value that is public by design, such as a fixture or vendored data, needs a reviewed exact file and string pair in `scripts/private-info-exceptions.json` (vendored files with many public addresses, such as `composer.lock`, are exempt from the email rule there with a reason); propose it in your pull request.
+
 ## Git hooks
 
 ```sh
