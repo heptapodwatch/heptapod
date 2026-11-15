@@ -2,6 +2,8 @@
 
 Describe the user-visible result and link the related issue.
 
+Docs: the `docs/` page changed, or "none, because ...".
+
 ## Verification
 
 List commands and actual results. Include redacted evidence made with synthetic data.
