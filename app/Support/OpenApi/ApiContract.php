@@ -342,7 +342,7 @@ final class ApiContract
             'crawler_settings' => ['type' => 'object', 'additionalProperties' => false, 'properties' => ['headers' => ['type' => 'array', 'items' => $header]]],
             'crawler_headers' => ['type' => ['array', 'null'], 'items' => $header],
             'send_report_to_emails' => $nullableStrings, 'include_check_types_in_report' => ['type' => ['array', 'null'], 'items' => ['$ref' => self::Ref.'CheckKey']],
-            'repositories' => ['type' => 'array', 'maxItems' => RepositoryUrl::MaxPerSite, 'description' => 'Replaces the stored links; `[]` removes all. Stored as `https://host/path` (lower-case host, no `.git`, no trailing slash); SSH remotes such as `git@github.com:org/repo.git` convert. Credentials in the URL, a repeated repository or more than 10 links return 422 on `repositories.N.url`.',
+            'repositories' => ['type' => 'array', 'maxItems' => RepositoryUrl::MaxPerSite, 'description' => 'Replaces the stored links; `[]` removes all. Stored as `https://host/path` (lower-case host with international names as `xn--`, no `.git`, no trailing slash); SSH remotes such as `git@github.com:org/repo.git` convert. Credentials in the URL or a repeated repository return 422 on `repositories.N.url`, more than 10 links on `repositories`.',
                 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['url'],
                     'properties' => ['url' => ['type' => 'string', 'maxLength' => RepositoryUrl::MaxLength], 'label' => ['type' => ['string', 'null'], 'maxLength' => 255]]]],
             ...$fields->checkSettings()]];

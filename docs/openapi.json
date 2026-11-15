@@ -8624,7 +8624,7 @@
                                         "type": "object"
                                     },
                                     "repositories": {
-                                        "description": "Replaces the stored links; `[]` removes all. Stored as `https://host/path` (lower-case host, no `.git`, no trailing slash); SSH remotes such as `git@github.com:org/repo.git` convert. Credentials in the URL, a repeated repository or more than 10 links return 422 on `repositories.N.url`.",
+                                        "description": "Replaces the stored links; `[]` removes all. Stored as `https://host/path` (lower-case host with international names as `xn--`, no `.git`, no trailing slash); SSH remotes such as `git@github.com:org/repo.git` convert. Credentials in the URL or a repeated repository return 422 on `repositories.N.url`, more than 10 links on `repositories`.",
                                         "items": {
                                             "additionalProperties": false,
                                             "properties": {
@@ -10596,7 +10596,7 @@
                                         "type": "object"
                                     },
                                     "repositories": {
-                                        "description": "Replaces the stored links; `[]` removes all. Stored as `https://host/path` (lower-case host, no `.git`, no trailing slash); SSH remotes such as `git@github.com:org/repo.git` convert. Credentials in the URL, a repeated repository or more than 10 links return 422 on `repositories.N.url`.",
+                                        "description": "Replaces the stored links; `[]` removes all. Stored as `https://host/path` (lower-case host with international names as `xn--`, no `.git`, no trailing slash); SSH remotes such as `git@github.com:org/repo.git` convert. Credentials in the URL or a repeated repository return 422 on `repositories.N.url`, more than 10 links on `repositories`.",
                                         "items": {
                                             "additionalProperties": false,
                                             "properties": {

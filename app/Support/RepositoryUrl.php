@@ -6,7 +6,7 @@ namespace Heptapod\Support;
 
 /**
  * The one canonical form of a repository link, shared by the Site settings save, the API write and the API filter:
- * `https://host/path` with a lower-case host, without `.git` and trailing slash. SSH remotes (`git@host:org/repo.git`,
+ * `https://host/path` with a lower-case ASCII host, without `.git` and trailing slash. SSH remotes (`git@host:org/repo.git`,
  * `ssh://git@host/org/repo.git`) convert, so `git remote get-url origin` can be passed unchanged.
  */
 final class RepositoryUrl
@@ -49,25 +49,48 @@ final class RepositoryUrl
         };
     }
 
-    /** The canonical URL, or null for anything that is not a repository address (including embedded credentials). */
+    /**
+     * The canonical URL, or null for anything that is not a repository address (including embedded credentials).
+     * Idempotent: a canonical URL is its own canonical form, so a stored link always finds itself through the filter.
+     */
     public static function canonical(string $value): ?string
     {
         $parts = self::parts($value);
-        if ($parts === null || self::credentials($parts)) {
+        if ($parts === null || self::credentials($parts) || isset($parts['query']) || isset($parts['fragment'])) {
             return null;
         }
-        $path = rtrim($parts['path'] ?? '', '/');
-        if (str_ends_with(strtolower($path), '.git')) {
-            $path = rtrim(substr($path, 0, -4), '/');
-        }
-        if ($path === '' || isset($parts['query']) || isset($parts['fragment'])) {
+        $path = $parts['path'] ?? '';
+        do {
+            $before = $path;
+            $path = rtrim($path, '/');
+            if (str_ends_with(strtolower($path), '.git')) {
+                $path = substr($path, 0, -4);
+            }
+        } while ($path !== $before);
+        $host = self::host($parts['host']);
+        if ($path === '' || $host === null) {
             return null;
         }
-        // An SSH port says nothing about the web address; a non-default HTTP(S) port is part of it.
-        $port = $parts['scheme'] === 'https' && isset($parts['port']) && ! in_array($parts['port'], [80, 443], true) ? ':'.$parts['port'] : '';
-        $url = 'https://'.strtolower($parts['host']).$port.$path;
+        // An SSH port says nothing about the web address. The scheme's own default port goes, and so does 443, the
+        // default of the stored https form; any other port (https on 80 included) is part of the address.
+        $port = $parts['port'] ?? null;
+        $keepPort = $parts['scheme'] !== 'ssh' && $port !== null && $port !== 443 && ($parts['scheme'] !== 'http' || $port !== 80);
+        $url = 'https://'.$host.($keepPort ? ':'.$port : '').$path;
 
         return strlen($url) <= self::MaxLength ? $url : null;
+    }
+
+    /** A bracketed IP version 6 literal in lower case or a lower-case ASCII DNS name; null when invalid. */
+    private static function host(string $host): ?string
+    {
+        if (str_starts_with($host, '[')) {
+            $address = substr($host, 1, -1);
+
+            return str_ends_with($host, ']') && filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false ? '['.strtolower($address).']' : null;
+        }
+        $ascii = idn_to_ascii(rtrim($host, '.'), IDNA_DEFAULT | IDNA_USE_STD3_RULES | IDNA_NONTRANSITIONAL_TO_ASCII, INTL_IDNA_VARIANT_UTS46);
+
+        return is_string($ascii) && $ascii !== '' ? $ascii : null;
     }
 
     /** True for `https://token@…` or `user:pass@…`; the SSH login name (`git@`) is not a credential. */
@@ -78,11 +101,12 @@ final class RepositoryUrl
         return $parts !== null && self::credentials($parts);
     }
 
-    /** @return array{scheme: 'https'|'ssh', host: string, port?: int, user?: string, pass?: string, path?: string, query?: string, fragment?: string}|null */
+    /** @return array{scheme: 'http'|'https'|'ssh', host: string, port?: int, user?: string, pass?: string, path?: string, query?: string, fragment?: string}|null */
     private static function parts(string $value): ?array
     {
         $value = trim($value);
-        if (preg_match('~^[\w.-]+@([^\s:/@]+):(?!/)(\S+)$~', $value, $scp) === 1) {
+        // The scp form `user@host:path`; a bracketed IPv6 host keeps its colons.
+        if (preg_match('~^[\w.-]+@(\[[^\]\s]+\]|[^\s:/@\[\]]+):(?!/)(\S+)$~', $value, $scp) === 1) {
             $value = 'ssh://git@'.$scp[1].'/'.$scp[2];
         }
         if (preg_match('~^(https?|ssh)://~i', $value) !== 1 || preg_match('~\s~', $value) === 1) {
@@ -92,14 +116,15 @@ final class RepositoryUrl
         if (! is_array($parts) || ! isset($parts['scheme'], $parts['host']) || $parts['host'] === '') {
             return null;
         }
-        $parts['scheme'] = strtolower($parts['scheme']) === 'ssh' ? 'ssh' : 'https';
+        $scheme = strtolower($parts['scheme']);
+        $parts['scheme'] = $scheme === 'ssh' || $scheme === 'http' ? $scheme : 'https';
 
         return $parts;
     }
 
-    /** @param array{scheme: 'https'|'ssh', user?: string, pass?: string} $parts */
+    /** @param array{scheme: 'http'|'https'|'ssh', user?: string, pass?: string} $parts */
     private static function credentials(array $parts): bool
     {
-        return isset($parts['pass']) || ($parts['scheme'] === 'https' && isset($parts['user']));
+        return isset($parts['pass']) || ($parts['scheme'] !== 'ssh' && isset($parts['user']));
     }
 }

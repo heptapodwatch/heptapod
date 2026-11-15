@@ -33,14 +33,31 @@ it('stores one canonical form for HTTPS, SSH, scp and ssh:// repository addresse
         ['url' => 'git@gitlab.com:acme/backend.git', 'label' => ''],
         ['url' => 'ssh://git@git.example.com:2222/group/sub/infra.git'],
         ['url' => 'http://git.example.com:8443/acme/docs/'],
+        ['url' => 'https://git.example.com/acme/twice.git.git'],
+        ['url' => 'git@[2001:DB8::1]:acme/v6.git'],
+        ['url' => 'https://GIT.ÜBER.example/acme/idn'],
+        ['url' => 'https://git.example.com:80/acme/port80'],
     ]])->assertOk()->assertJsonPath('repositories', [
         ['url' => 'https://github.com/Acme/Shop', 'label' => 'Shop'],
         ['url' => 'https://gitlab.com/acme/backend', 'label' => null],
         ['url' => 'https://git.example.com/group/sub/infra', 'label' => null],
         ['url' => 'https://git.example.com:8443/acme/docs', 'label' => null],
+        ['url' => 'https://git.example.com/acme/twice', 'label' => null],
+        ['url' => 'https://[2001:db8::1]/acme/v6', 'label' => null],
+        ['url' => 'https://git.xn--ber-goa.example/acme/idn', 'label' => null],
+        ['url' => 'https://git.example.com:80/acme/port80', 'label' => null],
     ]);
+    $stored = $this->getJson('/api/monitors/'.$site->id)->json('repositories');
 
-    $this->putJson('/api/monitors/'.$site->id, ['friendly_name' => 'Kept'])->assertOk()->assertJsonCount(4, 'repositories');
+    // Canonical is a fixed point: the returned links find their site again and saving them back changes nothing.
+    foreach ([...array_column($stored, 'url'), 'https://git.über.example/acme/idn'] as $url) {
+        $this->getJson('/api/monitors?filter[repository_url]='.rawurlencode($url))->assertOk()->assertJsonPath('data.*.id', [$site->id]);
+    }
+    $audits = Activity::query()->where('event', 'site.repositories.updated')->count();
+    $this->putJson('/api/monitors/'.$site->id, ['repositories' => $stored])->assertOk()->assertJsonPath('repositories', $stored);
+    expect(Activity::query()->where('event', 'site.repositories.updated')->count())->toBe($audits);
+
+    $this->putJson('/api/monitors/'.$site->id, ['friendly_name' => 'Kept'])->assertOk()->assertJsonCount(8, 'repositories');
     $this->putJson('/api/monitors/'.$site->id, ['repositories' => []])->assertOk()->assertJsonPath('repositories', []);
 });
 
@@ -59,6 +76,8 @@ it('refuses credentials, non-repository addresses, repeats and more than ten lin
     'SSH password' => [[['url' => 'ssh://git:secret@github.com/acme/shop']], 'repositories.0.url', 'Remove the credentials'],
     'host without a repository path' => [[['url' => 'https://github.com/']], 'repositories.0.url', 'Enter a repository address'],
     'not an address' => [[['url' => 'acme/shop']], 'repositories.0.url', 'Enter a repository address'],
+    'malformed host' => [[['url' => 'https://bad%host/acme/shop']], 'repositories.0.url', 'Enter a repository address'],
+    'malformed IPv6 host' => [[['url' => 'git@[not-an-address]:acme/shop.git']], 'repositories.0.url', 'Enter a repository address'],
     'same repository in another form' => [[['url' => 'https://github.com/acme/shop'], ['url' => 'git@GITHUB.com:acme/shop.git']], 'repositories.1.url', 'This repository is already linked.'],
     'eleven links' => [array_map(static fn (int $n): array => ['url' => 'https://github.com/acme/repo-'.$n], range(1, 11)), 'repositories', 'must not have more than 10 items'],
 ]);
@@ -76,6 +95,9 @@ it('finds every visible monitor of a repository by any remote form, within the t
 
     $this->withToken($owner->createToken('all', ['monitors:read'])->plainTextToken)
         ->getJson($query)->assertOk()->assertJsonPath('data.*.id', [$shop->id, $mirror->id]);
+    // A page holds part of the matches; its next link keeps the repository filter.
+    $next = $this->getJson($query.'&per_page=1')->assertOk()->assertJsonPath('data.*.id', [$shop->id])->json('links.next');
+    $this->getJson($next)->assertOk()->assertJsonPath('data.*.id', [$mirror->id]);
 
     $scoped = $owner->createToken('agency', ['monitors:read']);
     $scoped->accessToken->forceFill(['client_id' => $agency->id])->save();

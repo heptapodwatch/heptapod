@@ -89,6 +89,8 @@ export function ReplicatorField<Key extends string>({
         index: number,
         position: number,
     ) => {
+        // Enter and Backspace while an input method composes text belong to the composition.
+        if (event.nativeEvent.isComposing) return;
         if (event.key === 'Enter') {
             // Enter never submits the surrounding form from a row.
             event.preventDefault();

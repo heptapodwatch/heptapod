@@ -67,14 +67,14 @@ Without `since` or `state=resolved`, incidents list every open incident plus inc
 
 ## Find the site for a repository
 
-Inside a checkout, pass the remote as it is; SSH and HTTPS forms match the same stored link (`https://host/path`, lower-case host, no `.git`).
+Inside a checkout, use the remote; SSH and HTTPS forms match the same stored link (`https://host/path`, lower-case host, no `.git`). An HTTPS remote can embed a credential (`https://token@host/…`): remove it **before** any request, never send or print it.
 
 ```sh
-remote="$(git remote get-url origin)"   # e.g. git@github.com:acme/shop.git
+remote="$(git remote get-url origin | sed -E 's#^(https?://)[^/@]*@#\1#')"   # drops https userinfo; git@host:org/repo.git stays
 api -G "$HEPTAPOD_URL/api/monitors" --data-urlencode "filter[repository_url]=$remote"
 ```
 
-`data` lists every monitor you can see that links this repository (several sites may share one); each monitor's `repositories` holds its `[{url, label}]`. An empty list means no visible site links it: say so, do not guess by host name. A remote with credentials returns 422; strip them, never print them. Links are set by the user in Site settings → Repositories.
+`data` is one page of the monitors you can see that link this repository (several sites may share one); each monitor's `repositories` holds its `[{url, label}]`. While `links.next` is set, request it (it keeps the filter) and collect every page. An empty result means no visible site links it: say so, do not guess by host name. Links are set by the user in Site settings → Repositories.
 
 ## Findings (broken links, mixed content, sitemap)
 

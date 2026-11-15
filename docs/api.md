@@ -267,9 +267,9 @@ Tested operations:
 A monitor carries 0–10 repository links in `repositories`: `[{"url": "https://github.com/acme/shop", "label": "Backend"}]`, in their saved order. They are links only; Heptapod never signs in to the Git host.
 
 - Set them with `repositories` on create or update. The list replaces the stored one; `[]` removes all. `label` is optional (up to 255 characters).
-- Heptapod stores one form: `https://host/path`, host in lower case, without `.git` and trailing slash. An SSH remote such as `git@github.com:acme/shop.git` or `ssh://git@github.com/acme/shop.git` is converted, so `git remote get-url origin` works unchanged.
-- An address with credentials (`https://token@…`), a repeated repository on the same monitor or more than 10 links return 422 on the row's `repositories.N.url`. One repository may be linked to several monitors.
-- `GET /api/monitors?filter[repository_url]=<url>` returns every monitor you can see that links this repository. The filter takes the same forms and normalisation, and a token limited to one client only finds that client's monitors.
+- Heptapod stores one form: `https://host/path`, host in lower case (international names in their `xn--` form), without `.git` and trailing slash. An SSH remote such as `git@github.com:acme/shop.git` or `ssh://git@github.com/acme/shop.git` is converted, so `git remote get-url origin` works unchanged.
+- An address with credentials (`https://token@…`) or a repeated repository on the same monitor returns 422 on the row's `repositories.N.url`; more than 10 links return 422 on `repositories`. One repository may be linked to several monitors.
+- `GET /api/monitors?filter[repository_url]=<url>` returns the monitors you can see that link this repository, paged like the monitor list. The filter takes the same forms and normalisation, and a token limited to one client only finds that client's monitors.
 
 ### Metrics
 
