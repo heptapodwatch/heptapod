@@ -1,7 +1,7 @@
 import { ArrowDown, ArrowUp, Minus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Line, LineChart, ResponsiveContainer } from 'recharts';
+import { Curve, getNiceTickValues } from 'recharts';
 import { historySampleStatus } from '@/components/history-sample-marks';
 import { SectionHeading } from '@/components/section-heading';
 import {
@@ -12,7 +12,6 @@ import {
 } from '@/components/monitoring';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardFooter, CardHeader } from '@/components/ui/card';
-import { ChartContainer } from '@/components/ui/chart';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
     Tooltip,
@@ -23,6 +22,33 @@ import {
 import { useFormat } from '@/hooks/use-format';
 import { statusLabels } from '@/lib/status';
 import type { ResponsePointDto, SiteState } from '@/types/monitoring';
+
+/**
+ * The points recharts' LineChart drew for this 80 x 24 chart (margin 2 at top and bottom): a point x scale over the
+ * samples and a linear y scale from 0 to the nice ceiling of the peak (implicit YAxis: domain [0, 'auto'], 5 ticks).
+ * One chart store per row cost about 4 ms, the Sites list draws 50.
+ */
+export function sparklinePoints(
+    data: ResponsePointDto[],
+): { x: number; y: number | null }[] {
+    const peak = Math.max(
+        ...data.flatMap((point) => (point.value === null ? [] : [point.value])),
+    );
+    const ticks = getNiceTickValues([0, peak], 5, true, 'adaptive');
+    const low = Math.min(0, ticks[0] ?? 0);
+    const high = Math.max(peak, ticks.at(-1) ?? 0);
+    const step = 80 / (data.length - 1);
+    const start = (80 - step * (data.length - 1)) * 0.5;
+    return data.map((point, index) => {
+        // d3's linear scale: the middle of the range for an empty domain.
+        const t =
+            high === low ? 0.5 : ((point.value ?? 0) - low) / (high - low);
+        return {
+            x: start + step * index,
+            y: point.value === null ? null : 22 * (1 - t) + 2 * t,
+        };
+    });
+}
 
 export function Sparkline({
     data,
@@ -112,43 +138,28 @@ export function Sparkline({
                     aria-label={decorative ? undefined : tooltipSummary}
                     aria-hidden={decorative || undefined}
                 >
-                    <ResponsiveContainer width={80} height={24}>
-                        <ChartContainer
-                            config={{
-                                value: {
-                                    label: t(label),
-                                    color:
-                                        state === 'ok'
-                                            ? 'var(--muted-foreground)'
-                                            : statusColor[state],
-                                },
-                            }}
-                            className="h-6 w-20 shrink-0"
-                            aria-label={decorative ? undefined : t(label)}
-                        >
-                            <LineChart
-                                data={data}
-                                margin={{
-                                    top: 2,
-                                    right: 0,
-                                    bottom: 2,
-                                    left: 0,
-                                }}
-                                accessibilityLayer={false}
-                            >
-                                {hasLine && (
-                                    <Line
-                                        type="monotone"
-                                        dataKey="value"
-                                        stroke="var(--color-value)"
-                                        strokeWidth={1.5}
-                                        dot={false}
-                                        isAnimationActive={false}
-                                    />
-                                )}
-                            </LineChart>
-                        </ChartContainer>
-                    </ResponsiveContainer>
+                    <svg
+                        className="block"
+                        width={80}
+                        height={24}
+                        aria-hidden="true"
+                    >
+                        {hasLine && (
+                            <Curve
+                                type="monotone"
+                                layout="horizontal"
+                                points={sparklinePoints(data)}
+                                stroke={
+                                    state === 'ok'
+                                        ? 'var(--muted-foreground)'
+                                        : statusColor[state]
+                                }
+                                strokeWidth={1.5}
+                                fill="none"
+                                className="recharts-line-curve"
+                            />
+                        )}
+                    </svg>
                     <svg
                         className="pointer-events-none absolute inset-0"
                         width={80}
