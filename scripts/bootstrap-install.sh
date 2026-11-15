@@ -38,7 +38,8 @@ Options:
   --dir PATH            Installation directory (default: /opt/heptapod).
   --install-docker      Install Docker Engine and Compose from Docker's apt repository if missing.
   --app-url URL, --behind-proxy, --port NUMBER
-                        Passed to scripts/install.sh; see docs/deploy/operations.md.
+                        Passed to scripts/install.sh; see
+                        https://github.com/heptapodwatch/heptapod/blob/main/docs/deploy/operations.md#behind-an-existing-reverse-proxy
 HELP
                 return 0 ;;
             --version) [ "$#" -ge 2 ] || fail '--version requires a release tag'; version=$2; shift 2 ;;
@@ -56,6 +57,8 @@ HELP
     [ -z "$version" ] || [[ "$version" =~ $tag_pattern ]] || fail "Invalid --version $version: Heptapod publishes only vX.Y.Z release tags, e.g. v0.1.0."
     case "$dir" in /*) ;; *) fail '--dir must be an absolute path' ;; esac
 
+    # Before the root check: on a laptop the usual mistake is running this locally instead of on the server.
+    [ "$(uname -s)" != Darwin ] || fail 'This installer sets up a Linux server (Ubuntu or Debian, amd64 or arm64), not this Mac. Connect to your server over SSH and run the command there. Install guide: https://heptapod.watch/docs/getting-started/install/'
     [ "$(id -u)" -eq 0 ] || fail 'Run as root: curl -fsSL https://heptapod.watch/install.sh | sudo bash -s -- …'
     local os_id='' os_codename=''
     if [ -r "$os_release" ]; then
@@ -66,13 +69,13 @@ HELP
     fi
     case "$os_id" in
         ubuntu|debian) ;;
-        *) fail "Unsupported operating system '${os_id:-unknown}'. This installer supports Ubuntu and Debian; elsewhere install Docker Engine and Compose v5 yourself and follow the manual installation in docs/deploy/operations.md." ;;
+        *) fail "Unsupported operating system '${os_id:-unknown}'. This installer supports Ubuntu and Debian; elsewhere install Docker Engine and Compose v5 yourself and follow the Git checkout installation: https://heptapod.watch/docs/getting-started/install/#install-from-a-git-checkout" ;;
     esac
     local architecture
     architecture=$(uname -m)
     case "$architecture" in
         x86_64|aarch64) ;;
-        *) fail "Unsupported architecture $architecture: Heptapod publishes images for amd64 (x86_64) and arm64 (aarch64). Source builds are described in docs/deploy/operations.md." ;;
+        *) fail "Unsupported architecture $architecture: Heptapod publishes images for amd64 (x86_64) and arm64 (aarch64). Source builds are described in https://github.com/heptapodwatch/heptapod/blob/main/docs/deploy/operations.md#installation-and-capacity" ;;
     esac
     [ -z "$version" ] || require_release_images "$architecture" "$version"
 
@@ -201,7 +204,7 @@ require_release_images() {
     [ "$1" = aarch64 ] || return 0
     IFS=. read -r major minor patch <<< "${2#v}"
     (( 10#$major > 0 || 10#$minor >= 5 )) ||
-        fail "Heptapod $2 has no arm64 images; they exist from v0.5.0 on. Pass --version with a newer release, or build from source as described in docs/deploy/operations.md."
+        fail "Heptapod $2 has no arm64 images; they exist from v0.5.0 on. Pass --version with a newer release, or build from source as described in https://github.com/heptapodwatch/heptapod/blob/main/docs/deploy/operations.md#installation-and-capacity"
 }
 
 fail() {
