@@ -158,6 +158,7 @@ export function FilterCombobox({
     value,
     onValueChange,
     onClear,
+    notice,
 }: {
     id?: string;
     ariaLabel: string;
@@ -165,6 +166,7 @@ export function FilterCombobox({
     value: string;
     onValueChange: (value: string) => void;
     onClear: (() => void) | null;
+    notice?: string;
 }) {
     return (
         <div
@@ -179,6 +181,7 @@ export function FilterCombobox({
                 onValueChange={onValueChange}
                 triggerClassName={filterTriggerClass(onClear !== null)}
                 ariaLabel={ariaLabel}
+                notice={notice}
             />
             {onClear && (
                 <FilterClearButton label={ariaLabel} onClear={onClear} />

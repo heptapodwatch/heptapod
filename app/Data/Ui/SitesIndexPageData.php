@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Data\Ui;
 
+use Heptapod\Contracts\SecurityAdvisoryPackageData;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\Lazy\ClosureLazy;
 use Spatie\LaravelData\Support\Lazy\InertiaDeferred;
@@ -19,6 +20,7 @@ final class SitesIndexPageData extends Data
      * @param  ClosureLazy|list<ClientData>  $clients
      * @param  ClosureLazy|list<TagData>  $tags
      * @param  ClosureLazy|list<SiteRowData>  $needs_attention
+     * @param  ClosureLazy|list<SecurityAdvisoryPackageData>  $advisory_packages
      */
     public function __construct(
         public readonly InertiaDeferred|array $sites,
@@ -32,5 +34,7 @@ final class SitesIndexPageData extends Data
         public readonly ClosureLazy|DashboardTilesData $tiles,
         public readonly ClosureLazy|array $needs_attention,
         public readonly ClosureLazy|int $needs_attention_total,
+        public readonly ClosureLazy|array $advisory_packages,
+        public readonly ClosureLazy|bool $more_advisory_packages,
     ) {}
 }

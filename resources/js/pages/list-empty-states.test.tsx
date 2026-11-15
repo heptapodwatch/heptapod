@@ -213,6 +213,8 @@ function sites(
             tiles={tiles}
             needs_attention={[]}
             needs_attention_total={0}
+            advisory_packages={[]}
+            more_advisory_packages={false}
         />,
     );
 }

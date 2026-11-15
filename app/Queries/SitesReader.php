@@ -20,6 +20,7 @@ use Heptapod\Contracts\CheckRunPresentationData;
 use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\RunPhase;
 use Heptapod\Contracts\SecurityAdvisoryIndex;
+use Heptapod\Contracts\SecurityAdvisoryPackageData;
 use Heptapod\Data\Ui\CheckRunStateData;
 use Heptapod\Data\Ui\CheckStripData;
 use Heptapod\Data\Ui\ClientData;
@@ -66,6 +67,8 @@ use Spatie\Tags\Tag;
  */
 final readonly class SitesReader
 {
+    private const int AdvisoryPackageLimit = 100;
+
     public function __construct(private SitePolicy $policy, private SiteState $states, private ListResponseReader $history, private UptimeReader $uptime, private CauseSummary $summaries, private CheckRegistry $registry, private CheckRunsReader $checkRuns, private CheckRunPresentations $presentations, private CheckFreshness $freshness, private NoResultFreshness $noResultFreshness) {}
 
     /** @return Builder<Site> */
@@ -234,13 +237,35 @@ final readonly class SitesReader
     /** @param Builder<Model> $query Spatie query filters pass the projected site query untyped. */
     private function advisoryFilter(Builder $query, ?string $package = null, ?string $advisoryId = null): void
     {
+        $index = $this->advisoryIndex();
+        $query->whereHas('checks', static function (Builder $checks) use ($index, $package, $advisoryId): void {
+            $checks->getQuery()->where('enabled', true)->whereIn('checks.id', $index->affectedChecks($package, $advisoryId));
+        });
+    }
+
+    /**
+     * The picker lists the most severe packages; `more` tells it that others exist.
+     *
+     * @return array{packages: list<SecurityAdvisoryPackageData>, more: bool}
+     */
+    public function advisoryPackages(User $user): array
+    {
+        $checks = Check::query()->getQuery()->select('checks.id')
+            ->where('type', CheckKey::ApplicationHealth->value)->where('enabled', true)
+            ->whereIntegerInRaw('site_id', $this->policy->visibleSiteIds($user));
+        $packages = $this->advisoryIndex()->packages($checks, self::AdvisoryPackageLimit + 1);
+
+        return ['packages' => array_slice($packages, 0, self::AdvisoryPackageLimit), 'more' => count($packages) > self::AdvisoryPackageLimit];
+    }
+
+    private function advisoryIndex(): SecurityAdvisoryIndex
+    {
         $index = $this->registry->get(CheckKey::ApplicationHealth)->persistence();
         if (! $index instanceof SecurityAdvisoryIndex) {
             throw new \LogicException('Application health persistence must implement SecurityAdvisoryIndex.');
         }
-        $query->whereHas('checks', static function (Builder $checks) use ($index, $package, $advisoryId): void {
-            $checks->getQuery()->where('enabled', true)->whereIn('checks.id', $index->affectedChecks($package, $advisoryId));
-        });
+
+        return $index;
     }
 
     /**
