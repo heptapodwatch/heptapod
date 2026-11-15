@@ -5,7 +5,7 @@ on:
   issue_comment:
     types: [created]
   pull_request_target:
-    types: [opened, closed, synchronize]
+    types: [opened, reopened, closed, synchronize]
 
 permissions: {}
 
@@ -22,9 +22,20 @@ jobs:
       actions: write
       # Writes the signatures file on the cla-signatures branch.
       contents: write
-      # Comments on and locks the pull request.
+      # Comments on the pull request.
       pull-requests: write
     steps:
+      # The action reads only the first 100 commits, so a longer pull request would skip later committers.
+      - name: Fail pull requests with more than 100 commits
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PULL_REQUEST: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: |
+          commits=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PULL_REQUEST" --jq .commits)
+          if [ "$commits" -gt 100 ]; then
+            echo "::error::The CLA check reads only 100 commits; this pull request has $commits. Split or squash it."
+            exit 1
+          fi
       # Upstream is archived; this is its last release.
       - uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # v2.6.1
         env:
@@ -35,3 +46,5 @@ jobs:
           # main is protected, so signatures go to an unprotected branch.
           branch: cla-signatures
           allowlist: el-schneider,renovate[bot],release-please[bot],github-actions[bot],dependabot[bot]
+          # With locking on, a closed run only locks and reports success, so close and reopen would skip the check.
+          lock-pullrequest-aftermerge: false
