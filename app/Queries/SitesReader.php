@@ -363,7 +363,7 @@ final readonly class SitesReader
     {
         $sites = new EloquentCollection($sites->all());
         $sites->load(['tags', 'checks.snoozes' => function (Relation $relation): void {
-            $relation->getQuery()->getQuery()->whereNull('component_type')->whereNull('unsnoozed_at')->where('starts_at', '<=', now())->where('ends_at', '>', now());
+            $relation->getQuery()->getQuery()->whereNull('component_type')->whereNull('unsnoozed_at')->where('starts_at', '<=', now()->format('Y-m-d H:i:s.uP'))->where('ends_at', '>', now()->format('Y-m-d H:i:s.uP'));
         }, 'checks.incidents' => function (Relation $relation): void {
             $relation->getQuery()->getQuery()->whereNull('resolved_at');
         }]);

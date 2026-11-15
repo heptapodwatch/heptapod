@@ -156,9 +156,15 @@ When a site is Down, a Lighthouse, sitemap, broken-links or mixed-content failur
 - After the site recovers, each grouped check re-checks on its next normal run. It counts as needing attention only if that run fails, and then alerts on its own.
 - If the site goes Down again first, the check stays grouped under the new outage.
 
+## Snooze one check
+
+Select **Snooze** on a check's page and choose 1 hour, 1 day, 7 days or **Until a date…**. The check keeps running and recording results; its alerts wait until the snooze ends. **End snooze** ends it early. Members can snooze.
+
+Result: the header shows **Snoozed until …**, and the Sites list keeps the check's result colour with the pause bars cut out.
+
 ## When monitoring stops
 
-Disabling a check, pausing a site or deleting it closes its open incidents without a recovery alert. Pending openings, reminders and recoveries of those incidents are not sent. Delivery views show **Monitoring stopped**. A send already in progress can still finish.
+Turning a check off (**Turn check off…** in its Snooze menu, Owners and Admins), pausing a site or deleting it closes its open incidents without a recovery alert. Pending openings, reminders and recoveries of those incidents are not sent. Delivery views show **Monitoring stopped**. A send already in progress can still finish.
 
 Deleting a site removes its checks, runs and incidents. Timeline events and delivery history stay, without a link to the site.
 

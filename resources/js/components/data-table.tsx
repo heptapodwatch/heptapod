@@ -41,7 +41,12 @@ import {
     Sparkline,
     responseTimeSummary,
 } from '@/components/monitoring';
-import { bySeverity, isAttentionState, statusLabels } from '@/lib/status';
+import {
+    bySeverity,
+    isAttentionState,
+    isSnoozed,
+    statusLabels,
+} from '@/lib/status';
 import {
     EntityLink,
     rowTargetClass,
@@ -499,6 +504,8 @@ export function DataTable({
                         {t(worstCheck.label_key)} · {headline(worstCheck)}
                         {worstCheck.open_incident_started_at !== null &&
                             ` · ${t('Since {{time}}', { time: format.monitorTime(worstCheck.open_incident_started_at, 'since').label })}`}
+                        {isSnoozed(worstCheck, Date.now()) &&
+                            ` · ${t('Snoozed until {{time}}', { time: format.timestamp(worstCheck.snoozed_until!) })}`}
                     </span>
                 ) : why(site) ? (
                     <span className="line-clamp-2 text-xs text-muted-foreground">

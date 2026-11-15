@@ -19,6 +19,8 @@ vi.mock('@inertiajs/react', () => ({
     Link: ({ children, href }: { children: ReactNode; href: string }) => (
         <a href={href}>{children}</a>
     ),
+    // The header's closed Snooze until sheet holds its form; nothing here submits it.
+    useForm: <T,>(data: T) => ({ data, errors: {}, processing: false }),
 }));
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }));
 vi.mock('@/components/check-configuration', () => ({

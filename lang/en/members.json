@@ -49,7 +49,7 @@
     "Replace legacy all-client access with the selected clients on save.": "Replace legacy all-client access with the selected clients on save.",
     "members.role.owner": "Manage clients, sites, checks, team notifications, members and instance settings. Access includes all current and future clients.",
     "members.role.admin": "Manage clients, sites, checks and team notifications; invite and manage Members. Cannot manage Owners, Admins or instance settings. Access includes all current and future clients.",
-    "members.role.member": "View selected clients and their sites; add incident notes and snooze reminders. Cannot change clients, sites, checks, team notifications or maintenance. Future clients must be assigned separately.",
+    "members.role.member": "View selected clients and their sites; add incident notes, snooze reminders and checks. Cannot change clients, sites, checks, team notifications or maintenance. Future clients must be assigned separately.",
     "Select at least one client. Future clients are not included automatically.": "Select at least one client. Future clients are not included automatically.",
     "Archived assignments remain until you remove them.": "Archived assignments remain until you remove them.",
     "All current and future clients": "All current and future clients"

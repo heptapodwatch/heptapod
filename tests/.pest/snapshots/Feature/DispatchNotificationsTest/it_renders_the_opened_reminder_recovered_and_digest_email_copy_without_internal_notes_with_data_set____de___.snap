@@ -71,7 +71,7 @@ Ausgefallen · seit 00:29 UTC · #{id}
 Störung #{id} ist weiter offen. Öffnen Sie die Störung, um die aktuellen Prüfergebnisse zu sehen.
 
 Störung #{id} öffnen: https://monitor.example.test/incidents/{id}
-Erinnerungen pausieren: https://monitor.example.test/incidents/{id}#snooze
+Erinnerungen stummschalten: https://monitor.example.test/incidents/{id}#snooze
 
 Sie erhalten diese E-Mail, weil Ops (ops@example.test) Ausfälle erhält.
 Benachrichtigungen ändern: https://monitor.example.test/settings/notifications/team
@@ -104,7 +104,7 @@ body{margin:0;padding:0}a{color:inherit}
 </td></tr>
 </table>
 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 0;"><tr><td class="btn-primary" style="background:#101418;border-radius:16px;"><a href="https://monitor.example.test/incidents/{id}" style="display:inline-block;padding:8px 18px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">Störung #{id} öffnen</a></td>
-<td style="padding-left:16px;font-size:14px;"><a href="https://monitor.example.test/incidents/{id}#snooze" class="c-fg2" style="color:#3f4952;text-decoration:underline;">Erinnerungen pausieren</a></td>
+<td style="padding-left:16px;font-size:14px;"><a href="https://monitor.example.test/incidents/{id}#snooze" class="c-fg2" style="color:#3f4952;text-decoration:underline;">Erinnerungen stummschalten</a></td>
 </tr></table>
 </td></tr></table></td></tr>
 <tr><td class="px" style="padding:16px 28px 0;font-size:12px;line-height:18px;"><p class="c-fg3" style="margin:0 0 6px;color:#5c6771;">Sie erhalten diese E-Mail, weil Ops (ops@example.test) Ausfälle erhält. <a href="https://monitor.example.test/settings/notifications/team" class="c-fg2" style="color:#3f4952;text-decoration:underline;">Benachrichtigungen ändern</a></p><p class="c-fg3" style="margin:0;color:#5c6771;">Heptapod · localhost</p></td></tr>

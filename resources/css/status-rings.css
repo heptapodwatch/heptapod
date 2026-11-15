@@ -96,6 +96,23 @@
     box-shadow: none;
 }
 
+/* Snoozed: a filled disc in the result's colour with the pause bars cut out, so a snoozed failure stays red. The paused-site
+   shape is an outline ring with drawn bars; this one is solid with knocked-out bars. */
+.status-ring[data-snoozed] {
+    background: currentColor;
+    box-shadow: none;
+    border: 0;
+    mask:
+        linear-gradient(#000 0 0) 28% 50% / 2px 50% no-repeat,
+        linear-gradient(#000 0 0) 72% 50% / 2px 50% no-repeat,
+        linear-gradient(#000 0 0);
+    mask-composite: exclude;
+}
+
+.status-ring[data-snoozed]::after {
+    content: none;
+}
+
 .status-badge {
     color: var(--status-color);
     border-color: color-mix(in srgb, var(--status-color) 28%, var(--border));

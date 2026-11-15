@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { StatusDot } from '@/components/monitoring';
 import { SectionTabs, type SectionTab } from '@/components/section-tabs';
 import { useCheckHeadline } from '@/hooks/use-check-headline';
-import { checkState } from '@/lib/status';
+import { checkState, isSnoozed } from '@/lib/status';
+import { useFormat } from '@/hooks/use-format';
 import { show as siteShow, settings as siteSettings } from '@/routes/sites';
 import { show as checkShow } from '@/routes/sites/checks';
 
@@ -23,6 +24,8 @@ export function SiteTabs({
 }) {
     const { t } = useTranslation();
     const checkHeadline = useCheckHeadline();
+    const format = useFormat();
+    const now = Date.now();
     const items: SectionTab[] = [
         {
             value: 'overview',
@@ -36,17 +39,25 @@ export function SiteTabs({
             muted: !check.enabled,
             label: (
                 <>
-                    {(!check.enabled || checkState(check) !== 'ok') && (
+                    {isSnoozed(check, now) ? (
                         <StatusDot
-                            state={
-                                check.enabled ? checkState(check) : 'disabled'
-                            }
-                            label={
-                                check.freshness_suppressed_by
-                                    ? 'No current data'
-                                    : undefined
-                            }
+                            state={check.state}
+                            label={t('Snoozed until {{time}}', {
+                                time: format.timestamp(check.snoozed_until!),
+                            })}
+                            snoozed
                         />
+                    ) : (
+                        checkState(check) !== 'ok' && (
+                            <StatusDot
+                                state={checkState(check)}
+                                label={
+                                    check.freshness_suppressed_by
+                                        ? 'No current data'
+                                        : undefined
+                                }
+                            />
+                        )
                     )}
                     {t(check.label_key)}
                     {check.freshness_suppressed_by ? (

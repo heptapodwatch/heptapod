@@ -35,6 +35,8 @@ import CheckTabController from './CheckTabController'
 import FindingsExportController from './FindingsExportController'
 import UpdateCheckSettingsController from './UpdateCheckSettingsController'
 import EnableSiteCheckController from './EnableSiteCheckController'
+import DisableSiteCheckController from './DisableSiteCheckController'
+import SiteCheckSnoozeController from './SiteCheckSnoozeController'
 import HealthSettingsProbeController from './HealthSettingsProbeController'
 import RequestCheckRunController from './RequestCheckRunController'
 import CheckRunAttemptController from './CheckRunAttemptController'
@@ -84,6 +86,8 @@ const Controllers = {
     FindingsExportController: Object.assign(FindingsExportController, FindingsExportController),
     UpdateCheckSettingsController: Object.assign(UpdateCheckSettingsController, UpdateCheckSettingsController),
     EnableSiteCheckController: Object.assign(EnableSiteCheckController, EnableSiteCheckController),
+    DisableSiteCheckController: Object.assign(DisableSiteCheckController, DisableSiteCheckController),
+    SiteCheckSnoozeController: Object.assign(SiteCheckSnoozeController, SiteCheckSnoozeController),
     HealthSettingsProbeController: Object.assign(HealthSettingsProbeController, HealthSettingsProbeController),
     RequestCheckRunController: Object.assign(RequestCheckRunController, RequestCheckRunController),
     CheckRunAttemptController: Object.assign(CheckRunAttemptController, CheckRunAttemptController),

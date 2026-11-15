@@ -908,7 +908,7 @@ it('uses every suppression reason consistently in the evaluator API and localize
     $texts = match ($reason) {
         FreshnessSuppression::Down => ['en' => 'No response-time data while the site is down (since {{date}})', 'de' => 'Keine Antwortzeiten, solange die Website ausgefallen ist (seit {{date}})'],
         FreshnessSuppression::Maintenance => ['en' => 'No response-time data during maintenance (since {{date}})', 'de' => 'Keine Antwortzeiten während der Wartung (seit {{date}})'],
-        FreshnessSuppression::Snooze => ['en' => 'No response-time data while alerts are snoozed (since {{date}})', 'de' => 'Keine Antwortzeiten, solange Alarme pausiert sind (seit {{date}})'],
+        FreshnessSuppression::Snooze => ['en' => 'No response-time data while alerts are snoozed (since {{date}})', 'de' => 'Keine Antwortzeiten, solange Alarme stummgeschaltet sind (seit {{date}})'],
         FreshnessSuppression::UptimeError => ['en' => 'No response-time data while the uptime check reports an error (since {{date}})', 'de' => 'Keine Antwortzeiten, solange die Erreichbarkeitsprüfung einen Prüffehler meldet (seit {{date}})'],
     };
     foreach ($texts as $locale => $text) {

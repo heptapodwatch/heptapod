@@ -56,7 +56,8 @@ final class CheckStripData extends Data
         $this->freshness_suppression_label_key = $freshness_suppressed_by?->labelKey();
         $this->dependency_headline_key = UptimeDependencies::headlineKey($open_incident_id !== null, $held_after_recovery, $uptime_parent_incident_id);
         $this->state = match (true) {
-            ! $enabled => SiteStatus::Paused,
+            // A turned-off check reads Off; Paused belongs to a paused site only.
+            ! $enabled => SiteStatus::Disabled,
             $unavailable_reason !== null => SiteStatus::Unavailable,
             $pending_recheck || $result === CheckResult::Pending => SiteStatus::Pending,
             $result === CheckResult::Succeeded => SiteStatus::Ok,

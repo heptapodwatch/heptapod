@@ -35,7 +35,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ListHeader, ListRow, rowEmphasisClass } from '@/components/ui/table';
 import { useCheckHeadline } from '@/hooks/use-check-headline';
 import { useFormat } from '@/hooks/use-format';
-import { bySeverity, checkState, isAttentionState } from '@/lib/status';
+import {
+    bySeverity,
+    checkState,
+    isAttentionState,
+    isSnoozed,
+} from '@/lib/status';
 import type { SiteState } from '@/types/monitoring';
 import { cn } from '@/lib/utils';
 import { show as incidentShow } from '@/routes/incidents';
@@ -50,6 +55,8 @@ type SiteCheckRow = {
     state: Heptapod.Enums.SiteStatus;
     /** StatusBadge label when the state word alone would mislead (a suppressed gap). */
     stateLabel?: string;
+    /** A snoozed check keeps its result colour with the pause bars cut out. */
+    snoozed?: boolean;
     what: string;
     detail: string;
     when: ReactNode;
@@ -81,14 +88,10 @@ export function SiteOverviewContent({ page }: { page: Page }) {
     const repositoryFacts = useRepositoryFacts(page.repositories);
     // Enabled checks by severity, turned-off ones last.
     const checks = [...site.checks].sort(
-        (a, b) =>
-            bySeverity(
-                a.enabled ? checkState(a) : 'disabled',
-                b.enabled ? checkState(b) : 'disabled',
-            ) || a.id - b.id,
+        (a, b) => bySeverity(checkState(a), checkState(b)) || a.id - b.id,
     );
-    const attentionChecks = checks.filter(
-        (check) => check.enabled && needsAttention(checkState(check)),
+    const attentionChecks = checks.filter((check) =>
+        needsAttention(checkState(check)),
     );
     const maintenance =
         page.maintenance?.state === 'active' ? page.maintenance : null;
@@ -354,14 +357,18 @@ function useCheckRow(siteId: number) {
     const format = useFormat();
     const headline = useCheckHeadline();
     return (check: Check): SiteCheckRow => {
-        const state = check.enabled ? checkState(check) : 'disabled';
+        const snoozed = isSnoozed(check, Date.now());
+        // A snoozed check keeps its result; its gap without data is explained by the snooze itself.
+        const state = snoozed ? check.state : checkState(check);
         return {
             key: `check:${check.id}`,
             checkId: check.id,
             state,
-            stateLabel: check.freshness_suppressed_by
-                ? 'No current data'
-                : undefined,
+            snoozed,
+            stateLabel:
+                !snoozed && check.freshness_suppressed_by
+                    ? 'No current data'
+                    : undefined,
             // An attention row names its issue (incl. the uptime-dependency headline); an unavailable check's cause is its missing capability.
             what:
                 needsAttention(state) && !check.unavailable_reason
@@ -371,7 +378,9 @@ function useCheckRow(siteId: number) {
                           fallback: headline(check),
                       })
                     : headline(check),
-            detail: t(check.label_key),
+            detail: snoozed
+                ? `${t(check.label_key)} · ${t('Snoozed until {{time}}', { time: format.timestamp(check.snoozed_until!) })}`
+                : t(check.label_key),
             when: check.open_incident_started_at ? (
                 <MonitoringTime
                     value={check.open_incident_started_at}
@@ -427,7 +436,11 @@ export function SiteCheckList({
                     )}
                     onClick={row.href ? openRowTarget(row.href) : undefined}
                 >
-                    <StatusBadge state={row.state} label={row.stateLabel} />
+                    <StatusBadge
+                        state={row.state}
+                        label={row.stateLabel}
+                        snoozed={row.snoozed}
+                    />
                     <div className="min-w-0">
                         <EntityLink
                             href={row.href ?? undefined}

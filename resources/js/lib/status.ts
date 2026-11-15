@@ -166,10 +166,70 @@ export const deliveryOutcomeStates = {
     sending: 'pending',
 } as const satisfies Record<Heptapod.Enums.DeliveryOutcome, SiteState>;
 
-/** The shown state of a check: a freshness-suppressed gap reads Off. */
+/**
+ * The shown state of a check. The server sends Off (`disabled`) for a turned-off check; a freshness-suppressed gap
+ * has no current result, so it reads in the no-result (pending) shape, never Off.
+ */
 export function checkState(check: {
     state: SiteState;
     freshness_suppressed_by?: Heptapod.Enums.FreshnessSuppression | null;
 }): SiteState {
-    return check.freshness_suppressed_by ? 'disabled' : check.state;
+    return check.state !== 'disabled' && check.freshness_suppressed_by
+        ? 'pending'
+        : check.state;
+}
+
+/** Whether the check's alerts are snoozed at `now`; the check keeps running. */
+export function isSnoozed(
+    check: { state: SiteState; snoozed_until: string | null },
+    now: number,
+): boolean {
+    return (
+        check.state !== 'disabled' &&
+        check.snoozed_until !== null &&
+        Date.parse(check.snoozed_until) > now
+    );
+}
+
+/**
+ * One check slot of a strip: not set up (dashed), turned off (empty), snoozed (pause bars cut out of a disc in the
+ * result's colour) or a status shape. `label` is the translation key of the slot's state word.
+ */
+export type CheckMark =
+    | { kind: 'unset'; label: 'Not configured' }
+    | { kind: 'off'; label: 'Turned off' }
+    | { kind: 'snoozed'; state: SiteState; until: string }
+    | { kind: 'status'; state: SiteState | 'running'; label: string };
+
+export function checkMark(
+    check:
+        | (Parameters<typeof checkState>[0] & {
+              snoozed_until: string | null;
+              not_fresh: boolean;
+          })
+        | undefined,
+    { running, now }: { running: boolean; now: number },
+): CheckMark {
+    if (check === undefined) return { kind: 'unset', label: 'Not configured' };
+    if (check.state === 'disabled') return { kind: 'off', label: 'Turned off' };
+    if (running) return { kind: 'status', state: 'running', label: 'Running' };
+    if (isSnoozed(check, now))
+        return {
+            kind: 'snoozed',
+            state: check.state,
+            until: check.snoozed_until!,
+        };
+    if (check.freshness_suppressed_by)
+        return { kind: 'status', state: 'pending', label: 'No current data' };
+    if (check.not_fresh)
+        return {
+            kind: 'status',
+            state: 'check-error',
+            label: 'freshness.not_fresh',
+        };
+    return {
+        kind: 'status',
+        state: check.state,
+        label: statusLabels[check.state],
+    };
 }

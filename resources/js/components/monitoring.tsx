@@ -24,7 +24,8 @@ import { show as incidentShow } from '@/routes/incidents';
 import { checkTypes } from '@/lib/check-types';
 import {
     bucketStates,
-    checkState,
+    checkMark,
+    type CheckMark,
     eventLabel,
     eventState,
     runState,
@@ -66,11 +67,14 @@ export function StatusDot({
     label,
     color,
     strip = false,
+    snoozed = false,
 }: {
     state: SiteState | 'running';
     label?: string;
     color?: string;
     strip?: boolean;
+    /** Alerts snoozed: the pause bars cut out of a disc in the result's colour. */
+    snoozed?: boolean;
 }) {
     const { t } = useTranslation();
     return (
@@ -79,6 +83,7 @@ export function StatusDot({
             aria-label={t(label ?? statusLabels[state])}
             data-state={state}
             data-strip={strip || undefined}
+            data-snoozed={snoozed || undefined}
             className="status-ring"
             style={{
                 color: color ?? statusColor[state],
@@ -89,9 +94,11 @@ export function StatusDot({
 export function StatusBadge({
     state,
     label,
+    snoozed = false,
 }: {
     state: SiteState | 'running';
     label?: string;
+    snoozed?: boolean;
 }) {
     const { t } = useTranslation();
     return (
@@ -106,6 +113,7 @@ export function StatusBadge({
                 <StatusDot
                     state={state}
                     color={state === 'down' ? 'currentColor' : undefined}
+                    snoozed={snoozed}
                 />
             </span>
             {t(label ?? statusLabels[state])}
@@ -590,9 +598,27 @@ const checkSummaryOrder = [
     ...stateCountOrder.flatMap((state) =>
         state === 'pending'
             ? ['Running', statusLabels[state]]
-            : [statusLabels[state]],
+            : state === 'disabled'
+              ? ['Turned off']
+              : [statusLabels[state]],
     ),
 ];
+
+/** One strip slot: dashed when not set up, empty when turned off, otherwise the status shape (snoozed: bars cut out). */
+function CheckMarkGlyph({ mark }: { mark: CheckMark }) {
+    switch (mark.kind) {
+        case 'unset':
+            return (
+                <span className="size-[11px] rounded-[2px] border border-dashed border-border-strong bg-card opacity-50" />
+            );
+        case 'off':
+            return <span className="size-[11px]" />;
+        case 'snoozed':
+            return <StatusDot state={mark.state} snoozed strip />;
+        case 'status':
+            return <StatusDot state={mark.state} label={mark.label} strip />;
+    }
+}
 
 export function CheckStrip({
     checks,
@@ -613,15 +639,20 @@ export function CheckStrip({
             ) ?? 'uptime',
     );
     const triggers = useRef<(HTMLSpanElement | null)[]>([]);
-    const states = checks.map((check) =>
-        check.freshness_suppressed_by
-            ? 'No current data'
-            : check.not_fresh
-              ? 'freshness.not_fresh'
-              : !check.pending_recheck && runningCheckIds.includes(check.id)
-                ? 'Running'
-                : statusLabels[checkState(check)],
-    );
+    const now = Date.now();
+    const markOf = (check: CheckDto | undefined): CheckMark =>
+        checkMark(check, {
+            running:
+                check !== undefined &&
+                !check.pending_recheck &&
+                runningCheckIds.includes(check.id),
+            now,
+        });
+    // A snoozed check counts under its result, so the summary never hides a failure.
+    const states = checks.map((check) => {
+        const mark = markOf(check);
+        return mark.kind === 'snoozed' ? statusLabels[mark.state] : mark.label;
+    });
     const summary = checkSummaryOrder
         .map((state) => ({
             state,
@@ -653,20 +684,18 @@ export function CheckStrip({
                 const label = t(
                     check ? check.label_key : checkTypes[key].label,
                 );
-                const state = check ? checkState(check) : null;
-                const isRunning =
-                    check !== undefined &&
-                    !check.pending_recheck &&
-                    runningCheckIds.includes(check.id);
-                const description = check?.freshness_suppressed_by
-                    ? t('No current data')
-                    : check?.not_fresh
-                      ? t('freshness.not_fresh')
-                      : state === null
-                        ? t('Not configured')
-                        : isRunning
-                          ? t('Running')
-                          : t(statusLabels[state]);
+                const mark = markOf(check);
+                const description =
+                    mark.kind === 'snoozed'
+                        ? `${t('Snoozed until {{time}}', { time: format.timestamp(mark.until) })} · ${t(statusLabels[mark.state])}`
+                        : t(mark.label);
+                const statusLine =
+                    check === undefined || mark.kind === 'off'
+                        ? description
+                        : check.freshness_suppressed_by &&
+                            mark.kind === 'status'
+                          ? headline(check)
+                          : `${description} · ${check.unavailable_reason ? t(check.unavailable_reason) : headline(check)}`;
                 return (
                     <Tooltip key={key}>
                         <TooltipTrigger asChild>
@@ -677,6 +706,7 @@ export function CheckStrip({
                                 role="img"
                                 tabIndex={key === focusedKey ? 0 : -1}
                                 aria-label={`${label} · ${description}`}
+                                data-check-mark={mark.kind}
                                 onFocus={() => setFocusedKey(key)}
                                 onKeyDown={(event) => {
                                     if (
@@ -702,33 +732,18 @@ export function CheckStrip({
                                     compact && 'sm:shrink-0',
                                 )}
                             >
-                                {state === null ? (
-                                    <span className="size-[11px] rounded-[2px] border border-dashed border-border-strong bg-card opacity-50" />
-                                ) : (
-                                    <StatusDot
-                                        state={
-                                            check?.freshness_suppressed_by
-                                                ? 'disabled'
-                                                : check?.not_fresh
-                                                  ? 'check-error'
-                                                  : isRunning
-                                                    ? 'running'
-                                                    : state
-                                        }
-                                        label={description}
-                                        strip
-                                    />
-                                )}
+                                <CheckMarkGlyph mark={mark} />
                             </span>
                         </TooltipTrigger>
                         <TooltipContent>
                             <TooltipDetails
                                 subject={label}
                                 facts={
-                                    check
+                                    check && mark.kind !== 'off'
                                         ? [
                                               // A suppressed gap shows its reason instead; the stored last result would read as a current status.
-                                              ...(check.freshness_suppressed_by
+                                              ...(check.freshness_suppressed_by &&
+                                              mark.kind === 'status'
                                                   ? []
                                                   : [
                                                         `${t('Last result')}: ${t(statusLabels[runState(check.key, check.result)])}`,
@@ -744,16 +759,12 @@ export function CheckStrip({
                                         : []
                                 }
                                 status={{
-                                    state: check?.freshness_suppressed_by
-                                        ? 'disabled'
-                                        : check?.not_fresh
-                                          ? 'check-error'
-                                          : isRunning
-                                            ? 'running'
-                                            : (state ?? 'disabled'),
-                                    label: check?.freshness_suppressed_by
-                                        ? headline(check)
-                                        : `${description}${check ? ` · ${check.unavailable_reason ? t(check.unavailable_reason) : headline(check)}` : ''}`,
+                                    state:
+                                        mark.kind === 'unset' ||
+                                        mark.kind === 'off'
+                                            ? 'disabled'
+                                            : mark.state,
+                                    label: statusLine,
                                 }}
                                 hint={t('tooltip.check_navigation')}
                             />

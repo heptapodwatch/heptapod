@@ -355,6 +355,235 @@ enableForm.post = (args: { site: string | number, check: string | number } | [si
 enable.form = enableForm
 
 /**
+* @see \Heptapod\Http\Controllers\DisableSiteCheckController::__invoke
+* @see app/Http/Controllers/DisableSiteCheckController.php:17
+* @route '/sites/{site}/checks/{check}/disable'
+*/
+export const disable = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: disable.url(args, options),
+    method: 'post',
+})
+
+disable.definition = {
+    methods: ["post"],
+    url: '/sites/{site}/checks/{check}/disable',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \Heptapod\Http\Controllers\DisableSiteCheckController::__invoke
+* @see app/Http/Controllers/DisableSiteCheckController.php:17
+* @route '/sites/{site}/checks/{check}/disable'
+*/
+disable.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
+    if (Array.isArray(args)) {
+        args = {
+            site: args[0],
+            check: args[1],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        site: args.site,
+        check: args.check,
+    }
+
+    return disable.definition.url
+            .replace('{site}', parsedArgs.site.toString())
+            .replace('{check}', parsedArgs.check.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \Heptapod\Http\Controllers\DisableSiteCheckController::__invoke
+* @see app/Http/Controllers/DisableSiteCheckController.php:17
+* @route '/sites/{site}/checks/{check}/disable'
+*/
+disable.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: disable.url(args, options),
+    method: 'post',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\DisableSiteCheckController::__invoke
+* @see app/Http/Controllers/DisableSiteCheckController.php:17
+* @route '/sites/{site}/checks/{check}/disable'
+*/
+const disableForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: disable.url(args, options),
+    method: 'post',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\DisableSiteCheckController::__invoke
+* @see app/Http/Controllers/DisableSiteCheckController.php:17
+* @route '/sites/{site}/checks/{check}/disable'
+*/
+disableForm.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: disable.url(args, options),
+    method: 'post',
+})
+
+disable.form = disableForm
+
+/**
+* @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::snooze
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
+* @route '/sites/{site}/checks/{check}/snooze'
+*/
+export const snooze = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: snooze.url(args, options),
+    method: 'post',
+})
+
+snooze.definition = {
+    methods: ["post"],
+    url: '/sites/{site}/checks/{check}/snooze',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::snooze
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
+* @route '/sites/{site}/checks/{check}/snooze'
+*/
+snooze.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
+    if (Array.isArray(args)) {
+        args = {
+            site: args[0],
+            check: args[1],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        site: args.site,
+        check: args.check,
+    }
+
+    return snooze.definition.url
+            .replace('{site}', parsedArgs.site.toString())
+            .replace('{check}', parsedArgs.check.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::snooze
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
+* @route '/sites/{site}/checks/{check}/snooze'
+*/
+snooze.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: snooze.url(args, options),
+    method: 'post',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::snooze
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
+* @route '/sites/{site}/checks/{check}/snooze'
+*/
+const snoozeForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: snooze.url(args, options),
+    method: 'post',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::snooze
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
+* @route '/sites/{site}/checks/{check}/snooze'
+*/
+snoozeForm.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: snooze.url(args, options),
+    method: 'post',
+})
+
+snooze.form = snoozeForm
+
+/**
+* @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::unsnooze
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:35
+* @route '/sites/{site}/checks/{check}/snooze'
+*/
+export const unsnooze = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
+    url: unsnooze.url(args, options),
+    method: 'delete',
+})
+
+unsnooze.definition = {
+    methods: ["delete"],
+    url: '/sites/{site}/checks/{check}/snooze',
+} satisfies RouteDefinition<["delete"]>
+
+/**
+* @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::unsnooze
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:35
+* @route '/sites/{site}/checks/{check}/snooze'
+*/
+unsnooze.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
+    if (Array.isArray(args)) {
+        args = {
+            site: args[0],
+            check: args[1],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        site: args.site,
+        check: args.check,
+    }
+
+    return unsnooze.definition.url
+            .replace('{site}', parsedArgs.site.toString())
+            .replace('{check}', parsedArgs.check.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::unsnooze
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:35
+* @route '/sites/{site}/checks/{check}/snooze'
+*/
+unsnooze.delete = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
+    url: unsnooze.url(args, options),
+    method: 'delete',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::unsnooze
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:35
+* @route '/sites/{site}/checks/{check}/snooze'
+*/
+const unsnoozeForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: unsnooze.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'DELETE',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::unsnooze
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:35
+* @route '/sites/{site}/checks/{check}/snooze'
+*/
+unsnoozeForm.delete = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: unsnooze.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'DELETE',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
+
+unsnooze.form = unsnoozeForm
+
+/**
 * @see \Heptapod\Http\Controllers\RequestCheckRunController::__invoke
 * @see app/Http/Controllers/RequestCheckRunController.php:20
 * @route '/sites/{site}/checks/{check}/run'
@@ -578,6 +807,9 @@ const checks = {
     findings: Object.assign(findings, findings),
     update: Object.assign(update, update),
     enable: Object.assign(enable, enable),
+    disable: Object.assign(disable, disable),
+    snooze: Object.assign(snooze, snooze),
+    unsnooze: Object.assign(unsnooze, unsnooze),
     health: Object.assign(health, health),
     run: Object.assign(run, run),
     attempts: Object.assign(attempts, attempts),

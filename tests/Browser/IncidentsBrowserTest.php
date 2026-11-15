@@ -57,7 +57,7 @@ it('headlines incident evidence by historical check and cause without duplicate 
         ->assertMissing('main [data-slot="alert"]')->assertDontSee('Resume reminders')
         ->assertPresent('textarea[aria-label]')->assertNoJavaScriptErrors();
     // Reminders exist only for an open uptime outage. There Snooze is the header's one secondary action, a plain button.
-    $snoozeLabel = $locale === 'de' ? 'Erinnerungen pausieren' : 'Snooze reminders';
+    $snoozeLabel = $locale === 'de' ? 'Erinnerungen stummschalten' : 'Snooze reminders';
     if (! $resolved && $type === CheckKey::Uptime && $cause === IncidentCause::Failed) {
         $page->assertVisible('header button:text-is("'.$snoozeLabel.'")');
     } else {
