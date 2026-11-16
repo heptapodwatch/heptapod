@@ -20,7 +20,7 @@ final class CheckDataMaintenanceRecord
     /** The command runs hourly; two failed runs in a row, or no success for this long, need attention. */
     private const int WarnAfterConsecutiveFailures = 2;
 
-    private const int WarnAfterSecondsWithoutSuccess = 3 * 3600;
+    public const int WarnAfterSecondsWithoutSuccess = 3 * 3600;
 
     public function recordSuccess(CarbonImmutable $startedAt, float $durationSeconds): void
     {

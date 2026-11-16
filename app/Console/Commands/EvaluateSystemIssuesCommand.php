@@ -17,7 +17,9 @@ final class EvaluateSystemIssuesCommand extends Command
 {
     public function handle(EvaluateSystemIssues $evaluate): int
     {
-        $evaluate(CarbonImmutable::now('UTC'));
+        $now = CarbonImmutable::now('UTC');
+        $evaluate($now);
+        $evaluate->recordCommandEvaluation($now);
         foreach (SystemIssue::open()->get() as $issue) {
             $this->line($issue->kind->value.' open since '.$issue->opened_at->toIso8601String());
         }

@@ -217,7 +217,7 @@
     "System alerts could not be evaluated.": "System alerts could not be evaluated.",
     "Failed :time: :error": "Failed :time: :error",
     "Since :time": "Since :time",
-    "Check history maintenance failed twice in a row": "Check history maintenance failed twice in a row",
+    "Check history maintenance is failing or stuck": "Check history maintenance is failing or stuck",
     "Rollups and retention stop until a run succeeds. Read the scheduler log for the maintain-check-data command.": "Rollups and retention stop until a run succeeds. Read the scheduler log for the maintain-check-data command.",
     "The last backup failed": "The last backup failed",
     "Check the backup disk and its credentials, then start a backup in Settings › Updates.": "Check the backup disk and its credentials, then start a backup in Settings › Updates.",

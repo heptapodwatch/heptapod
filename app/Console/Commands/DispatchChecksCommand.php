@@ -48,15 +48,21 @@ final class DispatchChecksCommand extends Command
         return self::SUCCESS;
     }
 
-    /** The scheduler normally evaluates system issues; when it is the thing that stopped, the dispatcher reports it. */
+    /**
+     * The scheduler normally evaluates system issues; when it stopped, or its evaluation hangs or keeps failing while its
+     * tick looks healthy, the dispatcher evaluates instead.
+     */
     private function evaluateWhileSchedulerStale(EvaluateSystemIssues $evaluate): void
     {
+        $now = CarbonImmutable::now('UTC');
         $tick = Cache::store('redis')->get(config()->string('heptapod.health.scheduler_cache_key'));
-        if (is_string($tick) && CarbonImmutable::parse($tick)->diffInSeconds(CarbonImmutable::now('UTC')) <= EvaluateSystemIssues::HeartbeatStaleAfterSeconds) {
+        $evaluatedAt = $evaluate->lastEvaluatedAt();
+        if (is_string($tick) && CarbonImmutable::parse($tick)->diffInSeconds($now) <= EvaluateSystemIssues::HeartbeatStaleAfterSeconds
+            && $evaluatedAt !== null && CarbonImmutable::parse($evaluatedAt)->diffInSeconds($now) <= EvaluateSystemIssues::EvaluationStaleAfterSeconds) {
             return;
         }
         try {
-            $evaluate(CarbonImmutable::now('UTC'));
+            $evaluate($now);
         } catch (Throwable $exception) {
             // The evaluation recorded its failure for System health; a failed evaluation must not stop check dispatch.
             report($exception);
