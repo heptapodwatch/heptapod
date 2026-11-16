@@ -1,4 +1,4 @@
-FROM dunglas/frankenphp:1.13.5-php8.5.12@sha256:7e73a27eb7712a5b4073b92f8f0dec91e9400138604b76cc791589faaa6a639c AS runtime
+FROM dunglas/frankenphp:1.13.5-php8.5.12@sha256:667c5fffd348d9c3c260803d75956f1d9aace7e4b7331d8893de6f101d7e0e57 AS runtime
 
 COPY --chmod=0644 docker/php-extensions.txt /usr/local/etc/php/extensions.txt
 
