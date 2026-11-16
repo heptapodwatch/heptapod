@@ -29,11 +29,11 @@ it('keeps worker deadlines below reservation and grants queued claims a separate
         }
     }
     expect(ExecutionBudget::StopGrace)->toBe(1245)->toBeGreaterThan(ExecutionBudget::HorizonTimeout);
+    // A long backup or import must never occupy the only alert worker.
+    expect(config('horizon.defaults.delivery.queue'))->toBe(['notifications']);
     foreach (config('horizon.defaults') as $name => $supervisor) {
         if ($name === 'broadcasts') {
             expect($supervisor['timeout'])->toBeLessThan(config('queue.connections.redis-broadcasts.retry_after'));
-        } elseif ($name === 'icons') {
-            expect($supervisor['timeout'])->toBe(65)->toBeLessThan(config('queue.connections.redis.retry_after'));
         } else {
             expect($supervisor['timeout'])->toBe(1230)->toBeLessThan(config('queue.connections.redis.retry_after'));
         }

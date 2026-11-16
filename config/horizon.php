@@ -241,14 +241,15 @@ return [
         ],
         'delivery' => [
             'connection' => 'redis',
-            'queue' => ['notifications', 'reports'],
+            'queue' => ['notifications'],
             'balance' => false,
             'maxProcesses' => 1,
             'memory' => 256,
             'tries' => 1,
             'timeout' => ExecutionBudget::HorizonTimeout,
         ],
-        'icons' => ['connection' => 'redis', 'queue' => ['icons'], 'balance' => false, 'maxProcesses' => 1, 'memory' => 128, 'tries' => 1, 'timeout' => 65, 'nice' => 10],
+        // Backups and imports run here, never on delivery, so a long one cannot hold up alerts; icon jobs keep their own 60 s timeout.
+        'icons-reports' => ['connection' => 'redis', 'queue' => ['icons', 'reports'], 'balance' => false, 'maxProcesses' => 1, 'memory' => 256, 'tries' => 1, 'timeout' => ExecutionBudget::HorizonTimeout, 'nice' => 10],
         'broadcasts' => [
             'connection' => 'redis-broadcasts',
             'queue' => ['broadcasts'],
@@ -268,7 +269,7 @@ return [
             'checks-heavy' => [],
             'checks-browser' => [],
             'delivery' => [],
-            'icons' => [],
+            'icons-reports' => [],
             'broadcasts' => [],
         ],
     ],
