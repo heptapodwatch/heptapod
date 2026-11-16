@@ -8,6 +8,7 @@ use Heptapod\Actions\ClaimNotificationDelivery;
 use Heptapod\Actions\ClaimSystemProbe;
 use Heptapod\Actions\CompleteNotificationDelivery;
 use Heptapod\Actions\EnsureAccountChannel;
+use Heptapod\Actions\PlanNotificationEvent;
 use Heptapod\Actions\SetNotificationDestinationEnabled;
 use Heptapod\Addons\Channels\TemplateMail;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
@@ -637,4 +638,46 @@ it('allows probe rounds above zero only on System deliveries, never on deliverie
         expect(fn () => DB::transaction(fn (): int => systemRecoveryDelivery($eventId, $channel, ['probe_round' => 2, 'category' => $category])))
             ->toThrow(QueryException::class, 'deliveries_probe_round');
     }
+});
+
+it('opens notifications_stalled for an event left unrouted over ten minutes, not on a fresh install, and resolves once it is routed', function (): void {
+    Mail::mailer()->setSymfonyTransport(new ArrayTransport);
+    systemIssueRecipient('Owner');
+    evaluateSystemIssues();
+    expect(SystemIssue::open()->where('kind', 'notifications_stalled')->exists())->toBeFalse();
+    $event = notificationIncidentEvent();
+    $this->travel(EvaluateSystemIssues::NotificationsStalledAfterSeconds - 1)->seconds();
+    freshScheduler();
+    evaluateSystemIssues();
+    expect(SystemIssue::open()->where('kind', 'notifications_stalled')->exists())->toBeFalse();
+    $this->travel(2)->seconds();
+    evaluateSystemIssues();
+    $issue = SystemIssue::open()->where('kind', 'notifications_stalled')->sole();
+    expect($issue->details)->toBe(['oldest_due_delivery_at' => null, 'oldest_unrouted_event_at' => $event->occurred_at->toIso8601String()])
+        ->and(systemIssueDeliveries($issue->id, 'open')->where('deliveries.state', 'sent')->count())->toBe(1);
+    app(PlanNotificationEvent::class)($event->id);
+    evaluateSystemIssues();
+    expect($issue->refresh()->resolved_at)->not->toBeNull();
+});
+
+it('opens channel_failing once for a non-mail channel failing for 24 hours and resolves it after an accepted test', function (): void {
+    Mail::mailer()->setSymfonyTransport(new ArrayTransport);
+    $owner = systemIssueRecipient('Owner');
+    $webhook = notificationWebhook();
+    $webhook->update(['failing_since' => now()->subDay()->addMinute()]);
+    systemIssueAccountChannel($owner)->update(['failing_since' => now()->subDays(2)]);
+    evaluateSystemIssues();
+    expect(SystemIssue::open()->where('kind', 'channel_failing')->exists())->toBeFalse();
+    $this->travel(1)->minutes();
+    freshScheduler();
+    evaluateSystemIssues();
+    evaluateSystemIssues();
+    $issue = SystemIssue::open()->where('kind', 'channel_failing')->sole();
+    expect($issue->scope)->toBe((string) $webhook->id)
+        ->and($issue->details['channel'])->toBe($webhook->label)
+        ->and(systemIssueDeliveries($issue->id, 'open')->count())->toBe(1);
+    Http::fake(['https://receiver.test/alerts' => Http::response([], 200)]);
+    $this->actingAs($owner)->postJson(route('notification-channels.test', $webhook))->assertOk();
+    evaluateSystemIssues();
+    expect($issue->refresh()->resolved_at)->not->toBeNull();
 });

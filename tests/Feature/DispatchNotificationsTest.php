@@ -23,6 +23,7 @@ use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Enums\AlertReminders;
 use Heptapod\Enums\NotificationMode;
+use Heptapod\Jobs\DispatchNotifications;
 use Heptapod\Jobs\SendNotification;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckSnooze;
@@ -38,6 +39,7 @@ use Heptapod\Testing\ClaimedRun;
 use Heptapod\Testing\FakeChromiumRenderer;
 use Illuminate\Database\QueryException;
 use Illuminate\Mail\Transport\ArrayTransport;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
@@ -1020,4 +1022,59 @@ it('suppresses only the API snoozed cron task through the recorder and notificat
     recordNotificationCron($check);
     dispatchNotifications();
     expect(Event::query()->where('component_id', $a['id'])->where('component_type', 'cron')->where('suppressed', false)->count())->toBe(2);
+});
+
+it('gives up an alert that has failed for 24 hours, keeps its last error and marks its channel failing', function (): void {
+    $this->freezeTime();
+    Http::preventStrayRequests();
+    Http::fake(['https://receiver.test/alerts' => Http::response([], 503)]);
+    $destination = notificationWebhook();
+    notificationRule($destination);
+    notificationIncidentEvent();
+    $firstFailure = now()->toImmutable();
+    dispatchNotifications();
+    expect($destination->refresh()->failing_since?->toIso8601String())->toBe($firstFailure->toIso8601String());
+    $this->travel(24 * 60 - 1)->minutes();
+    dispatchNotifications();
+    expect(Delivery::query()->sole()->only(['state', 'suppressed', 'attempts']))->toBe(['state' => DeliveryState::Failed, 'suppressed' => false, 'attempts' => 2]);
+    $this->travel(2)->minutes();
+    dispatchNotifications();
+    $delivery = Delivery::query()->sole();
+    expect($delivery->only(['state', 'suppressed', 'suppression_reason', 'attempts']))->toBe(['state' => DeliveryState::Failed, 'suppressed' => true,
+        'suppression_reason' => CompleteNotificationDelivery::GivenUpReason, 'attempts' => 3])
+        ->and($delivery->last_diagnosis)->toContain('HTTP 503');
+    $this->travel(2)->hours();
+    dispatchNotifications();
+    Http::assertSentCount(3);
+    expect($destination->refresh()->failing_since?->toIso8601String())->toBe($firstFailure->toIso8601String());
+});
+
+it('routes and sends past an event whose routing throws, then fails the run', function (): void {
+    $this->freezeTime();
+    Http::preventStrayRequests();
+    Http::fake(['https://receiver.test/alerts' => Http::response([], 200)]);
+    notificationRule(notificationWebhook());
+    $poison = notificationIncidentEvent(['payload' => ['result' => 7]]);
+    $healthy = notificationIncidentEvent();
+    expect(fn () => dispatchNotifications())->toThrow(LogicException::class, 'Component notification result must be a string.');
+    expect($poison->refresh()->notification_routed_at)->toBeNull()
+        ->and(Delivery::query()->where('event_id', $healthy->id)->sole()->state)->toBe(DeliveryState::Sent);
+});
+
+it('continues a burst at once when a run routed a full batch', function (): void {
+    Queue::fake([DispatchNotifications::class]);
+    $event = notificationIncidentEvent();
+    DB::insert("INSERT INTO events (site_id, check_id, incident_id, type, occurred_at, payload, suppressed, suppression_evaluated_at,
+            site_name, site_url, client_name, client_id, check_type)
+        SELECT ?, ?, ?, 'incident.still_down', CURRENT_TIMESTAMP, '{}'::jsonb, false, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?
+        FROM generate_series(1, ?) AS n", [$event->site_id, $event->check_id, $event->incident_id,
+        $event->site_name, $event->site_url, $event->client_name, $event->client_id, $event->check_type?->value, DispatchNotifications::Batch]);
+    dispatchNotifications();
+    Queue::assertPushed(DispatchNotifications::class, 1);
+    expect(Event::query()->whereNull('notification_routed_at')->count())->toBe(1);
+    Queue::fake([DispatchNotifications::class]);
+    Cache::lock('laravel_unique_job:'.DispatchNotifications::class.':')->forceRelease();
+    dispatchNotifications();
+    Queue::assertNotPushed(DispatchNotifications::class);
+    expect(Event::query()->whereNull('notification_routed_at')->count())->toBe(0);
 });

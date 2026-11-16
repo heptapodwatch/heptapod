@@ -68,6 +68,12 @@ For a disappearing worker, retain root-readable Docker and containerd journals a
 
 Operators can evaluate [Docker live restore](https://docs.docker.com/engine/daemon/live-restore/) for supported patch upgrades; it requires compatible daemon options and does not cover every upgrade. See [restart-policy semantics](https://docs.docker.com/engine/containers/start-containers-automatically/) and [daemon shutdown configuration](https://docs.docker.com/reference/cli/dockerd/). Rootless Podman is daemonless: restarting a disposable Podman container can verify its stop/restart behavior, but cannot reproduce Docker/containerd's package-upgrade shutdown path.
 
+## Notifications stall or a channel keeps failing
+
+`notifications_stalled` opens when the oldest event that no dispatcher run has routed, or the oldest delivery that is due but was not handed to a sender, is more than ten minutes old. A delivery waiting in backoff is not due, so a dead channel alone does not open it. `DispatchNotifications` routes and sends each item on its own: an event or step that throws is reported and the job fails after the other items ran, so one bad row cannot stop all alerts but keeps this issue open until it is fixed. A run that fills a batch of 100 queues the next run at once.
+
+A non-system delivery stops retrying when an attempt fails 24 hours or more after its first failure (`suppression_reason = given_up`, the last reason and diagnosis stay). Every failed send sets the channel's `failing_since` once; an accepted send or an accepted **Send test** clears it. `channel_failing` opens per enabled, non-removed, non-mail channel whose `failing_since` is 24 hours old and resolves when it clears or the channel is paused or removed. Mail is covered by `mail_transport_dead`.
+
 ## Check freshness and history retention
 
 A `check_not_fresh` system issue opens when a check has waited for a result longer than its threshold: `HEPTAPOD_FRESHNESS_INTERVAL_MULTIPLIER` (default 3) times the check interval, clamped to the queue's minimum and maximum. All values are integer seconds and are validated at boot: each minimum must cover the queue's claim and running lease and must not exceed its maximum. Changes need a config cache rebuild and a restart of the app roles.

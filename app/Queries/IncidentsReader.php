@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Queries;
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\CompleteNotificationDelivery;
 use Heptapod\Checks\CheckRunPresentations;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\EngineMessage;
@@ -283,7 +284,7 @@ final readonly class IncidentsReader
                     event.occurred_at AS time, event.type,
                     CASE WHEN delivery.state = {$sent} THEN {$accepted}
                         WHEN delivery.state = {$logged} THEN {$loggedOutcome}
-                        WHEN delivery.suppression_reason = 'smtp_recipient_rejected' THEN {$failedOutcome}
+                        WHEN delivery.suppression_reason IN ('smtp_recipient_rejected', 'given_up') THEN {$failedOutcome}
                         WHEN delivery.suppressed THEN {$suppressed} WHEN delivery.state = {$failed} THEN {$failedOutcome}
                         ELSE {$pending} END AS outcome
                 FROM episode_events event JOIN deliveries delivery ON delivery.event_id = event.id
@@ -563,6 +564,7 @@ final readonly class IncidentsReader
                 'episode_continued' => __('notifications.suppression.episode_continued'),
                 'superseded_by_maintenance_catch_up' => __('notifications.suppression.superseded_by_maintenance_catch_up'),
                 'reopened_before_recovery_confirmed' => __('notifications.suppression.reopened_before_recovery_confirmed'),
+                CompleteNotificationDelivery::GivenUpReason => __('notifications.given_up', ['diagnosis' => $delivery->last_diagnosis ?? '—']),
                 default => $delivery->last_diagnosis,
             };
             if (! $delivery->suppressed && in_array($delivery->last_reason, ['deferred_by_maintenance', 'deferred_by_snooze'], true)) {
@@ -586,6 +588,7 @@ final readonly class IncidentsReader
             $outcome = match (true) {
                 $delivery->state === DeliveryState::Sent => DeliveryOutcome::Accepted,
                 $delivery->suppression_reason === 'smtp_recipient_rejected' => DeliveryOutcome::Rejected,
+                $delivery->suppression_reason === CompleteNotificationDelivery::GivenUpReason => DeliveryOutcome::Failed,
                 $delivery->suppressed => DeliveryOutcome::Suppressed,
                 default => match ($delivery->state) {
                     DeliveryState::Failed => DeliveryOutcome::Failed,

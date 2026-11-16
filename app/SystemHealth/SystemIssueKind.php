@@ -21,6 +21,8 @@ enum SystemIssueKind: string
     case ChecksNotRunning = 'checks_not_running';
     case MailLogOnly = 'mail_log_only';
     case MailTransportDead = 'mail_transport_dead';
+    case NotificationsStalled = 'notifications_stalled';
+    case ChannelFailing = 'channel_failing';
 
     /** @param array<string, int|string|null> $details */
     public function titleKey(array $details = []): string
@@ -35,6 +37,8 @@ enum SystemIssueKind: string
             self::ChecksNotRunning => 'No check has finished for more than ten minutes',
             self::MailLogOnly => ($details['mode'] ?? 'local') === 'mixed' ? 'Some email may only be logged' : 'Email delivery is not configured',
             self::MailTransportDead => 'Email delivery is failing',
+            self::NotificationsStalled => 'Notifications are not being sent',
+            self::ChannelFailing => 'A notification channel has failed for 24 hours',
         };
     }
 
@@ -51,6 +55,8 @@ enum SystemIssueKind: string
             self::ChecksNotRunning => 'Checks are due but no results arrive. Check that the Horizon worker service exists and is running.',
             self::MailLogOnly => ($details['mode'] ?? 'local') === 'mixed' ? 'Remove log and array members from the mail transport to guarantee real delivery attempts.' : 'Set MAIL_MAILER to an SMTP or API transport. Until then no email leaves this instance.',
             self::MailTransportDead => 'No email reaches anyone. Check the SMTP host, port and credentials. A recovery email follows when sending works again.',
+            self::NotificationsStalled => 'Alerts have waited more than ten minutes to be sent. Check that the Horizon worker service is running and read its log for errors.',
+            self::ChannelFailing => 'Every send to this channel has failed for a day. Check its settings and use Send test. Alerts that fail for 24 hours are given up.',
         };
     }
 
@@ -72,7 +78,7 @@ enum SystemIssueKind: string
     public function severity(): HealthStatus
     {
         return match ($this) {
-            self::SchedulerStale, self::ChecksNotRunning, self::MailTransportDead => HealthStatus::Down,
+            self::SchedulerStale, self::ChecksNotRunning, self::MailTransportDead, self::NotificationsStalled => HealthStatus::Down,
             default => HealthStatus::Warn,
         };
     }

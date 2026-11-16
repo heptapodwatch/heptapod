@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace Heptapod\SystemHealth;
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\CompleteNotificationDelivery;
 use Heptapod\Actions\SendNotificationDelivery;
 use Heptapod\Contracts\Mail\MailDeliveryMode;
+use Heptapod\Jobs\DispatchNotifications;
 use Heptapod\Models\DispatcherHeartbeat;
+use Heptapod\Models\Event;
+use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\SystemIssue;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Support\Facades\Cache;
@@ -38,6 +42,9 @@ final readonly class EvaluateSystemIssues
 
     public const int ChecksNotRunningAfterSeconds = 600;
 
+    /** The dispatcher runs every minute and on every new event; ten minutes of waiting work is a stall, not a slow pass. */
+    public const int NotificationsStalledAfterSeconds = 600;
+
     public function __construct(private CheckDataMaintenanceRecord $maintenance, private MailTransportRecord $transport, private SystemIssueMailer $mailer, private SystemTransportProbe $probe, private SendNotificationDelivery $send, private FinishedCheckAge $finishedChecks, private DiskSpaceIssues $diskSpace, private CheckFreshnessIssues $freshness) {}
 
     public function __invoke(CarbonImmutable $now): void
@@ -56,7 +63,7 @@ final readonly class EvaluateSystemIssues
                     $this->probe->run($dead);
                 }
                 foreach (SystemIssueKind::cases() as $kind) {
-                    if (! in_array($kind, [SystemIssueKind::DiskSpaceLow, SystemIssueKind::CheckNotFresh], true)) {
+                    if (! in_array($kind, [SystemIssueKind::DiskSpaceLow, SystemIssueKind::CheckNotFresh, SystemIssueKind::ChannelFailing], true)) {
                         $this->apply($kind, $now);
                     }
                 }
@@ -72,6 +79,7 @@ final readonly class EvaluateSystemIssues
                     $this->transition(SystemIssueKind::DiskSpaceLow, $now, $retired, null, $retired->scope);
                 }
                 $this->applyCheckFreshness($now);
+                $this->applyChannelFailing($now);
                 $this->sendDue();
             });
         } catch (Throwable $exception) {
@@ -137,6 +145,27 @@ final readonly class EvaluateSystemIssues
         }
     }
 
+    /** Mail is left out: a dead transport is mail_transport_dead, and a rejected address stops at once. */
+    private function applyChannelFailing(CarbonImmutable $now): void
+    {
+        $channels = NotificationDestination::query()->where('enabled', true)->where('channel', '<>', 'mail')
+            ->where('failing_since', '<=', $now->subSeconds(CompleteNotificationDelivery::GiveUpAfterSeconds));
+        $channels->getQuery()->whereNull('removed_at')->orderBy('id');
+        $failing = $channels->get()->keyBy('id');
+        $open = SystemIssue::open()->where('kind', SystemIssueKind::ChannelFailing->value)->get()->keyBy('scope');
+        foreach ($failing as $channelId => $channel) {
+            if (! $open->has((string) $channelId)) {
+                $this->transition(SystemIssueKind::ChannelFailing, $now, null,
+                    ['channel' => $channel->label, 'failing_since' => $channel->failing_since?->toIso8601String()], (string) $channelId);
+            }
+        }
+        foreach ($open as $scope => $issue) {
+            if (! $failing->has((int) $scope)) {
+                $this->transition(SystemIssueKind::ChannelFailing, $now, $issue, null, (string) $scope);
+            }
+        }
+    }
+
     private function apply(SystemIssueKind $kind, CarbonImmutable $now): void
     {
         $open = SystemIssue::open()->where('kind', $kind->value)->where('scope', '')->first();
@@ -192,7 +221,7 @@ final readonly class EvaluateSystemIssues
     private function detect(SystemIssueKind $kind, CarbonImmutable $now, bool $isOpen): ?array
     {
         return match ($kind) {
-            SystemIssueKind::CheckNotFresh, SystemIssueKind::DiskSpaceLow => throw new \LogicException('Scoped issues require a scope.'),
+            SystemIssueKind::CheckNotFresh, SystemIssueKind::DiskSpaceLow, SystemIssueKind::ChannelFailing => throw new \LogicException('Scoped issues require a scope.'),
             SystemIssueKind::MaintenanceFailed => $this->maintenanceFailed(),
             SystemIssueKind::BackupFailed => $this->backupFailed(),
             SystemIssueKind::BackupStale => $this->backupStale($now),
@@ -200,7 +229,28 @@ final readonly class EvaluateSystemIssues
             SystemIssueKind::ChecksNotRunning => $this->checksNotRunning($now),
             SystemIssueKind::MailLogOnly => MailDeliveryMode::includesLocalTransport() ? ['mailer' => config()->string('mail.default'), 'mode' => MailDeliveryMode::logOnly() ? 'local' : 'mixed'] : null,
             SystemIssueKind::MailTransportDead => $this->mailTransportDead($now, $isOpen),
+            SystemIssueKind::NotificationsStalled => $this->notificationsStalled($now),
         };
+    }
+
+    /**
+     * The oldest event the dispatcher has not routed, or the oldest delivery it should have handed out, waits too long.
+     * A delivery in backoff is not due yet, so a dead channel alone never counts as a stall.
+     *
+     * @return array<string, string|null>|null
+     */
+    private function notificationsStalled(CarbonImmutable $now): ?array
+    {
+        $cutoff = $now->subSeconds(self::NotificationsStalledAfterSeconds);
+        $unrouted = Event::query();
+        $unrouted->getQuery()->whereNull('notification_routed_at')->orderBy('id');
+        $event = $unrouted->first(['occurred_at']);
+        $delivery = DispatchNotifications::due($cutoff)->first(['next_attempt_at']);
+        if (($event === null || $event->occurred_at->greaterThan($cutoff)) && $delivery === null) {
+            return null;
+        }
+
+        return ['oldest_unrouted_event_at' => $event?->occurred_at->toIso8601String(), 'oldest_due_delivery_at' => $delivery?->next_attempt_at->toIso8601String()];
     }
 
     /** @return array<string, int>|null */

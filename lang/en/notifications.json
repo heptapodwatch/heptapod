@@ -14,6 +14,7 @@
     "notifications.error_summary": "Check could not run (error)",
     "notifications.info_summary": "The check findings have changed.",
     "notifications.delivery_hidden_address": "Hidden recipient",
+    "notifications.given_up": "Given up after 24 hours of failed attempts. Last error: :diagnosis",
     "notifications.digest_title": "Daily summary",
     "notifications.digest_summary": ":count open item for: :sites|:count open items for: :sites",
     "notifications.digest_summary_more": ":count open item; and :remaining more sites.\n:sites|:count open items; and :remaining more sites.\n:sites",

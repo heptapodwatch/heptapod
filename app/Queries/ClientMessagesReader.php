@@ -6,6 +6,7 @@ namespace Heptapod\Queries;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Actions\ClaimNotificationDelivery;
+use Heptapod\Actions\CompleteNotificationDelivery;
 use Heptapod\Contracts\Mail\MailDesign;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Data\Ui\ClientMessageRowData;
@@ -111,6 +112,11 @@ final readonly class ClientMessagesReader
     /** The provider's own diagnosis when there is one; otherwise why it was not sent, in words. */
     private function reason(?string $diagnosis, ?string $suppression): string
     {
+        if ($suppression === CompleteNotificationDelivery::GivenUpReason) {
+            $text = __('notifications.given_up', ['diagnosis' => $diagnosis ?? '—']);
+
+            return is_string($text) ? $text : throw new \LogicException('Translations are text.');
+        }
         if ($diagnosis !== null && $diagnosis !== '') {
             return $diagnosis;
         }

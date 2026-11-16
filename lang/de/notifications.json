@@ -14,6 +14,7 @@
     "notifications.error_summary": "Prüfung konnte nicht ausgeführt werden (Fehler)",
     "notifications.info_summary": "Die Prüfergebnisse haben sich geändert.",
     "notifications.delivery_hidden_address": "Adresse verborgen",
+    "notifications.given_up": "Nach 24 Stunden fehlgeschlagener Versuche aufgegeben. Letzter Fehler: :diagnosis",
     "notifications.digest_title": "Tägliche Zusammenfassung",
     "notifications.digest_summary": "Aktuell offen (:count): :sites",
     "notifications.digest_summary_more": "Aktuell offen (:count); und :remaining weitere Websites.\n:sites",
