@@ -1197,10 +1197,6 @@ readonly failed: number,
 readonly maintenance: number,
 readonly disabled: number,
 readonly unavailable: number,
-readonly certificates_expiring_30_days: number | null,
-readonly domains_expiring_30_days: number | null,
-readonly scheduled_tasks: number | null,
-readonly scheduled_tasks_overdue_pings: number | null,
 };
 export type EventData = {
 readonly id: number,

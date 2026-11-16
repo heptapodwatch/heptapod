@@ -34,8 +34,6 @@ use Heptapod\Models\Client;
 use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
 use Heptapod\Models\Site;
-use Heptapod\Models\User;
-use Heptapod\Queries\MonitorCountsReader;
 use Heptapod\Testing\ExamplePublicSuffixList;
 use Heptapod\Testing\FakeDomainRegistrationLookup;
 use Heptapod\Testing\FakeOutboundHttp;
@@ -314,27 +312,6 @@ it('records WHOIS dates honestly at day precision when the package loses timezon
     'date only' => ['2028-01-01', '2028-01-01'],
     'abbreviation' => ['2028-01-01 12:00:00 CET', '2028-01-01'],
 ]);
-
-it('counts only the latest domain observation inside thirty days and reads WHOIS dates in UTC', function (): void {
-    $this->travelTo(CarbonImmutable::parse('2026-10-04T00:30:00Z'));
-    $check = domainCheckFor();
-    $owner = User::factory()->create();
-    $owner->assignRole('Owner');
-    $lookup = new FakeDomainRegistrationLookup;
-    app()->instance(DomainRegistrationLookup::class, $lookup);
-    $future = "Domain Name: EXAMPLE.COM\nRegistry Expiry Date: 2026-11-18\n";
-    $lookup->respondWith('example.com', new DomainRegistrationResult(DomainRegistrationSource::Whois, $future, 'whois.verisign-grs.com'));
-    executeDomainJob($check);
-    expect(app(MonitorCountsReader::class)->read($owner)->domains)->toBe(0);
-
-    $this->travel(1)->minutes();
-    $edge = "Domain Name: EXAMPLE.COM\nRegistry Expiry Date: 2026-11-03\n";
-    $lookup->respondWith('example.com', new DomainRegistrationResult(DomainRegistrationSource::Whois, $edge, 'whois.verisign-grs.com'));
-    executeDomainJob($check);
-    DB::statement("SET LOCAL TIME ZONE 'Pacific/Honolulu'");
-    expect(DB::scalar("SELECT current_setting('TimeZone')"))->toBe('Pacific/Honolulu')
-        ->and(app(MonitorCountsReader::class)->read($owner)->domains)->toBe(1);
-});
 
 it('preserves exact RDAP offsets in UTC instead of applying WHOIS day precision', function (): void {
     app()->instance(DomainRegistrationLookup::class, (new FakeDomainRegistrationLookup)->respondWith('example.com',

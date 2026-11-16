@@ -30,21 +30,6 @@ final readonly class CronUpcomingSource implements UpcomingEventSource
         return $items;
     }
 
-    public function count(array $visibleCheckIds, CarbonImmutable $from, CarbonImmutable $until): int
-    {
-        if ($visibleCheckIds === []) {
-            return 0;
-        }
-        $count = 0;
-        foreach ($this->candidates($visibleCheckIds, $from, $until)->cursor() as $task) {
-            if ($this->isRare($task)) {
-                $count++;
-            }
-        }
-
-        return $count;
-    }
-
     public function page(array $visibleCheckIds, CarbonImmutable $from, CarbonImmutable $until, ?UpcomingPosition $after, int $limit): UpcomingOccurrencePage
     {
         if ($visibleCheckIds === []) {

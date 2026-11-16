@@ -30,9 +30,5 @@ final class DashboardTilesData extends Data
         public readonly int $maintenance,
         public readonly int $disabled,
         public readonly int $unavailable,
-        public readonly ?int $certificates_expiring_30_days = null,
-        public readonly ?int $domains_expiring_30_days = null,
-        public readonly ?int $scheduled_tasks = null,
-        public readonly ?int $scheduled_tasks_overdue_pings = null,
     ) {}
 }

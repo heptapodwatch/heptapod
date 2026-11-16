@@ -19,8 +19,6 @@ use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Contracts\SuppressionComponent;
 use Heptapod\Models\Check;
-use Heptapod\Models\User;
-use Heptapod\Queries\MonitorCountsReader;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -99,34 +97,21 @@ it('accepts Spatie starting, finished and failed HTTP pings with their real payl
         ->toBe(['starting', 'finished', 'failed', 'finished', 'finished']);
 });
 
-it('counts overdue pings at the grace boundary but not failed exit codes', function (): void {
-    $owner = User::factory()->create();
-    $owner->assignRole('Owner');
+it('records a failed exit code, marks a missed task and moves its next due time forward on reschedule', function (): void {
     $check = Check::factory()->create(['type' => CheckKey::Cron]);
     $task = cronPilotTask($check);
-    $counts = app(MonitorCountsReader::class);
-    expect($counts->read($owner)->scheduledTasks)->toBe(1)
-        ->and($counts->read($owner)->overduePings)->toBe(0);
-
-    $this->travelTo(CarbonImmutable::parse('2026-10-01T10:06:59.999999Z'));
-    expect($counts->read($owner)->overduePings)->toBe(0);
     $this->travelTo(CarbonImmutable::parse('2026-10-01T10:07:00Z'));
-    expect($counts->read($owner)->overduePings)->toBe(1);
     $this->postJson(route('cron.ping', ['uuid' => $task->uuid, 'phase' => 'finished']), ['exit_code' => 1])->assertNoContent();
-    expect($task->refresh()->latest_result)->toBe(CronTaskResult::Failed)
-        ->and($counts->read($owner)->overduePings)->toBe(0);
+    expect($task->refresh()->latest_result)->toBe(CronTaskResult::Failed);
 
     $missed = cronPilotTask($check, ['name' => 'Missed backup']);
     $this->travelTo(CarbonImmutable::parse('2026-10-01T10:14:00Z'));
     $context = cronPilotContext($check);
     cronPilotType()->execute($context);
     cronPilotType()->persistence()->finalize(new RunReference($context->runId, CarbonImmutable::now()), $context->claimToken);
-    expect($missed->refresh()->latest_result)->toBe(CronTaskResult::Missed)
-        ->and($counts->read($owner)->scheduledTasks)->toBe(2)
-        ->and($counts->read($owner)->overduePings)->toBe(1);
+    expect($missed->refresh()->latest_result)->toBe(CronTaskResult::Missed);
     $rescheduled = app(UpdateCronTask::class)($missed, ['frequency_in_minutes' => 60]);
-    expect($rescheduled->next_due_at->isFuture())->toBeTrue()
-        ->and($counts->read($owner)->overduePings)->toBe(1);
+    expect($rescheduled->next_due_at->isFuture())->toBeTrue();
 });
 
 it('returns 404 for the public ping route when the cron addon store is unavailable', function (): void {

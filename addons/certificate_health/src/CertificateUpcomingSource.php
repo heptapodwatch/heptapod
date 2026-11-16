@@ -41,11 +41,6 @@ final readonly class CertificateUpcomingSource implements UpcomingEventSource
         return $items;
     }
 
-    public function count(array $visibleCheckIds, CarbonImmutable $from, CarbonImmutable $until): int
-    {
-        return $visibleCheckIds === [] ? 0 : $this->datedSnapshots($visibleCheckIds, $from, $until)->count();
-    }
-
     public function page(array $visibleCheckIds, CarbonImmutable $from, CarbonImmutable $until, ?UpcomingPosition $after, int $limit): UpcomingOccurrencePage
     {
         if ($visibleCheckIds === []) {

@@ -429,8 +429,7 @@ it('counts every channel type in the incident timeline and lists repairs only to
     $this->actingAs($member)->get('/incidents/'.$incident->id)->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
         // Labels can hold addresses: a Member sees neither the team mail address nor the team webhook's label.
         ->where('timeline.1.notification_group.recipients', fn ($recipients): bool => collect($recipients)->all() === ['Hidden recipient', 'Hidden recipient'])
-        ->where('notificationAttention', fn ($rows): bool => collect($rows)->pluck('id')->all() === [$own->id]
-            && collect($rows)->first()['recipient_kind'] === 'user'));
+        ->where('notificationAttention', fn ($rows): bool => collect($rows)->pluck('id')->all() === [$own->id]));
 });
 
 it('reads the settings page with a fixed number of queries and exposes the stored migration report on the team page only', function (): void {

@@ -110,7 +110,7 @@ it('shows expired or revoked links without a form or account creation', function
     if (! $expired) {
         $this->actingAs($owner);
         $roster = visit('/settings/members')
-            ->assertScript('typeof history.state?.page?.props?.upcomingCount === "number"');
+            ->assertScript('typeof history.state?.page?.props?.lateRunsCount === "number"');
         // Finish the initial deferred reload before revocation; overlapping browser requests can fail in this harness.
         // TODO: diagnose intermittent Pest browser transport failures during revocation.
         $roster->click('button[aria-label$="unavailable@example.test"]')->click('[data-test="revoke-invitation-'.$invitation->id.'"]')->assertSee('Invitation revoked.');
