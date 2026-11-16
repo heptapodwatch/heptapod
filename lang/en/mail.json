@@ -54,7 +54,7 @@
     "system_mail.detail.mailer": "Mail transport",
     "system_mail.detail.failing_since": "Failing since",
     "system_mail.detail.last_failure": "Last error",
-    "system_mail.maintenance_failed.title": "Check history maintenance failed twice in a row",
+    "system_mail.maintenance_failed.title": "Check history maintenance is failing or stuck",
     "system_mail.maintenance_failed.action": "Rollups and retention stop until a run succeeds. Read the scheduler log for the maintain-check-data command.",
     "system_mail.maintenance_failed.recovered": "A check history maintenance run succeeded again.",
     "system_mail.backup_failed.title": "The last backup failed",

@@ -22,6 +22,7 @@ use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\SystemIssue;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
+use Heptapod\SystemHealth\CheckDataMaintenanceRecord;
 use Heptapod\SystemHealth\EvaluateSystemIssues;
 use Heptapod\SystemHealth\MailTransportRecord;
 use Heptapod\SystemHealth\SystemIssueMailer;
@@ -746,4 +747,19 @@ it('opens channel_failing for one mail address that keeps failing while other ma
     expect(SystemIssue::open()->where('kind', 'mail_transport_dead')->exists())->toBeFalse()
         ->and(SystemIssue::open()->where('kind', 'channel_failing')->sole()->scope)->toBe((string) $broken->id)
         ->and($failing->accepted)->toContain($owner->email);
+it('opens maintenance_failed when check data maintenance has not succeeded for three hours, without any recorded failure', function (): void {
+    $maintenance = app(CheckDataMaintenanceRecord::class);
+    $maintenance->recordSuccess(now()->subHours(3), 12.0);
+    evaluateSystemIssues();
+    expect(SystemIssue::open()->where('kind', 'maintenance_failed')->exists())->toBeFalse();
+
+    // A hung run records neither a success nor a failure.
+    $this->travel(1)->minutes();
+    evaluateSystemIssues();
+    expect(SystemIssue::open()->where('kind', 'maintenance_failed')->sole()->details)
+        ->toEqual(['consecutive_failures' => 0, 'last_failure_at' => null, 'last_success_at' => '2026-10-30T09:00:00+00:00']);
+
+    $maintenance->recordSuccess(now(), 12.0);
+    evaluateSystemIssues();
+    expect(SystemIssue::open()->where('kind', 'maintenance_failed')->exists())->toBeFalse();
 });

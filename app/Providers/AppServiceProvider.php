@@ -86,6 +86,7 @@ use Illuminate\Log\LogManager;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Mail\Transport\LogTransport;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -105,6 +106,8 @@ use Symfony\Component\Console\Input\ArgvInput;
 
 class AppServiceProvider extends ServiceProvider
 {
+    public const string ScheduledCommandContextKey = 'heptapod.scheduled-command';
+
     /**
      * Register any application services.
      */
@@ -246,8 +249,13 @@ class AppServiceProvider extends ServiceProvider
         $timeout = config('database.statement_timeouts.web');
         if ($this->app->runningInConsole()) {
             $background = in_array(config('database.role'), ['worker', 'dispatcher', 'scheduler', 'all-in-one-worker'], true);
-            $runtime = in_array(new ArgvInput()->getFirstArgument(), ['horizon', 'horizon:supervisor', 'horizon:work', 'queue:work', 'heptapod:dispatch', 'schedule:run', 'schedule:work'], true);
-            $timeout = $background && $runtime ? config('database.statement_timeouts.background') : 0;
+            $command = new ArgvInput()->getFirstArgument();
+            $runtime = in_array($command, ['horizon', 'horizon:supervisor', 'horizon:work', 'queue:work', 'heptapod:dispatch', 'schedule:run', 'schedule:work'], true);
+            // Scheduled commands run as their own artisan subprocess; the scheduler hands them this marker through Laravel's context.
+            if (in_array($command, ['schedule:run', 'schedule:work'], true)) {
+                Context::addHidden(self::ScheduledCommandContextKey, true);
+            }
+            $timeout = $background && ($runtime || Context::hasHidden(self::ScheduledCommandContextKey)) ? config('database.statement_timeouts.background') : 0;
             $testTimeout = config('database.statement_timeouts.testing');
             if ($testTimeout !== null && $testTimeout !== '') {
                 $timeout = $testTimeout;

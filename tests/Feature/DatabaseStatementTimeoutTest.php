@@ -2,11 +2,15 @@
 
 declare(strict_types=1);
 
+use Heptapod\Providers\AppServiceProvider;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Process\Process;
 
-/** @param list<string> $arguments */
-function statementTimeoutProbe(string $role, bool $console, array $arguments = []): Process
+/**
+ * @param  list<string>  $arguments
+ * @param  array<string, string>  $environment
+ */
+function statementTimeoutProbe(string $role, bool $console, array $arguments = [], array $environment = []): Process
 {
     /** @var array{host: string, port: string, database: string, username: string, password: string} $database */
     $database = config('database.connections.pgsql');
@@ -46,6 +50,7 @@ function statementTimeoutProbe(string $role, bool $console, array $arguments = [
         'DB_URL' => $url,
         'HEPTAPOD_ROLE' => $role,
         'DB_TEST_STATEMENT_TIMEOUT' => null,
+        ...$environment,
     ], timeout: 20);
     $process->run();
 
@@ -66,8 +71,8 @@ it('fails a slow web query loudly within ten seconds with DB_URL', function (): 
         ->and($result['elapsed'])->toBeGreaterThanOrEqual(9.0)->toBeLessThan(15.0);
 });
 
-it('limits only known background runtime commands and leaves administrative CLI unbounded', function (string $role, array $arguments, string $timeout): void {
-    $process = statementTimeoutProbe($role, true, $arguments);
+it('limits only known background runtime commands and leaves administrative CLI unbounded', function (string $role, array $arguments, string $timeout, array $environment = []): void {
+    $process = statementTimeoutProbe($role, true, $arguments, $environment);
     expect($process->isSuccessful())->toBeTrue($process->getErrorOutput());
     expect(json_decode($process->getOutput(), true, flags: JSON_THROW_ON_ERROR))->toBe(['timeout' => $timeout]);
 })->with([
@@ -83,7 +88,9 @@ it('limits only known background runtime commands and leaves administrative CLI 
     'schedule worker' => ['scheduler', ['schedule:work'], '2min'],
     'schedule runner' => ['scheduler', ['schedule:run'], '2min'],
     'all in one worker' => ['all-in-one-worker', ['horizon'], '2min'],
-    'scheduled child without a reliable provenance marker' => ['scheduler', ['heptapod:maintain-check-data'], '0'],
+    'scheduler container administrative CLI' => ['scheduler', ['heptapod:maintain-check-data'], '0'],
+    // The context a schedule:run parent hands to the artisan subprocess of each scheduled command.
+    'scheduled command' => ['scheduler', ['heptapod:maintain-check-data'], '2min', ['__LARAVEL_CONTEXT' => json_encode(['data' => [], 'hidden' => [AppServiceProvider::ScheduledCommandContextKey => serialize(true)]], JSON_THROW_ON_ERROR)]],
     'migration with leading option' => ['worker', ['--no-interaction', 'migrate'], '0'],
     'migration with trailing option' => ['worker', ['migrate', '--force'], '0'],
 ]);

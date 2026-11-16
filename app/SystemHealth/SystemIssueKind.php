@@ -30,7 +30,7 @@ enum SystemIssueKind: string
         return match ($this) {
             self::CheckNotFresh => 'system_issue.check_not_fresh.title',
             self::DiskSpaceLow => 'Disk space is low or cannot be measured',
-            self::MaintenanceFailed => 'Check history maintenance failed twice in a row',
+            self::MaintenanceFailed => 'Check history maintenance is failing or stuck',
             self::BackupFailed => 'The last backup failed',
             self::BackupStale => 'No successful backup for more than 26 hours',
             self::SchedulerStale => 'The scheduler or the check dispatcher stopped',

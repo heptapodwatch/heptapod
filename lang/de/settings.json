@@ -217,7 +217,7 @@
     "System alerts could not be evaluated.": "Systemwarnungen konnten nicht ausgewertet werden.",
     "Failed :time: :error": "Fehlgeschlagen :time: :error",
     "Since :time": "Seit :time",
-    "Check history maintenance failed twice in a row": "Wartung des Prüfverlaufs ist zweimal in Folge fehlgeschlagen",
+    "Check history maintenance is failing or stuck": "Wartung des Prüfverlaufs schlägt fehl oder hängt",
     "Rollups and retention stop until a run succeeds. Read the scheduler log for the maintain-check-data command.": "Verdichtung und Aufbewahrung stehen still, bis ein Lauf gelingt. Prüfen Sie das Scheduler-Log für den Befehl maintain-check-data.",
     "The last backup failed": "Die letzte Sicherung ist fehlgeschlagen",
     "Check the backup disk and its credentials, then start a backup in Settings › Updates.": "Prüfen Sie den Sicherungsspeicher und seine Zugangsdaten und starten Sie dann eine Sicherung unter Einstellungen › Updates & Sicherungen.",

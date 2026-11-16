@@ -33,7 +33,7 @@ final readonly class EvaluateSystemIssues
 {
     public const string EvaluationKey = 'heptapod:system-issues:evaluation';
 
-    /** Maintenance runs hourly: two failed runs in a row is a real failure, not one unlucky run. */
+    /** Maintenance runs hourly: two failed runs in a row, or no success for three hours (a hung run), is a real failure. */
     public const int MaintenanceFailuresToOpen = 2;
 
     /** backup:run runs daily at 02:30 UTC (routes/console.php): one day plus two hours for the run itself. */
@@ -48,6 +48,8 @@ final readonly class EvaluateSystemIssues
 
     /** The dispatcher runs every minute and on every new event; ten minutes of waiting work is a stall, not a slow pass. */
     public const int NotificationsStalledAfterSeconds = 600;
+    /** The scheduler evaluates every 5 minutes; three missed evaluations mean it hangs, and the dispatcher evaluates instead. */
+    public const int EvaluationStaleAfterSeconds = 900;
 
     public function __construct(private CheckDataMaintenanceRecord $maintenance, private MailTransportRecord $transport, private SystemIssueMailer $mailer, private SystemTransportProbe $probe, private SendNotificationDelivery $send, private FinishedCheckAge $finishedChecks, private DiskSpaceIssues $diskSpace, private CheckFreshnessIssues $freshness) {}
 
@@ -230,7 +232,7 @@ final readonly class EvaluateSystemIssues
     {
         return match ($kind) {
             SystemIssueKind::CheckNotFresh, SystemIssueKind::DiskSpaceLow, SystemIssueKind::ChannelFailing => throw new \LogicException('Scoped issues require a scope.'),
-            SystemIssueKind::MaintenanceFailed => $this->maintenanceFailed(),
+            SystemIssueKind::MaintenanceFailed => $this->maintenanceFailed($now),
             SystemIssueKind::BackupFailed => $this->backupFailed(),
             SystemIssueKind::BackupStale => $this->backupStale($now),
             SystemIssueKind::SchedulerStale => $this->schedulerStale($now),
@@ -280,11 +282,14 @@ final readonly class EvaluateSystemIssues
     }
 
     /** @return array<string, int|string|null>|null */
-    private function maintenanceFailed(): ?array
+    private function maintenanceFailed(CarbonImmutable $now): ?array
     {
         $health = $this->maintenance->read();
+        // Before the first success there is no last success to age; failures alone open the issue then.
+        $stale = $health->lastSuccessAt !== null
+            && CarbonImmutable::parse($health->lastSuccessAt)->diffInSeconds($now) > CheckDataMaintenanceRecord::WarnAfterSecondsWithoutSuccess;
 
-        return $health->consecutiveFailures >= self::MaintenanceFailuresToOpen
+        return $health->consecutiveFailures >= self::MaintenanceFailuresToOpen || $stale
             ? ['consecutive_failures' => $health->consecutiveFailures, 'last_failure_at' => $health->lastFailureAt, 'last_success_at' => $health->lastSuccessAt]
             : null;
     }
@@ -358,7 +363,7 @@ final readonly class EvaluateSystemIssues
             'last_success_at' => $health->lastSuccessAt, 'last_failure' => $health->lastFailureDiagnosis];
     }
 
-    private function lastEvaluatedAt(): ?string
+    public function lastEvaluatedAt(): ?string
     {
         $stored = Cache::store('redis')->get(self::EvaluationKey);
 
