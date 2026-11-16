@@ -51,6 +51,7 @@
     "system_mail.detail.threshold_hours": "Expected within (hours)",
     "system_mail.detail.scheduler_seen_at": "Scheduler last seen",
     "system_mail.detail.dispatcher_seen_at": "Dispatcher last seen",
+    "system_mail.detail.scheduler_evaluated_at": "Scheduler evaluation last succeeded",
     "system_mail.detail.mailer": "Mail transport",
     "system_mail.detail.failing_since": "Failing since",
     "system_mail.detail.last_failure": "Last error",

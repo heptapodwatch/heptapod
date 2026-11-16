@@ -105,7 +105,15 @@ function staleScheduler(): SystemIssue
     return SystemIssue::open()->where('kind', 'scheduler_stale')->sole();
 }
 
+/** The scheduler works: both heartbeats tick and its evaluation command succeeds. */
 function freshScheduler(): void
+{
+    freshHeartbeats();
+    app(EvaluateSystemIssues::class)->recordCommandEvaluation(now());
+}
+
+/** Both heartbeats tick, but the scheduler's evaluation command does not succeed. */
+function freshHeartbeats(): void
 {
     Cache::store('redis')->forever(config('heptapod.health.scheduler_cache_key'), now()->toIso8601String());
     DispatcherHeartbeat::query()->update(['last_seen_at' => now()]);
@@ -747,19 +755,46 @@ it('opens channel_failing for one mail address that keeps failing while other ma
     expect(SystemIssue::open()->where('kind', 'mail_transport_dead')->exists())->toBeFalse()
         ->and(SystemIssue::open()->where('kind', 'channel_failing')->sole()->scope)->toBe((string) $broken->id)
         ->and($failing->accepted)->toContain($owner->email);
-it('opens maintenance_failed when check data maintenance has not succeeded for three hours, without any recorded failure', function (): void {
+});
+
+it('opens maintenance_failed when check data maintenance has not succeeded for three hours, without any recorded failure', function (bool $succeededBefore): void {
     $maintenance = app(CheckDataMaintenanceRecord::class);
-    $maintenance->recordSuccess(now()->subHours(3), 12.0);
+    // Without any success, the instance age (its first user) is the reference: a first run that hangs is caught too.
+    User::factory()->create(['created_at' => now()->subHours(3)]);
+    if ($succeededBefore) {
+        $maintenance->recordSuccess(now()->subHours(3), 12.0);
+    }
     evaluateSystemIssues();
     expect(SystemIssue::open()->where('kind', 'maintenance_failed')->exists())->toBeFalse();
 
     // A hung run records neither a success nor a failure.
     $this->travel(1)->minutes();
+    freshScheduler();
     evaluateSystemIssues();
     expect(SystemIssue::open()->where('kind', 'maintenance_failed')->sole()->details)
-        ->toEqual(['consecutive_failures' => 0, 'last_failure_at' => null, 'last_success_at' => '2026-10-30T09:00:00+00:00']);
+        ->toEqual(['consecutive_failures' => 0, 'last_failure_at' => null, 'last_success_at' => $succeededBefore ? '2026-10-30T09:00:00+00:00' : null]);
 
     $maintenance->recordSuccess(now(), 12.0);
     evaluateSystemIssues();
     expect(SystemIssue::open()->where('kind', 'maintenance_failed')->exists())->toBeFalse();
+})->with(['after an earlier success' => true, 'before the first success' => false]);
+
+it('opens scheduler_stale when the scheduled evaluation stops succeeding while both heartbeats stay fresh', function (): void {
+    evaluateSystemIssues();
+    $this->travel(15)->minutes();
+    freshHeartbeats();
+    // The dispatcher's fallback evaluation (DispatchChecksCommand) calls the evaluator directly.
+    app(EvaluateSystemIssues::class)(now());
+    expect(SystemIssue::open()->where('kind', 'scheduler_stale')->exists())->toBeFalse();
+
+    $this->travel(1)->minutes();
+    freshHeartbeats();
+    app(EvaluateSystemIssues::class)(now());
+    // A dispatcher success does not hide the scheduler's: the issue names the scheduler's last successful evaluation.
+    expect(SystemIssue::open()->where('kind', 'scheduler_stale')->sole()->details['scheduler_evaluated_at'])->toBe('2026-10-30T12:00:00+00:00');
+
+    // The command's success counts from the next evaluation on.
+    evaluateSystemIssues();
+    evaluateSystemIssues();
+    expect(SystemIssue::open()->where('kind', 'scheduler_stale')->exists())->toBeFalse();
 });

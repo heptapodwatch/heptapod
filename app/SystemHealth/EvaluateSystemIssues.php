@@ -33,6 +33,9 @@ final readonly class EvaluateSystemIssues
 {
     public const string EvaluationKey = 'heptapod:system-issues:evaluation';
 
+    /** Last success of the heptapod:evaluate-system-issues command; dispatcher fallback evaluations do not write it. */
+    public const string CommandEvaluationKey = 'heptapod:system-issues:command-evaluation';
+
     /** Maintenance runs hourly: two failed runs in a row, or no success for three hours (a hung run), is a real failure. */
     public const int MaintenanceFailuresToOpen = 2;
 
@@ -48,7 +51,11 @@ final readonly class EvaluateSystemIssues
 
     /** The dispatcher runs every minute and on every new event; ten minutes of waiting work is a stall, not a slow pass. */
     public const int NotificationsStalledAfterSeconds = 600;
-    /** The scheduler evaluates every 5 minutes; three missed evaluations mean it hangs, and the dispatcher evaluates instead. */
+
+    /**
+     * The scheduler evaluates every 5 minutes; three missed evaluations mean it hangs or keeps failing: the dispatcher
+     * evaluates instead and opens scheduler_stale.
+     */
     public const int EvaluationStaleAfterSeconds = 900;
 
     public function __construct(private CheckDataMaintenanceRecord $maintenance, private MailTransportRecord $transport, private SystemIssueMailer $mailer, private SystemTransportProbe $probe, private SendNotificationDelivery $send, private FinishedCheckAge $finishedChecks, private DiskSpaceIssues $diskSpace, private CheckFreshnessIssues $freshness) {}
@@ -285,9 +292,10 @@ final readonly class EvaluateSystemIssues
     private function maintenanceFailed(CarbonImmutable $now): ?array
     {
         $health = $this->maintenance->read();
-        // Before the first success there is no last success to age; failures alone open the issue then.
-        $stale = $health->lastSuccessAt !== null
-            && CarbonImmutable::parse($health->lastSuccessAt)->diffInSeconds($now) > CheckDataMaintenanceRecord::WarnAfterSecondsWithoutSuccess;
+        // Before the first success, the instance age decides, so a first run that hangs is caught too.
+        $reference = $health->lastSuccessAt ?? $this->instanceCreatedAt();
+        $stale = $reference !== null
+            && CarbonImmutable::parse($reference, 'UTC')->diffInSeconds($now) > CheckDataMaintenanceRecord::WarnAfterSecondsWithoutSuccess;
 
         return $health->consecutiveFailures >= self::MaintenanceFailuresToOpen || $stale
             ? ['consecutive_failures' => $health->consecutiveFailures, 'last_failure_at' => $health->lastFailureAt, 'last_success_at' => $health->lastSuccessAt]
@@ -316,12 +324,9 @@ final readonly class EvaluateSystemIssues
             throw new \UnexpectedValueException('Backup completion time must be a string.');
         }
         // Before the first backup ever ran, the instance age decides: a fresh install is not overdue yet.
-        $reference = $lastSuccess ?? DB::table('users')->min('created_at');
+        $reference = $lastSuccess ?? $this->instanceCreatedAt();
         if ($reference === null) {
             return null;
-        }
-        if (! is_string($reference)) {
-            throw new \UnexpectedValueException('Backup reference time must be a string.');
         }
 
         return CarbonImmutable::parse($reference, 'UTC')->diffInSeconds($now) > self::BackupStaleAfterSeconds
@@ -341,10 +346,34 @@ final readonly class EvaluateSystemIssues
         $dispatcher = $query->first()?->last_seen_at;
         $stale = static fn (?CarbonImmutable $at): bool => ! $at instanceof CarbonImmutable || $at->diffInSeconds($now) > self::HeartbeatStaleAfterSeconds;
         $schedulerAt = $scheduler === null ? null : CarbonImmutable::parse($scheduler);
+        $commandEvaluation = Cache::store('redis')->get(self::CommandEvaluationKey);
+        if ($commandEvaluation !== null && ! is_string($commandEvaluation)) {
+            throw new \UnexpectedValueException('Command evaluation time must be an ISO-8601 string.');
+        }
+        // Before the command ever succeeded (fresh install or upgrade), the last evaluation of any kind is the reference.
+        $evaluationReference = $commandEvaluation ?? $this->lastEvaluatedAt();
+        $evaluationStale = $evaluationReference !== null
+            && CarbonImmutable::parse($evaluationReference)->diffInSeconds($now) > self::EvaluationStaleAfterSeconds;
 
-        return $stale($schedulerAt) || $stale($dispatcher)
-            ? ['scheduler_seen_at' => $schedulerAt?->toIso8601String(), 'dispatcher_seen_at' => $dispatcher?->toIso8601String()]
+        return $stale($schedulerAt) || $stale($dispatcher) || $evaluationStale
+            ? ['scheduler_seen_at' => $schedulerAt?->toIso8601String(), 'dispatcher_seen_at' => $dispatcher?->toIso8601String(),
+                'scheduler_evaluated_at' => $commandEvaluation]
             : null;
+    }
+
+    public function recordCommandEvaluation(CarbonImmutable $now): void
+    {
+        Cache::store('redis')->forever(self::CommandEvaluationKey, $now->toIso8601String());
+    }
+
+    private function instanceCreatedAt(): ?string
+    {
+        $createdAt = DB::table('users')->min('created_at');
+        if ($createdAt !== null && ! is_string($createdAt)) {
+            throw new \UnexpectedValueException('User creation time must be a string.');
+        }
+
+        return $createdAt;
     }
 
     /** @return array<string, int|string|null>|null */
