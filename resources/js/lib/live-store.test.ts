@@ -78,22 +78,22 @@ test('disconnect invalidates run states missed while the socket was unavailable'
 });
 
 test('reconnecting after brief and prolonged interruptions requests one catch-up each', () => {
-    const { result, unmount } = renderHook(useStreamState);
+    const { result, unmount } = renderHook(() => useStreamState('reconnected'));
     act(() => {
         setStreamStatus('connecting');
         setStreamStatus('connected');
     });
-    const initial = result.current.reconnected;
+    const initial = result.current;
     act(() => {
         setStreamStatus('connecting');
         setStreamStatus('connected');
     });
-    expect(result.current.reconnected).toBe(initial + 1);
+    expect(result.current).toBe(initial + 1);
     act(() => {
         setStreamStatus('lost');
         setStreamStatus('connecting');
         setStreamStatus('connected');
     });
-    expect(result.current.reconnected).toBe(initial + 2);
+    expect(result.current).toBe(initial + 2);
     unmount();
 });

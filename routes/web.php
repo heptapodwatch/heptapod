@@ -27,6 +27,7 @@ use Heptapod\Http\Controllers\IncidentDetailController;
 use Heptapod\Http\Controllers\IncidentExportController;
 use Heptapod\Http\Controllers\IncidentsIndexController;
 use Heptapod\Http\Controllers\InvitationController;
+use Heptapod\Http\Controllers\LiveChangesController;
 use Heptapod\Http\Controllers\MaintenanceController;
 use Heptapod\Http\Controllers\MaintenanceSeriesController;
 use Heptapod\Http\Controllers\Notifications\ClientNotificationSettingsController;
@@ -78,6 +79,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('upcoming', UpcomingController::class)->name('upcoming.index');
     Route::get('activity', ActivityController::class)->name('activity.index');
     Route::get('runs', RunsController::class)->name('runs.index');
+    Route::get('live/changes', LiveChangesController::class)->name('live.changes');
     Route::get('search', SearchController::class)->name('search');
     Route::get('clients', ClientsIndexController::class)->name('clients.index');
     Route::get('clients/create', [ClientSettingsController::class, 'create'])->name('clients.create');

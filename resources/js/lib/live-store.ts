@@ -111,6 +111,7 @@ let snapshot: LiveSnapshot = {
     reconnected: 0,
     dataReloadFailed: false,
 };
+let connectedBefore = false;
 const listeners = new Set<() => void>();
 const stateListeners = new Set<(signal: LiveSignal) => void>();
 
@@ -124,11 +125,14 @@ function subscribe(listener: () => void) {
     return () => listeners.delete(listener);
 }
 
-export function useStreamState() {
+/** One field of the stream state: a component re-renders only when that field changes. */
+export function useStreamState<Key extends keyof LiveSnapshot>(
+    key: Key,
+): LiveSnapshot[Key] {
     return useSyncExternalStore(
         subscribe,
-        () => snapshot,
-        () => snapshot,
+        () => snapshot[key],
+        () => snapshot[key],
     );
 }
 
@@ -188,17 +192,29 @@ export function receiveLiveSignal(signal: LiveSignal) {
     }
 }
 
-export function setStreamStatus(status: LiveSnapshot['status']) {
-    if (snapshot.status === status) return;
-    const reconnected =
-        status === 'connected'
-            ? snapshot.reconnected + 1
-            : snapshot.reconnected;
+/**
+ * Returns true for the tab's first connection. That one is no reconnect: the page was just rendered, so LiveProvider
+ * asks the server whether anything changed since then instead of reloading every page prop.
+ */
+export function setStreamStatus(status: LiveSnapshot['status']): boolean {
+    if (snapshot.status === status) return false;
+    const connected = status === 'connected';
+    const first = connected && !connectedBefore;
+    if (connected) connectedBefore = true;
     update({
         status,
-        reconnected,
-        runs: status === 'connected' ? snapshot.runs : new Map(),
+        reconnected:
+            connected && !first
+                ? snapshot.reconnected + 1
+                : snapshot.reconnected,
+        runs: connected ? snapshot.runs : new Map(),
     });
+    return first;
+}
+
+/** Live views reload as after a reconnect: a change happened before the first subscription was ready. */
+export function requestCatchUp() {
+    update({ reconnected: snapshot.reconnected + 1 });
 }
 
 export function markLiveDataFresh() {

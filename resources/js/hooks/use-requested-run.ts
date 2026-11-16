@@ -89,7 +89,8 @@ export function useRequestedRun(siteId: number, checkId: number | null) {
 
     // A run.finished sent while this tab was disconnected is never replayed. After every reconnect and every
     // live data reload, a still-running attempt is read back from its durable state by its id.
-    const { reconnected, dataFrom } = useStreamState();
+    const reconnected = useStreamState('reconnected');
+    const dataFrom = useStreamState('dataFrom');
     const runningAttemptId = state.phase === 'running' ? state.attemptId : null;
     useEffect(() => {
         if (runningAttemptId === null || checkId === null) return;

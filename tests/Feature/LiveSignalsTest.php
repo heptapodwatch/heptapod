@@ -20,11 +20,13 @@ use Illuminate\Broadcasting\BroadcastManager;
 use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Database\DatabaseTransactionsManager;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 
@@ -83,6 +85,41 @@ it('authorizes only the assigned client channels and keeps restricted members of
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
     $this->actingAs($owner)->post('/broadcasting/auth', ['socket_id' => '1.1', 'channel_name' => 'presence-instance'])->assertOk();
+});
+
+it('tells a first subscription whether its channels changed after the page was rendered, even while broadcasts are stalled', function (): void {
+    // No broadcast job runs: the answer must come from the commit, not from the broadcasts queue.
+    Queue::fake([BroadcastLiveSignal::class]);
+    // The production store: Redis hands stored integers back as strings.
+    config(['cache.default' => 'redis', 'cache.prefix' => 'live_changes_test_'.Str::uuid().':']);
+    $client = Client::factory()->create();
+    $other = Client::factory()->create();
+    $member = User::factory()->create(['client_scope' => ClientScope::Restricted]);
+    $member->assignRole('Member');
+    $member->clients()->attach($client);
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $changes = fn (User $user, int $since): bool => $this->actingAs($user)->getJson('/live/changes?since='.$since)->assertOk()->json('changed');
+    $broadcast = static fn (Client $target): mixed => event(new LiveSignal('state.changed', ['client' => $target->id], now()->toIso8601String(), $target->id));
+
+    $stamps = ['live:changed-at:instance', 'live:changed-at:client.'.$client->id, 'live:changed-at:client.'.$other->id];
+    // Creating the clients stamped their channels; without a stamp nobody can tell, so the tab reloads.
+    Cache::deleteMultiple($stamps);
+    expect($changes($member, now()->getTimestampMs()))->toBeTrue();
+    try {
+        $broadcast($client);
+        $this->travel(1)->seconds();
+        $rendered = now()->getTimestampMs();
+        expect($changes($member, $rendered))->toBeFalse()
+            ->and($changes($owner, $rendered))->toBeFalse();
+
+        $this->travel(1)->seconds();
+        $broadcast($other);
+        expect($changes($member, $rendered))->toBeFalse()
+            ->and($changes($owner, $rendered))->toBeTrue();
+    } finally {
+        Cache::deleteMultiple($stamps);
+    }
 });
 
 it('emits only site identity after commit and never the changed name', function (): void {

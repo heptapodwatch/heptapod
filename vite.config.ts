@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { writeFileSync } from 'node:fs';
+import { cn } from 'cn/vite';
 import { defineConfig, lazyPlugins } from 'vite-plus';
 
 export default defineConfig(({ command }) => ({
@@ -20,6 +21,13 @@ export default defineConfig(({ command }) => ({
             presets: [reactCompilerPreset()],
         }),
         tailwindcss(),
+        // Every class group, so the merge tables never depend on which sources were scanned.
+        cn({
+            full: true,
+            css: false,
+            config: 'resources/js/lib/cn.config.mjs',
+            out: 'resources/js/lib/cn-tables.ts',
+        }),
         wayfinder({
             formVariants: true,
         }),
@@ -65,6 +73,7 @@ export default defineConfig(({ command }) => ({
             'resources/js/wayfinder/**',
             // Generated laravel-data types are checked by regeneration, not lint.
             'resources/js/types/generated*',
+            'resources/js/lib/cn-tables.ts',
         ],
         options: {
             denyWarnings: true,
@@ -99,6 +108,7 @@ export default defineConfig(({ command }) => ({
             'resources/js/routes/**',
             'resources/js/wayfinder/**',
             'resources/js/types/generated*',
+            'resources/js/lib/cn-tables.ts',
             'resources/js/components/ui/*',
             'resources/views/mail/*',
         ],

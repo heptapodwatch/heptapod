@@ -1,3 +1,5 @@
+import { numberFormat } from '@/lib/format-cache';
+
 export function formatUptimePercentage(
     percentage: number,
     locale: string,
@@ -14,7 +16,7 @@ export function formatUptimePercentage(
                   Math.round(percentage * 10 ** digits) / 10 ** digits,
               )
             : percentage;
-    return `${new Intl.NumberFormat(locale, {
+    return `${numberFormat(locale, {
         minimumFractionDigits: digits,
         maximumFractionDigits: digits,
     }).format(displayed)} %`;

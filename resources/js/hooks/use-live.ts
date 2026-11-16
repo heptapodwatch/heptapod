@@ -30,7 +30,9 @@ export function useLiveReload(
     } = {},
 ): (options?: ReloadOptions) => void {
     const { url } = usePage();
-    const { status, reconnected, dataReloadFailed } = useStreamState();
+    const status = useStreamState('status');
+    const reconnected = useStreamState('reconnected');
+    const dataReloadFailed = useStreamState('dataReloadFailed');
     const latest = useRef({ topics, only, filter, missingResource });
     latest.current = { topics, only, filter, missingResource };
     const suspended = useRef(false);
