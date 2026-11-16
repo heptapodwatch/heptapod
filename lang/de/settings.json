@@ -367,7 +367,7 @@
     "mail_branding.logo.none": "Heptapod-Logo",
     "mail_branding.accent.label": "Akzentfarbe",
     "mail_branding.accent.picker": "Akzentfarbe wählen",
-    "mail_branding.accent.description": "Für Schaltflächen, Links und die Linie oben in der E-Mail. Statusfarben (Ausgefallen, Entwarnung) bleiben unverändert.",
+    "mail_branding.accent.description": "Für die Hauptschaltfläche und den zweiten Link. Statusfarben (Ausgefallen, Entwarnung) bleiben unverändert.",
     "mail_branding.accent.format": "Geben Sie die Farbe als #rrggbb ein.",
     "mail_branding.accent.unreadable": "Weißer Text ist auf dieser Farbe schwer lesbar (Kontrast {{ratio}}:1, mindestens 4,5:1 nötig).",
     "mail_branding.accent.use_shade": "{{colour}} verwenden",

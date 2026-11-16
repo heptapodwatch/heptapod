@@ -47,7 +47,6 @@ $darkRules = '.bg-bg{background:'.$dark['bg'].'!important}.bg-card{background:'.
 foreach ($dark as $key => $color) {
     $darkRules .= '.c-'.$key.'{color:'.$color.'!important}.chip-'.$key.'{color:'.$color.'!important;border-color:'.$color.'!important}';
 }
-$darkRules .= '.bar-down{background:'.$dark['down'].'!important}';
 if ($brand['logo_width'] !== null) {
     // Standard light/dark image swap; without a dark logo the light one keeps a light plate so dark ink stays visible.
     $darkRules .= $brand['logo_dark_width'] !== null
@@ -70,11 +69,6 @@ if ($mail->avatarTile !== null) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-bg" style="background:#e8ebed;"><tr><td align="center" style="padding:24px 12px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;"><tr><td>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-card" style="background:#ffffff;border:1px solid #d3d8dc;border-radius:10px;">
-@if (in_array($mail->tone, [\Heptapod\Contracts\Mail\MailTone::Down, \Heptapod\Contracts\Mail\MailTone::Failed], true))
-<tr><td class="bar-down" style="height:3px;line-height:3px;font-size:0;background:#b42f28;border-radius:10px 10px 0 0;">&nbsp;</td></tr>
-@elseif ($accent !== null)
-<tr><td style="height:3px;line-height:3px;font-size:0;background:{{ $accent }};border-radius:10px 10px 0 0;">&nbsp;</td></tr>
-@endif
 <tr><td class="px" style="padding:20px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="font-size:13px;">
 @if ($mail->siteLine() !== null)
 <table role="presentation" cellpadding="0" cellspacing="0"><tr>

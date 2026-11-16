@@ -367,7 +367,7 @@
     "mail_branding.logo.none": "Heptapod logo",
     "mail_branding.accent.label": "Accent colour",
     "mail_branding.accent.picker": "Choose accent colour",
-    "mail_branding.accent.description": "Used for buttons, links and the line at the top of the email. Status colours (Down, Recovery) stay as they are.",
+    "mail_branding.accent.description": "Used for the main button and the secondary link. Status colours (Down, Recovery) stay as they are.",
     "mail_branding.accent.format": "Enter a colour as #rrggbb.",
     "mail_branding.accent.unreadable": "White text on this colour is hard to read (contrast {{ratio}}:1, at least 4.5:1 is needed).",
     "mail_branding.accent.use_shade": "Use {{colour}}",
