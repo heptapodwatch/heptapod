@@ -9,6 +9,7 @@ return (new Configuration)
     ->addPathToScan(__DIR__.'/bootstrap', isDev: false)
     ->addPathToScan(__DIR__.'/config', isDev: false)
     ->addPathToScan(__DIR__.'/routes', isDev: false)
+    ->addPathToScan(__DIR__.'/database/migrations', isDev: false)
     // Test-only seams remain in core's Testing namespace, enforced by the architecture suite.
     ->addPathToScan(__DIR__.'/app/Testing', isDev: true)
     // Laravel resolves the S3 driver by name, not by an application class import.
