@@ -1,28 +1,23 @@
 /**
- * Mail branding exploration (phase 1): three placements of the same unsaved fields, switched by `?explore=` on
- * Settings → General. Nothing is stored; the preview is rendered by the real mail templates (dev-only endpoint).
+ * Mail branding exploration (phase 1, iteration 2): the unsaved appearance fields of Settings → Email, with presets
+ * switched by `?state=`. Nothing is stored; the preview is rendered by the real mail templates (dev-only endpoint).
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormSecondaryAction } from '@/components/form-section';
-import { InfoTooltip } from '@/components/info-tooltip';
-import { SectionHeading } from '@/components/section-heading';
 import { ImageDropzone } from '@/components/image-dropzone';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { SegmentedControl } from '@/components/segmented-control';
-import { SheetForm } from '@/components/sheet-form';
 import { TextLink } from '@/components/text-link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Sheet } from '@/components/ui/sheet';
 import { Spinner } from '@/components/ui/spinner';
 import { preview as previewRoute } from '@/routes/dev/mail-branding';
 
-export type ExploreVariant = 'inline' | 'section' | 'sheet';
-type ExploreState = 'empty' | 'filled' | 'invalid';
-type Logo = { file: File; dataUrl: string; width: number };
+export type ExploreState = 'empty' | 'filled' | 'invalid';
+/** The rendered logo size in the mail header: 24 px high, or less when a wide logo hits the 200 px width cap. */
+type Logo = { file: File; dataUrl: string; width: number; height: number };
 export type BrandingDraft = {
     sender: string;
     logo: Logo | null;
@@ -31,24 +26,17 @@ export type BrandingDraft = {
     footer: string;
 };
 
-const variants: ExploreVariant[] = ['inline', 'section', 'sheet'];
 const states: ExploreState[] = ['empty', 'filled', 'invalid'];
 const logoHeight = 24;
 const logoMaxWidth = 200;
 const footerMax = 160;
 const minContrast = 4.5;
 
-export function exploreParams(): {
-    variant: ExploreVariant | null;
-    state: ExploreState;
-} {
-    const params = new URLSearchParams(window.location.search);
-    const variant = params.get('explore') as ExploreVariant | null;
-    const state = params.get('state') as ExploreState | null;
-    return {
-        variant: variant && variants.includes(variant) ? variant : null,
-        state: state && states.includes(state) ? state : 'filled',
-    };
+export function exploreState(): ExploreState {
+    const state = new URLSearchParams(window.location.search).get(
+        'state',
+    ) as ExploreState | null;
+    return state && states.includes(state) ? state : 'filled';
 }
 
 /** WCAG relative luminance of a #rrggbb colour. */
@@ -94,11 +82,14 @@ async function readLogo(file: File): Promise<Logo> {
     const image = new Image();
     image.src = dataUrl;
     await image.decode();
-    const width = Math.min(
-        logoMaxWidth,
-        Math.round((logoHeight * image.naturalWidth) / image.naturalHeight),
-    );
-    return { file, dataUrl, width };
+    const ratio = image.naturalWidth / image.naturalHeight;
+    const width = Math.min(logoMaxWidth, Math.round(logoHeight * ratio));
+    return {
+        file,
+        dataUrl,
+        width,
+        height: Math.max(1, Math.min(logoHeight, Math.round(width / ratio))),
+    };
 }
 
 /** A stand-in operator logo for the filled state, drawn at 2× the rendered height. */
@@ -127,18 +118,36 @@ async function sampleLogo(): Promise<Logo> {
     return readLogo(new File([blob], 'acme-logo.png', { type: 'image/png' }));
 }
 
+const emptyDraft: BrandingDraft = {
+    sender: '',
+    logo: null,
+    accent: '',
+    footer: '',
+};
+
+const sameDraft = (a: BrandingDraft, b: BrandingDraft) =>
+    a.sender === b.sender &&
+    a.logo === b.logo &&
+    a.logoError === b.logoError &&
+    a.accent === b.accent &&
+    a.footer === b.footer;
+
+/**
+ * The draft and its "saved" baseline, both seeded from the preset. `dirty` feeds the page bar; `markSaved` and
+ * `discard` stand in for Save and Discard until phase 2 persists the values.
+ */
 export function useBrandingDraft(state: ExploreState) {
     const { t } = useTranslation();
-    const [draft, setDraft] = useState<BrandingDraft>({
-        sender: '',
-        logo: null,
-        accent: '',
-        footer: '',
-    });
+    const [saved, setSaved] = useState<BrandingDraft>(emptyDraft);
+    const [draft, setDraft] = useState<BrandingDraft>(emptyDraft);
     useEffect(() => {
+        const seed = (preset: BrandingDraft) => {
+            setSaved(preset);
+            setDraft(preset);
+        };
         if (state === 'empty') return;
         if (state === 'invalid') {
-            setDraft({
+            seed({
                 sender: 'Acme Monitoring',
                 logo: null,
                 logoError: t('mail_branding.logo.too_large'),
@@ -148,7 +157,7 @@ export function useBrandingDraft(state: ExploreState) {
             return;
         }
         void sampleLogo().then((logo) =>
-            setDraft({
+            seed({
                 sender: 'Acme Monitoring',
                 logo,
                 accent: '#1d4ed8',
@@ -156,7 +165,13 @@ export function useBrandingDraft(state: ExploreState) {
             }),
         );
     }, [state, t]);
-    return [draft, setDraft] as const;
+    return {
+        draft,
+        setDraft,
+        dirty: !sameDraft(draft, saved),
+        markSaved: () => setSaved(draft),
+        discard: () => setDraft(saved),
+    };
 }
 
 /** The accent that reaches the mail: only a valid, readable colour; anything else keeps the default. */
@@ -351,14 +366,11 @@ export function BrandingPreview({
     design,
     fromName,
     fromAddress,
-    compact = false,
 }: {
     draft: BrandingDraft;
     design: string;
     fromName: string;
     fromAddress: string;
-    /** A scaled thumbnail for a 16rem side panel. */
-    compact?: boolean;
 }) {
     const { t, i18n } = useTranslation();
     const [kind, setKind] = useState<'alert' | 'reset'>('alert');
@@ -379,6 +391,7 @@ export function BrandingPreview({
                 accent,
                 footer,
                 logo_width: draft.logo?.width ?? null,
+                logo_height: draft.logo?.height ?? null,
             },
         });
         const timer = window.setTimeout(() => {
@@ -441,39 +454,21 @@ export function BrandingPreview({
                             </dd>
                         </div>
                     </dl>
-                    {compact ? (
-                        <div className="h-72 overflow-hidden bg-white">
-                            <iframe
-                                sandbox=""
-                                srcDoc={html}
-                                title={t('mail_branding.preview.title')}
-                                className="h-[40rem] w-[35rem] origin-top-left scale-[0.457]"
-                            />
-                        </div>
-                    ) : (
-                        <iframe
-                            sandbox=""
-                            srcDoc={html}
-                            title={t('mail_branding.preview.title')}
-                            className="h-[36rem] w-full bg-white"
-                        />
-                    )}
+                    <iframe
+                        sandbox=""
+                        srcDoc={html}
+                        title={t('mail_branding.preview.title')}
+                        className="h-[36rem] w-full bg-white"
+                    />
                 </div>
             )}
         </div>
     );
 }
 
-/** Dev-only switcher between the variants and their states; shown in the PageHeader notices slot. */
-export function ExploreSwitcher({
-    variant,
-    state,
-}: {
-    variant: ExploreVariant;
-    state: ExploreState;
-}) {
-    const link = (next: ExploreVariant, nextState: ExploreState) =>
-        `?explore=${next}&state=${nextState}`;
+/** Dev-only switcher between the presets; shown in the PageHeader notices slot. */
+export function ExploreSwitcher({ state }: { state: ExploreState }) {
+    const link = (nextState: ExploreState) => `?state=${nextState}`;
     const item = (active: boolean, href: string, label: ReactNode) =>
         active ? (
             <strong key={href}>{label}</strong>
@@ -487,189 +482,9 @@ export function ExploreSwitcher({
             <AlertTitle>Mail branding exploration · not saved</AlertTitle>
             <AlertDescription>
                 <p className="flex flex-wrap gap-x-3">
-                    Variant:{' '}
-                    {variants.map((v, index) =>
-                        item(
-                            v === variant,
-                            link(v, state),
-                            `${'ABC'[index]} · ${v}`,
-                        ),
-                    )}
-                </p>
-                <p className="flex flex-wrap gap-x-3">
-                    State:{' '}
-                    {states.map((s) => item(s === state, link(variant, s), s))}
+                    State: {states.map((s) => item(s === state, link(s), s))}
                 </p>
             </AlertDescription>
         </Alert>
-    );
-}
-
-/** Variant A: the Mail section grows the fields, with a thumbnail preview in the 16rem side panel and a full preview sheet. */
-export function InlineVariant(props: {
-    draft: BrandingDraft;
-    onChange: (draft: BrandingDraft) => void;
-    design: string;
-    fromName: string;
-    fromAddress: string;
-}) {
-    const { t } = useTranslation();
-    const [open, setOpen] = useState(false);
-    return (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
-            <BrandingFields {...props} plain={props.design === 'plain'} />
-            <div className="min-w-0 space-y-2">
-                <BrandingPreview {...props} compact />
-                <FormSecondaryAction size="sm" onClick={() => setOpen(true)}>
-                    {t('mail_branding.preview.open')}
-                </FormSecondaryAction>
-            </div>
-            <Sheet open={open} onOpenChange={setOpen}>
-                <SheetForm
-                    title={t('mail_branding.preview.title')}
-                    description={t('mail_branding.preview.description')}
-                    onSubmit={(event) => event.preventDefault()}
-                    footer={
-                        <FormSecondaryAction onClick={() => setOpen(false)}>
-                            {t('Close')}
-                        </FormSecondaryAction>
-                    }
-                >
-                    <BrandingPreview {...props} />
-                </SheetForm>
-            </Sheet>
-        </div>
-    );
-}
-
-/**
- * Variant B: a dedicated "Email appearance" section across the full content width (new pattern: no FormSection title
- * column), so the live preview beside the fields is wide enough to read at desktop size.
- */
-export function SectionVariant(props: {
-    draft: BrandingDraft;
-    onChange: (draft: BrandingDraft) => void;
-    design: string;
-    fromName: string;
-    fromAddress: string;
-}) {
-    const { t } = useTranslation();
-    return (
-        <section
-            aria-labelledby="mail-branding-section"
-            className="space-y-4 border-b py-6"
-        >
-            <div className="space-y-1">
-                <SectionHeading id="mail-branding-section">
-                    {t('mail_branding.section.title')}
-                </SectionHeading>
-                <p className="text-sm text-muted-foreground">
-                    {t('mail_branding.section.description')}{' '}
-                    <InfoTooltip>
-                        {t('mail_branding.section.detail')}
-                    </InfoTooltip>
-                </p>
-            </div>
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:gap-12">
-                <BrandingFields {...props} plain={props.design === 'plain'} />
-                <BrandingPreview {...props} />
-            </div>
-        </section>
-    );
-}
-
-/** Variant C: the Mail section shows a summary; "Change appearance…" opens a sheet with the fields and the preview. */
-export function SheetVariant(props: {
-    draft: BrandingDraft;
-    onChange: (draft: BrandingDraft) => void;
-    design: string;
-    fromName: string;
-    fromAddress: string;
-}) {
-    const { t } = useTranslation();
-    const [open, setOpen] = useState(false);
-    const [sheetDraft, setSheetDraft] = useState(props.draft);
-    const accent = appliedAccent(props.draft);
-    return (
-        <div className="space-y-3">
-            <dl className="grid gap-4 sm:grid-cols-2">
-                <Summary label={t('mail_branding.sender.label')}>
-                    {props.draft.sender.trim() || props.fromName}
-                </Summary>
-                <Summary label={t('mail_branding.logo.label')}>
-                    {props.draft.logo ? (
-                        <img
-                            src={props.draft.logo.dataUrl}
-                            alt={t('mail_branding.logo.preview')}
-                            className="h-6 max-w-[200px] object-contain"
-                        />
-                    ) : (
-                        t('mail_branding.logo.none')
-                    )}
-                </Summary>
-                <Summary label={t('mail_branding.accent.label')}>
-                    <span className="inline-flex items-center gap-2 font-mono">
-                        <span
-                            aria-hidden="true"
-                            className="size-3.5 rounded-sm border"
-                            style={{ background: accent ?? '#101418' }}
-                        />
-                        {accent ?? t('mail_branding.accent.default')}
-                    </span>
-                </Summary>
-                <Summary label={t('mail_branding.footer.label')}>
-                    {props.draft.footer.trim() ||
-                        t('mail_branding.footer.none')}
-                </Summary>
-            </dl>
-            <FormSecondaryAction
-                size="sm"
-                onClick={() => {
-                    setSheetDraft(props.draft);
-                    setOpen(true);
-                }}
-            >
-                {t('mail_branding.sheet.open')}
-            </FormSecondaryAction>
-            <Sheet open={open} onOpenChange={setOpen}>
-                <SheetForm
-                    title={t('mail_branding.section.title')}
-                    description={t('mail_branding.section.description')}
-                    detail={t('mail_branding.section.detail')}
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        props.onChange(sheetDraft);
-                        setOpen(false);
-                    }}
-                    footer={
-                        <>
-                            <FormSecondaryAction onClick={() => setOpen(false)}>
-                                {t('Cancel')}
-                            </FormSecondaryAction>
-                            <Button type="submit">{t('Save')}</Button>
-                        </>
-                    }
-                >
-                    <BrandingFields
-                        {...props}
-                        draft={sheetDraft}
-                        onChange={setSheetDraft}
-                        plain={props.design === 'plain'}
-                    />
-                    <BrandingPreview {...props} draft={sheetDraft} />
-                </SheetForm>
-            </Sheet>
-        </div>
-    );
-}
-
-function Summary({ label, children }: { label: string; children: ReactNode }) {
-    return (
-        <div className="min-w-0 space-y-1.5">
-            <dt className="text-cell font-medium">{label}</dt>
-            <dd className="text-cell break-words text-muted-foreground">
-                {children}
-            </dd>
-        </div>
     );
 }

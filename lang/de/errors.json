@@ -3,7 +3,6 @@
     "Try again": "Erneut versuchen",
     "Go to Sites": "Websites öffnen",
     "Mail transport": "Mail-Transport",
-    "From name": "Absendername",
     "From address": "Absenderadresse",
     "Mails are not sent": "E-Mails werden nicht versendet",
     "The active mail transport only stores messages locally. Configure SMTP or an API transport to send mail.": "Der aktive Mail-Transport speichert Nachrichten nur lokal. Konfigurieren Sie SMTP oder einen API-Transport, um E-Mails zu versenden.",

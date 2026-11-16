@@ -3,7 +3,7 @@ $light = ['bg'=>'#e8ebed','card'=>'#ffffff','line'=>'#d3d8dc','soft'=>'#e1e5e8',
 $dark = ['bg'=>'#0d1013','card'=>'#13171b','line'=>'#262c33','soft'=>'#1c2127','sunken'=>'#0f1215','fg'=>'#e6e9ec','fg2'=>'#a2abb4','fg3'=>'#848e99','down'=>'#e6574d','warn'=>'#dd8a43','ok'=>'#79ad95','info'=>'#7f9fc0','error'=>'#8b96a1'];
 $tone = $mail->tone->color();
 // Exploration (mail branding phase 1): unsaved branding values shared by the dev preview only.
-$brand = $mailBranding ?? ['accent' => null, 'footer' => null, 'logo_width' => null];
+$brand = $mailBranding ?? ['accent' => null, 'footer' => null, 'logo_width' => null, 'logo_height' => null];
 $accent = $brand['accent'];
 @endphp
 @if ($plain ?? false)
@@ -78,7 +78,7 @@ if ($mail->avatarTile !== null) {
 @endif
 <td><span class="c-fg2" style="color:#3f4952;vertical-align:middle;">{{ $mail->siteLine() }}</span></td></tr></table>
 @endif
-</td><td align="right" valign="middle" style="padding-left:12px;">@if ($brand['logo_width'] !== null)<img src="cid:brand-logo@heptapod" width="{{ $brand['logo_width'] }}" height="24" alt="{{ $mail->instance }}" style="width:{{ $brand['logo_width'] }}px;height:24px;border:0;display:inline-block;">@else<img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="width:109px;height:20px;border:0;display:inline-block;">@endif</td></tr></table></td></tr>
+</td><td align="right" valign="middle" style="padding-left:12px;">@if ($brand['logo_width'] !== null)<img src="cid:brand-logo@heptapod" width="{{ $brand['logo_width'] }}" height="{{ $brand['logo_height'] }}" alt="{{ $mail->instance }}" style="width:{{ $brand['logo_width'] }}px;height:{{ $brand['logo_height'] }}px;border:0;display:inline-block;">@else<img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="width:109px;height:20px;border:0;display:inline-block;">@endif</td></tr></table></td></tr>
 <tr><td class="px" style="padding:22px 28px 28px;">
 <h1 class="h1 c-fg" style="margin:0 0 {{ $mail->lead !== null ? 8 : 12 }}px;font-size:21px;line-height:28px;font-weight:600;letter-spacing:-0.2px;color:#101418;">{{ $mail->headline }}</h1>
 @if ($mail->lead !== null)

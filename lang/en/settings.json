@@ -53,7 +53,6 @@
     "Sending…": "Sending…",
     "Identity": "Identity",
     "The instance name identifies this installation.": "The instance name identifies this installation.",
-    "Mail": "Mail",
     "SMTP host": "SMTP host",
     "Port": "Port",
     "SMTP scheme": "SMTP scheme",
@@ -296,7 +295,6 @@
     "{{count}} running workers observed_other": "{{formattedCount}} running workers observed",
     "{{count}} failed runs in a row_one": "{{formattedCount}} failed run",
     "{{count}} failed runs in a row_other": "{{formattedCount}} failed runs in a row",
-    "Used for invites, reports and email channels.": "Used for invites, reports and email channels.",
     "The mail transport is read-only; credentials are never shown.": "The mail transport is read-only; credentials are never shown.",
     "Existing sites keep their settings.": "Existing sites keep their settings.",
     "Defaults are defined by each check, not editable here.": "Defaults are defined by each check, not editable here.",
@@ -386,5 +384,10 @@
     "mail_branding.preview.subject": "Subject:",
     "mail_branding.preview.title": "Email preview",
     "mail_branding.preview.open": "Show full preview",
-    "mail_branding.preview.description": "Rendered with your unsaved settings."
+    "mail_branding.preview.description": "Rendered with your unsaved settings.",
+    "settings.email.title": "Email",
+    "settings.email.description": "How emails from this instance look and how they are sent.",
+    "settings.email.delivery.title": "Delivery",
+    "settings.email.delivery.description": "Set in the server configuration.",
+    "Email settings saved.": "Email settings saved."
 }

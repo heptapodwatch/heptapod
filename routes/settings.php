@@ -44,6 +44,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('settings/instance', [InstanceController::class, 'edit'])->name('settings.instance.edit');
     Route::get('settings/instance/data', [InstanceController::class, 'show'])->name('settings.instance.data');
     Route::patch('settings/instance', [InstanceController::class, 'update'])->name('settings.instance.update');
+    Route::get('settings/email', [InstanceController::class, 'email'])->name('settings.email.edit');
+    Route::patch('settings/email', [InstanceController::class, 'updateMail'])->name('settings.email.update');
     Route::get('settings/system', [SystemHealthController::class, 'edit'])->name('settings.system.edit');
     Route::get('settings/system/data', SystemHealthController::class)->name('settings.system.data');
     Route::get('settings/backups/data', [BackupController::class, 'index'])->name('settings.backups.data');

@@ -30,6 +30,26 @@ final class InstanceController extends Controller
         ));
     }
 
+    /** Settings → Email: the mail design and the read-only transport facts, from the same instance data as General. */
+    public function email(Request $request, InstanceSettings $settings, ReadSystemHealth $health): Response
+    {
+        return Inertia::render('settings/email', new InstancePageData(
+            instancePage: $this->data($request, $settings, $health),
+        ));
+    }
+
+    public function updateMail(Request $request, InstanceSettings $settings, SaveInstanceSettings $save): RedirectResponse
+    {
+        $this->owner($request);
+        /** @var array{mail_design: string} $data */
+        $data = Validator::make($request->all(), ['mail_design' => ['required', Rule::enum(MailDesign::class)]],
+            attributes: ['mail_design' => __('instance.mail_design.label')])->validate();
+        $save($settings->name, MailDesign::from($data['mail_design']));
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Email settings saved.')]);
+
+        return to_route('settings.email.edit');
+    }
+
     public function show(Request $request, InstanceSettings $settings, ReadSystemHealth $health): JsonResponse
     {
         return response()->json($this->data($request, $settings, $health));

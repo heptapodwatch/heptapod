@@ -53,7 +53,6 @@
     "Sending…": "Wird gesendet…",
     "Identity": "Identität",
     "The instance name identifies this installation.": "Der Instanzname kennzeichnet diese Installation.",
-    "Mail": "E-Mail",
     "SMTP host": "SMTP-Host",
     "Port": "Port",
     "SMTP scheme": "SMTP-Schema",
@@ -296,7 +295,6 @@
     "{{count}} running workers observed_other": "{{formattedCount}} laufende Hintergrundprozesse beobachtet",
     "{{count}} failed runs in a row_one": "{{formattedCount}} fehlgeschlagener Lauf",
     "{{count}} failed runs in a row_other": "{{formattedCount}} fehlgeschlagene Läufe in Folge",
-    "Used for invites, reports and email channels.": "Für Einladungen, Berichte und E-Mail-Kanäle.",
     "The mail transport is read-only; credentials are never shown.": "Der Mailversand ist schreibgeschützt; Zugangsdaten werden nie angezeigt.",
     "Existing sites keep their settings.": "Bestehende Websites behalten ihre Einstellungen.",
     "Defaults are defined by each check, not editable here.": "Vorgaben kommen aus den jeweiligen Prüfdefinitionen und sind hier nicht bearbeitbar.",
@@ -386,5 +384,10 @@
     "mail_branding.preview.subject": "Betreff:",
     "mail_branding.preview.title": "E-Mail-Vorschau",
     "mail_branding.preview.open": "Vollständige Vorschau anzeigen",
-    "mail_branding.preview.description": "Mit Ihren noch nicht gespeicherten Einstellungen dargestellt."
+    "mail_branding.preview.description": "Mit Ihren noch nicht gespeicherten Einstellungen dargestellt.",
+    "settings.email.title": "E-Mail",
+    "settings.email.description": "Wie E-Mails dieser Instanz aussehen und wie sie versendet werden.",
+    "settings.email.delivery.title": "Versand",
+    "settings.email.delivery.description": "In der Serverkonfiguration festgelegt.",
+    "Email settings saved.": "E-Mail-Einstellungen gespeichert."
 }

@@ -1,5 +1,4 @@
 import { AbsoluteTime } from '@/components/absolute-time';
-import { InfoTooltip } from '@/components/info-tooltip';
 import { SectionHeading } from '@/components/section-heading';
 import {
     FormSection,
@@ -9,25 +8,15 @@ import {
 } from '@/components/form-section';
 import { PageHeader } from '@/components/page-header';
 import { Head, useForm } from '@inertiajs/react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import InputError, { fieldErrorProps } from '@/components/input-error';
+import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioCards } from '@/components/ui/radio-cards';
 import { useFormat } from '@/hooks/use-format';
 import { update } from '@/routes/settings/instance';
 import { TextLink } from '@/components/text-link';
-import {
-    ExploreSwitcher,
-    InlineVariant,
-    SectionVariant,
-    SheetVariant,
-    exploreParams,
-    useBrandingDraft,
-} from '@/components/mail-branding-explore';
 
 function ConfigValue({
     label,
@@ -59,7 +48,6 @@ export default function Instance({
     const { number } = useFormat();
     const form = useForm({
         name: instancePage.name,
-        mail_design: instancePage.mail_design,
     });
     const pendingErrorFocus = useRef(false);
     useEffect(() => {
@@ -68,26 +56,10 @@ export default function Instance({
             pendingErrorFocus.current = false;
         }
     }, [form.processing, form.errors]);
-    const mailDesignField = fieldErrorProps(
-        'instance-mail-design',
-        form.errors.mail_design,
-        'instance-mail-design-description',
-    );
     const configured = (value: boolean) =>
         t(value ? 'Configured' : 'Not configured');
-    const absent = t('Not configured');
     const retention = instancePage.retention;
     const lastPing = instancePage.last_external_ping;
-    // Mail branding exploration (phase 1, local only): `?explore=inline|section|sheet&state=empty|filled|invalid`.
-    const [explore] = useState(exploreParams);
-    const [brandingDraft, setBrandingDraft] = useBrandingDraft(explore.state);
-    const branding = {
-        draft: brandingDraft,
-        onChange: setBrandingDraft,
-        design: form.data.mail_design,
-        fromName: instancePage.from_name,
-        fromAddress: instancePage.from_address,
-    };
 
     return (
         <>
@@ -95,14 +67,6 @@ export default function Instance({
             <PageHeader
                 title={t('General')}
                 description={t('pages.instance.description')}
-                notices={
-                    explore.variant && (
-                        <ExploreSwitcher
-                            variant={explore.variant}
-                            state={explore.state}
-                        />
-                    )
-                }
             />
             <form
                 noValidate
@@ -116,10 +80,7 @@ export default function Instance({
                         onSuccess: ({ props }) => {
                             const page =
                                 props.instancePage as Heptapod.Data.Ui.InstanceSettingsData;
-                            const saved = {
-                                name: page.name,
-                                mail_design: page.mail_design,
-                            };
+                            const saved = { name: page.name };
                             form.setDefaults(saved);
                             form.setData(saved);
                         },
@@ -168,130 +129,6 @@ export default function Instance({
                         </dl>
                     </div>
                 </FormSection>
-                <FormSection
-                    title={t('Mail')}
-                    description={t(
-                        'Used for invites, reports and email channels.',
-                    )}
-                    detail={t(
-                        'The mail transport is read-only; credentials are never shown.',
-                    )}
-                >
-                    {instancePage.mail_log_only && (
-                        <Alert tone="warning">
-                            <AlertTitle>{t('Mails are not sent')}</AlertTitle>
-                            <AlertDescription>
-                                <p>
-                                    {t(
-                                        'The active mail transport only stores messages locally. Configure SMTP or an API transport to send mail.',
-                                    )}
-                                </p>
-                                <p>
-                                    {t(
-                                        'Until then, generate a sign-in link on the server with:',
-                                    )}
-                                </p>
-                                <code className="font-mono break-all text-foreground">
-                                    php artisan heptapod:user:access-link
-                                </code>
-                            </AlertDescription>
-                        </Alert>
-                    )}
-                    <div className="space-y-2">
-                        <Label id="instance-mail-design-label">
-                            {t('instance.mail_design.label')}
-                        </Label>
-                        <p
-                            id="instance-mail-design-description"
-                            className="text-xs text-muted-foreground"
-                        >
-                            {t('instance.mail_design.description')}{' '}
-                            <InfoTooltip>
-                                {t('instance.mail_design.detail')}
-                            </InfoTooltip>
-                        </p>
-                        <RadioCards
-                            labelledBy="instance-mail-design-label"
-                            describedBy={mailDesignField['aria-describedby']}
-                            invalid={mailDesignField['aria-invalid']}
-                            value={form.data.mail_design}
-                            disabled={form.processing}
-                            onChange={(value) =>
-                                form.setData('mail_design', value)
-                            }
-                            options={(['branded', 'plain'] as const).map(
-                                (value) => ({
-                                    value,
-                                    label: t(`instance.mail_design.${value}`),
-                                    description: t(
-                                        `instance.mail_design.${value}_description`,
-                                    ),
-                                }),
-                            )}
-                        />
-                        <InputError
-                            field="instance-mail-design"
-                            message={form.errors.mail_design}
-                        />
-                    </div>
-                    {explore.variant === 'inline' && (
-                        <InlineVariant {...branding} />
-                    )}
-                    {explore.variant === 'sheet' && (
-                        <SheetVariant {...branding} />
-                    )}
-                    <dl className="grid gap-4 sm:grid-cols-3">
-                        <ConfigValue
-                            label={t('Mail transport')}
-                            value={instancePage.mailer}
-                            mono
-                        />
-                        {explore.variant === null && (
-                            <ConfigValue
-                                label={t('From name')}
-                                value={instancePage.from_name}
-                            />
-                        )}
-                        <ConfigValue
-                            label={t('From address')}
-                            value={instancePage.from_address}
-                            mono
-                        />
-                        <ConfigValue
-                            label={t('SMTP host')}
-                            value={instancePage.smtp.host ?? absent}
-                            mono
-                        />
-                        <ConfigValue
-                            label={t('Port')}
-                            value={instancePage.smtp.port ?? absent}
-                            mono
-                        />
-                        <ConfigValue
-                            label={t('SMTP scheme')}
-                            value={
-                                instancePage.smtp.scheme ??
-                                t('Not explicitly configured')
-                            }
-                            mono
-                        />
-                        <ConfigValue
-                            label={t('SMTP username')}
-                            value={configured(
-                                instancePage.smtp.username_configured,
-                            )}
-                        />
-                        <ConfigValue
-                            label={t('SMTP password')}
-                            value={configured(
-                                instancePage.smtp.password_configured,
-                            )}
-                        />
-                    </dl>
-                </FormSection>
-                {explore.variant === 'section' && (
-                    <SectionVariant {...branding} />
-                )}
                 <FormSection
                     title={t('Defaults for new sites')}
                     description={t('Existing sites keep their settings.')}

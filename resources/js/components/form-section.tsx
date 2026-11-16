@@ -17,6 +17,7 @@ export function FormSection({
     title,
     description,
     detail,
+    preview,
     children,
 }: {
     title: string;
@@ -24,30 +25,51 @@ export function FormSection({
     description: string;
     /** Anything beyond that sentence, behind an InfoTooltip. */
     detail?: string;
+    /**
+     * A live preview of what the fields produce (a rendered email). The title moves above, and the fields (22rem) and
+     * the preview (the rest, sticky while the fields scroll) share the full section width from 48rem of section width;
+     * below, the preview follows the fields.
+     */
+    preview?: ReactNode;
     children: ReactNode;
 }) {
     const titleId = useId();
+    const heading = (
+        <div className="space-y-1">
+            <SectionHeading id={titleId}>{title}</SectionHeading>
+            <p className="text-sm text-muted-foreground">
+                {description}
+                {detail && (
+                    <>
+                        {' '}
+                        <InfoTooltip>{detail}</InfoTooltip>
+                    </>
+                )}
+            </p>
+        </div>
+    );
     return (
         <section
             aria-labelledby={titleId}
             data-form-section
             className="@container/form-section border-b py-6"
         >
-            <div className="grid gap-4 @3xl/form-section:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] @3xl/form-section:gap-12">
-                <div className="space-y-1">
-                    <SectionHeading id={titleId}>{title}</SectionHeading>
-                    <p className="text-sm text-muted-foreground">
-                        {description}
-                        {detail && (
-                            <>
-                                {' '}
-                                <InfoTooltip>{detail}</InfoTooltip>
-                            </>
-                        )}
-                    </p>
+            {preview === undefined ? (
+                <div className="grid gap-4 @3xl/form-section:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] @3xl/form-section:gap-12">
+                    {heading}
+                    <div className="min-w-0 space-y-4">{children}</div>
                 </div>
-                <div className="min-w-0 space-y-4">{children}</div>
-            </div>
+            ) : (
+                <div className="space-y-4">
+                    {heading}
+                    <div className="grid gap-6 @3xl/form-section:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] @3xl/form-section:gap-12">
+                        <div className="min-w-0 space-y-4">{children}</div>
+                        <div className="min-w-0 @3xl/form-section:sticky @3xl/form-section:top-4 @3xl/form-section:self-start">
+                            {preview}
+                        </div>
+                    </div>
+                </div>
+            )}
         </section>
     );
 }

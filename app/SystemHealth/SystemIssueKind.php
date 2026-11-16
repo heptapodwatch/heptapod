@@ -64,7 +64,7 @@ enum SystemIssueKind: string
     public function navigationAction(?User $user): array
     {
         if ($this === self::MailLogOnly && $user?->hasRole('Owner') === true) {
-            return ['action_key' => 'Open mail settings', 'href' => route('settings.instance.edit')];
+            return ['action_key' => 'Open mail settings', 'href' => route('settings.email.edit')];
         }
         if ($user?->hasAnyRole(['Owner', 'Admin']) === true) {
             return ['action_key' => 'Open System health', 'href' => route('settings.system.edit')];
