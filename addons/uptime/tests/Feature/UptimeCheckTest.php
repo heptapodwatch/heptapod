@@ -197,8 +197,8 @@ it('rejects invalid imported settings at their exact schema field', function (ar
 ]);
 
 it('loads addon translations in both locales with matching keys', function (): void {
-    $en = json_decode(file_get_contents(__DIR__.'/../lang/en.json'), true, flags: JSON_THROW_ON_ERROR);
-    $de = json_decode(file_get_contents(__DIR__.'/../lang/de.json'), true, flags: JSON_THROW_ON_ERROR);
+    $en = json_decode(file_get_contents(__DIR__.'/../../lang/en.json'), true, flags: JSON_THROW_ON_ERROR);
+    $de = json_decode(file_get_contents(__DIR__.'/../../lang/de.json'), true, flags: JSON_THROW_ON_ERROR);
     expect(array_keys($en))->toBe(array_keys($de));
     foreach (['en' => $en, 'de' => $de] as $locale => $keys) {
         app()->setLocale($locale);
