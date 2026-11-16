@@ -77,8 +77,8 @@ final class HistoryRetention
             $this->reportRow('events', $events, 'event.occurred_at', 'kept incident='.$keptIncidentEvents->count().'; pending/sending='.$pendingEvents->count().'; digest sources retained='.$digestEvents->count()),
             $this->reportRow('deliveries', $deliveries->join('events', 'events.id', '=', 'deliveries.event_id'), 'events.occurred_at', 'retained with exempt events='.$exemptDeliveries),
             $this->reportRow('incidents', $incidents, 'incident.resolved_at', 'open='.$open.'; open episode='.$episode),
-            $this->reportRow('activity_log', DB::table('activity_log')->where('created_at', '<', $cutoff), 'created_at'),
-            $this->reportRow('failed_jobs', DB::table('failed_jobs')->where('failed_at', '<', $at->utc()->subDays($policy->failedJobDays)), 'failed_at'),
+            $this->reportRow('activity_log', DB::table('activity_log')->where('created_at', '<', $cutoff), 'created_at', deletionEnabled: true),
+            $this->reportRow('failed_jobs', DB::table('failed_jobs')->where('failed_at', '<', $at->utc()->subDays($policy->failedJobDays)), 'failed_at', deletionEnabled: true),
             $this->reportRow('job_batches', DB::table('job_batches')->whereNotNull('finished_at')->where('finished_at', '<', $at->subDays($policy->failedJobDays)->getTimestamp()), 'finished_at'),
         ];
     }

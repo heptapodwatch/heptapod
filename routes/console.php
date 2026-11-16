@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Heptapod\Actions\RecordScheduledBackupExit;
 use Heptapod\Actions\RecordSchedulerTick;
 use Heptapod\Jobs\DispatchNotifications;
+use Heptapod\Models\DispatcherHeartbeat;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Support\Facades\Schedule;
 
@@ -12,6 +13,9 @@ Schedule::command('heptapod:maintain-check-data')->hourly()->withoutOverlapping(
 
 Schedule::command('heptapod:generate-maintenance')->daily()->withoutOverlapping();
 Schedule::command('heptapod:prune-api-idempotency')->hourly()->withoutOverlapping();
+Schedule::command('model:prune', ['--model' => [DispatcherHeartbeat::class]])->hourly()->withoutOverlapping();
+Schedule::command('queue:prune-failed', ['--hours' => config()->integer('monitoring.failed_job_retention_days') * 24])->daily()->withoutOverlapping();
+Schedule::command('activitylog:clean', ['--days' => config()->integer('monitoring.history_retention_days'), '--force'])->daily()->withoutOverlapping();
 Schedule::command('heptapod:record-database-size')->hourly()->withoutOverlapping();
 Schedule::command('heptapod:client-messages:sweep')->daily()->withoutOverlapping();
 Schedule::command('heptapod:resume-due-sites')->everyMinute()->withoutOverlapping();

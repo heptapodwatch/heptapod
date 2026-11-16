@@ -14,6 +14,7 @@ use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\CheckRunAttempt;
 use Heptapod\Models\Delivery;
+use Heptapod\Models\DispatcherHeartbeat;
 use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
 use Heptapod\Models\NotificationDestination;
@@ -210,18 +211,19 @@ it('previews all retention targets and exemptions without changing rows or raw p
     foreach (['activity_log', 'failed_jobs', 'job_batches'] as $table) {
         expect($rows[$table][0])->toBe('1');
     }
+    $scheduledDeletion = ['activity_log', 'failed_jobs'];
     foreach ($before as $table => $records) {
         expect(DB::table($table)->orderBy('id')->get()->all())->toEqual($records);
-        expect($rows[$table][5])->toBe('no');
+        expect($rows[$table][5])->toBe(in_array($table, $scheduledDeletion, true) ? 'yes' : 'no');
     }
     expect(DB::select("SELECT inhrelid FROM pg_inherits WHERE inhparent = 'check_runs'::regclass ORDER BY inhrelid"))->toEqual($partitions);
-    $this->artisan('heptapod:prune-history')->expectsOutputToContain('History deletion is not available yet')->assertFailed();
+    $this->artisan('heptapod:prune-history')->expectsOutputToContain('This command only previews')->assertFailed();
     config(['monitoring.hourly_rollup_deletion_enabled' => true]);
     $enabledRows = retentionReport();
     foreach (array_keys($before) as $table) {
-        expect($enabledRows[$table][5])->toBe($table === 'check_run_rollups_hourly' ? 'yes' : 'no');
+        expect($enabledRows[$table][5])->toBe(in_array($table, [...$scheduledDeletion, 'check_run_rollups_hourly'], true) ? 'yes' : 'no');
     }
-    $this->artisan('heptapod:prune-history')->expectsOutputToContain('History deletion is not available yet')->assertFailed();
+    $this->artisan('heptapod:prune-history')->expectsOutputToContain('This command only previews')->assertFailed();
 });
 
 it('deletes only expired hours with final daily coverage after explicit enable and converges on a second run', function (): void {
@@ -421,4 +423,18 @@ it('logs the original rollup failure before a subsequent hourly prune failure', 
     expect($errors[0]->context['exception']->getMessage())->toContain('rollup fixture failed');
     expect($errors[1]->message)->toBe('Check data maintenance failed.');
     expect($errors[1]->context['exception'])->toContain('prune fixture failed');
+});
+
+it('prunes dispatcher heartbeats older than a day but keeps the newest one', function (): void {
+    DispatcherHeartbeat::factory()->create(['id' => 'old', 'last_seen_at' => '2026-10-10T00:00:00Z']);
+    DispatcherHeartbeat::factory()->create(['id' => 'newest', 'last_seen_at' => '2026-10-15T00:00:00Z']);
+
+    $this->artisan('model:prune', ['--model' => [DispatcherHeartbeat::class]])->assertSuccessful();
+
+    expect(DispatcherHeartbeat::query()->pluck('id')->all())->toBe(['newest']);
+    DispatcherHeartbeat::factory()->create(['id' => 'recent', 'last_seen_at' => '2026-10-19T12:00:00Z']);
+
+    $this->artisan('model:prune', ['--model' => [DispatcherHeartbeat::class]])->assertSuccessful();
+
+    expect(DispatcherHeartbeat::query()->pluck('id')->all())->toBe(['recent']);
 });
