@@ -40,7 +40,7 @@ final class HistoryRetention
         return ['deleted' => $deleted, 'uncovered' => $this->hourlyCandidates($at, $policy, covered: false)->count()];
     }
 
-    /** @return list<array{table: string, eligible: int, oldest: ?string, capped: int, cap: int, exemptions: string, deletion_enabled: bool}> */
+    /** @return list<array{table: string, eligible: int, oldest: ?string, capped: int, cap: ?int, exemptions: string, deletion_enabled: bool}> */
     public function report(CarbonImmutable $at, RetentionPolicy $policy): array
     {
         $cutoff = $at->utc()->subDays($policy->historyDays);
@@ -77,14 +77,18 @@ final class HistoryRetention
             $this->reportRow('events', $events, 'event.occurred_at', 'kept incident='.$keptIncidentEvents->count().'; pending/sending='.$pendingEvents->count().'; digest sources retained='.$digestEvents->count()),
             $this->reportRow('deliveries', $deliveries->join('events', 'events.id', '=', 'deliveries.event_id'), 'events.occurred_at', 'retained with exempt events='.$exemptDeliveries),
             $this->reportRow('incidents', $incidents, 'incident.resolved_at', 'open='.$open.'; open episode='.$episode),
-            $this->reportRow('activity_log', DB::table('activity_log')->where('created_at', '<', $cutoff), 'created_at', deletionEnabled: true),
-            $this->reportRow('failed_jobs', DB::table('failed_jobs')->where('failed_at', '<', $at->utc()->subDays($policy->failedJobDays)), 'failed_at', deletionEnabled: true),
+            $this->reportRow('activity_log', DB::table('activity_log')->where('created_at', '<', $cutoff), 'created_at', deletionEnabled: true, capped: false),
+            $this->reportRow('failed_jobs', DB::table('failed_jobs')->where('failed_at', '<', $at->utc()->subDays($policy->failedJobDays)), 'failed_at', deletionEnabled: true, capped: false),
             $this->reportRow('job_batches', DB::table('job_batches')->whereNotNull('finished_at')->where('finished_at', '<', $at->subDays($policy->failedJobDays)->getTimestamp()), 'finished_at'),
         ];
     }
 
-    /** @return array{table: string, eligible: int, oldest: ?string, capped: int, cap: int, exemptions: string, deletion_enabled: bool} */
-    private function reportRow(string $table, Builder $query, string $timestamp, string $exemptions = '', bool $deletionEnabled = false): array
+    /**
+     * Uncapped tables are deleted by the scheduled framework/Spatie prune commands, which remove every expired row per run.
+     *
+     * @return array{table: string, eligible: int, oldest: ?string, capped: int, cap: ?int, exemptions: string, deletion_enabled: bool}
+     */
+    private function reportRow(string $table, Builder $query, string $timestamp, string $exemptions = '', bool $deletionEnabled = false, bool $capped = true): array
     {
         $count = (clone $query)->count();
         /** @var int|string|null $oldest */
@@ -94,6 +98,6 @@ final class HistoryRetention
         }
 
         return ['table' => $table, 'eligible' => $count, 'oldest' => $oldest,
-            'capped' => min($count, RetentionPolicy::PerTableCap), 'cap' => RetentionPolicy::PerTableCap, 'exemptions' => $exemptions, 'deletion_enabled' => $deletionEnabled];
+            'capped' => $capped ? min($count, RetentionPolicy::PerTableCap) : $count, 'cap' => $capped ? RetentionPolicy::PerTableCap : null, 'exemptions' => $exemptions, 'deletion_enabled' => $deletionEnabled];
     }
 }

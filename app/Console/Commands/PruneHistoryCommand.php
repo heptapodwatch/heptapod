@@ -30,9 +30,9 @@ final class PruneHistoryCommand extends Command
             DB::select('SELECT pg_advisory_xact_lock(73410202)');
             $this->info('DRY RUN at '.$at->toIso8601String().'; deletes nothing. Hourly deletion enabled: '.($policy->hourlyDeletionEnabled ? 'yes' : 'no'));
             $this->table(['Table', 'Eligible', 'Oldest eligible', 'At most/run', 'Cap/table/run', 'Exemptions (may overlap)', 'Deletion enabled'], array_map(
-                static fn (array $row): array => array_values([...$row, 'deletion_enabled' => $row['deletion_enabled'] ? 'yes' : 'no']), $retention->report($at, $policy),
+                static fn (array $row): array => array_values([...$row, 'cap' => $row['cap'] ?? 'none', 'deletion_enabled' => $row['deletion_enabled'] ? 'yes' : 'no']), $retention->report($at, $policy),
             ));
-            $this->line('Caps are upper bounds, not batch predictions. Daily rollups, events, deliveries and incidents are not deleted yet.');
+            $this->line('Caps are upper bounds, not batch predictions; "none" means the next run deletes every eligible row. Daily rollups, events, deliveries and incidents are not deleted yet.');
             $this->line('Raw partitions: this preview does not create, recompute or drop partitions.');
             foreach ($maintenance->previewExpiredPartitions($at, $policy) as $partition) {
                 $this->line($partition['partition'].': missing buckets='.$partition['missing_buckets'].'; '.($partition['missing_buckets'] > 0 ? 'existing maintenance would skip' : 'existing maintenance coverage complete'));

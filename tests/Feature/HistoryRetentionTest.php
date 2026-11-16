@@ -211,6 +211,9 @@ it('previews all retention targets and exemptions without changing rows or raw p
     foreach (['activity_log', 'failed_jobs', 'job_batches'] as $table) {
         expect($rows[$table][0])->toBe('1');
     }
+    // The scheduled prune commands delete every expired row, so the preview must not promise a cap.
+    expect($rows['activity_log'][3])->toBe('none');
+    expect($rows['failed_jobs'][3])->toBe('none');
     $scheduledDeletion = ['activity_log', 'failed_jobs'];
     foreach ($before as $table => $records) {
         expect(DB::table($table)->orderBy('id')->get()->all())->toEqual($records);
