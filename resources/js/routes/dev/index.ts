@@ -1,4 +1,5 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
+import mailBranding from './mail-branding'
 /**
 * @see routes/web.php:70
 * @route '/dev/components'
@@ -75,6 +76,7 @@ components.form = componentsForm
 
 const dev = {
     components: Object.assign(components, components),
+    mailBranding: Object.assign(mailBranding, mailBranding),
 }
 
 export default dev

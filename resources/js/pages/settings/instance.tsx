@@ -9,7 +9,7 @@ import {
 } from '@/components/form-section';
 import { PageHeader } from '@/components/page-header';
 import { Head, useForm } from '@inertiajs/react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import InputError, { fieldErrorProps } from '@/components/input-error';
@@ -20,6 +20,14 @@ import { RadioCards } from '@/components/ui/radio-cards';
 import { useFormat } from '@/hooks/use-format';
 import { update } from '@/routes/settings/instance';
 import { TextLink } from '@/components/text-link';
+import {
+    ExploreSwitcher,
+    InlineVariant,
+    SectionVariant,
+    SheetVariant,
+    exploreParams,
+    useBrandingDraft,
+} from '@/components/mail-branding-explore';
 
 function ConfigValue({
     label,
@@ -70,6 +78,16 @@ export default function Instance({
     const absent = t('Not configured');
     const retention = instancePage.retention;
     const lastPing = instancePage.last_external_ping;
+    // Mail branding exploration (phase 1, local only): `?explore=inline|section|sheet&state=empty|filled|invalid`.
+    const [explore] = useState(exploreParams);
+    const [brandingDraft, setBrandingDraft] = useBrandingDraft(explore.state);
+    const branding = {
+        draft: brandingDraft,
+        onChange: setBrandingDraft,
+        design: form.data.mail_design,
+        fromName: instancePage.from_name,
+        fromAddress: instancePage.from_address,
+    };
 
     return (
         <>
@@ -77,6 +95,14 @@ export default function Instance({
             <PageHeader
                 title={t('General')}
                 description={t('pages.instance.description')}
+                notices={
+                    explore.variant && (
+                        <ExploreSwitcher
+                            variant={explore.variant}
+                            state={explore.state}
+                        />
+                    )
+                }
             />
             <form
                 noValidate
@@ -208,16 +234,24 @@ export default function Instance({
                             message={form.errors.mail_design}
                         />
                     </div>
+                    {explore.variant === 'inline' && (
+                        <InlineVariant {...branding} />
+                    )}
+                    {explore.variant === 'sheet' && (
+                        <SheetVariant {...branding} />
+                    )}
                     <dl className="grid gap-4 sm:grid-cols-3">
                         <ConfigValue
                             label={t('Mail transport')}
                             value={instancePage.mailer}
                             mono
                         />
-                        <ConfigValue
-                            label={t('From name')}
-                            value={instancePage.from_name}
-                        />
+                        {explore.variant === null && (
+                            <ConfigValue
+                                label={t('From name')}
+                                value={instancePage.from_name}
+                            />
+                        )}
                         <ConfigValue
                             label={t('From address')}
                             value={instancePage.from_address}
@@ -255,6 +289,9 @@ export default function Instance({
                         />
                     </dl>
                 </FormSection>
+                {explore.variant === 'section' && (
+                    <SectionVariant {...branding} />
+                )}
                 <FormSection
                     title={t('Defaults for new sites')}
                     description={t('Existing sites keep their settings.')}

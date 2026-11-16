@@ -2,6 +2,9 @@
 $light = ['bg'=>'#e8ebed','card'=>'#ffffff','line'=>'#d3d8dc','soft'=>'#e1e5e8','sunken'=>'#f5f6f7','fg'=>'#101418','fg2'=>'#3f4952','fg3'=>'#5c6771','down'=>'#b42f28','warn'=>'#94490a','ok'=>'#2c6a4e','info'=>'#3e6a96','error'=>'#5c6771'];
 $dark = ['bg'=>'#0d1013','card'=>'#13171b','line'=>'#262c33','soft'=>'#1c2127','sunken'=>'#0f1215','fg'=>'#e6e9ec','fg2'=>'#a2abb4','fg3'=>'#848e99','down'=>'#e6574d','warn'=>'#dd8a43','ok'=>'#79ad95','info'=>'#7f9fc0','error'=>'#8b96a1'];
 $tone = $mail->tone->color();
+// Exploration (mail branding phase 1): unsaved branding values shared by the dev preview only.
+$brand = $mailBranding ?? ['accent' => null, 'footer' => null, 'logo_width' => null];
+$accent = $brand['accent'];
 @endphp
 @if ($plain ?? false)
 @if ($mail->siteLine() !== null)
@@ -31,6 +34,9 @@ $tone = $mail->tone->color();
 {!! $mail->routingLabel !!}: {!! $mail->routingUrl !!}
 @endif
 {!! $mail->instance !!}
+@if ($brand['footer'] !== null)
+{!! $brand['footer'] !!}
+@endif
 @else
 <!doctype html><html lang="{{ $mail->locale }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>{{ $mail->subject }}</title>
 <style>
@@ -42,6 +48,9 @@ foreach ($dark as $key => $color) {
     $darkRules .= '.c-'.$key.'{color:'.$color.'!important}.chip-'.$key.'{color:'.$color.'!important;border-color:'.$color.'!important}';
 }
 $darkRules .= '.bar-down{background:'.$dark['down'].'!important}';
+if ($accent !== null) {
+    $darkRules .= '.btn-primary{background:'.$accent.'!important}.btn-primary a{color:#ffffff!important}';
+}
 if ($mail->avatarTile !== null) {
     $darkRules .= '.avatar-letter{background:'.$mail->avatarTile->background.'!important;color:'.$mail->avatarTile->foreground.'!important}';
 }
@@ -56,6 +65,8 @@ if ($mail->avatarTile !== null) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-card" style="background:#ffffff;border:1px solid #d3d8dc;border-radius:10px;">
 @if (in_array($mail->tone, [\Heptapod\Contracts\Mail\MailTone::Down, \Heptapod\Contracts\Mail\MailTone::Failed], true))
 <tr><td class="bar-down" style="height:3px;line-height:3px;font-size:0;background:#b42f28;border-radius:10px 10px 0 0;">&nbsp;</td></tr>
+@elseif ($accent !== null)
+<tr><td style="height:3px;line-height:3px;font-size:0;background:{{ $accent }};border-radius:10px 10px 0 0;">&nbsp;</td></tr>
 @endif
 <tr><td class="px" style="padding:20px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="font-size:13px;">
 @if ($mail->siteLine() !== null)
@@ -67,7 +78,7 @@ if ($mail->avatarTile !== null) {
 @endif
 <td><span class="c-fg2" style="color:#3f4952;vertical-align:middle;">{{ $mail->siteLine() }}</span></td></tr></table>
 @endif
-</td><td align="right" valign="middle" style="padding-left:12px;"><img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="width:109px;height:20px;border:0;display:inline-block;"></td></tr></table></td></tr>
+</td><td align="right" valign="middle" style="padding-left:12px;">@if ($brand['logo_width'] !== null)<img src="cid:brand-logo@heptapod" width="{{ $brand['logo_width'] }}" height="24" alt="{{ $mail->instance }}" style="width:{{ $brand['logo_width'] }}px;height:24px;border:0;display:inline-block;">@else<img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="width:109px;height:20px;border:0;display:inline-block;">@endif</td></tr></table></td></tr>
 <tr><td class="px" style="padding:22px 28px 28px;">
 <h1 class="h1 c-fg" style="margin:0 0 {{ $mail->lead !== null ? 8 : 12 }}px;font-size:21px;line-height:28px;font-weight:600;letter-spacing:-0.2px;color:#101418;">{{ $mail->headline }}</h1>
 @if ($mail->lead !== null)
@@ -84,13 +95,13 @@ if ($mail->avatarTile !== null) {
 </table>
 @endif
 @if ($mail->primary !== null)
-<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 0;"><tr><td class="btn-primary" style="background:#101418;border-radius:16px;"><a href="{{ $mail->primary['url'] }}" style="display:inline-block;padding:8px 18px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">{{ $mail->primary['label'] }}</a></td>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 0;"><tr><td class="btn-primary" style="background:{{ $accent ?? '#101418' }};border-radius:16px;"><a href="{{ $mail->primary['url'] }}" style="display:inline-block;padding:8px 18px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">{{ $mail->primary['label'] }}</a></td>
 @if ($mail->secondary !== null)
-<td style="padding-left:16px;font-size:14px;"><a href="{{ $mail->secondary['url'] }}" class="c-fg2" style="color:#3f4952;text-decoration:underline;">{{ $mail->secondary['label'] }}</a></td>
+<td style="padding-left:16px;font-size:14px;"><a href="{{ $mail->secondary['url'] }}" class="c-fg2" style="color:{{ $accent ?? '#3f4952' }};text-decoration:underline;">{{ $mail->secondary['label'] }}</a></td>
 @endif
 </tr></table>
 @endif
 </td></tr></table></td></tr>
-<tr><td class="px" style="padding:16px 28px 0;font-size:12px;line-height:18px;"><p class="c-fg3" style="margin:0 0 6px;color:#5c6771;">{{ $mail->footerWhy }}@if ($mail->routingUrl !== null) <a href="{{ $mail->routingUrl }}" class="c-fg2" style="color:#3f4952;text-decoration:underline;">{{ $mail->routingLabel }}</a>@endif</p><p class="c-fg3" style="margin:0;color:#5c6771;">{{ $mail->instance }}</p></td></tr>
+<tr><td class="px" style="padding:16px 28px 0;font-size:12px;line-height:18px;"><p class="c-fg3" style="margin:0 0 6px;color:#5c6771;">{{ $mail->footerWhy }}@if ($mail->routingUrl !== null) <a href="{{ $mail->routingUrl }}" class="c-fg2" style="color:#3f4952;text-decoration:underline;">{{ $mail->routingLabel }}</a>@endif</p><p class="c-fg3" style="margin:0;color:#5c6771;">{{ $mail->instance }}</p>@if ($brand['footer'] !== null)<p class="c-fg3" style="margin:6px 0 0;color:#5c6771;">{{ $brand['footer'] }}</p>@endif</td></tr>
 </table></td></tr></table></body></html>
 @endif

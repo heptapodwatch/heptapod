@@ -5,8 +5,41 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FormSecondaryAction } from '@/components/form-section';
 
-const imageTypes = ['image/png', 'image/jpeg', 'image/webp'];
-const maxBytes = 2 * 1024 * 1024;
+/** Avatars are cropped to a square in the app; mail logos go into email, where WebP and SVG are unreliable. */
+const kinds: Record<
+    'avatar' | 'logo',
+    {
+        types: string[];
+        maxBytes: number;
+        tooLarge: string;
+        unsupported: string;
+        constraints: string;
+        previewAlt: string;
+        previewClass: string;
+        reset: string;
+    }
+> = {
+    avatar: {
+        types: ['image/png', 'image/jpeg', 'image/webp'],
+        maxBytes: 2 * 1024 * 1024,
+        tooLarge: 'File too large (max 2 MB)',
+        unsupported: 'Format not supported. Use PNG, JPEG or WebP.',
+        constraints: 'PNG, JPEG or WebP · Max 2 MB · Centered square crop',
+        previewAlt: 'Avatar preview',
+        previewClass: 'size-16 rounded-md object-cover',
+        reset: 'Reset to automatic',
+    },
+    logo: {
+        types: ['image/png', 'image/jpeg'],
+        maxBytes: 512 * 1024,
+        tooLarge: 'mail_branding.logo.too_large',
+        unsupported: 'mail_branding.logo.unsupported',
+        constraints: 'mail_branding.logo.constraints',
+        previewAlt: 'mail_branding.logo.preview',
+        previewClass: 'h-6 max-w-[200px] object-contain',
+        reset: 'mail_branding.logo.remove',
+    },
+};
 
 export function ImageDropzone({
     value,
@@ -14,14 +47,17 @@ export function ImageDropzone({
     onReset,
     error,
     disabled = false,
+    kind = 'avatar',
 }: {
     value: File | null;
     onChange: (file: File) => void;
     onReset?: () => void;
     error?: string;
     disabled?: boolean;
+    kind?: keyof typeof kinds;
 }) {
     const { t } = useTranslation();
+    const { types: imageTypes, maxBytes, ...copy } = kinds[kind];
     const id = useId();
     const input = useRef<HTMLInputElement>(null);
     const [preview, setPreview] = useState<string | null>(null);
@@ -41,9 +77,9 @@ export function ImageDropzone({
         if (files.length !== 1 || !file) {
             setLocalError(t('Choose one image.'));
         } else if (file.size > maxBytes) {
-            setLocalError(t('File too large (max 2 MB)'));
+            setLocalError(t(copy.tooLarge));
         } else if (!imageTypes.includes(file.type)) {
-            setLocalError(t('Format not supported. Use PNG, JPEG or WebP.'));
+            setLocalError(t(copy.unsupported));
         } else {
             setLocalError(undefined);
             onChange(file);
@@ -92,8 +128,8 @@ export function ImageDropzone({
                 {preview && !error && (
                     <img
                         src={preview}
-                        alt={t('Avatar preview')}
-                        className="size-16 rounded-md object-cover"
+                        alt={t(copy.previewAlt)}
+                        className={copy.previewClass}
                         onError={() => {
                             setPreview(null);
                             setLocalError(t('Image could not be read.'));
@@ -106,7 +142,7 @@ export function ImageDropzone({
                 id={`${id}-constraints`}
                 className="text-xs text-muted-foreground"
             >
-                {t('PNG, JPEG or WebP · Max 2 MB · Centered square crop')}
+                {t(copy.constraints)}
             </p>
             <div aria-live="polite">
                 <InputError field={id} message={localError || error} />
@@ -120,7 +156,7 @@ export function ImageDropzone({
                         onReset();
                     }}
                 >
-                    {t('Reset to automatic')}
+                    {t(copy.reset)}
                 </FormSecondaryAction>
             )}
         </div>
