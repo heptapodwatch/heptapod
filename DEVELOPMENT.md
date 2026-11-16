@@ -144,9 +144,8 @@ docker compose exec app npm run hooks:install
 - Renovate is inert until the Renovate GitHub app is installed. Dependabot is not configured.
 - Renovate groups minor/patch updates and the vite-plus/Vite/Vitest ecosystem; other majors get separate PRs.
 - Renovate updates FrankenPHP's exact tag and digest. Keep its PHP patch aligned with Composer's `config.platform.php` and CI's `php-version`.
-- Release-please uses the manifest and the `simple` release type, because this full-stack application is not an npm or Composer library.
-- `.github/release-please/version.txt` is the application version, starting at 0.0.0 before the first 0.1 release. Neither dependency manifest gets a library version.
-- Release-please runs only through manual `workflow_dispatch` until the release policy is decided.
+- A release is an annotated `vX.Y.Z` tag on a main commit whose images Production images has published for amd64 and arm64. Neither dependency manifest carries the application version.
+- Create its GitHub release as a draft, then run the `Release bundle` workflow for the tag. It attaches and verifies the bundle, tags both images `vX.Y.Z` and publishes the release.
 
 ## Browser and developer login
 

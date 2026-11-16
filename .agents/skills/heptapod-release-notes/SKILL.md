@@ -50,4 +50,4 @@ One sentence: the headline of this release.
 1. Collect the changes: `git log --oneline <previous tag>..HEAD`, then read the PR and its issue for every user-visible commit.
 2. Write the draft to a file in the shape above.
 3. Show the draft to the requester and wait for an explicit OK.
-4. Publish on the existing annotated tag: `gh release create vX.Y.Z -R heptapodwatch/heptapod --verify-tag --title "Heptapod vX.Y.Z" --notes-file <file>`. To fix published notes, use `gh release edit vX.Y.Z --notes-file <file>`.
+4. Create the release as a draft on the existing annotated tag: `gh release create vX.Y.Z -R heptapodwatch/heptapod --draft --verify-tag --title "Heptapod vX.Y.Z" --notes-file <file>`. Then run `gh workflow run release-bundle.yml -R heptapodwatch/heptapod -f tag=vX.Y.Z`; it attaches the bundle and publishes the release. To fix published notes, use `gh release edit vX.Y.Z --notes-file <file>`.

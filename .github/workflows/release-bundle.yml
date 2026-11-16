@@ -1,13 +1,12 @@
 name: Release bundle
 
-# Runs only for published releases (and manual re-attachment), never for pushes or pull requests.
+# Publishes a draft release: attaches and verifies its bundle, tags its images vX.Y.Z, then makes it public, so
+# releases/latest never names a release without its bundle. Rerun for a published release to re-attach the bundle.
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
-        description: Published release tag to build and attach the bundle for
+        description: Release tag (a draft or published GitHub release) to build, attach and publish the bundle for
         required: true
         type: string
 
@@ -15,15 +14,16 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-bundle-${{ github.event.release.tag_name || inputs.tag }}
+  group: release-bundle-${{ inputs.tag }}
 
 jobs:
   bundle:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      packages: write
     env:
-      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      TAG: ${{ inputs.tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -57,6 +57,35 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" "$RUNNER_TEMP/bundle/heptapod-$TAG.tar.gz" "$RUNNER_TEMP/bundle/heptapod-$TAG.tar.gz.sha256" --clobber --repo "$GITHUB_REPOSITORY"
+      # The installer's own checks on the attached assets: checksum, then REVISION, RELEASE and MANIFEST.
+      - name: Verify the attached bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$TAG" --pattern "heptapod-$TAG.tar.gz*" --dir "$RUNNER_TEMP/attached" --repo "$GITHUB_REPOSITORY"
+          (cd "$RUNNER_TEMP/attached" && sha256sum -c "heptapod-$TAG.tar.gz.sha256" && tar -xzf "heptapod-$TAG.tar.gz")
+          unpacked=$RUNNER_TEMP/attached/heptapod-$TAG
+          test "$(cat "$unpacked/REVISION")" = "$(git rev-parse HEAD)"
+          test "$(cat "$unpacked/RELEASE")" = "$TAG"
+          sh -ec '. ./scripts/release-image.sh; validate_bundle_manifest "$1"' sh "$unpacked"
+      - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Installs pull by commit; the release tag names the same index so image retention keeps it (v* tags).
+      - name: Tag the release images
+        run: |
+          for image in app lighthouse; do
+            reference=$(bash scripts/image-reference.sh "$image")
+            digest=$(docker buildx imagetools inspect "$reference:$(git rev-parse HEAD)" --format '{{json .Manifest}}' | jq -er '.digest')
+            docker buildx imagetools create --prefer-index=false --tag "$reference:$TAG" "$reference@$digest"
+            test "$(docker buildx imagetools inspect "$reference:$TAG" --format '{{json .Manifest}}' | jq -er '.digest')" = "$digest"
+          done
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$TAG" --draft=false --repo "$GITHUB_REPOSITORY"
       # Optional integration: without the secret the website keeps its docs until its next build.
       - name: Trigger the website docs build
         env:
