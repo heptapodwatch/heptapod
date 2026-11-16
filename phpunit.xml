@@ -62,16 +62,8 @@
         </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
-            <directory>addons/uptime/tests</directory>
-            <directory>addons/performance/tests</directory>
-            <directory>addons/certificate_health/tests</directory>
-            <directory>addons/cron/tests</directory>
-            <directory>addons/dns/tests</directory>
-            <directory>addons/application_health/tests</directory>
-            <directory>addons/domain/tests</directory>
-            <directory>addons/sitemap/tests</directory>
-            <directory>addons/crawl/tests</directory>
-            <directory>addons/lighthouse/tests/Feature</directory>
+            <!-- Every addon's feature tests; tests/Manual stays opt-in. AddonTestSuiteTest guards the layout. -->
+            <directory>addons/*/tests/Feature</directory>
             <!-- T1 quarantine: mirrors tests/Quarantine.php (cause and owner per file); QuarantineTest keeps both equal. -->
             <exclude>tests/Feature/CheckRecording/MissingAddonTest.php</exclude>
             <exclude>tests/Feature/CheckJourneyTest.php</exclude>

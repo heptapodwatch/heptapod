@@ -9,8 +9,14 @@ use Heptapod\Actions\FetchSiteIcon;
 use Heptapod\Actions\UpdateCheckConfig;
 use Heptapod\Actions\UpdateSite;
 use Heptapod\Addons\CertificateHealth\StreamCertificateFetcher;
+use Heptapod\Addons\Crawl\CrawlCollector;
+use Heptapod\Addons\Crawl\CrawlFailureHandler;
+use Heptapod\Addons\Crawl\CrawlObserver;
 use Heptapod\Checks\CauseSummary;
+use Heptapod\Checks\CheckRunPresentations;
 use Heptapod\Checks\Recording\TransactionalResultRecorder;
+use Heptapod\Contracts\CheckKey;
+use Heptapod\Events\EventFlapGroups;
 use Heptapod\Events\EventPresenter;
 use Heptapod\Events\Notifications\NotificationMessage;
 use Heptapod\Http\Controllers\Controller;
@@ -23,6 +29,7 @@ use Heptapod\Support\SecretMerge;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 use Symfony\Component\Process\Process;
 
 arch()->preset()->php();
@@ -34,8 +41,6 @@ arch('temporary files stay in bounded TLS diagnostics and icon decoding')
         StreamCertificateFetcher::class, // tempnam creates a 0600 file; chainTrusted removes it in finally.
         FetchSiteIcon::class, // tempnam creates a 0600 input; icon decoding removes input and output in finally.
     ]);
-
-arch('tests never use Mockery')->expect('Tests')->not->toUse('Mockery');
 
 arch('browser tests do not use the nonawaiting Playwright URL method', function (): void {
     foreach (glob(__DIR__.'/../Browser/*.php') ?: [] as $file) {
@@ -66,24 +71,10 @@ arch('testing fakes are only used by tests and other testing fakes')
 
 $loader = require dirname(__DIR__, 2).'/vendor/autoload.php';
 $addonPrefixes = array_values(array_filter(array_keys($loader->getPrefixesPsr4()), fn (string $prefix): bool => str_starts_with($prefix, 'Heptapod\\Addons\\')));
-$addonTestRoots = [];
-foreach ($addonPrefixes as $prefix) {
-    foreach ($loader->getPrefixesPsr4()[$prefix] as $source) {
-        $tests = dirname($source).'/tests';
-        if (is_dir($tests)) {
-            $addonTestRoots[] = $tests;
-        }
-    }
-}
-$testRoots = [dirname(__DIR__), ...$addonTestRoots];
-
-arch('mocking-helper scan includes every registered addon test root', function () use ($testRoots, $addonTestRoots): void {
-    expect($addonTestRoots)->not->toBeEmpty()
-        ->and($testRoots)->toContain(...$addonTestRoots);
-});
+$testRoots = [dirname(__DIR__), ...glob(dirname(__DIR__, 2).'/addons/*/tests', GLOB_ONLYDIR)];
 
 arch('tests never use mocking helpers', function () use ($testRoots): void {
-    foreach (array_unique($testRoots) as $root) {
+    foreach ($testRoots as $root) {
         $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root));
         foreach ($files as $file) {
             if ($file->getExtension() !== 'php') {
@@ -128,8 +119,9 @@ test('status glyphs outside shared primitives cannot replace a visible status', 
     }
 });
 
+// DemoSeeder is local/testing-only and seeds the review fixture into the attention scenario on purpose.
 arch('production seeders never invoke the review fixture')
-    ->expect([DatabaseSeeder::class, DemoSeeder::class])->not->toUse(ReviewStatesSeeder::class);
+    ->expect(DatabaseSeeder::class)->not->toUse(ReviewStatesSeeder::class);
 
 arch('secret update entry points delegate merging to one helper')
     ->expect([UpdateSite::class, UpdateCheckConfig::class])->toUse(SecretMerge::class);
@@ -159,16 +151,52 @@ arch('storage and presentation share the credential redaction context')
     ->expect([TransactionalResultRecorder::class, CauseSummary::class, EventPresenter::class, NotificationMessage::class, SiteDetailReader::class])
     ->toUse(RedactionContext::class);
 
-arch('core cause presentation does not interpret addon check keys')
-    ->expect([CauseSummary::class, EventPresenter::class, SitesReader::class, NotificationMessage::class])->not->toUse($addonPrefixes);
+// One target per dataset row: Pest's not->toUse over an array of targets fails only when every target uses the dependency.
+arch('core cause presentation does not interpret addon check keys', function (string $class) use ($addonPrefixes): void {
+    expect($class)->not->toUse($addonPrefixes);
+})->with([CauseSummary::class, EventPresenter::class, SitesReader::class, NotificationMessage::class]);
 
-arch('core presentation contains no addon summary keys', function (): void {
-    foreach ([CauseSummary::class, EventPresenter::class, SitesReader::class, NotificationMessage::class] as $class) {
+arch('core presentation contains no addon summary keys', function () use ($addonPrefixes): void {
+    // Exact list: a new hit fails, and a moved key must be removed here.
+    $grandfathered = [
+        CauseSummary::class => [], SitesReader::class => [], NotificationMessage::class => [],
+        EventPresenter::class => ['broken_links.no_verified_broken_one', 'broken_links.no_verified_broken_other', 'dns.records_changed',
+            'sitemap.no_verified_issues_one', 'sitemap.no_verified_issues_other'],
+        CheckRunPresentations::class => ['application_health.presentation', 'broken_links.comparison_limit', 'broken_links.incomplete',
+            'broken_links.incomplete_other', 'broken_links.incomplete_rate_limited_urls', 'broken_links.incomplete_resources',
+            'broken_links.incomplete_time_limit', 'broken_links.presentation', 'certificate_health.not_https', 'cron.presentation',
+            'domain.registry_does_not_publish', 'lighthouse.presentation', 'mixed_content.comparison_limit', 'mixed_content.incomplete',
+            'mixed_content.incomplete_other', 'mixed_content.incomplete_rate_limited_urls', 'mixed_content.incomplete_resources',
+            'mixed_content.incomplete_time_limit', 'mixed_content.presentation', 'performance.confirming_recovery',
+            'performance.confirming_warning', 'performance.median_above_configured_range', 'performance.median_above_threshold',
+            'performance.recovered_below', 'performance.recovery_band', 'performance.succeeded', 'sitemap.presentation', 'uptime.status'],
+        SiteDetailReader::class => ['crawl.start_redirect_credentials_origin', 'crawl.start_redirect_off_site', 'performance.hourly_average'],
+        EventFlapGroups::class => ['dns.records_changed'],
+    ];
+    $keyPrefixes = array_unique([
+        ...array_map(fn (string $prefix): string => Str::snake(class_basename(rtrim($prefix, '\\'))), $addonPrefixes),
+        ...array_column(CheckKey::cases(), 'value'),
+        'causes',
+    ]);
+    $pattern = '/\\b(?:'.implode('|', $keyPrefixes).')\\.[a-z_]+\\b/';
+    // Core lang owns some sub-namespaces under these prefixes, e.g. causes.engine.*.
+    $coreOwned = [];
+    foreach (glob(dirname(__DIR__, 2).'/lang/en/*.json') as $langFile) {
+        foreach (array_keys(json_decode((string) file_get_contents($langFile), true, flags: JSON_THROW_ON_ERROR)) as $key) {
+            if (preg_match($pattern, $key, $match) === 1 && str_starts_with($key, $match[0])) {
+                $coreOwned[] = $match[0];
+            }
+        }
+    }
+    foreach ($grandfathered as $class => $keys) {
         $file = new ReflectionClass($class)->getFileName();
         expect($file)->not->toBeFalse();
         $source = file_get_contents($file);
         expect($source)->not->toBeFalse();
-        expect(preg_match('/\\b(?:cron|performance|certificate_health|uptime|causes)\\.(?!error\\b)[a-z_]+\\b/', $source))->toBe(0, $class);
+        preg_match_all($pattern, $source, $matches);
+        $hits = array_values(array_diff(array_unique($matches[0]), $coreOwned));
+        sort($hits);
+        expect($hits)->toBe($keys, $class);
     }
 });
 
@@ -204,14 +232,18 @@ $coreNamespaces = array_map(
         && (is_dir($path) || pathinfo($path, PATHINFO_EXTENSION) === 'php')),
 );
 
-arch('addons only depend on contracts and framework or vendor')
-    ->expect($addonPrefixes)->not->toUse([...$coreNamespaces, 'Database', 'Tests']);
+arch('addons only depend on contracts and framework or vendor', function (string $addon) use ($coreNamespaces): void {
+    expect($addon)->not->toUse([...$coreNamespaces, 'Database', 'Tests']);
+})->with($addonPrefixes);
 
-arch('addons fetch only through the core HTTP seam')
-    ->expect($addonPrefixes)->not->toUse([Http::class, 'Illuminate\\Http\\Client', 'GuzzleHttp'])
-    ->ignoring([
-        'Heptapod\\Addons\\Channels', // TODO: migrate to core HTTP seam (signed-off notification transports).
-    ]);
+arch('addons fetch only through the core HTTP seam', function (string $addon): void {
+    expect($addon)->not->toUse([Http::class, 'Illuminate\\Http\\Client', 'GuzzleHttp'])
+        ->ignoring([
+            'Heptapod\\Addons\\Channels', // TODO: migrate to core HTTP seam (signed-off notification transports).
+            // spatie/crawler takes Guzzle client options; these classes build them from OutboundHttp::clientConfig().
+            CrawlCollector::class, CrawlObserver::class, CrawlFailureHandler::class,
+        ]);
+})->with($addonPrefixes);
 
 arch('concrete controllers are final')
     ->expect('Heptapod\Http\Controllers')->toBeFinal()->ignoring(Controller::class);

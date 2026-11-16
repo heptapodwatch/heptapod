@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 
-require_once __DIR__.'/../../../tests/Support/NotificationChannels.php';
+require_once __DIR__.'/../../../../tests/Support/NotificationChannels.php';
 
 beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-05T12:30:00Z'));
@@ -280,8 +280,8 @@ it('rejects invalid performance settings at their exact field', function (array 
 ]);
 
 it('loads performance translations in both locales with matching keys', function (): void {
-    $en = json_decode(file_get_contents(__DIR__.'/../lang/en.json'), true, flags: JSON_THROW_ON_ERROR);
-    $de = json_decode(file_get_contents(__DIR__.'/../lang/de.json'), true, flags: JSON_THROW_ON_ERROR);
+    $en = json_decode(file_get_contents(__DIR__.'/../../lang/en.json'), true, flags: JSON_THROW_ON_ERROR);
+    $de = json_decode(file_get_contents(__DIR__.'/../../lang/de.json'), true, flags: JSON_THROW_ON_ERROR);
     expect(array_keys($en))->toBe(array_keys($de));
     foreach (['en' => $en, 'de' => $de] as $locale => $keys) {
         app()->setLocale($locale);

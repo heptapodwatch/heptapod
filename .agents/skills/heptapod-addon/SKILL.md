@@ -15,7 +15,7 @@ Read the existing uptime/performance packages and `app/Contracts` before editing
 6. Stage large datasets through the persistence seam. Only the recorder can finalize the fenced, accepted attempt.
 7. Add addon-owned translated keys in English and German, tests and SDK-shaped fixtures. Never copy addon keys into root `lang/`. Generate contract types and run the architecture rules.
 
-Declare every imported library as a direct caret dependency in the addon manifest. Use provider resource loaders (`mergeConfigFrom`, `loadMigrationsFrom`, `loadRoutesFrom`, `loadJsonTranslationsFrom`) for resources the addon actually owns. Composer path-package auto-discovery boots the provider; do not import it into core. Use uptime/performance as runnable execution examples, not provider skeletons. Addon feature tests use the root TestCase/RefreshDatabase registration, or a package-local Pest bootstrap; register their directories in the root suite exactly once.
+Declare every imported library as a direct caret dependency in the addon manifest. Use provider resource loaders (`mergeConfigFrom`, `loadMigrationsFrom`, `loadRoutesFrom`, `loadJsonTranslationsFrom`) for resources the addon actually owns. Composer path-package auto-discovery boots the provider; do not import it into core. Use uptime/performance as runnable execution examples, not provider skeletons. Addon feature tests use the root TestCase/RefreshDatabase registration, or a package-local Pest bootstrap; the root suite picks up their `tests/Feature` directory.
 
 Security-critical logic (TLS trust, hostname matching, crypto, signatures, auth) only via native platform features or maintained packages, never self-written.
 
@@ -50,7 +50,7 @@ Worker constraints:
 
 ## How to test your addon
 
-Feature tests live in `addons/<key>/tests`, outside production addon namespaces. Wire each directory into phpunit.xml and tests/Pest.php. Core integration tests live in `tests/Feature`. Run the real check through the real engine/recorder against Postgres and Redis. Do not replace dispatcher, recorder, routing, models or other domain collaborators. Core defines the external contracts; transport adapters supply their real implementations and parser-through-run fixtures.
+Feature tests live in `addons/<key>/tests/Feature`, outside production addon namespaces; phpunit.xml picks up every addon's `tests/Feature` by glob, and `tests/Manual` stays opt-in. Core integration tests live in `tests/Feature`. Run the real check through the real engine/recorder against Postgres and Redis. Do not replace dispatcher, recorder, routing, models or other domain collaborators. Core defines the external contracts; transport adapters supply their real implementations and parser-through-run fixtures.
 
 Bind a shared `Heptapod\Testing` fake to its `Heptapod\Contracts` interface with `app()->instance(...)` before resolving or dispatching the check:
 
