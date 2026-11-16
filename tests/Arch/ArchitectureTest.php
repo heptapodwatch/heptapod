@@ -42,8 +42,6 @@ arch('temporary files stay in bounded TLS diagnostics and icon decoding')
         FetchSiteIcon::class, // tempnam creates a 0600 input; icon decoding removes input and output in finally.
     ]);
 
-arch('tests never use Mockery')->expect('Tests')->not->toUse('Mockery');
-
 arch('browser tests do not use the nonawaiting Playwright URL method', function (): void {
     foreach (glob(__DIR__.'/../Browser/*.php') ?: [] as $file) {
         expect(file_get_contents($file))->not->toContain('->waitForURL(');

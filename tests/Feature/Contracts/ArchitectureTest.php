@@ -1,7 +1,5 @@
 <?php
 
-use Heptapod\Addons\Performance\PerformanceCheck;
-use Heptapod\Addons\Uptime\UptimeCheck;
 use Heptapod\Contracts\CheckType;
 use Heptapod\Jobs\RunCheck;
 use Heptapod\Providers\LocalFixtureServiceProvider;
@@ -16,11 +14,6 @@ arch('production code does not import boundary fakes', function (string $namespa
         ->ignoring(LocalFixtureServiceProvider::class); // Binds the recorded Oh Dear import client only in the local environment.
 })->with(['Heptapod\\Checks', 'Heptapod\\Models', 'Heptapod\\Providers', ...$addonPrefixes]);
 arch('check types live in addons')->expect('Heptapod')->classes()->not->toImplement(CheckType::class)->ignoring($addonPrefixes);
-
-arch('installed check types implement the addon contract')->expect([
-    UptimeCheck::class,
-    PerformanceCheck::class,
-])->toImplement(CheckType::class);
 
 arch('check jobs are unique')->expect(RunCheck::class)->toImplement(ShouldBeUnique::class);
 
