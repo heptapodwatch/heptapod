@@ -18,6 +18,11 @@ use Illuminate\Support\Facades\DB;
 
 final class CompleteNotificationDelivery
 {
+    /** A non-system delivery that has failed for a day stops retrying; it keeps its last reason (Jonas, 2026-11-16). */
+    public const string GivenUpReason = 'given_up';
+
+    public const int GiveUpAfterSeconds = 24 * 3600;
+
     public function __invoke(int $deliveryId, string $claimToken, DeliveryResult $result): bool
     {
         return DB::transaction(function () use ($deliveryId, $claimToken, $result): bool {
@@ -73,8 +78,12 @@ final class CompleteNotificationDelivery
             $sent = $result->status === DeliveryState::Sent;
             $destination = $delivery->destination()->getQuery()->firstOrFail();
             $rejected = $destination->channel === 'mail' && $result->recipientRejected();
-            $delivery->update(['state' => $result->status, 'claim_token' => null, 'lease_until' => null,
-                'suppressed' => $rejected, 'suppression_reason' => $rejected ? 'smtp_recipient_rejected' : null,
+            $failed = $result->status === DeliveryState::Failed;
+            $firstFailedAt = $failed ? ($delivery->first_failed_at ?? $at) : $delivery->first_failed_at;
+            $givenUp = $failed && ! $rejected && $firstFailedAt !== null && $delivery->category !== NotificationCategory::System
+                && $firstFailedAt->diffInSeconds($at) >= self::GiveUpAfterSeconds;
+            $delivery->update(['state' => $result->status, 'claim_token' => null, 'lease_until' => null, 'first_failed_at' => $firstFailedAt,
+                'suppressed' => $rejected || $givenUp, 'suppression_reason' => $rejected ? 'smtp_recipient_rejected' : ($givenUp ? self::GivenUpReason : null),
                 'suppression_evaluated_at' => $at,
                 'sent_at' => $sent ? $at : null, 'last_reason' => $result->reason, 'last_diagnosis' => $result->diagnosis,
                 'provider_message_id' => $result->providerMessageId,
@@ -90,6 +99,10 @@ final class CompleteNotificationDelivery
                 }
                 app(ArchiveNotificationChannel::class)($destination, ArchiveNotificationChannel::Archived, null);
             }
+            if ($sent || $failed) {
+                // A channel's failing streak starts at its first failed send and ends at its next accepted one.
+                $destination->update(['failing_since' => $sent ? null : ($destination->failing_since ?? $at)]);
+            }
             if ($destination->channel === 'mail') {
                 $destination->update(['last_outcome' => $sent ? 'accepted' : ($result->status === DeliveryState::Logged ? 'logged' : ($rejected ? 'rejected' : 'failed')),
                     'last_outcome_diagnosis' => $result->diagnosis, 'last_outcome_at' => $at]);
@@ -100,6 +113,13 @@ final class CompleteNotificationDelivery
             if (in_array($result->status, [DeliveryState::Sent, DeliveryState::Logged], true) && $delivery->event()->getQuery()->firstOrFail()->type === 'notification.digest') {
                 Delivery::query()->where('digest_event_id', $delivery->event_id)->where('suppressed', false)
                     ->update(['state' => $result->status, 'sent_at' => $sent ? $at : null]);
+            }
+            if ($givenUp && $event->type === 'notification.digest') {
+                // The sources this digest carried end with it: no later digest picks them up, and each keeps the last error.
+                Delivery::query()->where('digest_event_id', $delivery->event_id)->where('suppressed', false)
+                    ->update(['state' => DeliveryState::Failed, 'suppressed' => true, 'suppression_reason' => self::GivenUpReason,
+                        'suppression_evaluated_at' => $at, 'digest_recurrence_ended_at' => $at, 'first_failed_at' => $firstFailedAt,
+                        'last_reason' => $result->reason, 'last_diagnosis' => $result->diagnosis]);
             }
             if ($sent && $issue instanceof SystemIssue && $issue->resolved_at !== null) {
                 // The issue resolved while this opening was being sent: this recipient still needs its recovery.

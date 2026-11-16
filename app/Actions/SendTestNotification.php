@@ -43,6 +43,10 @@ final readonly class SendTestNotification
         );
 
         $result = $this->channels->send($destination->channel, ChannelRecipient::forChannel($destination->destinationConfig()), new AlertNotification($message, 'test:'.Str::uuid()));
+        if ($result->status === DeliveryState::Sent) {
+            // An accepted test proves a repaired channel, so channel_failing resolves without waiting for the next alert.
+            $destination->update(['failing_since' => null]);
+        }
         if ($destination->channel === 'mail') {
             $destination->update(['last_outcome' => $result->status === DeliveryState::Sent ? 'accepted'
                 : ($result->status === DeliveryState::Logged ? 'logged' : ($result->recipientRejected() ? 'rejected' : 'failed')),

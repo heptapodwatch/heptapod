@@ -41,6 +41,7 @@ use Spatie\Activitylog\Models\Activity;
  * @property string|null $last_outcome
  * @property string|null $last_outcome_diagnosis
  * @property CarbonImmutable|null $last_outcome_at
+ * @property CarbonImmutable|null $failing_since the first failed send since the last accepted one (channel_failing)
  * @property array<string, mixed> $config
  * @property array<string, mixed>|null $config_secrets
  * @property array<string, string>|null $default_preferences the grid the channel started with; null for factory-made channels
@@ -101,7 +102,7 @@ final class NotificationDestination extends Model
     {
         return [
             'recipient_kind' => RecipientKind::class, 'enabled' => 'boolean', 'needs_attention' => 'boolean', 'account_mail' => 'boolean',
-            'config' => DestinationSettings::class, 'config_secrets' => 'encrypted:array', 'last_outcome_at' => 'immutable_datetime',
+            'config' => DestinationSettings::class, 'config_secrets' => 'encrypted:array', 'last_outcome_at' => 'immutable_datetime', 'failing_since' => 'immutable_datetime',
             'removed_at' => 'immutable_datetime', 'default_preferences' => 'array',
         ];
     }

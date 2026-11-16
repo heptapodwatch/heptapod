@@ -323,6 +323,11 @@ export default function System({ systemPage }: { systemPage: Page }) {
                                         )}
                                     </>
                                 )}
+                                {issue.kind === 'channel_failing' && (
+                                    <p className="break-words">
+                                        {issue.details.channel}
+                                    </p>
+                                )}
                             </AlertDescription>
                         </Alert>
                     ))}

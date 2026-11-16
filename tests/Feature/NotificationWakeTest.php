@@ -18,8 +18,6 @@ use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Testing\ClaimedRun;
-use Illuminate\Console\Scheduling\Event as ScheduledEvent;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\DatabaseTransactionsManager;
 use Illuminate\Queue\Events\JobQueued;
 use Illuminate\Support\Facades\Cache;
@@ -46,7 +44,7 @@ function notificationWakeQueue(): void
     ]);
 }
 
-it('delivers committed incidents with a queued wake-up or the scheduler safety scan for late arrivals', function (bool $lateArrival): void {
+it('delivers committed incidents with a queued wake-up, also when they arrive during an active scan', function (bool $lateArrival): void {
     notificationWakeQueue();
     Http::preventStrayRequests();
     Http::fake(['https://receiver.test/wake' => Http::response([], 200)]);
@@ -77,7 +75,7 @@ it('delivers committed incidents with a queued wake-up or the scheduler safety s
         expect(Queue::connection('redis')->size('notifications'))->toBe(1);
         $lateEventId = null;
         if ($lateArrival) {
-            // Delivery enqueue happens after the scan's event snapshot, while its unique lock is held.
+            // Delivery enqueue happens after the scan's event snapshot, while the scan runs.
             FrameworkEvent::listen(JobQueued::class, function (JobQueued $queued) use ($check, $run, &$lateEventId): void {
                 if (! $queued->job instanceof SendNotification || $lateEventId !== null) {
                     return;
@@ -89,16 +87,14 @@ it('delivers committed incidents with a queued wake-up or the scheduler safety s
             });
         }
         $this->artisan('queue:work', ['connection' => 'redis', '--queue' => 'notifications', '--once' => true])->assertSuccessful();
-        expect(Queue::connection('redis')->size('notifications'))->toBe(1);
+        // The late event's wake-up is queued behind the send: the running scan no longer holds the unique lock.
+        expect(Queue::connection('redis')->size('notifications'))->toBe($lateArrival ? 2 : 1);
         $this->artisan('queue:work', ['connection' => 'redis', '--queue' => 'notifications', '--once' => true])->assertSuccessful();
-        expect(Delivery::query()->sole()->state)->toBe(DeliveryState::Sent);
+        expect(Delivery::query()->where('event_id', '<>', $lateEventId ?? 0)->sole()->state)->toBe(DeliveryState::Sent);
         Http::assertSentCount(1);
         if ($lateArrival) {
             expect($lateEventId)->not->toBeNull();
             expect(Event::query()->findOrFail($lateEventId)->notification_routed_at)->toBeNull();
-            expect(Queue::connection('redis')->size('notifications'))->toBe(0);
-            $safetyScan = collect(app(Schedule::class)->events())->sole(fn (ScheduledEvent $event): bool => $event->description === DispatchNotifications::class);
-            $safetyScan->run(app());
             $this->artisan('queue:work', ['connection' => 'redis', '--queue' => 'notifications', '--once' => true])->assertSuccessful();
             $this->artisan('queue:work', ['connection' => 'redis', '--queue' => 'notifications', '--once' => true])->assertSuccessful();
             expect(Delivery::query()->where('event_id', $lateEventId)->sole()->state)->toBe(DeliveryState::Sent);

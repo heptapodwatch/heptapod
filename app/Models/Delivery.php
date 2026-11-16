@@ -36,6 +36,7 @@ use Illuminate\Support\Facades\DB;
  * @property CarbonImmutable|null $lease_until
  * @property CarbonImmutable $next_attempt_at
  * @property CarbonImmutable|null $sent_at
+ * @property CarbonImmutable|null $first_failed_at the first failed attempt; a day later a non-system delivery gives up
  * @property CarbonImmutable|null $digest_recurrence_ended_at
  * @property bool $suppressed
  * @property bool $digest
@@ -71,7 +72,7 @@ final class Delivery extends Model
     {
         return ['deferred_maintenance_period_id' => 'integer', 'blocking_maintenance_period_id' => 'integer', 'attempts' => 'integer', 'probe_round' => 'integer', 'state' => DeliveryState::class, 'suppressed' => 'boolean', 'digest' => 'boolean', 'category' => NotificationCategory::class, 'recipient_snapshot' => 'array',
             'next_attempt_at' => 'immutable_datetime', 'lease_until' => 'immutable_datetime',
-            'sent_at' => 'immutable_datetime', 'digest_recurrence_ended_at' => 'immutable_datetime', 'suppression_evaluated_at' => 'immutable_datetime'];
+            'sent_at' => 'immutable_datetime', 'first_failed_at' => 'immutable_datetime', 'digest_recurrence_ended_at' => 'immutable_datetime', 'suppression_evaluated_at' => 'immutable_datetime'];
     }
 
     /**
