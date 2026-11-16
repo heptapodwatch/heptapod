@@ -114,6 +114,13 @@ final class CompleteNotificationDelivery
                 Delivery::query()->where('digest_event_id', $delivery->event_id)->where('suppressed', false)
                     ->update(['state' => $result->status, 'sent_at' => $sent ? $at : null]);
             }
+            if ($givenUp && $event->type === 'notification.digest') {
+                // The sources this digest carried end with it: no later digest picks them up, and each keeps the last error.
+                Delivery::query()->where('digest_event_id', $delivery->event_id)->where('suppressed', false)
+                    ->update(['state' => DeliveryState::Failed, 'suppressed' => true, 'suppression_reason' => self::GivenUpReason,
+                        'suppression_evaluated_at' => $at, 'digest_recurrence_ended_at' => $at, 'first_failed_at' => $firstFailedAt,
+                        'last_reason' => $result->reason, 'last_diagnosis' => $result->diagnosis]);
+            }
             if ($sent && $issue instanceof SystemIssue && $issue->resolved_at !== null) {
                 // The issue resolved while this opening was being sent: this recipient still needs its recovery.
                 app(SystemIssueMailer::class)->queueRecoveryFor($issue, $delivery->destination_id);

@@ -54,6 +54,14 @@ final class DemoSeeder extends Seeder
 
     public function run(string $scenario = 'attention'): void
     {
+        $lastEventId = DB::table('events')->max('id') ?? 0;
+        $this->seedScenario($scenario);
+        // Seeded history is fixture data, not alerts to deliver; dev stacks run without Horizon, so it would read as notifications_stalled.
+        DB::table('events')->where('id', '>', $lastEventId)->whereNull('notification_routed_at')->update(['notification_routed_at' => now()]);
+    }
+
+    private function seedScenario(string $scenario): void
+    {
         if (! app()->environment(['local', 'testing'])) {
             throw new \LogicException('Demo fixtures are restricted to local and testing environments.');
         }

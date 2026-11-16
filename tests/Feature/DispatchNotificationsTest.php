@@ -389,6 +389,32 @@ it('sends a daily digest as one own event and leaves freshly suppressed sources 
     Http::assertSent(fn ($request): bool => $request['event_id'] === $digest->id && str_contains($request['summary'], '2 open items'));
 });
 
+it('ends the sources of a digest that gave up with its last error and no later digest', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-01T07:00:00Z'));
+    Http::preventStrayRequests();
+    Http::fake(['https://receiver.test/alerts' => Http::response([], 503)]);
+    $destination = notificationWebhook();
+    notificationRule($destination, 'check.warning', NotificationMode::Digest);
+    $warning = Event::factory()->create(['to_result' => CheckResult::Warning]);
+    $warning->check->update(['latest_run_result' => CheckResult::Warning]);
+    dispatchNotifications();
+    $this->travel(1)->hours();
+    dispatchNotifications();
+    Http::assertSentCount(1);
+    $this->travel(24 * 60 + 1)->minutes();
+    dispatchNotifications();
+    $digest = Delivery::query()->where('digest', false)->sole();
+    expect($digest->only(['suppressed', 'suppression_reason']))->toBe(['suppressed' => true, 'suppression_reason' => CompleteNotificationDelivery::GivenUpReason]);
+    $source = Delivery::query()->where('digest', true)->sole();
+    expect($source->only(['state', 'suppressed', 'suppression_reason']))->toBe(['state' => DeliveryState::Failed, 'suppressed' => true,
+        'suppression_reason' => CompleteNotificationDelivery::GivenUpReason])
+        ->and($source->last_diagnosis)->toContain('HTTP 503');
+    $this->travel(1)->days();
+    dispatchNotifications();
+    expect(Event::query()->where('type', 'notification.digest')->count())->toBe(1);
+    Http::assertSentCount(2);
+});
+
 it('sends only open warnings and check errors at 08:00 instance time once per recipient each day', function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-05T00:30:00Z'));
     $settings = app(InstanceSettings::class);

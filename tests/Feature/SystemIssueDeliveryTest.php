@@ -21,6 +21,7 @@ use Heptapod\Models\DispatcherHeartbeat;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\SystemIssue;
 use Heptapod\Models\User;
+use Heptapod\Settings\InstanceSettings;
 use Heptapod\SystemHealth\EvaluateSystemIssues;
 use Heptapod\SystemHealth\MailTransportRecord;
 use Heptapod\SystemHealth\SystemIssueMailer;
@@ -660,12 +661,11 @@ it('opens notifications_stalled for an event left unrouted over ten minutes, not
     expect($issue->refresh()->resolved_at)->not->toBeNull();
 });
 
-it('opens channel_failing once for a non-mail channel failing for 24 hours and resolves it after an accepted test', function (): void {
+it('opens channel_failing once for a channel failing for 24 hours and resolves it after an accepted test', function (): void {
     Mail::mailer()->setSymfonyTransport(new ArrayTransport);
     $owner = systemIssueRecipient('Owner');
     $webhook = notificationWebhook();
     $webhook->update(['failing_since' => now()->subDay()->addMinute()]);
-    systemIssueAccountChannel($owner)->update(['failing_since' => now()->subDays(2)]);
     evaluateSystemIssues();
     expect(SystemIssue::open()->where('kind', 'channel_failing')->exists())->toBeFalse();
     $this->travel(1)->minutes();
@@ -680,4 +680,70 @@ it('opens channel_failing once for a non-mail channel failing for 24 hours and r
     $this->actingAs($owner)->postJson(route('notification-channels.test', $webhook))->assertOk();
     evaluateSystemIssues();
     expect($issue->refresh()->resolved_at)->not->toBeNull();
+});
+
+it('opens notifications_stalled for a delivery whose send throws after every claim, although each reclaim renews its lease', function (): void {
+    Mail::mailer()->setSymfonyTransport(new ArrayTransport);
+    systemIssueRecipient('Owner');
+    $settings = app(InstanceSettings::class);
+    $settings->alert_confirms_other_checks = false;
+    $settings->save();
+    $webhook = notificationRule(notificationWebhook());
+    Http::fake(['https://receiver.test/alerts' => fn () => throw new RuntimeException('Message rendering broke after the claim.')]);
+    $event = notificationIncidentEvent();
+    app(PlanNotificationEvent::class)($event->id);
+    $dueAt = Delivery::query()->where('destination_id', $webhook->id)->sole()->next_attempt_at;
+    foreach (range(1, 6) as $pass) {
+        expect(fn () => dispatchNotifications())->toThrow(RuntimeException::class, 'Message rendering broke after the claim.');
+        $this->travel(2)->minutes();
+        freshScheduler();
+        evaluateSystemIssues();
+    }
+    $delivery = Delivery::query()->where('destination_id', $webhook->id)->sole();
+    expect($delivery->state)->toBe(DeliveryState::Sending)->and($delivery->attempts)->toBe(6)
+        ->and($delivery->lease_until->greaterThan(now()->subMinutes(10)))->toBeTrue();
+    expect(SystemIssue::open()->where('kind', 'notifications_stalled')->sole()->details['oldest_due_delivery_at'])->toBe($dueAt->toIso8601String());
+});
+
+it('opens channel_failing for one mail address that keeps failing while other mail is accepted', function (): void {
+    $settings = app(InstanceSettings::class);
+    $settings->alert_confirms_other_checks = false;
+    $settings->save();
+    $owner = systemIssueRecipient('Owner');
+    $failing = new class('broken@example.test') implements TransportInterface
+    {
+        public array $accepted = [];
+
+        public function __construct(private readonly string $failing) {}
+
+        public function send(RawMessage $message, ?Envelope $envelope = null): ?SentMessage
+        {
+            $to = $envelope?->getRecipients()[0]->getAddress() ?? Envelope::create($message)->getRecipients()[0]->getAddress();
+            if ($to === $this->failing) {
+                return new FakeSmtpTransport('RCPT TO:<'.$to.'>', 451)->send($message, $envelope);
+            }
+            $this->accepted[] = $to;
+
+            return new SentMessage($message, $envelope ?? Envelope::create($message));
+        }
+
+        public function __toString(): string
+        {
+            return 'smtp://one-failing-address';
+        }
+    };
+    Mail::mailer()->setSymfonyTransport($failing);
+    $broken = NotificationDestination::factory()->create(['label' => 'Broken inbox',
+        'config' => app(ChannelRegistry::class)->get('mail')->configSchema()->validateConfig(['email' => 'broken@example.test'])]);
+    notificationRule($broken);
+    notificationIncidentEvent();
+    dispatchNotifications();
+    $this->travel(24 * 60 + 1)->minutes();
+    dispatchNotifications();
+    expect(Delivery::query()->where('destination_id', $broken->id)->sole()->suppression_reason)->toBe(CompleteNotificationDelivery::GivenUpReason);
+    freshScheduler();
+    evaluateSystemIssues();
+    expect(SystemIssue::open()->where('kind', 'mail_transport_dead')->exists())->toBeFalse()
+        ->and(SystemIssue::open()->where('kind', 'channel_failing')->sole()->scope)->toBe((string) $broken->id)
+        ->and($failing->accepted)->toContain($owner->email);
 });

@@ -5,15 +5,19 @@ declare(strict_types=1);
 namespace Heptapod\SystemHealth;
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\ClaimNotificationDelivery;
 use Heptapod\Actions\CompleteNotificationDelivery;
 use Heptapod\Actions\SendNotificationDelivery;
 use Heptapod\Contracts\Mail\MailDeliveryMode;
-use Heptapod\Jobs\DispatchNotifications;
+use Heptapod\Contracts\Notifications\DeliveryState;
+use Heptapod\Events\Notifications\UptimeAlertEpisode;
+use Heptapod\Models\Delivery;
 use Heptapod\Models\DispatcherHeartbeat;
 use Heptapod\Models\Event;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\SystemIssue;
 use Illuminate\Contracts\Cache\LockProvider;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -145,16 +149,20 @@ final readonly class EvaluateSystemIssues
         }
     }
 
-    /** Mail is left out: a dead transport is mail_transport_dead, and a rejected address stops at once. */
+    /**
+     * A mail address can fail on its own (SMTP 4xx) while other mail is accepted, so mail channels count too. While
+     * mail_transport_dead is open every address fails for the same reason: no new mail channel opens then.
+     */
     private function applyChannelFailing(CarbonImmutable $now): void
     {
-        $channels = NotificationDestination::query()->where('enabled', true)->where('channel', '<>', 'mail')
+        $transportDead = SystemIssue::open()->where('kind', SystemIssueKind::MailTransportDead->value)->getQuery()->exists();
+        $channels = NotificationDestination::query()->where('enabled', true)
             ->where('failing_since', '<=', $now->subSeconds(CompleteNotificationDelivery::GiveUpAfterSeconds));
         $channels->getQuery()->whereNull('removed_at')->orderBy('id');
         $failing = $channels->get()->keyBy('id');
         $open = SystemIssue::open()->where('kind', SystemIssueKind::ChannelFailing->value)->get()->keyBy('scope');
         foreach ($failing as $channelId => $channel) {
-            if (! $open->has((string) $channelId)) {
+            if (! $open->has((string) $channelId) && (! $transportDead || $channel->channel !== 'mail')) {
                 $this->transition(SystemIssueKind::ChannelFailing, $now, null,
                     ['channel' => $channel->label, 'failing_since' => $channel->failing_since?->toIso8601String()], (string) $channelId);
             }
@@ -235,7 +243,8 @@ final readonly class EvaluateSystemIssues
 
     /**
      * The oldest event the dispatcher has not routed, or the oldest delivery it should have handed out, waits too long.
-     * A delivery in backoff is not due yet, so a dead channel alone never counts as a stall.
+     * A delivery in backoff is not due yet, so a dead channel alone never counts as a stall. A claim keeps next_attempt_at
+     * and only renews the lease, so a send that throws after every claim still ages from the time it fell due.
      *
      * @return array<string, string|null>|null
      */
@@ -245,7 +254,16 @@ final readonly class EvaluateSystemIssues
         $unrouted = Event::query();
         $unrouted->getQuery()->whereNull('notification_routed_at')->orderBy('id');
         $event = $unrouted->first(['occurred_at']);
-        $delivery = DispatchNotifications::due($cutoff)->first(['next_attempt_at']);
+        $due = $cutoff->format('Y-m-d H:i:s.uP');
+        $outstanding = Delivery::query()->where('suppressed', false)->where('digest', false)
+            ->where(function (Builder $query) use ($due): void {
+                $query->where(function (Builder $q) use ($due): void {
+                    $q->getQuery()->whereIn('state', [DeliveryState::Pending->value, DeliveryState::Failed->value])->where('next_attempt_at', '<=', $due);
+                })->orWhere(fn (Builder $q) => $q->where('state', DeliveryState::Sending->value)->where('next_attempt_at', '<=', $due));
+            });
+        $outstanding->getQuery()->whereRaw('(last_reason IS NULL OR last_reason NOT IN (?, ?))', [UptimeAlertEpisode::WaitingReason, ClaimNotificationDelivery::SystemProbeReason])
+            ->orderBy('next_attempt_at')->orderBy('id');
+        $delivery = $outstanding->first(['next_attempt_at']);
         if (($event === null || $event->occurred_at->greaterThan($cutoff)) && $delivery === null) {
             return null;
         }
