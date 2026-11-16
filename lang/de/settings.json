@@ -358,7 +358,7 @@
     "mail_branding.sender.label": "Absendername",
     "mail_branding.sender.description": "Wird als Absender jeder E-Mail angezeigt. Die Adresse {{address}} ist auf dem Server konfiguriert.",
     "mail_branding.logo.label": "Logo",
-    "mail_branding.logo.constraints": "PNG oder JPEG · Max. 512 KB · 24 px hoch, bis 200 px breit angezeigt; laden Sie mindestens 48 px Höhe hoch",
+    "mail_branding.logo.constraints": "PNG oder JPEG · Max. 512 KB · 24 px hoch, bis 200 px breit angezeigt",
     "mail_branding.logo.too_large": "Datei zu groß (max. 512 KB)",
     "mail_branding.logo.unsupported": "Format nicht unterstützt. Verwenden Sie PNG oder JPEG.",
     "mail_branding.logo.preview": "Logo-Vorschau",
@@ -389,5 +389,13 @@
     "settings.email.description": "Wie E-Mails dieser Instanz aussehen und wie sie versendet werden.",
     "settings.email.delivery.title": "Versand",
     "settings.email.delivery.description": "In der Serverkonfiguration festgelegt.",
-    "Email settings saved.": "E-Mail-Einstellungen gespeichert."
+    "Email settings saved.": "E-Mail-Einstellungen gespeichert.",
+    "mail_branding.logo.hint": "Verwenden Sie PNG oder JPEG in doppelter Größe, kein SVG.",
+    "mail_branding.logo_dark.label": "Logo für den Dunkelmodus",
+    "mail_branding.logo_dark.description": "Optional, für Mail-Apps im Dunkelmodus.",
+    "mail_branding.logo_dark.preview": "Vorschau des Logos für den Dunkelmodus",
+    "mail_branding.logo_dark.remove": "Logo für den Dunkelmodus entfernen",
+    "mail_branding.preview.scheme": "Farbschema der E-Mail",
+    "mail_branding.logo.hint_detail": "Gmail blockiert SVG, Outlook für Windows zeigt es nicht an. Gmail-Apps ignorieren Dunkelmodus-Einstellungen und können Farben umkehren; am sichersten ist ein Logo, das auf hellem und dunklem Hintergrund lesbar ist.",
+    "mail_branding.logo_dark.detail": "Ohne dieses Logo zeigen E-Mails im Dunkelmodus das obige Logo auf einer kleinen hellen Fläche."
 }

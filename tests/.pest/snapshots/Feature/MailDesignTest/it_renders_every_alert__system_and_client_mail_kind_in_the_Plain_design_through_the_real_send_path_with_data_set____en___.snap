@@ -20,8 +20,13 @@ Change notifications: http://monitor.example.test/settings/notifications/team
 Golden Monitor · monitor.example.test
 
 -- HTML --
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[Down] Golden shop — HTTP 503 since 10:10 CET</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[Down] Golden shop — HTTP 503 since 10:10 CET</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">HTTP 503 Service Unavailable</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;">Golden client · Golden shop</p>
@@ -30,19 +35,19 @@ Golden Monitor · monitor.example.test
 <div style="margin:0 0 12px;"><p style="margin:0 0 4px;"><strong>Last attempt</strong></p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;line-height:20px;">
 <tr>
-<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Time</th>
-<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Result</th>
-<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Response</th>
+<th align="left" valign="bottom" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Time</th>
+<th align="left" valign="bottom" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Result</th>
+<th align="left" valign="bottom" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Response</th>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">10:11:00 CET</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">HTTP 503 Service Unavailable</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">No response</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">10:11:00 CET</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">HTTP 503 Service Unavailable</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">No response</span></td>
 </tr>
 </table>
 </div>
 <p style="margin:16px 0 12px;"><a href="http://monitor.example.test/incidents/{id}">Open incident #{id} →</a><br><a href="http://monitor.example.test/sites/{id}/checks/{id}">Open check</a></p>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">You receive this because Golden inbox (ops@golden.example) gets outages. <a href="http://monitor.example.test/settings/notifications/team" style="color:#6b7580;">Change notifications</a></p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">You receive this because Golden inbox (ops@golden.example) gets outages. <a href="http://monitor.example.test/settings/notifications/team" style="color:#5c6771;">Change notifications</a></p>
 </div>
 </body></html>
 
@@ -70,8 +75,13 @@ Change notifications: http://monitor.example.test/settings/notifications/team
 Golden Monitor · monitor.example.test
 
 -- HTML --
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[Recovered] Golden shop after 5 min</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[Recovered] Golden shop after 5 min</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">The uptime check confirms recovery.</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;">Golden client · Golden shop</p>
@@ -84,7 +94,7 @@ Golden Monitor · monitor.example.test
 <div>At recovery: <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">Site is reachable · 10:15 CET</span></div>
 </div>
 <p style="margin:16px 0 12px;"><a href="http://monitor.example.test/incidents/{id}">Open incident #{id} →</a></p>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">You receive this because Golden inbox (ops@golden.example) gets recoveries. <a href="http://monitor.example.test/settings/notifications/team" style="color:#6b7580;">Change notifications</a></p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">You receive this because Golden inbox (ops@golden.example) gets recoveries. <a href="http://monitor.example.test/settings/notifications/team" style="color:#5c6771;">Change notifications</a></p>
 </div>
 </body></html>
 
@@ -109,8 +119,13 @@ Change notifications: http://monitor.example.test/settings/notifications/team
 Golden Monitor · monitor.example.test
 
 -- HTML --
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Daily summary</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Daily summary</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">2 alerts are still open.</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;"><strong>Daily summary</strong></p>
@@ -120,7 +135,7 @@ Golden Monitor · monitor.example.test
 <div style="overflow-wrap:anywhere;word-break:break-word;">Golden shop (Golden client · shop.golden.example/digest-b) · Performance · Warning</div>
 </div>
 <p style="margin:16px 0 12px;"><a href="http://monitor.example.test/sites">Open sites →</a></p>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">You receive this because Golden inbox (ops@golden.example) gets the daily summary. <a href="http://monitor.example.test/settings/notifications/team" style="color:#6b7580;">Change notifications</a></p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">You receive this because Golden inbox (ops@golden.example) gets the daily summary. <a href="http://monitor.example.test/settings/notifications/team" style="color:#5c6771;">Change notifications</a></p>
 </div>
 </body></html>
 
@@ -145,8 +160,13 @@ Change notifications: http://monitor.example.test/settings/notifications/team
 Golden Monitor · monitor.example.test
 
 -- HTML --
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[After maintenance] Golden shop is still failing</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[After maintenance] Golden shop is still failing</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">1 check is still failing.</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;">Golden client · Golden shop</p>
@@ -156,7 +176,7 @@ Golden Monitor · monitor.example.test
 <div style="overflow-wrap:anywhere;word-break:break-word;">Certificate · Failed · since Oct 30, 2026, 09:15 CET</div>
 </div>
 <p style="margin:16px 0 12px;"><a href="http://monitor.example.test/sites/{id}">Open site →</a></p>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">You receive this because Golden inbox (ops@golden.example) gets failures. <a href="http://monitor.example.test/settings/notifications/team" style="color:#6b7580;">Change notifications</a></p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">You receive this because Golden inbox (ops@golden.example) gets failures. <a href="http://monitor.example.test/settings/notifications/team" style="color:#5c6771;">Change notifications</a></p>
 </div>
 </body></html>
 
@@ -181,8 +201,13 @@ This channel receives this because System alerts are turned on for it in the tea
 Golden Monitor · monitor.example.test
 
 -- HTML --
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[System] The last backup failed</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[System] The last backup failed</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Check the backup disk and its credentials, then start a backup in Settings › Updates.</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;"><strong>The last backup failed</strong></p>
@@ -193,7 +218,7 @@ Golden Monitor · monitor.example.test
 <div>Failed at: <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">2026-10-30 09:15 CET</span></div>
 </div>
 <p style="margin:16px 0 12px;"><a href="http://monitor.example.test/settings/system">Open System health →</a></p>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">This channel receives this because System alerts are turned on for it in the team notification settings.</p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">This channel receives this because System alerts are turned on for it in the team notification settings.</p>
 </div>
 </body></html>
 
@@ -219,8 +244,13 @@ This channel receives this because System alerts are turned on for it in the tea
 Golden Monitor · monitor.example.test
 
 -- HTML --
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[System recovered] The last backup failed</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[System recovered] The last backup failed</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">A backup completed successfully.</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;"><strong>Resolved: The last backup failed</strong></p>
@@ -232,7 +262,7 @@ Golden Monitor · monitor.example.test
 <div>Failed at: <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">2026-10-30 09:15 CET</span></div>
 </div>
 <p style="margin:16px 0 12px;"><a href="http://monitor.example.test/settings/system">Open System health →</a></p>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">This channel receives this because System alerts are turned on for it in the team notification settings.</p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">This channel receives this because System alerts are turned on for it in the team notification settings.</p>
 </div>
 </body></html>
 
@@ -251,13 +281,18 @@ You receive this because someone added this address as an alert channel.
 Golden Monitor · monitor.example.test
 
 -- HTML --
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Test email from Heptapod</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Test email from Heptapod</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">This address receives Heptapod alerts.</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;"><strong>This address receives Heptapod alerts.</strong></p>
 <p style="margin:0 0 12px;">Golden Owner sent this test from Settings › Channels. Channel: Golden inbox. Address: ops@golden.example. Sent: 2026-10-30 10:15 CET. No action needed.</p>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">You receive this because someone added this address as an alert channel.</p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">You receive this because someone added this address as an alert channel.</p>
 </div>
 </body></html>
 
@@ -304,8 +339,13 @@ Anna Berger sent you this message from Golden Monitor. Reply to this email to re
 Golden Monitor
 
 -- HTML --
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Broken links on shop.example.test: 22 found</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Broken links on shop.example.test: 22 found</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">When we checked shop.example.test on 28 Oct 2026 at 22:40, we found 22 links that no longer work.</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;"><strong>Hello,</strong></p>
@@ -314,116 +354,116 @@ Golden Monitor
 </div>
 <div style="margin:0 0 12px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;line-height:20px;">
 <tr>
-<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Address</th>
-<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Result</th>
-<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Found on</th>
+<th align="left" valign="bottom" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Address</th>
+<th align="left" valign="bottom" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Result</th>
+<th align="left" valign="bottom" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Found on</th>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-1?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-1?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-2?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-2?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-3?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-3?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-4?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-4?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-5?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-5?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-6?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-6?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-7?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-7?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-8?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-8?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-9?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-9?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-10?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-10?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-11?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-11?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-12?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-12?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-13?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-13?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-14?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-14?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-15?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-15?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-16?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-16?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-17?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-17?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-18?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-18?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-19?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-19?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-20?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-20?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 </table>
 <p style="margin:4px 0 0;">and 2 more; the attached CSV file lists every one.</p>
 </div>
 <div style="margin:0 0 12px;"><p style="margin:0;">Kind regards, Anna Berger (Golden Monitor)</p>
 </div>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Anna Berger sent you this message from Golden Monitor. Reply to this email to reach them.</p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">Anna Berger sent you this message from Golden Monitor. Reply to this email to reach them.</p>
 </div>
 </body></html>
 
@@ -448,8 +488,13 @@ Anna Berger sent you this message from Golden Monitor. Reply to this email to re
 Golden Monitor
 
 -- HTML --
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Problem on www.client.test: Uptime</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Problem on www.client.test: Uptime</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">We noticed a problem on www.client.test and wanted to let you know.</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;"><strong>Hello,</strong></p>
@@ -459,6 +504,6 @@ Golden Monitor
 </div>
 <div style="margin:0 0 12px;"><p style="margin:0;">Kind regards, Anna Berger (Golden Monitor)</p>
 </div>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Anna Berger sent you this message from Golden Monitor. Reply to this email to reach them.</p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">Anna Berger sent you this message from Golden Monitor. Reply to this email to reach them.</p>
 </div>
 </body></html>

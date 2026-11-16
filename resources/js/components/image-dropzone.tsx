@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { FormSecondaryAction } from '@/components/form-section';
 
 /** Avatars are cropped to a square in the app; mail logos go into email, where WebP and SVG are unreliable. */
 const kinds: Record<
-    'avatar' | 'logo',
+    'avatar' | 'logo' | 'logoDark',
     {
         types: string[];
         maxBytes: number;
@@ -16,6 +16,8 @@ const kinds: Record<
         constraints: string;
         previewAlt: string;
         previewClass: string;
+        /** Mail logos are previewed on the mail's own card colour (light or dark), whatever the app theme. */
+        previewStyle?: CSSProperties;
         reset: string;
     }
 > = {
@@ -36,8 +38,20 @@ const kinds: Record<
         unsupported: 'mail_branding.logo.unsupported',
         constraints: 'mail_branding.logo.constraints',
         previewAlt: 'mail_branding.logo.preview',
-        previewClass: 'h-6 max-w-[200px] object-contain',
+        previewClass: 'h-8 max-w-[216px] rounded-md object-contain p-1',
+        previewStyle: { background: '#ffffff' },
         reset: 'mail_branding.logo.remove',
+    },
+    logoDark: {
+        types: ['image/png', 'image/jpeg'],
+        maxBytes: 512 * 1024,
+        tooLarge: 'mail_branding.logo.too_large',
+        unsupported: 'mail_branding.logo.unsupported',
+        constraints: 'mail_branding.logo.constraints',
+        previewAlt: 'mail_branding.logo_dark.preview',
+        previewClass: 'h-8 max-w-[216px] rounded-md object-contain p-1',
+        previewStyle: { background: '#13171b' },
+        reset: 'mail_branding.logo_dark.remove',
     },
 };
 
@@ -57,7 +71,7 @@ export function ImageDropzone({
     kind?: keyof typeof kinds;
 }) {
     const { t } = useTranslation();
-    const { types: imageTypes, maxBytes, ...copy } = kinds[kind];
+    const { types: imageTypes, maxBytes, previewStyle, ...copy } = kinds[kind];
     const id = useId();
     const input = useRef<HTMLInputElement>(null);
     const [preview, setPreview] = useState<string | null>(null);
@@ -104,7 +118,8 @@ export function ImageDropzone({
             <Button
                 type="button"
                 variant="outline"
-                className="h-auto w-full flex-col gap-2 py-4 whitespace-normal"
+                // A multi-line drop target is a field, not an action: the form-field radius, not the button pill.
+                className="h-auto w-full flex-col gap-2 rounded-md py-4 whitespace-normal"
                 disabled={disabled}
                 {...fieldErrorProps(
                     id,
@@ -130,6 +145,7 @@ export function ImageDropzone({
                         src={preview}
                         alt={t(copy.previewAlt)}
                         className={copy.previewClass}
+                        style={previewStyle}
                         onError={() => {
                             setPreview(null);
                             setLocalError(t('Image could not be read.'));

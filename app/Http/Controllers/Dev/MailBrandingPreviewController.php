@@ -29,12 +29,14 @@ final class MailBrandingPreviewController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User && $user->hasRole('Owner'), 403);
-        /** @var array{kind: string, design: string, accent?: string|null, footer?: string|null, logo_width?: int|null, logo_height?: int|null, locale: string} $input */
+        /** @var array{kind: string, design: string, accent?: string|null, footer?: string|null, logo_width?: int|null, logo_height?: int|null, logo_dark_width?: int|null, logo_dark_height?: int|null, locale: string} $input */
         $input = Validator::make($request->all(), ['kind' => ['required', 'in:alert,reset'], 'design' => ['required', 'in:branded,plain'],
             'accent' => ['nullable', 'regex:/^#[0-9a-f]{6}$/i'], 'footer' => ['nullable', 'string', 'max:200'],
-            'logo_width' => ['nullable', 'integer', 'min:1', 'max:200'], 'logo_height' => ['required_with:logo_width', 'nullable', 'integer', 'min:1', 'max:24'], 'locale' => ['required', 'in:en,de']])->validate();
+            'logo_width' => ['nullable', 'integer', 'min:1', 'max:200'], 'logo_height' => ['required_with:logo_width', 'nullable', 'integer', 'min:1', 'max:24'],
+            'logo_dark_width' => ['nullable', 'integer', 'min:1', 'max:200'], 'logo_dark_height' => ['required_with:logo_dark_width', 'nullable', 'integer', 'min:1', 'max:24'], 'locale' => ['required', 'in:en,de']])->validate();
         View::share('mailBranding', ['accent' => $input['accent'] ?? null, 'footer' => $input['footer'] ?? null,
-            'logo_width' => $input['logo_width'] ?? null, 'logo_height' => $input['logo_height'] ?? null]);
+            'logo_width' => $input['logo_width'] ?? null, 'logo_height' => $input['logo_height'] ?? null,
+            'logo_dark_width' => $input['logo_dark_width'] ?? null, 'logo_dark_height' => $input['logo_dark_height'] ?? null]);
         $design = MailDesign::from($input['design']);
 
         if ($input['kind'] === 'reset') {

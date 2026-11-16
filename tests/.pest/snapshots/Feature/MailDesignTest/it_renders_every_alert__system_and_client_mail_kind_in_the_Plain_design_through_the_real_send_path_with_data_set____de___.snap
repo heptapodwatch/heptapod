@@ -20,8 +20,13 @@ Benachrichtigungen ändern: http://monitor.example.test/settings/notifications/t
 Golden Monitor · monitor.example.test
 
 -- HTML --
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[Ausgefallen] Golden shop — HTTP 503 seit 10:10 CET</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[Ausgefallen] Golden shop — HTTP 503 seit 10:10 CET</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">HTTP 503 Service Unavailable</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;">Golden client · Golden shop</p>
@@ -30,19 +35,19 @@ Golden Monitor · monitor.example.test
 <div style="margin:0 0 12px;"><p style="margin:0 0 4px;"><strong>Letzter Versuch</strong></p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;line-height:20px;">
 <tr>
-<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Zeit</th>
-<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Ergebnis</th>
-<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Antwort</th>
+<th align="left" valign="bottom" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Zeit</th>
+<th align="left" valign="bottom" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Ergebnis</th>
+<th align="left" valign="bottom" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Antwort</th>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">10:11:00 CET</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">HTTP 503 Service Unavailable</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">Keine Antwort</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">10:11:00 CET</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">HTTP 503 Service Unavailable</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">Keine Antwort</span></td>
 </tr>
 </table>
 </div>
 <p style="margin:16px 0 12px;"><a href="http://monitor.example.test/incidents/{id}">Störung #{id} öffnen →</a><br><a href="http://monitor.example.test/sites/{id}/checks/{id}">Prüfung öffnen</a></p>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Sie erhalten diese E-Mail, weil Golden inbox (ops@golden.example) Ausfälle erhält. <a href="http://monitor.example.test/settings/notifications/team" style="color:#6b7580;">Benachrichtigungen ändern</a></p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">Sie erhalten diese E-Mail, weil Golden inbox (ops@golden.example) Ausfälle erhält. <a href="http://monitor.example.test/settings/notifications/team" style="color:#5c6771;">Benachrichtigungen ändern</a></p>
 </div>
 </body></html>
 
@@ -70,8 +75,13 @@ Benachrichtigungen ändern: http://monitor.example.test/settings/notifications/t
 Golden Monitor · monitor.example.test
 
 -- HTML --
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[Entwarnung] Golden shop nach 5 Min.</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[Entwarnung] Golden shop nach 5 Min.</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Die Erreichbarkeitsprüfung bestätigt, dass die Website wieder erreichbar ist.</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;">Golden client · Golden shop</p>
@@ -84,7 +94,7 @@ Golden Monitor · monitor.example.test
 <div>Bei Wiederherstellung: <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">Website ist erreichbar · 10:15 CET</span></div>
 </div>
 <p style="margin:16px 0 12px;"><a href="http://monitor.example.test/incidents/{id}">Störung #{id} öffnen →</a></p>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Sie erhalten diese E-Mail, weil Golden inbox (ops@golden.example) Entwarnungen erhält. <a href="http://monitor.example.test/settings/notifications/team" style="color:#6b7580;">Benachrichtigungen ändern</a></p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">Sie erhalten diese E-Mail, weil Golden inbox (ops@golden.example) Entwarnungen erhält. <a href="http://monitor.example.test/settings/notifications/team" style="color:#5c6771;">Benachrichtigungen ändern</a></p>
 </div>
 </body></html>
 
@@ -109,8 +119,13 @@ Benachrichtigungen ändern: http://monitor.example.test/settings/notifications/t
 Golden Monitor · monitor.example.test
 
 -- HTML --
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Tägliche Zusammenfassung</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Tägliche Zusammenfassung</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">2 Alarme sind weiterhin offen.</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;"><strong>Tägliche Zusammenfassung</strong></p>
@@ -120,7 +135,7 @@ Golden Monitor · monitor.example.test
 <div style="overflow-wrap:anywhere;word-break:break-word;">Golden shop (Golden client · shop.golden.example/digest-b) · Leistung · Warnung</div>
 </div>
 <p style="margin:16px 0 12px;"><a href="http://monitor.example.test/sites">Websites öffnen →</a></p>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Sie erhalten diese E-Mail, weil Golden inbox (ops@golden.example) die tägliche Zusammenfassung erhält. <a href="http://monitor.example.test/settings/notifications/team" style="color:#6b7580;">Benachrichtigungen ändern</a></p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">Sie erhalten diese E-Mail, weil Golden inbox (ops@golden.example) die tägliche Zusammenfassung erhält. <a href="http://monitor.example.test/settings/notifications/team" style="color:#5c6771;">Benachrichtigungen ändern</a></p>
 </div>
 </body></html>
 
@@ -145,8 +160,13 @@ Benachrichtigungen ändern: http://monitor.example.test/settings/notifications/t
 Golden Monitor · monitor.example.test
 
 -- HTML --
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[Nach Wartung] Golden shop meldet weiterhin Fehler</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[Nach Wartung] Golden shop meldet weiterhin Fehler</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">1 Prüfung meldet weiterhin Fehler.</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;">Golden client · Golden shop</p>
@@ -156,7 +176,7 @@ Golden Monitor · monitor.example.test
 <div style="overflow-wrap:anywhere;word-break:break-word;">Zertifikat · Fehlgeschlagen · seit 30. Okt 2026, 09:15 CET</div>
 </div>
 <p style="margin:16px 0 12px;"><a href="http://monitor.example.test/sites/{id}">Website öffnen →</a></p>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Sie erhalten diese E-Mail, weil Golden inbox (ops@golden.example) fehlgeschlagene Prüfungen erhält. <a href="http://monitor.example.test/settings/notifications/team" style="color:#6b7580;">Benachrichtigungen ändern</a></p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">Sie erhalten diese E-Mail, weil Golden inbox (ops@golden.example) fehlgeschlagene Prüfungen erhält. <a href="http://monitor.example.test/settings/notifications/team" style="color:#5c6771;">Benachrichtigungen ändern</a></p>
 </div>
 </body></html>
 
@@ -181,8 +201,13 @@ Dieser Kanal erhält diese Nachricht, weil für ihn in den Benachrichtigungseins
 Golden Monitor · monitor.example.test
 
 -- HTML --
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[System] Die letzte Sicherung ist fehlgeschlagen</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[System] Die letzte Sicherung ist fehlgeschlagen</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Prüfen Sie den Sicherungsspeicher und seine Zugangsdaten und starten Sie dann eine Sicherung unter Einstellungen › Updates &amp; Sicherungen.</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;"><strong>Die letzte Sicherung ist fehlgeschlagen</strong></p>
@@ -193,7 +218,7 @@ Golden Monitor · monitor.example.test
 <div>Fehlgeschlagen am: <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">2026-10-30 09:15 CET</span></div>
 </div>
 <p style="margin:16px 0 12px;"><a href="http://monitor.example.test/settings/system">Systemzustand öffnen →</a></p>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Dieser Kanal erhält diese Nachricht, weil für ihn in den Benachrichtigungseinstellungen des Teams Systemwarnungen eingeschaltet sind.</p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">Dieser Kanal erhält diese Nachricht, weil für ihn in den Benachrichtigungseinstellungen des Teams Systemwarnungen eingeschaltet sind.</p>
 </div>
 </body></html>
 
@@ -219,8 +244,13 @@ Dieser Kanal erhält diese Nachricht, weil für ihn in den Benachrichtigungseins
 Golden Monitor · monitor.example.test
 
 -- HTML --
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[System wiederhergestellt] Die letzte Sicherung ist fehlgeschlagen</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>[System wiederhergestellt] Die letzte Sicherung ist fehlgeschlagen</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Eine Sicherung wurde erfolgreich abgeschlossen.</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;"><strong>Behoben: Die letzte Sicherung ist fehlgeschlagen</strong></p>
@@ -232,7 +262,7 @@ Golden Monitor · monitor.example.test
 <div>Fehlgeschlagen am: <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">2026-10-30 09:15 CET</span></div>
 </div>
 <p style="margin:16px 0 12px;"><a href="http://monitor.example.test/settings/system">Systemzustand öffnen →</a></p>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Dieser Kanal erhält diese Nachricht, weil für ihn in den Benachrichtigungseinstellungen des Teams Systemwarnungen eingeschaltet sind.</p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">Dieser Kanal erhält diese Nachricht, weil für ihn in den Benachrichtigungseinstellungen des Teams Systemwarnungen eingeschaltet sind.</p>
 </div>
 </body></html>
 
@@ -251,13 +281,18 @@ Sie erhalten diese E-Mail, weil jemand diese Adresse als Alarmkanal eingetragen 
 Golden Monitor · monitor.example.test
 
 -- HTML --
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Test-E-Mail von Heptapod</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Test-E-Mail von Heptapod</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Diese Adresse erhält Heptapod-Alarme.</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;"><strong>Diese Adresse erhält Heptapod-Alarme.</strong></p>
 <p style="margin:0 0 12px;">Golden Owner hat diesen Test unter Einstellungen › Kanäle gesendet. Kanal: Golden inbox. Adresse: ops@golden.example. Gesendet: 2026-10-30 10:15 CET. Sie müssen nichts tun.</p>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Sie erhalten diese E-Mail, weil jemand diese Adresse als Alarmkanal eingetragen hat.</p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">Sie erhalten diese E-Mail, weil jemand diese Adresse als Alarmkanal eingetragen hat.</p>
 </div>
 </body></html>
 
@@ -304,8 +339,13 @@ Anna Berger hat Ihnen diese Nachricht über Golden Monitor gesendet. Antworten S
 Golden Monitor
 
 -- HTML --
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Defekte Links auf shop.example.test: 22 gefunden</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Defekte Links auf shop.example.test: 22 gefunden</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Bei unserer Prüfung am 28.10.2026 um 22:40 Uhr haben wir auf shop.example.test 22 Links gefunden, die nicht mehr funktionieren.</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;"><strong>Guten Tag,</strong></p>
@@ -314,116 +354,116 @@ Golden Monitor
 </div>
 <div style="margin:0 0 12px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;line-height:20px;">
 <tr>
-<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Adresse</th>
-<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Ergebnis</th>
-<th align="left" valign="bottom" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Gefunden auf</th>
+<th align="left" valign="bottom" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Adresse</th>
+<th align="left" valign="bottom" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Ergebnis</th>
+<th align="left" valign="bottom" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;font-weight:600;">Gefunden auf</th>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-1?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-1?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-2?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-2?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-3?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-3?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-4?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-4?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-5?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-5?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-6?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-6?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-7?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-7?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-8?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-8?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-9?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-9?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-10?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-10?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-11?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-11?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-12?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-12?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-13?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-13?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-14?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-14?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-15?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-15?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-16?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-16?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-17?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-17?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-18?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-18?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-19?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-19?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 <tr>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-20?ref=nav</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
-<td valign="top" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/products/old-20?ref=nav</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="overflow-wrap:anywhere;word-break:break-word;">404</span></td>
+<td valign="top" class="rule" style="padding:4px 8px 4px 0;border-bottom:1px solid #c4cad0;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,&#039;Liberation Mono&#039;,monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-word;">/catalog</span></td>
 </tr>
 </table>
 <p style="margin:4px 0 0;">und 2 weitere; alle finden Sie in der angehängten CSV-Datei.</p>
 </div>
 <div style="margin:0 0 12px;"><p style="margin:0;">Mit freundlichen Grüßen, Anna Berger (Golden Monitor)</p>
 </div>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Anna Berger hat Ihnen diese Nachricht über Golden Monitor gesendet. Antworten Sie auf diese E-Mail, um Anna Berger zu erreichen.</p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">Anna Berger hat Ihnen diese Nachricht über Golden Monitor gesendet. Antworten Sie auf diese E-Mail, um Anna Berger zu erreichen.</p>
 </div>
 </body></html>
 
@@ -448,8 +488,13 @@ Anna Berger hat Ihnen diese Nachricht über Golden Monitor gesendet. Antworten S
 Golden Monitor
 
 -- HTML --
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Problem auf www.client.test: Erreichbarkeit</title></head>
-<body style="margin:0;padding:0;">
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>Problem auf www.client.test: Erreichbarkeit</title>
+<style>
+body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,.muted a{color:#5c6771}.rule{border-color:#c4cad0}
+@media (prefers-color-scheme:dark){body{background:#13171b!important;color:#e6e9ec!important}a{color:#8fb4e0!important}.muted,.muted a{color:#a2abb4!important}.rule{border-color:#3a424b!important}}
+[data-ogsc] body{background:#13171b!important;color:#e6e9ec!important}[data-ogsc] a{color:#8fb4e0!important}[data-ogsc] .muted,[data-ogsc] .muted a{color:#a2abb4!important}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#101418;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Wir haben ein Problem auf www.client.test bemerkt und möchten Sie darüber informieren.</div>
 <div style="max-width:600px;padding:16px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;">
 <p style="margin:0 0 12px;"><strong>Guten Tag,</strong></p>
@@ -459,6 +504,6 @@ Golden Monitor
 </div>
 <div style="margin:0 0 12px;"><p style="margin:0;">Mit freundlichen Grüßen, Anna Berger (Golden Monitor)</p>
 </div>
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:#6b7580;">Anna Berger hat Ihnen diese Nachricht über Golden Monitor gesendet. Antworten Sie auf diese E-Mail, um Anna Berger zu erreichen.</p>
+<p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">Anna Berger hat Ihnen diese Nachricht über Golden Monitor gesendet. Antworten Sie auf diese E-Mail, um Anna Berger zu erreichen.</p>
 </div>
 </body></html>

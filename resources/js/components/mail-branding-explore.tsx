@@ -1,11 +1,12 @@
 /**
- * Mail branding exploration (phase 1, iteration 2): the unsaved appearance fields of Settings → Email, with presets
+ * Mail branding exploration (phase 1, iteration 3): the unsaved appearance fields of Settings → Email, with presets
  * switched by `?state=`. Nothing is stored; the preview is rendered by the real mail templates (dev-only endpoint).
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormSecondaryAction } from '@/components/form-section';
 import { ImageDropzone } from '@/components/image-dropzone';
+import { InfoTooltip } from '@/components/info-tooltip';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { SegmentedControl } from '@/components/segmented-control';
 import { TextLink } from '@/components/text-link';
@@ -15,18 +16,20 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { preview as previewRoute } from '@/routes/dev/mail-branding';
 
-export type ExploreState = 'empty' | 'filled' | 'invalid';
+export type ExploreState = 'empty' | 'filled' | 'no-dark-logo' | 'invalid';
 /** The rendered logo size in the mail header: 24 px high, or less when a wide logo hits the 200 px width cap. */
 type Logo = { file: File; dataUrl: string; width: number; height: number };
 export type BrandingDraft = {
     sender: string;
     logo: Logo | null;
     logoError?: string;
+    /** Only with a logo; without one, dark-mode mail shows the light logo on a light plate. */
+    logoDark: Logo | null;
     accent: string;
     footer: string;
 };
 
-const states: ExploreState[] = ['empty', 'filled', 'invalid'];
+const states: ExploreState[] = ['empty', 'filled', 'no-dark-logo', 'invalid'];
 const logoHeight = 24;
 const logoMaxWidth = 200;
 const footerMax = 160;
@@ -92,8 +95,8 @@ async function readLogo(file: File): Promise<Logo> {
     };
 }
 
-/** A stand-in operator logo for the filled state, drawn at 2× the rendered height. */
-async function sampleLogo(): Promise<Logo> {
+/** A stand-in operator logo for the filled state, drawn at 2× the rendered height; the dark one has light ink. */
+async function sampleLogo(dark: boolean): Promise<Logo> {
     const canvas = document.createElement('canvas');
     canvas.width = 300;
     canvas.height = 48;
@@ -106,7 +109,7 @@ async function sampleLogo(): Promise<Logo> {
     context.fillStyle = '#ffffff';
     context.font = '600 26px sans-serif';
     context.fillText('A', 11, 33);
-    context.fillStyle = '#101418';
+    context.fillStyle = dark ? '#e6e9ec' : '#101418';
     context.font = '600 25px sans-serif';
     context.fillText('Acme Web Studio', 52, 33);
     const blob = await new Promise<Blob>((resolve, reject) =>
@@ -115,12 +118,17 @@ async function sampleLogo(): Promise<Logo> {
             'image/png',
         ),
     );
-    return readLogo(new File([blob], 'acme-logo.png', { type: 'image/png' }));
+    return readLogo(
+        new File([blob], dark ? 'acme-logo-dark.png' : 'acme-logo.png', {
+            type: 'image/png',
+        }),
+    );
 }
 
 const emptyDraft: BrandingDraft = {
     sender: '',
     logo: null,
+    logoDark: null,
     accent: '',
     footer: '',
 };
@@ -129,6 +137,7 @@ const sameDraft = (a: BrandingDraft, b: BrandingDraft) =>
     a.sender === b.sender &&
     a.logo === b.logo &&
     a.logoError === b.logoError &&
+    a.logoDark === b.logoDark &&
     a.accent === b.accent &&
     a.footer === b.footer;
 
@@ -151,18 +160,21 @@ export function useBrandingDraft(state: ExploreState) {
                 sender: 'Acme Monitoring',
                 logo: null,
                 logoError: t('mail_branding.logo.too_large'),
+                logoDark: null,
                 accent: '#f5c400',
                 footer: 'Acme Web Studio GmbH · Hauptstraße 1 · 10115 Berlin',
             });
             return;
         }
-        void sampleLogo().then((logo) =>
-            seed({
-                sender: 'Acme Monitoring',
-                logo,
-                accent: '#1d4ed8',
-                footer: 'Acme Web Studio GmbH · Hauptstraße 1 · 10115 Berlin',
-            }),
+        void Promise.all([sampleLogo(false), sampleLogo(true)]).then(
+            ([logo, logoDark]) =>
+                seed({
+                    sender: 'Acme Monitoring',
+                    logo,
+                    logoDark: state === 'filled' ? logoDark : null,
+                    accent: '#1d4ed8',
+                    footer: 'Acme Web Studio GmbH · Hauptstraße 1 · 10115 Berlin',
+                }),
         );
     }, [state, t]);
     return {
@@ -242,6 +254,12 @@ export function BrandingFields({
             </div>
             <div className="space-y-1.5">
                 <Label>{t('mail_branding.logo.label')}</Label>
+                <p className="text-xs text-muted-foreground">
+                    {t('mail_branding.logo.hint')}{' '}
+                    <InfoTooltip>
+                        {t('mail_branding.logo.hint_detail')}
+                    </InfoTooltip>
+                </p>
                 <ImageDropzone
                     kind="logo"
                     value={draft.logo?.file ?? null}
@@ -258,6 +276,7 @@ export function BrandingFields({
                                       ...draft,
                                       logo: null,
                                       logoError: undefined,
+                                      logoDark: null,
                                   })
                             : undefined
                     }
@@ -268,6 +287,31 @@ export function BrandingFields({
                     </p>
                 )}
             </div>
+            {draft.logo && (
+                <div className="space-y-1.5">
+                    <Label>{t('mail_branding.logo_dark.label')}</Label>
+                    <p className="text-xs text-muted-foreground">
+                        {t('mail_branding.logo_dark.description')}{' '}
+                        <InfoTooltip>
+                            {t('mail_branding.logo_dark.detail')}
+                        </InfoTooltip>
+                    </p>
+                    <ImageDropzone
+                        kind="logoDark"
+                        value={draft.logoDark?.file ?? null}
+                        onChange={(file) =>
+                            void readLogo(file).then((logoDark) =>
+                                onChange({ ...draft, logoDark }),
+                            )
+                        }
+                        onReset={
+                            draft.logoDark
+                                ? () => onChange({ ...draft, logoDark: null })
+                                : undefined
+                        }
+                    />
+                </div>
+            )}
             <div className="space-y-1.5">
                 <Label htmlFor="mail-branding-accent">
                     {t('mail_branding.accent.label')}
@@ -374,6 +418,8 @@ export function BrandingPreview({
 }) {
     const { t, i18n } = useTranslation();
     const [kind, setKind] = useState<'alert' | 'reset'>('alert');
+    // The mail's colour scheme, forced on the iframe so the app theme never leaks into the preview.
+    const [scheme, setScheme] = useState<'light' | 'dark'>('light');
     const [preview, setPreview] = useState<Preview | null>(null);
     const accent = appliedAccent(draft);
     const footer =
@@ -392,6 +438,8 @@ export function BrandingPreview({
                 footer,
                 logo_width: draft.logo?.width ?? null,
                 logo_height: draft.logo?.height ?? null,
+                logo_dark_width: draft.logoDark?.width ?? null,
+                logo_dark_height: draft.logoDark?.height ?? null,
             },
         });
         const timer = window.setTimeout(() => {
@@ -409,26 +457,50 @@ export function BrandingPreview({
             window.clearTimeout(timer);
             controller.abort();
         };
-    }, [kind, design, locale, accent, footer, draft.logo]);
-    const html =
-        preview && draft.logo
-            ? preview.html.replaceAll(
-                  'cid:brand-logo@heptapod',
-                  draft.logo.dataUrl,
-              )
-            : preview?.html;
+    }, [kind, design, locale, accent, footer, draft.logo, draft.logoDark]);
+    let html = preview?.html;
+    if (html && draft.logo) {
+        html = html.replaceAll('cid:brand-logo@heptapod', draft.logo.dataUrl);
+    }
+    if (html && draft.logoDark) {
+        html = html.replaceAll(
+            'cid:brand-logo-dark@heptapod',
+            draft.logoDark.dataUrl,
+        );
+    }
     const sender = draft.sender.trim() || fromName;
     return (
         <div className="min-w-0 space-y-2">
-            <SegmentedControl
-                label={t('mail_branding.preview.kind')}
-                value={kind}
-                onValueChange={(value) => setKind(value as 'alert' | 'reset')}
-                options={[
-                    { value: 'alert', label: t('mail_branding.preview.alert') },
-                    { value: 'reset', label: t('mail_branding.preview.reset') },
-                ]}
-            />
+            <div className="flex flex-wrap gap-2">
+                <SegmentedControl
+                    label={t('mail_branding.preview.kind')}
+                    value={kind}
+                    onValueChange={(value) =>
+                        setKind(value as 'alert' | 'reset')
+                    }
+                    options={[
+                        {
+                            value: 'alert',
+                            label: t('mail_branding.preview.alert'),
+                        },
+                        {
+                            value: 'reset',
+                            label: t('mail_branding.preview.reset'),
+                        },
+                    ]}
+                />
+                <SegmentedControl
+                    label={t('mail_branding.preview.scheme')}
+                    value={scheme}
+                    onValueChange={(value) =>
+                        setScheme(value as 'light' | 'dark')
+                    }
+                    options={[
+                        { value: 'light', label: t('Light') },
+                        { value: 'dark', label: t('Dark') },
+                    ]}
+                />
+            </div>
             {preview === null ? (
                 <Spinner />
             ) : (
@@ -458,7 +530,8 @@ export function BrandingPreview({
                         sandbox=""
                         srcDoc={html}
                         title={t('mail_branding.preview.title')}
-                        className="h-[36rem] w-full bg-white"
+                        className="h-[36rem] w-full"
+                        style={{ colorScheme: scheme }}
                     />
                 </div>
             )}
