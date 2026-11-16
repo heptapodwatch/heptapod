@@ -28,6 +28,7 @@ use Heptapod\Notifications\TeamInvitation;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\SystemHealth\SystemIssueKind;
 use Heptapod\SystemHealth\SystemIssueMailer;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -428,4 +429,70 @@ it('lets only the Owner change the instance mail design and presets new client m
         ->assertInertia(fn (Assert $page): Assert => $page->where('mail_design', 'plain'));
     $this->get(route('incidents.show', ['incident' => $incident->id]))->assertOk()
         ->assertInertia(fn (Assert $page): Assert => $page->where('mail_design', 'plain'));
+});
+
+function mailDesignImage(int $width, int $height): string
+{
+    $image = imagecreatetruecolor($width, $height) ?: throw new LogicException('GD could not create an image.');
+    ob_start();
+    imagepng($image);
+
+    return (string) ob_get_clean();
+}
+
+it('brands alerts, client messages and account mail with the saved appearance in Branded and Plain', function (): void {
+    $transport = mailDesignTransport();
+    $owner = User::factory()->owner()->create(['email' => 'owner@golden.example', 'locale' => 'en']);
+    $footer = 'Golden GmbH · Main Street 1 · Berlin';
+    $form = ['_method' => 'patch', 'sender_name' => 'Golden Ops', 'accent' => '#1D4ED8', 'footer' => $footer];
+    $this->actingAs($owner)->post(route('settings.email.update'), [...$form, 'mail_design' => 'branded',
+        'logo' => UploadedFile::fake()->createWithContent('logo.png', mailDesignImage(480, 48)),
+        'logo_dark' => UploadedFile::fake()->createWithContent('dark.png', mailDesignImage(96, 48))])->assertSessionHasNoErrors();
+    $channel = mailDesignChannel('en');
+    $check = Check::factory()->for(mailDesignSite('branding'))->create(['type' => CheckKey::Uptime]);
+    $alert = function () use ($check, $channel, $transport): Email {
+        Incident::query()->where('check_id', $check->id)->update(['resolved_at' => now()]);
+        $incident = Incident::factory()->for($check)->create(['site_id' => $check->site_id, 'opened_at' => now()->subMinutes(4),
+            'first_failure_at' => now()->subMinutes(5), 'evidence' => ['summary' => 'causes.http', 'summary_params' => ['status' => 503],
+                'evidence' => [], 'metrics' => null, 'error' => null, 'run_ended_at' => now()->subMinutes(4)->format('Y-m-d\TH:i:s.uP')]]);
+
+        return mailDesignSend($channel, Event::factory()->create(['site_id' => $check->site_id, 'check_id' => $check->id, 'incident_id' => $incident->id,
+            'type' => 'incident.opened', 'cause' => 'failed', 'to_result' => CheckResult::Failed]), $transport);
+    };
+    $client = Client::factory()->create(['locale' => 'en']);
+    $office = mailDesignClientChannel($client, 'office@client.test');
+    $findings = mailDesignFindings($client, 1);
+    $clientMessage = function (string $design, string $key) use ($client, $office, $findings, $transport): Email {
+        $sent = $this->postJson(route('clients.messages.store', $client), ['kind' => 'findings', 'check_id' => $findings->id,
+            'channel_ids' => [$office->id], 'attach' => false, 'design' => $design], ['Idempotency-Key' => $key])->assertCreated()->json();
+        mailDesignDeliverClientMessage($sent['event_id'], $transport);
+
+        return mailDesignLast($transport);
+    };
+
+    $owner->sendPasswordResetNotification('reset-token');
+    $reset = mailDesignLast($transport);
+    $branded = [$alert(), $clientMessage('branded', 'branding-branded'), $reset];
+    // A client message has no button; the alert and the reset carry the accent on theirs.
+    expect($branded[0]->getHtmlBody())->toContain('class="btn-primary" style="background:#1d4ed8;')
+        ->and($reset->getHtmlBody())->toContain('class="btn-primary" style="background:#1d4ed8;');
+    foreach ($branded as $mail) {
+        expect($mail->getFrom()[0]->getName())->toBe('Golden Ops')
+            ->and($mail->getFrom()[0]->getAddress())->toBe(config('mail.from.address'))
+            ->and(mailDesignInlineParts($mail))->toContain('brand-logo@heptapod', 'brand-logo-dark@heptapod')->not->toContain('lockup@heptapod')
+            // 10:1 hits the 200 px width cap; the dark logo swaps in where the mail app supports prefers-color-scheme.
+            ->and($mail->getHtmlBody())->toContain('src="cid:brand-logo@heptapod" width="200" height="20"', 'src="cid:brand-logo-dark@heptapod" width="48" height="24"',
+                'mso-hide:all', '.logo-light{display:none!important}.logo-dark{display:inline-block!important}', $footer)
+            ->not->toContain('height:3px', 'bar-down')
+            ->and($mail->getTextBody())->toContain($footer);
+    }
+
+    $this->post(route('settings.email.update'), [...$form, 'mail_design' => 'plain'])->assertSessionHasNoErrors();
+    foreach ([$alert(), $clientMessage('plain', 'branding-plain')] as $mail) {
+        expect($mail->getFrom()[0]->getName())->toBe('Golden Ops')
+            ->and(mailDesignInlineParts($mail))->toBe([])
+            ->and($mail->getHtmlBody())->toContain($footer, 'prefers-color-scheme:dark', 'background:#ffffff;color:#101418')
+            ->not->toContain('cid:', '#1d4ed8')
+            ->and($mail->getTextBody())->toContain($footer);
+    }
 });

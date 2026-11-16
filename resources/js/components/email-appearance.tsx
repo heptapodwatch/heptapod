@@ -1,46 +1,41 @@
 /**
- * Mail branding exploration (phase 1, iteration 3): the unsaved appearance fields of Settings → Email, with presets
- * switched by `?state=`. Nothing is stored; the preview is rendered by the real mail templates (dev-only endpoint).
+ * The email appearance fields of Settings → Email and their live preview. The preview is rendered by the real mail
+ * templates on the server from the draft; logo images never leave the browser before Save: the preview carries only
+ * their rendered size and the page swaps its own copy into the HTML.
  */
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormSecondaryAction } from '@/components/form-section';
 import { ImageDropzone } from '@/components/image-dropzone';
 import { InfoTooltip } from '@/components/info-tooltip';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { SegmentedControl } from '@/components/segmented-control';
-import { TextLink } from '@/components/text-link';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { preview as previewRoute } from '@/routes/dev/mail-branding';
+import { useHttpRequest } from '@/hooks/use-http-request';
+import { preview as previewRoute } from '@/routes/settings/email';
 
-export type ExploreState = 'empty' | 'filled' | 'no-dark-logo' | 'invalid';
-/** The rendered logo size in the mail header: 24 px high, or less when a wide logo hits the 200 px width cap. */
-type Logo = { file: File; dataUrl: string; width: number; height: number };
-export type BrandingDraft = {
-    sender: string;
-    logo: Logo | null;
-    logoError?: string;
-    /** Only with a logo; without one, dark-mode mail shows the light logo on a light plate. */
-    logoDark: Logo | null;
+/** A logo with the size Branded mail renders it at: 24 px high, or less when a wide logo hits the 200 px width cap. */
+export type LogoDraft = {
+    file: File;
+    dataUrl: string;
+    width: number;
+    height: number;
+};
+
+export type AppearanceText = {
+    sender_name: string;
     accent: string;
     footer: string;
 };
 
-const states: ExploreState[] = ['empty', 'filled', 'no-dark-logo', 'invalid'];
+type Field = keyof AppearanceText | 'logo' | 'logo_dark';
+
 const logoHeight = 24;
 const logoMaxWidth = 200;
-const footerMax = 160;
 const minContrast = 4.5;
-
-export function exploreState(): ExploreState {
-    const state = new URLSearchParams(window.location.search).get(
-        'state',
-    ) as ExploreState | null;
-    return state && states.includes(state) ? state : 'filled';
-}
 
 /** WCAG relative luminance of a #rrggbb colour. */
 function luminance(hex: string): number {
@@ -51,8 +46,8 @@ function luminance(hex: string): number {
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-/** Button text is white on the accent, and links use the accent on the white card: one ratio covers both. */
-export function contrastWithWhite(hex: string): number {
+/** Button text is white on the accent, and links use the accent on the white card: one ratio covers both (as the server). */
+function contrastWithWhite(hex: string): number {
     return 1.05 / (luminance(hex) + 0.05);
 }
 
@@ -75,7 +70,8 @@ function readableShade(hex: string): string {
 
 const validHex = (value: string) => /^#[0-9a-f]{6}$/i.test(value);
 
-async function readLogo(file: File): Promise<Logo> {
+/** The same rendered size the server stores on Save. */
+async function readLogo(file: File): Promise<LogoDraft> {
     const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
@@ -86,7 +82,10 @@ async function readLogo(file: File): Promise<Logo> {
     image.src = dataUrl;
     await image.decode();
     const ratio = image.naturalWidth / image.naturalHeight;
-    const width = Math.min(logoMaxWidth, Math.round(logoHeight * ratio));
+    const width = Math.max(
+        1,
+        Math.min(logoMaxWidth, Math.round(logoHeight * ratio)),
+    );
     return {
         file,
         dataUrl,
@@ -95,133 +94,126 @@ async function readLogo(file: File): Promise<Logo> {
     };
 }
 
-/** A stand-in operator logo for the filled state, drawn at 2× the rendered height; the dark one has light ink. */
-async function sampleLogo(dark: boolean): Promise<Logo> {
-    const canvas = document.createElement('canvas');
-    canvas.width = 300;
-    canvas.height = 48;
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('Canvas unavailable.');
-    context.fillStyle = '#1d4ed8';
-    context.beginPath();
-    context.roundRect(0, 4, 40, 40, 9);
-    context.fill();
-    context.fillStyle = '#ffffff';
-    context.font = '600 26px sans-serif';
-    context.fillText('A', 11, 33);
-    context.fillStyle = dark ? '#e6e9ec' : '#101418';
-    context.font = '600 25px sans-serif';
-    context.fillText('Acme Web Studio', 52, 33);
-    const blob = await new Promise<Blob>((resolve, reject) =>
-        canvas.toBlob(
-            (value) => (value ? resolve(value) : reject(new Error('No blob.'))),
-            'image/png',
-        ),
-    );
-    return readLogo(
-        new File([blob], dark ? 'acme-logo-dark.png' : 'acme-logo.png', {
-            type: 'image/png',
-        }),
-    );
-}
-
-const emptyDraft: BrandingDraft = {
-    sender: '',
-    logo: null,
-    logoDark: null,
-    accent: '',
-    footer: '',
-};
-
-const sameDraft = (a: BrandingDraft, b: BrandingDraft) =>
-    a.sender === b.sender &&
-    a.logo === b.logo &&
-    a.logoError === b.logoError &&
-    a.logoDark === b.logoDark &&
-    a.accent === b.accent &&
-    a.footer === b.footer;
-
-/**
- * The draft and its "saved" baseline, both seeded from the preset. `dirty` feeds the page bar; `markSaved` and
- * `discard` stand in for Save and Discard until phase 2 persists the values.
- */
-export function useBrandingDraft(state: ExploreState) {
-    const { t } = useTranslation();
-    const [saved, setSaved] = useState<BrandingDraft>(emptyDraft);
-    const [draft, setDraft] = useState<BrandingDraft>(emptyDraft);
+/** The draft of one logo field; an unreadable image clears it (the dropzone has already said why). */
+export function useLogoDraft(file: File | null): LogoDraft | null {
+    const [logo, setLogo] = useState<LogoDraft | null>(null);
     useEffect(() => {
-        const seed = (preset: BrandingDraft) => {
-            setSaved(preset);
-            setDraft(preset);
-        };
-        if (state === 'empty') return;
-        if (state === 'invalid') {
-            seed({
-                sender: 'Acme Monitoring',
-                logo: null,
-                logoError: t('mail_branding.logo.too_large'),
-                logoDark: null,
-                accent: '#f5c400',
-                footer: 'Acme Web Studio GmbH · Hauptstraße 1 · 10115 Berlin',
-            });
+        let active = true;
+        if (file === null) {
+            setLogo(null);
             return;
         }
-        void Promise.all([sampleLogo(false), sampleLogo(true)]).then(
-            ([logo, logoDark]) =>
-                seed({
-                    sender: 'Acme Monitoring',
-                    logo,
-                    logoDark: state === 'filled' ? logoDark : null,
-                    accent: '#1d4ed8',
-                    footer: 'Acme Web Studio GmbH · Hauptstraße 1 · 10115 Berlin',
-                }),
+        readLogo(file).then(
+            (read) => active && setLogo(read),
+            () => active && setLogo(null),
         );
-    }, [state, t]);
-    return {
-        draft,
-        setDraft,
-        dirty: !sameDraft(draft, saved),
-        markSaved: () => setSaved(draft),
-        discard: () => setDraft(saved),
-    };
+        return () => {
+            active = false;
+        };
+    }, [file]);
+    return logo;
 }
 
-/** The accent that reaches the mail: only a valid, readable colour; anything else keeps the default. */
-function appliedAccent(draft: BrandingDraft): string | null {
-    return validHex(draft.accent) &&
-        contrastWithWhite(draft.accent) >= minContrast
-        ? draft.accent
-        : null;
+/** A saved logo, read into a File so the dropzone and the preview treat it like a new upload. */
+export function useSavedLogo(url: string | null): File | null {
+    const [file, setFile] = useState<File | null>(null);
+    useEffect(() => {
+        let active = true;
+        if (url === null) {
+            setFile(null);
+            return;
+        }
+        void fetch(url, { headers: { Accept: 'image/*' } })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(`Saved mail logo ${response.status}`);
+                }
+                return response.blob();
+            })
+            .then((blob) => {
+                if (active) {
+                    setFile(
+                        new File([blob], url.split('/').pop() ?? 'logo', {
+                            type: blob.type,
+                        }),
+                    );
+                }
+            });
+        return () => {
+            active = false;
+        };
+    }, [url]);
+    return file;
 }
 
-export function BrandingFields({
-    draft,
-    onChange,
+/** The draft errors the page shows before the server answers; the server checks the same rules on Save. */
+export function localErrors(
+    text: AppearanceText,
+    limits: { senderNameMax: number; footerMax: number },
+    t: (key: string, values?: Record<string, unknown>) => string,
+): Partial<Record<keyof AppearanceText, string>> {
+    const errors: Partial<Record<keyof AppearanceText, string>> = {};
+    if (text.sender_name.length > limits.senderNameMax) {
+        errors.sender_name = t('mail_branding.sender.too_long', {
+            max: limits.senderNameMax,
+        });
+    }
+    if (text.accent !== '') {
+        if (!validHex(text.accent)) {
+            errors.accent = t('mail_branding.accent.format');
+        } else if (contrastWithWhite(text.accent) < minContrast) {
+            errors.accent = t('mail_branding.accent.unreadable', {
+                ratio: (
+                    Math.floor(contrastWithWhite(text.accent) * 10) / 10
+                ).toFixed(1),
+            });
+        }
+    }
+    if (text.footer.length > limits.footerMax) {
+        errors.footer = t('mail_branding.footer.too_long', {
+            max: limits.footerMax,
+        });
+    } else if (/[<>]/.test(text.footer)) {
+        errors.footer = t('mail_branding.footer.plain');
+    }
+    return errors;
+}
+
+export function AppearanceFields({
+    text,
+    logo,
+    logoDark,
+    errors,
+    onText,
+    onLogo,
+    onRemoveLogo,
+    onLogoDark,
+    onRemoveLogoDark,
     fromName,
     fromAddress,
+    footerMax,
     plain,
+    disabled,
 }: {
-    draft: BrandingDraft;
-    onChange: (draft: BrandingDraft) => void;
+    text: AppearanceText;
+    logo: LogoDraft | null;
+    logoDark: LogoDraft | null;
+    errors: Partial<Record<Field, string>>;
+    onText: (field: keyof AppearanceText, value: string) => void;
+    onLogo: (file: File) => void;
+    onRemoveLogo: () => void;
+    onLogoDark: (file: File) => void;
+    onRemoveLogoDark: () => void;
     fromName: string;
     fromAddress: string;
+    footerMax: number;
     plain: boolean;
+    disabled: boolean;
 }) {
     const { t } = useTranslation();
-    const accentValid = validHex(draft.accent);
-    const ratio = accentValid ? contrastWithWhite(draft.accent) : null;
-    const accentError =
-        draft.accent !== '' && !accentValid
-            ? t('mail_branding.accent.format')
-            : ratio !== null && ratio < minContrast
-              ? t('mail_branding.accent.unreadable', {
-                    ratio: ratio.toFixed(1),
-                })
-              : undefined;
-    const footerError =
-        draft.footer.length > footerMax
-            ? t('mail_branding.footer.too_long', { max: footerMax })
-            : undefined;
+    const accentValid = validHex(text.accent);
+    const unreadable =
+        accentValid && contrastWithWhite(text.accent) < minContrast;
     return (
         <div className="space-y-5">
             {plain && (
@@ -235,13 +227,18 @@ export function BrandingFields({
                 </Label>
                 <Input
                     id="mail-branding-sender"
-                    value={draft.sender}
+                    name="sender_name"
+                    value={text.sender_name}
                     placeholder={fromName}
-                    maxLength={80}
+                    disabled={disabled}
                     onChange={(event) =>
-                        onChange({ ...draft, sender: event.target.value })
+                        onText('sender_name', event.target.value)
                     }
-                    aria-describedby="mail-branding-sender-description"
+                    {...fieldErrorProps(
+                        'mail-branding-sender',
+                        errors.sender_name,
+                        'mail-branding-sender-description',
+                    )}
                 />
                 <p
                     id="mail-branding-sender-description"
@@ -251,6 +248,10 @@ export function BrandingFields({
                         address: fromAddress,
                     })}
                 </p>
+                <InputError
+                    field="mail-branding-sender"
+                    message={errors.sender_name}
+                />
             </div>
             <div className="space-y-1.5">
                 <Label>{t('mail_branding.logo.label')}</Label>
@@ -262,32 +263,19 @@ export function BrandingFields({
                 </p>
                 <ImageDropzone
                     kind="logo"
-                    value={draft.logo?.file ?? null}
-                    error={draft.logoError}
-                    onChange={(file) =>
-                        void readLogo(file).then((logo) =>
-                            onChange({ ...draft, logo, logoError: undefined }),
-                        )
-                    }
-                    onReset={
-                        draft.logo || draft.logoError
-                            ? () =>
-                                  onChange({
-                                      ...draft,
-                                      logo: null,
-                                      logoError: undefined,
-                                      logoDark: null,
-                                  })
-                            : undefined
-                    }
+                    value={logo?.file ?? null}
+                    error={errors.logo}
+                    disabled={disabled}
+                    onChange={onLogo}
+                    onReset={logo ? onRemoveLogo : undefined}
                 />
-                {!draft.logo && !draft.logoError && (
+                {!logo && (
                     <p className="text-xs text-muted-foreground">
                         {t('mail_branding.logo.empty')}
                     </p>
                 )}
             </div>
-            {draft.logo && (
+            {logo && (
                 <div className="space-y-1.5">
                     <Label>{t('mail_branding.logo_dark.label')}</Label>
                     <p className="text-xs text-muted-foreground">
@@ -298,17 +286,11 @@ export function BrandingFields({
                     </p>
                     <ImageDropzone
                         kind="logoDark"
-                        value={draft.logoDark?.file ?? null}
-                        onChange={(file) =>
-                            void readLogo(file).then((logoDark) =>
-                                onChange({ ...draft, logoDark }),
-                            )
-                        }
-                        onReset={
-                            draft.logoDark
-                                ? () => onChange({ ...draft, logoDark: null })
-                                : undefined
-                        }
+                        value={logoDark?.file ?? null}
+                        error={errors.logo_dark}
+                        disabled={disabled}
+                        onChange={onLogoDark}
+                        onReset={logoDark ? onRemoveLogoDark : undefined}
                     />
                 </div>
             )}
@@ -320,26 +302,26 @@ export function BrandingFields({
                     <Input
                         type="color"
                         aria-label={t('mail_branding.accent.picker')}
-                        value={accentValid ? draft.accent : '#101418'}
+                        value={accentValid ? text.accent : '#101418'}
+                        disabled={disabled}
                         onChange={(event) =>
-                            onChange({ ...draft, accent: event.target.value })
+                            onText('accent', event.target.value)
                         }
                         className="w-10 shrink-0 cursor-pointer p-0.5 sm:w-8"
                     />
                     <Input
                         id="mail-branding-accent"
-                        value={draft.accent}
+                        name="accent"
+                        value={text.accent}
                         placeholder="#101418"
                         className="font-mono"
+                        disabled={disabled}
                         onChange={(event) =>
-                            onChange({
-                                ...draft,
-                                accent: event.target.value.trim(),
-                            })
+                            onText('accent', event.target.value.trim())
                         }
                         {...fieldErrorProps(
                             'mail-branding-accent',
-                            accentError,
+                            errors.accent,
                             'mail-branding-accent-description',
                         )}
                     />
@@ -352,20 +334,18 @@ export function BrandingFields({
                 </p>
                 <InputError
                     field="mail-branding-accent"
-                    message={accentError}
+                    message={errors.accent}
                 />
-                {accentValid && ratio !== null && ratio < minContrast && (
+                {unreadable && (
                     <FormSecondaryAction
                         size="sm"
+                        disabled={disabled}
                         onClick={() =>
-                            onChange({
-                                ...draft,
-                                accent: readableShade(draft.accent),
-                            })
+                            onText('accent', readableShade(text.accent))
                         }
                     >
                         {t('mail_branding.accent.use_shade', {
-                            colour: readableShade(draft.accent),
+                            colour: readableShade(text.accent),
                         })}
                     </FormSecondaryAction>
                 )}
@@ -376,14 +356,14 @@ export function BrandingFields({
                 </Label>
                 <Input
                     id="mail-branding-footer"
-                    value={draft.footer}
+                    name="footer"
+                    value={text.footer}
                     placeholder={t('mail_branding.footer.placeholder')}
-                    onChange={(event) =>
-                        onChange({ ...draft, footer: event.target.value })
-                    }
+                    disabled={disabled}
+                    onChange={(event) => onText('footer', event.target.value)}
                     {...fieldErrorProps(
                         'mail-branding-footer',
-                        footerError,
+                        errors.footer,
                         'mail-branding-footer-description',
                     )}
                 />
@@ -395,7 +375,7 @@ export function BrandingFields({
                 </p>
                 <InputError
                     field="mail-branding-footer"
-                    message={footerError}
+                    message={errors.footer}
                 />
             </div>
         </div>
@@ -404,15 +384,21 @@ export function BrandingFields({
 
 type Preview = { subject: string; html: string };
 
-/** The real templates render the mail; the unsaved logo is swapped in locally, so it never leaves the browser. */
-export function BrandingPreview({
-    draft,
+/** The draft as the real templates render it; fields the save would refuse keep their saved-default look here. */
+export function AppearancePreview({
     design,
+    text,
+    invalid,
+    logo,
+    logoDark,
     fromName,
     fromAddress,
 }: {
-    draft: BrandingDraft;
     design: string;
+    text: AppearanceText;
+    invalid: Partial<Record<keyof AppearanceText, string>>;
+    logo: LogoDraft | null;
+    logoDark: LogoDraft | null;
     fromName: string;
     fromAddress: string;
 }) {
@@ -421,54 +407,64 @@ export function BrandingPreview({
     // The mail's colour scheme, forced on the iframe so the app theme never leaks into the preview.
     const [scheme, setScheme] = useState<'light' | 'dark'>('light');
     const [preview, setPreview] = useState<Preview | null>(null);
-    const accent = appliedAccent(draft);
-    const footer =
-        draft.footer.trim() !== '' && draft.footer.length <= footerMax
-            ? draft.footer.trim()
+    const [failed, setFailed] = useState(false);
+    const request = useHttpRequest<Record<string, never>, Preview>();
+    const applied = (field: keyof AppearanceText) =>
+        invalid[field] === undefined && text[field].trim() !== ''
+            ? text[field].trim()
             : null;
-    const locale = i18n.language.startsWith('de') ? 'de' : 'en';
+    const sender = applied('sender_name');
+    const accent = applied('accent');
+    const footer = applied('footer');
     useEffect(() => {
-        const controller = new AbortController();
+        let active = true;
         const url = previewRoute.url({
             query: {
                 kind,
                 design,
-                locale,
+                sender_name: sender,
                 accent,
                 footer,
-                logo_width: draft.logo?.width ?? null,
-                logo_height: draft.logo?.height ?? null,
-                logo_dark_width: draft.logoDark?.width ?? null,
-                logo_dark_height: draft.logoDark?.height ?? null,
+                logo_width: logo?.width ?? null,
+                logo_height: logo?.height ?? null,
+                logo_dark_width: logo ? (logoDark?.width ?? null) : null,
+                logo_dark_height: logo ? (logoDark?.height ?? null) : null,
             },
         });
         const timer = window.setTimeout(() => {
-            void fetch(url, {
-                headers: { Accept: 'application/json' },
-                signal: controller.signal,
-            })
-                .then((response) => response.json() as Promise<Preview>)
-                .then(setPreview)
-                .catch((error: unknown) => {
-                    if (!controller.signal.aborted) throw error;
-                });
+            setFailed(false);
+            request.get(url).then(
+                (next) => active && setPreview(next),
+                () => active && setFailed(true),
+            );
         }, 250);
         return () => {
+            active = false;
             window.clearTimeout(timer);
-            controller.abort();
+            request.cancel();
         };
-    }, [kind, design, locale, accent, footer, draft.logo, draft.logoDark]);
+    }, [
+        kind,
+        design,
+        sender,
+        accent,
+        footer,
+        logo,
+        logoDark,
+        i18n.language,
+        request.get,
+        request.cancel,
+    ]);
     let html = preview?.html;
-    if (html && draft.logo) {
-        html = html.replaceAll('cid:brand-logo@heptapod', draft.logo.dataUrl);
+    if (html && logo) {
+        html = html.replaceAll('cid:brand-logo@heptapod', logo.dataUrl);
     }
-    if (html && draft.logoDark) {
+    if (html && logo && logoDark) {
         html = html.replaceAll(
             'cid:brand-logo-dark@heptapod',
-            draft.logoDark.dataUrl,
+            logoDark.dataUrl,
         );
     }
-    const sender = draft.sender.trim() || fromName;
     return (
         <div className="min-w-0 space-y-2">
             <div className="flex flex-wrap gap-2">
@@ -501,7 +497,11 @@ export function BrandingPreview({
                     ]}
                 />
             </div>
-            {preview === null ? (
+            {failed ? (
+                <Alert tone="danger">
+                    <AlertTitle>{t('mail_branding.preview.failed')}</AlertTitle>
+                </Alert>
+            ) : preview === null ? (
                 <Spinner />
             ) : (
                 <div className="overflow-hidden rounded-lg border">
@@ -511,7 +511,7 @@ export function BrandingPreview({
                                 {t('mail_branding.preview.from')}
                             </dt>
                             <dd className="truncate">
-                                {sender}{' '}
+                                {sender ?? fromName}{' '}
                                 <span className="text-muted-foreground">
                                     &lt;{fromAddress}&gt;
                                 </span>
@@ -536,28 +536,5 @@ export function BrandingPreview({
                 </div>
             )}
         </div>
-    );
-}
-
-/** Dev-only switcher between the presets; shown in the PageHeader notices slot. */
-export function ExploreSwitcher({ state }: { state: ExploreState }) {
-    const link = (nextState: ExploreState) => `?state=${nextState}`;
-    const item = (active: boolean, href: string, label: ReactNode) =>
-        active ? (
-            <strong key={href}>{label}</strong>
-        ) : (
-            <TextLink key={href} href={href}>
-                {label}
-            </TextLink>
-        );
-    return (
-        <Alert tone="info">
-            <AlertTitle>Mail branding exploration · not saved</AlertTitle>
-            <AlertDescription>
-                <p className="flex flex-wrap gap-x-3">
-                    State: {states.map((s) => item(s === state, link(s), s))}
-                </p>
-            </AlertDescription>
-        </Alert>
     );
 }

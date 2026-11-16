@@ -7,12 +7,12 @@ import {
 import { InfoTooltip } from '@/components/info-tooltip';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import {
-    BrandingFields,
-    BrandingPreview,
-    ExploreSwitcher,
-    exploreState,
-    useBrandingDraft,
-} from '@/components/mail-branding-explore';
+    AppearanceFields,
+    AppearancePreview,
+    localErrors,
+    useLogoDraft,
+    useSavedLogo,
+} from '@/components/email-appearance';
 import { PageHeader } from '@/components/page-header';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label';
 import { RadioCards } from '@/components/ui/radio-cards';
 import { update } from '@/routes/settings/email';
 import { Head, useForm } from '@inertiajs/react';
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 function ConfigValue({
@@ -44,17 +44,59 @@ function ConfigValue({
     );
 }
 
+/** The saved state of every field; logos are saved files (null) until the user picks or removes one. */
+function savedValues(
+    instancePage: Heptapod.Data.Ui.InstanceSettingsData,
+    emailPage: Heptapod.Data.Ui.EmailSettingsData,
+) {
+    return {
+        mail_design: instancePage.mail_design,
+        sender_name: emailPage.sender_name ?? '',
+        accent: emailPage.accent ?? '',
+        footer: emailPage.footer ?? '',
+        logo: null as File | null,
+        logo_dark: null as File | null,
+        remove_logo: false,
+        remove_logo_dark: false,
+    };
+}
+
 export default function Email({
     instancePage,
-}: {
-    instancePage: Heptapod.Data.Ui.InstanceSettingsData;
-}) {
+    emailPage,
+}: Heptapod.Data.Ui.EmailPageData) {
     const { t } = useTranslation();
-    const form = useForm({ mail_design: instancePage.mail_design });
-    // Exploration (phase 1): the appearance fields are a local draft; Save marks them saved without storing them.
-    const [state] = useState(exploreState);
-    const branding = useBrandingDraft(state);
-    const dirty = form.isDirty || branding.dirty;
+    const form = useForm(savedValues(instancePage, emailPage));
+    const savedLogo = useSavedLogo(emailPage.logo_url);
+    const savedLogoDark = useSavedLogo(emailPage.logo_dark_url);
+    const logo = useLogoDraft(
+        form.data.logo ?? (form.data.remove_logo ? null : savedLogo),
+    );
+    const logoDarkFile =
+        form.data.logo_dark ??
+        (form.data.remove_logo_dark ? null : savedLogoDark);
+    const logoDark = useLogoDraft(logo ? logoDarkFile : null);
+    const text = {
+        sender_name: form.data.sender_name,
+        accent: form.data.accent,
+        footer: form.data.footer,
+    };
+    const local = localErrors(
+        text,
+        {
+            senderNameMax: emailPage.sender_name_max,
+            footerMax: emailPage.footer_max,
+        },
+        t,
+    );
+    // A server refusal stays at its field until that field changes; the page's own checks show while typing.
+    const errors = {
+        sender_name: form.errors.sender_name ?? local.sender_name,
+        accent: form.errors.accent ?? local.accent,
+        footer: form.errors.footer ?? local.footer,
+        logo: form.errors.logo,
+        logo_dark: form.errors.logo_dark,
+    };
     const mailDesignField = fieldErrorProps(
         'email-mail-design',
         form.errors.mail_design,
@@ -63,12 +105,6 @@ export default function Email({
     const configured = (value: boolean) =>
         t(value ? 'Configured' : 'Not configured');
     const absent = t('Not configured');
-    const previewProps = {
-        draft: branding.draft,
-        design: form.data.mail_design,
-        fromName: instancePage.from_name,
-        fromAddress: instancePage.from_address,
-    };
 
     return (
         <>
@@ -100,7 +136,6 @@ export default function Email({
                                 </AlertDescription>
                             </Alert>
                         )}
-                        <ExploreSwitcher state={state} />
                     </>
                 }
             />
@@ -111,15 +146,20 @@ export default function Email({
                 className="space-y-4"
                 onSubmit={(event) => {
                     event.preventDefault();
-                    branding.markSaved();
-                    if (!form.isDirty) return;
-                    form.patch(update.url(), {
+                    // PHP parses a multipart body (a logo upload) only for POST, so the update is a spoofed PATCH.
+                    form.transform((data) => ({ ...data, _method: 'patch' }));
+                    form.post(update.url(), {
                         preserveScroll: true,
+                        forceFormData: true,
                         onSuccess: ({ props }) => {
                             const page =
-                                props.instancePage as Heptapod.Data.Ui.InstanceSettingsData;
-                            form.setDefaults({ mail_design: page.mail_design });
-                            form.setData({ mail_design: page.mail_design });
+                                props as unknown as Heptapod.Data.Ui.EmailPageData;
+                            const saved = savedValues(
+                                page.instancePage,
+                                page.emailPage,
+                            );
+                            form.setDefaults(saved);
+                            form.setData(saved);
                         },
                     });
                 }}
@@ -128,7 +168,17 @@ export default function Email({
                     title={t('mail_branding.section.title')}
                     description={t('mail_branding.section.description')}
                     detail={t('mail_branding.section.detail')}
-                    preview={<BrandingPreview {...previewProps} />}
+                    preview={
+                        <AppearancePreview
+                            design={form.data.mail_design}
+                            text={text}
+                            invalid={local}
+                            logo={logo}
+                            logoDark={logoDark}
+                            fromName={instancePage.from_name}
+                            fromAddress={instancePage.from_address}
+                        />
+                    }
                 >
                     <div className="space-y-2">
                         <Label id="email-mail-design-label">
@@ -167,10 +217,55 @@ export default function Email({
                             message={form.errors.mail_design}
                         />
                     </div>
-                    <BrandingFields
-                        {...previewProps}
-                        onChange={branding.setDraft}
+                    <AppearanceFields
+                        text={text}
+                        logo={logo}
+                        logoDark={logoDark}
+                        errors={errors}
+                        onText={(field, value) => {
+                            form.setData(field, value);
+                            form.clearErrors(field);
+                        }}
+                        onLogo={(file) => {
+                            form.setData((data) => ({
+                                ...data,
+                                logo: file,
+                                remove_logo: false,
+                            }));
+                            form.clearErrors('logo');
+                        }}
+                        onRemoveLogo={() => {
+                            // Without a logo there is no dark-mode logo either.
+                            form.setData((data) => ({
+                                ...data,
+                                logo: null,
+                                remove_logo: true,
+                                logo_dark: null,
+                                remove_logo_dark: true,
+                            }));
+                            form.clearErrors('logo', 'logo_dark');
+                        }}
+                        onLogoDark={(file) => {
+                            form.setData((data) => ({
+                                ...data,
+                                logo_dark: file,
+                                remove_logo_dark: false,
+                            }));
+                            form.clearErrors('logo_dark');
+                        }}
+                        onRemoveLogoDark={() => {
+                            form.setData((data) => ({
+                                ...data,
+                                logo_dark: null,
+                                remove_logo_dark: true,
+                            }));
+                            form.clearErrors('logo_dark');
+                        }}
+                        fromName={instancePage.from_name}
+                        fromAddress={instancePage.from_address}
+                        footerMax={emailPage.footer_max}
                         plain={form.data.mail_design === 'plain'}
+                        disabled={form.processing}
                     />
                 </FormSection>
                 <FormSection
@@ -226,18 +321,15 @@ export default function Email({
                 <FormActions
                     status={
                         <FormSaveStatus
-                            dirty={dirty}
+                            dirty={form.isDirty}
                             processing={form.processing}
                         />
                     }
                 >
                     <FormSecondaryAction
                         size="sm"
-                        disabled={!dirty || form.processing}
-                        onClick={() => {
-                            form.resetAndClearErrors();
-                            branding.discard();
-                        }}
+                        disabled={!form.isDirty || form.processing}
+                        onClick={() => form.resetAndClearErrors()}
                     >
                         {t('Discard')}
                     </FormSecondaryAction>
@@ -245,7 +337,7 @@ export default function Email({
                         type="submit"
                         form="email-settings-form"
                         size="sm"
-                        disabled={!dirty || form.processing}
+                        disabled={!form.isDirty || form.processing}
                     >
                         {t('Save')}
                     </Button>

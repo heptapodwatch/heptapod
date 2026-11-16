@@ -6,6 +6,9 @@ use Heptapod\Http\Controllers\Notifications\TeamNotificationSettingsController;
 use Heptapod\Http\Controllers\Settings\AlertSensitivityController;
 use Heptapod\Http\Controllers\Settings\ApiTokensController;
 use Heptapod\Http\Controllers\Settings\BackupController;
+use Heptapod\Http\Controllers\Settings\EmailController;
+use Heptapod\Http\Controllers\Settings\EmailLogoController;
+use Heptapod\Http\Controllers\Settings\EmailPreviewController;
 use Heptapod\Http\Controllers\Settings\ImportOhDearController;
 use Heptapod\Http\Controllers\Settings\InstanceController;
 use Heptapod\Http\Controllers\Settings\InvitationResendController;
@@ -44,8 +47,11 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('settings/instance', [InstanceController::class, 'edit'])->name('settings.instance.edit');
     Route::get('settings/instance/data', [InstanceController::class, 'show'])->name('settings.instance.data');
     Route::patch('settings/instance', [InstanceController::class, 'update'])->name('settings.instance.update');
-    Route::get('settings/email', [InstanceController::class, 'email'])->name('settings.email.edit');
-    Route::patch('settings/email', [InstanceController::class, 'updateMail'])->name('settings.email.update');
+    Route::get('settings/email', [EmailController::class, 'edit'])->name('settings.email.edit');
+    Route::patch('settings/email', [EmailController::class, 'update'])->name('settings.email.update');
+    Route::get('settings/email/preview', EmailPreviewController::class)->name('settings.email.preview');
+    Route::get('settings/email/logo/{variant}/{file}', EmailLogoController::class)->whereIn('variant', ['light', 'dark'])
+        ->where('file', '[a-f0-9]{64}\\.(png|jpg)')->name('settings.email.logo');
     Route::get('settings/system', [SystemHealthController::class, 'edit'])->name('settings.system.edit');
     Route::get('settings/system/data', SystemHealthController::class)->name('settings.system.data');
     Route::get('settings/backups/data', [BackupController::class, 'index'])->name('settings.backups.data');

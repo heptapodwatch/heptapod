@@ -10,6 +10,10 @@ interface MailRenderer
 {
     public function mailable(MailModel $mail): Mailable;
 
-    /** @return array{subject: string, html: string} */
-    public function preview(MailModel $mail): array;
+    /**
+     * Without $branding the saved branding applies; Settings → Email passes its unsaved draft.
+     *
+     * @return array{subject: string, html: string}
+     */
+    public function preview(MailModel $mail, ?MailBranding $branding = null): array;
 }

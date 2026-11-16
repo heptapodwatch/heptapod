@@ -26,8 +26,8 @@ body{margin:0;padding:0;background:#ffffff;color:#101418}a{color:#1f5fa8}.muted,
 <p style="margin:16px 0 12px;"><a href="{{ $mail->primary['url'] }}">{{ $mail->primary['label'] }} →</a>@if ($mail->secondary !== null)<br><a href="{{ $mail->secondary['url'] }}">{{ $mail->secondary['label'] }}</a>@endif</p>
 @endif
 <p class="muted" style="margin:24px 0 0;font-size:13px;line-height:19px;color:#5c6771;">{{ $mail->footerWhy }}@if ($mail->routingUrl !== null) <a href="{{ $mail->routingUrl }}" style="color:#5c6771;">{{ $mail->routingLabel }}</a>@endif</p>
-@if (($mailBranding['footer'] ?? null) !== null)
-<p class="muted" style="margin:8px 0 0;font-size:13px;line-height:19px;color:#5c6771;">{{ $mailBranding['footer'] }}</p>
+@if ($branding->footer !== null)
+<p class="muted" style="margin:8px 0 0;font-size:13px;line-height:19px;color:#5c6771;">{{ $branding->footer }}</p>
 @endif
 </div>
 </body></html>

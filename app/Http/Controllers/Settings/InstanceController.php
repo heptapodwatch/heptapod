@@ -12,7 +12,6 @@ use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\SystemHealth\ReadSystemHealth;
-use Heptapod\SystemHealth\SystemIssueMailer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,26 +29,6 @@ final class InstanceController extends Controller
         ));
     }
 
-    /** Settings → Email: the mail design and the read-only transport facts, from the same instance data as General. */
-    public function email(Request $request, InstanceSettings $settings, ReadSystemHealth $health): Response
-    {
-        return Inertia::render('settings/email', new InstancePageData(
-            instancePage: $this->data($request, $settings, $health),
-        ));
-    }
-
-    public function updateMail(Request $request, InstanceSettings $settings, SaveInstanceSettings $save): RedirectResponse
-    {
-        $this->owner($request);
-        /** @var array{mail_design: string} $data */
-        $data = Validator::make($request->all(), ['mail_design' => ['required', Rule::enum(MailDesign::class)]],
-            attributes: ['mail_design' => __('instance.mail_design.label')])->validate();
-        $save($settings->name, MailDesign::from($data['mail_design']));
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Email settings saved.')]);
-
-        return to_route('settings.email.edit');
-    }
-
     public function show(Request $request, InstanceSettings $settings, ReadSystemHealth $health): JsonResponse
     {
         return response()->json($this->data($request, $settings, $health));
@@ -58,18 +37,8 @@ final class InstanceController extends Controller
     private function data(Request $request, InstanceSettings $settings, ReadSystemHealth $health): InstanceSettingsData
     {
         $this->owner($request);
-        /** @var array{host?: string|null, port?: int|null, scheme?: string|null, username?: string|null, password?: string|null} $smtp */
-        $smtp = config()->array('mail.mailers.smtp');
-        /** @var array{keep_all_backups_for_days: int, keep_daily_backups_for_days: int, keep_weekly_backups_for_weeks: int, keep_monthly_backups_for_months: int, keep_yearly_backups_for_years: int, delete_oldest_backups_when_using_more_megabytes_than: int|null} $retention */
-        $retention = config()->array('backup.cleanup.default_strategy');
 
-        return new InstanceSettingsData($settings->name, $settings->mail_design, config()->string('app.url'),
-            ['host' => $smtp['host'] ?? null, 'port' => $smtp['port'] ?? null,
-                'scheme' => $smtp['scheme'] ?? null, 'username_configured' => filled($smtp['username'] ?? null),
-                'password_configured' => filled($smtp['password'] ?? null)],
-            config()->string('mail.default'), ! SystemIssueMailer::canDeliver(), config()->string('mail.from.name'), config()->string('mail.from.address'),
-            filled(config('instance.heartbeat_url')), $health()->lastExternalPing, url('/up'),
-            ['editable' => false, 'source' => 'check definitions'], false, $retention);
+        return InstanceSettingsData::current($settings, $health);
     }
 
     public function update(Request $request, SaveInstanceSettings $save): JsonResponse|RedirectResponse

@@ -15,7 +15,6 @@ use Heptapod\Http\Controllers\ClientMessagesController;
 use Heptapod\Http\Controllers\ClientMoveBlockersController;
 use Heptapod\Http\Controllers\ClientSettingsController;
 use Heptapod\Http\Controllers\ClientsIndexController;
-use Heptapod\Http\Controllers\Dev\MailBrandingPreviewController;
 use Heptapod\Http\Controllers\DisableSiteCheckController;
 use Heptapod\Http\Controllers\EnableSiteCheckController;
 use Heptapod\Http\Controllers\EndMaintenanceController;
@@ -69,11 +68,6 @@ Route::middleware(['guest', 'throttle:6,1'])->group(function (): void {
 
 if (app()->environment(['local', 'testing'])) {
     Route::get('/dev/components', fn (): Response => Inertia::render('dev/components'))->name('dev.components');
-}
-
-if (app()->isLocal()) {
-    // Mail branding exploration (phase 1): throwaway preview of unsaved branding values.
-    Route::get('/dev/mail-branding/preview', MailBrandingPreviewController::class)->middleware(['auth', 'verified'])->name('dev.mail-branding.preview');
 }
 
 if (app()->isLocal()) {

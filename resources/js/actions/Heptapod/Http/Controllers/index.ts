@@ -1,6 +1,5 @@
 import Api from './Api'
 import InvitationController from './InvitationController'
-import Dev from './Dev'
 import UpcomingController from './UpcomingController'
 import ActivityController from './ActivityController'
 import RunsController from './RunsController'
@@ -53,7 +52,6 @@ import CronPingController from './CronPingController'
 const Controllers = {
     Api: Object.assign(Api, Api),
     InvitationController: Object.assign(InvitationController, InvitationController),
-    Dev: Object.assign(Dev, Dev),
     UpcomingController: Object.assign(UpcomingController, UpcomingController),
     ActivityController: Object.assign(ActivityController, ActivityController),
     RunsController: Object.assign(RunsController, RunsController),

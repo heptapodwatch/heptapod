@@ -2,9 +2,9 @@
 $light = ['bg'=>'#e8ebed','card'=>'#ffffff','line'=>'#d3d8dc','soft'=>'#e1e5e8','sunken'=>'#f5f6f7','fg'=>'#101418','fg2'=>'#3f4952','fg3'=>'#5c6771','down'=>'#b42f28','warn'=>'#94490a','ok'=>'#2c6a4e','info'=>'#3e6a96','error'=>'#5c6771'];
 $dark = ['bg'=>'#0d1013','card'=>'#13171b','line'=>'#262c33','soft'=>'#1c2127','sunken'=>'#0f1215','fg'=>'#e6e9ec','fg2'=>'#a2abb4','fg3'=>'#848e99','down'=>'#e6574d','warn'=>'#dd8a43','ok'=>'#79ad95','info'=>'#7f9fc0','error'=>'#8b96a1'];
 $tone = $mail->tone->color();
-// Exploration (mail branding phase 1): unsaved branding values shared by the dev preview only.
-$brand = $mailBranding ?? ['accent' => null, 'footer' => null, 'logo_width' => null, 'logo_height' => null, 'logo_dark_width' => null, 'logo_dark_height' => null];
-$accent = $brand['accent'];
+$accent = $branding->accent;
+$logo = $branding->logo;
+$logoDark = $branding->logoDark;
 @endphp
 @if ($plain ?? false)
 @if ($mail->siteLine() !== null)
@@ -34,8 +34,8 @@ $accent = $brand['accent'];
 {!! $mail->routingLabel !!}: {!! $mail->routingUrl !!}
 @endif
 {!! $mail->instance !!}
-@if ($brand['footer'] !== null)
-{!! $brand['footer'] !!}
+@if ($branding->footer !== null)
+{!! $branding->footer !!}
 @endif
 @else
 <!doctype html><html lang="{{ $mail->locale }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>{{ $mail->subject }}</title>
@@ -47,9 +47,9 @@ $darkRules = '.bg-bg{background:'.$dark['bg'].'!important}.bg-card{background:'.
 foreach ($dark as $key => $color) {
     $darkRules .= '.c-'.$key.'{color:'.$color.'!important}.chip-'.$key.'{color:'.$color.'!important;border-color:'.$color.'!important}';
 }
-if ($brand['logo_width'] !== null) {
+if ($logo !== null) {
     // Standard light/dark image swap; without a dark logo the light one keeps a light plate so dark ink stays visible.
-    $darkRules .= $brand['logo_dark_width'] !== null
+    $darkRules .= $logoDark !== null
         ? '.logo-light{display:none!important}.logo-dark{display:inline-block!important}'
         : '.logo-plate{background:#ffffff!important;padding:4px 6px!important;border-radius:6px!important}';
 }
@@ -79,7 +79,7 @@ if ($mail->avatarTile !== null) {
 @endif
 <td><span class="c-fg2" style="color:#3f4952;vertical-align:middle;">{{ $mail->siteLine() }}</span></td></tr></table>
 @endif
-</td><td align="right" valign="middle" style="padding-left:12px;">@if ($brand['logo_width'] !== null)<span class="logo-plate" style="display:inline-block;"><img class="logo-light" src="cid:brand-logo@heptapod" width="{{ $brand['logo_width'] }}" height="{{ $brand['logo_height'] }}" alt="{{ $mail->instance }}" style="width:{{ $brand['logo_width'] }}px;height:{{ $brand['logo_height'] }}px;border:0;display:inline-block;vertical-align:middle;"></span>@if ($brand['logo_dark_width'] !== null)<!--[if !mso]><!--><img class="logo-dark" src="cid:brand-logo-dark@heptapod" width="{{ $brand['logo_dark_width'] }}" height="{{ $brand['logo_dark_height'] }}" alt="{{ $mail->instance }}" style="display:none;mso-hide:all;width:{{ $brand['logo_dark_width'] }}px;height:{{ $brand['logo_dark_height'] }}px;border:0;vertical-align:middle;"><!--<![endif]-->@endif @else<img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="width:109px;height:20px;border:0;display:inline-block;">@endif</td></tr></table></td></tr>
+</td><td align="right" valign="middle" style="padding-left:12px;">@if ($logo !== null)<span class="logo-plate" style="display:inline-block;"><img class="logo-light" src="cid:brand-logo@heptapod" width="{{ $logo->width }}" height="{{ $logo->height }}" alt="{{ $mail->instance }}" style="width:{{ $logo->width }}px;height:{{ $logo->height }}px;border:0;display:inline-block;vertical-align:middle;"></span>@if ($logoDark !== null)<!--[if !mso]><!--><img class="logo-dark" src="cid:brand-logo-dark@heptapod" width="{{ $logoDark->width }}" height="{{ $logoDark->height }}" alt="{{ $mail->instance }}" style="display:none;mso-hide:all;width:{{ $logoDark->width }}px;height:{{ $logoDark->height }}px;border:0;vertical-align:middle;"><!--<![endif]-->@endif @else<img src="cid:lockup@heptapod" width="109" height="20" alt="Heptapod" style="width:109px;height:20px;border:0;display:inline-block;">@endif</td></tr></table></td></tr>
 <tr><td class="px" style="padding:22px 28px 28px;">
 <h1 class="h1 c-fg" style="margin:0 0 {{ $mail->lead !== null ? 8 : 12 }}px;font-size:21px;line-height:28px;font-weight:600;letter-spacing:-0.2px;color:#101418;">{{ $mail->headline }}</h1>
 @if ($mail->lead !== null)
@@ -103,6 +103,6 @@ if ($mail->avatarTile !== null) {
 </tr></table>
 @endif
 </td></tr></table></td></tr>
-<tr><td class="px" style="padding:16px 28px 0;font-size:12px;line-height:18px;"><p class="c-fg3" style="margin:0 0 6px;color:#5c6771;">{{ $mail->footerWhy }}@if ($mail->routingUrl !== null) <a href="{{ $mail->routingUrl }}" class="c-fg2" style="color:#3f4952;text-decoration:underline;">{{ $mail->routingLabel }}</a>@endif</p><p class="c-fg3" style="margin:0;color:#5c6771;">{{ $mail->instance }}</p>@if ($brand['footer'] !== null)<p class="c-fg3" style="margin:6px 0 0;color:#5c6771;">{{ $brand['footer'] }}</p>@endif</td></tr>
+<tr><td class="px" style="padding:16px 28px 0;font-size:12px;line-height:18px;"><p class="c-fg3" style="margin:0 0 6px;color:#5c6771;">{{ $mail->footerWhy }}@if ($mail->routingUrl !== null) <a href="{{ $mail->routingUrl }}" class="c-fg2" style="color:#3f4952;text-decoration:underline;">{{ $mail->routingLabel }}</a>@endif</p><p class="c-fg3" style="margin:0;color:#5c6771;">{{ $mail->instance }}</p>@if ($branding->footer !== null)<p class="c-fg3" style="margin:6px 0 0;color:#5c6771;">{{ $branding->footer }}</p>@endif</td></tr>
 </table></td></tr></table></body></html>
 @endif

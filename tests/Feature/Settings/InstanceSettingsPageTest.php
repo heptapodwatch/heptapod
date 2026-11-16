@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Heptapod\Contracts\Mail\MailDesign;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -35,11 +34,8 @@ it('keeps instance page and navigation owner-only', function (string $role): voi
 
     $this->actingAs($user)->get('/settings/instance')->assertForbidden();
     $this->patch('/settings/instance', ['name' => 'Forbidden'])->assertForbidden();
-    $this->get('/settings/email')->assertForbidden();
-    $this->patch('/settings/email', ['mail_design' => 'plain'])->assertForbidden();
     $this->get('/settings/profile')->assertInertia(fn (Assert $page): Assert => $page->where('auth.canManageInstance', false));
     expect(app(InstanceSettings::class)->name)->toBe($original);
-    expect(app(InstanceSettings::class)->mail_design)->toBe(MailDesign::Branded);
 })->with(['Admin', 'Member']);
 
 it('redirects unauthenticated instance page and name writes to login', function (): void {
@@ -57,18 +53,6 @@ it('saves only the instance name and redirects the browser form to its page', fu
     expect(app(InstanceSettings::class)->name)->toBe('Agency Monitor');
     expect(app(InstanceSettings::class)->timezone)->toBe($timezone);
     expect(config('mail.mailers.smtp.host'))->not->toBe('changed');
-});
-
-it('saves only the mail design from the Email page and stays there', function (): void {
-    $owner = User::factory()->create();
-    $owner->assignRole('Owner');
-    $name = app(InstanceSettings::class)->name;
-
-    $this->actingAs($owner)->get('/settings/email')->assertInertia(fn (Assert $page): Assert => $page
-        ->component('settings/email')->where('instancePage.mail_design', 'branded'));
-    $this->patch('/settings/email', ['mail_design' => 'plain', 'name' => 'Ignored'])->assertRedirect('/settings/email');
-    expect(app(InstanceSettings::class)->mail_design)->toBe(MailDesign::Plain)
-        ->and(app(InstanceSettings::class)->name)->toBe($name);
 });
 
 it('rejects invalid instance names without changing persisted identity', function (mixed $name): void {

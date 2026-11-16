@@ -33,6 +33,26 @@ final class InstanceSettings extends Settings
     // A docblock here would replace the typed-property cast discovery of spatie/laravel-settings.
     public MailDesign $mail_design;
 
+    // Mail branding (Settings → Email); null keeps the Heptapod default. Logos are files on the local disk (PNG or JPEG by
+    // extension) with the size they are rendered at; a dark-mode logo exists only with a logo.
+    public ?string $mail_sender_name = null;
+
+    public ?string $mail_accent = null;
+
+    public ?string $mail_footer = null;
+
+    public ?string $mail_logo_path = null;
+
+    public ?int $mail_logo_width = null;
+
+    public ?int $mail_logo_height = null;
+
+    public ?string $mail_logo_dark_path = null;
+
+    public ?int $mail_logo_dark_width = null;
+
+    public ?int $mail_logo_dark_height = null;
+
     public static function group(): string
     {
         return 'instance';

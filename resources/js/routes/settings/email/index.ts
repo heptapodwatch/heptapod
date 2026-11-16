@@ -1,7 +1,7 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
-* @see \Heptapod\Http\Controllers\Settings\InstanceController::edit
-* @see app/Http/Controllers/Settings/InstanceController.php:34
+* @see \Heptapod\Http\Controllers\Settings\EmailController::edit
+* @see app/Http/Controllers/Settings/EmailController.php:23
 * @route '/settings/email'
 */
 export const edit = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -15,8 +15,8 @@ edit.definition = {
 } satisfies RouteDefinition<["get","head"]>
 
 /**
-* @see \Heptapod\Http\Controllers\Settings\InstanceController::edit
-* @see app/Http/Controllers/Settings/InstanceController.php:34
+* @see \Heptapod\Http\Controllers\Settings\EmailController::edit
+* @see app/Http/Controllers/Settings/EmailController.php:23
 * @route '/settings/email'
 */
 edit.url = (options?: RouteQueryOptions) => {
@@ -24,8 +24,8 @@ edit.url = (options?: RouteQueryOptions) => {
 }
 
 /**
-* @see \Heptapod\Http\Controllers\Settings\InstanceController::edit
-* @see app/Http/Controllers/Settings/InstanceController.php:34
+* @see \Heptapod\Http\Controllers\Settings\EmailController::edit
+* @see app/Http/Controllers/Settings/EmailController.php:23
 * @route '/settings/email'
 */
 edit.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,8 +34,8 @@ edit.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 
 /**
-* @see \Heptapod\Http\Controllers\Settings\InstanceController::edit
-* @see app/Http/Controllers/Settings/InstanceController.php:34
+* @see \Heptapod\Http\Controllers\Settings\EmailController::edit
+* @see app/Http/Controllers/Settings/EmailController.php:23
 * @route '/settings/email'
 */
 edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,8 +44,8 @@ edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 })
 
 /**
-* @see \Heptapod\Http\Controllers\Settings\InstanceController::edit
-* @see app/Http/Controllers/Settings/InstanceController.php:34
+* @see \Heptapod\Http\Controllers\Settings\EmailController::edit
+* @see app/Http/Controllers/Settings/EmailController.php:23
 * @route '/settings/email'
 */
 const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,8 +54,8 @@ const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 /**
-* @see \Heptapod\Http\Controllers\Settings\InstanceController::edit
-* @see app/Http/Controllers/Settings/InstanceController.php:34
+* @see \Heptapod\Http\Controllers\Settings\EmailController::edit
+* @see app/Http/Controllers/Settings/EmailController.php:23
 * @route '/settings/email'
 */
 editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -64,8 +64,8 @@ editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 /**
-* @see \Heptapod\Http\Controllers\Settings\InstanceController::edit
-* @see app/Http/Controllers/Settings/InstanceController.php:34
+* @see \Heptapod\Http\Controllers\Settings\EmailController::edit
+* @see app/Http/Controllers/Settings/EmailController.php:23
 * @route '/settings/email'
 */
 editForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -81,8 +81,8 @@ editForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 edit.form = editForm
 
 /**
-* @see \Heptapod\Http\Controllers\Settings\InstanceController::update
-* @see app/Http/Controllers/Settings/InstanceController.php:41
+* @see \Heptapod\Http\Controllers\Settings\EmailController::update
+* @see app/Http/Controllers/Settings/EmailController.php:35
 * @route '/settings/email'
 */
 export const update = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -96,8 +96,8 @@ update.definition = {
 } satisfies RouteDefinition<["patch"]>
 
 /**
-* @see \Heptapod\Http\Controllers\Settings\InstanceController::update
-* @see app/Http/Controllers/Settings/InstanceController.php:41
+* @see \Heptapod\Http\Controllers\Settings\EmailController::update
+* @see app/Http/Controllers/Settings/EmailController.php:35
 * @route '/settings/email'
 */
 update.url = (options?: RouteQueryOptions) => {
@@ -105,8 +105,8 @@ update.url = (options?: RouteQueryOptions) => {
 }
 
 /**
-* @see \Heptapod\Http\Controllers\Settings\InstanceController::update
-* @see app/Http/Controllers/Settings/InstanceController.php:41
+* @see \Heptapod\Http\Controllers\Settings\EmailController::update
+* @see app/Http/Controllers/Settings/EmailController.php:35
 * @route '/settings/email'
 */
 update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -115,8 +115,8 @@ update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 })
 
 /**
-* @see \Heptapod\Http\Controllers\Settings\InstanceController::update
-* @see app/Http/Controllers/Settings/InstanceController.php:41
+* @see \Heptapod\Http\Controllers\Settings\EmailController::update
+* @see app/Http/Controllers/Settings/EmailController.php:35
 * @route '/settings/email'
 */
 const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -130,8 +130,8 @@ const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 })
 
 /**
-* @see \Heptapod\Http\Controllers\Settings\InstanceController::update
-* @see app/Http/Controllers/Settings/InstanceController.php:41
+* @see \Heptapod\Http\Controllers\Settings\EmailController::update
+* @see app/Http/Controllers/Settings/EmailController.php:35
 * @route '/settings/email'
 */
 updateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -146,9 +146,190 @@ updateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 
 update.form = updateForm
 
+/**
+* @see \Heptapod\Http\Controllers\Settings\EmailPreviewController::__invoke
+* @see app/Http/Controllers/Settings/EmailPreviewController.php:25
+* @route '/settings/email/preview'
+*/
+export const preview = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: preview.url(options),
+    method: 'get',
+})
+
+preview.definition = {
+    methods: ["get","head"],
+    url: '/settings/email/preview',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \Heptapod\Http\Controllers\Settings\EmailPreviewController::__invoke
+* @see app/Http/Controllers/Settings/EmailPreviewController.php:25
+* @route '/settings/email/preview'
+*/
+preview.url = (options?: RouteQueryOptions) => {
+    return preview.definition.url + queryParams(options)
+}
+
+/**
+* @see \Heptapod\Http\Controllers\Settings\EmailPreviewController::__invoke
+* @see app/Http/Controllers/Settings/EmailPreviewController.php:25
+* @route '/settings/email/preview'
+*/
+preview.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: preview.url(options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\Settings\EmailPreviewController::__invoke
+* @see app/Http/Controllers/Settings/EmailPreviewController.php:25
+* @route '/settings/email/preview'
+*/
+preview.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: preview.url(options),
+    method: 'head',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\Settings\EmailPreviewController::__invoke
+* @see app/Http/Controllers/Settings/EmailPreviewController.php:25
+* @route '/settings/email/preview'
+*/
+const previewForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: preview.url(options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\Settings\EmailPreviewController::__invoke
+* @see app/Http/Controllers/Settings/EmailPreviewController.php:25
+* @route '/settings/email/preview'
+*/
+previewForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: preview.url(options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\Settings\EmailPreviewController::__invoke
+* @see app/Http/Controllers/Settings/EmailPreviewController.php:25
+* @route '/settings/email/preview'
+*/
+previewForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: preview.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+preview.form = previewForm
+
+/**
+* @see \Heptapod\Http\Controllers\Settings\EmailLogoController::__invoke
+* @see app/Http/Controllers/Settings/EmailLogoController.php:18
+* @route '/settings/email/logo/{variant}/{file}'
+*/
+export const logo = (args: { variant: string | number, file: string | number } | [variant: string | number, file: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: logo.url(args, options),
+    method: 'get',
+})
+
+logo.definition = {
+    methods: ["get","head"],
+    url: '/settings/email/logo/{variant}/{file}',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \Heptapod\Http\Controllers\Settings\EmailLogoController::__invoke
+* @see app/Http/Controllers/Settings/EmailLogoController.php:18
+* @route '/settings/email/logo/{variant}/{file}'
+*/
+logo.url = (args: { variant: string | number, file: string | number } | [variant: string | number, file: string | number ], options?: RouteQueryOptions) => {
+    if (Array.isArray(args)) {
+        args = {
+            variant: args[0],
+            file: args[1],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        variant: args.variant,
+        file: args.file,
+    }
+
+    return logo.definition.url
+            .replace('{variant}', parsedArgs.variant.toString())
+            .replace('{file}', parsedArgs.file.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \Heptapod\Http\Controllers\Settings\EmailLogoController::__invoke
+* @see app/Http/Controllers/Settings/EmailLogoController.php:18
+* @route '/settings/email/logo/{variant}/{file}'
+*/
+logo.get = (args: { variant: string | number, file: string | number } | [variant: string | number, file: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: logo.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\Settings\EmailLogoController::__invoke
+* @see app/Http/Controllers/Settings/EmailLogoController.php:18
+* @route '/settings/email/logo/{variant}/{file}'
+*/
+logo.head = (args: { variant: string | number, file: string | number } | [variant: string | number, file: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: logo.url(args, options),
+    method: 'head',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\Settings\EmailLogoController::__invoke
+* @see app/Http/Controllers/Settings/EmailLogoController.php:18
+* @route '/settings/email/logo/{variant}/{file}'
+*/
+const logoForm = (args: { variant: string | number, file: string | number } | [variant: string | number, file: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: logo.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\Settings\EmailLogoController::__invoke
+* @see app/Http/Controllers/Settings/EmailLogoController.php:18
+* @route '/settings/email/logo/{variant}/{file}'
+*/
+logoForm.get = (args: { variant: string | number, file: string | number } | [variant: string | number, file: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: logo.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\Settings\EmailLogoController::__invoke
+* @see app/Http/Controllers/Settings/EmailLogoController.php:18
+* @route '/settings/email/logo/{variant}/{file}'
+*/
+logoForm.head = (args: { variant: string | number, file: string | number } | [variant: string | number, file: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: logo.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+logo.form = logoForm
+
 const email = {
     edit: Object.assign(edit, edit),
     update: Object.assign(update, update),
+    preview: Object.assign(preview, preview),
+    logo: Object.assign(logo, logo),
 }
 
 export default email
