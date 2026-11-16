@@ -11,29 +11,30 @@ const catalogModules: Record<Locale, () => Promise<CatalogModule>> = {
     de: () => import('@/lib/catalogs/de'),
 };
 
+/** Adds the addon's keys to `root` in place; copying the growing catalog once per area cost a quadratic startup. */
 export function mergeCatalogs(
     root: Record<string, string>,
     addon: Record<string, string>,
-): Record<string, string> {
+): void {
     for (const key of Object.keys(addon)) {
         if (Object.hasOwn(root, key)) {
             throw new Error(`Duplicate translation key: ${key}`);
         }
     }
-    return { ...root, ...addon };
+    Object.assign(root, addon);
 }
 
 function catalog({ core, addons }: CatalogModule): Record<string, string> {
-    let entries: Record<string, string> = {};
+    const entries: Record<string, string> = {};
     for (const [, area] of Object.entries(core).sort(([a], [b]) =>
         a.localeCompare(b),
     )) {
-        entries = mergeCatalogs(entries, area);
+        mergeCatalogs(entries, area);
     }
     for (const [, addon] of Object.entries(addons).sort(([a], [b]) =>
         a.localeCompare(b),
     )) {
-        entries = mergeCatalogs(entries, addon);
+        mergeCatalogs(entries, addon);
     }
     return Object.fromEntries(
         Object.entries(entries).map(([key, value]) => [

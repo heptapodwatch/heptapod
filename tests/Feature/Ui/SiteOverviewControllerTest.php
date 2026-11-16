@@ -162,7 +162,7 @@ it('shows the scoped run-all preview and each fast-only submission result', func
         ->toMatchArray(['status' => 'skipped', 'reason' => 'fast_only']);
 });
 
-it('serves per-check metrics, masked settings and stored hourly p95 without exposing other clients', function (): void {
+it('serves per-check runs, masked settings and stored hourly p95 without exposing other clients', function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-01T12:00:00Z'));
     $client = Client::factory()->create();
     $user = User::factory()->create(['client_scope' => ClientScope::Restricted]);
@@ -178,10 +178,15 @@ it('serves per-check metrics, masked settings and stored hourly p95 without expo
     CheckRun::factory()->for($hidden)->create(['started_at' => now()->subMinutes(2), 'ended_at' => now()->subMinute(), 'metrics' => ['duration' => 9, 'total_time_in_seconds' => 100]]);
 
     $response = $this->actingAs($user)->get('/sites/'.$site->id.'/checks/'.$check->id)->assertOk()->assertInertia(fn (Assert $page): Assert => $page
-        ->component('sites/show')->where('header.id', $site->id)->where('check.id', $check->id)->where('client.id', $client->id)->has('runs', 1)->where('metrics.0.key', 'duration')
+        ->component('sites/show')->where('header.id', $site->id)->where('check.id', $check->id)->where('client.id', $client->id)->has('runs', 1)->where('metrics', [])
         ->where('check_settings.settings.secret', '********')->where('detail', null)->has('response_times', 4)
         ->where('response_p95_hourly.points.167.value', 300));
     expect(json_encode($response->inertiaProps(), JSON_THROW_ON_ERROR))->not->toContain($secret);
+    // Only the performance evidence reads the raw metric series.
+    $performance = Check::factory()->for($site)->create(['type' => CheckKey::Performance]);
+    CheckRun::factory()->for($performance)->create(['started_at' => now()->subMinutes(2), 'ended_at' => now()->subMinute(), 'metrics' => ['average_response_time_in_ms' => 200]]);
+    $metrics = $this->get('/sites/'.$site->id.'/checks/'.$performance->id)->assertOk()->inertiaProps()['metrics'];
+    expect(array_column($metrics, 'key'))->toBe(['average_response_time_in_ms']);
     expect($check->refresh()->config_secrets['secret'])->toBe($secret);
     $this->get('/sites/'.$hidden->site_id.'/checks/'.$hidden->id)->assertNotFound();
     $this->get('/sites/'.$site->id.'/checks/'.$hidden->id)->assertNotFound();

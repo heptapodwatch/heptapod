@@ -197,8 +197,8 @@ foreach (['resources/js', 'addons'] as $base) {
         if (str_starts_with($path, 'addons/') && ! str_contains($path, '/resources/')) {
             continue;
         }
-        // Generated route helpers contain no UI.
-        if (preg_match('~^resources/js/(actions|routes|wayfinder)/~', $path) === 1) {
+        // Generated route helpers and class-merge tables contain no UI.
+        if (preg_match('~^resources/js/(actions|routes|wayfinder)/~', $path) === 1 || $path === 'resources/js/lib/cn-tables.ts') {
             continue;
         }
         $files[] = $path;
@@ -621,6 +621,7 @@ foreach ($files as $path) {
     $dateTimeOwners = [
         'resources/js/hooks/use-format.ts',
         'resources/js/lib/date-time.ts',
+        'resources/js/lib/format-cache.ts', // The formatter cache behind the presets.
         'resources/js/lib/monitor-time.ts',
         'resources/js/lib/upcoming-calendar.ts',
         'resources/js/lib/findings-export.ts',
@@ -628,7 +629,7 @@ foreach ($files as $path) {
         'resources/js/components/ui/date-time-field.tsx', // Calendar grid and wall-time preview are purpose-specific formats.
         'resources/js/components/timezone-combobox.tsx', // UTC-offset computation for picker rows, not a display timestamp.
     ];
-    if (! in_array($path, $dateTimeOwners, true) && preg_match('~new\\s+Intl\\.DateTimeFormat\\b~', $source) === 1) {
+    if (! in_array($path, $dateTimeOwners, true) && preg_match('~new\\s+Intl\\.DateTimeFormat\\b|\\bdateTimeFormat\\s*\\(~', $source) === 1) {
         $failures[] = "{$path}: local date formatter; use the shared date/time presets";
     }
     if ($path !== 'resources/js/lib/date-time.ts' && $path !== 'resources/js/components/ui/date-time-field.tsx' && preg_match('~\\btimeStyle\\s*:~', $source) === 1) {

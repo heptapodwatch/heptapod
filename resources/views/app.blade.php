@@ -12,6 +12,8 @@
                 'scheme' => config('broadcasting.reverb_client.scheme'),
                 'path' => config('broadcasting.reverb_client.path') ?? '',
             ], JSON_THROW_ON_ERROR) }}">
+            {{-- Request start, before any page data is read: the first live subscription asks for changes since then. --}}
+            <meta name="heptapod-rendered-at" content="{{ (int) floor(request()->server('REQUEST_TIME_FLOAT') * 1000) }}">
         @endif
 
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}

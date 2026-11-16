@@ -7,7 +7,9 @@ import { useStreamState } from '@/hooks/use-live';
 export function StreamLostStrip() {
     const { t } = useTranslation();
     const format = useFormat();
-    const { status, dataFrom, dataReloadFailed } = useStreamState();
+    const status = useStreamState('status');
+    const dataFrom = useStreamState('dataFrom');
+    const dataReloadFailed = useStreamState('dataReloadFailed');
     if (status !== 'lost' && !dataReloadFailed) return null;
 
     return (

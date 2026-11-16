@@ -28,23 +28,39 @@ afterEach(() => {
     reload.mockReset();
 });
 
-it('reloads exactly once when the first private subscription becomes ready', () => {
+it('reloads after the first subscription only when a change since render is reported, and after every reconnect', async () => {
+    // A fresh store: the tab's first connection is the case under test.
+    vi.resetModules();
+    const store = await import('@/lib/live-store');
+    const { useLiveReload: freshReload } = await import('./use-live');
     const { unmount } = renderHook(() =>
-        useLiveReload(['state.changed'], ['sites']),
+        freshReload(['state.changed'], ['sites']),
     );
+    const settle = () =>
+        act(() => {
+            vi.advanceTimersByTime(1_000);
+        });
 
-    act(() => setStreamStatus('connecting'));
+    act(() => {
+        store.setStreamStatus('connecting');
+    });
+    act(() => {
+        expect(store.setStreamStatus('connected')).toBe(true);
+    });
+    settle();
     expect(reload).not.toHaveBeenCalled();
-    act(() => setStreamStatus('connected'));
-    act(() => {
-        vi.advanceTimersByTime(1_000);
-    });
+    act(() => store.requestCatchUp());
+    settle();
     expect(reload).toHaveBeenCalledTimes(1);
-    act(() => setStreamStatus('connected'));
     act(() => {
-        vi.advanceTimersByTime(1_000);
+        reload.mock.calls[0]?.[0].onFinish();
     });
-    expect(reload).toHaveBeenCalledTimes(1);
+    act(() => {
+        store.setStreamStatus('lost');
+        expect(store.setStreamStatus('connected')).toBe(false);
+    });
+    settle();
+    expect(reload).toHaveBeenCalledTimes(2);
     unmount();
 });
 
@@ -53,7 +69,9 @@ it('shows stale data after a partial reload fails and retries on the next poll',
         setStreamStatus('connected');
         markLiveDataFresh();
     });
-    const { result, unmount: unmountState } = renderHook(useStreamState);
+    const { result, unmount: unmountState } = renderHook(() =>
+        useStreamState('dataReloadFailed'),
+    );
     const { unmount } = renderHook(() =>
         useLiveReload(['state.changed'], ['sites']),
     );
@@ -70,7 +88,7 @@ it('shows stale data after a partial reload fails and retries on the next poll',
         ).toBe(false);
         reload.mock.calls[0]?.[0].onFinish();
     });
-    expect(result.current.dataReloadFailed).toBe(true);
+    expect(result.current).toBe(true);
     act(() => {
         vi.advanceTimersByTime(16_000);
     });
@@ -79,7 +97,7 @@ it('shows stale data after a partial reload fails and retries on the next poll',
         markLiveDataFresh();
         reload.mock.calls[1]?.[0].onFinish();
     });
-    expect(result.current.dataReloadFailed).toBe(false);
+    expect(result.current).toBe(false);
     unmount();
     unmountState();
 });

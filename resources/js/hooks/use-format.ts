@@ -1,28 +1,19 @@
 import { usePage } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '@/lib/date-time';
+import {
+    dateTimeFormat,
+    durationFormat,
+    numberFormat,
+} from '@/lib/format-cache';
 import { formatMonitorTime, type MonitoringTimeMode } from '@/lib/monitor-time';
 import { formatUptimePercentage } from '@/lib/uptime-percentage';
-
-// TypeScript's Intl declarations do not yet include the native DurationFormat API.
-const { DurationFormat } = Intl as typeof Intl & {
-    DurationFormat: new (
-        locale: string,
-        options: {
-            style: 'narrow' | 'short';
-            hours?: 'short';
-            hoursDisplay?: 'auto' | 'always';
-            minutesDisplay?: 'auto' | 'always';
-            secondsDisplay?: 'auto' | 'always';
-        },
-    ) => { format(duration: Record<string, number>): string };
-};
 
 export function useFormat() {
     const { i18n } = useTranslation();
     const { timezone } = usePage().props;
     const number = (value: number, options?: Intl.NumberFormatOptions) =>
-        new Intl.NumberFormat(i18n.language, options).format(value);
+        numberFormat(i18n.language, options).format(value);
     const milliseconds = (value: number) =>
         number(value, { maximumFractionDigits: 0 });
     const responseTime = (value: number) =>
@@ -30,7 +21,7 @@ export function useFormat() {
             ? `${milliseconds(value)} ${i18n.t('ms')}`
             : `${number(value / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`;
     const date = (value: string, options?: Intl.DateTimeFormatOptions) =>
-        new Intl.DateTimeFormat(i18n.language, {
+        dateTimeFormat(i18n.language, {
             timeZone: timezone,
             hourCycle: 'h23',
             ...(options ?? { dateStyle: 'medium' }),
@@ -42,7 +33,7 @@ export function useFormat() {
         to: string,
         options?: Intl.DateTimeFormatOptions,
     ) =>
-        new Intl.DateTimeFormat(i18n.language, {
+        dateTimeFormat(i18n.language, {
             timeZone: timezone,
             hourCycle: 'h23',
             ...options,
@@ -65,7 +56,7 @@ export function useFormat() {
                 .slice(0, 2),
         );
         const zero = Object.keys(values).length === 0;
-        return new DurationFormat(i18n.language, {
+        return durationFormat(i18n.language, {
             style: 'narrow',
             ...(i18n.language.startsWith('de')
                 ? { hours: 'short' as const }
@@ -91,9 +82,7 @@ export function useFormat() {
                 return value ? [[unit, value]] : [];
             }),
         );
-        return new DurationFormat(i18n.language, { style: 'short' }).format(
-            values,
-        );
+        return durationFormat(i18n.language, { style: 'short' }).format(values);
     };
     const intervalPhrase = (seconds: number) => {
         const units = [
@@ -123,7 +112,7 @@ export function useFormat() {
             ] as const
         ).find(([, size]) => Math.round(seconds) >= size) ?? ['seconds', 1];
         const value = Math.floor(Math.round(seconds) / size);
-        return new DurationFormat(i18n.language, {
+        return durationFormat(i18n.language, {
             style: 'narrow',
             ...(i18n.language.startsWith('de')
                 ? { hours: 'short' as const }

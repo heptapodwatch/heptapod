@@ -3,6 +3,7 @@ import InvitationController from './InvitationController'
 import UpcomingController from './UpcomingController'
 import ActivityController from './ActivityController'
 import RunsController from './RunsController'
+import LiveChangesController from './LiveChangesController'
 import SearchController from './SearchController'
 import ClientsIndexController from './ClientsIndexController'
 import ClientSettingsController from './ClientSettingsController'
@@ -54,6 +55,7 @@ const Controllers = {
     UpcomingController: Object.assign(UpcomingController, UpcomingController),
     ActivityController: Object.assign(ActivityController, ActivityController),
     RunsController: Object.assign(RunsController, RunsController),
+    LiveChangesController: Object.assign(LiveChangesController, LiveChangesController),
     SearchController: Object.assign(SearchController, SearchController),
     ClientsIndexController: Object.assign(ClientsIndexController, ClientsIndexController),
     ClientSettingsController: Object.assign(ClientSettingsController, ClientSettingsController),

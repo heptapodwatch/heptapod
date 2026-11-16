@@ -82,6 +82,7 @@ export default function SiteShow(page: SitePage) {
                   'schedule',
                   'runs',
                   'metrics',
+                  'phase_series',
                   'detail',
                   'history',
                   'response_times',

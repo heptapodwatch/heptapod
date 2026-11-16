@@ -7,11 +7,13 @@ use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
 use Heptapod\Enums\ClientScope;
 use Heptapod\Enums\HealthStatus;
 use Heptapod\Events\LiveSignal;
 use Heptapod\Jobs\BroadcastLiveSignal;
 use Heptapod\Jobs\RunCheck;
+use Heptapod\Live\LiveChannels;
 use Heptapod\Models\Check;
 use Heptapod\Models\Client;
 use Heptapod\Models\User;
@@ -20,11 +22,13 @@ use Illuminate\Broadcasting\BroadcastManager;
 use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Database\DatabaseTransactionsManager;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 
@@ -83,6 +87,45 @@ it('authorizes only the assigned client channels and keeps restricted members of
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
     $this->actingAs($owner)->post('/broadcasting/auth', ['socket_id' => '1.1', 'channel_name' => 'presence-instance'])->assertOk();
+});
+
+it('tells a first subscription whether its channels changed after the page was rendered', function (): void {
+    config(['broadcasting.default' => 'reverb', 'broadcasting.connections.reverb.key' => 'test-key',
+        'broadcasting.connections.reverb.secret' => 'test-secret', 'broadcasting.connections.reverb.app_id' => 'test-app',
+        'broadcasting.connections.reverb.options.host' => '127.0.0.1',
+        'broadcasting.connections.reverb.options.port' => 1, 'broadcasting.connections.reverb.options.scheme' => 'http',
+        'broadcasting.connections.reverb.options.useTLS' => false,
+        'broadcasting.connections.reverb.client_options.handler' => HandlerStack::create(new MockHandler([new Response(200, [], '{}'), new Response(200, [], '{}')]))]);
+    app(BroadcastManager::class)->purge('reverb');
+    // The production store: Redis hands stored integers back as strings.
+    config(['cache.default' => 'redis', 'cache.prefix' => 'live_changes_test_'.Str::uuid().':']);
+    $client = Client::factory()->create();
+    $other = Client::factory()->create();
+    $member = User::factory()->create(['client_scope' => ClientScope::Restricted]);
+    $member->assignRole('Member');
+    $member->clients()->attach($client);
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $changes = fn (User $user, int $since): bool => $this->actingAs($user)->getJson('/live/changes?since='.$since)->assertOk()->json('changed');
+    $broadcast = static fn (Client $target): mixed => Bus::dispatchSync(new BroadcastLiveSignal(
+        new LiveSignal('state.changed', ['client' => $target->id], now()->toIso8601String(), $target->id)));
+
+    // Without a stamp nobody can tell, so the tab reloads.
+    expect($changes($member, now()->getTimestampMs()))->toBeTrue();
+    try {
+        $broadcast($client);
+        $this->travel(1)->seconds();
+        $rendered = now()->getTimestampMs();
+        expect($changes($member, $rendered))->toBeFalse()
+            ->and($changes($owner, $rendered))->toBeFalse();
+
+        $this->travel(1)->seconds();
+        $broadcast($other);
+        expect($changes($member, $rendered))->toBeFalse()
+            ->and($changes($owner, $rendered))->toBeTrue();
+    } finally {
+        Cache::deleteMultiple(['live:changed-at:instance', 'live:changed-at:client.'.$client->id, 'live:changed-at:client.'.$other->id]);
+    }
 });
 
 it('emits only site identity after commit and never the changed name', function (): void {
@@ -183,8 +226,8 @@ it('finishes a claimed run and reports a missing Reverb configuration once', fun
         Queue::assertPushed(RunCheck::class, fn (RunCheck $job): bool => $job->checkId === $check->id);
         Queue::assertPushed(BroadcastLiveSignal::class, fn (BroadcastLiveSignal $job): bool => $job->signal->topic === 'run.queued');
         $job = Queue::pushed(BroadcastLiveSignal::class)[0];
-        $job->handle(app(BroadcastManager::class));
-        $job->handle(app(BroadcastManager::class));
+        $job->handle(app(BroadcastManager::class), app(LiveChannels::class));
+        $job->handle(app(BroadcastManager::class), app(LiveChannels::class));
         expect($records->getRecords())->toHaveCount(1)
             ->and($records->hasErrorThatContains('Reverb app credentials'))->toBeTrue()
             ->and(app(ReadSystemHealth::class)()->reverb->status)->toBe(HealthStatus::NotConfigured)

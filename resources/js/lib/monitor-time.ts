@@ -1,4 +1,5 @@
 import { formatDateTime } from '@/lib/date-time';
+import { dateTimeFormat, relativeTimeFormat } from '@/lib/format-cache';
 
 export type MonitoringTimeMode = 'relative' | 'since';
 
@@ -14,7 +15,7 @@ export function formatMonitorTime(
         throw new RangeError('Invalid monitoring time.');
 
     const format = (options: Intl.DateTimeFormatOptions) =>
-        new Intl.DateTimeFormat(locale, { timeZone: timezone, ...options });
+        dateTimeFormat(locale, { timeZone: timezone, ...options });
     const exact = formatDateTime(value, locale, timezone, 'exact');
     const day = format({ year: 'numeric', month: 'numeric', day: 'numeric' });
     const current = new Date(now);
@@ -47,7 +48,7 @@ export function formatMonitorTime(
               : 'second';
     const size = { hour: 3600, minute: 60, second: 1 }[unit];
     return {
-        label: new Intl.RelativeTimeFormat(locale, {
+        label: relativeTimeFormat(locale, {
             numeric: 'auto',
             style: 'short',
         }).format(Math.round(seconds / size), unit),

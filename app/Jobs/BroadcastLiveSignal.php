@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Jobs;
 
 use Heptapod\Events\LiveSignal;
+use Heptapod\Live\LiveChannels;
 use Illuminate\Broadcasting\Broadcasters\PusherBroadcaster;
 use Illuminate\Broadcasting\BroadcastManager;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -12,6 +13,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Psr\Http\Client\NetworkExceptionInterface;
 use Pusher\ApiErrorException;
 
@@ -28,7 +30,7 @@ final class BroadcastLiveSignal implements ShouldQueue
         $this->onQueue('broadcasts');
     }
 
-    public function handle(BroadcastManager $broadcasts): void
+    public function handle(BroadcastManager $broadcasts, LiveChannels $liveChannels): void
     {
         foreach (['key', 'secret', 'app_id'] as $field) {
             $credential = config('broadcasting.connections.reverb.'.$field);
@@ -46,6 +48,8 @@ final class BroadcastLiveSignal implements ShouldQueue
             throw new \UnexpectedValueException('Reverb must use the Pusher broadcaster.');
         }
         $channels = array_map(static fn (PresenceChannel $channel): string => $channel->name, $this->signal->broadcastOn());
+        // Stamped before the trigger: a tab that subscribes after the trigger still reads this change when it checks.
+        $liveChannels->recordChange(array_map(static fn (string $channel): string => Str::chopStart($channel, 'presence-'), $channels));
         // Pusher rejects more than 100 channels per trigger. Chunks carry the same payload, so the logical event is unchanged.
         foreach (array_chunk($channels, self::MAX_CHANNELS_PER_TRIGGER) as $chunk) {
             try {

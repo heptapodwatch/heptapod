@@ -5,9 +5,33 @@ import {
     liveConfigured,
     markLiveDataFresh,
     receiveLiveSignal,
+    requestCatchUp,
     setStreamStatus,
     type LiveSignal,
 } from '@/lib/live-store';
+import { changes } from '@/routes/live';
+
+/** Catches up only when the server saw a change between this page's render and the first subscription. */
+async function catchUpSinceRender() {
+    const since = document.querySelector<HTMLMetaElement>(
+        'meta[name="heptapod-rendered-at"]',
+    )?.content;
+    if (!since) throw new Error('The page names no render time.');
+    // A failed check still reports its error, but the views reload as if a change was seen.
+    let changed = true;
+    try {
+        const response = await fetch(changes.url({ query: { since } }), {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+        });
+        if (!response.ok) {
+            throw new Error(`Live change check failed: ${response.status}`);
+        }
+        ({ changed } = (await response.json()) as { changed: boolean });
+    } finally {
+        if (changed) requestCatchUp();
+    }
+}
 
 export function LiveProvider({ children }: { children: ReactNode }) {
     const { liveChannels } = usePage().props;
@@ -44,7 +68,8 @@ export function LiveProvider({ children }: { children: ReactNode }) {
                     pending.delete(name);
                     if (pending.size === 0) {
                         window.clearTimeout(lost);
-                        setStreamStatus('connected');
+                        if (setStreamStatus('connected'))
+                            void catchUpSinceRender();
                     }
                 })
                 .error(() => {

@@ -364,7 +364,8 @@ final readonly class SiteDetailReader
             schedule: Lazy::closure(fn (): CheckScheduleData => $this->checkRuns->schedule($check)),
             failure_threshold: Lazy::closure(static fn (): int => $check->failure_threshold),
             runs: Lazy::closure(static fn (): array => $getRuns()),
-            metrics: Lazy::closure(static fn (): array => $getMetrics()),
+            // Only the performance evidence reads the raw series; the uptime page charts phase_series instead.
+            metrics: Lazy::closure(static fn (): array => $check->type === CheckKey::Performance ? $getMetrics() : []),
             check_settings: Lazy::closure(fn (): CheckSettingsData => $this->checkSettings($site, [$check], static fn (): bool => $getCanUpdate())[0]
                 ?? throw new \LogicException('Scoped site projection must contain its check.')),
             detail: Lazy::closure(fn (): ?CheckDetailData => $this->detail($check)),

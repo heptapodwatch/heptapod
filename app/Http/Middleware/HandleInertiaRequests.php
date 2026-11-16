@@ -3,13 +3,12 @@
 namespace Heptapod\Http\Middleware;
 
 use Heptapod\Contracts\Mail\MailDeliveryMode;
-use Heptapod\Enums\ClientScope;
 use Heptapod\Enums\RecipientKind;
+use Heptapod\Live\LiveChannels;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\User;
 use Heptapod\Queries\RunsReader;
 use Heptapod\Queries\ShellHealthReader;
-use Heptapod\Queries\SitesReader;
 use Heptapod\SystemHealth\SystemIssueKind;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -84,11 +83,7 @@ class HandleInertiaRequests extends Middleware
                     ])->values()->all()
                 : [],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
-            'liveChannels' => static fn (): array => $user instanceof User && $user->hasAnyRole(['Owner', 'Admin', 'Member'])
-                ? ($user->hasAnyRole(['Owner', 'Admin']) || $user->client_scope === ClientScope::All
-                    ? ['instance']
-                    : array_map(static fn (int $clientId): string => 'client.'.$clientId, app(SitesReader::class)->clientIds($user)))
-                : [],
+            'liveChannels' => static fn (): array => $user instanceof User ? app(LiveChannels::class)->forUser($user) : [],
         ];
     }
 }

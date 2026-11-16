@@ -1,3 +1,5 @@
+import { dateTimeFormat } from '@/lib/format-cache';
+
 const formats = {
     date: { dateStyle: 'medium' },
     timestamp: { dateStyle: 'medium', timeStyle: 'short' },
@@ -29,7 +31,7 @@ export function zonedInstant(local: string, timezone: string): string | null {
         hour > 23
     )
         return null;
-    const parts = new Intl.DateTimeFormat('en-US', {
+    const parts = dateTimeFormat('en-US', {
         timeZone: timezone,
         hourCycle: 'h23',
         year: 'numeric',
@@ -65,7 +67,7 @@ export function zonedInstant(local: string, timezone: string): string | null {
 
 /** The `YYYY-MM-DDTHH:MM` wall time of an instant in an IANA timezone: the inverse of zonedInstant. */
 export function zonedWallTime(value: string, timezone: string): string {
-    return new Intl.DateTimeFormat('sv-SE', {
+    return dateTimeFormat('sv-SE', {
         timeZone: timezone,
         year: 'numeric',
         month: '2-digit',
@@ -84,7 +86,7 @@ export function formatDateTime(
     timezone: string,
     preset: keyof typeof formats,
 ): string {
-    return new Intl.DateTimeFormat(locale, {
+    return dateTimeFormat(locale, {
         timeZone: timezone,
         hourCycle: 'h23',
         ...formats[preset],

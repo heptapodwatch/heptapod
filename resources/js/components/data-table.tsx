@@ -82,7 +82,7 @@ type SiteTableCellOptions = {
     onSelectionChange?: (selected: number[]) => void;
     siteHref?: (site: SiteDto) => string;
     clientFor: (site: SiteDto) => Heptapod.Data.Ui.ClientData;
-    runs: ReturnType<typeof useStreamState>['runs'];
+    runs: ReturnType<typeof useStreamState<'runs'>>;
     historyLoading: boolean;
 };
 const SiteTableCellContext = createContext<SiteTableCellOptions | null>(null);
@@ -259,7 +259,7 @@ export function DataTable({
     const { t } = useTranslation();
     const format = useFormat();
     const headline = useCheckHeadline();
-    const { runs } = useStreamState();
+    const runs = useStreamState('runs');
     const [sorting, setSorting] = useState<SortingState>([]);
     const root = useRef<HTMLDivElement>(null);
     const hasUptimeCheck = (site: SiteDto) =>

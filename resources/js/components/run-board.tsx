@@ -47,7 +47,8 @@ export function RunResultChip({
 function RunBoardLiveStatus() {
     const { t } = useTranslation();
     const connection = useConnectionStatus();
-    const { status, dataReloadFailed } = useStreamState();
+    const status = useStreamState('status');
+    const dataReloadFailed = useStreamState('dataReloadFailed');
     const live =
         connection === 'connected' &&
         status === 'connected' &&
