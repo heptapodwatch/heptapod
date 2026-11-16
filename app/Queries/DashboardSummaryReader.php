@@ -20,7 +20,7 @@ final readonly class DashboardSummaryReader
         'pending' => SiteStatus::Pending->value, 'paused' => SiteStatus::Paused->value, 'ok' => SiteStatus::Ok->value, 'failed' => SiteStatus::Failed->value,
         'maintenance' => SiteStatus::Maintenance->value, 'disabled' => SiteStatus::Disabled->value, 'unavailable' => SiteStatus::Unavailable->value];
 
-    public function __construct(private SitesReader $sites, private UptimeReader $uptime, private MonitorCountsReader $monitorCounts) {}
+    public function __construct(private SitesReader $sites, private UptimeReader $uptime) {}
 
     /** @param list<int>|null $clientIds Null aggregates the instance; a list groups by client.
      * @param  array<string, int>|null  $siteStates  State counts from the initial sites projection, scoped to this user.
@@ -95,11 +95,9 @@ final readonly class DashboardSummaryReader
             $totals[$clientId][0] = ($totals[$clientId][0] ?? 0) + $monitored;
             $totals[$clientId][1] = ($totals[$clientId][1] ?? 0) + $down;
         }
-        $monitor = $clientIds === null ? $this->monitorCounts->read($user) : null;
         $summaries = [];
         foreach ($clientIds ?? [0] as $id) {
-            $summaries[$id] = new DashboardTilesData(0, 0, 0, 0, 0, 0, 0, null, 0, 0, 0, 0, 0, 0, 0,
-                $monitor?->certificates, $monitor?->domains, $monitor?->scheduledTasks, $monitor?->overduePings);
+            $summaries[$id] = new DashboardTilesData(0, 0, 0, 0, 0, 0, 0, null, 0, 0, 0, 0, 0, 0, 0);
         }
         foreach ($rows as $row) {
             $tiled = 0;
@@ -113,8 +111,7 @@ final readonly class DashboardSummaryReader
             $uptime = $monitored === 0 ? null : 100 * (1 - $down / $monitored);
             $summaries[$row->client_id] = new DashboardTilesData($row->sites, $row->down, $row->check_errors, $row->warning, $row->pending, $row->paused,
                 $row->open_incidents, $uptime, $row->certificates_expiring, $row->cron_jobs_failing,
-                $row->ok, $row->failed, $row->maintenance, $row->disabled, $row->unavailable,
-                $monitor?->certificates, $monitor?->domains, $monitor?->scheduledTasks, $monitor?->overduePings);
+                $row->ok, $row->failed, $row->maintenance, $row->disabled, $row->unavailable);
         }
 
         return $summaries;

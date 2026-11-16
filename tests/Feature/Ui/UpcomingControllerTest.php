@@ -15,7 +15,6 @@ use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Tests\Support\QueryPlanWork;
 
 it('filters upcoming dates by client without applying stale session selection or expanding member reach', function (string $role): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-04T00:30:00Z'));
@@ -71,7 +70,7 @@ it('shows only scoped dated observations and maintenance in chronological order'
     $this->get('/upcoming?days=300')->assertSessionHasErrors('days');
 });
 
-it('keeps Maintenance visibility while excluding paused deleting and disabled addon sources from the fourteen-day count', function (): void {
+it('keeps Maintenance visibility while excluding paused deleting and disabled addon sources from upcoming dates', function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-04T00:30:00Z'));
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
@@ -89,110 +88,15 @@ it('keeps Maintenance visibility while excluding paused deleting and disabled ad
     $response = $this->actingAs($owner)->get('/upcoming?days=14')->assertOk();
     $items = $response->inertiaProps()['items'];
     expect($items)->toHaveCount(4)->and(array_column($items, 'type'))->toBe(['maintenance', 'maintenance', 'maintenance', 'domain']);
-    $response->assertInertia(fn ($page) => $page->loadDeferredProps(['sidebar'], fn ($deferred) => $deferred->where('upcomingCount', count($items))));
 });
 
-it('does not register an upcoming deferred request for guests or users without a monitoring role', function (): void {
+it('does not register a sidebar deferred request for guests or users without a monitoring role', function (): void {
     $guest = $this->get('/login')->assertOk()->inertiaPage();
     expect($guest['deferredProps'] ?? [])->not->toHaveKey('sidebar');
 
     $roleless = $this->actingAs(User::factory()->create())->get('/settings/profile')->assertOk()->inertiaPage();
     expect($roleless['deferredProps'] ?? [])->not->toHaveKey('sidebar');
 });
-
-it('shares a zero upcoming count when no visible dates exist', function (): void {
-    $owner = User::factory()->create();
-    $owner->assignRole('Owner');
-
-    $this->actingAs($owner)->get('/sites')->assertOk()->assertInertia(fn ($page) => $page->missing('upcomingCount')
-        ->loadDeferredProps(['sidebar'], fn ($deferred) => $deferred->where('upcomingCount', 0)));
-});
-
-it('shares an uncapped fourteen-day upcoming badge scoped to a member at the UTC day boundary', function (): void {
-    $this->travelTo(CarbonImmutable::parse('2026-10-04T00:30:00Z'));
-    $visible = Client::factory()->create();
-    $hidden = Client::factory()->create();
-    $site = Site::factory()->for($visible)->create();
-    $other = Site::factory()->for($hidden)->create();
-    $member = User::factory()->create(['client_scope' => ClientScope::Restricted]);
-    $member->assignRole('Member');
-    $member->clients()->attach($visible);
-    $check = Check::factory()->for($site)->create(['type' => CheckKey::Domain]);
-    foreach ([[$check, '2026-10-18T00:30:00Z'], [Check::factory()->for($other)->create(['type' => CheckKey::Domain]), '2026-10-07T00:30:00Z']] as [$record, $expiry]) {
-        DB::table('domain_snapshots')->insert(['site_id' => $record->site_id, 'check_id' => $record->id, 'run_id' => $record->id, 'claim_token' => (string) Str::uuid(), 'run_ended_at' => now()->subDay(), 'snapshot' => json_encode(['expires_at' => $expiry], JSON_THROW_ON_ERROR), 'created_at' => now()]);
-    }
-    $expired = Check::factory()->for($site)->create(['type' => CheckKey::CertificateHealth]);
-    DB::table('certificate_health_snapshots')->insert(['site_id' => $site->id, 'check_id' => $expired->id, 'run_id' => $expired->id, 'claim_token' => (string) Str::uuid(), 'run_ended_at' => now(), 'snapshot' => json_encode(['certificate_details' => ['valid_until' => '2026-10-03T00:30:00Z']], JSON_THROW_ON_ERROR), 'created_at' => now()]);
-    foreach (range(1, 105) as $day) {
-        MaintenancePeriod::factory()->create(['site_id' => $site->id, 'starts_at' => now()->addMinutes($day), 'ends_at' => now()->addMinutes($day + 1)]);
-    }
-    MaintenancePeriod::factory()->create(['site_id' => $site->id, 'starts_at' => now()->addDays(14)->addSecond(), 'ends_at' => now()->addDays(14)->addMinute()]);
-    MaintenancePeriod::factory()->create(['site_id' => $other->id, 'starts_at' => now()->addHour(), 'ends_at' => now()->addHours(2)]);
-
-    $this->actingAs($member)->get('/sites')->assertOk()->assertInertia(fn ($page) => $page->missing('upcomingCount')
-        ->loadDeferredProps(['sidebar'], fn ($deferred) => $deferred->where('upcomingCount', 106)));
-    $this->get('/upcoming?days=30')->assertInertia(fn ($page) => $page->has('items', 100));
-});
-
-it('keeps the shared upcoming count within a bounded shell query budget under snapshot history', function (): void {
-    $this->travelTo(CarbonImmutable::parse('2026-10-04T00:30:00Z'));
-    $owner = User::factory()->create();
-    $owner->assignRole('Owner');
-    $site = Site::factory()->create();
-    $check = Check::factory()->for($site)->create(['type' => CheckKey::Domain]);
-    $rows = [];
-    foreach (range(1, 5000) as $run) {
-        $rows[] = ['site_id' => $site->id, 'check_id' => $check->id, 'run_id' => $run, 'claim_token' => (string) Str::uuid(), 'run_ended_at' => now()->addSeconds($run), 'snapshot' => json_encode(['expires_at' => '2026-10-08T00:30:00Z'], JSON_THROW_ON_ERROR), 'created_at' => now()];
-        if (count($rows) === 500) {
-            DB::table('domain_snapshots')->insert($rows);
-            $rows = [];
-        }
-    }
-    DB::statement('ANALYZE domain_snapshots');
-    $version = $this->actingAs($owner)->get('/sites')->assertOk()->inertiaPage()['version'];
-    DB::enableQueryLog();
-    DB::flushQueryLog();
-    $this->get('/sites', ['X-Inertia' => 'true', 'X-Inertia-Version' => $version, 'X-Inertia-Partial-Component' => 'sites/index', 'X-Inertia-Partial-Data' => 'upcomingCount'])
-        ->assertOk()->assertJsonPath('props.upcomingCount', 1);
-    $queries = DB::getQueryLog();
-    DB::disableQueryLog();
-    $snapshotQuery = collect($queries)->first(static fn (array $query): bool => str_contains($query['query'], 'domain_snapshots'));
-    expect(count($queries))->toBeLessThanOrEqual(30);
-    expect($snapshotQuery)->not->toBeNull();
-    expect(QueryPlanWork::forQuery($snapshotQuery['query'], $snapshotQuery['bindings']))->toBeLessThan(12 * 5000);
-});
-
-it('bounds deferred upcoming count work as scheduled tasks grow', function (int $taskCount, string $type): void {
-    $this->travelTo(CarbonImmutable::parse('2026-10-04T00:30:00Z'));
-    $owner = User::factory()->create();
-    $owner->assignRole('Owner');
-    $site = Site::factory()->create();
-    $cron = Check::factory()->for($site)->create(['type' => CheckKey::Cron]);
-    app(CronTaskStore::class)->create($cron->id, $type === 'cron'
-        ? ['name' => 'Daily job', 'type' => 'cron', 'cron_expression' => '0 6 * * *', 'server_timezone' => 'UTC']
-        : ['name' => 'Daily job', 'type' => 'simple', 'frequency_in_minutes' => 1440]);
-    $template = (array) DB::table('cron_checks')->where('check_id', $cron->id)->first();
-    unset($template['id']);
-    $batch = [];
-    for ($index = 2; $index <= $taskCount; $index++) {
-        $batch[] = [...$template, 'uuid' => (string) Str::uuid(), 'name' => 'Daily job '.$index];
-        if (count($batch) === 250) {
-            DB::table('cron_checks')->insert($batch);
-            $batch = [];
-        }
-    }
-    if ($batch !== []) {
-        DB::table('cron_checks')->insert($batch);
-    }
-    $version = $this->actingAs($owner)->get('/sites')->assertOk()->inertiaPage()['version'];
-    DB::enableQueryLog();
-    DB::flushQueryLog();
-    $this->get('/sites', ['X-Inertia' => 'true', 'X-Inertia-Version' => $version, 'X-Inertia-Partial-Component' => 'sites/index', 'X-Inertia-Partial-Data' => 'upcomingCount'])
-        ->assertOk()->assertJsonPath('props.upcomingCount', $taskCount);
-    $queries = DB::getQueryLog();
-    DB::disableQueryLog();
-    expect(count($queries))->toBeLessThanOrEqual(16);
-})->with(['one simple' => [1, 'simple'], 'two thousand simple' => [2000, 'simple'], 'two thousand cron expressions' => [2000, 'cron']]);
 
 it('reads offsetless certificate and domain expiry in UTC under a non-UTC database session', function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-04T00:30:00Z'));
@@ -211,7 +115,6 @@ it('reads offsetless certificate and domain expiry in UTC under a non-UTC databa
 
     $response = $this->actingAs($owner)->get('/upcoming?days=14')->assertOk();
     expect(array_column($response->inertiaProps()['items'], 'type'))->toBe(['certificate', 'domain', 'domain']);
-    $response->assertInertia(fn ($page) => $page->loadDeferredProps(['sidebar'], fn ($deferred) => $deferred->where('upcomingCount', 3)));
 });
 
 it('projects certified expiry and only rare scheduled tasks from addon facts', function (): void {
@@ -228,12 +131,9 @@ it('projects certified expiry and only rare scheduled tasks from addon facts', f
     $tasks->create($cron->id, ['name' => 'Monthly job', 'type' => 'cron', 'cron_expression' => '0 6 1 * *', 'server_timezone' => 'UTC']);
 
     $response = $this->actingAs($user)->get('/upcoming?days=30')->assertOk();
-    $response->assertInertia(fn ($page) => $page->loadDeferredProps(['sidebar'], fn ($deferred) => $deferred->where('upcomingCount', 1)));
     expect(array_column($response->inertiaProps()['items'], 'type'))->toBe(['certificate', 'task'])
         ->and(array_column($response->inertiaProps()['items'], 'detail'))->toBe(['Issuer', 'Monthly job']);
     $this->get('/upcoming?type=task')->assertInertia(fn ($page) => $page->has('items', 1)->where('items.0.detail', 'Monthly job'));
-    $this->travelTo(CarbonImmutable::parse('2026-10-25T00:30:00Z'));
-    $this->get('/sites')->assertInertia(fn ($page) => $page->loadDeferredProps(['sidebar'], fn ($deferred) => $deferred->where('upcomingCount', 1)));
 });
 
 it('includes a recurring maintenance window on the next local day within the UTC range', function (): void {
@@ -244,8 +144,7 @@ it('includes a recurring maintenance window on the next local day within the UTC
     RecurringMaintenancePeriod::factory()->create(['site_id' => $site->id, 'timezone' => 'Pacific/Auckland', 'start_time' => '02:00', 'end_time' => '03:00']);
 
     $this->actingAs($owner)->get('/upcoming?days=30&type=maintenance')->assertOk()
-        ->assertInertia(fn ($page) => $page->has('items', 30)->where('items.29.date', '2026-11-03T13:00:00+00:00')
-            ->loadDeferredProps(['sidebar'], fn ($deferred) => $deferred->where('upcomingCount', 14)));
+        ->assertInertia(fn ($page) => $page->has('items', 30)->where('items.29.date', '2026-11-03T13:00:00+00:00'));
 });
 
 it('bounds All to twelve months and a hundred chronological dates with a stable query budget', function (int $count): void {

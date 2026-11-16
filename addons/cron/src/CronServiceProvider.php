@@ -17,7 +17,6 @@ final class CronServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(CronTaskStore::class, DatabaseCronTaskStore::class);
-        $this->app->tag([CronMonitorCounts::class], 'monitor-counts');
         $this->app->tag([CronUpcomingSource::class], UpcomingEventSource::class);
         $this->mergeConfigFrom(__DIR__.'/../config/cron.php', 'cron');
         $this->mergeConfigFrom(__DIR__.'/../config/notifications.php', 'notifications.event_types.cron');

@@ -68,7 +68,7 @@ it('marks a failed refresh unknown, preserves the prior snapshot and recovers th
     $this->actingAs($owner);
     $heartbeat = DispatcherHeartbeat::factory()->create(['last_seen_at' => now()->subSeconds(300)]);
     $original = $heartbeat->last_seen_at->toIso8601String();
-    $page = visit('/settings/system')->assertScript('typeof history.state?.page?.props?.upcomingCount === "number"');
+    $page = visit('/settings/system')->assertScript('typeof history.state?.page?.props?.lateRunsCount === "number"');
     $owner->syncRoles('Member');
     $refresh = $locale === 'de' ? 'Aktualisieren' : 'Refresh';
     $error = $locale === 'de' ? 'Systemzustand konnte nicht aktualisiert werden.' : 'Could not refresh system health.';

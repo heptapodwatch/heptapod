@@ -10,7 +10,6 @@ use Heptapod\Models\User;
 use Heptapod\Queries\RunsReader;
 use Heptapod\Queries\ShellHealthReader;
 use Heptapod\Queries\SitesReader;
-use Heptapod\Queries\UpcomingReader;
 use Heptapod\SystemHealth\SystemIssueKind;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -56,7 +55,6 @@ class HandleInertiaRequests extends Middleware
             'csrfToken' => Inertia::always(static fn (): string => $request->session()->token()),
             'locale' => app()->getLocale(),
             'timezone' => $user?->getAttribute('timezone') ?? config('app.timezone'),
-            'name' => 'Heptapod',
             'mailLogOnly' => MailDeliveryMode::logOnly(),
             'mailConfigurationAction' => SystemIssueKind::MailLogOnly->navigationAction($user instanceof User ? $user : null),
             'mailMayOnlyBeLogged' => MailDeliveryMode::includesLocalTransport(),
@@ -70,10 +68,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'overallHealth' => fn (): ?array => $user instanceof User ? app(ShellHealthReader::class)->read($user)->toArray() : null,
             ...($user instanceof User && $user->hasAnyRole(['Owner', 'Admin', 'Member'])
-                ? [
-                    'upcomingCount' => Inertia::defer(static fn (): int => app(UpcomingReader::class)->count($user), 'sidebar'),
-                    'lateRunsCount' => Inertia::defer(static fn (): int => $user->disabled_at === null ? app(RunsReader::class)->lateCount($user) : 0, 'sidebar'),
-                ]
+                ? ['lateRunsCount' => Inertia::defer(static fn (): int => $user->disabled_at === null ? app(RunsReader::class)->lateCount($user) : 0, 'sidebar')]
                 : []),
             // Channels the viewer can repair: the team's and clients' for Owners and Admins, and always their own.
             'notificationAttention' => fn (): array => $user instanceof User && $user->disabled_at === null
@@ -81,11 +76,10 @@ class HandleInertiaRequests extends Middleware
                     ->where(fn (Builder $mine): Builder => $mine->where('user_id', $user->id)
                         ->when($user->hasAnyRole(['Owner', 'Admin']), fn (Builder $managed): Builder => $managed->orWhere('recipient_kind', RecipientKind::Team)
                             ->orWhere('recipient_kind', RecipientKind::Client)))
-                    ->where('removed_at', null)->get(['id', 'label', 'channel', 'recipient_kind', 'client_id', 'attention_reason'])
+                    ->where('removed_at', null)->get(['id', 'label', 'recipient_kind', 'client_id', 'attention_reason'])
                     ->filter(static fn (NotificationDestination $destination): bool => $destination->recipient_kind !== RecipientKind::Client
                         || $user->canAccessClient($destination->client_id ?? 0))
-                    ->map(static fn (NotificationDestination $destination): array => ['id' => $destination->id, 'label' => $destination->label, 'channel' => $destination->channel,
-                        'recipient_kind' => $destination->recipient_kind->value, 'client_id' => $destination->client_id,
+                    ->map(static fn (NotificationDestination $destination): array => ['id' => $destination->id, 'label' => $destination->label,
                         'reason' => __($destination->attention_reason ?? throw new \LogicException('A destination needing attention must have a reason.')),
                     ])->values()->all()
                 : [],

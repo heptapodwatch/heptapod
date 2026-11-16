@@ -10,7 +10,6 @@ declare module '@inertiajs/core' {
     export interface InertiaConfig {
         sharedPageProps: {
             csrfToken?: string;
-            name: string;
             mailLogOnly: boolean;
             mailConfigurationAction: { action_key: string; href: string };
             mailMayOnlyBeLogged: boolean;
@@ -24,10 +23,8 @@ declare module '@inertiajs/core' {
             notificationAttention: {
                 id: number;
                 label: string;
-                channel: string;
                 reason: string;
             }[];
-            [key: string]: unknown;
         };
     }
 }

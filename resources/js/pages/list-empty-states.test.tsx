@@ -30,7 +30,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
         url: '/',
         // First-load deferred groups whose props have not arrived yet.
         deferredProps: {
-            sidebar: ['upcomingCount'],
+            sidebar: ['lateRunsCount'],
             history: ['sites_history'],
         },
         props: {
@@ -108,10 +108,6 @@ const tiles: Heptapod.Data.Ui.DashboardTilesData = {
     maintenance: 0,
     disabled: 0,
     unavailable: 0,
-    certificates_expiring_30_days: null,
-    domains_expiring_30_days: null,
-    scheduled_tasks: null,
-    scheduled_tasks_overdue_pings: null,
 };
 
 /** The list's EmptyState (Sites also names "No sites monitored yet" in its header description). */
@@ -258,7 +254,7 @@ it('Sites: a filter change reloads the rows with their history and replaces firs
             only: expect.arrayContaining([
                 'sites',
                 'sites_history',
-                'upcomingCount',
+                'lateRunsCount',
             ]),
         }),
     );

@@ -41,10 +41,6 @@ const tiles: Heptapod.Data.Ui.DashboardTilesData = {
     maintenance: 0,
     disabled: 0,
     unavailable: 0,
-    certificates_expiring_30_days: null,
-    domains_expiring_30_days: null,
-    scheduled_tasks: null,
-    scheduled_tasks_overdue_pings: null,
 };
 beforeEach(() => {
     vi.stubGlobal('matchMedia', () => ({

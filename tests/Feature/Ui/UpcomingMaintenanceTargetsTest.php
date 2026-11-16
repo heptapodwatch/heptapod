@@ -57,7 +57,6 @@ it('uses the same future maintenance visibility and target facts for Upcoming an
             ->and($first['site_count'])->toBe($targetType === 'tag' ? 2 : 1);
         expect($first['site_name'])->toBe($targetType === 'site' ? 'Visible site' : null);
     }
-    $response->assertInertia(fn ($page) => $page->loadDeferredProps(['sidebar'], fn ($deferred) => $deferred->where('upcomingCount', $maintenance->count())));
     $filtered = collect($this->get('/upcoming?days=14&type=maintenance&client_id='.$visible->id)->assertOk()->inertiaProps()['items']);
     expect($filtered->pluck('key')->all())->toBe($targetItems->pluck('key')->all());
     if ($role === 'Member') {
@@ -81,13 +80,12 @@ it('keeps empty client and excluded-site maintenance facts equal to the Maintena
 
     $response = $this->get('/upcoming?days=14&type=maintenance')->assertOk();
     expect(collect($response->inertiaProps()['items'])->pluck('site_count')->all())->toBe([0, 0]);
-    $response->assertInertia(fn ($page) => $page->loadDeferredProps(['sidebar'], fn ($deferred) => $deferred->where('upcomingCount', 2)));
     $this->get('/maintenance?client_id='.$empty->id)->assertOk()->assertInertia(fn ($page) => $page->has('windows', 1)->where('windows.0.siteCount', 0));
     $this->get('/upcoming?client_id='.$empty->id)->assertOk()->assertInertia(fn ($page) => $page
         ->has('items', 1)->where('items.0.key', 'maintenance:'.$emptyWindow->id)->where('items.0.target_label', 'Empty client')->where('items.0.site_count', 0));
 })->with(['Owner', 'Member']);
 
-it('bounds target presentation queries and keeps count uncapped without fetching standalone windows', function (int $count): void {
+it('bounds target presentation queries', function (int $count): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-04T00:30:00Z'));
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
@@ -99,16 +97,7 @@ it('bounds target presentation queries and keeps count uncapped without fetching
 
     $response = $this->get('/upcoming?days=14&type=maintenance')->assertOk();
     $queries = DB::getQueryLog();
+    DB::disableQueryLog();
     expect($response->inertiaProps()['items'])->toHaveCount(min($count, 100));
     expect(count($queries))->toBeLessThanOrEqual(20);
-    $version = $response->inertiaPage()['version'];
-    DB::flushQueryLog();
-    $this->get('/sites', ['X-Inertia' => 'true', 'X-Inertia-Version' => $version,
-        'X-Inertia-Partial-Component' => 'sites/index', 'X-Inertia-Partial-Data' => 'upcomingCount'])
-        ->assertOk()->assertJsonPath('props.upcomingCount', $count);
-    $queries = DB::getQueryLog();
-    DB::disableQueryLog();
-    $maintenanceQueries = collect($queries)->filter(static fn (array $query): bool => str_contains($query['query'], 'from "maintenance_periods"'));
-    expect($maintenanceQueries)->toHaveCount(1);
-    expect($maintenanceQueries->first()['query'])->toContain('count(*)');
 })->with([1, 150]);

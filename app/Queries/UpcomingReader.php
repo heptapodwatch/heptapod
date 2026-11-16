@@ -27,31 +27,6 @@ final readonly class UpcomingReader
 {
     public function __construct(private SitesReader $sites, private MaintenanceOccurrences $occurrences, private MaintenanceReader $maintenance, private MaintenanceTargets $targets) {}
 
-    public function count(User $user): int
-    {
-        $now = CarbonImmutable::now('UTC');
-        $through = $now->addDays(14);
-        $siteIds = $this->sites->activeVisibleSiteIds($user);
-        $count = $this->standaloneMaintenance($user, $now, $through)->getQuery()->count();
-        $recurring = RecurringMaintenancePeriod::query();
-        $this->maintenance->visibleTargets($recurring, $user);
-        foreach ($recurring->cursor() as $period) {
-            foreach ($this->recurringDates($period, $now, $through) as $occurrence) {
-                $count++;
-            }
-        }
-        /** @var list<int> $checkIds */
-        $checkIds = DB::table('checks')->whereIntegerInRaw('site_id', $siteIds)->where('enabled', true)->pluck('id')->all();
-        foreach (app()->tagged(UpcomingEventSource::class) as $source) {
-            if (! $source instanceof UpcomingEventSource) {
-                throw new \LogicException('Upcoming source must implement its contract.');
-            }
-            $count += $source->count($checkIds, $now, $through);
-        }
-
-        return $count;
-    }
-
     /** @return EloquentBuilder<MaintenancePeriod> */
     private function standaloneMaintenance(User $user, CarbonImmutable $now, CarbonImmutable $through, ?int $clientId = null): EloquentBuilder
     {

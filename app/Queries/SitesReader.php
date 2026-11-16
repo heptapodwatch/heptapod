@@ -84,12 +84,6 @@ final readonly class SitesReader
         return $this->policy->visibleSiteIds($user);
     }
 
-    /** @return list<int> */
-    public function activeVisibleSiteIds(User $user): array
-    {
-        return $this->policy->activeVisibleSiteIds($user);
-    }
-
     /**
      * Materialize authorized site identifiers before projecting status to avoid a nested client-membership join per site with stale statistics.
      *
