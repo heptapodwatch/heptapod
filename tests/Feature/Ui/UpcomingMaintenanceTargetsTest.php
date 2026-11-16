@@ -12,7 +12,7 @@ use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
 
-it('uses the same future maintenance visibility and target facts for Upcoming and its sidebar count', function (string $role, string $targetType, bool $recurring): void {
+it('uses the same future maintenance visibility and target facts for Upcoming as the Maintenance list', function (string $role, string $targetType, bool $recurring): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-04T00:30:00Z'));
     $user = User::factory()->create(['client_scope' => ClientScope::Restricted]);
     $user->assignRole($role);
