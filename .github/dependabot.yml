@@ -1,7 +1,8 @@
 version: 2
 
-# One grouped PR per ecosystem and week for patch/minor updates (auto-merged by
-# dependabot-auto-merge.yml) and one for majors, so a major never holds back the rest.
+# Libraries: one grouped PR per ecosystem and week for patch/minor updates (composer, npm and
+# GitHub Actions ones are auto-merged by dependabot-auto-merge.yml) and one for majors, so a
+# major never holds back the rest. Container images: one PR per image, reviewed by hand.
 updates:
   - package-ecosystem: composer
     directory: /
@@ -51,7 +52,7 @@ updates:
       github-actions-major:
         update-types: [major]
 
-  # Tag and digest pins in the Dockerfiles.
+  # Tag and digest pins in the Dockerfiles. One PR per image across all four Dockerfiles.
   - package-ecosystem: docker
     directories: [/docker/dev, /docker/lighthouse, /docker/php-base, /docker/prod]
     schedule:
@@ -59,10 +60,8 @@ updates:
     commit-message:
       prefix: chore(deps)
     groups:
-      docker-patch-minor:
-        update-types: [patch, minor]
-      docker-major:
-        update-types: [major]
+      docker-images:
+        group-by: dependency-name
 
   # compose.yaml, compose.prod.yaml and compose.proxy.yaml.
   - package-ecosystem: docker-compose
@@ -74,8 +73,3 @@ updates:
     ignore:
       # Built locally from docker/lighthouse, not pulled from a registry.
       - dependency-name: heptapod-lighthouse
-    groups:
-      docker-compose-patch-minor:
-        update-types: [patch, minor]
-      docker-compose-major:
-        update-types: [major]
