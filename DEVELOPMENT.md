@@ -142,6 +142,7 @@ docker compose exec app npm run hooks:install
 ## Dependency updates and releases
 
 - Dependabot (`.github/dependabot.yml`) opens weekly grouped PRs for Composer, npm, Go, GitHub Actions, Dockerfiles and the Compose files: one PR for patch/minor updates and one for majors per ecosystem. `dependabot-auto-merge.yml` sets patch/minor PRs to squash-merge once `gate`, `production-gate` and `cla` are green; majors and digest-only image refreshes get no auto-merge, and majors get the `major-update` label. Dependabot does not update the service images in `ci.yml`: copy a Postgres, Redis or Gotenberg bump there by hand.
+- An auto-merge uses `GITHUB_TOKEN`, so its push to main starts no workflows. Main has no images for that SHA until the next normal merge. To release such a SHA, run `gh workflow run production-images.yml --ref main` first.
 - A FrankenPHP bump changes the PHP patch. Keep it aligned with Composer's `config.platform.php` and CI's `php-version`.
 - A release is an annotated `vX.Y.Z` tag on a main commit whose images Production images has published for amd64 and arm64. Neither dependency manifest carries the application version.
 - Create its GitHub release as a draft, then run the `Release bundle` workflow for the tag. It attaches and verifies the bundle, tags both images `vX.Y.Z` and publishes the release.
