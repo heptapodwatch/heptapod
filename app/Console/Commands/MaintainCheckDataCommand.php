@@ -12,7 +12,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
-#[Description('Create monthly run partitions, recompute rollups, then drop partitions entirely older than 30 days')]
+#[Description('Create monthly run partitions, recompute rollups, then drop partitions entirely past the raw retention')]
 #[Signature('heptapod:maintain-check-data {--recompute-range= : UTC from,to timestamps; recompute complete intersecting buckets for repair or backfill}')]
 final class MaintainCheckDataCommand extends Command
 {
