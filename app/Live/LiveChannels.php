@@ -6,9 +6,12 @@ namespace Heptapod\Live;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Enums\ClientScope;
+use Heptapod\Events\LiveSignal;
 use Heptapod\Models\User;
 use Heptapod\Queries\SitesReader;
+use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 /**
  * The live channels a viewer subscribes to, and when each last carried a change. A tab's first subscription
@@ -30,11 +33,14 @@ final readonly class LiveChannels
             : array_map(static fn (int $clientId): string => 'client.'.$clientId, $this->sites->clientIds($user));
     }
 
-    /** @param list<string> $channels */
-    public function recordChange(array $channels): void
+    /**
+     * Called when the change commits, not when its broadcast runs: a stalled broadcasts queue must not hide it from
+     * a tab that subscribes in between.
+     */
+    public function recordChange(LiveSignal $signal): void
     {
-        $now = CarbonImmutable::now()->getTimestampMs();
-        Cache::putMany(array_fill_keys(array_map($this->key(...), $channels), $now));
+        $channels = array_map(static fn (PresenceChannel $channel): string => Str::chopStart($channel->name, 'presence-'), $signal->broadcastOn());
+        Cache::putMany(array_fill_keys(array_map($this->key(...), $channels), CarbonImmutable::now()->getTimestampMs()));
     }
 
     /**

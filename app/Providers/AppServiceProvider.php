@@ -48,6 +48,7 @@ use Heptapod\Http\Outbound\NativeTargetResolver;
 use Heptapod\Http\Outbound\SameSitePolicy;
 use Heptapod\Jobs\BroadcastLiveSignal;
 use Heptapod\Jobs\DispatchNotifications;
+use Heptapod\Live\LiveChannels;
 use Heptapod\Live\ReverbConnectionTerminator;
 use Heptapod\Mail\CapabilityRedactingMailLogger;
 use Heptapod\Models\Check;
@@ -178,6 +179,7 @@ class AppServiceProvider extends ServiceProvider
         Incident::observe(IncidentLiveObserver::class);
         Event::listen(LiveSignal::class, static function (LiveSignal $signal): void {
             rescue(static function () use ($signal): void {
+                app(LiveChannels::class)->recordChange($signal);
                 BroadcastLiveSignal::dispatch($signal);
             });
         });
