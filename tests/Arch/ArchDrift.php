@@ -23,7 +23,6 @@ use Heptapod\Contracts\NoResultReason;
 use Heptapod\Contracts\ReclassifiedCheckError;
 use Heptapod\Contracts\TargetAvailabilityException;
 use Heptapod\Contracts\TlsFailureReason;
-use Heptapod\Import\ImportFailure;
 use Heptapod\Mail\CapabilityRedactingMailLogger;
 use Heptapod\Notifications\AccountMailFactory;
 use Heptapod\Support\Api\ApiProblem;
@@ -77,7 +76,7 @@ final class ArchDrift
     /** Throwables outside Heptapod\Exceptions beyond the reviewed addon transport failures. @var list<class-string> */
     public const array ThrowablesOutsideExceptions = [
         ManualRunRefused::class, WorkerMemoryExhausted::class, ReclassifiedCheckError::class,
-        TargetAvailabilityException::class, ImportFailure::class, ApiProblem::class,
+        TargetAvailabilityException::class, ApiProblem::class,
         DiskReadException::class,
     ];
 

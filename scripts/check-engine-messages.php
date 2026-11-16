@@ -26,7 +26,6 @@ use Heptapod\Exceptions\IconRefreshFailed;
 use Heptapod\Exceptions\InvalidOhDearRecurringResponse;
 use Heptapod\Exceptions\OwnerAlreadyExists;
 use Heptapod\Exceptions\UndeclaredImportNotice;
-use Heptapod\Import\ImportFailure;
 use Heptapod\Support\Api\ApiProblem;
 use Heptapod\SystemHealth\DiskReadException;
 
@@ -86,7 +85,6 @@ $notEngineText = [
     IconRefreshFailed::class => 'carries a site-icon catalog result, not a run',
     InvalidOhDearRecurringResponse::class => 'Oh Dear import boundary, not a run',
     OwnerAlreadyExists::class => 'console command error, not a run',
-    ImportFailure::class => 'offline backup import boundary, not a run',
     UndeclaredImportNotice::class => 'Oh Dear import developer error (an undeclared notice code), not a run',
     ApiProblem::class => 'HTTP problem response, not a run',
     SitemapSizeExceeded::class => 'caught inside SitemapCheck; recorded as a catalog issue',

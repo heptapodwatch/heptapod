@@ -41,7 +41,6 @@
             <file>tests/Feature/OutboundProfileTest.php</file>
             <file>tests/Feature/ReclassifyLinksUpgradeTest.php</file>
             <file>tests/Feature/MorphAliasMigrationTest.php</file>
-            <file>tests/Feature/BackupImportTest.php</file>
             <file>tests/Feature/ScheduledBackupFailureTest.php</file>
             <file>tests/Feature/WorkerMemoryBudgetTest.php</file>
             <file>tests/Feature/UptimeEvidenceReasonsTest.php</file>
