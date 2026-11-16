@@ -588,7 +588,9 @@ grep -Fq "Release v9.9.9 is in place but not deployed (running revision $install
 [ "$(grep -c '^bundle upgrade.sh v9.9.9 --staged' reexec.log)" = 2 ]
 grep -q "| pull ghcr.io/heptapodwatch/heptapod-app:$bundle_revision |" all-operations.log
 [ "$(cat "$lifecycle_state/phase")" = committed ]
-cmp bundle-before.env .env.prod
+# The pin adds only the release tag as the version the app reports, overriding the main image's sha-<short>.
+printf 'HEPTAPOD_VERSION=v9.9.9\n' | cat bundle-before.env - | cmp - .env.prod
+env -u COMPOSE_PROJECT_NAME "$REAL_DOCKER" compose --env-file .env.prod config --format json | jq -e '.services.app.environment.HEPTAPOD_VERSION == "v9.9.9"' > /dev/null
 cmp compose.rc.before compose.rc.yaml
 # The commit records v9.9.9 as deployed and v9.9.8 as previous; pruning keeps those two only.
 [ "$(cat "$lifecycle_state/deployed-release")" = v9.9.9 ]
@@ -597,7 +599,7 @@ cmp compose.rc.before compose.rc.yaml
 grep -Fxq 'fake v9.9.9' docs/deploy/operations.md
 STUB_RUNNING_REVISION=$bundle_revision STUB_NO_GIT=true env -u COMPOSE_FILE ./scripts/upgrade.sh --to v9.9.9 > bundle-same.log
 grep -Fxq 'Release v9.9.9 is already deployed; nothing to upgrade.' bundle-same.log
-printf 'PASS: --to publishes releases/v9.9.9 from the verified archive and keeps .env.prod; after a failed image pull the same target continues to commit and prunes to current and previous, then is a no-op\n'
+printf 'PASS: --to publishes releases/v9.9.9 from the verified archive and pins its tag as HEPTAPOD_VERSION in .env.prod; after a failed image pull the same target continues to commit and prunes to current and previous, then is a no-op\n'
 # A run opened through the root path while another run swaps current before the path is resolved: the opened
 # v9.9.9 body only reruns the file its path names now, so v9.9.8's body runs with v9.9.8's helpers. A swap after
 # resolution is refused under the lock (above).

@@ -45,6 +45,6 @@ jobs:
           path-to-signatures: .github/cla/signatures.json
           # main is protected, so signatures go to an unprotected branch.
           branch: cla-signatures
-          allowlist: el-schneider,renovate[bot],release-please[bot],github-actions[bot],dependabot[bot]
+          allowlist: el-schneider,renovate[bot],github-actions[bot],dependabot[bot]
           # With locking on, a closed run only locks and reports success, so close and reopen would skip the check.
           lock-pullrequest-aftermerge: false
