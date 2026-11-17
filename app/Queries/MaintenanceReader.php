@@ -104,8 +104,8 @@ final readonly class MaintenanceReader
             $rows[] = new MaintenanceWindowData($window->id, $window->recurring_maintenance_period_id, $state,
                 $window->target_type, $id, $label, $members->getQuery()->count(),
                 $window->name, $window->reason, $window->starts_at->toIso8601String(), $endsAt->toIso8601String(),
-                $window->timezone ?? ($recurrence === null ? 'UTC' : $recurrence->timezone), $recurrence?->recurrence_type,
-                $recurrence === null ? 1 : $recurrence->interval, $recurrence?->nth_weekday, $recurrence?->day_of_week,
+                $window->timezone ?? ($recurrence->timezone ?? 'UTC'), $recurrence?->recurrence_type,
+                $recurrence->interval ?? 1, $recurrence?->nth_weekday, $recurrence?->day_of_week,
                 $window->mute_alerts, $window->catch_up_at_end, $actions,
                 $recurrence?->days_of_week, $recurrence?->day_of_month, $recurrence?->start_time, $recurrence?->end_time,
                 $recurrence?->anchor_date?->format('Y-m-d'), $recurrence?->timezone);

@@ -28,7 +28,7 @@ final class CreateOwnerCommand extends Command
     {
         $email = $this->option('email');
         $name = $this->option('name');
-        if (! is_string($email) || ($name !== null && ! is_string($name))) {
+        if ($email === null) {
             $this->error('Supply --email and an optional --name.');
 
             return self::FAILURE;

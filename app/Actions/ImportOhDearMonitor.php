@@ -321,7 +321,7 @@ final readonly class ImportOhDearMonitor
             $details[] = __('import.covered', ['count' => count($coveredIds)]);
         }
         $cronDisabledWithoutDefinitions = in_array(CheckKey::Cron->value, $setupRequired, true) && (array_column($checks, 'enabled', 'type')[CheckKey::Cron->value] ?? null) === false;
-        $notices = OhDearImportNotices::keys(array_values(array_unique($skipped)), array_values($setupRequired), $cronDisabledWithoutDefinitions, array_values(array_unique($invalidTypes)), $shortCredentials,
+        $notices = OhDearImportNotices::keys(array_values(array_unique($skipped)), $setupRequired, $cronDisabledWithoutDefinitions, array_values(array_unique($invalidTypes)), $shortCredentials,
             ($monitor->domainCheckSettings['not_supported_reason'] ?? null) !== null);
         $notImported = [];
         if ($setupRequired !== []) {

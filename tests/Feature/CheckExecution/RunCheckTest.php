@@ -103,7 +103,7 @@ it('records redacted addon diagnostics without exposing config or crawler secret
         app()->instance(DomainRegistrationLookup::class, (new FakeDomainRegistrationLookup)->respondWith('example.com', $exception));
     } else {
         $exception = new RuntimeException($message);
-        app(OutboundHttp::class)->respondUsing(fn () => throw $exception);
+        app(OutboundHttp::class)->respondUsing(fn (): never => throw $exception);
     }
     app()->call($job->handle(...));
 

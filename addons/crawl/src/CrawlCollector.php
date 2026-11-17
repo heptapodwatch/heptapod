@@ -102,10 +102,10 @@ final readonly class CrawlCollector
                     return $next($message, $options);
                 }, 'crawl_start_request');
                 $stack->after('allow_redirects', static fn (callable $next): \Closure => static function (RequestInterface $message, array $options) use ($next, $targetUrl, $context): PromiseInterface {
-                    if (($options['crawl_start_request'] ?? false) && ! BrowserUrl::isSameSite((string) $message->getUri(), $targetUrl)) {
+                    if (($options['crawl_start_request'] ?? false) === true && ! BrowserUrl::isSameSite((string) $message->getUri(), $targetUrl)) {
                         throw new CrawlStartRedirectOffSite((string) $message->getUri());
                     }
-                    if (($options['crawl_start_request'] ?? false) && $context->crawlerHeaders !== [] && ! Uri::new($targetUrl)->isSameOrigin((string) $message->getUri())) {
+                    if (($options['crawl_start_request'] ?? false) === true && $context->crawlerHeaders !== [] && ! Uri::new($targetUrl)->isSameOrigin((string) $message->getUri())) {
                         throw new CrawlStartRedirectOriginChanged((string) $message->getUri());
                     }
 

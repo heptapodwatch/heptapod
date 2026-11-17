@@ -47,9 +47,9 @@ export function useHttpRequest<
 >(data: TForm = {} as TForm): HttpRequest<TForm, TResponse> {
     const request = useHttp<TForm, TResponse>(data);
     // Inertia keeps its request methods stable across renders; so do these, for effects that depend on them.
-    const { get, post, put, patch, delete: remove } = request;
+    const { get, post, put, patch, delete: remove, query } = request;
     const methods = useMemo(() => {
-        const inertia = { get, post, put, patch, delete: remove };
+        const inertia = { get, post, put, patch, delete: remove, query };
         const send = async (
             method: Method,
             url: string,
@@ -77,11 +77,13 @@ export function useHttpRequest<
                 send('patch', url, options),
             delete: (url: string, options?: Options<TForm, TResponse>) =>
                 send('delete', url, options),
+            query: (url: string, options?: Options<TForm, TResponse>) =>
+                send('query', url, options),
             submit: (
                 route: UrlMethodPair,
                 options?: Options<TForm, TResponse>,
             ) => send(route.method, route.url, options),
         };
-    }, [get, post, put, patch, remove]);
+    }, [get, post, put, patch, remove, query]);
     return { ...request, ...methods };
 }

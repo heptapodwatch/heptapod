@@ -5,7 +5,7 @@ import { writeSync } from 'node:fs';
 import { launchBrowser } from './browser.mjs';
 import { diagnosticSecrets, safeEventName } from './diagnostics.mjs';
 
-// Prefixes come from Lighthouse 13.5.0. Never forward status text: navigation includes the URL.
+// Prefixes come from Lighthouse 13.6.0. Never forward status text: navigation includes the URL.
 const stagePrefixes = [
     ['Connecting to browser', 'browser_launch'],
     ['Navigating to ', 'navigation'],

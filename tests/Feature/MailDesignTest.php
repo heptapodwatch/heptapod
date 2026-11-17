@@ -296,7 +296,7 @@ it('attaches no inline image parts to a Plain mail and keeps the lockup and avat
     $check = Check::factory()->for($site)->create(['type' => CheckKey::Uptime]);
     // A stored site icon the client uses as its avatar: Branded attaches it inline, Plain must not.
     $site = $check->site;
-    $icon = (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', true);
+    $icon = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', true);
     Storage::disk()->put('site-icons/'.$site->id.'/'.str_repeat('b', 64).'.png', $icon);
     $site->forceFill(['icon_hash' => str_repeat('b', 64)])->save();
     $site->client->forceFill(['avatar_site_id' => $site->id])->save();

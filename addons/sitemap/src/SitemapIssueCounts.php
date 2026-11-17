@@ -40,7 +40,7 @@ final class SitemapIssueCounts
                 throw new \LogicException('Sitemap issue HTTP status is invalid.');
             }
             $key = ($kind === FetchFailureKind::HttpStatus || $kind === null) && $status !== null
-                ? 'http_'.$status : ($kind === null ? substr($issue['type'], strlen('sitemap.issue.')) : $kind->value);
+                ? 'http_'.$status : ($kind->value ?? substr($issue['type'], strlen('sitemap.issue.')));
             $counts[$key] = ($counts[$key] ?? 0) + 1;
         }
         ksort($counts);
