@@ -44,7 +44,7 @@ WORKDIR /service
 # Keep diagnostics.mjs's ../../config import valid in the flattened runtime layout.
 COPY --chmod=0644 config/credential-parameters.json /config/credential-parameters.json
 RUN chmod 0755 /config
-COPY --chown=node:node --chmod=0644 docker/lighthouse/server.mjs docker/lighthouse/audit.mjs docker/lighthouse/browser.mjs docker/lighthouse/diagnostics.mjs ./
+COPY --chown=node:node --chmod=0644 docker/lighthouse/server.mjs docker/lighthouse/audit.mjs docker/lighthouse/browser.mjs docker/lighthouse/diagnostics.mjs docker/lighthouse/audit-budget.json ./
 USER 1000:1000
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD ["node", "-e", "fetch('http://localhost:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]

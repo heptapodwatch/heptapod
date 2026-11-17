@@ -1,11 +1,17 @@
 import http, { validateHeaderName, validateHeaderValue } from 'node:http';
 import { spawn } from 'node:child_process';
 import { readFile, readdir } from 'node:fs/promises';
+import { finished } from 'node:stream/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
+import auditBudget from './audit-budget.json' with { type: 'json' };
 import { diagnosticSecrets, redactDiagnostics, safeEventName } from './diagnostics.mjs';
 
-const auditBudgetMs = 150000;
+// The app only starts an audit when its caller can wait the budget plus the margin; both read audit-budget.json.
+const auditBudgetMs = auditBudget.budgetSeconds * 1000;
+const stageSecondsCap = auditBudget.budgetSeconds + auditBudget.marginSeconds;
+// Teardown after a forced termination: process group wait plus response drain, each bounded to 2 s.
+const terminationDeadlineMs = 5000;
 const categories = ['performance', 'accessibility', 'best-practices', 'seo'];
 const stages = new Set([
     'browser_launch', 'navigation', 'gathering', 'auditing', 'reporting', 'unknown',
@@ -32,6 +38,14 @@ function normalizeError(error, secrets, nativeCode = null) {
     };
 }
 let busy = false;
+// Set when the server had to end an audit itself. Chromium runs detached and can outlive the worker's process
+// group, so the server then exits: as the only child of docker-init it takes the container's PID namespace down,
+// the kernel kills every audit process wherever it went, and the restart policy brings the service back.
+let auditTerminated = false;
+function exitForRestart() {
+    console.error('audit terminated; exiting so the container restarts without leftover processes');
+    process.exit(1);
+}
 async function waitForProcessGroup(pid) {
     const deadline = performance.now() + 2000;
     while (true) {
@@ -60,14 +74,20 @@ async function waitForProcessGroup(pid) {
 async function audit(url, options, token, signal) {
     const secrets = diagnosticSecrets(url, options, token);
     let child;
-    let kill;
+    let timer;
+    const kill = () => {
+        // ESRCH means the worker group already exited; Chromium's own group is left to the PID namespace.
+        if (!child?.pid) return;
+        try {
+            process.kill(-child.pid, 'SIGKILL');
+        } catch (error) {
+            if (error.code !== 'ESRCH') throw error;
+        }
+    };
+    let terminate;
+    let onAbort;
     return new Promise((resolve, reject) => {
         const startedAt = performance.now();
-        child = spawn(
-            process.execPath,
-            [fileURLToPath(new URL('./audit.mjs', import.meta.url))],
-            { detached: true, stdio: ['pipe', 'pipe', 'ignore', 'pipe'] },
-        );
         const chunks = [];
         let bytes = 0;
         let diagnostics = Buffer.alloc(0);
@@ -82,27 +102,45 @@ async function audit(url, options, token, signal) {
             stageStartedAt = now;
         };
         const stageSeconds = () => Object.fromEntries([...stageElapsedMs].map(([key, ms]) =>
-            [key, Math.min(Math.floor(ms / 1000), auditBudgetMs / 1000 + 5)],
+            [key, Math.min(Math.floor(ms / 1000), stageSecondsCap)],
         ));
         // Retain the last unrecognised event that had a safe name; unsafe names do not clear it.
         let lastUnrecognisedEvent;
         const eventFact = () => lastUnrecognisedEvent === undefined ? {} : {last_unrecognised_event: lastUnrecognisedEvent};
         let workerError = null;
-        let failureCode = null;
-        // ESRCH means the worker and its Chromium process group already exited.
-        kill = () => {
-            if (!child.pid) return;
-            try {
-                process.kill(-child.pid, 'SIGKILL');
-            } catch (error) {
-                if (error.code !== 'ESRCH') throw error;
+        // Every audit the server ends itself goes through here. It settles the audit at once, without waiting for
+        // the worker's 'close' (a detached descendant can hold its pipes open), and starts the exit deadline.
+        terminate = (failure) => {
+            if (!auditTerminated) {
+                auditTerminated = true;
+                setTimeout(exitForRestart, terminationDeadlineMs);
             }
-        };
-        signal.addEventListener('abort', kill, { once: true });
-        const timer = setTimeout(() => {
-            failureCode ??= 'audit_budget_exceeded';
+            clearTimeout(timer);
             kill();
-        }, auditBudgetMs);
+            if (failure instanceof Error) {
+                reject(failure);
+                return;
+            }
+            finishStage(performance.now());
+            resolve({ auditFailure: { code: failure, stage, stageSeconds: stageSeconds(), ...eventFact(), message: null, ...(failure === 'audit_budget_exceeded' ? { budgetSeconds: auditBudgetMs / 1000 } : {}) } });
+        };
+        try {
+            child = spawn(
+                process.execPath,
+                [fileURLToPath(new URL('./audit.mjs', import.meta.url))],
+                { detached: true, stdio: ['pipe', 'pipe', 'ignore', 'pipe'] },
+            );
+        } catch (error) {
+            // Some native spawn failures (e.g. ENOMEM) throw instead of emitting 'error'.
+            terminate(error);
+            return;
+        }
+        child.once('error', terminate);
+        // Without a pid the spawn failed (EMFILE leaves stdio unset); the error handler ends the audit.
+        if (child.pid === undefined) return;
+        onAbort = () => terminate(new Error('Client went away'));
+        signal.addEventListener('abort', onAbort, { once: true });
+        timer = setTimeout(() => terminate('audit_budget_exceeded'), auditBudgetMs);
         child.stdio[3].on('data', (chunk) => {
             // Drop bytes beyond the cap, retaining only complete events and their last stage.
             const remaining = 16 * 1024 - diagnosticBytes;
@@ -132,38 +170,36 @@ async function audit(url, options, token, signal) {
                         workerError = normalizeError(event.error, secrets);
                     }
                 } catch (error) {
-                    kill();
-                    reject(error);
+                    terminate(error);
                     return;
                 }
             }
         });
-        if (signal.aborted) kill();
+        if (signal.aborted) onAbort();
         child.stdout.on('data', (chunk) => {
             bytes += chunk.length;
-            if (bytes > 8 * 1024 * 1024) {
-                failureCode ??= 'report_too_large';
-                kill();
-            } else chunks.push(chunk);
+            if (bytes > 8 * 1024 * 1024) terminate('report_too_large');
+            else chunks.push(chunk);
         });
-        child.once('error', (error) => {
-            clearTimeout(timer);
-            reject(error);
+        // 'close' also waits for the worker's pipes; a descendant still holding them must not stall the audit.
+        let pipesTimer;
+        child.once('exit', () => {
+            pipesTimer = setTimeout(() => terminate(new Error('Worker pipes stayed open after exit')), 2000);
         });
         child.once('close', (code) => {
             clearTimeout(timer);
+            clearTimeout(pipesTimer);
             finishStage(performance.now());
-            if (failureCode) {
-                resolve({ auditFailure: { code: failureCode, stage, stageSeconds: stageSeconds(), ...eventFact(), message: null, ...(failureCode === 'audit_budget_exceeded' ? { budgetSeconds: auditBudgetMs / 1000 } : {}) } });
-            } else if (diagnostics.length && diagnosticBytes < 16 * 1024) {
-                reject(new Error('Incomplete worker event'));
+            if (diagnostics.length && diagnosticBytes < 16 * 1024) {
+                terminate(new Error('Incomplete worker event'));
             } else if (code !== 0) {
+                // Only a worker that reported its own error ran its finally, which closes the browser.
                 if (workerError) resolve({ auditFailure: { code: workerError.code, stage, stageSeconds: stageSeconds(), ...eventFact(), message: workerError.message } });
-                else reject(new Error('Audit did not complete'));
+                else terminate(new Error('Audit did not complete'));
             } else resolve({ report: Buffer.concat(chunks).toString('utf8'), stage, stageSeconds: stageSeconds(), ...eventFact() });
         });
         // Credentials travel over stdin, not process arguments, files or logs.
-        child.stdin.once('error', reject);
+        child.stdin.once('error', terminate);
         child.stdin.end(
             JSON.stringify({
                 url,
@@ -172,9 +208,14 @@ async function audit(url, options, token, signal) {
             }),
         );
     }).finally(async () => {
-        signal.removeEventListener('abort', kill);
+        signal.removeEventListener('abort', onAbort);
         kill();
-        if (child.pid) await waitForProcessGroup(child.pid);
+        try {
+            if (child?.pid) await waitForProcessGroup(child.pid);
+        } catch (error) {
+            terminate(error);
+            throw error;
+        }
     });
 }
 const server = http.createServer(async (request, response) => {
@@ -286,6 +327,10 @@ const server = http.createServer(async (request, response) => {
                     : 'Lighthouse audit did not complete',
         });
     } finally {
+        if (auditTerminated) {
+            await Promise.race([finished(response).catch(() => {}), delay(2000)]);
+            exitForRestart();
+        }
         busy = false;
     }
 });

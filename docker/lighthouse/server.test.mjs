@@ -16,17 +16,72 @@ import { fileURLToPath } from 'node:url';
 import { after, before, test } from 'node:test';
 
 let server;
+let serverExit;
+let serverStderr;
 let rootDirectory;
 let directory;
 const token = 'a'.repeat(64);
 const endpoint = 'http://localhost:3000';
-const post = (payload) =>
+const post = (payload, signal = AbortSignal.timeout(10000)) =>
     fetch(`${endpoint}/lighthouse`, {
         method: 'POST',
+        signal,
         body: JSON.stringify(
             payload === null ? null : { proxyToken: token, ...payload },
         ),
     });
+async function startServer() {
+    server = spawn(process.execPath, [join(directory, 'server.mjs')], {
+        env: { ...process.env, CHROME_FLAGS: '--headless --no-sandbox' },
+        stdio: ['ignore', 'inherit', 'pipe'],
+    });
+    // 'close' also waits for stderr, so the exit log line has arrived.
+    serverExit = once(server, 'close');
+    serverStderr = '';
+    server.stderr.on('data', (chunk) => (serverStderr += chunk));
+    for (let attempt = 0; attempt < 100; attempt++) {
+        try {
+            if (
+                (
+                    await fetch(`${endpoint}/health`, {
+                        signal: AbortSignal.timeout(1000),
+                    })
+                ).ok
+            )
+                return;
+        } catch (error) {
+            if (error.cause?.code !== 'ECONNREFUSED') throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    throw new Error('Wrapper did not start');
+}
+// A server that had to end an audit itself exits, so docker-init takes the container's processes down.
+async function assertExitedAndRestart() {
+    const [code] = await Promise.race([
+        serverExit,
+        new Promise((resolve, reject) =>
+            setTimeout(() => reject(new Error('Server kept running')), 5000),
+        ),
+    ]);
+    assert.equal(code, 1);
+    assert.match(
+        serverStderr,
+        /audit terminated; exiting so the container restarts without leftover processes/,
+    );
+    await startServer();
+}
+async function assertStillRunning() {
+    assert.equal(
+        (
+            await fetch(`${endpoint}/health`, {
+                signal: AbortSignal.timeout(1000),
+            })
+        ).status,
+        200,
+    );
+    assert.equal(server.exitCode, null);
+}
 
 before(async () => {
     rootDirectory = await mkdtemp(join(tmpdir(), 'lighthouse-http-'));
@@ -38,6 +93,10 @@ before(async () => {
             new URL('../../config/credential-parameters.json', import.meta.url),
         ),
         join(rootDirectory, 'config/credential-parameters.json'),
+    );
+    await copyFile(
+        fileURLToPath(new URL('./audit-budget.json', import.meta.url)),
+        join(directory, 'audit-budget.json'),
     );
     // Preserve relative module and policy imports. Only the external worker is substituted.
     await copyFile(
@@ -52,8 +111,8 @@ before(async () => {
         join(directory, 'audit.mjs'),
         `
 import { spawn } from 'node:child_process';
-import { writeFile } from 'node:fs/promises';
-import { writeSync } from 'node:fs';
+import { rename, writeFile } from 'node:fs/promises';
+import { appendFileSync, writeSync } from 'node:fs';
 const event = value => writeSync(3, JSON.stringify(value) + '\\n');
 let input = '';
 for await (const chunk of process.stdin) input += chunk;
@@ -85,6 +144,18 @@ if (path === '/channel-cap') {
     event({stage: 'auditing'});
     process.exit(1);
 }
+if (path.startsWith('/pipe-holder')) {
+    // A detached descendant that keeps the worker's stdout and diagnostic pipes open after the worker is gone.
+    const holder = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 20000)'], {detached: true, stdio: ['ignore', 'inherit', 'ignore', 'inherit']});
+    appendFileSync(new URL('./pipe-holders.txt', import.meta.url), holder.pid + '\\n');
+    if (path === '/pipe-holder-exit') process.exit(1);
+}
+if (path === '/hang' || path === '/invalid-event' || path === '/pipe-holder-hang') {
+    if (path === '/invalid-event') event({stage: 'bogus'});
+    await writeFile(new URL('./hang.json.tmp', import.meta.url), String(process.pid));
+    await rename(new URL('./hang.json.tmp', import.meta.url), new URL('./hang.json', import.meta.url));
+    await new Promise(resolve => setTimeout(resolve, 200000));
+}
 if (path === '/oversize') { process.stdout.write('x'.repeat(9 * 1024 * 1024)); await new Promise(() => {}); }
 if (path === '/malformed') { console.log('not JSON'); process.exit(0); }
 if (path === '/timeout') {
@@ -107,19 +178,7 @@ console.log(JSON.stringify({
 }));
 `,
     );
-    server = spawn(process.execPath, [join(directory, 'server.mjs')], {
-        env: { ...process.env, CHROME_FLAGS: '--headless --no-sandbox' },
-        stdio: 'inherit',
-    });
-    for (let attempt = 0; attempt < 100; attempt++) {
-        try {
-            if ((await fetch(`${endpoint}/health`)).ok) return;
-        } catch (error) {
-            if (error.cause?.code !== 'ECONNREFUSED') throw error;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 50));
-    }
-    throw new Error('Wrapper did not start');
+    await startServer();
 });
 after(async () => {
     if (server && server.exitCode === null) {
@@ -272,8 +331,68 @@ void test('sanitizes crashed and invalid-report workers, then accepts another au
         assert.deepEqual(await response.json(), {
             error: 'Lighthouse audit did not complete',
         });
+        // A crash without a reported error may have left Chromium; a malformed report came from a clean exit.
+        if (path === 'crash') await assertExitedAndRestart();
+        else await assertStillRunning();
     }
     assert.equal((await post({ url: 'https://example.com/' })).status, 200);
+});
+void test('keeps serving after a successful audit and after a worker-reported error', async () => {
+    assert.equal((await post({ url: 'https://example.com/' })).status, 200);
+    await assertStillRunning();
+    assert.equal(
+        (await post({ url: 'https://example.com/worker-page-crashed' })).status,
+        200,
+    );
+    await assertStillRunning();
+});
+void test('exits after a client abort, an invalid worker event and a worker whose pipes stay open', async (t) => {
+    // The harness restarts only the server, not a PID namespace, so the detached pipe holders are ended here.
+    t.after(async () => {
+        let pids;
+        try {
+            pids = await readFile(join(directory, 'pipe-holders.txt'), 'utf8');
+        } catch (error) {
+            if (error.code === 'ENOENT') return;
+            throw error;
+        }
+        for (const pid of pids.split('\n').filter(Boolean)) {
+            try {
+                process.kill(Number(pid), 'SIGKILL');
+            } catch (error) {
+                if (error.code !== 'ESRCH') throw error;
+            }
+        }
+    });
+    for (const path of [
+        'hang',
+        'invalid-event',
+        'pipe-holder-hang',
+        'pipe-holder-exit',
+    ]) {
+        await rm(join(directory, 'hang.json'), { force: true });
+        const controller = new AbortController();
+        const pending = post(
+            { url: `https://example.com/${path}` },
+            AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]),
+        );
+        if (path === 'invalid-event' || path === 'pipe-holder-exit') {
+            assert.equal((await pending).status, 502);
+        } else {
+            for (let attempt = 0; ; attempt++) {
+                try {
+                    await readFile(join(directory, 'hang.json'));
+                    break;
+                } catch (error) {
+                    if (error.code !== 'ENOENT' || attempt >= 100) throw error;
+                    await new Promise((resolve) => setTimeout(resolve, 50));
+                }
+            }
+            controller.abort();
+            await assert.rejects(pending, { name: 'AbortError' });
+        }
+        await assertExitedAndRestart();
+    }
 });
 void test('redacts and bounds worker diagnostics without exposing stderr', async () => {
     const response = await post({ url: 'https://example.com/fail' });
@@ -400,6 +519,8 @@ void test('names worker crashes, unscored reports and oversize reports', async (
                 message,
             },
         });
+        if (path === 'oversize') await assertExitedAndRestart();
+        else await assertStillRunning();
     }
 });
 void test('drops diagnostics beyond 16 KiB while retaining the last complete stage', async () => {
@@ -419,7 +540,10 @@ void test(
     { timeout: 160000 },
     async () => {
         const start = Date.now();
-        const response = await post({ url: 'https://example.com/timeout' });
+        const response = await post(
+            { url: 'https://example.com/timeout' },
+            AbortSignal.timeout(160000),
+        );
         assert.equal(response.status, 200);
         const body = await response.json();
         assert.equal(body.auditFailure.budgetSeconds, 150);
@@ -457,6 +581,7 @@ void test(
                     throw error;
             }
         }
+        await assertExitedAndRestart();
         assert.equal((await post({ url: 'https://example.com/' })).status, 200);
     },
 );

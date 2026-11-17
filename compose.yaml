@@ -190,6 +190,8 @@ services:
             args:
                 APT_SNAPSHOT_DATE: ${APT_SNAPSHOT_DATE:-}
         init: true
+        # The server exits after ending an audit itself, so the container restarts without leftover processes.
+        restart: unless-stopped
         shm_size: 1gb
         mem_limit: 1536m
         cap_drop: [ALL]

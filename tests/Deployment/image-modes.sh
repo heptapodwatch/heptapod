@@ -53,7 +53,7 @@ case "${1:-}" in
         image=${2:?Usage: image-modes.sh lighthouse IMAGE}
         docker run --rm --user node --entrypoint sh "$image" -eu -c '
             test "$(id -un)" = node
-            for file in /service/package.json /service/package-lock.json /service/server.mjs /service/audit.mjs /service/browser.mjs /service/diagnostics.mjs /config/credential-parameters.json; do
+            for file in /service/package.json /service/package-lock.json /service/server.mjs /service/audit.mjs /service/browser.mjs /service/diagnostics.mjs /service/audit-budget.json /config/credential-parameters.json; do
                 stat -c "%a %n" "$file"
                 test "$(stat -c %a "$file")" = 644
                 test -r "$file"
