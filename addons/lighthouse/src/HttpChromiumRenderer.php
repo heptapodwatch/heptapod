@@ -26,9 +26,10 @@ use Illuminate\Support\Sleep;
 
 final readonly class HttpChromiumRenderer implements ChromiumRenderer
 {
-    private const float CleanupReserve = 5.0;
+    public const float CleanupReserve = 5.0;
 
-    private const float MinimumRequest = 0.001;
+    /** Upper bound for each proxy control request, such as creating the audit's scope. */
+    public const float ControlRequestTimeout = 5.0;
 
     public function __construct(private OutboundHttp $http, private ?CertificateFetcher $certificates = null) {}
 
@@ -39,18 +40,21 @@ final readonly class HttpChromiumRenderer implements ChromiumRenderer
         if (! is_string($serviceUrl) || ! is_string($controlUrl)) {
             throw new \InvalidArgumentException('Lighthouse service and proxy control URLs must be configured.');
         }
+        // An audit is only started when it can finish: the caller giving up early would abort it, and the service
+        // restarts after every audit it has to end itself, failing the audits queued behind it.
+        $auditTimeout = (float) self::auditSeconds();
         $busy = false;
         while (true) {
             $context->runControl?->assertActive();
-            $usable = $this->remaining($context) - self::CleanupReserve - self::MinimumRequest;
-            if ($usable <= self::MinimumRequest) {
+            $usable = $this->remaining($context) - self::CleanupReserve;
+            if ($usable < $auditTimeout) {
                 throw $busy ? new LighthouseBusyException : new FetchException(new FetchFailure(FetchFailureKind::Timeout));
             }
-            // Busy responses never start an audit. Each admission gets a fresh 160-second proxy scope; the request ends after 155 seconds.
+            // Busy responses never start an audit. Each admission gets a fresh 160-second proxy scope; the request ends after the budget and its response margin.
             $scope = $this->fetchService(new FetchRequest(rtrim($controlUrl, '/').'/scopes', method: 'POST',
                 headers: ['Content-Type' => 'application/json', 'Accept' => 'application/json'],
                 body: json_encode(['siteHost' => TargetHost::fromUrl($context->url)], JSON_THROW_ON_ERROR),
-                maxWireBytes: 4096, maxDecodedBytes: 4096, timeoutSeconds: min(5.0, $usable)), $context);
+                maxWireBytes: 4096, maxDecodedBytes: 4096, timeoutSeconds: min(self::ControlRequestTimeout, $usable)), $context);
             $decodedScope = json_decode($scope->body, true, flags: JSON_THROW_ON_ERROR);
             $token = is_array($decodedScope) ? ($decodedScope['token'] ?? null) : null;
             if (! is_string($token) || preg_match('/^[a-f0-9]{64}$/D', $token) !== 1) {
@@ -58,15 +62,14 @@ final readonly class HttpChromiumRenderer implements ChromiumRenderer
             }
             try {
                 $context->runControl?->assertActive();
-                $auditBudget = min(155.0, $this->remaining($context) - self::CleanupReserve);
-                if ($auditBudget < self::MinimumRequest) {
+                if ($this->remaining($context) - self::CleanupReserve < $auditTimeout) {
                     throw $busy ? new LighthouseBusyException : new FetchException(new FetchFailure(FetchFailureKind::Timeout));
                 }
                 $response = $this->http->fetch(new FetchRequest(
                     rtrim($serviceUrl, '/').'/lighthouse', method: 'POST',
                     headers: ['Content-Type' => 'application/json', 'Accept' => 'application/json'],
                     body: json_encode(['url' => $url, 'options' => $options, 'proxyToken' => $token], JSON_THROW_ON_ERROR),
-                    maxWireBytes: 8 * 1024 * 1024, maxDecodedBytes: 8 * 1024 * 1024, timeoutSeconds: $auditBudget,
+                    maxWireBytes: 8 * 1024 * 1024, maxDecodedBytes: 8 * 1024 * 1024, timeoutSeconds: $auditTimeout,
                 ), $context);
                 if (! $response->failure instanceof FetchFailure) {
                     $report = json_decode($response->body, flags: JSON_THROW_ON_ERROR);
@@ -77,7 +80,7 @@ final readonly class HttpChromiumRenderer implements ChromiumRenderer
                         }
                         $host = TargetHost::normalize($report->target_host);
                         $verdict = $this->fetchService(new FetchRequest(rtrim($controlUrl, '/').'/scopes/'.$token.'?host='.rawurlencode($host),
-                            maxWireBytes: 4096, maxDecodedBytes: 4096, timeoutSeconds: min(5.0, $this->remaining($context))), $context);
+                            maxWireBytes: 4096, maxDecodedBytes: 4096, timeoutSeconds: min(self::ControlRequestTimeout, $this->remaining($context))), $context);
                         $policy = json_decode($verdict->body, true, flags: JSON_THROW_ON_ERROR);
                         if (! is_array($policy) || ! is_bool($policy['blockedTarget'] ?? null)) {
                             throw new \UnexpectedValueException('Proxy control returned an invalid policy verdict.');
@@ -114,7 +117,8 @@ final readonly class HttpChromiumRenderer implements ChromiumRenderer
                 }
             }
             $context->runControl?->assertActive();
-            $waitMicroseconds = (int) floor(min(1.0, $this->remaining($context) - self::CleanupReserve - 2 * self::MinimumRequest) * 1_000_000);
+            // Waiting is pointless once the caller can no longer cover a whole audit.
+            $waitMicroseconds = (int) floor(min(1.0, $this->remaining($context) - self::CleanupReserve - $auditTimeout) * 1_000_000);
             if ($waitMicroseconds < 1) {
                 throw new LighthouseBusyException;
             }
@@ -225,7 +229,7 @@ final readonly class HttpChromiumRenderer implements ChromiumRenderer
             }
             foreach (get_object_vars($failure->stageSeconds) as $key => $value) {
                 if (! in_array($key, ['browser_launch', 'navigation', 'gathering', 'auditing', 'reporting', 'unknown'], true)
-                    || ! is_int($value) || $value < 0 || $value > 155) {
+                    || ! is_int($value) || $value < 0 || $value > self::auditSeconds()) {
                     throw new \UnexpectedValueException('Invalid Lighthouse stage seconds.');
                 }
                 $stageSeconds[$key] = $value;
@@ -260,6 +264,19 @@ final readonly class HttpChromiumRenderer implements ChromiumRenderer
         }
 
         return $result;
+    }
+
+    /** The service's audit budget plus the margin for its budget response; the service caps stage seconds the same way. */
+    public static function auditSeconds(): int
+    {
+        $budget = config('lighthouse.audit_budget');
+        $seconds = is_array($budget) ? ($budget['budgetSeconds'] ?? null) : null;
+        $margin = is_array($budget) ? ($budget['marginSeconds'] ?? null) : null;
+        if (! is_int($seconds) || $seconds < 1 || ! is_int($margin) || $margin < 0) {
+            throw new \InvalidArgumentException('docker/lighthouse/audit-budget.json must hold whole budget and margin seconds.');
+        }
+
+        return $seconds + $margin;
     }
 
     private function remaining(CheckContext $context): float

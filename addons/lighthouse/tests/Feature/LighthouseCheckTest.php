@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Addons\Lighthouse\HttpChromiumRenderer;
 use Heptapod\Addons\Lighthouse\LighthousePersistence;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\CheckKey;
@@ -225,4 +226,16 @@ it('fences publication by token and rolls back reports and baselines with the re
     expect(DB::table('lighthouse_reports')->count())->toBe(0)->and($store->baseline($check->id)['run_id'])->toBe($runId);
     expect(fn () => $store->stage($context, 'other', [[]]))->toThrow(InvalidArgumentException::class);
     expect(fn () => $store->stage($context, 'report', []))->toThrow(InvalidArgumentException::class);
+});
+
+it('keeps the check deadline and the proxy scope lifetime above the shared audit budget', function (): void {
+    $audit = HttpChromiumRenderer::auditSeconds();
+    // A fresh caller creates its proxy scope first, then still needs the whole audit plus its cleanup reserve.
+    expect(app(CheckRegistry::class)->get(CheckKey::Lighthouse)->definition()->timeout)
+        ->toBeGreaterThanOrEqual(HttpChromiumRenderer::ControlRequestTimeout + $audit + HttpChromiumRenderer::CleanupReserve);
+    // Each admission gets a fresh proxy scope that must outlive its audit request.
+    $proxy = (string) file_get_contents(base_path('docker/lighthouse/proxy/main.go'));
+    expect(preg_match('/expires: time\.Now\(\)\.Add\((\d+) \* time\.Second\)/', $proxy, $expires))->toBe(1)
+        ->and(preg_match('/time\.AfterFunc\((\d+)\*time\.Second, func\(\) \{ b\.revoke\(token\) \}\)/', $proxy, $revoke))->toBe(1);
+    expect((int) $expires[1])->toBeGreaterThan($audit)->and((int) $revoke[1])->toBe((int) $expires[1]);
 });

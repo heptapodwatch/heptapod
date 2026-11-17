@@ -161,11 +161,12 @@ it('retries only internal busy responses with fresh scopes and the original shor
         }
         $audits++;
         if ($audits === 1) {
-            $this->travelTo($context->deadline->subSeconds(30));
+            // After the one-second wait, 162 s remain: enough for the 150 s budget, its response margin and cleanup.
+            $this->travelTo($context->deadline->subSeconds(163));
 
             return new FetchResult(429, failure: new FetchFailure(FetchFailureKind::HttpStatus, 429));
         }
-        expect($request->timeoutSeconds)->toBeGreaterThan(0)->toBeLessThanOrEqual(24.0);
+        expect($request->timeoutSeconds)->toBe(155.0);
 
         return new FetchResult(200, json_encode(lighthouseFixture(), JSON_THROW_ON_ERROR));
     });
@@ -178,6 +179,33 @@ it('retries only internal busy responses with fresh scopes and the original shor
     expect($fake->requests[5]['request']->url)->toEndWith(str_repeat('b', 64));
     expect(array_unique(array_map(fn (CheckContext $context): string => $context->deadline->format('U.u'), $contexts)))->toHaveCount(1);
     Sleep::assertSleptTimes(1);
+});
+
+it('does not start an audit for a queued caller whose remaining time cannot cover the audit budget', function (): void {
+    Sleep::fake();
+    Sleep::whenFakingSleep(fn ($duration) => $this->travelTo(CarbonImmutable::now()->add($duration)));
+    $audits = 0;
+    $fake = (new FakeOutboundHttp)->respondUsing(function (FetchRequest $request, CheckContext $context) use (&$audits): FetchResult {
+        if (str_ends_with($request->url, '/scopes')) {
+            return new FetchResult(200, json_encode(['token' => str_repeat('a', 64)], JSON_THROW_ON_ERROR));
+        }
+        if ($request->method === 'DELETE') {
+            return new FetchResult(204);
+        }
+        if ($audits++ === 0) {
+            // Another audit held the service for 30 s: 140 s remain, less than the 150 s budget plus its margins.
+            $this->travelTo($context->startedAt->addSeconds(30));
+
+            return new FetchResult(429, failure: new FetchFailure(FetchFailureKind::HttpStatus, 429));
+        }
+
+        return new FetchResult(200, json_encode(lighthouseFixture(), JSON_THROW_ON_ERROR));
+    });
+    app()->instance(OutboundHttp::class, $fake);
+    $run = runLighthouse(lighthouseCheck());
+
+    expect($run->result)->toBe(RunResult::Errored)->and($run->summary)->toBe('lighthouse.busy')
+        ->and($audits)->toBe(1)->and($fake->requests)->toHaveCount(3);
 });
 
 it('records a locale-independent busy error and translated cause without resetting the original deadline', function (string $locale, string $message, int $remaining): void {
