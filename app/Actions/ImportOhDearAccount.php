@@ -114,7 +114,15 @@ final readonly class ImportOhDearAccount
         $existing = Site::query()->where('oh_dear_id', $monitor->id)->first();
         $siteId = $existing?->id;
 
-        return new ImportPlanRowData((string) $monitor->id, $monitor->url, $monitor->label, $monitor->teamId, array_values(array_filter($monitor->tags, is_string(...))), ImportOperation::Failed, [], [], ['import.notice.failed'], $reason, $siteId);
+        return new ImportPlanRowData((string) $monitor->id, $monitor->url, $monitor->label, $monitor->teamId, array_values(array_filter($monitor->tags, is_string(...))), ImportOperation::Failed, [], [], [$this->failedNotice($exception)], $reason, $siteId);
+    }
+
+    /** Oh Dear unreachable or answering badly is a different cause than a site Heptapod could not import. */
+    private function failedNotice(Throwable $exception): string
+    {
+        $remote = $exception instanceof OhDearException || $exception instanceof RequestException || $exception instanceof FatalRequestException || $exception instanceof InvalidOhDearRecurringResponse;
+
+        return $remote ? 'import.notice.failed_remote' : 'import.notice.failed';
     }
 
     /** The operator's record of a failure. It logs the same vetted reason the user sees, never the exception message, which can echo source secrets. */

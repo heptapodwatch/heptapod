@@ -81,6 +81,7 @@ final class ImportOhDearController extends Controller
                 'processed' => count(array_filter($rows, static fn (array $row): bool => ($row['attempt'] ?? null) === $attempt)),
                 'rows' => $rows, 'remote_error' => $importRun->remote_error, 'error' => $importRun->error,
                 'failed' => count(array_filter($rows, static fn (array $row): bool => ($row['operation'] ?? null) === 'failed' && ($row['attempt'] ?? null) === $attempt)),
+                'failed_remote' => count(array_filter($rows, static fn (array $row): bool => ($row['operation'] ?? null) === 'failed' && ($row['attempt'] ?? null) === $attempt && in_array('import.notice.failed_remote', (array) ($row['notices'] ?? []), true))),
                 'failed_earlier' => count(array_filter($rows, static fn (array $row): bool => ($row['operation'] ?? null) === 'failed' && ($row['attempt'] ?? null) !== $attempt)),
                 'started_at' => $importRun->started_at?->toIso8601String(), 'finished_at' => $importRun->finished_at?->toIso8601String(),
                 'can_retry' => in_array($importRun->status, [ImportRunStatus::Incomplete, ImportRunStatus::Failed], true) && $importRun->user_id === $user->id,

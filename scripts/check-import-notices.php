@@ -119,7 +119,7 @@ foreach ($codes as $code) {
     }
 }
 
-$keys = array_unique([...array_values(OhDearImportNotices::Keys), OhDearImportNotices::Undeclared, 'import.notice.failed']);
+$keys = array_unique([...array_values(OhDearImportNotices::Keys), OhDearImportNotices::Undeclared, 'import.notice.failed', 'import.notice.failed_remote']);
 foreach (['en', 'de'] as $locale) {
     $catalog = json_decode((string) file_get_contents($root."/lang/{$locale}/import.json"), true, flags: JSON_THROW_ON_ERROR);
     foreach ($keys as $key) {

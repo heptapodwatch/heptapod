@@ -27,6 +27,7 @@ type ImportRun = {
     status: Heptapod.Enums.ImportRunStatus;
     processed: number;
     failed: number;
+    failed_remote: number;
     failed_earlier: number;
     expected: number;
     attempts: number;
@@ -189,12 +190,25 @@ export default function ImportOhDearRun({
                                         )
                                       : importRun.status === 'incomplete'
                                         ? [
-                                              ...(importRun.failed > 0
+                                              ...(importRun.failed_remote > 0
                                                   ? [
                                                         t(
                                                             ':count sites failed: Oh Dear did not answer for them, so they were not fully imported.',
                                                             {
-                                                                count: importRun.failed,
+                                                                count: importRun.failed_remote,
+                                                            },
+                                                        ),
+                                                    ]
+                                                  : []),
+                                              ...(importRun.failed >
+                                              importRun.failed_remote
+                                                  ? [
+                                                        t(
+                                                            ':count sites could not be imported. The reason is listed next to each site.',
+                                                            {
+                                                                count:
+                                                                    importRun.failed -
+                                                                    importRun.failed_remote,
                                                             },
                                                         ),
                                                     ]

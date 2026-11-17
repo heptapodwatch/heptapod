@@ -705,7 +705,10 @@ test('a site failing validation shows its reason on the run page and in the log'
 
     $failed = collect($results)->keyBy('source_id');
     $reason = 'Invalid fields: friendly_name: The friendly name field must not be greater than 255 characters.';
+    // Oh Dear answered: the run page must not blame it.
     expect($run['status'])->toBe('incomplete')
+        ->and($run['failed'])->toBe(1)->and($run['failed_remote'])->toBe(0)
+        ->and($failed['502']['notices'])->toBe(['import.notice.failed'])
         ->and($failed['502']['operation'])->toBe('failed')
         ->and($failed['502']['details'])->toBe($reason.' Server log: import run '.$run['id'].'.')
         ->and($failed->except('502')->pluck('operation')->unique()->all())->toBe(['create']);
@@ -721,3 +724,21 @@ test('refuses a run when the checks this instance can run changed since the plan
     expect($run['status'])->toBe('failed')->and($run['error'])->toBe('plan_changed')
         ->and(Site::query()->count())->toBe(0);
 })->with(['browser removed' => true, 'browser installed' => false]);
+
+test('the CLI plans and imports every site without a check this instance cannot run', function (bool $dryRun): void {
+    config(['heptapod.browser.enabled' => false]);
+    app(OhDearAccountTransport::class)->fake(realOhDearAccount());
+
+    $exit = Artisan::call('heptapod:import-ohdear', ['--token' => 'fake-real-account-token', '--dry-run' => $dryRun]);
+    $output = Artisan::output();
+
+    expect($exit)->toBe(0, $output);
+    preg_match_all('/^\|[ \t]*(\d+)[ \t]*\|([^|]+)\|([^|]+)\|[ \t]*$/m', $output, $rows, PREG_SET_ORDER);
+    expect($rows)->toHaveCount(5);
+    foreach ($rows as [, $id, $operation, $details]) {
+        expect(trim($operation))->toBe('Create', $id)
+            ->and($details)->toContain('Not imported: not available on this server: lighthouse (Browser service not installed.)');
+    }
+    expect(Site::query()->count())->toBe($dryRun ? 0 : 5);
+    expect(DB::table('checks')->where('type', 'lighthouse')->count())->toBe(0);
+})->with(['dry-run' => true, 'import' => false]);
