@@ -69,13 +69,15 @@ export default function Email({
     const form = useForm(savedValues(instancePage, emailPage));
     const savedLogo = useSavedLogo(emailPage.logo_url);
     const savedLogoDark = useSavedLogo(emailPage.logo_dark_url);
-    const logo = useLogoDraft(
-        form.data.logo ?? (form.data.remove_logo ? null : savedLogo),
-    );
-    const logoDarkFile =
-        form.data.logo_dark ??
-        (form.data.remove_logo_dark ? null : savedLogoDark);
-    const logoDark = useLogoDraft(logo ? logoDarkFile : null);
+    const logoFile =
+        form.data.logo ?? (form.data.remove_logo ? null : savedLogo);
+    const logoDarkFile = logoFile
+        ? (form.data.logo_dark ??
+          (form.data.remove_logo_dark ? null : savedLogoDark))
+        : null;
+    // Only readable images reach the preview; an unreadable one stays in its field with the error.
+    const logo = useLogoDraft(logoFile);
+    const logoDark = useLogoDraft(logoDarkFile);
     const text = {
         sender_name: form.data.sender_name,
         accent: form.data.accent,
@@ -219,8 +221,8 @@ export default function Email({
                     </div>
                     <AppearanceFields
                         text={text}
-                        logo={logo}
-                        logoDark={logoDark}
+                        logoFile={logoFile}
+                        logoDarkFile={logoDarkFile}
                         errors={errors}
                         onText={(field, value) => {
                             form.setData(field, value);

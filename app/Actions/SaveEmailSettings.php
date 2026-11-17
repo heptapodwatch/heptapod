@@ -27,6 +27,9 @@ final readonly class SaveEmailSettings
 
     public const float MinContrast = 4.5;
 
+    /** Decoding bound for an uploaded logo; the page names it with the other upload limits. */
+    public const int LogoMaxPixels = 4096;
+
     /** Header height and width cap of a logo in Branded mail; the page computes the same size for its preview. */
     public const int LogoHeight = 24;
 
@@ -74,6 +77,8 @@ final readonly class SaveEmailSettings
                     $info = @getimagesizefromstring($upload->getContent());
                     if ($info !== false && ! in_array($info[2], [IMAGETYPE_PNG, IMAGETYPE_JPEG], true)) {
                         $validator->errors()->add($field, __('mail_branding.logo.unsupported'));
+                    } elseif ($info !== false && max($info[0], $info[1]) > self::LogoMaxPixels) {
+                        $validator->errors()->add($field, __('mail_branding.logo.too_many_pixels', ['max' => self::LogoMaxPixels]));
                     } elseif ($this->decoded($upload) === null) {
                         $validator->errors()->add($field, __('mail_branding.logo.unreadable'));
                     }
@@ -89,9 +94,9 @@ final readonly class SaveEmailSettings
         $settings = $this->settings;
         $previous = array_filter([$settings->mail_logo_path, $settings->mail_logo_dark_path], is_string(...));
         $settings->mail_design = MailDesign::from($data['mail_design']);
-        $settings->mail_sender_name = $data['sender_name'] ?? null;
+        $settings->mail_sender_name = self::trimmed($data['sender_name'] ?? null);
         $settings->mail_accent = isset($data['accent']) ? strtolower($data['accent']) : null;
-        $settings->mail_footer = $data['footer'] ?? null;
+        $settings->mail_footer = self::trimmed($data['footer'] ?? null);
         $logo = $data['logo'] ?? null;
         if ($logo instanceof UploadedFile) {
             [$settings->mail_logo_path, $settings->mail_logo_width, $settings->mail_logo_height] = $this->store($logo);
@@ -145,6 +150,17 @@ final readonly class SaveEmailSettings
         ];
     }
 
+    /**
+     * Sender name and footer skip the global trim (bootstrap/app.php) so their rules see an edge line break or null byte and
+     * refuse it; surrounding spaces are trimmed here once the value is valid.
+     */
+    public static function trimmed(?string $value): ?string
+    {
+        $value = $value === null ? '' : trim($value, ' ');
+
+        return $value === '' ? null : $value;
+    }
+
     /** White button text on the accent, and accent links on the white card: one contrast ratio covers both. */
     public static function contrastWithWhite(string $hex): float
     {
@@ -163,7 +179,7 @@ final readonly class SaveEmailSettings
         $bytes = $upload->getContent();
         $info = @getimagesizefromstring($bytes);
         if ($info === false || ! in_array($info[2], [IMAGETYPE_PNG, IMAGETYPE_JPEG], true) || $info[0] < 1 || $info[1] < 1
-            || $info[0] > 4096 || $info[1] > 4096 || @imagecreatefromstring($bytes) === false) {
+            || max($info[0], $info[1]) > self::LogoMaxPixels || @imagecreatefromstring($bytes) === false) {
             return null;
         }
         $ratio = $info[0] / $info[1];

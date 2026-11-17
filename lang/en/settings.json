@@ -357,7 +357,7 @@
     "mail_branding.sender.label": "Sender name",
     "mail_branding.sender.description": "Shown as the sender of every email. The address :address is configured on the server.",
     "mail_branding.logo.label": "Logo",
-    "mail_branding.logo.constraints": "PNG or JPEG · Max 512 KB · Shown 24 px high, up to 200 px wide",
+    "mail_branding.logo.constraints": "PNG or JPEG · Max 512 KB and 4096 × 4096 px · Shown 24 px high, up to 200 px wide",
     "mail_branding.logo.too_large": "File too large (max 512 KB)",
     "mail_branding.logo.unsupported": "Format not supported. Use PNG or JPEG.",
     "mail_branding.logo.preview": "Logo preview",
@@ -412,5 +412,6 @@
     "mail_branding.sample.open_check": "Open check",
     "mail_branding.sample.why": "You receive this because the team channel gets outages.",
     "mail_branding.sample.change_notifications": "Change notifications",
-    "mail_branding.preview.failed": "The preview could not be loaded."
+    "mail_branding.preview.failed": "The preview could not be loaded.",
+    "mail_branding.logo.too_many_pixels": "Image too large (max :max × :max px)."
 }

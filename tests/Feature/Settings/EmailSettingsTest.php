@@ -35,6 +35,8 @@ it('saves every email appearance field and serves the saved logos to the owner o
 
     $this->actingAs($owner)->post(route('settings.email.update'), emailSettingsForm([
         'mail_design' => 'plain',
+        // Surrounding spaces are trimmed once the value is valid; only line breaks and control characters are refused.
+        'sender_name' => '  Acme Monitoring  ',
         'logo' => UploadedFile::fake()->createWithContent('logo.png', emailSettingsImage(480, 48)),
         // The file name says PNG; the content (a JPEG) decides the stored type.
         'logo_dark' => UploadedFile::fake()->createWithContent('dark.png', emailSettingsImage(96, 48, 'jpeg')),
@@ -93,6 +95,8 @@ it('refuses each invalid field with a message at that field and saves nothing', 
 })->with([
     'sender name too long' => fn (): array => [['sender_name' => str_repeat('a', 101)], 'sender_name', __('mail_branding.sender.too_long', ['max' => 100])],
     'sender name with a header injection' => fn (): array => [['sender_name' => "Acme\r\nBcc: victim@example.test"], 'sender_name', __('mail_branding.sender.one_line')],
+    'sender name ending in a line break' => fn (): array => [['sender_name' => "Acme\n"], 'sender_name', __('mail_branding.sender.one_line')],
+    'footer ending in a null byte' => fn (): array => [['footer' => "Acme GmbH\0"], 'footer', __('mail_branding.footer.plain')],
     'accent not a hex colour' => fn (): array => [['accent' => 'blue'], 'accent', __('mail_branding.accent.format')],
     'accent short hex' => fn (): array => [['accent' => '#12345'], 'accent', __('mail_branding.accent.format')],
     'accent unreadable under white text' => fn (): array => [['accent' => '#f5c400'], 'accent', __('mail_branding.accent.unreadable', ['ratio' => '1.6'])],
@@ -102,6 +106,7 @@ it('refuses each invalid field with a message at that field and saves nothing', 
     'logo larger than 512 KB' => fn (): array => [['logo' => UploadedFile::fake()->create('logo.png', 600, 'image/png')], 'logo', __('mail_branding.logo.too_large')],
     'logo text named .png' => fn (): array => [['logo' => UploadedFile::fake()->createWithContent('logo.png', 'not an image')], 'logo', __('mail_branding.logo.unreadable')],
     'logo GIF named .png' => fn (): array => [['logo' => UploadedFile::fake()->createWithContent('logo.png', base64_decode('R0lGODlhAQABAAAAACw=', true) ?: '')], 'logo', __('mail_branding.logo.unsupported')],
+    'logo wider than 4096 px' => fn (): array => [['logo' => UploadedFile::fake()->createWithContent('logo.png', emailSettingsImage(5000, 100))], 'logo', __('mail_branding.logo.too_many_pixels', ['max' => 4096])],
     'logo PNG header that does not decode' => fn (): array => [['logo' => UploadedFile::fake()->createWithContent('logo.png', "\x89PNG\r\n\x1a\n".str_repeat("\0", 64))], 'logo', __('mail_branding.logo.unreadable')],
     'dark-mode logo without a logo' => fn (): array => [['logo_dark' => UploadedFile::fake()->createWithContent('dark.png', emailSettingsImage(48, 24))], 'logo_dark', __('mail_branding.logo_dark.needs_logo')],
 ]);

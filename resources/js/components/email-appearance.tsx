@@ -70,6 +70,11 @@ function readableShade(hex: string): string {
 
 const validHex = (value: string) => /^#[0-9a-f]{6}$/i.test(value);
 
+/** Characters as the server counts them (code points): a surrogate pair is one character, not two UTF-16 units. */
+const characters = (value: string) =>
+    value.length -
+    (value.match(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g)?.length ?? 0);
+
 /** The same rendered size the server stores on Save. */
 async function readLogo(file: File): Promise<LogoDraft> {
     const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -153,7 +158,7 @@ export function localErrors(
     t: (key: string, values?: Record<string, unknown>) => string,
 ): Partial<Record<keyof AppearanceText, string>> {
     const errors: Partial<Record<keyof AppearanceText, string>> = {};
-    if (text.sender_name.length > limits.senderNameMax) {
+    if (characters(text.sender_name) > limits.senderNameMax) {
         errors.sender_name = t('mail_branding.sender.too_long', {
             max: limits.senderNameMax,
         });
@@ -169,7 +174,7 @@ export function localErrors(
             });
         }
     }
-    if (text.footer.length > limits.footerMax) {
+    if (characters(text.footer) > limits.footerMax) {
         errors.footer = t('mail_branding.footer.too_long', {
             max: limits.footerMax,
         });
@@ -181,8 +186,8 @@ export function localErrors(
 
 export function AppearanceFields({
     text,
-    logo,
-    logoDark,
+    logoFile,
+    logoDarkFile,
     errors,
     onText,
     onLogo,
@@ -196,8 +201,9 @@ export function AppearanceFields({
     disabled,
 }: {
     text: AppearanceText;
-    logo: LogoDraft | null;
-    logoDark: LogoDraft | null;
+    /** The chosen files, also while they cannot be read: the field keeps showing them with their error and Remove. */
+    logoFile: File | null;
+    logoDarkFile: File | null;
     errors: Partial<Record<Field, string>>;
     onText: (field: keyof AppearanceText, value: string) => void;
     onLogo: (file: File) => void;
@@ -263,19 +269,19 @@ export function AppearanceFields({
                 </p>
                 <ImageDropzone
                     kind="logo"
-                    value={logo?.file ?? null}
+                    value={logoFile}
                     error={errors.logo}
                     disabled={disabled}
                     onChange={onLogo}
-                    onReset={logo ? onRemoveLogo : undefined}
+                    onReset={logoFile ? onRemoveLogo : undefined}
                 />
-                {!logo && (
+                {!logoFile && (
                     <p className="text-xs text-muted-foreground">
                         {t('mail_branding.logo.empty')}
                     </p>
                 )}
             </div>
-            {logo && (
+            {logoFile && (
                 <div className="space-y-1.5">
                     <Label>{t('mail_branding.logo_dark.label')}</Label>
                     <p className="text-xs text-muted-foreground">
@@ -286,11 +292,11 @@ export function AppearanceFields({
                     </p>
                     <ImageDropzone
                         kind="logoDark"
-                        value={logoDark?.file ?? null}
+                        value={logoDarkFile}
                         error={errors.logo_dark}
                         disabled={disabled}
                         onChange={onLogoDark}
-                        onReset={logoDark ? onRemoveLogoDark : undefined}
+                        onReset={logoDarkFile ? onRemoveLogoDark : undefined}
                     />
                 </div>
             )}

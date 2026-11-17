@@ -40,7 +40,7 @@ final class EmailPreviewController extends Controller
         $logo = static fn (int|string|null $width, int|string|null $height): ?MailLogo => $width === null || $height === null ? null
             // The draft's file type does not matter here: its image never leaves the browser.
             : new MailLogo(null, 'image/png', (int) $width, (int) $height);
-        $branding = new MailBranding($draft['sender_name'] ?? null, isset($draft['accent']) ? strtolower($draft['accent']) : null, $draft['footer'] ?? null,
+        $branding = new MailBranding(SaveEmailSettings::trimmed($draft['sender_name'] ?? null), isset($draft['accent']) ? strtolower($draft['accent']) : null, SaveEmailSettings::trimmed($draft['footer'] ?? null),
             $logo($draft['logo_width'] ?? null, $draft['logo_height'] ?? null), $logo($draft['logo_dark_width'] ?? null, $draft['logo_dark_height'] ?? null));
         $locale = $user->locale ?? app()->getLocale();
         $mail = $draft['kind'] === 'alert'
