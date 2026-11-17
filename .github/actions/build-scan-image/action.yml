@@ -20,7 +20,7 @@ outputs:
 runs:
   using: composite
   steps:
-  - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+  - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
   - name: Dockerfile lint
     id: hadolint
     shell: bash
@@ -69,7 +69,7 @@ runs:
       IMAGE: ${{ inputs.image }}
       ARCHITECTURE: ${{ inputs.architecture }}
     run: echo "ref=$(bash scripts/image-reference.sh "$IMAGE"):buildcache-$ARCHITECTURE" >> "$GITHUB_OUTPUT"
-  - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+  - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
     with:
       registry: ghcr.io
       username: ${{ github.actor }}
@@ -79,7 +79,7 @@ runs:
     run: bash tests/Deployment/image-modes.sh prepare "$RUNNER_TEMP/image-modes-context"
   - name: Build native production image
     id: build
-    uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+    uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
     with:
       context: ${{ runner.temp }}/image-modes-context
       file: ${{ runner.temp }}/image-modes-context/${{ inputs.dockerfile }}
