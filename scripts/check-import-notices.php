@@ -9,6 +9,7 @@ use Heptapod\Actions\ImportOhDearMonitor;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\OhDearImportMapping;
+use Heptapod\Contracts\ReportsAvailability;
 use Heptapod\Contracts\Schema\Field;
 use Heptapod\Contracts\Schema\FieldType;
 use Heptapod\Support\OhDearImportNotices;
@@ -100,6 +101,12 @@ foreach (ImportOhDearMonitor::SettingsTypes as $type) {
     }
     if ($hasSecret($fields)) {
         $codes[] = 'short_secret:'.$type;
+    }
+}
+// A check whose addon can report itself unavailable on this instance is skipped with that notice.
+foreach ($registry->keys() as $key) {
+    if ($registry->importMapping($key) instanceof OhDearImportMapping && $registry->implementation($key, ReportsAvailability::class) !== null) {
+        $codes[] = 'availability:'.$key->value;
     }
 }
 if ($registry->importMapping(CheckKey::Cron)?->definitions !== null) {

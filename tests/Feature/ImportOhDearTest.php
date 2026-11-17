@@ -383,7 +383,7 @@ test('late cron identity conflict rolls back this monitor while a previous monit
     app(OhDearAccountTransport::class)->fake($this->account);
 
     expect(Artisan::call('heptapod:import-ohdear', ['--token' => 'fixture-token-secret']))->toBe(1);
-    expect(Artisan::output())->toContain('104', 'Failed', 'LogicException', 'Monitor import failed; source details withheld.')
+    expect(Artisan::output())->toContain('104', 'Failed', 'LogicException', 'Monitor import failed; the server log has the details.')
         ->not->toContain('fixture-token-secret');
     expect(Site::query()->where('oh_dear_id', 104)->count())->toBe(0);
     expect(DB::table('cron_checks')->where('oh_dear_id', 203)->count())->toBe(0);

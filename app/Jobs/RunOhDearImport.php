@@ -17,6 +17,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -41,6 +42,7 @@ final class RunOhDearImport implements ShouldQueue
             return;
         }
         $run = ImportRun::query()->findOrFail($this->runId);
+        Context::add('import_run_id', $run->id);
         LiveSignal::forImport();
         $token = ImportTokenStore::get($run->id);
         if ($token === null) {
@@ -65,8 +67,9 @@ final class RunOhDearImport implements ShouldQueue
             }
             // Results are kept across attempts, keyed by source monitor: a revisited monitor replaces its row.
             $results = $run->results;
+            // The CLI summary is not stored, except on a failed row, where it is the user-safe reason the run page shows.
             /** @var array<string, mixed> $result */
-            $result = [...Arr::except($row->toArray(), ['details']), 'attempt' => $attempt];
+            $result = [...Arr::except($row->toArray(), $row->operation === ImportOperation::Failed ? [] : ['details']), 'attempt' => $attempt];
             $results[$row->source_id] = $result;
             $run->results = $results;
             $run->save();

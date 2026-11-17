@@ -14,6 +14,7 @@ use Heptapod\Models\Site;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\Support\OhDearImportNotices;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use OhDear\PhpSdk\Dto\Monitor;
 use OhDear\PhpSdk\Exceptions\OhDearException;
@@ -61,9 +62,17 @@ final readonly class ImportOhDearAccount
                 } catch (UndeclaredImportNotice $exception) {
                     throw $exception;
                 } catch (ValidationException $exception) {
-                    // Validation messages may include source secrets; report field paths only.
-                    $rows[] = $this->failed($monitor, __('import.invalid', ['fields' => implode(', ', array_keys($exception->errors()))]));
+                    // Rule messages come from our lang files and never echo the submitted value.
+                    /** @var array<string, list<string>> $errors */
+                    $errors = $exception->errors();
+                    $fields = [];
+                    foreach ($errors as $field => $messages) {
+                        $fields[] = $field.': '.implode(' ', $messages);
+                    }
+                    $this->logFailure($token, $monitor, $exception);
+                    $rows[] = $this->failed($monitor, __('import.invalid', ['fields' => implode('; ', $fields)]));
                 } catch (Throwable $exception) {
+                    $this->logFailure($token, $monitor, $exception);
                     $rows[] = $this->failed($monitor, $this->failureDetails($exception));
                 }
                 if ($progress instanceof \Closure) {
@@ -78,6 +87,7 @@ final readonly class ImportOhDearAccount
             // The SDK exception contains the upstream response; never print it or the token.
             $remoteError = __('import.remote_failed', ['status' => $exception->response->status()]).'; '.$this->failureDetails($exception);
         } catch (Throwable $exception) {
+            $this->logFailure($token, null, $exception);
             $remoteError = $this->failureDetails($exception);
         }
         if (! $dryRun) {
@@ -99,6 +109,13 @@ final readonly class ImportOhDearAccount
         $siteId = $existing?->id;
 
         return new ImportPlanRowData((string) $monitor->id, $monitor->url, $monitor->label, $monitor->teamId, array_values(array_filter($monitor->tags, is_string(...))), ImportOperation::Failed, [], [], ['import.notice.failed'], $reason, $siteId);
+    }
+
+    /** The operator's record of a failure the user sees only as a summary. Exception messages can echo the token, so it is redacted. */
+    private function logFailure(#[\SensitiveParameter] string $token, ?Monitor $monitor, Throwable $exception): void
+    {
+        Log::warning('Oh Dear import failed', ['ohdear_monitor_id' => $monitor?->id, 'exception' => $exception::class,
+            'message' => str_replace($token, '[token]', $exception->getMessage())]);
     }
 
     private function failureDetails(#[\SensitiveParameter] Throwable $exception): string

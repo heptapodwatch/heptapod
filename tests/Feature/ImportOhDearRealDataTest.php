@@ -14,15 +14,21 @@ use Heptapod\Contracts\Http\FetchResult;
 use Heptapod\Contracts\Http\OutboundHttp;
 use Heptapod\Contracts\OhDearImportMapping;
 use Heptapod\Exceptions\UndeclaredImportNotice;
+use Heptapod\Jobs\RunOhDearImport;
 use Heptapod\Models\RecurringMaintenancePeriod;
 use Heptapod\Models\Site;
+use Heptapod\Models\User;
 use Heptapod\Testing\ClaimedRun;
 use Heptapod\Testing\FakeOutboundHttp;
 use Heptapod\Testing\OhDearAccountTransport;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Validation\ValidationException;
 use Saloon\Http\Faking\MockClient;
 
 beforeEach(function (): void {
@@ -404,7 +410,7 @@ test('isolates unexpected monitor exceptions and withholds source messages', fun
     } elseif ($kind === 'transport') {
         expect($output)->toContain('FatalRequestException', 'GET monitors/{id}/recurring-maintenance-periods', 'no response');
     } else {
-        expect($output)->toContain('TypeError', 'Monitor import failed; source details withheld.');
+        expect($output)->toContain('TypeError', 'Monitor import failed; the server log has the details.');
     }
     expect(Site::query()->where('oh_dear_id', 501)->count())->toBe(0);
     expect(Site::query()->whereIn('oh_dear_id', [502, 503, 504, 505])->count())->toBe($dryRun ? 0 : 4);
@@ -639,3 +645,58 @@ test('imports blank uptime alert timing as inherited timing', function (string $
     expect($site->alert_after_minutes)->toBeNull()
         ->and($site->alert_recovery_checks)->toBeNull();
 })->with(['empty' => '', 'whitespace' => ' ']);
+
+/**
+ * Plans, starts and runs a Settings → Import of the account, as the UI does.
+ *
+ * @param  array<string, mixed>  $account
+ * @return array{plan: list<array<string, mixed>>, results: list<array<string, mixed>>}
+ */
+function importOhDearThroughSettings(array $account): array
+{
+    $owner = User::factory()->owner()->create();
+    app(OhDearAccountTransport::class)->fake($account);
+    $plan = test()->actingAs($owner)->postJson('/settings/import/ohdear/plan', ['ohdear_token' => 'fake-real-account-token'])->assertOk();
+    Queue::fake([RunOhDearImport::class]);
+    test()->postJson('/settings/import/ohdear/runs/'.$plan->json('plan_id').'/start', ['expected' => count($plan->json('rows')), 'groups' => ['team:42' => ['new_client' => 'Imported']], 'overrides' => []])->assertCreated();
+    app(OhDearAccountTransport::class)->fake($account);
+    app()->call([new RunOhDearImport($plan->json('plan_id')), 'handle']);
+    $results = test()->withoutVite()->get('/settings/import/ohdear/runs/'.$plan->json('plan_id'))->assertOk()->inertiaProps('importRun.rows');
+
+    return ['plan' => $plan->json('rows'), 'results' => $results];
+}
+
+test('plans and imports every site without a check this instance cannot run, with the same notice', function (): void {
+    config(['heptapod.browser.enabled' => false]);
+
+    ['plan' => $plan, 'results' => $results] = importOhDearThroughSettings(realOhDearAccount());
+
+    foreach ([$plan, $results] as $rows) {
+        expect($rows)->toHaveCount(5);
+        foreach ($rows as $row) {
+            expect($row['operation'])->toBe('create', $row['source_id'])
+                ->and($row['notices'])->toContain('import.notice.availability.lighthouse')
+                ->and($row['checks'])->not->toContain('lighthouse');
+        }
+    }
+    foreach ([501, 502, 503, 504, 505] as $id) {
+        $site = Site::query()->where('oh_dear_id', $id)->sole();
+        expect($site->checks()->pluck('type')->map->value->all())->toEqualCanonicalizing(expectedRealOhDearChecks($id, ['lighthouse']));
+    }
+});
+
+test('a site failing validation shows its reason on the run page and in the log', function (): void {
+    $account = realOhDearAccount();
+    $account['monitors'][1]['label'] = str_repeat('x', 256);
+    Log::spy();
+
+    ['results' => $results] = importOhDearThroughSettings($account);
+
+    $failed = collect($results)->keyBy('source_id');
+    expect($failed['502']['operation'])->toBe('failed')
+        ->and($failed['502']['details'])->toBe('Invalid fields: friendly_name: The friendly name field must not be greater than 255 characters.')
+        ->and($failed->except('502')->pluck('operation')->unique()->all())->toBe(['create']);
+    Log::shouldHaveReceived('warning')->once()->with('Oh Dear import failed', ['ohdear_monitor_id' => 502, 'exception' => ValidationException::class,
+        'message' => 'The friendly name field must not be greater than 255 characters.']);
+    expect(Context::get('import_run_id'))->toBeString();
+});

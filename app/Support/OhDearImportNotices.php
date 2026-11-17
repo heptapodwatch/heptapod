@@ -64,6 +64,7 @@ final class OhDearImportNotices
         'short_secret:application_health' => 'import.notice.short_secret.application_health',
         'short_secret:uptime' => 'import.notice.short_secret.uptime',
         'short_secret:lighthouse' => 'import.notice.short_secret.lighthouse',
+        'availability:lighthouse' => 'import.notice.availability.lighthouse',
     ];
 
     /** Source fields that Oh Dear derives itself; they are never user settings and never listed. */
@@ -78,9 +79,10 @@ final class OhDearImportNotices
      * @param  list<string>  $setupRequired  Check types missing required source settings.
      * @param  list<string>  $invalidTypes  Check types rejected for invalid settings.
      * @param  list<string>  $shortCredentials  Engine paths of secrets below the minimum length.
+     * @param  list<string>  $unavailableTypes  Check types this instance cannot run (a CheckAvailability reason).
      * @return list<string>
      */
-    public static function keys(array $skipped, array $setupRequired, bool $cronDisabledWithoutDefinitions, array $invalidTypes, array $shortCredentials, bool $domainUnsupported): array
+    public static function keys(array $skipped, array $setupRequired, bool $cronDisabledWithoutDefinitions, array $invalidTypes, array $shortCredentials, bool $domainUnsupported, array $unavailableTypes): array
     {
         $codes = [];
         foreach ($skipped as $path) {
@@ -102,6 +104,9 @@ final class OhDearImportNotices
         }
         foreach ($shortCredentials as $path) {
             $codes[] = 'short_secret:'.explode('_check_settings.', $path)[0];
+        }
+        foreach ($unavailableTypes as $type) {
+            $codes[] = 'availability:'.$type;
         }
         if ($domainUnsupported) {
             $codes[] = 'domain:unsupported';

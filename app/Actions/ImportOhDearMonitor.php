@@ -74,6 +74,7 @@ final readonly class ImportOhDearMonitor
         $shortCredentials = [];
         $invalid = [];
         $invalidTypes = [];
+        $unavailable = [];
         $settings = [
             'uptime' => $monitor->uptimeCheckSettings, 'performance' => $monitor->performanceCheckSettings,
             'certificate_health' => $monitor->certificateHealthCheckSettings, 'dns' => $monitor->dnsCheckSettings,
@@ -91,6 +92,8 @@ final readonly class ImportOhDearMonitor
             $key = CheckKey::tryFrom($check['type']);
             if ($key === null || ! $this->registry->importMapping($key) instanceof OhDearImportMapping) {
                 $skipped[] = $check['type'];
+            } elseif ($this->registry->availability($key)->reason !== null) {
+                $unavailable[] = $key->value;
             } elseif ($check['enabled']) {
                 $attributes['checks'][] = $key->value;
             }
@@ -102,6 +105,14 @@ final readonly class ImportOhDearMonitor
             if (! $mapping instanceof OhDearImportMapping) {
                 if ($values !== []) {
                     $skipped[] = $type.'_check_settings';
+                }
+
+                continue;
+            }
+            // This instance cannot run the check (e.g. no browser service), so neither it nor its settings are imported.
+            if ($this->registry->availability($key)->reason !== null) {
+                if ($values !== []) {
+                    $unavailable[] = $type;
                 }
 
                 continue;
@@ -219,7 +230,7 @@ final readonly class ImportOhDearMonitor
         }
         $definitions = [];
         $cronMapping = $this->registry->importMapping(CheckKey::Cron);
-        $cronImporter = $cronMapping?->definitions === null ? null : app($cronMapping->definitions);
+        $cronImporter = $cronMapping?->definitions === null || $this->registry->availability(CheckKey::Cron)->reason !== null ? null : app($cronMapping->definitions);
         if ($cronImporter instanceof OhDearDefinitionImporter) {
             foreach ($sdk->cronCheckDefinitions($monitor->id) as $definition) {
                 $definitions[] = $this->cronAttributes($definition);
@@ -321,9 +332,13 @@ final readonly class ImportOhDearMonitor
             $details[] = __('import.covered', ['count' => count($coveredIds)]);
         }
         $cronDisabledWithoutDefinitions = in_array(CheckKey::Cron->value, $setupRequired, true) && (array_column($checks, 'enabled', 'type')[CheckKey::Cron->value] ?? null) === false;
+        $unavailable = array_values(array_unique($unavailable));
         $notices = OhDearImportNotices::keys(array_values(array_unique($skipped)), $setupRequired, $cronDisabledWithoutDefinitions, array_values(array_unique($invalidTypes)), $shortCredentials,
-            ($monitor->domainCheckSettings['not_supported_reason'] ?? null) !== null);
+            ($monitor->domainCheckSettings['not_supported_reason'] ?? null) !== null, $unavailable);
         $notImported = [];
+        if ($unavailable !== []) {
+            $notImported[] = __('import.unavailable', ['checks' => implode(', ', array_map(fn (string $type): string => $type.' ('.__((string) $this->registry->availability(CheckKey::from($type))->reason).')', $unavailable))]);
+        }
         if ($setupRequired !== []) {
             $notImported[] = __('import.setup_required', ['checks' => implode(', ', $setupRequired)]);
         }

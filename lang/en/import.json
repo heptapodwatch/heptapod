@@ -98,6 +98,7 @@
     "Already exists, client unchanged": "Already exists, client unchanged",
     "import.notice.short_secret.uptime": "Uptime: a secret header value is too short; renew it in Oh Dear or after the import",
     "import.notice.short_secret.lighthouse": "Lighthouse: a secret header value is too short; renew it in Oh Dear or after the import",
+    "import.notice.availability.lighthouse": "Lighthouse: not imported, because this server has no browser service",
     "import.notice.plan_missing": "Not in the plan; show the plan again to import it",
     "import.notice.plan_changed": "Changed since the plan; show the plan again to import it",
     "Some sites could not be read. Show the plan again.": "Some sites could not be read. Show the plan again.",

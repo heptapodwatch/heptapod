@@ -98,6 +98,7 @@
     "Already exists, client unchanged": "Bereits vorhanden, Kunde unverändert",
     "import.notice.short_secret.uptime": "Erreichbarkeit: ein geheimer Header-Wert ist zu kurz; erneuern Sie ihn in Oh Dear oder nach dem Import",
     "import.notice.short_secret.lighthouse": "Lighthouse: ein geheimer Header-Wert ist zu kurz; erneuern Sie ihn in Oh Dear oder nach dem Import",
+    "import.notice.availability.lighthouse": "Lighthouse: nicht importiert, da dieser Server keinen Browser-Dienst hat",
     "import.notice.plan_missing": "Nicht im Plan; zeigen Sie den Plan erneut an, um sie zu importieren",
     "import.notice.plan_changed": "Seit dem Plan geändert; zeigen Sie den Plan erneut an, um sie zu importieren",
     "Some sites could not be read. Show the plan again.": "Einige Websites konnten nicht gelesen werden. Zeigen Sie den Plan erneut an.",

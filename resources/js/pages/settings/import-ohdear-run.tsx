@@ -112,11 +112,14 @@ export default function ImportOhDearRun({
                   imported.every((row) => row.notices.includes(key)),
               )
             : [];
-    const rowNotices = (row: Row) =>
-        row.notices
+    const rowNotices = (row: Row) => [
+        ...row.notices
             .filter((key) => !common.includes(key))
             .map((key) => t(key))
-            .sort((a, b) => a.localeCompare(b));
+            .sort((a, b) => a.localeCompare(b)),
+        // A failed row keeps its server-written reason (results stored before it was kept have none).
+        ...(row.operation === 'failed' && row.details ? [row.details] : []),
+    ];
 
     return (
         <>
