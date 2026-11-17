@@ -139,6 +139,8 @@
     },
     "audit": {
       "ignore-abandoned": [
+        "dragon-code/contracts",
+        "dragon-code/support",
         "symplify/rule-doc-generator-contracts"
       ]
     },

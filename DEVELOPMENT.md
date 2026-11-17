@@ -110,6 +110,7 @@ docker compose exec app npm audit --audit-level=high
 - Migrate before generating types or running Vite builds: Wayfinder reads route-binding types from the live schema. CI migrates its fresh database before either step.
 - Commit generated artifacts with the locked dependencies, the local route environment (`APP_ENV=local`) and the current Postgres schema. A warm database is not fresh-state CI proof.
 - Composer ignores only the abandoned status of `symplify/rule-doc-generator-contracts`, a transitive development dependency of `driftingly/rector-laravel`. Security advisories still fail the audit. Remove `config.audit.ignore-abandoned` when rector-laravel drops this dependency.
+- Composer also ignores only the abandoned status of `dragon-code/support` and `dragon-code/contracts`, production dependencies of `laravel-lang/locales`, `laravel-lang/native-country-names` and `laravel-lang/routes` whose newest releases still require them. Remove both entries when laravel-lang drops `dragon-code/support`.
 
 ## CI
 
