@@ -1,3 +1,11 @@
 {
-    "exceptions": []
+    "exceptions": [
+        {
+            "package": "picomatch",
+            "advisories": ["GHSA-fc5q-39xc-vjpf"],
+            "expires": "2026-12-17",
+            "reason": "No patched picomatch release exists (affected: <= 4.0.7). We only reach picomatch through build and test tooling (Vite, Rolldown, tinyglobby, Vitest) with globs from our own configuration, never from user input. Remove once a fixed release is available.",
+            "owner": "el-schneider"
+        }
+    ]
 }
