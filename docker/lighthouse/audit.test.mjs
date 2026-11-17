@@ -14,7 +14,7 @@ const vendorSource = (path) =>
 void test('maps the pinned Lighthouse status events to private stage enums', async () => {
     assert.equal(
         JSON.parse(await vendorSource('lighthouse/package.json')).version,
-        '13.5.0',
+        '13.6.0',
     );
     assert.equal(
         JSON.parse(await vendorSource('lighthouse-logger/package.json'))
