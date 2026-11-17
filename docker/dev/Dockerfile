@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim AS node
+FROM node:26-bookworm-slim AS node
 FROM composer:2 AS composer
 FROM dunglas/frankenphp:1.13.5-php8.5.12@sha256:667c5fffd348d9c3c260803d75956f1d9aace7e4b7331d8893de6f101d7e0e57
 
