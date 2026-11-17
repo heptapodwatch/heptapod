@@ -428,6 +428,7 @@
     "import.partial": "Teilweise (fehlgeschlagene Prüfungen)",
     "import.short_credentials": "Nicht importiert: Geheimnis zu kurz (in Oh Dear oder nach dem Import erneuern): :fields",
     "import.unavailable": "Nicht importiert, auf diesem Server nicht verfügbar: :checks",
+    "import.log_reference": "Server-Log: Importlauf :run.",
     "import.invalid_recurring_response": "Wiederkehrende Wartungen müssen eine Liste oder ein Objekt mit einer Liste in data sein.",
     "import.unexpected_failed": "Monitorimport fehlgeschlagen; Details stehen im Server-Log.",
     "import.request_failed": ":method :endpoint → :status",

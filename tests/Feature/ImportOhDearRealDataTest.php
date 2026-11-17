@@ -21,6 +21,7 @@ use Heptapod\Models\User;
 use Heptapod\Testing\ClaimedRun;
 use Heptapod\Testing\FakeOutboundHttp;
 use Heptapod\Testing\OhDearAccountTransport;
+use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Context;
@@ -401,10 +402,16 @@ test('isolates unexpected monitor exceptions and withholds source messages', fun
         $failures[$endpoint] = new TypeError('fixture-remote-secret fake-real-account-token');
     }
     app(OhDearAccountTransport::class)->fake($account, endpointStatuses: $statuses, endpointFailures: $failures);
+    $logged = [];
+    Log::listen(static function (MessageLogged $entry) use (&$logged): void {
+        $logged[] = [$entry->message, $entry->context];
+    });
     expect(Artisan::call('heptapod:import-ohdear', ['--token' => 'fake-real-account-token', '--dry-run' => $dryRun]))->toBe(1);
     $output = Artisan::output();
     expect($output)->toContain('501', '502', '503', '504', '505', 'Failed')
-        ->not->toContain('fixture-remote-secret', 'fake-real-account-token', 'fake-health-secret-');
+        ->not->toContain('fixture-remote-secret')->not->toContain('fake-real-account-token')->not->toContain('fake-health-secret-');
+    expect(json_encode($logged, JSON_THROW_ON_ERROR))->toContain('Oh Dear import failed', '501')
+        ->not->toContain('fixture-remote-secret')->not->toContain('fake-real-account-token')->not->toContain('fake-health-secret-');
     if ($kind === 'sdk') {
         expect($output)->toContain('OhDearException', 'GET monitors/{id}/recurring-maintenance-periods', '500');
     } elseif ($kind === 'transport') {
@@ -650,9 +657,10 @@ test('imports blank uptime alert timing as inherited timing', function (string $
  * Plans, starts and runs a Settings → Import of the account, as the UI does.
  *
  * @param  array<string, mixed>  $account
- * @return array{plan: list<array<string, mixed>>, results: list<array<string, mixed>>}
+ * @param  (Closure(): void)|null  $beforeRun  Changes the instance between plan and run.
+ * @return array{plan: list<array<string, mixed>>, run: array<string, mixed>, results: list<array<string, mixed>>}
  */
-function importOhDearThroughSettings(array $account): array
+function importOhDearThroughSettings(array $account, ?Closure $beforeRun = null): array
 {
     $owner = User::factory()->owner()->create();
     app(OhDearAccountTransport::class)->fake($account);
@@ -660,16 +668,19 @@ function importOhDearThroughSettings(array $account): array
     Queue::fake([RunOhDearImport::class]);
     test()->postJson('/settings/import/ohdear/runs/'.$plan->json('plan_id').'/start', ['expected' => count($plan->json('rows')), 'groups' => ['team:42' => ['new_client' => 'Imported']], 'overrides' => []])->assertCreated();
     app(OhDearAccountTransport::class)->fake($account);
+    $beforeRun?->__invoke();
     app()->call([new RunOhDearImport($plan->json('plan_id')), 'handle']);
-    $results = test()->withoutVite()->get('/settings/import/ohdear/runs/'.$plan->json('plan_id'))->assertOk()->inertiaProps('importRun.rows');
+    $run = test()->withoutVite()->get('/settings/import/ohdear/runs/'.$plan->json('plan_id'))->assertOk()->inertiaProps('importRun');
 
-    return ['plan' => $plan->json('rows'), 'results' => $results];
+    return ['plan' => $plan->json('rows'), 'run' => $run, 'results' => $run['rows']];
 }
 
 test('plans and imports every site without a check this instance cannot run, with the same notice', function (): void {
     config(['heptapod.browser.enabled' => false]);
 
-    ['plan' => $plan, 'results' => $results] = importOhDearThroughSettings(realOhDearAccount());
+    ['plan' => $plan, 'run' => $run, 'results' => $results] = importOhDearThroughSettings(realOhDearAccount());
+
+    expect($run['status'])->toBe('completed');
 
     foreach ([$plan, $results] as $rows) {
         expect($rows)->toHaveCount(5);
@@ -690,13 +701,23 @@ test('a site failing validation shows its reason on the run page and in the log'
     $account['monitors'][1]['label'] = str_repeat('x', 256);
     Log::spy();
 
-    ['results' => $results] = importOhDearThroughSettings($account);
+    ['run' => $run, 'results' => $results] = importOhDearThroughSettings($account);
 
     $failed = collect($results)->keyBy('source_id');
-    expect($failed['502']['operation'])->toBe('failed')
-        ->and($failed['502']['details'])->toBe('Invalid fields: friendly_name: The friendly name field must not be greater than 255 characters.')
+    $reason = 'Invalid fields: friendly_name: The friendly name field must not be greater than 255 characters.';
+    expect($run['status'])->toBe('incomplete')
+        ->and($failed['502']['operation'])->toBe('failed')
+        ->and($failed['502']['details'])->toBe($reason.' Server log: import run '.$run['id'].'.')
         ->and($failed->except('502')->pluck('operation')->unique()->all())->toBe(['create']);
-    Log::shouldHaveReceived('warning')->once()->with('Oh Dear import failed', ['ohdear_monitor_id' => 502, 'exception' => ValidationException::class,
-        'message' => 'The friendly name field must not be greater than 255 characters.']);
-    expect(Context::get('import_run_id'))->toBeString();
+    Log::shouldHaveReceived('warning')->once()->with('Oh Dear import failed', ['ohdear_monitor_id' => 502, 'exception' => ValidationException::class, 'reason' => $reason]);
+    expect(Context::get('import_run_id'))->toBe($run['id']);
 });
+
+test('refuses a run when the checks this instance can run changed since the plan', function (bool $browserBeforePlan): void {
+    config(['heptapod.browser.enabled' => $browserBeforePlan]);
+
+    ['run' => $run] = importOhDearThroughSettings(realOhDearAccount(), static fn () => config(['heptapod.browser.enabled' => ! $browserBeforePlan]));
+
+    expect($run['status'])->toBe('failed')->and($run['error'])->toBe('plan_changed')
+        ->and(Site::query()->count())->toBe(0);
+})->with(['browser removed' => true, 'browser installed' => false]);

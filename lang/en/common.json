@@ -428,6 +428,7 @@
     "import.partial": "Partial (failed checks)",
     "import.short_credentials": "Not imported: secret too short (renew it in Oh Dear or after the import): :fields",
     "import.unavailable": "Not imported: not available on this server: :checks",
+    "import.log_reference": "Server log: import run :run.",
     "import.invalid_recurring_response": "Recurring maintenance response must be a list or an object containing a list in data.",
     "import.unexpected_failed": "Monitor import failed; the server log has the details.",
     "import.request_failed": ":method :endpoint → :status",

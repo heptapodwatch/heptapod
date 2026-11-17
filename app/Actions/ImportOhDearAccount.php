@@ -39,6 +39,7 @@ final readonly class ImportOhDearAccount
         $teams = [];
         $rows = [];
         $remoteError = null;
+        $reporting = false;
         try {
             /** @var list<array{id: int, name: string, timezone?: string}> $sourceTeams */
             $sourceTeams = $sdk->me()->teams;
@@ -69,14 +70,15 @@ final readonly class ImportOhDearAccount
                     foreach ($errors as $field => $messages) {
                         $fields[] = $field.': '.implode(' ', $messages);
                     }
-                    $this->logFailure($token, $monitor, $exception);
-                    $rows[] = $this->failed($monitor, __('import.invalid', ['fields' => implode('; ', $fields)]));
+                    $rows[] = $this->failed($monitor, __('import.invalid', ['fields' => implode('; ', $fields)]), $exception);
                 } catch (Throwable $exception) {
-                    $this->logFailure($token, $monitor, $exception);
-                    $rows[] = $this->failed($monitor, $this->failureDetails($exception));
+                    $rows[] = $this->failed($monitor, $this->failureDetails($exception), $exception);
                 }
                 if ($progress instanceof \Closure) {
+                    // A failing caller (e.g. saving the result) is not an Oh Dear failure: it must fail the import, not become a remote error.
+                    $reporting = true;
                     $progress(array_last($rows));
+                    $reporting = false;
                 }
             }
         } catch (UndeclaredImportNotice $exception) {
@@ -87,8 +89,11 @@ final readonly class ImportOhDearAccount
             // The SDK exception contains the upstream response; never print it or the token.
             $remoteError = __('import.remote_failed', ['status' => $exception->response->status()]).'; '.$this->failureDetails($exception);
         } catch (Throwable $exception) {
-            $this->logFailure($token, null, $exception);
+            if ($reporting) {
+                throw $exception;
+            }
             $remoteError = $this->failureDetails($exception);
+            $this->logFailure(null, $exception, $remoteError);
         }
         if (! $dryRun) {
             DB::statement('ANALYZE sites, taggables, tags, client_user');
@@ -103,19 +108,19 @@ final readonly class ImportOhDearAccount
             ImportOperation::Skipped, [], [], [OhDearImportNotices::key($code)], $reason);
     }
 
-    private function failed(Monitor $monitor, string $reason): ImportPlanRowData
+    private function failed(Monitor $monitor, string $reason, Throwable $exception): ImportPlanRowData
     {
+        $this->logFailure($monitor, $exception, $reason);
         $existing = Site::query()->where('oh_dear_id', $monitor->id)->first();
         $siteId = $existing?->id;
 
         return new ImportPlanRowData((string) $monitor->id, $monitor->url, $monitor->label, $monitor->teamId, array_values(array_filter($monitor->tags, is_string(...))), ImportOperation::Failed, [], [], ['import.notice.failed'], $reason, $siteId);
     }
 
-    /** The operator's record of a failure the user sees only as a summary. Exception messages can echo the token, so it is redacted. */
-    private function logFailure(#[\SensitiveParameter] string $token, ?Monitor $monitor, Throwable $exception): void
+    /** The operator's record of a failure. It logs the same vetted reason the user sees, never the exception message, which can echo source secrets. */
+    private function logFailure(?Monitor $monitor, Throwable $exception, string $reason): void
     {
-        Log::warning('Oh Dear import failed', ['ohdear_monitor_id' => $monitor?->id, 'exception' => $exception::class,
-            'message' => str_replace($token, '[token]', $exception->getMessage())]);
+        Log::warning('Oh Dear import failed', ['ohdear_monitor_id' => $monitor?->id, 'exception' => $exception::class, 'reason' => $reason]);
     }
 
     private function failureDetails(#[\SensitiveParameter] Throwable $exception): string
