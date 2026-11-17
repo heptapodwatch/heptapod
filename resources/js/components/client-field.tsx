@@ -18,10 +18,7 @@ export function ClientField({
     id = 'site-client',
     ariaLabel,
     ...comboboxProps
-}: Omit<
-    ComponentProps<typeof Combobox>,
-    'options' | 'create' | 'invalid' | 'describedBy'
-> & {
+}: Omit<ComponentProps<typeof Combobox>, 'options' | 'create'> & {
     clients: Heptapod.Data.Ui.ClientData[];
     /** Choices listed before the clients, e.g. "Use the team assignment". */
     leadingOptions?: ComboboxOption[];

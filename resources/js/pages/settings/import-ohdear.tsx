@@ -4,7 +4,7 @@ import { SectionHeading } from '@/components/section-heading';
 import { ImportOperationBadge } from '@/components/import-operation-badge';
 import { ImportAlertTimingSummary } from '@/components/import-alert-timing-summary';
 import { Head, router } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormActions, FormSection } from '@/components/form-section';
 import InputError, { fieldErrorId } from '@/components/input-error';
@@ -14,7 +14,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { EntityCombobox } from '@/components/entity-combobox';
 import { ClientCreateSheet } from '@/components/client-create-sheet';
 import { ClientField } from '@/components/client-field';
 import { ListHeader, ListRow } from '@/components/ui/table';
@@ -31,32 +30,29 @@ type Target = string;
 
 const inherit = 'inherit';
 
+/** A site whose tags point to different clients needs an explicit choice; any client, or a new one, resolves it. */
 function ConflictSelect({
     id,
     label,
-    candidates,
-    onChange,
+    ...fieldProps
 }: {
     id: string;
     label: string;
-    candidates: { target: Target; name: string }[];
-    onChange: (value: Target) => void;
-}) {
+} & Pick<
+    ComponentProps<typeof ClientField>,
+    'clients' | 'onValueChange' | 'onCreateClient' | 'disabled'
+>) {
     const { t } = useTranslation();
     return (
         <div className="space-y-1">
-            <EntityCombobox
+            <ClientField
                 id={id}
                 ariaLabel={label}
                 invalid
                 describedBy={fieldErrorId(id)}
                 placeholder={t('Choose a client')}
-                options={candidates.map((candidate) => ({
-                    value: candidate.target,
-                    label: candidate.name,
-                }))}
                 value=""
-                onValueChange={onChange}
+                {...fieldProps}
             />
             <InputError
                 field={id}
@@ -76,6 +72,7 @@ function MappingRow({
     onCreateClient,
     clients,
     inheritLabel,
+    disabled,
 }: {
     id: string;
     label: string;
@@ -85,6 +82,7 @@ function MappingRow({
     onCreateClient: (name: string) => void;
     clients: Heptapod.Data.Ui.ClientData[];
     inheritLabel?: string;
+    disabled: boolean;
 }) {
     const { t } = useTranslation();
     return (
@@ -108,6 +106,7 @@ function MappingRow({
                     value={value}
                     onValueChange={onChange}
                     onCreateClient={onCreateClient}
+                    disabled={disabled}
                 />
             </div>
         </ListRow>
@@ -375,6 +374,7 @@ export default function ImportOhDear({
                                         setGroup(`team:${team.id}`),
                                     )}
                                     clients={clients}
+                                    disabled={http.processing}
                                 />
                             ))}
                             {tags.map((tag) => (
@@ -394,6 +394,7 @@ export default function ImportOhDear({
                                         setGroup(`tag:${tag}`),
                                     )}
                                     clients={clients}
+                                    disabled={http.processing}
                                 />
                             ))}
                         </div>
@@ -600,17 +601,16 @@ export default function ImportOhDear({
                                                                 row.url,
                                                         },
                                                     )}
-                                                    candidates={tagCandidates(
-                                                        row,
-                                                    ).map((target) => ({
-                                                        target,
-                                                        name: targetName(
-                                                            target,
-                                                        ),
-                                                    }))}
-                                                    onChange={setOverride(
+                                                    clients={clients}
+                                                    onValueChange={setOverride(
                                                         row.source_id,
                                                     )}
+                                                    onCreateClient={createClientFor(
+                                                        setOverride(
+                                                            row.source_id,
+                                                        ),
+                                                    )}
+                                                    disabled={http.processing}
                                                 />
                                             ) : (
                                                 <ClientField
@@ -650,6 +650,7 @@ export default function ImportOhDear({
                                                             row.source_id,
                                                         ),
                                                     )}
+                                                    disabled={http.processing}
                                                 />
                                             )}
                                         </div>
@@ -675,7 +676,10 @@ export default function ImportOhDear({
                             <Button
                                 type="button"
                                 disabled={
-                                    blocked || starting || imported.length === 0
+                                    blocked ||
+                                    starting ||
+                                    http.processing ||
+                                    imported.length === 0
                                 }
                                 onClick={runImport}
                             >

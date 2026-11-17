@@ -138,3 +138,91 @@ it('creates a client from a group picker, selects it there, offers it in every p
         overrides: {},
     });
 });
+
+const showPlan = async () => {
+    render(
+        <ImportOhDear
+            clients={[internal, ...clients]}
+            timezones={['UTC', 'Europe/Berlin']}
+        />,
+    );
+    fireEvent.change(screen.getByLabelText('Oh Dear API token'), {
+        target: { value: 'token' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Show plan' }));
+    await screen.findByRole('combobox', { name: 'Client for Agency' });
+};
+const choose = (picker: string, option: string) => {
+    fireEvent.click(screen.getByRole('combobox', { name: picker }));
+    fireEvent.click(screen.getByRole('option', { name: option }));
+};
+
+it('resolves a tag conflict with a client created in the conflict picker', async () => {
+    vi.spyOn(router, 'visit').mockImplementation(() => {});
+    const conflicting = { ...plan, rows: [row('shop', ['retail', 'sale'])] };
+    const request = vi
+        .spyOn(http.getClient(), 'request')
+        .mockImplementation(async ({ url }) => {
+            if (url.endsWith('/plan')) return json(conflicting);
+            if (url === '/clients') return json(created, 201);
+            return json({ url: '/settings/import/ohdear/runs/run-1' });
+        });
+    await showPlan();
+    choose('Client for retail', clients[0]!.name);
+    choose('Client for sale', clients[1]!.name);
+    const conflict = screen.getByRole('combobox', { name: 'Client for shop' });
+    expect(conflict.getAttribute('aria-invalid')).toBe('true');
+
+    fireEvent.click(conflict);
+    fireEvent.change(
+        screen.getByRole('combobox', { name: 'combobox.search' }),
+        { target: { value: 'Studio Nord' } },
+    );
+    fireEvent.click(
+        screen.getByRole('option', { name: 'clients.create_inline' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Create client' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const resolved = screen.getByRole('combobox', { name: 'Client for shop' });
+    expect(resolved.getAttribute('aria-invalid')).toBeNull();
+    expect(within(resolved).getByText('Studio Nord')).not.toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start import' }));
+    await waitFor(() =>
+        expect(
+            JSON.parse(request.mock.calls.at(-1)![0].data as string).overrides,
+        ).toEqual({ shop: { client_id: 987 } }),
+    );
+});
+
+it('locks every client picker and Start import while a new plan loads', async () => {
+    let planCalls = 0;
+    vi.spyOn(http.getClient(), 'request').mockImplementation(({ url }) =>
+        url.endsWith('/plan') && ++planCalls > 1
+            ? new Promise(() => {})
+            : Promise.resolve(json(plan)),
+    );
+    await showPlan();
+    const pickers = () =>
+        screen
+            .getAllByRole('combobox')
+            .filter((box) =>
+                box.getAttribute('aria-label')?.startsWith('Client for'),
+            );
+    expect(pickers().every((box) => !box.hasAttribute('disabled'))).toBe(true);
+
+    fireEvent.change(screen.getByLabelText('Oh Dear API token'), {
+        target: { value: 'token' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Show plan' }));
+    await waitFor(() =>
+        expect(pickers().every((box) => box.hasAttribute('disabled'))).toBe(
+            true,
+        ),
+    );
+    expect(
+        screen
+            .getByRole('button', { name: 'Start import' })
+            .hasAttribute('disabled'),
+    ).toBe(true);
+});
