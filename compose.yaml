@@ -45,7 +45,7 @@ services:
             - '127.0.0.1:${DNS_FIXTURES_PORT:-0}:53/tcp'
 
     fixtures:
-        image: openresty/openresty:1.27.1.2-0-alpine
+        image: openresty/openresty:1.31.8.1-0-alpine
         profiles: [fixtures]
         command:
             [
@@ -91,7 +91,7 @@ services:
             retries: 5
 
     fixtures-alt:
-        image: openresty/openresty:1.27.1.2-0-alpine
+        image: openresty/openresty:1.31.8.1-0-alpine
         profiles: [fixtures]
         command:
             [
