@@ -698,7 +698,7 @@ it('opens notifications_stalled for a delivery whose send throws after every cla
     $settings->alert_confirms_other_checks = false;
     $settings->save();
     $webhook = notificationRule(notificationWebhook());
-    Http::fake(['https://receiver.test/alerts' => fn () => throw new RuntimeException('Message rendering broke after the claim.')]);
+    Http::fake(['https://receiver.test/alerts' => fn (): never => throw new RuntimeException('Message rendering broke after the claim.')]);
     $event = notificationIncidentEvent();
     app(PlanNotificationEvent::class)($event->id);
     $dueAt = Delivery::query()->where('destination_id', $webhook->id)->sole()->next_attempt_at;

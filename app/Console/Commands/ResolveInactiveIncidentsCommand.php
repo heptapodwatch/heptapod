@@ -31,7 +31,7 @@ final class ResolveInactiveIncidentsCommand extends Command
         $actor = null;
         $actorId = $this->option('actor');
         if ($actorId !== null) {
-            if (! is_string($actorId) || preg_match('/^[1-9][0-9]*$/D', $actorId) !== 1) {
+            if (preg_match('/^[1-9][0-9]*$/D', $actorId) !== 1) {
                 $this->error(__('incidents.resolve_inactive.unknown_actor'));
 
                 return self::FAILURE;

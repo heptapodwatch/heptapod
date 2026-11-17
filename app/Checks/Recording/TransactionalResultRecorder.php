@@ -218,10 +218,9 @@ final readonly class TransactionalResultRecorder implements ResultRecorder
                     suppressionReason: $policyOnly ? 'policy_reclassified' : null);
             }
             if ($policyOnly) {
-                $relabeled = $policyMark['relabeled_ids'] ?? null;
                 $this->outbox->record($check, $run->endedAt, 'check.findings_reclassified', $from, $check->latest_run_result,
-                    ['run_id' => $stored->id, 'run_ended_at' => $run->endedAt->format('Y-m-d\TH:i:s.uP'), 'policy_version' => $policyMark['policy'] ?? throw new \LogicException('A policy mark needs its version.'),
-                        'count' => is_array($relabeled) ? count($relabeled) : throw new \LogicException('A policy mark needs its relabeled findings.')],
+                    ['run_id' => $stored->id, 'run_ended_at' => $run->endedAt->format('Y-m-d\TH:i:s.uP'), 'policy_version' => $policyMark['policy'],
+                        'count' => count($policyMark['relabeled_ids'])],
                     $incident, $incident?->cause, suppressionReason: 'policy_reclassified');
             }
             foreach ($outcome->events as $event) {

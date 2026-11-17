@@ -277,7 +277,7 @@ return new class extends Migration
                 $teamTuples[$id] = $this->tuple($destination);
             }
             // System mail always went to the account address, so only the account channel carries it.
-            $cells['system'] = $account && $this->systemByDefault($role, $user['system_issue_mails'] ?? false) ? NotificationMode::Immediate->value : NotificationMode::Off->value;
+            $cells['system'] = $account && $this->systemByDefault($role, $user['system_issue_mails']) ? NotificationMode::Immediate->value : NotificationMode::Off->value;
 
             $siteSets = [];
             $scopes = [];

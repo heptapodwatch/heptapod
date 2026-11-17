@@ -53,7 +53,7 @@ final class SnoozeNotificationSuppression implements NotificationSuppression
             foreach (array_unique($this->siteIds) as $siteId) {
                 $arm = DB::query()->selectRaw('?::bigint as site_id', [$siteId])
                     ->selectSub($this->maintenanceQuery($siteId, $at)->select('starts_at')->limit(1), 'starts_at');
-                $query = $query === null ? $arm : $query->unionAll($arm);
+                $query = $query?->unionAll($arm) ?? $arm;
             }
             /** @var \stdClass&object{site_id: int, starts_at: string|null} $source */
             foreach ($query?->get() ?? [] as $source) {

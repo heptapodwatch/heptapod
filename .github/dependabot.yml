@@ -15,6 +15,11 @@ updates:
         update-types: [patch, minor]
       composer-major:
         update-types: [major]
+    ignore:
+      # 0.13.51 to 0.13.55 infer property reads on controller parameters (e.g. $check->id) as UnknownType,
+      # so scramble:export fails (scripts/check-openapi.php). Drop this once a release exports cleanly again.
+      - dependency-name: dedoc/scramble
+        versions: ['>=0.13.51']
 
   - package-ecosystem: npm
     directories: [/, /docker/lighthouse]

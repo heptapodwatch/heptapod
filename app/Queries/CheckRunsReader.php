@@ -28,7 +28,7 @@ final readonly class CheckRunsReader
             && in_array($check->type, $this->registry->keys(), true) && $this->registry->availability($check->type)->reason === null
             && $attempt === null
             && $due !== null && $due->addSeconds(max(60, (int) ceil($check->interval_seconds * 0.1)))->lessThan($now);
-        $phase = $late ? RunPhase::Late : ($attempt === null ? RunPhase::Scheduled : $attempt->phase);
+        $phase = $late ? RunPhase::Late : ($attempt->phase ?? RunPhase::Scheduled);
         $position = $attempt?->phase === RunPhase::Queued ? ($positions[$attempt->id] ?? CheckRunAttempt::query()
             ->where('queue', $attempt->queue)->where('phase', RunPhase::Queued)->where('id', '<=', $attempt->id)->getQuery()->count()) : null;
 

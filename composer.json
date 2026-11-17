@@ -216,7 +216,7 @@
       "@php artisan config:clear --ansi",
       "bash scripts/run-tests.sh tia"
     ],
-    "test:types": "pest --type-coverage --min=100",
+    "test:types": "pest --type-coverage --min=100 --memory-limit=1G",
     "types:check": "@analyse",
     "types:generate": "@php artisan typescript:transform --no-interaction"
   },

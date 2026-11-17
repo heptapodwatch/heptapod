@@ -165,7 +165,7 @@ final readonly class EventPresenter
 
         return new EventData($event->id, $severity, $site?->id, $siteLabel, $event->incident_id,
             $event->check->type ?? $event->check_type, $event->type, $time->toIso8601String(), $message, $params, $duration,
-            $clientName, $site?->iconUrl(), $site === null ? SiteIconBacking::None : $site->icon_backing, $site === null ? $event->client_id : $site->client_id, $presentation->changes ?? [],
+            $clientName, $site?->iconUrl(), $site->icon_backing ?? SiteIconBacking::None, $site->client_id ?? $event->client_id, $presentation->changes ?? [],
             is_int($event->payload['run_id'] ?? null) ? $event->payload['run_id'] : null);
     }
 }

@@ -37,11 +37,6 @@ final class CreateAccessLinkCommand extends Command
 
             return self::FAILURE;
         }
-        if (! is_string($email)) {
-            $this->error('Supply one account or invitation email.');
-
-            return self::FAILURE;
-        }
         $email = Str::lower(trim($email));
         if ($type === 'invite') {
             $subject = Invitation::query()->where('email', $email)->first();

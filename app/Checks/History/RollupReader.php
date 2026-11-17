@@ -353,9 +353,6 @@ final class RollupReader implements DailyRollupReader
         }
         $averages = [];
         foreach ($sums as $name => $sum) {
-            if ($counts[$name] <= 0) {
-                throw new RuntimeException('Rollup metric sum has no positive sample count: '.$name);
-            }
             $averages[$name] = (float) ($sum / $counts[$name]);
         }
 
