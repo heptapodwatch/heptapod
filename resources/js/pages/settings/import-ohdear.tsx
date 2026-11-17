@@ -34,15 +34,18 @@ const inherit = 'inherit';
 function ConflictSelect({
     id,
     label,
+    proposed,
     ...fieldProps
 }: {
     id: string;
     label: string;
+    /** Names of the clients the conflicting tags point to. */
+    proposed: string[];
 } & Pick<
     ComponentProps<typeof ClientField>,
     'clients' | 'onValueChange' | 'onCreateClient' | 'disabled'
 >) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     return (
         <div className="space-y-1">
             <ClientField
@@ -57,7 +60,11 @@ function ConflictSelect({
             <InputError
                 field={id}
                 role="status"
-                message="Tags of this site point to different clients. Choose one."
+                message={t('Tags of this site point to :clients. Choose one.', {
+                    clients: new Intl.ListFormat(i18n.language).format(
+                        proposed,
+                    ),
+                })}
             />
         </div>
     );
@@ -318,7 +325,9 @@ export default function ImportOhDear({
                                 http.processing || !http.data.ohdear_token
                             }
                         >
-                            {t('Show plan')}
+                            {http.processing
+                                ? t('Loading plan…')
+                                : t('Show plan')}
                         </Button>
                     </div>
                     <InputError
@@ -601,6 +610,9 @@ export default function ImportOhDear({
                                                                 row.url,
                                                         },
                                                     )}
+                                                    proposed={tagCandidates(
+                                                        row,
+                                                    ).map(targetName)}
                                                     clients={clients}
                                                     onValueChange={setOverride(
                                                         row.source_id,

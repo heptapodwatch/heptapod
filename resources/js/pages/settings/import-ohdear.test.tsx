@@ -172,6 +172,11 @@ it('resolves a tag conflict with a client created in the conflict picker', async
     choose('Client for sale', clients[1]!.name);
     const conflict = screen.getByRole('combobox', { name: 'Client for shop' });
     expect(conflict.getAttribute('aria-invalid')).toBe('true');
+    expect(
+        screen.getByText(
+            `Tags of this site point to ${clients[0]!.name} and ${clients[1]!.name}. Choose one.`,
+        ),
+    ).not.toBeNull();
 
     fireEvent.click(conflict);
     fireEvent.change(
@@ -195,7 +200,7 @@ it('resolves a tag conflict with a client created in the conflict picker', async
     );
 });
 
-it('locks every client picker and Start import while a new plan loads', async () => {
+it('locks every client picker and Start import while a new plan loads, and says so on Show plan', async () => {
     let planCalls = 0;
     vi.spyOn(http.getClient(), 'request').mockImplementation(({ url }) =>
         url.endsWith('/plan') && ++planCalls > 1
@@ -223,6 +228,11 @@ it('locks every client picker and Start import while a new plan loads', async ()
     expect(
         screen
             .getByRole('button', { name: 'Start import' })
+            .hasAttribute('disabled'),
+    ).toBe(true);
+    expect(
+        screen
+            .getByRole('button', { name: 'Loading plan…' })
             .hasAttribute('disabled'),
     ).toBe(true);
 });

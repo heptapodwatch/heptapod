@@ -68,6 +68,7 @@
     "Not imported for any site": "Für keine Website importiert",
     "Choose a client": "Kunden wählen",
     "Tags of this site point to different clients. Choose one.": "Die Tags dieser Website verweisen auf verschiedene Kunden. Wählen Sie einen.",
+    "Tags of this site point to :clients. Choose one.": "Die Tags dieser Website verweisen auf :clients. Wählen Sie einen davon.",
     "Start import": "Import starten",
     "Choose a client for every site with conflicting tags before the import.": "Wählen Sie vor dem Import für jede Website mit widersprüchlichen Tags einen Kunden.",
     "Import progress": "Importfortschritt",
@@ -107,5 +108,6 @@
     "Use a read-only Oh Dear API token.": "Verwenden Sie ein schreibgeschütztes Oh-Dear-API-Token.",
     "It is used for this import only: it is kept encrypted for at most 15 minutes between the plan and the import, then it expires. It is never shown or logged.": "Es dient nur diesem Import: Zwischen Plan und Import wird es höchstens 15 Minuten verschlüsselt aufbewahrt, danach verfällt es. Es wird nie angezeigt oder protokolliert.",
     "A tag assignment wins over the team assignment; a choice per site wins over both.": "Eine Tag-Zuordnung geht vor der Team-Zuordnung; eine Auswahl pro Website geht vor beiden.",
-    "Sites without an assigned client go to No client.": "Websites ohne Kundenzuordnung kommen in die Gruppe Ohne Kunde."
+    "Sites without an assigned client go to No client.": "Websites ohne Kundenzuordnung kommen in die Gruppe Ohne Kunde.",
+    "Loading plan…": "Plan wird geladen…"
 }
