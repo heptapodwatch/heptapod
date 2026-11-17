@@ -1252,11 +1252,8 @@ readonly key: string,
 readonly params: Record<string, string | number | boolean | null>,
 };
 export type ImportOhDearPageData = {
-readonly clients: {
-id: number,
-name: string,
-is_internal: boolean,
-}[],
+readonly clients: Heptapod.Data.Ui.ClientData[],
+readonly timezones: string[],
 };
 export type ImportOhDearRunPageData = {
 readonly importRun: {

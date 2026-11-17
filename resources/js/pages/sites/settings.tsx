@@ -1,6 +1,7 @@
 import { InfoTooltip } from '@/components/info-tooltip';
 import { TooltipHint } from '@/components/truncated-text';
 import { ClientCreateSheet } from '@/components/client-create-sheet';
+import { ClientField } from '@/components/client-field';
 import { SiteAlertSensitivity } from '@/components/alert-sensitivity-form';
 import { SiteAvatar } from '@/components/site-avatar';
 import { useLiveReload } from '@/hooks/use-live';
@@ -24,7 +25,6 @@ import {
 } from '@/components/form-section';
 import {
     SiteNameField,
-    SiteClientField,
     SiteUrlField,
     SiteTagsField,
     SiteCheckField,
@@ -350,7 +350,7 @@ export default function SiteSettings({
                                 error={form.errors.friendly_name}
                             />
                             <div className="space-y-2">
-                                <SiteClientField
+                                <ClientField
                                     clients={clientOptions}
                                     value={form.data.client_id}
                                     placeholder={

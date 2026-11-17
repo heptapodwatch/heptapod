@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { EntityCombobox } from '@/components/entity-combobox';
+import { ClientCreateSheet } from '@/components/client-create-sheet';
+import { ClientField } from '@/components/client-field';
 import { ListHeader, ListRow } from '@/components/ui/table';
 import { HttpValidationError, useHttpRequest } from '@/hooks/use-http-request';
 import { checkTypes } from '@/lib/check-types';
@@ -23,62 +25,11 @@ import { start as startRoute } from '@/routes/settings/import/ohdear/runs';
 import type { CheckKey } from '@/types/monitoring';
 
 type Plan = Heptapod.Data.Import.ImportPlanData & { plan_id: string | null };
-type ImportTarget = { client_id?: number; new_client?: string };
 type Row = Heptapod.Data.Import.ImportPlanRowData;
-type ClientOption = { id: number; name: string; is_internal: boolean };
-// A target is an existing client id (`client:<id>`) or a client created by the import (`new:<key>`).
+// A target is a client id, or `inherit` for a tag or site that follows the next rule.
 type Target = string;
 
 const inherit = 'inherit';
-const newClient = 'new';
-
-function TargetSelect({
-    id,
-    label,
-    value,
-    onChange,
-    clients,
-    newClients,
-    inheritLabel,
-    allowNew = false,
-}: {
-    id: string;
-    label: string;
-    value: Target;
-    onChange: (value: Target) => void;
-    clients: ClientOption[];
-    newClients: { key: string; name: string }[];
-    inheritLabel?: string;
-    allowNew?: boolean;
-}) {
-    const { t } = useTranslation();
-    return (
-        <EntityCombobox
-            id={id}
-            ariaLabel={label}
-            options={[
-                ...(inheritLabel
-                    ? [{ value: inherit, label: inheritLabel }]
-                    : []),
-                ...clients.map((client) => ({
-                    value: `client:${client.id}`,
-                    label: client.name,
-                })),
-                ...newClients.map((client) => ({
-                    value: `new:${client.key}`,
-                    label: t('New client: :name', {
-                        name: client.name || t('Unnamed'),
-                    }),
-                })),
-                ...(allowNew
-                    ? [{ value: newClient, label: t('New client') }]
-                    : []),
-            ]}
-            value={value}
-            onValueChange={onChange}
-        />
-    );
-}
 
 function ConflictSelect({
     id,
@@ -121,9 +72,8 @@ function MappingRow({
     label,
     meta,
     value,
-    name,
     onChange,
-    onName,
+    onCreateClient,
     clients,
     inheritLabel,
 }: {
@@ -131,10 +81,9 @@ function MappingRow({
     label: string;
     meta: string;
     value: Target;
-    name: string;
     onChange: (value: Target) => void;
-    onName: (name: string) => void;
-    clients: ClientOption[];
+    onCreateClient: (name: string) => void;
+    clients: Heptapod.Data.Ui.ClientData[];
     inheritLabel?: string;
 }) {
     const { t } = useTranslation();
@@ -146,33 +95,32 @@ function MappingRow({
                 </TruncatedText>
                 <p className="text-xs text-muted-foreground">{meta}</p>
             </div>
-            <div className="min-w-0 space-y-2">
-                <TargetSelect
+            <div className="min-w-0">
+                <ClientField
                     id={`${id}-target`}
-                    label={t('Client for :name', { name: label })}
-                    value={value}
-                    onChange={onChange}
+                    ariaLabel={t('Client for :name', { name: label })}
                     clients={clients}
-                    newClients={[]}
-                    inheritLabel={inheritLabel}
-                    allowNew
+                    leadingOptions={
+                        inheritLabel
+                            ? [{ value: inherit, label: inheritLabel }]
+                            : []
+                    }
+                    value={value}
+                    onValueChange={onChange}
+                    onCreateClient={onCreateClient}
                 />
-                {value === newClient && (
-                    <Input
-                        aria-label={t('New client name for :name', {
-                            name: label,
-                        })}
-                        value={name}
-                        onChange={(event) => onName(event.target.value)}
-                    />
-                )}
             </div>
         </ListRow>
     );
 }
 
-export default function ImportOhDear({ clients }: { clients: ClientOption[] }) {
+export default function ImportOhDear({
+    clients: suppliedClients,
+    timezones,
+}: Heptapod.Data.Ui.ImportOhDearPageData) {
     const { t } = useTranslation();
+    // Clients created from a picker join the list, so every other picker offers them too.
+    const [clients, setClients] = useState(suppliedClients);
     const internal = clients.find((client) => client.is_internal)!;
     const http = useHttpRequest<{ ohdear_token: string }, Plan>({
         ohdear_token: '',
@@ -181,42 +129,28 @@ export default function ImportOhDear({ clients }: { clients: ClientOption[] }) {
     const [failure, setFailure] = useState(false);
     // Group mappings are keyed `team:<id>` / `tag:<name>`; every site starts in Internal.
     const [groups, setGroups] = useState<Record<string, Target>>({});
-    const [names, setNames] = useState<Record<string, string>>({});
     const [overrides, setOverrides] = useState<Record<string, Target>>({});
-    const [resetCount, setResetCount] = useState(0);
+    // The picker that opened the client sheet selects the created client.
+    const [creating, setCreating] = useState<{
+        name: string;
+        select: (target: Target) => void;
+    } | null>(null);
     const [starting, setStarting] = useState(false);
     const importHttp = useHttpRequest<
         {
             expected: number;
-            groups: Record<string, ImportTarget>;
-            overrides: Record<string, ImportTarget>;
+            groups: Record<string, { client_id: number }>;
+            overrides: Record<string, { client_id: number }>;
         },
         { url: string }
     >({ expected: 0, groups: {}, overrides: {} });
-    // A new client starts with the team or tag name, so it is never unnamed.
-    // Dropping a proposed new client returns the sites that chose it to Automatic, and says so.
-    const assign = (key: string, sourceName: string, value: Target) => {
-        const dropped = Object.entries(overrides).filter(
-            ([, target]) => target === `new:${key}`,
-        );
-        if (groups[key] === newClient && value !== newClient) {
-            setResetCount(dropped.length);
-            if (dropped.length > 0)
-                setOverrides((current) =>
-                    Object.fromEntries(
-                        Object.entries(current).filter(
-                            ([, target]) => target !== `new:${key}`,
-                        ),
-                    ),
-                );
-        } else {
-            setResetCount(0);
-        }
+    const setGroup = (key: string) => (value: Target) =>
         setGroups((current) => ({ ...current, [key]: value }));
-        setNames((current) =>
-            key in current ? current : { ...current, [key]: sourceName },
-        );
-    };
+    const setOverride = (sourceId: string) => (value: Target) =>
+        setOverrides((current) => ({ ...current, [sourceId]: value }));
+    const createClientFor =
+        (select: (target: Target) => void) => (name: string) =>
+            setCreating({ name, select });
 
     const tags = useMemo(
         () =>
@@ -224,24 +158,10 @@ export default function ImportOhDear({ clients }: { clients: ClientOption[] }) {
         [plan],
     );
     const groupTarget = (key: string): Target =>
-        groups[key] ?? `client:${internal.id}`;
-    const newClients = Object.entries(groups)
-        .filter(([, target]) => target === newClient)
-        .map(([key]) => ({ key, name: names[key] ?? '' }));
-    const targetName = (target: Target, key?: string): string => {
-        if (target === newClient && key) return names[key] || t('Unnamed');
-        if (target.startsWith('new:'))
-            return names[target.slice(4)] || t('Unnamed');
-        return (
-            clients.find((client) => `client:${client.id}` === target)?.name ??
-            internal.name
-        );
-    };
-    // A group target is either an existing client or the new client proposed by that group (`new:<group key>`).
-    const resolvedGroup = (key: string): Target => {
-        const target = groupTarget(key);
-        return target === newClient ? `new:${key}` : target;
-    };
+        groups[key] ?? String(internal.id);
+    const targetName = (target: Target): string =>
+        clients.find((client) => String(client.id) === target)?.name ??
+        internal.name;
     // Distinct clients proposed by the site's assigned tags. The same client from several tags is one candidate.
     const tagCandidates = (row: Row): Target[] => [
         ...new Set(
@@ -251,7 +171,7 @@ export default function ImportOhDear({ clients }: { clients: ClientOption[] }) {
                         groups[`tag:${name}`] !== undefined &&
                         groups[`tag:${name}`] !== inherit,
                 )
-                .map((name) => resolvedGroup(`tag:${name}`)),
+                .map((name) => groupTarget(`tag:${name}`)),
         ),
     ];
     // A per-site choice wins; then one tag client; then the team. Conflicting tags never resolve silently.
@@ -260,13 +180,11 @@ export default function ImportOhDear({ clients }: { clients: ClientOption[] }) {
         if (override !== undefined && override !== inherit) return override;
         const candidates = tagCandidates(row);
         if (candidates.length > 1) return null;
-        return candidates[0] ?? resolvedGroup(`team:${row.team_id}`);
+        return candidates[0] ?? groupTarget(`team:${row.team_id}`);
     };
     const automatic = (row: Row): string => {
         const candidates = tagCandidates(row);
-        return targetName(
-            candidates[0] ?? resolvedGroup(`team:${row.team_id}`),
-        );
+        return targetName(candidates[0] ?? groupTarget(`team:${row.team_id}`));
     };
 
     const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -276,7 +194,6 @@ export default function ImportOhDear({ clients }: { clients: ClientOption[] }) {
             const result = await http.post(planRoute.url());
             setPlan(result);
             setOverrides({});
-            setResetCount(0);
         } catch (error: unknown) {
             if (!(error instanceof HttpValidationError)) setFailure(true);
         } finally {
@@ -314,10 +231,7 @@ export default function ImportOhDear({ clients }: { clients: ClientOption[] }) {
     const unreadSites = !plan?.remote_error && !plan?.plan_id;
     const blocked = !!plan?.remote_error || unreadSites || conflicts.length > 0;
     // The server re-resolves the same choices against its stored plan and rejects anything unresolved.
-    const payloadTarget = (target: Target): ImportTarget =>
-        target.startsWith('client:')
-            ? { client_id: Number(target.slice('client:'.length)) }
-            : { new_client: targetName(target) };
+    const payloadTarget = (target: Target) => ({ client_id: Number(target) });
     const runImport = async () => {
         if (!plan?.plan_id) return;
         const groupKeys = [
@@ -339,7 +253,7 @@ export default function ImportOhDear({ clients }: { clients: ClientOption[] }) {
                 groups: Object.fromEntries(
                     groupKeys.map((key) => [
                         key,
-                        payloadTarget(resolvedGroup(key)),
+                        payloadTarget(groupTarget(key)),
                     ]),
                 ),
                 overrides: Object.fromEntries(
@@ -456,20 +370,10 @@ export default function ImportOhDear({ clients }: { clients: ClientOption[] }) {
                                         ).length,
                                     })}`}
                                     value={groupTarget(`team:${team.id}`)}
-                                    name={names[`team:${team.id}`] ?? team.name}
-                                    onChange={(value) =>
-                                        assign(
-                                            `team:${team.id}`,
-                                            team.name,
-                                            value,
-                                        )
-                                    }
-                                    onName={(name) =>
-                                        setNames((current) => ({
-                                            ...current,
-                                            [`team:${team.id}`]: name,
-                                        }))
-                                    }
+                                    onChange={setGroup(`team:${team.id}`)}
+                                    onCreateClient={createClientFor(
+                                        setGroup(`team:${team.id}`),
+                                    )}
                                     clients={clients}
                                 />
                             ))}
@@ -485,16 +389,10 @@ export default function ImportOhDear({ clients }: { clients: ClientOption[] }) {
                                     })}`}
                                     value={groups[`tag:${tag}`] ?? inherit}
                                     inheritLabel={t('Use the team assignment')}
-                                    name={names[`tag:${tag}`] ?? tag}
-                                    onChange={(value) =>
-                                        assign(`tag:${tag}`, tag, value)
-                                    }
-                                    onName={(name) =>
-                                        setNames((current) => ({
-                                            ...current,
-                                            [`tag:${tag}`]: name,
-                                        }))
-                                    }
+                                    onChange={setGroup(`tag:${tag}`)}
+                                    onCreateClient={createClientFor(
+                                        setGroup(`tag:${tag}`),
+                                    )}
                                     clients={clients}
                                 />
                             ))}
@@ -566,16 +464,6 @@ export default function ImportOhDear({ clients }: { clients: ClientOption[] }) {
                                         {plan.remote_error}
                                     </p>
                                 </AlertDescription>
-                            </Alert>
-                        )}
-                        {resetCount > 0 && (
-                            <Alert tone="info">
-                                <AlertTitle>
-                                    {t(
-                                        ':count site choices returned to Automatic because their new client was removed.',
-                                        { count: resetCount },
-                                    )}
-                                </AlertTitle>
                             </Alert>
                         )}
                         <div className="@container/table overflow-hidden rounded-[10px] border">
@@ -720,20 +608,14 @@ export default function ImportOhDear({ clients }: { clients: ClientOption[] }) {
                                                             target,
                                                         ),
                                                     }))}
-                                                    onChange={(value) =>
-                                                        setOverrides(
-                                                            (current) => ({
-                                                                ...current,
-                                                                [row.source_id]:
-                                                                    value,
-                                                            }),
-                                                        )
-                                                    }
+                                                    onChange={setOverride(
+                                                        row.source_id,
+                                                    )}
                                                 />
                                             ) : (
-                                                <TargetSelect
+                                                <ClientField
                                                     id={`site-${row.source_id}-target`}
-                                                    label={t(
+                                                    ariaLabel={t(
                                                         'Client for :name',
                                                         {
                                                             name:
@@ -741,29 +623,32 @@ export default function ImportOhDear({ clients }: { clients: ClientOption[] }) {
                                                                 row.url,
                                                         },
                                                     )}
+                                                    clients={clients}
+                                                    leadingOptions={[
+                                                        {
+                                                            value: inherit,
+                                                            label: t(
+                                                                'Automatic: :client',
+                                                                {
+                                                                    client: automatic(
+                                                                        row,
+                                                                    ),
+                                                                },
+                                                            ),
+                                                        },
+                                                    ]}
                                                     value={
                                                         overrides[
                                                             row.source_id
                                                         ] ?? inherit
                                                     }
-                                                    onChange={(value) =>
-                                                        setOverrides(
-                                                            (current) => ({
-                                                                ...current,
-                                                                [row.source_id]:
-                                                                    value,
-                                                            }),
-                                                        )
-                                                    }
-                                                    clients={clients}
-                                                    newClients={newClients}
-                                                    inheritLabel={t(
-                                                        'Automatic: :client',
-                                                        {
-                                                            client: automatic(
-                                                                row,
-                                                            ),
-                                                        },
+                                                    onValueChange={setOverride(
+                                                        row.source_id,
+                                                    )}
+                                                    onCreateClient={createClientFor(
+                                                        setOverride(
+                                                            row.source_id,
+                                                        ),
                                                     )}
                                                 />
                                             )}
@@ -802,6 +687,18 @@ export default function ImportOhDear({ clients }: { clients: ClientOption[] }) {
                         />
                     </section>
                 </>
+            )}
+            {creating && (
+                <ClientCreateSheet
+                    initialName={creating.name}
+                    timezones={timezones}
+                    onClose={() => setCreating(null)}
+                    onCreated={(created) => {
+                        setClients((current) => [...current, created]);
+                        creating.select(String(created.id));
+                        setCreating(null);
+                    }}
+                />
             )}
         </>
     );
