@@ -1198,6 +1198,20 @@ readonly maintenance: number,
 readonly disabled: number,
 readonly unavailable: number,
 };
+export type EmailPageData = {
+readonly instancePage: Heptapod.Data.Ui.InstanceSettingsData,
+readonly emailPage: Heptapod.Data.Ui.EmailSettingsData,
+};
+export type EmailSettingsData = {
+readonly sender_name: string | null,
+readonly accent: string | null,
+readonly footer: string | null,
+readonly logo_url: string | null,
+readonly logo_dark_url: string | null,
+readonly sender_name_max: number,
+readonly footer_max: number,
+readonly logo_max_kilobytes: number,
+};
 export type EventData = {
 readonly id: number,
 readonly severity: Heptapod.Contracts.Notifications.AlertSeverity,

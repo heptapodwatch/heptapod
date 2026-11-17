@@ -55,7 +55,7 @@ it('matches monitoring action labels and destinations to the viewers access on t
     'persisted mail issue' => ['issue', 'Email delivery is not configured'],
     'unavailable enabled check' => ['availability', 'lighthouse.browser_unavailable'],
 ])->with([
-    'Owner' => ['Owner', 'Open System health', '/settings/system', 'Open mail settings', '/settings/instance'],
+    'Owner' => ['Owner', 'Open System health', '/settings/system', 'Open mail settings', '/settings/email'],
     'Admin' => ['Admin', 'Open System health', '/settings/system', 'Open System health', '/settings/system'],
     'Member' => ['Member', 'Learn more', 'https://heptapod.app/docs/deploy/hetzner', 'Learn more', 'https://heptapod.app/docs/notifications#email-setup'],
 ]);

@@ -1,4 +1,5 @@
 import instance from './instance'
+import email from './email'
 import system from './system'
 import backups from './backups'
 import updates from './updates'
@@ -10,6 +11,7 @@ import notifications from './notifications'
 
 const settings = {
     instance: Object.assign(instance, instance),
+    email: Object.assign(email, email),
     system: Object.assign(system, system),
     backups: Object.assign(backups, backups),
     updates: Object.assign(updates, updates),

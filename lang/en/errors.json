@@ -3,7 +3,6 @@
     "Try again": "Try again",
     "Go to Sites": "Go to Sites",
     "Mail transport": "Mail transport",
-    "From name": "From name",
     "From address": "From address",
     "Mails are not sent": "Mails are not sent",
     "The active mail transport only stores messages locally. Configure SMTP or an API transport to send mail.": "The active mail transport only stores messages locally. Configure SMTP or an API transport to send mail.",

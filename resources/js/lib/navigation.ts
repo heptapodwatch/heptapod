@@ -4,6 +4,7 @@ import { edit as securityEdit } from '@/routes/security';
 import { edit as alertsEdit } from '@/routes/settings/alerts';
 import { edit as apiTokensEdit } from '@/routes/settings/api-tokens';
 import { edit as importEdit } from '@/routes/settings/import/ohdear';
+import { edit as emailEdit } from '@/routes/settings/email';
 import { edit as instanceEdit } from '@/routes/settings/instance';
 import { index as membersIndex } from '@/routes/settings/members';
 import {
@@ -22,6 +23,7 @@ import {
     Globe,
     Import,
     KeyRound,
+    Mail,
     RefreshCw,
     RotateCw,
     Server,
@@ -193,6 +195,13 @@ export const navigation: NavigationEntry[] = [
         title: 'General',
         href: instanceEdit.url(),
         icon: SlidersHorizontal,
+        group: 'Instance',
+        permission: 'canManageInstance',
+    },
+    {
+        title: 'settings.email.title',
+        href: emailEdit.url(),
+        icon: Mail,
         group: 'Instance',
         permission: 'canManageInstance',
     },

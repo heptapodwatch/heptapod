@@ -31,6 +31,7 @@ use Heptapod\Contracts\Http\SameSite;
 use Heptapod\Contracts\Http\TargetAddressPolicy;
 use Heptapod\Contracts\Http\TargetResolver;
 use Heptapod\Contracts\LiveConnectionTerminator;
+use Heptapod\Contracts\Mail\MailBrandingSource;
 use Heptapod\Contracts\Mail\MailDeliveryMode;
 use Heptapod\Contracts\NotificationSuppression;
 use Heptapod\Contracts\OhDear\OhDearClientFactory;
@@ -68,6 +69,7 @@ use Heptapod\Observers\ClientLiveObserver;
 use Heptapod\Observers\IncidentLiveObserver;
 use Heptapod\Observers\SiteLiveObserver;
 use Heptapod\Queries\GenericSiteIcons;
+use Heptapod\Settings\InstanceMailBranding;
 use Heptapod\Support\AreaTranslationLoader;
 use Heptapod\Support\AtomicRateLimiter;
 use Heptapod\Support\OhDear\SdkOhDearClientFactory;
@@ -123,6 +125,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->alias(CacheRateLimiter::class, AtomicRateLimiter::class);
         $this->app->singleton(CheckRegistry::class);
         $this->app->bind(DiskSpaceReader::class, NativeDiskSpaceReader::class);
+        $this->app->bind(MailBrandingSource::class, InstanceMailBranding::class);
         $this->app->bind(DatabaseClock::class, PostgresDatabaseClock::class);
         $this->app->scoped(GenericSiteIcons::class);
         // Alert keys depend on the installed registry and config for this request only.

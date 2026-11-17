@@ -78,6 +78,8 @@ $englishMissing = $request('GET', '/missing-ops-page', ['headers' => ['Accept-La
 verify(str_contains((string) $englishMissing->getBody(), '<html lang="en"'), 'An explicit supported guest language must override the configured locale');
 $alertsGuest = $request('GET', '/settings/alerts');
 verify($alertsGuest->getStatusCode() === 302 && $alertsGuest->getHeader('Location') === ['https://monitor.example.com:8443/login'], 'Alert sensitivity guest redirect must use the canonical HTTPS login origin');
+$emailGuest = $request('GET', '/settings/email');
+verify($emailGuest->getStatusCode() === 302 && $emailGuest->getHeader('Location') === ['https://monitor.example.com:8443/login'], 'Email settings guest redirect must use the canonical HTTPS login origin');
 $devLoginPage = $request('GET', '/dev-login');
 verify($devLoginPage->getStatusCode() === 404 && $devLoginPage->getHeader('Location') === [], 'Production must not serve /dev-login: '.$devLoginPage->getStatusCode());
 $loginLink = $request('POST', '/laravel-login-link-login', ['form_params' => ['email' => $user->email]]);
@@ -107,6 +109,15 @@ verify($request('GET', '/sites')->getStatusCode() === 200, 'Authenticated sessio
 $alertsPage = $request('GET', '/settings/alerts');
 verify($alertsPage->getStatusCode() === 200 && $alertsPage->getHeader('Location') === [], 'Owner alert sensitivity page must be served without redirect');
 verify(str_contains((string) $alertsPage->getBody(), 'https://monitor.example.com:8443'), 'Alert sensitivity page must use the canonical HTTPS origin');
+$emailPage = $request('GET', '/settings/email');
+verify($emailPage->getStatusCode() === 200 && $emailPage->getHeader('Location') === [], 'Owner email settings page must be served without redirect');
+verify(str_contains((string) $emailPage->getBody(), 'https://monitor.example.com:8443'), 'Email settings page must use the canonical HTTPS origin');
+$emailPreview = $request('GET', '/settings/email/preview?kind=alert&design=branded', ['headers' => ['Accept' => 'application/json']]);
+verify($emailPreview->getStatusCode() === 200 && $emailPreview->getHeader('Location') === [] && $emailPreview->getHeader('Content-Type') === ['application/json'], 'Email preview must answer raw JSON without redirect');
+verify(str_contains(json_decode((string) $emailPreview->getBody(), true, flags: JSON_THROW_ON_ERROR)['html'] ?? '', 'data:image/png;base64,'), 'Email preview must inline the mail images');
+$emailXsrf = urldecode(substr($cookies['XSRF-TOKEN'], strlen('XSRF-TOKEN=')));
+$emailSave = $request('POST', '/settings/email', ['headers' => ['X-XSRF-TOKEN' => $emailXsrf], 'form_params' => ['_method' => 'PATCH', 'mail_design' => 'branded']]);
+verify($emailSave->getStatusCode() === 302 && $emailSave->getHeader('Location') === ['https://monitor.example.com:8443/settings/email'], 'Email settings save must redirect to the canonical HTTPS settings origin: '.$emailSave->getStatusCode().' '.$emailSave->getHeaderLine('Location'));
 $signedInMissing = $request('GET', '/missing-ops-page');
 verify($signedInMissing->getStatusCode() === 404 && $signedInMissing->getHeader('Location') === [], 'Signed-in missing page must retain raw 404 without redirect');
 verify(str_contains((string) $signedInMissing->getBody(), 'href="https://monitor.example.com:8443/sites"'), 'Signed-in error recovery must use the canonical HTTPS sites origin');

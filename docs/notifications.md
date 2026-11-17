@@ -194,10 +194,25 @@ Members see only their own address on delivery rows. Alerts for a person are dro
 
 A fresh installation uses `MAIL_MAILER=log`: mail is written to the app log, not sent. The `array` transport does not send either.
 
-1. Ask the instance Owner if you do not manage the server. The Owner sees the active transport in **Settings → Instance**.
+1. Ask the instance Owner if you do not manage the server. The Owner sees the active transport in **Settings → Email** under **Delivery**.
 2. In `.env.prod`, set `MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` and, if your provider needs it, `MAIL_SCHEME`. An API transport works too.
 3. Recreate the app and worker containers.
 4. Open a channel in **Settings → Notifications** and select **Send test**.
+
+## Email appearance
+
+The Owner sets how every email looks in **Settings → Email**: alerts, system mails, client messages and sign-in, invitation and password emails. The preview beside the fields shows an alert or a password reset, in light or dark mode, before you save.
+
+1. Choose the design: **Branded** (logo, cards, status colours, buttons) or **Plain** (simple text that reads like a personal email).
+2. Optionally set a **Sender name**. The From address stays in the server configuration.
+3. Optionally upload a **Logo** and a **Logo for dark mode**: PNG or JPEG, at most 512 KB, shown 24 px high and at most 200 px wide.
+4. Optionally choose an **Accent colour** for the main button and the secondary link, and one line of **Footer text**, such as your company name and address.
+5. Select **Save**.
+
+- Plain emails use only the sender name and the footer text.
+- Export the logo as PNG at twice its shown size. SVG is not accepted: Gmail blocks it and Outlook for Windows does not show it.
+- Without a dark-mode logo, mail apps in dark mode show your logo on a small light plate. Gmail apps ignore dark-mode settings and may invert colours, so a logo that reads on light and dark backgrounds is safest.
+- A colour on which white text is hard to read (contrast below 4.5:1) is refused; the field offers a darker shade of the same colour.
 
 ## Send to a client
 

@@ -1,6 +1,9 @@
 import ProfileController from './ProfileController'
 import SecurityController from './SecurityController'
 import InstanceController from './InstanceController'
+import EmailController from './EmailController'
+import EmailPreviewController from './EmailPreviewController'
+import EmailLogoController from './EmailLogoController'
 import SystemHealthController from './SystemHealthController'
 import BackupController from './BackupController'
 import UpdateStatusController from './UpdateStatusController'
@@ -18,6 +21,9 @@ const Settings = {
     ProfileController: Object.assign(ProfileController, ProfileController),
     SecurityController: Object.assign(SecurityController, SecurityController),
     InstanceController: Object.assign(InstanceController, InstanceController),
+    EmailController: Object.assign(EmailController, EmailController),
+    EmailPreviewController: Object.assign(EmailPreviewController, EmailPreviewController),
+    EmailLogoController: Object.assign(EmailLogoController, EmailLogoController),
     SystemHealthController: Object.assign(SystemHealthController, SystemHealthController),
     BackupController: Object.assign(BackupController, BackupController),
     UpdateStatusController: Object.assign(UpdateStatusController, UpdateStatusController),
