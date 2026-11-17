@@ -544,7 +544,8 @@ it('fetches every supported DNS type from the offline authoritative server throu
     config(['dns.resolver' => $server]);
     $check = dnsCheck(['check_nameservers_in_sync' => true, 'extra_cnames' => ['alias.dns.fixture.test']], 'dns.fixture.test');
     $run = dnsRun($check);
-    expect($run->result)->toBe(RunResult::Succeeded)->and($run->metrics['record_count'])->toBe(12);
+    // 6 apex types plus the alias CNAME and the 6 apex records it follows to (NS too since CoreDNS 1.14.2, as RFC 1034 4.3.2 requires).
+    expect($run->result)->toBe(RunResult::Succeeded)->and($run->metrics['record_count'])->toBe(13);
     $row = DB::table('dns_history_items')->sole();
     $records = json_decode($row->dns_records, true, flags: JSON_THROW_ON_ERROR);
     expect(array_column($records, 'type'))->toContain('A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS', 'CAA');

@@ -20,8 +20,11 @@ jobs:
         id: metadata
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
       # Merges once the required checks pass. A grouped PR reports its largest update type.
-      - name: Auto-merge patch and minor updates
-        if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'
+      # Libraries only: a green test run does not prove a runtime container image safe.
+      - name: Auto-merge patch and minor library updates
+        if: >-
+          contains(fromJSON('["composer", "npm_and_yarn", "github_actions"]'), steps.metadata.outputs.package-ecosystem)
+          && (steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
@@ -35,3 +38,12 @@ jobs:
         run: |
           gh label create major-update --color B60205 --description 'Major dependency update; merge by hand' --force
           gh pr edit "$PR_URL" --add-label major-update
+      - name: Label runtime image updates for a human
+        if: steps.metadata.outputs.package-ecosystem == 'docker' || steps.metadata.outputs.package-ecosystem == 'docker_compose'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh label create runtime-image --color D93F0B --description 'Runtime container image update; review and merge by hand' --force
+          gh pr edit "$PR_URL" --add-label runtime-image

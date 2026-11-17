@@ -143,7 +143,7 @@ jobs:
           --health-cmd="pg_isready -U heptapod -d heptapod_test"
           --health-interval=5s --health-timeout=5s --health-retries=20
       redis:
-        image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+        image: redis:8-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
         ports: ['6379:6379']
         options: >-
           --health-cmd="redis-cli ping"
@@ -237,7 +237,7 @@ jobs:
           --health-cmd="pg_isready -U heptapod -d heptapod_test"
           --health-interval=5s --health-timeout=5s --health-retries=20
       redis:
-        image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+        image: redis:8-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
         ports: ['6379:6379']
         options: >-
           --health-cmd="redis-cli ping"
@@ -337,13 +337,13 @@ jobs:
           --health-cmd="pg_isready -U heptapod -d heptapod_test"
           --health-interval=5s --health-timeout=5s --health-retries=20
       redis:
-        image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+        image: redis:8-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
         ports: ['6379:6379']
         options: >-
           --health-cmd="redis-cli ping"
           --health-interval=5s --health-timeout=5s --health-retries=20
       gotenberg:
-        image: gotenberg/gotenberg:8.37.0@sha256:f29984bd1e226bf1b93ba90af06000afa8b315853e99d27b9aaa41b93f15c769
+        image: gotenberg/gotenberg:9.5.0@sha256:ac61457a1e889ef1ca256a9afc117cff8caf517f19e66ea23cede3feb22f69a5
         options: >-
           --shm-size=1g --cap-drop=ALL --security-opt=no-new-privileges
           --health-cmd="curl -fsS http://localhost:3000/health"
@@ -424,13 +424,13 @@ jobs:
           --health-cmd="pg_isready -U heptapod -d heptapod_test"
           --health-interval=5s --health-timeout=5s --health-retries=20
       redis:
-        image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+        image: redis:8-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
         ports: ['6379:6379']
         options: >-
           --health-cmd="redis-cli ping"
           --health-interval=5s --health-timeout=5s --health-retries=20
       gotenberg:
-        image: gotenberg/gotenberg:8.37.0@sha256:f29984bd1e226bf1b93ba90af06000afa8b315853e99d27b9aaa41b93f15c769
+        image: gotenberg/gotenberg:9.5.0@sha256:ac61457a1e889ef1ca256a9afc117cff8caf517f19e66ea23cede3feb22f69a5
         options: >-
           --shm-size=1g --cap-drop=ALL --security-opt=no-new-privileges
           --health-cmd="curl -fsS http://localhost:3000/health"

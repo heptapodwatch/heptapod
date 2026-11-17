@@ -79,8 +79,8 @@ curl -fsS "http://localhost:${INSTALL_TEST_PORT:-8382}/up" >/dev/null
 printf '<html><body><img src="https://example.com/policy-probe.png"><iframe src="file:///etc/passwd"></iframe></body></html>' |
     dc exec -T app sh -ec 'cat > /tmp/index.html; curl -fsS -F files=@/tmp/index.html http://gotenberg:3000/forms/chromium/convert/html -o /tmp/policy.pdf'
 dc logs gotenberg > renderer.log
-grep -q "https://example.com/policy-probe.png.*value filtered" renderer.log
-grep -q "file:///etc/passwd.*value filtered" renderer.log
+grep -qF '"url":"https://example.com/policy-probe.png","rule":"deny-list"' renderer.log
+grep -qF '"url":"file:///etc/passwd","rule":"deny-list"' renderer.log
 printf '<html><body><h1>Embedded report</h1><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCIvPjwvc3ZnPg=="></body></html>' |
     dc exec -T app sh -ec 'cat > /tmp/index.html; curl -fsS -F files=@/tmp/index.html http://gotenberg:3000/forms/chromium/convert/html -o /tmp/embedded.pdf; test "$(head -c 5 /tmp/embedded.pdf)" = "%PDF-"'
 

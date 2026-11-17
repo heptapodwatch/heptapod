@@ -32,7 +32,7 @@ x-live: &live
 
 services:
     dns-fixtures:
-        image: coredns/coredns:1.13.1@sha256:9b9128672209474da07c91439bf15ed704ae05ad918dd6454e5b6ae14e35fee6
+        image: coredns/coredns:1.15.0@sha256:0a9d8c8ddf34347eb59aad9a8784f0710de88d6d112726d11d271f9bc6daca26
         profiles: [fixtures]
         command: ['-conf', '/zones/Corefile']
         volumes:
@@ -171,7 +171,7 @@ services:
             retries: 20
 
     redis:
-        image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+        image: redis:8-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
         command: ['redis-server', '--appendonly', 'yes']
         volumes:
             - redis:/data
@@ -225,7 +225,7 @@ services:
             retries: 10
 
     gotenberg:
-        image: gotenberg/gotenberg:8.37.0@sha256:f29984bd1e226bf1b93ba90af06000afa8b315853e99d27b9aaa41b93f15c769
+        image: gotenberg/gotenberg:9.5.0@sha256:ac61457a1e889ef1ca256a9afc117cff8caf517f19e66ea23cede3feb22f69a5
         command:
             [
                 'gotenberg',
