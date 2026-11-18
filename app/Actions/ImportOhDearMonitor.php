@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace Heptapod\Actions;
 
 use Carbon\CarbonImmutable;
+use Carbon\Exceptions\InvalidFormatException;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
+use Heptapod\Contracts\OhDear\OhDearIdentityConflict;
 use Heptapod\Contracts\OhDearDefinitionImporter;
 use Heptapod\Contracts\OhDearImportMapping;
 use Heptapod\Contracts\Schema\SecretMinimum;
 use Heptapod\Data\Import\ImportPlanRowData;
 use Heptapod\Enums\ImportOperation;
-use Heptapod\Exceptions\InvalidOhDearRecurringResponse;
+use Heptapod\Exceptions\InvalidOhDearResponse;
 use Heptapod\Maintenance\RecurringMaintenanceAttributes;
 use Heptapod\Models\Client;
 use Heptapod\Models\MaintenancePeriod;
@@ -74,6 +76,7 @@ final readonly class ImportOhDearMonitor
         $shortCredentials = [];
         $invalid = [];
         $invalidTypes = [];
+        $unavailable = [];
         $settings = [
             'uptime' => $monitor->uptimeCheckSettings, 'performance' => $monitor->performanceCheckSettings,
             'certificate_health' => $monitor->certificateHealthCheckSettings, 'dns' => $monitor->dnsCheckSettings,
@@ -91,6 +94,8 @@ final readonly class ImportOhDearMonitor
             $key = CheckKey::tryFrom($check['type']);
             if ($key === null || ! $this->registry->importMapping($key) instanceof OhDearImportMapping) {
                 $skipped[] = $check['type'];
+            } elseif ($this->registry->availability($key)->reason !== null) {
+                $unavailable[] = $key->value;
             } elseif ($check['enabled']) {
                 $attributes['checks'][] = $key->value;
             }
@@ -102,6 +107,14 @@ final readonly class ImportOhDearMonitor
             if (! $mapping instanceof OhDearImportMapping) {
                 if ($values !== []) {
                     $skipped[] = $type.'_check_settings';
+                }
+
+                continue;
+            }
+            // This instance cannot run the check (e.g. no browser service), so neither it nor its settings are imported.
+            if ($this->registry->availability($key)->reason !== null) {
+                if ($values !== []) {
+                    $unavailable[] = $type;
                 }
 
                 continue;
@@ -219,9 +232,11 @@ final readonly class ImportOhDearMonitor
         }
         $definitions = [];
         $cronMapping = $this->registry->importMapping(CheckKey::Cron);
-        $cronImporter = $cronMapping?->definitions === null ? null : app($cronMapping->definitions);
+        $cronImporter = $cronMapping?->definitions === null || $this->registry->availability(CheckKey::Cron)->reason !== null ? null : app($cronMapping->definitions);
         if ($cronImporter instanceof OhDearDefinitionImporter) {
-            foreach ($sdk->cronCheckDefinitions($monitor->id) as $definition) {
+            /** @var list<CronCheckDefinition> $remoteDefinitions */
+            $remoteDefinitions = $this->decoded(static fn (): array => iterator_to_array($sdk->cronCheckDefinitions($monitor->id), false), 'import.invalid_cron_response');
+            foreach ($remoteDefinitions as $definition) {
                 $definitions[] = $this->cronAttributes($definition);
             }
             try {
@@ -253,7 +268,15 @@ final readonly class ImportOhDearMonitor
             }
         }
         /** @var list<RemoteMaintenancePeriod> $maintenance */
-        $maintenance = iterator_to_array($sdk->maintenancePeriods($monitor->id), false);
+        $maintenance = $this->decoded(static function () use ($sdk, $monitor, $timezone): array {
+            $periods = iterator_to_array($sdk->maintenancePeriods($monitor->id), false);
+            foreach ($periods as $period) {
+                CarbonImmutable::parse($period->startsAt, $timezone);
+                CarbonImmutable::parse($period->endsAt, $timezone);
+            }
+
+            return $periods;
+        }, 'import.invalid_maintenance_response');
         /** @var list<RemoteRecurringPeriod> $recurring */
         $recurring = $this->recurringMaintenancePeriods($sdk, $monitor->id);
         foreach ($maintenance as $period) {
@@ -277,7 +300,7 @@ final readonly class ImportOhDearMonitor
                     $period = RecurringMaintenancePeriod::query()->where('oh_dear_id', $remote->id)->first();
                     $values = $this->recurringValues($remote, $timezone);
                     if ($period !== null && $period->site_id !== $site->id) {
-                        throw new \LogicException('Oh Dear recurring identity belongs to another site.');
+                        throw new OhDearIdentityConflict('Oh Dear recurring identity belongs to another site.');
                     }
                     if ($period === null) {
                         $period = ($this->createRecurring)($site, $values);
@@ -321,9 +344,13 @@ final readonly class ImportOhDearMonitor
             $details[] = __('import.covered', ['count' => count($coveredIds)]);
         }
         $cronDisabledWithoutDefinitions = in_array(CheckKey::Cron->value, $setupRequired, true) && (array_column($checks, 'enabled', 'type')[CheckKey::Cron->value] ?? null) === false;
+        $unavailable = array_values(array_unique($unavailable));
         $notices = OhDearImportNotices::keys(array_values(array_unique($skipped)), $setupRequired, $cronDisabledWithoutDefinitions, array_values(array_unique($invalidTypes)), $shortCredentials,
-            ($monitor->domainCheckSettings['not_supported_reason'] ?? null) !== null);
+            ($monitor->domainCheckSettings['not_supported_reason'] ?? null) !== null, $unavailable);
         $notImported = [];
+        if ($unavailable !== []) {
+            $notImported[] = __('import.unavailable', ['checks' => implode(', ', array_map(fn (string $type): string => $type.' ('.__((string) $this->registry->availability(CheckKey::from($type))->reason).')', $unavailable))]);
+        }
         if ($setupRequired !== []) {
             $notImported[] = __('import.setup_required', ['checks' => implode(', ', $setupRequired)]);
         }
@@ -367,23 +394,47 @@ final readonly class ImportOhDearMonitor
         try {
             $shape = $response->object();
         } catch (\JsonException) {
-            throw new InvalidOhDearRecurringResponse(__('import.invalid_recurring_response'));
+            throw new InvalidOhDearResponse('import.invalid_recurring_response');
         }
         if ($shape instanceof \stdClass && isset($shape->data) && is_array($shape->data)) {
             $items = $response->json('data');
         } elseif (is_array($shape)) {
             $items = $response->json();
         } else {
-            throw new InvalidOhDearRecurringResponse(__('import.invalid_recurring_response'));
+            throw new InvalidOhDearResponse('import.invalid_recurring_response');
         }
         if (! is_array($items) || ! array_is_list($items) || array_any($items, static fn (mixed $item): bool => ! is_array($item) || array_is_list($item))) {
-            throw new InvalidOhDearRecurringResponse(__('import.invalid_recurring_response'));
+            throw new InvalidOhDearResponse('import.invalid_recurring_response');
         }
 
         /** @var list<RemoteRecurringPeriod> $periods */
-        $periods = RemoteRecurringPeriod::collect($items);
+        $periods = $this->decoded(static fn (): array => RemoteRecurringPeriod::collect($items), 'import.invalid_recurring_response');
 
         return $periods;
+    }
+
+    /**
+     * Reads source data through the data objects of the SDK. A row they cannot decode (missing fields, wrong types) is a bad Oh Dear
+     * answer; a TypeError raised anywhere else is a local fault and must stop the import.
+     *
+     * @template T
+     *
+     * @param  \Closure(): T  $read
+     * @return T
+     */
+    private function decoded(\Closure $read, string $causeKey): mixed
+    {
+        try {
+            return $read();
+        } catch (\TypeError|\ErrorException $exception) {
+            if (! str_contains(str_replace('\\', '/', $exception->getFile()), '/ohdear-php-sdk/src/Dto/')) {
+                throw $exception;
+            }
+            throw new InvalidOhDearResponse($causeKey, $exception->getCode(), $exception);
+        } catch (InvalidFormatException $exception) {
+            // A read parses only source dates, so an unparsable one is a bad Oh Dear answer.
+            throw new InvalidOhDearResponse($causeKey, $exception->getCode(), $exception);
+        }
     }
 
     /** @param array<string, mixed> $config */
@@ -414,7 +465,7 @@ final readonly class ImportOhDearMonitor
             $persisted = MaintenancePeriod::query()->where('oh_dear_id', $remote->id)->first();
             $coverage = OhDearImportCoverage::query()->where('oh_dear_id', $remote->id)->first();
             if (($persisted !== null && $persisted->site_id !== $site?->id) || ($coverage !== null && $coverage->site_id !== $site?->id)) {
-                throw new \LogicException('Oh Dear maintenance identity belongs to another site.');
+                throw new OhDearIdentityConflict('Oh Dear maintenance identity belongs to another site.');
             }
             $start = CarbonImmutable::parse($remote->startsAt, $timezone)->utc();
             $end = CarbonImmutable::parse($remote->endsAt, $timezone)->utc();

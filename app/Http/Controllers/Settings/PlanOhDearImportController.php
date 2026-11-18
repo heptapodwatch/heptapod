@@ -7,6 +7,7 @@ namespace Heptapod\Http\Controllers\Settings;
 use Heptapod\Actions\ImportOhDearAccount;
 use Heptapod\Actions\PersistOhDearImportPlan;
 use Heptapod\Concerns\AuthorizesSettingsOperator;
+use Heptapod\Data\Import\ImportPlanData;
 use Heptapod\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,10 @@ final class PlanOhDearImportController extends Controller
         $user = $this->operator($request);
         /** @var array{ohdear_token: string} $data */
         $data = Validator::make($request->only('ohdear_token'), ['ohdear_token' => ['required', 'string', 'max:255']], [], ['ohdear_token' => __('Oh Dear API token')])->validate();
-        $plan = $import($data['ohdear_token'], dryRun: true);
+        $plan = ImportOhDearAccount::stopOnLocalFault(static fn (): ImportPlanData => $import($data['ohdear_token'], dryRun: true), static fn (): null => null);
+        if ($plan === null) {
+            return response()->json(['message' => __('import.plan_local_error')], 500)->header('Cache-Control', 'no-store');
+        }
         $planId = $persist($user, $plan, $data['ohdear_token']);
 
         return response()->json([...$plan->toArray(), 'plan_id' => $planId])->header('Cache-Control', 'no-store');

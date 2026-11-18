@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Addons\Cron;
 
+use Heptapod\Contracts\OhDear\OhDearIdentityConflict;
 use Heptapod\Contracts\OhDearDefinitionImporter;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -47,7 +48,7 @@ final readonly class ImportCronDefinitions implements OhDearDefinitionImporter
                     $task = ($this->create)($checkId, $values);
                 } else {
                     if ($task->check_id !== $checkId) {
-                        throw new \LogicException('Oh Dear cron identity belongs to another check.');
+                        throw new OhDearIdentityConflict('Oh Dear cron identity belongs to another check.');
                     }
                 }
                 /** @var int $ohDearId */

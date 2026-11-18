@@ -17,7 +17,7 @@ final class ImportPlanRowData extends Data
      * @param  list<string>  $checks  Check keys imported as enabled.
      * @param  list<string>  $disabled_checks  Check keys imported with their settings but turned off, as at the source.
      * @param  list<string>  $notices  Lang keys (Support\OhDearImportNotices) for every skipped check, setting or monitor.
-     * @param  string  $details  Plain-text CLI summary; never rendered in the web UI.
+     * @param  string  $details  Plain-text CLI summary; the web UI shows it only as the reason of a failed import row.
      * @param  int|null  $site_id  Local site: the existing one on a plan, the created or updated one after an import.
      */
     public function __construct(

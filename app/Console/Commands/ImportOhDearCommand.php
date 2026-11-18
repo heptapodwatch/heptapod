@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Console\Commands;
 
 use Heptapod\Actions\ImportOhDearAccount;
+use Heptapod\Data\Import\ImportPlanData;
 use Heptapod\Data\Import\ImportPlanRowData;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -26,7 +27,12 @@ final class ImportOhDearCommand extends Command
             return self::FAILURE;
         }
         $dryRun = $this->option('dry-run') === true;
-        $plan = $import($token, $dryRun);
+        $plan = ImportOhDearAccount::stopOnLocalFault(static fn (): ImportPlanData => $import($token, $dryRun), static fn (): null => null);
+        if ($plan === null) {
+            $this->error(__('import.local_error'));
+
+            return self::FAILURE;
+        }
         $this->info(__('import.description'));
         if ($dryRun) {
             $this->line(__('import.dry_run'));
