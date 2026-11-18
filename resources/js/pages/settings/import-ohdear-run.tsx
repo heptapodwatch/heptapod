@@ -1,5 +1,6 @@
 import { TruncatedText } from '@/components/truncated-text';
 import { cn } from '@/lib/utils';
+import { ImportChannelSection } from '@/components/import-channel-section';
 import { ImportOperationBadge } from '@/components/import-operation-badge';
 import { ImportAlertTimingSummary } from '@/components/import-alert-timing-summary';
 import { Head, Link, router } from '@inertiajs/react';
@@ -16,10 +17,8 @@ import { HttpValidationError, useHttpRequest } from '@/hooks/use-http-request';
 import { useLiveReload } from '@/hooks/use-live';
 import { useFormat } from '@/hooks/use-format';
 import { ListFooter } from '@/components/list-footer';
-import { team as teamNotifications } from '@/routes/settings/notifications';
 import { edit as planPage } from '@/routes/settings/import/ohdear';
 import { retry as retryRoute } from '@/routes/settings/import/ohdear/runs';
-import { TextLink } from '@/components/text-link';
 
 type Row = Heptapod.Data.Import.ImportPlanRowData;
 type ImportRun = {
@@ -32,6 +31,7 @@ type ImportRun = {
     expected: number;
     attempts: number;
     rows: Row[];
+    channels: Heptapod.Data.Import.ImportChannelRowData[];
     remote_error: string | null;
     error: string | null;
     started_at: string;
@@ -268,10 +268,14 @@ export default function ImportOhDearRun({
                 </p>
                 <p className="text-sm text-muted-foreground">
                     {[
-                        t(':done of :total sites processed', {
-                            done,
-                            total: Math.max(importRun.expected, done),
-                        }),
+                        ...(importRun.expected > 0
+                            ? [
+                                  t(':done of :total sites processed', {
+                                      done,
+                                      total: Math.max(importRun.expected, done),
+                                  }),
+                              ]
+                            : []),
                         ...(importRun.attempts > 1
                             ? [
                                   t('Attempt :count', {
@@ -284,20 +288,22 @@ export default function ImportOhDearRun({
                             : []),
                     ].join(' · ')}
                 </p>
-                <div
-                    role="progressbar"
-                    aria-valuemin={0}
-                    aria-valuemax={Math.max(importRun.expected, done)}
-                    aria-valuenow={done}
-                    className="h-1.5 overflow-hidden rounded-full bg-muted"
-                >
+                {importRun.expected > 0 && (
                     <div
-                        className="h-full w-full origin-left bg-primary transition-transform duration-(--motion-enter) ease-out"
-                        style={{
-                            transform: `scaleX(${Math.min(1, done / Math.max(importRun.expected, 1))})`,
-                        }}
-                    />
-                </div>
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={Math.max(importRun.expected, done)}
+                        aria-valuenow={done}
+                        className="h-1.5 overflow-hidden rounded-full bg-muted"
+                    >
+                        <div
+                            className="h-full w-full origin-left bg-primary transition-transform duration-(--motion-enter) ease-out"
+                            style={{
+                                transform: `scaleX(${Math.min(1, done / Math.max(importRun.expected, 1))})`,
+                            }}
+                        />
+                    </div>
+                )}
                 {common.length > 0 && (
                     <Alert tone="info">
                         <AlertTitle>
@@ -402,6 +408,12 @@ export default function ImportOhDearRun({
                     />
                 )}
             </section>
+            {finished &&
+                importRun.status !== 'failed' &&
+                !importRun.remote_error &&
+                importRun.sections.includes('channels') && (
+                    <ImportChannelSection rows={importRun.channels} />
+                )}
             {finished && importRun.status !== 'failed' && (
                 <FormSection
                     title={t('Follow-up checklist')}
@@ -410,14 +422,6 @@ export default function ImportOhDearRun({
                     )}
                 >
                     <ol className="list-decimal space-y-4 pl-4 text-sm">
-                        <li>
-                            {t(
-                                'Notification channels are not imported. Set up the team’s notification channels for the imported sites.',
-                            )}{' '}
-                            <TextLink href={teamNotifications()}>
-                                {t('Notifications')}
-                            </TextLink>
-                        </li>
                         {importRun.sections.includes('cron') && (
                             <li className="space-y-2">
                                 <p>

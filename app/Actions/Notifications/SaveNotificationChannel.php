@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Heptapod\Actions\Notifications;
 
 use Heptapod\Actions\RequestRoutingReconciliation;
+use Heptapod\Actions\SetNotificationDestinationEnabled;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
 use Heptapod\Contracts\Schema\ValidatedConfig;
+use Heptapod\Enums\NotificationCategory;
+use Heptapod\Enums\NotificationMode;
 use Heptapod\Enums\RecipientKind;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\Client;
@@ -49,15 +52,77 @@ final readonly class SaveNotificationChannel
         $config = $this->channels->get($data['channel'])->configSchema()->validateConfig($data['config']);
 
         return NotificationLocks::transaction(function () use ($kind, $user, $client, $data, $config): NotificationDestination {
-            $channel = NotificationDestination::query()->create(['recipient_kind' => $kind, 'user_id' => $user?->id, 'client_id' => $client?->id,
-                'scope_client_id' => $data['scope_client_id'] ?? null, 'channel' => $data['channel'], 'label' => $data['label'],
-                'locale' => $data['locale'] ?? null, 'enabled' => true, 'config' => $config, 'check_types' => $data['check_types'] ?? null]);
             $role = $user instanceof User ? array_find(['Owner', 'Admin', 'Member'], static fn (string $name): bool => $user->hasRole($name)) : null;
-            NotificationPreference::writeInitialGrid($channel->id, NotificationPreference::defaults($kind, $role));
-            $this->reconcile->forChannel($channel);
 
-            return $channel;
+            return $this->create(['recipient_kind' => $kind, 'user_id' => $user?->id, 'client_id' => $client?->id,
+                'scope_client_id' => $data['scope_client_id'] ?? null, 'channel' => $data['channel'], 'label' => $data['label'],
+                'locale' => $data['locale'] ?? null, 'enabled' => true, 'config' => $config, 'check_types' => $data['check_types'] ?? null], NotificationPreference::defaults($kind, $role));
         });
+    }
+
+    /**
+     * Replace the source settings and routing grid together; a delivery must never see the default grid in between.
+     *
+     * @param  list<string>  $checks
+     * @param  list<NotificationCategory>  $categories
+     */
+    public function syncOhDear(int $sourceId, ?int $clientId, string $kind, string $label, bool $enabled, array $checks, array $categories, ValidatedConfig $config): NotificationDestination
+    {
+        return NotificationLocks::transaction(function () use ($sourceId, $clientId, $kind, $label, $enabled, $checks, $categories, $config): NotificationDestination {
+            DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['oh-dear-channel:'.$sourceId]);
+            $existing = NotificationDestination::query()->where('oh_dear_id', $sourceId)->first();
+            if ($clientId !== null && NotificationLocks::forShare(DB::table('clients')->where('id', $clientId)->whereNull('archived_at'))->first(['id']) === null) {
+                throw ValidationException::withMessages(['client' => __('import.notice.channel_no_client')]);
+            }
+            $recipient = $clientId === null ? RecipientKind::Team : RecipientKind::Client;
+            if ($existing !== null) {
+                $this->reconcile->lockEpisodes(new NotificationDestination(['recipient_kind' => $recipient, 'client_id' => $clientId]));
+                NotificationLocks::channels([$existing->id], exclusive: true);
+                $existing->refresh();
+                if ($existing->removed_at !== null) {
+                    throw ValidationException::withMessages(['channel' => __('notifications.channel_removed')]);
+                }
+                if ($existing->enabled && (! $enabled || $existing->client_id !== $clientId || $existing->channel !== $kind)) {
+                    app(SetNotificationDestinationEnabled::class)($existing, false);
+                }
+            }
+            if ($kind === 'webhook') {
+                $config = new ValidatedConfig($config->public, [...$config->secrets(),
+                    'secret' => $existing?->config_secrets['secret'] ?? bin2hex(random_bytes(32))]);
+            }
+            $grid = array_fill_keys(array_column(NotificationCategory::grid(), 'value'), NotificationMode::Off);
+            foreach ($categories as $category) {
+                $grid[$category->value] = NotificationMode::Immediate;
+            }
+            $attributes = ['oh_dear_id' => $sourceId, 'recipient_kind' => $recipient, 'client_id' => $clientId, 'channel' => $kind, 'label' => $label,
+                'locale' => $clientId === null ? ($existing->locale ?? (app()->getLocale() === 'de' ? 'de' : 'en')) : null,
+                'scope_client_id' => $clientId === null ? ($existing->scope_client_id ?? null) : null,
+                'config' => $config, 'enabled' => $enabled, 'check_types' => $checks];
+            if ($existing === null) {
+                return $this->create($attributes, $grid);
+            }
+            $existing->forceFill([...$attributes, 'needs_attention' => false, 'attention_reason' => null])->save();
+            NotificationPreference::writeInitialGrid($existing->id, $grid);
+            if ($enabled) {
+                $this->reconcile->forChannel($existing);
+            }
+
+            return $existing;
+        });
+    }
+
+    /** @param array<string, mixed> $attributes
+     * @param  array<string, NotificationMode>  $grid
+     */
+    private function create(array $attributes, array $grid): NotificationDestination
+    {
+        $channel = NotificationDestination::query()->create($attributes);
+        NotificationPreference::writeInitialGrid($channel->id, $grid);
+        if ($channel->enabled) {
+            $this->reconcile->forChannel($channel);
+        }
+
+        return $channel;
     }
 
     /** @return array<string, list<string|In>> */

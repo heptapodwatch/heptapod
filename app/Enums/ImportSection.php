@@ -12,6 +12,7 @@ enum ImportSection: string
     case Sites = 'sites';
     case Maintenance = 'maintenance';
     case Cron = 'cron';
+    case Channels = 'channels';
 
     public function label(): string
     {

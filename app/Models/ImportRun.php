@@ -29,6 +29,8 @@ use Illuminate\Support\Collection;
  * @property list<array<string, mixed>> $plan Sanitized plan rows (no details text).
  * @property array<string, array{client_id: int|null, new_client: string|null}>|null $assignments Resolved target per new site, keyed by source id.
  * @property array<string, array<string, mixed>> $results Latest result row per source id, kept across attempts.
+ * @property list<array<string, mixed>> $channel_plan
+ * @property list<array<string, mixed>> $channel_results
  * @property array<string, int> $created_client_ids New client name → client id created by this run.
  * @property string|null $remote_error
  * @property string|null $error
@@ -45,7 +47,7 @@ final class ImportRun extends Model
     protected function casts(): array
     {
         return ['status' => ImportRunStatus::class, 'expected' => 'integer', 'attempts' => 'integer', 'sections' => AsEnumCollection::of(ImportSection::class), 'teams' => 'array', 'plan' => 'array', 'assignments' => 'array',
-            'results' => 'array', 'created_client_ids' => 'array', 'started_at' => 'immutable_datetime', 'finished_at' => 'immutable_datetime',
+            'results' => 'array', 'channel_plan' => 'array', 'channel_results' => 'array', 'created_client_ids' => 'array', 'started_at' => 'immutable_datetime', 'finished_at' => 'immutable_datetime',
             'created_at' => 'immutable_datetime', 'updated_at' => 'immutable_datetime'];
     }
 }

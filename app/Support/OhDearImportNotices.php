@@ -14,6 +14,17 @@ use Heptapod\Exceptions\UndeclaredImportNotice;
 final class OhDearImportNotices
 {
     public const array Keys = [
+        'channel:monitor' => 'import.notice.channel_monitor',
+        'channel:unsupported' => 'import.notice.channel_unsupported',
+        'channel:unavailable' => 'import.notice.channel_unavailable',
+        'channel:invalid' => 'import.notice.channel_invalid',
+        'channel:no_types' => 'import.notice.channel_no_types',
+        'channel:some_types' => 'import.notice.channel_some_types',
+        'channel:webhook' => 'import.notice.channel_webhook',
+        'channel:broader' => 'import.notice.channel_broader',
+        'channel:no_client' => 'import.notice.channel_no_client',
+        'channel:removed' => 'import.notice.channel_removed',
+        'channel:plan_changed' => 'import.notice.channel_plan_changed',
         'site:unmatched' => 'import.notice.site_unmatched',
         'site:exists' => 'import.notice.site_exists',
         'plan:missing' => 'import.notice.plan_missing',

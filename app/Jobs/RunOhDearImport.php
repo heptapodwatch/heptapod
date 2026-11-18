@@ -8,11 +8,11 @@ use Heptapod\Actions\CreateClient;
 use Heptapod\Actions\ImportOhDearAccount;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
+use Heptapod\Data\Import\ImportChannelRowData;
 use Heptapod\Data\Import\ImportPlanData;
 use Heptapod\Data\Import\ImportPlanRowData;
 use Heptapod\Enums\ImportOperation;
 use Heptapod\Enums\ImportRunStatus;
-use Heptapod\Enums\ImportSection;
 use Heptapod\Events\LiveSignal;
 use Heptapod\Models\ImportRun;
 use Heptapod\Models\Site;
@@ -73,7 +73,19 @@ final class RunOhDearImport implements ShouldQueue
             return;
         }
         $sections = array_values($run->sections->all());
-        $clientIds = in_array(ImportSection::Sites, $sections, true) ? $this->clientIds($run, $createClient) : [];
+        $clientIds = $this->clientIds($run, $createClient);
+        $approvedChannels = [];
+        $channelClientIds = [];
+        foreach ($run->channel_plan as $row) {
+            $sourceId = $row['source_id'] ?? null;
+            if (! is_int($sourceId)) {
+                throw new \LogicException('Channel plan row has no source id.');
+            }
+            $approvedChannels[$sourceId] = $row;
+            if (isset($clientIds['channel:'.$sourceId])) {
+                $channelClientIds[$sourceId] = $clientIds['channel:'.$sourceId];
+            }
+        }
         // Only the planned monitors are imported, each with its approved client; anything else is reported, not imported.
         $approved = [];
         foreach ($run->plan as $planned) {
@@ -102,8 +114,13 @@ final class RunOhDearImport implements ShouldQueue
         };
         // Stored reasons are text, so they are written in the language of the run's owner, the only user who sees them.
         $locale = User::query()->whereKey($run->user_id)->value('locale');
-        $plan = $this->withLocale(is_string($locale) ? $locale : config()->string('app.locale'), static fn (): ImportPlanData => $import($token, false, $sections, $approved, $progress));
+        $plan = $this->withLocale(is_string($locale) ? $locale : config()->string('app.locale'), static fn (): ImportPlanData => $import($token, false, $sections, $approved, $progress, $approvedChannels, $channelClientIds));
         $run->remote_error = $plan->remote_error;
+        if ($plan->remote_error === null) {
+            /** @var list<array<string, mixed>> $channelResults */
+            $channelResults = array_map(static fn (ImportChannelRowData $row): array => $row->toArray(), $plan->channels);
+            $run->channel_results = $channelResults;
+        }
         if ($plan->remote_error === null && $failedRows === 0) {
             $this->finish($run, ImportRunStatus::Completed, null);
             ImportTokenStore::forget($run->id);
@@ -126,19 +143,19 @@ final class RunOhDearImport implements ShouldQueue
      * New clients are created inside the transaction that records them on the run, so a crash or a retry adopts
      * the client instead of creating another. Only sites that do not exist yet need one: existing sites keep theirs.
      *
-     * @return array<int, int>
+     * @return array<int|string, int>
      */
     private function clientIds(ImportRun $run, CreateClient $createClient): array
     {
         $assignments = $run->assignments ?? [];
-        $existing = Site::query()->getQuery()->whereIn('oh_dear_id', array_map(intval(...), array_keys($assignments)))->pluck('oh_dear_id')->all();
+        $existing = Site::query()->getQuery()->whereIn('oh_dear_id', array_filter(array_keys($assignments), is_int(...)))->pluck('oh_dear_id')->all();
         $clientIds = [];
         foreach ($assignments as $sourceId => $assignment) {
-            if (in_array((int) $sourceId, $existing, true)) {
+            if (in_array($sourceId, $existing, true)) {
                 continue;
             }
             $name = $assignment['new_client'];
-            $clientIds[(int) $sourceId] = $assignment['client_id'] ?? ($name === null ? throw new \LogicException('Assignment without a client.')
+            $clientIds[$sourceId] = $assignment['client_id'] ?? ($name === null ? throw new \LogicException('Assignment without a client.')
                 : DB::transaction(function () use ($run, $name, $createClient): int {
                     $query = ImportRun::query();
                     $query->getQuery()->lockForUpdate();

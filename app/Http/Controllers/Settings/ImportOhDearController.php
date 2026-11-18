@@ -89,7 +89,7 @@ final class ImportOhDearController extends Controller
                 'failed_earlier' => count(array_filter($rows, static fn (array $row): bool => ($row['operation'] ?? null) === 'failed' && ($row['attempt'] ?? null) !== $attempt)),
                 'started_at' => $importRun->started_at?->toIso8601String(), 'finished_at' => $importRun->finished_at?->toIso8601String(),
                 'can_retry' => in_array($importRun->status, [ImportRunStatus::Incomplete, ImportRunStatus::Failed], true) && $importRun->user_id === $user->id,
-                'sections' => $sections, 'cron' => $cron,
+                'sections' => $sections, 'cron' => $cron, 'channels' => $importRun->channel_results,
             ],
         ));
     }

@@ -47,19 +47,24 @@ final readonly class ImportOhDearAccount
     /** Secret-bearing top-level fields: never a message, key or index. */
     private const array SecretFields = ['crawler_headers' => 'import.field.crawler_headers', 'crawler_settings' => 'import.field.crawler_headers'];
 
-    public function __construct(private ImportOhDearMonitor $import, private InstanceSettings $instance, private OhDearClientFactory $clients, private CheckRegistry $registry) {}
+    public function __construct(private ImportOhDearMonitor $import, private InstanceSettings $instance, private OhDearClientFactory $clients, private CheckRegistry $registry, private ImportOhDearChannels $channels) {}
 
     /**
      * @param  list<ImportSection>  $sections
      * @param  array<int, array{clientId: int|null, siteId: int|null}>|null  $approved  UI imports: the planned monitors and targets.
      *                                                                                  Null (CLI): every monitor, new sites in Internal.
      * @param  (\Closure(ImportPlanRowData): void)|null  $progress  Called after every monitor.
+     * @param  array<int, array<string, mixed>>|null  $approvedChannels
+     * @param  array<int, int>  $channelClientIds
      */
-    public function __invoke(#[\SensitiveParameter] string $token, bool $dryRun, array $sections, ?array $approved = null, ?\Closure $progress = null): ImportPlanData
+    public function __invoke(#[\SensitiveParameter] string $token, bool $dryRun, array $sections, ?array $approved = null, ?\Closure $progress = null, ?array $approvedChannels = null, array $channelClientIds = []): ImportPlanData
     {
         $sdk = $this->clients->make($token, $dryRun);
         $teams = [];
         $rows = [];
+        $channels = [];
+        $monitors = [];
+        $siteSections = array_diff(array_column($sections, 'value'), [ImportSection::Channels->value]);
         $remoteError = null;
         try {
             /** @var list<array{id: int, name: string, timezone?: string}> $sourceTeams */
@@ -68,6 +73,10 @@ final readonly class ImportOhDearAccount
                 $teams[] = ['id' => $team['id'], 'name' => $team['name']];
             }
             foreach ($sdk->monitors() as $monitor) {
+                $monitors[] = $monitor->id;
+                if ($siteSections === []) {
+                    continue;
+                }
                 $timezone = $this->instance->timezone;
                 foreach ($sourceTeams as $team) {
                     if ($team['id'] === $monitor->teamId && isset($team['timezone'])) {
@@ -91,9 +100,10 @@ final readonly class ImportOhDearAccount
                     $progress(array_last($rows));
                 }
             }
-        } catch (FatalRequestException $exception) {
-            $remoteError = $this->failureDetails($exception);
-        } catch (OhDearException $exception) {
+            if (in_array(ImportSection::Channels, $sections, true)) {
+                $channels = ($this->channels)($sdk, $monitors, $dryRun, $approvedChannels, $channelClientIds);
+            }
+        } catch (FatalRequestException|RequestException|InvalidOhDearResponse|OhDearException $exception) {
             // The SDK exception contains the upstream response; never print it or the token.
             $remoteError = $this->failureDetails($exception);
         }
@@ -101,7 +111,7 @@ final readonly class ImportOhDearAccount
             DB::statement('ANALYZE sites, taggables, tags, client_user');
         }
 
-        return new ImportPlanData($dryRun, $sections, $teams, $rows, $remoteError);
+        return new ImportPlanData($dryRun, $sections, $teams, $rows, $remoteError, $channels);
     }
 
     private function notImported(Monitor $monitor, string $code, string $reason): ImportPlanRowData
@@ -204,6 +214,7 @@ final readonly class ImportOhDearAccount
         $request = __(match (true) {
             $path === '/me' => 'import.request.account',
             $path === '/monitors' => 'import.request.sites',
+            str_ends_with($path, '/notification-destinations') || $path === '/tag-groups' => 'import.request.channels',
             str_ends_with($path, '/cron-checks') => 'import.request.cron',
             str_ends_with($path, '/recurring-maintenance-periods') => 'import.request.recurring',
             str_ends_with($path, '/maintenance-periods') => 'import.request.maintenance',

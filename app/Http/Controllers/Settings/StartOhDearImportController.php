@@ -33,7 +33,18 @@ final class StartOhDearImportController extends Controller
             'overrides' => ['present', 'array'], 'overrides.*' => $target,
             'overrides.*.client_id' => [...$client, 'required_without:overrides.*.new_client'], 'overrides.*.new_client' => ['nullable', 'string', 'max:120'],
         ])->validate();
-        $assignments = ImportAssignments::resolve($importRun->plan, $this->targets($data['groups'] ?? []), $this->targets($data['overrides'] ?? []));
+        $groups = $this->targets($data['groups'] ?? []);
+        $assignments = ImportAssignments::resolve($importRun->plan, $groups, $this->targets($data['overrides'] ?? []));
+        foreach ($importRun->channel_plan as $row) {
+            if (! in_array($row['operation'], ['create', 'update'], true) || ! is_int($row['source_id']) || ! is_array($row['tags']) || $row['tags'] === []) {
+                continue;
+            }
+            $targets = array_map(static fn (mixed $tag): ?array => is_string($tag) ? ($groups['tag:'.$tag] ?? null) : null, $row['tags']);
+            $target = array_first($targets);
+            if ($target !== null && array_all($targets, static fn (?array $candidate): bool => $candidate === $target)) {
+                $assignments['channel:'.$row['source_id']] = $target;
+            }
+        }
         $claim($importRun, $assignments);
 
         return response()->json(['url' => route('settings.import.ohdear.runs.show', $importRun->id)], 201);
