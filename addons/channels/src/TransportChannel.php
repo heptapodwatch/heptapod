@@ -166,10 +166,11 @@ abstract class TransportChannel implements ChannelType
         return $safe === [] ? null : mb_substr(implode('; ', $safe), 0, 120);
     }
 
-    protected function headerSecretField(string $labelKey, bool $required = true): Field
+    /** @param list<string> $rules */
+    protected function headerSecretField(string $labelKey, bool $required = true, array $rules = []): Field
     {
         // Reject controls before Guzzle can include the credential in an invalid-header exception.
-        return new Field(FieldType::Secret, [$required ? 'required' : 'nullable', 'regex:/^[\\x09\\x20-\\x7E\\x80-\\xFF]*$/D'], presentation: new FieldPresentation($labelKey));
+        return new Field(FieldType::Secret, [$required ? 'required' : 'nullable', 'regex:/^[\\x09\\x20-\\x7E\\x80-\\xFF]*$/D', ...$rules], presentation: new FieldPresentation($labelKey));
     }
 
     /** @param list<string> $rules */

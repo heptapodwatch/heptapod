@@ -11,7 +11,7 @@ export type ReplicatorColumn<Key extends string> = {
     key: Key;
     label: string;
     placeholder?: string;
-    type?: 'text' | 'email' | 'url';
+    type?: 'text' | 'email' | 'url' | 'password';
     /** Geist Mono, for URLs and addresses. */
     mono?: boolean;
     /** A fixed narrow column (a label); the other columns share the rest. */
@@ -33,6 +33,7 @@ export function ReplicatorField<Key extends string>({
     rowName,
     empty,
     error,
+    message,
     disabled = false,
 }: {
     id: string;
@@ -48,6 +49,7 @@ export function ReplicatorField<Key extends string>({
     empty: string;
     /** The message of one cell (server errors such as `repositories.2.url`). */
     error: (index: number, key: Key) => string | undefined;
+    message?: string;
     disabled?: boolean;
 }) {
     const { t } = useTranslation();
@@ -116,6 +118,7 @@ export function ReplicatorField<Key extends string>({
         <div
             role="group"
             aria-labelledby={labelId}
+            {...fieldErrorProps(id, message)}
             className="@container/replicator space-y-2"
         >
             <Label id={labelId}>{label}</Label>
@@ -168,6 +171,12 @@ export function ReplicatorField<Key extends string>({
                                                 <Input
                                                     id={inputId}
                                                     type={column.type ?? 'text'}
+                                                    autoComplete={
+                                                        column.type ===
+                                                        'password'
+                                                            ? 'new-password'
+                                                            : undefined
+                                                    }
                                                     aria-label={`${column.label}, ${rowName(index)}`}
                                                     placeholder={
                                                         column.placeholder
@@ -255,6 +264,7 @@ export function ReplicatorField<Key extends string>({
                     </span>
                 )}
             </div>
+            <InputError message={message} field={id} />
         </div>
     );
 }

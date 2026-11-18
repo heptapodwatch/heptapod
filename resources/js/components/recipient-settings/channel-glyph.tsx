@@ -14,7 +14,10 @@ import { cn } from '@/lib/utils';
 const channelIcons: Record<string, LucideIcon> = {
     mail: Mail,
     slack: Hash,
+    slackWebhook: Hash,
     discord: MessageCircle,
+    discordWebhook: MessageCircle,
+    googleChat: MessageCircle,
     microsoftTeams: Users,
     telegram: Send,
     pushover: Bell,

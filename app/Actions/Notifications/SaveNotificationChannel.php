@@ -8,7 +8,6 @@ use Heptapod\Actions\RequestRoutingReconciliation;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
-use Heptapod\Contracts\Schema\FieldType;
 use Heptapod\Contracts\Schema\ValidatedConfig;
 use Heptapod\Enums\RecipientKind;
 use Heptapod\Events\Notifications\NotificationLocks;
@@ -159,8 +158,7 @@ final readonly class SaveNotificationChannel
             $after = $merged[$name] ?? null;
             if (is_string($before) && is_string($after) && $this->isUrl($before) && $this->isUrl($after)
                 && SecretReentry::origin($before) !== SecretReentry::origin($after)) {
-                $secrets = array_filter($previous, static fn (string $field): bool => ($schema->fields[$field] ?? null)?->type === FieldType::Secret, ARRAY_FILTER_USE_KEY);
-                $errors = SecretReentry::errors($secrets, $supplied, 'config');
+                $errors = SecretReentry::errors($validated->secrets(), $supplied, 'config');
                 unset($errors['config.'.$name]);
                 if ($errors !== []) {
                     throw ValidationException::withMessages($errors);

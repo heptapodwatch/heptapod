@@ -40,8 +40,13 @@ final class SecretMerge
             }
         }
         if ($field->items instanceof Field) {
+            // A unique header name identifies a row even when an earlier row was removed.
+            $uniqueNames = in_array('distinct:ignore_case', $field->items->properties['name']->rules ?? [], true);
+            $previousByName = $uniqueNames ? array_column($previous, null, 'name') : [];
             foreach ($value as $index => $item) {
-                $value[$index] = self::preserve($field->items, $item, $previous[$index] ?? null, $path.'.'.$index);
+                $name = is_array($item) ? $item['name'] ?? null : null;
+                $oldItem = $uniqueNames ? (is_string($name) ? $previousByName[$name] ?? null : null) : ($previous[$index] ?? null);
+                $value[$index] = self::preserve($field->items, $item, $oldItem, $path.'.'.$index);
             }
         }
 

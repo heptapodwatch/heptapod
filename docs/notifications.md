@@ -5,7 +5,27 @@ sidebar:
     order: 6
 ---
 
-Alerts go to channels: an email address, Slack, Microsoft Teams, Discord, Telegram, Pushover, ntfy or a webhook. For each channel you choose per category whether it hears about it immediately, in the daily digest, or not at all.
+Alerts go to channels. For each channel, choose which categories to receive immediately, in the daily digest, or not at all.
+
+## Channel types
+
+| Type            | Configuration                                                                    |
+| --------------- | -------------------------------------------------------------------------------- |
+| Email           | Email address                                                                    |
+| Slack           | Bot token and channel                                                            |
+| Slack webhook   | HTTPS incoming webhook URL from Slack or a compatible service such as Mattermost |
+| Microsoft Teams | Webhook URL                                                                      |
+| Discord         | Bot token and channel                                                            |
+| Discord webhook | Discord incoming webhook URL                                                     |
+| Google Chat     | Incoming webhook URL from a Google Chat space                                    |
+| Telegram        | Bot token and chat ID                                                            |
+| Pushover        | Token and user key                                                               |
+| ntfy            | Server URL and topic, with an optional token                                     |
+| Webhook         | Receiver URL and signing secret, with up to five custom request headers          |
+
+Under **Custom headers**, choose **Add header** and enter a name and value, such as `Authorization` and a bearer token.
+The form hides saved values. If the receiver origin changes, enter the values again.
+You cannot override the signature, content type, or other headers set by Heptapod.
 
 ## Where channels live
 
