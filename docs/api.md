@@ -250,7 +250,7 @@ Tested operations:
 
 ### Monitors and checks
 
-- Only HTTP monitors exist. API-created monitors belong to the Internal client. The team ID is always 1.
+- Only HTTP monitors exist. API-created monitors belong to **No client**, the built-in client for sites without one. The team ID is always 1.
 - Creating without check input enables the recommended checks. `checks: []` disables them.
 - Omitted settings on update stay as they are.
 - A run in progress can still publish its result after an edit. The next run uses the new settings.
@@ -302,7 +302,7 @@ Owners and Admins can also import under **Settings → Import**. On the command 
 
 ### What is imported
 
-- HTTP monitors, into the Internal client, with uptime, performance, certificate, DNS, domain, application health, broken links, mixed content, sitemap and cron settings.
+- HTTP monitors, into **No client**, with uptime, performance, certificate, DNS, domain, application health, broken links, mixed content, sitemap and cron settings.
 - Tags and maintenance periods.
 - Disabled checks keep their settings and stay disabled.
 - Not copied: IDs, badges, creation times, results, history and notification channels.

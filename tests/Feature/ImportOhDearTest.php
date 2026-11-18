@@ -248,7 +248,7 @@ test('invalid cron definitions fail planning through the shared creation validat
 test('remote failures are nonzero and never print response secrets', function (int $status): void {
     app(OhDearAccountTransport::class)->fake($this->account, $status);
     expect(Artisan::call('heptapod:import-ohdear', ['--token' => 'fixture-token-secret']))->toBe(1);
-    expect(Artisan::output())->toContain($status === 0 ? 'connection failed' : 'HTTP '.$status)->not->toContain('fixture-token-secret', 'fixture-remote-secret');
+    expect(Artisan::output())->toContain($status === 0 ? 'Oh Dear did not answer the account request.' : 'Oh Dear answered the account request with HTTP '.$status.'.')->not->toContain('fixture-token-secret', 'fixture-remote-secret');
     expect(Site::query()->count())->toBe(1);
 })->with([401, 422, 0]);
 
@@ -384,7 +384,7 @@ test('late cron identity conflict rolls back this monitor while a previous monit
     app(OhDearAccountTransport::class)->fake($this->account);
 
     expect(Artisan::call('heptapod:import-ohdear', ['--token' => 'fixture-token-secret']))->toBe(1);
-    expect(Artisan::output())->toContain('104', 'Failed', 'OhDearIdentityConflict', 'Monitor import failed; the server log has the details.')
+    expect(Artisan::output())->toContain('104', 'Failed', 'A cron task or maintenance period of this site already belongs to another site.')->not->toContain('OhDearIdentityConflict')
         ->not->toContain('fixture-token-secret');
     expect(Site::query()->where('oh_dear_id', 104)->count())->toBe(0);
     expect(DB::table('cron_checks')->where('oh_dear_id', 203)->count())->toBe(0);

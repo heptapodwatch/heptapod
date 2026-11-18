@@ -423,9 +423,9 @@ test('isolates Oh Dear failures per monitor, stops on local faults and withholds
     expect($output)->toContain('501', '502', '503', '504', '505', 'Failed');
     expect(json_encode($logged, JSON_THROW_ON_ERROR))->toContain('Oh Dear import failed', '501');
     if ($kind === 'sdk') {
-        expect($output)->toContain('OhDearException', 'GET monitors/{id}/recurring-maintenance-periods', '500');
+        expect($output)->toContain('Oh Dear answered the recurring maintenance request with HTTP 500.')->not->toContain('OhDearException');
     } else {
-        expect($output)->toContain('FatalRequestException', 'GET monitors/{id}/recurring-maintenance-periods', 'no response');
+        expect($output)->toContain('Oh Dear did not answer the recurring maintenance request.')->not->toContain('FatalRequestException');
     }
     expect(Site::query()->where('oh_dear_id', 501)->count())->toBe(0);
     expect(Site::query()->whereIn('oh_dear_id', [502, 503, 504, 505])->count())->toBe($dryRun ? 0 : 4);
@@ -437,7 +437,7 @@ test('rejects malformed recurring envelopes without stopping later monitors', fu
     app(OhDearAccountTransport::class)->fake($account);
     expect(Artisan::call('heptapod:import-ohdear', ['--token' => 'fake-real-account-token']))->toBe(1);
     $output = Artisan::output();
-    expect($output)->toContain('InvalidOhDearResponse', 'Recurring maintenance response must be a list or an object containing a list in data.')
+    expect($output)->toContain('Oh Dear sent recurring maintenance that cannot be read.')->not->toContain('InvalidOhDearResponse')
         ->not->toContain('fixture-remote-secret')->not->toContain('fake-real-account-token');
     expect(Site::query()->where('oh_dear_id', 501)->count())->toBe(0)
         ->and(Site::query()->whereIn('oh_dear_id', [502, 503, 504, 505])->count())->toBe(4);
@@ -722,7 +722,7 @@ test('a site failing validation shows its reason on the run page and in the log'
         ->and($run['failed'])->toBe(1)->and($run['failed_remote'])->toBe(0)
         ->and($failed['502']['notices'])->toBe(['import.notice.failed'])
         ->and($failed['502']['operation'])->toBe('failed')
-        ->and($failed['502']['details'])->toBe($reason.' Server log: import run '.$run['id'].'.')
+        ->and($failed['502']['details'])->toBe($reason.' Details are in the server log (import run '.$run['id'].').')
         ->and($failed->except('502')->pluck('operation')->unique()->all())->toBe(['create']);
     expect($logged)->toHaveCount(1)
         ->and($logged[0][0])->toBe('warning')->and($logged[0][1])->toBe('Oh Dear import failed')
@@ -772,7 +772,7 @@ test('treats undecodable maintenance and cron pages as a bad Oh Dear answer for 
 
     expect(Artisan::call('heptapod:import-ohdear', ['--token' => 'fake-real-account-token']))->toBe(1);
 
-    expect(Artisan::output())->toContain('InvalidOhDearResponse', $reason);
+    expect(Artisan::output())->toContain($reason)->not->toContain('InvalidOhDearResponse');
     expect(Site::query()->where('oh_dear_id', 501)->count())->toBe(0)
         ->and(Site::query()->whereIn('oh_dear_id', [502, 503, 504, 505])->count())->toBe(4);
 })->with(['maintenance' => ['maintenance-periods', 1, 'Oh Dear sent maintenance periods that cannot be read.'],
