@@ -117,7 +117,7 @@ test('imports all five real-shaped monitors without rejecting default nulls', fu
     expect($matches)->toHaveCount(5);
     $monitors = collect(realOhDearAccount()['monitors'])->keyBy('id');
     foreach ([501 => 'cron', 502 => 'application_health, cron', 503 => 'cron', 504 => 'cron', 505 => 'application_health, cron'] as $id => $setupRequired) {
-        $details = 'Cron definitions: 0; maintenance periods: 0; recurring periods: 0'
+        $details = 'Cron definitions: 0; Maintenance periods: 0; recurring periods: 0'
             .'; Not imported: setup required: '.$setupRequired
             .'; Cron is disabled in Oh Dear and has no task definitions; not imported (setup required).'
             .'; Not yet supported, skipped: '.expectedRealOhDearSkipped($monitors[$id]);
@@ -914,7 +914,7 @@ test('CLI section selection keeps site and cron changes independent', function (
     $exit = Artisan::call('heptapod:import-ohdear', [...$token, '--only' => 'sites']);
     $output = Artisan::output();
     expect($exit)->toBe(0, $output);
-    expect($output)->toContain('Sections: Sites and checks')->not->toContain('Cron definitions:')->not->toContain('maintenance periods:');
+    expect($output)->toContain('Sections: Sites and checks')->not->toContain('Cron definitions:')->not->toContain('Maintenance periods:');
     $site = Site::query()->where('oh_dear_id', 501)->sole();
     expect($site->checks()->where('type', CheckKey::Cron)->exists())->toBeFalse();
 
@@ -922,7 +922,7 @@ test('CLI section selection keeps site and cron changes independent', function (
     $exit = Artisan::call('heptapod:import-ohdear', [...$token, '--only' => 'cron', '--dry-run' => true]);
     $output = Artisan::output();
     expect($exit)->toBe(0, $output);
-    expect($output)->toContain('Sections: Cron checks', 'Cron definitions: 1')->not->toContain('maintenance periods:');
+    expect($output)->toContain('Sections: Cron checks', 'Cron definitions: 1')->not->toContain('Maintenance periods:');
     expect(DB::table('cron_checks')->count())->toBe(0);
     $site->update(['friendly_name' => 'Local title']);
     expect(Artisan::call('heptapod:import-ohdear', [...$token, '--only' => 'cron']))->toBe(0, Artisan::output());

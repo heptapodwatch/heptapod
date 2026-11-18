@@ -491,15 +491,19 @@ export default function ImportOhDear({
                             </SectionHeading>
                             <p className="text-sm text-muted-foreground">
                                 {[
-                                    t(':count sites to import', {
-                                        count: imported.length,
+                                    includesSites
+                                        ? t(':count sites to import', {
+                                              count: imported.length,
+                                          })
+                                        : t(
+                                              'Import into :count existing sites',
+                                              {
+                                                  count: imported.length,
+                                              },
+                                          ),
+                                    t(':count sites skipped', {
+                                        count: skipped.length,
                                     }),
-                                    t(
-                                        ':count existing or unsupported sites skipped',
-                                        {
-                                            count: skipped.length,
-                                        },
-                                    ),
                                     t(':count items not imported', {
                                         count: notImported,
                                     }),
