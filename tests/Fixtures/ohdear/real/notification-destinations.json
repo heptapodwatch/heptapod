@@ -1,0 +1,245 @@
+{
+    "/api/team-notification-destinations": {
+        "data": [
+            {
+                "id": 101,
+                "channel": "mail",
+                "team_id": 42,
+                "label": "fixture-label-do-not-copy",
+                "destination": { "mail": "import-alerts@alerts.example" },
+                "notification_types": [
+                    "HttpUptimeCheckFailedNotification",
+                    "HttpUptimeCheckRecoveredNotification"
+                ],
+                "enabled": true
+            },
+            {
+                "id": 102,
+                "channel": "slackApi",
+                "destination": {
+                    "channel": "#ops",
+                    "slack_api_token": "xoxp-2..."
+                },
+                "notification_types": [
+                    "HttpUptimeCheckFailedNotification",
+                    "CertificateFixedNotification",
+                    "CertificateExpiresSoonNotification",
+                    "CertificateHasChangedNotification"
+                ],
+                "enabled": true
+            },
+            {
+                "id": 103,
+                "channel": "microsoftTeamsWorkflow",
+                "destination": {
+                    "url": "https://teams.example/fixture-secret-workflow"
+                },
+                "notification_types": ["LighthouseIssuesDetectedNotification"],
+                "enabled": false
+            },
+            {
+                "id": 104,
+                "channel": "pushover",
+                "destination": {
+                    "userKey": "fixturesecretpushoverrecipient",
+                    "apiToken": "fixture-secret-pushover-token",
+                    "priority": "1"
+                },
+                "notification_types": [
+                    "ApplicationHealthProblemDetectedNotification"
+                ],
+                "enabled": true
+            },
+            {
+                "id": 105,
+                "channel": "ntfy",
+                "destination": {
+                    "serverUrl": "https://ntfy.example",
+                    "topic": "fixture-secret-ntfy-topic",
+                    "accessToken": "fixture-secret-ntfy-token",
+                    "priority": "5"
+                },
+                "notification_types": ["DnsRecordsChangedNotification"],
+                "enabled": true
+            },
+            {
+                "id": 106,
+                "channel": "slack",
+                "destination": {
+                    "url": "https://slack.example/services/fixture-secret-slack-hook"
+                },
+                "notification_types": [
+                    "BrokenLinksFoundNotification",
+                    "BrokenLinksFixedNotification",
+                    "MonitorAddedNotification"
+                ],
+                "enabled": true
+            },
+            {
+                "id": 107,
+                "channel": "discord",
+                "destination": {
+                    "url": "https://discord.com/api/webhooks/123456789/fixture-secret-discord"
+                },
+                "notification_types": ["SitemapIssuesFoundNotification"],
+                "enabled": true
+            },
+            {
+                "id": 108,
+                "channel": "googleChat",
+                "destination": {
+                    "url": "https://chat.googleapis.com/v1/spaces/AAA/messages?key=fixture-secret-chat-key&token=fixture-secret-chat-token"
+                },
+                "notification_types": [
+                    "PerformanceThresholdRecoveredNotification"
+                ],
+                "enabled": true
+            },
+            {
+                "id": 109,
+                "channel": "webhook",
+                "destination": {
+                    "url": "https://hooks.example/fixture-secret-webhook",
+                    "headers": [
+                        {
+                            "name": "Authorization",
+                            "value": "fixture-health-header-secret"
+                        }
+                    ]
+                },
+                "notification_types": ["HttpUptimeCheckFailedNotification"],
+                "enabled": true
+            },
+            {
+                "id": 110,
+                "channel": "telegram",
+                "destination": { "chat_id": "123456789" },
+                "notification_types": ["HttpUptimeCheckFailedNotification"],
+                "enabled": true
+            },
+            {
+                "id": 111,
+                "channel": "microsoftTeams",
+                "destination": {
+                    "url": "https://outlook.example/fixture-secret-legacy"
+                },
+                "notification_types": ["HttpUptimeCheckFailedNotification"],
+                "enabled": true
+            },
+            {
+                "id": 112,
+                "channel": "zoom",
+                "destination": {
+                    "url": "https://zoom.example/chat/webhooks/incomingwebhook/fixture-secret-zoom",
+                    "token": "fixture-health-secret"
+                },
+                "notification_types": ["HttpUptimeCheckFailedNotification"],
+                "enabled": true
+            },
+            {
+                "id": 113,
+                "channel": "pagerDuty",
+                "destination": {
+                    "apiKey": "fixture-health-secret",
+                    "serviceId": "fixture-service",
+                    "fromEmail": "pagerduty@alerts.example"
+                },
+                "notification_types": ["HttpUptimeCheckFailedNotification"],
+                "enabled": true
+            },
+            {
+                "id": 114,
+                "channel": "opsgenie",
+                "destination": {
+                    "apiKey": "fixture-health-secret",
+                    "priority": "P3",
+                    "euEndpoint": false
+                },
+                "notification_types": ["HttpUptimeCheckFailedNotification"],
+                "enabled": true
+            },
+            {
+                "id": 115,
+                "channel": "sms",
+                "destination": {
+                    "to": "+12025550101",
+                    "from": "Oh Dear",
+                    "apiKey": "fixture-health-secret",
+                    "apiSecret": "fixture-secret-sms-secret"
+                },
+                "notification_types": ["HttpUptimeCheckFailedNotification"],
+                "enabled": true
+            },
+            {
+                "id": 116,
+                "channel": "webhook",
+                "label": "fixture-secret-invalid",
+                "destination": {
+                    "url": "fixture-secret-invalid",
+                    "headers": [
+                        {
+                            "name": "Authorization",
+                            "value": "fixture-crawler-secret"
+                        }
+                    ]
+                },
+                "notification_types": ["HttpUptimeCheckFailedNotification"],
+                "enabled": true
+            }
+        ]
+    },
+    "/api/tags/notification-destinations": [
+        {
+            "id": 201,
+            "channel": "mail",
+            "tag": { "id": 3, "name": "production" },
+            "destination": { "mail": "production-alerts@alerts.example" },
+            "notification_types": ["BrokenLinksFoundNotification"],
+            "enabled": true
+        },
+        {
+            "id": 202,
+            "channel": "mail",
+            "tag": { "id": 4, "name": "unassigned" },
+            "destination": { "mail": "other-alerts@alerts.example" },
+            "notification_types": ["BrokenLinksFoundNotification"],
+            "enabled": true
+        }
+    ],
+    "/api/tag-groups": {
+        "data": [
+            {
+                "id": 6,
+                "label": "Online services",
+                "team_id": 42,
+                "tags": [
+                    { "id": 3, "name": "production" },
+                    { "id": 5, "name": "stores" }
+                ]
+            }
+        ]
+    },
+    "/api/tag-groups/6/notification-destinations": {
+        "data": [
+            {
+                "id": 301,
+                "channel": "mail",
+                "tagGroup": { "id": 6, "label": "Online services" },
+                "destination": { "mail": "group-alerts@alerts.example" },
+                "notification_types": ["DnsIssuesFoundNotification"],
+                "enabled": true
+            }
+        ]
+    },
+    "/api/monitors/501/notification-destinations": {
+        "data": [
+            {
+                "id": 401,
+                "channel": "mail",
+                "destination": { "mail": "monitor-alerts@alerts.example" },
+                "notification_types": ["HttpUptimeCheckFailedNotification"],
+                "enabled": true
+            }
+        ]
+    }
+}

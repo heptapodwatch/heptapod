@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Actions;
 
+use Heptapod\Data\Import\ImportChannelRowData;
 use Heptapod\Data\Import\ImportPlanData;
 use Heptapod\Data\Import\ImportPlanRowData;
 use Heptapod\Enums\ImportOperation;
@@ -22,7 +23,7 @@ final readonly class PersistOhDearImportPlan
         if ($plan->remote_error === null && ! array_any($plan->rows, static fn (ImportPlanRowData $row): bool => $row->operation === ImportOperation::Failed)) {
             $run = ImportRun::query()->create(['user_id' => $user->id, 'source' => 'ohdear', 'status' => ImportRunStatus::Planned, 'expected' => count($plan->rows),
                 'sections' => $plan->sections, 'teams' => $plan->teams, 'plan' => array_map(static fn (ImportPlanRowData $row): array => Arr::except($row->toArray(), ['details']), $plan->rows),
-                'results' => [], 'created_client_ids' => []]);
+                'results' => [], 'created_client_ids' => [], 'channel_plan' => array_map(static fn (ImportChannelRowData $row): array => $row->toArray(), $plan->channels), 'channel_results' => []]);
             ImportTokenStore::put($run->id, $token);
             $planId = $run->id;
         }

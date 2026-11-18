@@ -1,6 +1,7 @@
 import { InfoTooltip } from '@/components/info-tooltip';
 import { TruncatedText } from '@/components/truncated-text';
 import { SectionHeading } from '@/components/section-heading';
+import { ImportChannelSection } from '@/components/import-channel-section';
 import { ImportOperationBadge } from '@/components/import-operation-badge';
 import { ImportAlertTimingSummary } from '@/components/import-alert-timing-summary';
 import { Head, router } from '@inertiajs/react';
@@ -167,7 +168,16 @@ export default function ImportOhDear({
 
     const tags = useMemo(
         () =>
-            [...new Set((plan?.rows ?? []).flatMap((row) => row.tags))].sort(),
+            [
+                ...new Set(
+                    [
+                        ...(plan?.rows ?? []),
+                        ...(plan?.channels ?? []).filter(
+                            (row) => row.operation !== 'skipped',
+                        ),
+                    ].flatMap((row) => row.tags),
+                ),
+            ].sort(),
         [plan],
     );
     const groupTarget = (key: string): Target =>
@@ -217,6 +227,20 @@ export default function ImportOhDear({
 
     const rows = plan?.rows ?? [];
     const includesSites = plan?.sections.includes('sites') === true;
+    const includesChannels = plan?.sections.includes('channels') === true;
+    const channelClient = (tags: string[]): string | null => {
+        const target = groups[`tag:${tags[0]}`];
+        return target &&
+            target !== inherit &&
+            tags.every((tag) => groups[`tag:${tag}`] === target)
+            ? targetName(target)
+            : null;
+    };
+    const hasChannels = (plan?.channels ?? []).some(
+        (row) =>
+            row.operation !== 'skipped' &&
+            (row.level === 'team' || channelClient(row.tags) !== null),
+    );
     const planColumns = includesSites
         ? '@3xl/table:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,13rem)]'
         : '@3xl/table:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]';
@@ -251,18 +275,17 @@ export default function ImportOhDear({
     const payloadTarget = (target: Target) => ({ client_id: Number(target) });
     const runImport = async () => {
         if (!plan?.plan_id) return;
-        const groupKeys = includesSites
-            ? [
-                  ...(plan.teams ?? []).map((team) => `team:${team.id}`),
-                  ...tags
-                      .map((tag) => `tag:${tag}`)
-                      .filter(
-                          (key) =>
-                              groups[key] !== undefined &&
-                              groups[key] !== inherit,
-                      ),
-              ]
-            : [];
+        const groupKeys = [
+            ...(includesSites
+                ? plan.teams.map((team) => `team:${team.id}`)
+                : []),
+            ...tags
+                .map((tag) => `tag:${tag}`)
+                .filter(
+                    (key) =>
+                        groups[key] !== undefined && groups[key] !== inherit,
+                ),
+        ];
         const overrideEntries = Object.entries(overrides).filter(
             ([, target]) => target !== inherit,
         );
@@ -406,13 +429,16 @@ export default function ImportOhDear({
                 </FormSection>
             </form>
             {plan && <ImportAlertTimingSummary rows={plan.rows} />}
-            {plan && plan.rows.length > 0 && (
+            {plan && (plan.rows.length > 0 || includesChannels) && (
                 <>
-                    {includesSites && (
+                    {((includesSites && plan.rows.length > 0) ||
+                        (includesChannels && tags.length > 0)) && (
                         <FormSection
                             title={t('Clients')}
                             description={t(
-                                'Sites without an assigned client go to No client.',
+                                includesSites
+                                    ? 'Sites without an assigned client go to No client.'
+                                    : 'import.channels.assign_tags',
                             )}
                             detail={t(
                                 'A tag assignment wins over the team assignment; a choice per site wins over both.',
@@ -423,29 +449,35 @@ export default function ImportOhDear({
                                     <span>{t('Oh Dear team or tag')}</span>
                                     <span>{t('Client')}</span>
                                 </ListHeader>
-                                {plan.teams.map((team) => (
-                                    <MappingRow
-                                        key={team.id}
-                                        id={`team-${team.id}`}
-                                        label={team.name}
-                                        meta={`${t('Team')} · ${t(
-                                            ':count sites',
-                                            {
-                                                count: rows.filter(
-                                                    (row) =>
-                                                        row.team_id === team.id,
-                                                ).length,
-                                            },
-                                        )}`}
-                                        value={groupTarget(`team:${team.id}`)}
-                                        onChange={setGroup(`team:${team.id}`)}
-                                        onCreateClient={createClientFor(
-                                            setGroup(`team:${team.id}`),
-                                        )}
-                                        clients={clients}
-                                        disabled={http.processing}
-                                    />
-                                ))}
+                                {includesSites &&
+                                    plan.teams.map((team) => (
+                                        <MappingRow
+                                            key={team.id}
+                                            id={`team-${team.id}`}
+                                            label={team.name}
+                                            meta={`${t('Team')} · ${t(
+                                                ':count sites',
+                                                {
+                                                    count: rows.filter(
+                                                        (row) =>
+                                                            row.team_id ===
+                                                            team.id,
+                                                    ).length,
+                                                },
+                                            )}`}
+                                            value={groupTarget(
+                                                `team:${team.id}`,
+                                            )}
+                                            onChange={setGroup(
+                                                `team:${team.id}`,
+                                            )}
+                                            onCreateClient={createClientFor(
+                                                setGroup(`team:${team.id}`),
+                                            )}
+                                            clients={clients}
+                                            disabled={http.processing}
+                                        />
+                                    ))}
                                 {tags.map((tag) => (
                                     <MappingRow
                                         key={tag}
@@ -461,7 +493,9 @@ export default function ImportOhDear({
                                         )}`}
                                         value={groups[`tag:${tag}`] ?? inherit}
                                         inheritLabel={t(
-                                            'Use the team assignment',
+                                            includesSites
+                                                ? 'Use the team assignment'
+                                                : 'import.channels.no_assignment',
                                         )}
                                         onChange={setGroup(`tag:${tag}`)}
                                         onCreateClient={createClientFor(
@@ -481,11 +515,8 @@ export default function ImportOhDear({
                             )}
                         </FormSection>
                     )}
-                    <section
-                        aria-labelledby="import-plan"
-                        className="space-y-3 py-6"
-                    >
-                        <div className="space-y-1">
+                    <div className="space-y-3 py-6">
+                        <div hidden={rows.length === 0} className="space-y-1">
                             <SectionHeading id="import-plan">
                                 {t('Plan')}
                             </SectionHeading>
@@ -548,7 +579,10 @@ export default function ImportOhDear({
                                 </AlertDescription>
                             </Alert>
                         )}
-                        <div className="@container/table overflow-hidden rounded-[10px] border">
+                        <div
+                            hidden={rows.length === 0}
+                            className="@container/table overflow-hidden rounded-[10px] border"
+                        >
                             <ListHeader
                                 className={cn('@3xl/table:grid', planColumns)}
                             >
@@ -779,6 +813,12 @@ export default function ImportOhDear({
                                 );
                             })}
                         </div>
+                        {includesChannels && (
+                            <ImportChannelSection
+                                rows={plan.channels}
+                                plannedClient={channelClient}
+                            />
+                        )}
                         <FormActions
                             status={
                                 plan.remote_error
@@ -800,7 +840,7 @@ export default function ImportOhDear({
                                     blocked ||
                                     starting ||
                                     http.processing ||
-                                    imported.length === 0
+                                    (imported.length === 0 && !hasChannels)
                                 }
                                 onClick={runImport}
                             >
@@ -810,7 +850,7 @@ export default function ImportOhDear({
                         <InputError
                             message={Object.values(importHttp.errors)[0]}
                         />
-                    </section>
+                    </div>
                 </>
             )}
             {creating && (

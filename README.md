@@ -46,16 +46,17 @@ Heptapod is not a complete Oh Dear replacement. Some of the gaps below will clos
 
 - Imported: HTTP monitors as sites, with tags and each check's settings where Heptapod has an equivalent; cron checks, where each task gets a new Heptapod ping URL that you put into the task; maintenance periods and recurring maintenance.
 - Under Settings → Import you choose a client for each new site. The command line puts new sites in No client.
-- Not imported: notification channels, status pages and check history (uptime, downtime, response times, Lighthouse scores).
+- Supported notification channels are imported active or paused as in Oh Dear. Tag and tag-group destinations need an explicit client assignment in Settings → Import.
+- Not imported: monitor-level notification destinations, status pages and check history (uptime, downtime, response times, Lighthouse scores).
 - Report settings are kept for the Oh Dear-compatible API, but Heptapod sends no reports.
 - Skipped: checks this server cannot run (such as Lighthouse without the browser service) and settings without an equivalent (such as crawl speed and probe locations).
-- The plan lists the skipped checks and settings for each site before anything is imported. After the run, a checklist covers channels, cron ping URLs, status pages and history.
+- The plan lists skipped checks, settings and notification destinations. After the run, a checklist covers cron ping URLs, status pages and history.
 
 <details>
 <summary>Running the import again</summary>
 
-- Choose which sections to import: Sites and checks, Maintenance, Cron checks (`--only=sites,maintenance,cron` on the command line). Leave Sites and checks unticked to keep your site and check settings and to avoid recreating deleted sites.
-- Sites are matched by their Oh Dear ID, so a rerun creates no duplicates.
+- Choose which sections to import: Sites and checks, Maintenance, Cron checks, Notification channels (`--only=sites,maintenance,cron,channels` on the command line). Leave Sites and checks unticked to keep your site and check settings and to avoid recreating deleted sites.
+- Sites and notification channels are matched by their Oh Dear ID, so a rerun creates no duplicates.
 - For imported sites, Oh Dear wins. Settings changed in Heptapod are overwritten, and checks are turned on or off as in Oh Dear. A check whose Oh Dear settings are invalid keeps its Heptapod settings.
 - A site you deleted in Heptapod is created again. A site you added yourself with the same URL is skipped, not taken over.
 - Sites removed from Oh Dear stay in Heptapod.
@@ -64,8 +65,6 @@ Heptapod is not a complete Oh Dear replacement. Some of the gaps below will clos
 </details>
 
 More in the [import reference](https://heptapod.watch/docs/reference/api/#import-monitors-from-an-oh-dear-account).
-
-Planned, with no date yet: importing notification channels.
 
 ## Why Heptapod
 

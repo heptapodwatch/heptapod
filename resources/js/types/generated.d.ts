@@ -857,6 +857,18 @@ readonly fields: Record<string, Heptapod.Contracts.Schema.Field>,
 }
 namespace Data {
 namespace Import {
+export type ImportChannelRowData = {
+readonly source_id: number,
+readonly kind_label: string,
+readonly level: string,
+readonly tags: string[],
+operation: Heptapod.Enums.ImportOperation,
+readonly enabled: boolean,
+readonly categories: Heptapod.Enums.NotificationCategory[],
+readonly check_types: Heptapod.Contracts.CheckKey[],
+notices: string[],
+client_name: string | null,
+};
 export type ImportPlanData = {
 readonly dry_run: boolean,
 readonly sections: Heptapod.Enums.ImportSection[],
@@ -866,6 +878,7 @@ name: string,
 }[],
 readonly rows: Heptapod.Data.Import.ImportPlanRowData[],
 readonly remote_error: string | null,
+readonly channels: Heptapod.Data.Import.ImportChannelRowData[],
 };
 export type ImportPlanRowData = {
 readonly source_id: string,
@@ -2080,7 +2093,7 @@ export type FreshnessSuppression = 'down' | 'maintenance' | 'snooze' | 'uptime_e
 export type HealthStatus = 'ok' | 'warn' | 'down' | 'not-configured';
 export type ImportOperation = 'create' | 'update' | 'partial' | 'skipped' | 'failed';
 export type ImportRunStatus = 'planned' | 'queued' | 'running' | 'completed' | 'incomplete' | 'failed';
-export type ImportSection = 'sites' | 'maintenance' | 'cron';
+export type ImportSection = 'sites' | 'maintenance' | 'cron' | 'channels';
 export type IncidentCause = 'failed' | 'errored';
 export type IncidentResolutionReason = 'check_disabled' | 'site_paused' | 'site_deleted' | 'moved_to_client';
 export type NotificationCategory = 'outage' | 'failure' | 'check_error' | 'warning' | 'expiring' | 'recovery' | 'changes' | 'system' | 'report';

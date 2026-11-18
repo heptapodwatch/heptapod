@@ -53,6 +53,13 @@ arch('Oh Dear response fixtures contain only reserved or vendor hostnames', func
         }
         $violations = 0;
         foreach ($values as $leaf) {
+            // Discord and Google Chat require their real provider hosts. Permit only these synthetic endpoint values.
+            if (str_ends_with($file, '/ohdear/real/notification-destinations.json') && in_array($leaf['value'], [
+                'https://discord.com/api/webhooks/123456789/fixture-secret-discord',
+                'https://chat.googleapis.com/v1/spaces/AAA/messages?key=fixture-secret-chat-key&token=fixture-secret-chat-token',
+            ], true)) {
+                continue;
+            }
             foreach (ohDearFixtureHosts($leaf['value']) as $host) {
                 $documentationIp = filter_var($host, FILTER_VALIDATE_IP) !== false && (str_starts_with($host, '192.0.2.') || str_starts_with($host, '198.51.100.') || str_starts_with($host, '203.0.113.') || str_starts_with(inet_pton($host), hex2bin('20010db8')));
                 if (! $documentationIp && ! in_array($host, ['1.1.1.1', '8.8.8.8', 'example.com', 'ohdear.app'], true) && ! str_ends_with($host, '.example') && ! str_ends_with($host, '.example.com') && ! str_ends_with($host, '.ohdear.app')) {
@@ -108,6 +115,8 @@ arch('all Oh Dear fixture credentials use explicitly fake values', function (): 
         'fake-health-secret-501', 'fake-health-secret-502', 'fake-health-secret-503', 'fake-health-secret-504', 'fake-health-secret-505',
         'fixture-health-secret', 'fixture-health-header-secret', 'fixture-crawler-secret', 'fixture-uptime-secret',
         'https://ping.ohdear.app/fixture-ping-secret', 'https://ping.ohdear.app/fixture-ping-secret-2',
+        // These public notification type names match the long base64 pattern.
+        'ApplicationHealthProblemDetectedNotification', 'PerformanceThresholdRecoveredNotification',
     ];
     foreach (ohDearFixtureStrings() as $file => $values) {
         $violations = 0;

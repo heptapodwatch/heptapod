@@ -693,7 +693,7 @@ test('plans and imports every site without a check this instance cannot run, wit
 
     ['sections' => $sections, 'plan' => $plan, 'run' => $run, 'results' => $results] = importOhDearThroughSettings(realOhDearAccount());
 
-    expect($sections)->toBe(['sites', 'maintenance', 'cron'])->and($run['sections'])->toBe($sections);
+    expect($sections)->toBe(['sites', 'maintenance', 'cron', 'channels'])->and($run['sections'])->toBe($sections);
 
     expect($run['status'])->toBe('completed');
 

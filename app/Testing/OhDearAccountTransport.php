@@ -36,7 +36,9 @@ final class OhDearAccountTransport
         $monitors = $load('monitors');
         /** @var array<string, mixed> $me */
         $me = $load('me');
-        $responses = ['/api/me' => $me, '/api/monitors' => $monitors];
+        /** @var array<string, mixed> $destinations */
+        $destinations = $load('notification-destinations');
+        $responses = ['/api/me' => $me, '/api/monitors' => $monitors, ...$destinations];
         /** @var list<array{id: int}&array<string, mixed>> $data */
         $data = $monitors['data'];
         foreach (array_column($data, 'id') as $id) {
@@ -113,6 +115,10 @@ final class OhDearAccountTransport
                     'maintenance-periods' => MockResponse::make(['data' => $definitions['maintenance'], 'meta' => ['current_page' => 1, 'last_page' => 1]]),
                     'recurring-maintenance-periods' => MockResponse::make(['data' => $definitions['recurring']]),
                 };
+            }
+            if (in_array($path, ['/api/team-notification-destinations', '/api/tags/notification-destinations', '/api/tag-groups'], true)
+                || preg_match('~^/api/monitors/\d+/notification-destinations$~D', $path) === 1) {
+                return MockResponse::make(['data' => []]);
             }
             throw new \LogicException('Unexpected import endpoint: '.$path);
         };

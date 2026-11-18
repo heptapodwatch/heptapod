@@ -16,6 +16,7 @@ final class ImportPlanData extends Data
      * @param  list<ImportSection>  $sections
      * @param  list<array{id: int, name: string}>  $teams
      * @param  list<ImportPlanRowData>  $rows
+     * @param  list<ImportChannelRowData>  $channels
      */
     public function __construct(
         public readonly bool $dry_run,
@@ -23,6 +24,7 @@ final class ImportPlanData extends Data
         public readonly array $teams,
         public readonly array $rows,
         public readonly ?string $remote_error,
+        public readonly array $channels = [],
     ) {}
 
     public function failed(): bool
