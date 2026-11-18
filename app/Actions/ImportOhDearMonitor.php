@@ -14,6 +14,7 @@ use Heptapod\Contracts\OhDearImportMapping;
 use Heptapod\Contracts\Schema\SecretMinimum;
 use Heptapod\Data\Import\ImportPlanRowData;
 use Heptapod\Enums\ImportOperation;
+use Heptapod\Enums\ImportSection;
 use Heptapod\Exceptions\InvalidOhDearResponse;
 use Heptapod\Maintenance\RecurringMaintenanceAttributes;
 use Heptapod\Models\Client;
@@ -34,7 +35,7 @@ use OhDear\PhpSdk\Requests\RecurringMaintenancePeriods\GetRecurringMaintenancePe
 
 final readonly class ImportOhDearMonitor
 {
-    /** Must list the keys of `$settings` in __invoke, in order; scripts/check-import-notices.php derives notice codes from it. */
+    /** Must list the keys of `$settings` in siteSettings, in order; scripts/check-import-notices.php derives notice codes from it. */
     public const array SettingsTypes = ['uptime', 'performance', 'certificate_health', 'dns', 'broken_links', 'application_health', 'domain', 'sitemap', 'lighthouse', 'ports', 'dns_blocklist', 'ai'];
 
     public function __construct(
@@ -44,6 +45,7 @@ final readonly class ImportOhDearMonitor
         private CreateSite $createSite,
         private UpdateSite $updateSite,
         private UpdateCheckConfig $configure,
+        private EnableCheck $enable,
         private CreateMaintenancePeriod $createMaintenance,
         private UpdateMaintenancePeriod $updateMaintenance,
         private DeleteMaintenancePeriod $deleteMaintenance,
@@ -52,22 +54,227 @@ final readonly class ImportOhDearMonitor
         private RecurringMaintenanceAttributes $recurringAttributes,
     ) {}
 
-    /** @param int|null $clientId Client for a newly created site (default Internal); existing sites keep their client. */
-    public function __invoke(#[\SensitiveParameter] OhDear $sdk, #[\SensitiveParameter] Monitor $monitor, string $timezone, bool $dryRun, ?int $clientId = null, bool $requireClient = false): ImportPlanRowData
+    /**
+     * @param  list<ImportSection>  $sections
+     * @param  array{clientId: int|null, siteId: int|null}|null  $approved  Null when not running from a saved plan.
+     */
+    public function __invoke(#[\SensitiveParameter] OhDear $sdk, #[\SensitiveParameter] Monitor $monitor, string $timezone, bool $dryRun, array $sections, ?array $approved): ImportPlanRowData
     {
         if ($monitor->type !== 'http') {
             return $this->skipped($monitor, 'monitor:unsupported', __('import.unsupported_monitor', ['type' => $monitor->type]));
         }
         $site = Site::query()->where('oh_dear_id', $monitor->id)->first();
-        $url = ($this->normalise)($monitor->url);
-        $duplicate = $site !== null && $site->url === $monitor->url ? null : $this->duplicates->find($url, $site?->id);
-        if ($duplicate instanceof Site) {
-            return $this->skipped($monitor, 'site:exists', $this->duplicates->message($duplicate));
+        $sites = in_array(ImportSection::Sites, $sections, true);
+        $importCron = in_array(ImportSection::Cron, $sections, true);
+        $importMaintenance = in_array(ImportSection::Maintenance, $sections, true);
+        if ($sites) {
+            $url = ($this->normalise)($monitor->url);
+            $duplicate = $site !== null && $site->url === $monitor->url ? null : $this->duplicates->find($url, $site?->id);
+            if ($duplicate instanceof Site) {
+                return $this->skipped($monitor, 'site:exists', $this->duplicates->message($duplicate));
+            }
+            // UI imports never fall back to No client when an existing site disappeared since the plan.
+            if ($site === null && $approved !== null && $approved['clientId'] === null) {
+                return $this->skipped($monitor, 'plan:changed', __('import.notice.plan_changed'));
+            }
+        } elseif ($site === null) {
+            return $this->skipped($monitor, 'site:unmatched', __('import.notice.site_unmatched'));
+        } elseif ($approved !== null && $site->id !== $approved['siteId']) {
+            // A child-only plan approves a specific local target, not a monitor that might match later.
+            return $this->skipped($monitor, 'plan:changed', __('import.notice.plan_changed'));
         }
-        // UI imports never fall back to Internal: a site that would be new but has no approved client changed since the plan.
-        if ($requireClient && $site === null && $clientId === null && ! $dryRun) {
-            return $this->skipped($monitor, 'plan:changed', 'Changed since the plan; show the plan again to import it.');
+        /** @var list<array{type: string, enabled: bool, settings?: array<string, mixed>}> $checks */
+        $checks = $sites || $importCron ? $monitor->checks : [];
+        $attributes = ['checks' => [], 'include_check_types_in_report' => []];
+        $skipped = $setupRequired = $shortCredentials = $invalid = $invalidTypes = $unavailable = [];
+        $inheritsAlertTiming = null;
+        if ($sites) {
+            [$attributes, $skipped, $setupRequired, $shortCredentials, $invalid, $invalidTypes, $unavailable] = $this->siteSettings($monitor, $checks, $importCron);
+            $uptimeSettings = $attributes['uptime_check_settings'] ?? null;
+            $inheritsAlertTiming = is_array($uptimeSettings) ? ($uptimeSettings['failed_notification_threshold'] ?? null) === null : null;
         }
+        $definitions = [];
+        $cronState = $importCron ? (array_column($checks, 'enabled', 'type')[CheckKey::Cron->value] ?? null) : null;
+        $cronMapping = $importCron ? $this->registry->importMapping(CheckKey::Cron) : null;
+        $cronImporter = $cronMapping?->definitions === null || $this->registry->availability(CheckKey::Cron)->reason !== null ? null : app($cronMapping->definitions);
+        if (! $sites && $cronMapping instanceof OhDearImportMapping && $this->registry->availability(CheckKey::Cron)->reason !== null
+            && in_array(CheckKey::Cron->value, array_column($checks, 'type'), true)) {
+            $unavailable[] = CheckKey::Cron->value;
+        }
+        if ($cronImporter instanceof OhDearDefinitionImporter) {
+            /** @var list<CronCheckDefinition> $remoteDefinitions */
+            $remoteDefinitions = $this->decoded(static fn (): array => iterator_to_array($sdk->cronCheckDefinitions($monitor->id), false), 'import.invalid_cron_response');
+            foreach ($remoteDefinitions as $definition) {
+                $definitions[] = $this->cronAttributes($definition);
+            }
+            try {
+                $cronImporter->validate($definitions);
+            } catch (ValidationException $exception) {
+                $invalidTypes[] = CheckKey::Cron->value;
+                foreach (array_keys($exception->errors()) as $field) {
+                    $invalid[] = 'cron_check_settings.'.$field;
+                }
+                $cronImporter = null;
+            }
+            if ($definitions === []) {
+                $cronImporter = null;
+                if (in_array(CheckKey::Cron->value, array_column($checks, 'type'), true)) {
+                    $setupRequired[] = CheckKey::Cron->value;
+                }
+            } elseif ($cronImporter instanceof OhDearDefinitionImporter) {
+                $attributes[CheckKey::Cron->value.'_check_settings'] = [];
+            }
+        }
+        $attributes['checks'] = array_values(array_diff($attributes['checks'], $setupRequired, $invalidTypes));
+        $attributes['include_check_types_in_report'] = array_values(array_diff($attributes['include_check_types_in_report'], $setupRequired, $invalidTypes));
+        // A rejected source check must not overwrite a previously valid local configuration/state.
+        if ($sites && $site !== null && $invalidTypes !== []) {
+            foreach ($site->checks as $existing) {
+                if ($existing->enabled && in_array($existing->type->value, $invalidTypes, true)) {
+                    $attributes['checks'][] = $existing->type->value;
+                }
+            }
+        }
+        /** @var list<RemoteMaintenancePeriod> $maintenance */
+        $maintenance = ! $importMaintenance ? [] : $this->decoded(static function () use ($sdk, $monitor, $timezone): array {
+            $periods = iterator_to_array($sdk->maintenancePeriods($monitor->id), false);
+            foreach ($periods as $period) {
+                CarbonImmutable::parse($period->startsAt, $timezone);
+                CarbonImmutable::parse($period->endsAt, $timezone);
+            }
+
+            return $periods;
+        }, 'import.invalid_maintenance_response');
+        /** @var list<RemoteRecurringPeriod> $recurring */
+        $recurring = $importMaintenance ? $this->recurringMaintenancePeriods($sdk, $monitor->id) : [];
+        foreach ($maintenance as $period) {
+            $this->createMaintenance->validate($period->name, CarbonImmutable::parse($period->startsAt, $timezone), CarbonImmutable::parse($period->endsAt, $timezone));
+        }
+        foreach ($recurring as $period) {
+            $this->recurringAttributes->validate($this->recurringValues($period, $timezone));
+        }
+        $coveredIds = $this->coveredIds($site, $maintenance, $timezone);
+        $siteId = $site?->id;
+        if (! $dryRun) {
+            [$coveredIds, $siteId] = DB::transaction(function () use ($site, $monitor, $attributes, $maintenance, $recurring, $timezone, $cronImporter, $definitions, $approved, $sites, $importCron, $cronState): array {
+                if ($sites) {
+                    $site = $site === null
+                        ? ($this->createSite)($approved['clientId'] ?? Client::query()->where('is_internal', true)->firstOrFail()->id, $attributes)
+                        : ($this->updateSite)($site, $attributes, preserveCheck: $importCron ? null : CheckKey::Cron);
+                    $site->setAttribute('oh_dear_id', $monitor->id);
+                    $site->save();
+                }
+                if ($cronImporter instanceof OhDearDefinitionImporter) {
+                    $cronCheck = $site->checks()->getQuery()->where('type', CheckKey::Cron)->first();
+                    if ($cronCheck === null) {
+                        // Cron-only import provisions the parent only when definitions need it.
+                        $definition = $this->registry->get(CheckKey::Cron)->definition();
+                        $cronCheck = $site->checks()->make(['type' => CheckKey::Cron, 'enabled' => false, 'interval_seconds' => $definition->defaultInterval, 'failure_threshold' => $definition->defaultFailureThreshold]);
+                        ($this->configure)($cronCheck, []);
+                        if ($cronState === true) {
+                            ($this->enable)($cronCheck);
+                        }
+                    }
+                    $cronImporter($cronCheck->id, $definitions);
+                }
+                foreach ($recurring as $remote) {
+                    $period = RecurringMaintenancePeriod::query()->where('oh_dear_id', $remote->id)->first();
+                    $values = $this->recurringValues($remote, $timezone);
+                    if ($period !== null && $period->site_id !== $site->id) {
+                        throw new OhDearIdentityConflict('Oh Dear recurring identity belongs to another site.');
+                    }
+                    if ($period === null) {
+                        $period = ($this->createRecurring)($site, $values);
+                    } else {
+                        $candidate = clone $period;
+                        $candidate->fill($values);
+                        if ($candidate->isDirty()) {
+                            $period = ($this->updateRecurring)($period, $values);
+                        }
+                    }
+                    $period->setAttribute('oh_dear_id', $remote->id);
+                    $period->save();
+                }
+                $coveredIds = $this->coveredIds($site, $maintenance, $timezone);
+                foreach ($maintenance as $remote) {
+                    $period = MaintenancePeriod::query()->where('oh_dear_id', $remote->id)->first();
+                    $coverage = OhDearImportCoverage::query()->where('oh_dear_id', $remote->id)->first();
+                    $starts = CarbonImmutable::parse($remote->startsAt, $timezone)->utc();
+                    $ends = CarbonImmutable::parse($remote->endsAt, $timezone)->utc();
+                    if (isset($coveredIds[$remote->id])) {
+                        if ($period !== null && $ends >= CarbonImmutable::now()) {
+                            ($this->deleteMaintenance)($period);
+                        }
+                        OhDearImportCoverage::query()->updateOrCreate(['oh_dear_id' => $remote->id], ['site_id' => $site->id, 'starts_at' => $starts, 'ends_at' => $ends]);
+
+                        continue;
+                    }
+                    $period = $period === null ? ($this->createMaintenance)($site, $remote->name, $starts, $ends) : ($this->updateMaintenance)($period, $remote->name, $starts, $ends);
+                    $period->setAttribute('oh_dear_id', $remote->id);
+                    $period->save();
+                    if ($coverage !== null) {
+                        $coverage->update(['starts_at' => $starts, 'ends_at' => $ends]);
+                    }
+                }
+
+                return [$coveredIds, $site->id];
+            });
+        }
+        $details = [];
+        $cronCount = $importCron ? count($definitions) : null;
+        $maintenanceCounts = $importMaintenance ? ['one_off' => count($maintenance), 'recurring' => count($recurring)] : null;
+        if ($cronCount !== null) {
+            $details[] = __('import.details.cron', ['cron' => $cronCount]);
+        }
+        if ($maintenanceCounts !== null) {
+            $details[] = __('import.details.maintenance', [...$maintenanceCounts, 'one_off' => $maintenanceCounts['one_off'] - count($coveredIds)]);
+        }
+        if ($coveredIds !== []) {
+            $details[] = __('import.covered', ['count' => count($coveredIds)]);
+        }
+        $cronDisabledWithoutDefinitions = in_array(CheckKey::Cron->value, $setupRequired, true) && $cronState === false;
+        $unavailable = array_values(array_unique($unavailable));
+        $notices = OhDearImportNotices::keys(array_values(array_unique($skipped)), $setupRequired, $cronDisabledWithoutDefinitions, array_values(array_unique($invalidTypes)), $shortCredentials,
+            $sites && ($monitor->domainCheckSettings['not_supported_reason'] ?? null) !== null, $unavailable);
+        $notImported = [];
+        if ($unavailable !== []) {
+            $notImported[] = __('import.unavailable', ['checks' => implode(', ', array_map(fn (string $type): string => $type.' ('.__((string) $this->registry->availability(CheckKey::from($type))->reason).')', $unavailable))]);
+        }
+        if ($setupRequired !== []) {
+            $notImported[] = __('import.setup_required', ['checks' => implode(', ', $setupRequired)]);
+        }
+        if ($cronDisabledWithoutDefinitions) {
+            $notImported[] = __('import.disabled_cron_without_definitions');
+        }
+        if ($skipped !== []) {
+            $notImported[] = __('import.unsupported', ['fields' => implode(', ', array_unique($skipped))]);
+        }
+        if ($invalid !== []) {
+            $notImported[] = __('import.invalid', ['fields' => implode(', ', $invalid)]);
+        }
+        if ($shortCredentials !== []) {
+            $notImported[] = __('import.short_credentials', ['fields' => implode(', ', $shortCredentials)]);
+        }
+        $enabled = array_values(array_unique($attributes['checks']));
+        $configured = [];
+        foreach (array_keys($attributes) as $attribute) {
+            if (str_ends_with($attribute, '_check_settings')) {
+                $configured[] = substr($attribute, 0, -strlen('_check_settings'));
+            }
+        }
+
+        return new ImportPlanRowData((string) $monitor->id, $monitor->url, $monitor->label, $monitor->teamId, array_values(array_filter($monitor->tags, is_string(...))),
+            $invalid !== [] ? ImportOperation::Partial : ($site === null ? ImportOperation::Create : ImportOperation::Update), $enabled, array_values(array_diff($configured, $enabled)),
+            $notices, implode('; ', [...$details, ...$notImported]), $siteId, $siteId === null ? null : Site::query()->with('client')->findOrFail($siteId)->client?->displayName(),
+            $inheritsAlertTiming, $maintenanceCounts, $cronCount === null ? null : ($cronImporter instanceof OhDearDefinitionImporter ? $cronCount : 0));
+    }
+
+    /**
+     * @param  list<array{type: string, enabled: bool, settings?: array<string, mixed>}>  $checks
+     * @return array{array{checks: list<string>, include_check_types_in_report: list<string>, ...<string, mixed>}, list<string>, list<string>, list<string>, list<string>, list<string>, list<string>}
+     */
+    private function siteSettings(#[\SensitiveParameter] Monitor $monitor, array $checks, bool $importCron): array
+    {
         $attributes = ['url' => $monitor->url, 'friendly_name' => $monitor->label, 'group_name' => $monitor->groupName,
             'description' => $monitor->description, 'notes' => $monitor->notes, 'tags' => $monitor->tags,
             'crawler_headers' => $monitor->crawlerHeaders, 'send_report_to_emails' => $monitor->sendReportToEmails, 'checks' => []];
@@ -84,9 +291,10 @@ final readonly class ImportOhDearMonitor
             'domain' => $monitor->domainCheckSettings, 'sitemap' => $monitor->sitemapCheckSettings, 'lighthouse' => $monitor->lighthouseCheckSettings,
             'ports' => $monitor->portsCheckSettings ?? [], 'dns_blocklist' => $monitor->dnsBlocklistCheckSettings ?? [], 'ai' => $monitor->aiCheckSettings ?? [],
         ];
-        /** @var list<array{type: string, enabled: bool, settings?: array<string, mixed>}> $checks */
-        $checks = $monitor->checks;
         foreach ($checks as $check) {
+            if (! $importCron && $check['type'] === CheckKey::Cron->value) {
+                continue;
+            }
             if ($check['type'] === CheckKey::BrokenLinks->value) {
                 // Some crawl settings exist only on the nested check; root settings and site headers are authoritative.
                 $settings['broken_links'] = array_replace(Arr::except($check['settings'] ?? [], ['crawler_headers']), $settings['broken_links']);
@@ -230,154 +438,8 @@ final readonly class ImportOhDearMonitor
                 $skipped[] = 'include_check_types_in_report';
             }
         }
-        $definitions = [];
-        $cronMapping = $this->registry->importMapping(CheckKey::Cron);
-        $cronImporter = $cronMapping?->definitions === null || $this->registry->availability(CheckKey::Cron)->reason !== null ? null : app($cronMapping->definitions);
-        if ($cronImporter instanceof OhDearDefinitionImporter) {
-            /** @var list<CronCheckDefinition> $remoteDefinitions */
-            $remoteDefinitions = $this->decoded(static fn (): array => iterator_to_array($sdk->cronCheckDefinitions($monitor->id), false), 'import.invalid_cron_response');
-            foreach ($remoteDefinitions as $definition) {
-                $definitions[] = $this->cronAttributes($definition);
-            }
-            try {
-                $cronImporter->validate($definitions);
-            } catch (ValidationException $exception) {
-                $invalidTypes[] = CheckKey::Cron->value;
-                foreach (array_keys($exception->errors()) as $field) {
-                    $invalid[] = 'cron_check_settings.'.$field;
-                }
-                $cronImporter = null;
-            }
-            if ($definitions === []) {
-                $cronImporter = null;
-                if (in_array(CheckKey::Cron->value, array_column($checks, 'type'), true)) {
-                    $setupRequired[] = CheckKey::Cron->value;
-                }
-            } elseif ($cronImporter instanceof OhDearDefinitionImporter) {
-                $attributes[CheckKey::Cron->value.'_check_settings'] = [];
-            }
-        }
-        $attributes['checks'] = array_values(array_diff($attributes['checks'], $setupRequired, $invalidTypes));
-        $attributes['include_check_types_in_report'] = array_values(array_diff($attributes['include_check_types_in_report'], $setupRequired, $invalidTypes));
-        // A rejected source check must not overwrite a previously valid local configuration/state.
-        if ($site !== null && $invalidTypes !== []) {
-            foreach ($site->checks as $existing) {
-                if ($existing->enabled && in_array($existing->type->value, $invalidTypes, true)) {
-                    $attributes['checks'][] = $existing->type->value;
-                }
-            }
-        }
-        /** @var list<RemoteMaintenancePeriod> $maintenance */
-        $maintenance = $this->decoded(static function () use ($sdk, $monitor, $timezone): array {
-            $periods = iterator_to_array($sdk->maintenancePeriods($monitor->id), false);
-            foreach ($periods as $period) {
-                CarbonImmutable::parse($period->startsAt, $timezone);
-                CarbonImmutable::parse($period->endsAt, $timezone);
-            }
 
-            return $periods;
-        }, 'import.invalid_maintenance_response');
-        /** @var list<RemoteRecurringPeriod> $recurring */
-        $recurring = $this->recurringMaintenancePeriods($sdk, $monitor->id);
-        foreach ($maintenance as $period) {
-            $this->createMaintenance->validate($period->name, CarbonImmutable::parse($period->startsAt, $timezone), CarbonImmutable::parse($period->endsAt, $timezone));
-        }
-        foreach ($recurring as $period) {
-            $this->recurringAttributes->validate($this->recurringValues($period, $timezone));
-        }
-        $coveredIds = $this->coveredIds($site, $maintenance, $timezone);
-        $siteId = $site?->id;
-        if (! $dryRun) {
-            [$coveredIds, $siteId] = DB::transaction(function () use ($site, $monitor, $attributes, $maintenance, $recurring, $timezone, $cronImporter, $definitions, $clientId): array {
-                $site = $site === null ? ($this->createSite)($clientId ?? Client::query()->where('is_internal', true)->firstOrFail()->id, $attributes) : ($this->updateSite)($site, $attributes);
-                $site->setAttribute('oh_dear_id', $monitor->id);
-                $site->save();
-                if ($cronImporter instanceof OhDearDefinitionImporter) {
-                    $cronCheck = $site->checks()->getQuery()->where('type', CheckKey::Cron)->firstOrFail();
-                    $cronImporter($cronCheck->id, $definitions);
-                }
-                foreach ($recurring as $remote) {
-                    $period = RecurringMaintenancePeriod::query()->where('oh_dear_id', $remote->id)->first();
-                    $values = $this->recurringValues($remote, $timezone);
-                    if ($period !== null && $period->site_id !== $site->id) {
-                        throw new OhDearIdentityConflict('Oh Dear recurring identity belongs to another site.');
-                    }
-                    if ($period === null) {
-                        $period = ($this->createRecurring)($site, $values);
-                    } else {
-                        $candidate = clone $period;
-                        $candidate->fill($values);
-                        if ($candidate->isDirty()) {
-                            $period = ($this->updateRecurring)($period, $values);
-                        }
-                    }
-                    $period->setAttribute('oh_dear_id', $remote->id);
-                    $period->save();
-                }
-                $coveredIds = $this->coveredIds($site, $maintenance, $timezone);
-                foreach ($maintenance as $remote) {
-                    $period = MaintenancePeriod::query()->where('oh_dear_id', $remote->id)->first();
-                    $coverage = OhDearImportCoverage::query()->where('oh_dear_id', $remote->id)->first();
-                    $starts = CarbonImmutable::parse($remote->startsAt, $timezone)->utc();
-                    $ends = CarbonImmutable::parse($remote->endsAt, $timezone)->utc();
-                    if (isset($coveredIds[$remote->id])) {
-                        if ($period !== null && $ends >= CarbonImmutable::now()) {
-                            ($this->deleteMaintenance)($period);
-                        }
-                        OhDearImportCoverage::query()->updateOrCreate(['oh_dear_id' => $remote->id], ['site_id' => $site->id, 'starts_at' => $starts, 'ends_at' => $ends]);
-
-                        continue;
-                    }
-                    $period = $period === null ? ($this->createMaintenance)($site, $remote->name, $starts, $ends) : ($this->updateMaintenance)($period, $remote->name, $starts, $ends);
-                    $period->setAttribute('oh_dear_id', $remote->id);
-                    $period->save();
-                    if ($coverage !== null) {
-                        $coverage->update(['starts_at' => $starts, 'ends_at' => $ends]);
-                    }
-                }
-
-                return [$coveredIds, $site->id];
-            });
-        }
-        $details = [__('import.children', ['cron' => count($definitions), 'maintenance' => count($maintenance) - count($coveredIds), 'recurring' => count($recurring)])];
-        if ($coveredIds !== []) {
-            $details[] = __('import.covered', ['count' => count($coveredIds)]);
-        }
-        $cronDisabledWithoutDefinitions = in_array(CheckKey::Cron->value, $setupRequired, true) && (array_column($checks, 'enabled', 'type')[CheckKey::Cron->value] ?? null) === false;
-        $unavailable = array_values(array_unique($unavailable));
-        $notices = OhDearImportNotices::keys(array_values(array_unique($skipped)), $setupRequired, $cronDisabledWithoutDefinitions, array_values(array_unique($invalidTypes)), $shortCredentials,
-            ($monitor->domainCheckSettings['not_supported_reason'] ?? null) !== null, $unavailable);
-        $notImported = [];
-        if ($unavailable !== []) {
-            $notImported[] = __('import.unavailable', ['checks' => implode(', ', array_map(fn (string $type): string => $type.' ('.__((string) $this->registry->availability(CheckKey::from($type))->reason).')', $unavailable))]);
-        }
-        if ($setupRequired !== []) {
-            $notImported[] = __('import.setup_required', ['checks' => implode(', ', $setupRequired)]);
-        }
-        if ($cronDisabledWithoutDefinitions) {
-            $notImported[] = __('import.disabled_cron_without_definitions');
-        }
-        if ($skipped !== []) {
-            $notImported[] = __('import.unsupported', ['fields' => implode(', ', array_unique($skipped))]);
-        }
-        if ($invalid !== []) {
-            $notImported[] = __('import.invalid', ['fields' => implode(', ', $invalid)]);
-        }
-        if ($shortCredentials !== []) {
-            $notImported[] = __('import.short_credentials', ['fields' => implode(', ', $shortCredentials)]);
-        }
-        $enabled = array_values(array_unique($attributes['checks']));
-        $configured = [];
-        foreach (array_keys($attributes) as $attribute) {
-            if (str_ends_with($attribute, '_check_settings')) {
-                $configured[] = substr($attribute, 0, -strlen('_check_settings'));
-            }
-        }
-
-        return new ImportPlanRowData((string) $monitor->id, $monitor->url, $monitor->label, $monitor->teamId, array_values(array_filter($monitor->tags, is_string(...))),
-            $invalid !== [] ? ImportOperation::Partial : ($site === null ? ImportOperation::Create : ImportOperation::Update), $enabled, array_values(array_diff($configured, $enabled)),
-            $notices, implode('; ', [...$details, ...$notImported]), $siteId, $siteId === null ? null : Site::query()->with('client')->findOrFail($siteId)->client?->displayName(),
-            isset($attributes['uptime_check_settings']) ? ($attributes['uptime_check_settings']['failed_notification_threshold'] ?? null) === null : null);
+        return [$attributes, $skipped, $setupRequired, $shortCredentials, $invalid, $invalidTypes, $unavailable];
     }
 
     private function skipped(Monitor $monitor, string $code, string $reason): ImportPlanRowData

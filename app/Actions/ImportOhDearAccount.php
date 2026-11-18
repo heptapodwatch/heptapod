@@ -11,6 +11,7 @@ use Heptapod\Contracts\OhDear\OhDearIdentityConflict;
 use Heptapod\Data\Import\ImportPlanData;
 use Heptapod\Data\Import\ImportPlanRowData;
 use Heptapod\Enums\ImportOperation;
+use Heptapod\Enums\ImportSection;
 use Heptapod\Exceptions\CheckConfigurationValidationException;
 use Heptapod\Exceptions\InvalidOhDearResponse;
 use Heptapod\Exceptions\UndeclaredImportNotice;
@@ -49,11 +50,12 @@ final readonly class ImportOhDearAccount
     public function __construct(private ImportOhDearMonitor $import, private InstanceSettings $instance, private OhDearClientFactory $clients, private CheckRegistry $registry) {}
 
     /**
-     * @param  array<int, int|null>|null  $approved  UI imports: the only source monitors to import, each with its approved client for a
-     *                                               new site (null for a site that existed at plan time). Null (CLI): every monitor, new sites in Internal.
+     * @param  list<ImportSection>  $sections
+     * @param  array<int, array{clientId: int|null, siteId: int|null}>|null  $approved  UI imports: the planned monitors and targets.
+     *                                                                                  Null (CLI): every monitor, new sites in Internal.
      * @param  (\Closure(ImportPlanRowData): void)|null  $progress  Called after every monitor.
      */
-    public function __invoke(#[\SensitiveParameter] string $token, bool $dryRun, ?array $approved = null, ?\Closure $progress = null): ImportPlanData
+    public function __invoke(#[\SensitiveParameter] string $token, bool $dryRun, array $sections, ?array $approved = null, ?\Closure $progress = null): ImportPlanData
     {
         $sdk = $this->clients->make($token, $dryRun);
         $teams = [];
@@ -77,7 +79,7 @@ final readonly class ImportOhDearAccount
                     if ($approved !== null && ! array_key_exists($monitor->id, $approved)) {
                         $rows[] = $this->notImported($monitor, 'plan:missing', 'Not in the plan; show the plan again to import it.');
                     } else {
-                        $rows[] = ($this->import)($sdk, $monitor, $timezone, $dryRun, $approved[$monitor->id] ?? null, $approved !== null);
+                        $rows[] = ($this->import)($sdk, $monitor, $timezone, $dryRun, $sections, $approved[$monitor->id] ?? null);
                     }
                 } catch (ValidationException $exception) {
                     $rows[] = $this->failed($monitor, $this->validationDetails($exception), $exception);
@@ -95,11 +97,11 @@ final readonly class ImportOhDearAccount
             // The SDK exception contains the upstream response; never print it or the token.
             $remoteError = $this->failureDetails($exception);
         }
-        if (! $dryRun) {
+        if (! $dryRun && in_array(ImportSection::Sites, $sections, true)) {
             DB::statement('ANALYZE sites, taggables, tags, client_user');
         }
 
-        return new ImportPlanData($dryRun, $teams, $rows, $remoteError);
+        return new ImportPlanData($dryRun, $sections, $teams, $rows, $remoteError);
     }
 
     private function notImported(Monitor $monitor, string $code, string $reason): ImportPlanRowData

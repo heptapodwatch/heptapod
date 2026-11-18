@@ -62,7 +62,7 @@ foreach ($real['data'] as $monitor) {
     }
 }
 
-$codes = ['site:exists', 'plan:missing', 'plan:changed', 'monitor:unsupported', 'report', 'domain:unsupported', 'cron:disabled_without_definitions', 'setting:broken_links.whitelisted_urls'];
+$codes = ['site:unmatched', 'site:exists', 'plan:missing', 'plan:changed', 'monitor:unsupported', 'report', 'domain:unsupported', 'cron:disabled_without_definitions', 'setting:broken_links.whitelisted_urls'];
 $registry = app(CheckRegistry::class);
 foreach (array_unique([...$schemas['CheckType']['enum'], ...array_keys($fields)]) as $type) {
     // Addons are optional per install, so every source check type needs an "unavailable" label.
