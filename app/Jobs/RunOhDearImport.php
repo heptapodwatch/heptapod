@@ -53,7 +53,8 @@ final class RunOhDearImport implements ShouldQueue
         LiveSignal::forImport();
         // Setup, client creation and the import share one boundary: a local fault keeps the sites already written and
         // the token, so "Run again" can continue once it is fixed.
-        ImportOhDearAccount::stopOnLocalFault(fn () => $this->import($run, $import, $createClient), fn () => $this->finish($run, ImportRunStatus::Failed, 'local_error'));
+        // The fault may be the rejected save of this model's results: reload it so the terminal state does not retry that payload.
+        ImportOhDearAccount::stopOnLocalFault(fn () => $this->import($run, $import, $createClient), fn () => $this->finish($run->refresh(), ImportRunStatus::Failed, 'local_error'));
     }
 
     private function import(ImportRun $run, ImportOhDearAccount $import, CreateClient $createClient): void

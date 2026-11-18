@@ -765,9 +765,9 @@ test('never shows or logs a source-supplied validation path', function (string $
     expect(Site::query()->count())->toBe(0);
 })->with(['credential key' => 'Authorization: Bearer fixture-leaked-key', 'numeric credential key' => '987654321987']);
 
-test('treats undecodable maintenance and cron pages as a bad Oh Dear answer for that site', function (string $endpoint, string $reason): void {
+test('treats undecodable maintenance and cron pages as a bad Oh Dear answer for that site', function (string $endpoint, mixed $item, string $reason): void {
     $account = realOhDearAccount();
-    $account['responses']["/api/monitors/501/{$endpoint}"]['data'] = [1];
+    $account['responses']["/api/monitors/501/{$endpoint}"]['data'] = [$item];
     app(OhDearAccountTransport::class)->fake($account);
 
     expect(Artisan::call('heptapod:import-ohdear', ['--token' => 'fake-real-account-token']))->toBe(1);
@@ -775,7 +775,9 @@ test('treats undecodable maintenance and cron pages as a bad Oh Dear answer for 
     expect(Artisan::output())->toContain('InvalidOhDearResponse', $reason);
     expect(Site::query()->where('oh_dear_id', 501)->count())->toBe(0)
         ->and(Site::query()->whereIn('oh_dear_id', [502, 503, 504, 505])->count())->toBe(4);
-})->with(['maintenance' => ['maintenance-periods', 'Oh Dear sent maintenance periods that cannot be read.'], 'cron' => ['cron-checks', 'Oh Dear sent cron task definitions that cannot be read.']]);
+})->with(['maintenance' => ['maintenance-periods', 1, 'Oh Dear sent maintenance periods that cannot be read.'],
+    'maintenance date' => ['maintenance-periods', ['id' => 901, 'monitor_id' => 501, 'name' => 'Window', 'starts_at' => 'not-a-date', 'ends_at' => '2026-10-06 10:00'], 'Oh Dear sent maintenance periods that cannot be read.'],
+    'cron' => ['cron-checks', 1, 'Oh Dear sent cron task definitions that cannot be read.']]);
 
 test('a local fault stops a Settings run, keeps the sites already imported and can run again', function (): void {
     $logged = [];
@@ -819,9 +821,30 @@ test('the CLI plans and imports every site without a check this instance cannot 
 
 test('a local fault while planning returns a generic error without the exception message', function (): void {
     app(OhDearAccountTransport::class)->fake(realOhDearAccount(), endpointFailures: ['/api/monitors/501/recurring-maintenance-periods' => new TypeError('fixture-remote-secret')]);
+    $logged = [];
+    Log::listen(static function (MessageLogged $entry) use (&$logged): void {
+        $logged[] = [$entry->message, $entry->context];
+    });
 
     $response = $this->actingAs(User::factory()->owner()->create())->postJson('/settings/import/ohdear/plan', ['ohdear_token' => 'fake-real-account-token'])
         ->assertServerError()->assertExactJson(['message' => __('import.plan_local_error')]);
 
     expect($response->getContent())->not->toContain('fixture-remote-secret')->and(ImportRun::query()->count())->toBe(0);
+    expect(json_encode($logged, JSON_THROW_ON_ERROR))->toContain('Oh Dear import stopped by a local error', 'TypeError')->not->toContain('fixture-remote-secret');
+});
+
+test('a result the database rejects ends the Settings run as a local error without saving it again', function (): void {
+    $account = realOhDearAccount();
+    // A monitor added after the plan is reported as skipped, and saving that result fails (in production: PostgreSQL rejecting a
+    // NUL byte in the label; the test transaction would abort on a real rejection, so the save fails through a model hook).
+    $added = $account;
+    $added['monitors'][] = [...$account['monitors'][4], 'id' => 506, 'label' => 'fixture-marker', 'url' => 'https://site-6.example/'];
+    ImportRun::saving(static function (ImportRun $run): void {
+        throw_if(str_contains(json_encode($run->results, JSON_THROW_ON_ERROR), 'fixture-marker'), new RuntimeException('rejected result'));
+    });
+
+    ['run' => $run] = importOhDearThroughSettings($account, static fn () => app(OhDearAccountTransport::class)->fake($added));
+
+    expect($run['status'])->toBe('failed')->and($run['error'])->toBe('local_error')
+        ->and(Site::query()->count())->toBe(5);
 });

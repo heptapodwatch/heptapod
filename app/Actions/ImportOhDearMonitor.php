@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Actions;
 
 use Carbon\CarbonImmutable;
+use Carbon\Exceptions\InvalidFormatException;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\OhDear\OhDearIdentityConflict;
@@ -267,7 +268,15 @@ final readonly class ImportOhDearMonitor
             }
         }
         /** @var list<RemoteMaintenancePeriod> $maintenance */
-        $maintenance = $this->decoded(static fn (): array => iterator_to_array($sdk->maintenancePeriods($monitor->id), false), 'import.invalid_maintenance_response');
+        $maintenance = $this->decoded(static function () use ($sdk, $monitor, $timezone): array {
+            $periods = iterator_to_array($sdk->maintenancePeriods($monitor->id), false);
+            foreach ($periods as $period) {
+                CarbonImmutable::parse($period->startsAt, $timezone);
+                CarbonImmutable::parse($period->endsAt, $timezone);
+            }
+
+            return $periods;
+        }, 'import.invalid_maintenance_response');
         /** @var list<RemoteRecurringPeriod> $recurring */
         $recurring = $this->recurringMaintenancePeriods($sdk, $monitor->id);
         foreach ($maintenance as $period) {
@@ -421,6 +430,9 @@ final readonly class ImportOhDearMonitor
             if (! str_contains(str_replace('\\', '/', $exception->getFile()), '/ohdear-php-sdk/src/Dto/')) {
                 throw $exception;
             }
+            throw new InvalidOhDearResponse($causeKey, $exception->getCode(), $exception);
+        } catch (InvalidFormatException $exception) {
+            // A read parses only source dates, so an unparsable one is a bad Oh Dear answer.
             throw new InvalidOhDearResponse($causeKey, $exception->getCode(), $exception);
         }
     }
