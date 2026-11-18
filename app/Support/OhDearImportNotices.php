@@ -14,6 +14,7 @@ use Heptapod\Exceptions\UndeclaredImportNotice;
 final class OhDearImportNotices
 {
     public const array Keys = [
+        'site:unmatched' => 'import.notice.site_unmatched',
         'site:exists' => 'import.notice.site_exists',
         'plan:missing' => 'import.notice.plan_missing',
         'plan:changed' => 'import.notice.plan_changed',

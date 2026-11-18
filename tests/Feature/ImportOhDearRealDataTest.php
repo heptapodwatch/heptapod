@@ -14,9 +14,11 @@ use Heptapod\Contracts\Http\FetchResult;
 use Heptapod\Contracts\Http\OutboundHttp;
 use Heptapod\Contracts\OhDearImportMapping;
 use Heptapod\Enums\ImportRunStatus;
+use Heptapod\Enums\ImportSection;
 use Heptapod\Exceptions\UndeclaredImportNotice;
 use Heptapod\Jobs\RunOhDearImport;
 use Heptapod\Models\ImportRun;
+use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\RecurringMaintenancePeriod;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
@@ -115,7 +117,7 @@ test('imports all five real-shaped monitors without rejecting default nulls', fu
     expect($matches)->toHaveCount(5);
     $monitors = collect(realOhDearAccount()['monitors'])->keyBy('id');
     foreach ([501 => 'cron', 502 => 'application_health, cron', 503 => 'cron', 504 => 'cron', 505 => 'application_health, cron'] as $id => $setupRequired) {
-        $details = 'Cron definitions: 0; maintenance periods: 0; recurring periods: 0'
+        $details = 'Cron definitions: 0; Maintenance periods: 0; recurring periods: 0'
             .'; Not imported: setup required: '.$setupRequired
             .'; Cron is disabled in Oh Dear and has no task definitions; not imported (setup required).'
             .'; Not yet supported, skipped: '.expectedRealOhDearSkipped($monitors[$id]);
@@ -632,7 +634,7 @@ test('reports undeclared source settings with a generic notice and completes imp
     Exceptions::fake();
     app(OhDearAccountTransport::class)->fake($account);
 
-    $plan = app(ImportOhDearAccount::class)('fake-real-account-token', false);
+    $plan = app(ImportOhDearAccount::class)('fake-real-account-token', false, ImportSection::cases());
 
     expect($plan->failed())->toBeFalse()
         ->and($plan->rows[0]->notices)->toContain('import.notice.other')
@@ -667,27 +669,31 @@ test('imports blank uptime alert timing as inherited timing', function (string $
  * @param  array<string, mixed>  $account
  * @param  (Closure(): void)|null  $beforeRun  Changes the instance between plan and run.
  * @param  array<string, Throwable>  $runFailures  Transport failures during the run only.
- * @return array{plan: list<array<string, mixed>>, run: array<string, mixed>, results: list<array<string, mixed>>}
+ * @param  list<string>|null  $sections  Null exercises the default selection.
+ * @param  array<string, int>  $statuses  Failed requests in both plan and run.
+ * @return array{sections: list<string>, plan: list<array<string, mixed>>, run: array<string, mixed>, results: list<array<string, mixed>>}
  */
-function importOhDearThroughSettings(array $account, ?Closure $beforeRun = null, array $runFailures = []): array
+function importOhDearThroughSettings(array $account, ?Closure $beforeRun = null, array $runFailures = [], ?array $sections = null, array $statuses = []): array
 {
     $owner = User::factory()->owner()->create();
-    app(OhDearAccountTransport::class)->fake($account);
-    $plan = test()->actingAs($owner)->postJson('/settings/import/ohdear/plan', ['ohdear_token' => 'fake-real-account-token'])->assertOk();
+    app(OhDearAccountTransport::class)->fake($account, endpointStatuses: $statuses);
+    $plan = test()->actingAs($owner)->postJson('/settings/import/ohdear/plan', ['ohdear_token' => 'fake-real-account-token', ...($sections === null ? [] : ['sections' => $sections])])->assertOk();
     Queue::fake([RunOhDearImport::class]);
-    test()->postJson('/settings/import/ohdear/runs/'.$plan->json('plan_id').'/start', ['expected' => count($plan->json('rows')), 'groups' => ['team:42' => ['new_client' => 'Imported']], 'overrides' => []])->assertCreated();
-    app(OhDearAccountTransport::class)->fake($account, endpointFailures: $runFailures);
+    test()->postJson('/settings/import/ohdear/runs/'.$plan->json('plan_id').'/start', ['expected' => count($plan->json('rows')), 'groups' => ['team:42' => ['new_client' => 'Imported']], 'overrides' => [], 'sections' => ['sites', 'maintenance', 'cron']])->assertCreated();
+    app(OhDearAccountTransport::class)->fake($account, endpointStatuses: $statuses, endpointFailures: $runFailures);
     $beforeRun?->__invoke();
     app()->call([new RunOhDearImport($plan->json('plan_id')), 'handle']);
     $run = test()->withoutVite()->get('/settings/import/ohdear/runs/'.$plan->json('plan_id'))->assertOk()->inertiaProps('importRun');
 
-    return ['plan' => $plan->json('rows'), 'run' => $run, 'results' => $run['rows']];
+    return ['sections' => $plan->json('sections'), 'plan' => $plan->json('rows'), 'run' => $run, 'results' => $run['rows']];
 }
 
 test('plans and imports every site without a check this instance cannot run, with the same notice', function (): void {
     config(['heptapod.browser.enabled' => false]);
 
-    ['plan' => $plan, 'run' => $run, 'results' => $results] = importOhDearThroughSettings(realOhDearAccount());
+    ['sections' => $sections, 'plan' => $plan, 'run' => $run, 'results' => $results] = importOhDearThroughSettings(realOhDearAccount());
+
+    expect($sections)->toBe(['sites', 'maintenance', 'cron'])->and($run['sections'])->toBe($sections);
 
     expect($run['status'])->toBe('completed');
 
@@ -848,3 +854,98 @@ test('a result the database rejects ends the Settings run as a local error witho
     expect($run['status'])->toBe('failed')->and($run['error'])->toBe('local_error')
         ->and(Site::query()->count())->toBe(5);
 });
+
+test('maintenance-only plans and runs update matching windows without changing or recreating sites', function (): void {
+    $account = realOhDearAccount();
+    $account['responses']['/api/monitors/501/maintenance-periods']['data'] = [
+        ['id' => 701, 'monitor_id' => 501, 'name' => 'Release', 'starts_at' => '2030-01-10 12:00:00', 'ends_at' => '2030-01-10 13:00:00'],
+    ];
+    importOhDearThroughSettings($account);
+    $site = Site::query()->where('oh_dear_id', 501)->sole();
+    $site->update(['friendly_name' => 'Locally named']);
+    $site->checks()->where('type', CheckKey::Uptime)->update(['enabled' => false]);
+    Site::query()->where('oh_dear_id', 502)->sole()->delete();
+    $window = MaintenancePeriod::query()->where('oh_dear_id', 701)->sole();
+    $account['responses']['/api/monitors/501/maintenance-periods']['data'][0]['name'] = 'Release from Oh Dear';
+    $account['monitors'][0]['label'] = 'Name from Oh Dear';
+    $failures = ['/api/monitors/501/cron-checks' => 500, '/api/monitors/502/maintenance-periods' => 500];
+
+    for ($attempt = 0; $attempt < 2; $attempt++) {
+        ['sections' => $sections, 'plan' => $plan, 'run' => $run, 'results' => $rows] = importOhDearThroughSettings($account, sections: ['maintenance'], statuses: $failures);
+        expect($sections)->toBe(['maintenance'])->and($run['sections'])->toBe($sections)
+            ->and($run['status'])->toBe('completed')->and($run['cron'])->toBe([]);
+        expect($plan[0])->toMatchArray(['operation' => 'update', 'maintenance' => ['one_off' => 1, 'recurring' => 0], 'checks' => [], 'disabled_checks' => [], 'cron_definitions' => null]);
+        expect(Arr::except($rows[0], ['attempt']))->toEqual(Arr::except($plan[0], ['details']));
+        expect($rows[1])->toMatchArray(['operation' => 'skipped', 'notices' => ['import.notice.site_unmatched']]);
+        expect($site->refresh()->friendly_name)->toBe('Locally named')
+            ->and($site->checks()->where('type', CheckKey::Uptime)->sole()->enabled)->toBeFalse()
+            ->and(Site::query()->where('oh_dear_id', 502)->exists())->toBeFalse();
+        expect(MaintenancePeriod::query()->where('oh_dear_id', 701)->sole()->id)->toBe($window->id)
+            ->and($window->refresh()->name)->toBe('Release from Oh Dear');
+    }
+});
+
+test('a child-only run does not write to a replacement site that was not in its plan', function (): void {
+    $account = realOhDearAccount();
+    $account['monitors'] = [$account['monitors'][0]];
+    $account['responses']['/api/monitors/501/maintenance-periods']['data'] = [
+        ['id' => 701, 'monitor_id' => 501, 'name' => 'Release', 'starts_at' => '2030-01-10 12:00:00', 'ends_at' => '2030-01-10 13:00:00'],
+    ];
+    $site = Site::factory()->create(['oh_dear_id' => 501]);
+    ['plan' => $plan, 'results' => $rows] = importOhDearThroughSettings($account, beforeRun: static function () use ($site): void {
+        $site->delete();
+        Site::factory()->create(['oh_dear_id' => 501]);
+    }, sections: ['maintenance']);
+
+    expect($plan[0]['site_id'])->toBe($site->id)
+        ->and($rows[0])->toMatchArray(['operation' => 'skipped', 'notices' => ['import.notice.plan_changed']])
+        ->and(MaintenancePeriod::query()->where('oh_dear_id', 701)->exists())->toBeFalse();
+});
+
+test('CLI section selection keeps site and cron changes independent', function (): void {
+    $account = realOhDearAccount();
+    $account['monitors'] = [$account['monitors'][0]];
+    $spec = json_decode(file_get_contents(base_path('tests/Fixtures/OhDear/import-account.json')), true, flags: JSON_THROW_ON_ERROR);
+    $account['responses']['/api/monitors/501/cron-checks']['data'] = [$spec['cron'][0]];
+    $token = ['--token' => 'fake-real-account-token'];
+    $noMaintenance = ['/api/monitors/501/maintenance-periods' => 500, '/api/monitors/501/recurring-maintenance-periods' => 500];
+    $noChildren = [...$noMaintenance, '/api/monitors/501/cron-checks' => 500];
+    app(OhDearAccountTransport::class)->fake($account, endpointStatuses: $noChildren);
+    $exit = Artisan::call('heptapod:import-ohdear', [...$token, '--only' => 'sites']);
+    $output = Artisan::output();
+    expect($exit)->toBe(0, $output);
+    expect($output)->toContain('Sections: Sites and checks')->not->toContain('Cron definitions:')->not->toContain('Maintenance periods:');
+    $site = Site::query()->where('oh_dear_id', 501)->sole();
+    expect($site->checks()->where('type', CheckKey::Cron)->exists())->toBeFalse();
+
+    app(OhDearAccountTransport::class)->fake($account, endpointStatuses: $noMaintenance);
+    $exit = Artisan::call('heptapod:import-ohdear', [...$token, '--only' => 'cron', '--dry-run' => true]);
+    $output = Artisan::output();
+    expect($exit)->toBe(0, $output);
+    expect($output)->toContain('Sections: Cron checks', 'Cron definitions: 1')->not->toContain('Maintenance periods:');
+    expect(DB::table('cron_checks')->count())->toBe(0);
+    $site->update(['friendly_name' => 'Local title']);
+    expect(Artisan::call('heptapod:import-ohdear', [...$token, '--only' => 'cron']))->toBe(0, Artisan::output());
+    $cron = $site->checks()->where('type', CheckKey::Cron)->sole();
+    expect($cron->enabled)->toBeFalse();
+    $task = DB::table('cron_checks')->where('check_id', $cron->id)->sole();
+    $cron->update(['enabled' => true]);
+    expect(Artisan::call('heptapod:import-ohdear', [...$token, '--only' => 'cron']))->toBe(0, Artisan::output());
+    expect($site->refresh()->friendly_name)->toBe('Local title')
+        ->and($cron->refresh()->enabled)->toBeTrue()
+        ->and(DB::table('cron_checks')->where('check_id', $cron->id)->sole()->id)->toBe($task->id);
+
+    app(OhDearAccountTransport::class)->fake($account, endpointStatuses: $noChildren);
+    expect(Artisan::call('heptapod:import-ohdear', [...$token, '--only' => 'sites']))->toBe(0, Artisan::output());
+    expect($site->refresh()->friendly_name)->toBe('site-1.example')
+        ->and($cron->refresh()->enabled)->toBeTrue();
+});
+
+test('plan and CLI reject unknown and empty section choices instead of importing everything', function (array $sections, ?string $only): void {
+    $owner = User::factory()->owner()->create();
+    app(OhDearAccountTransport::class)->fake(realOhDearAccount());
+    $this->actingAs($owner)->postJson('/settings/import/ohdear/plan', ['ohdear_token' => 'fake-real-account-token', 'sections' => $sections])->assertUnprocessable();
+    expect(Artisan::call('heptapod:import-ohdear', ['--token' => 'fake-real-account-token', '--only' => $only]))->toBe(1)
+        ->and(Artisan::output())->toContain('Use --only with a comma-separated list of sections')
+        ->and(Site::query()->count())->toBe(0);
+})->with(['unknown' => [['nothing'], 'nothing'], 'empty' => [[], ''], 'bare option' => [[], null]]);

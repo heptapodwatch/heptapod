@@ -12,6 +12,7 @@ use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\ImportOhDearPageData;
 use Heptapod\Data\Ui\ImportOhDearRunPageData;
 use Heptapod\Enums\ImportRunStatus;
+use Heptapod\Enums\ImportSection;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\Check;
 use Heptapod\Models\Client;
@@ -33,6 +34,7 @@ final class ImportOhDearController extends Controller
         return Inertia::render('settings/import-ohdear', new ImportOhDearPageData(
             clients: array_values($clients->get()->map(static fn (Client $client): ClientData => ClientData::fromClient($client))->all()),
             timezones: \DateTimeZone::listIdentifiers(),
+            sections: ImportSection::cases(),
         ));
     }
 
@@ -51,9 +53,10 @@ final class ImportOhDearController extends Controller
             }
         }
         $rows = [...$rows, ...array_values($results)];
+        $sections = array_values($importRun->sections->all());
         $siteIds = array_values(array_filter(array_column($rows, 'site_id'), is_int(...)));
         $cron = [];
-        if (in_array($importRun->status, [ImportRunStatus::Completed, ImportRunStatus::Incomplete], true) && $siteIds !== []) {
+        if (in_array(ImportSection::Cron, $sections, true) && in_array($importRun->status, [ImportRunStatus::Completed, ImportRunStatus::Incomplete], true) && $siteIds !== []) {
             $query = Check::query()->with('site');
             $query->getQuery()->whereIn('site_id', $siteIds)->where('type', CheckKey::Cron->value)->orderBy('site_id');
             $checks = $query->get();
@@ -86,7 +89,7 @@ final class ImportOhDearController extends Controller
                 'failed_earlier' => count(array_filter($rows, static fn (array $row): bool => ($row['operation'] ?? null) === 'failed' && ($row['attempt'] ?? null) !== $attempt)),
                 'started_at' => $importRun->started_at?->toIso8601String(), 'finished_at' => $importRun->finished_at?->toIso8601String(),
                 'can_retry' => in_array($importRun->status, [ImportRunStatus::Incomplete, ImportRunStatus::Failed], true) && $importRun->user_id === $user->id,
-                'cron' => $cron,
+                'sections' => $sections, 'cron' => $cron,
             ],
         ));
     }

@@ -6,10 +6,13 @@ namespace Heptapod\Models;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Enums\ImportRunStatus;
+use Heptapod\Enums\ImportSection;
 use Illuminate\Database\Eloquent\Attributes\DateFormat;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
+use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
 /**
  * One import from an external account, from the plan to the last attempt. Holds no secret: the source token
@@ -21,6 +24,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property ImportRunStatus $status
  * @property int $expected
  * @property int $attempts
+ * @property Collection<int, ImportSection> $sections
  * @property list<array{id: int, name: string}> $teams
  * @property list<array<string, mixed>> $plan Sanitized plan rows (no details text).
  * @property array<string, array{client_id: int|null, new_client: string|null}>|null $assignments Resolved target per new site, keyed by source id.
@@ -40,7 +44,7 @@ final class ImportRun extends Model
 
     protected function casts(): array
     {
-        return ['status' => ImportRunStatus::class, 'expected' => 'integer', 'attempts' => 'integer', 'teams' => 'array', 'plan' => 'array', 'assignments' => 'array',
+        return ['status' => ImportRunStatus::class, 'expected' => 'integer', 'attempts' => 'integer', 'sections' => AsEnumCollection::of(ImportSection::class), 'teams' => 'array', 'plan' => 'array', 'assignments' => 'array',
             'results' => 'array', 'created_client_ids' => 'array', 'started_at' => 'immutable_datetime', 'finished_at' => 'immutable_datetime',
             'created_at' => 'immutable_datetime', 'updated_at' => 'immutable_datetime'];
     }

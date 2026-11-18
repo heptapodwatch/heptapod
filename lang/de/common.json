@@ -412,7 +412,6 @@
     "import.token_required": "--token mit einem schreibgeschützten Oh Dear-Token angeben.",
     "import.skipped": "Übersprungen",
     "import.unsupported": "Noch nicht unterstützt, übersprungen: :fields",
-    "import.children": "Cron-Definitionen: :cron; Wartungszeiträume: :maintenance; wiederkehrende Zeiträume: :recurring",
     "import.create": "Erstellen",
     "import.update": "Aktualisieren",
     "import.failed": "Fehlgeschlagen",

@@ -412,7 +412,6 @@
     "import.token_required": "Provide --token with an Oh Dear read-only token.",
     "import.skipped": "Skipped",
     "import.unsupported": "Not yet supported, skipped: :fields",
-    "import.children": "Cron definitions: :cron; maintenance periods: :maintenance; recurring periods: :recurring",
     "import.create": "Create",
     "import.update": "Update",
     "import.failed": "Failed",

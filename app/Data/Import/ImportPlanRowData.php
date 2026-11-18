@@ -18,6 +18,7 @@ final class ImportPlanRowData extends Data
      * @param  list<string>  $disabled_checks  Check keys imported with their settings but turned off, as at the source.
      * @param  list<string>  $notices  Lang keys (Support\OhDearImportNotices) for every skipped check, setting or monitor.
      * @param  string  $details  Plain-text CLI summary; the web UI shows it only as the reason of a failed import row.
+     * @param  array{one_off: int, recurring: int}|null  $maintenance  Null when not planned.
      * @param  int|null  $site_id  Local site: the existing one on a plan, the created or updated one after an import.
      */
     public function __construct(
@@ -34,6 +35,8 @@ final class ImportPlanRowData extends Data
         public readonly ?int $site_id = null,
         public readonly ?string $client_name = null,
         public readonly ?bool $inherits_alert_timing = null,
+        public readonly ?array $maintenance = null,
+        public readonly ?int $cron_definitions = null,
     ) {}
 
     public function failed(): bool

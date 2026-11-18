@@ -44,10 +44,18 @@ const row = (sourceId: string, tags: string[]) => ({
     site_id: null,
     client_name: null,
     inherits_alert_timing: null,
+    maintenance: null,
+    cron_definitions: null,
 });
+const sections: Heptapod.Enums.ImportSection[] = [
+    'sites',
+    'maintenance',
+    'cron',
+];
 const plan = {
     plan_id: '0b5f2a8e-7c1d-4e6f-9a3b-2d4c6e8f0a1b',
     dry_run: true,
+    sections,
     teams: [{ id: 1, name: 'Agency' }],
     rows: [row('shop', ['retail']), row('blog', [])],
     remote_error: null,
@@ -91,6 +99,7 @@ it('creates a client from a group picker, selects it there, offers it in every p
         <ImportOhDear
             clients={[internal, ...clients]}
             timezones={['UTC', 'Europe/Berlin']}
+            sections={sections}
         />,
     );
     fireEvent.change(screen.getByLabelText('Oh Dear API token'), {
@@ -144,6 +153,7 @@ const showPlan = async () => {
         <ImportOhDear
             clients={[internal, ...clients]}
             timezones={['UTC', 'Europe/Berlin']}
+            sections={sections}
         />,
     );
     fireEvent.change(screen.getByLabelText('Oh Dear API token'), {

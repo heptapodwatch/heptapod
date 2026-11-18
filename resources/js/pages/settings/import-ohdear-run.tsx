@@ -37,6 +37,7 @@ type ImportRun = {
     started_at: string;
     finished_at: string | null;
     can_retry: boolean;
+    sections: Heptapod.Enums.ImportSection[];
     cron: {
         site: string;
         site_id: number;
@@ -97,6 +98,7 @@ export default function ImportOhDearRun({
 }) {
     const { t } = useTranslation();
     const format = useFormat();
+    const includesSites = importRun.sections.includes('sites');
     const active = ['queued', 'running'].includes(importRun.status);
     useLiveReload(['import.progress'], ['importRun'], undefined, active);
     const retry = useHttpRequest<Record<string, never>, { url: string }>();
@@ -258,6 +260,13 @@ export default function ImportOhDearRun({
             />
             <section className="space-y-3 py-6" aria-live="polite">
                 <p className="text-sm text-muted-foreground">
+                    {t('import.sections')}
+                    {': '}
+                    {importRun.sections
+                        .map((section) => t(`import.section.${section}`))
+                        .join(', ')}
+                </p>
+                <p className="text-sm text-muted-foreground">
                     {[
                         t(':done of :total sites processed', {
                             done,
@@ -335,7 +344,7 @@ export default function ImportOhDearRun({
                                             {row.url}
                                         </p>
                                     </TruncatedText>
-                                    {row.client_name && (
+                                    {includesSites && row.client_name && (
                                         <p className="text-xs text-muted-foreground">
                                             {row.operation === 'update'
                                                 ? t(
@@ -356,7 +365,13 @@ export default function ImportOhDearRun({
                                                       row.notices[0] ??
                                                           'import.notice.other',
                                                   )
-                                                : t(`import.${row.operation}`)
+                                                : t(
+                                                      row.operation ===
+                                                          'update' &&
+                                                          !includesSites
+                                                          ? 'import.update_sections'
+                                                          : `import.${row.operation}`,
+                                                  )
                                         }
                                     />
                                 </div>
@@ -403,43 +418,47 @@ export default function ImportOhDearRun({
                                 {t('Notifications')}
                             </TextLink>
                         </li>
-                        <li className="space-y-2">
-                            <p>
-                                {t(
-                                    'Cron tasks: update each task to ping its new Heptapod URL.',
-                                )}
-                            </p>
-                            {importRun.cron.length === 0 ? (
-                                <p className="text-muted-foreground">
-                                    {t('No cron tasks were imported.')}
+                        {importRun.sections.includes('cron') && (
+                            <li className="space-y-2">
+                                <p>
+                                    {t(
+                                        'Cron tasks: update each task to ping its new Heptapod URL.',
+                                    )}
                                 </p>
-                            ) : (
-                                importRun.cron.map((site) => (
-                                    <div
-                                        key={site.site_id}
-                                        className={cn(
-                                            'space-y-2 rounded-[10px] border',
-                                            listCardPadding,
-                                        )}
-                                    >
-                                        <p className="font-medium">
-                                            {site.site}
-                                        </p>
-                                        {site.tasks.map((task) => (
-                                            <div
-                                                key={task.ping_url}
-                                                className="grid gap-1 @md:grid-cols-[10rem_minmax(0,1fr)]"
-                                            >
-                                                <span className="text-xs text-muted-foreground">
-                                                    {task.name}
-                                                </span>
-                                                <CopyUrl url={task.ping_url} />
-                                            </div>
-                                        ))}
-                                    </div>
-                                ))
-                            )}
-                        </li>
+                                {importRun.cron.length === 0 ? (
+                                    <p className="text-muted-foreground">
+                                        {t('No cron tasks were imported.')}
+                                    </p>
+                                ) : (
+                                    importRun.cron.map((site) => (
+                                        <div
+                                            key={site.site_id}
+                                            className={cn(
+                                                'space-y-2 rounded-[10px] border',
+                                                listCardPadding,
+                                            )}
+                                        >
+                                            <p className="font-medium">
+                                                {site.site}
+                                            </p>
+                                            {site.tasks.map((task) => (
+                                                <div
+                                                    key={task.ping_url}
+                                                    className="grid gap-1 @md:grid-cols-[10rem_minmax(0,1fr)]"
+                                                >
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {task.name}
+                                                    </span>
+                                                    <CopyUrl
+                                                        url={task.ping_url}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ))
+                                )}
+                            </li>
+                        )}
                         <li>
                             {t(
                                 'Status pages and check history are not imported.',

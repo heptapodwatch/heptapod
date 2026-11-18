@@ -12,6 +12,7 @@ use Heptapod\Data\Import\ImportPlanData;
 use Heptapod\Data\Import\ImportPlanRowData;
 use Heptapod\Enums\ImportOperation;
 use Heptapod\Enums\ImportRunStatus;
+use Heptapod\Enums\ImportSection;
 use Heptapod\Events\LiveSignal;
 use Heptapod\Models\ImportRun;
 use Heptapod\Models\Site;
@@ -71,13 +72,15 @@ final class RunOhDearImport implements ShouldQueue
 
             return;
         }
-        $clientIds = $this->clientIds($run, $createClient);
+        $sections = array_values($run->sections->all());
+        $clientIds = in_array(ImportSection::Sites, $sections, true) ? $this->clientIds($run, $createClient) : [];
         // Only the planned monitors are imported, each with its approved client; anything else is reported, not imported.
         $approved = [];
         foreach ($run->plan as $planned) {
             $sourceId = $planned['source_id'] ?? null;
             if (is_string($sourceId) || is_int($sourceId)) {
-                $approved[(int) $sourceId] = $clientIds[(int) $sourceId] ?? null;
+                $siteId = $planned['site_id'] ?? null;
+                $approved[(int) $sourceId] = ['clientId' => $clientIds[(int) $sourceId] ?? null, 'siteId' => is_int($siteId) ? $siteId : null];
             }
         }
         $attempt = $run->attempts;
@@ -99,7 +102,7 @@ final class RunOhDearImport implements ShouldQueue
         };
         // Stored reasons are text, so they are written in the language of the run's owner, the only user who sees them.
         $locale = User::query()->whereKey($run->user_id)->value('locale');
-        $plan = $this->withLocale(is_string($locale) ? $locale : config()->string('app.locale'), static fn (): ImportPlanData => $import($token, false, $approved, $progress));
+        $plan = $this->withLocale(is_string($locale) ? $locale : config()->string('app.locale'), static fn (): ImportPlanData => $import($token, false, $sections, $approved, $progress));
         $run->remote_error = $plan->remote_error;
         if ($plan->remote_error === null && $failedRows === 0) {
             $this->finish($run, ImportRunStatus::Completed, null);
@@ -172,6 +175,9 @@ final class RunOhDearImport implements ShouldQueue
             // Checks the plan treated as runnable: imported, or left out for their settings (invalid, setup, short secret).
             /** @var list<string> $considered */
             $considered = [...(array) ($row['checks'] ?? []), ...(array) ($row['disabled_checks'] ?? [])];
+            if (is_int($row['cron_definitions'] ?? null) && $row['cron_definitions'] > 0) {
+                $considered[] = CheckKey::Cron->value;
+            }
             foreach ($notices as $notice) {
                 $code = $codes[$notice] ?? '';
                 [$kind, $type] = explode(':', $code, 2) + [1 => ''];

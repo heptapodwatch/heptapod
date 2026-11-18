@@ -29,10 +29,10 @@ final readonly class UpdateSite
     public function __construct(private CheckRegistry $registry, private EnableCheck $enable, private DisableCheck $disable, private UpdateCheckConfig $configure, private SyncSiteTags $tags, private SyncSiteRepositories $repositories, private ClaimService $claims, private NormaliseSiteUrl $normalise, private SiteUrlDuplicates $duplicates) {}
 
     /** @param array<string, mixed> $attributes */
-    public function __invoke(Site $site, array $attributes): Site
+    public function __invoke(Site $site, array $attributes, ?CheckKey $preserveCheck = null): Site
     {
         try {
-            return DB::transaction(function () use ($site, $attributes): Site {
+            return DB::transaction(function () use ($site, $attributes, $preserveCheck): Site {
                 if ($site->exists) {
                     // Every monitor edit takes check locks in ID order before the site lock.
                     $checks = Check::query()->where('site_id', $site->id);
@@ -144,6 +144,9 @@ final readonly class UpdateSite
                 /** @var list<string> $checks */
                 $checks = $data['checks'] ?? [];
                 foreach ($this->registry->keys() as $key) {
+                    if ($key === $preserveCheck) {
+                        continue;
+                    }
                     $hasSettings = array_key_exists($key->value.'_check_settings', $data);
                     if (! $hasSettings && ! array_key_exists('checks', $data)) {
                         continue;

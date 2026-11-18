@@ -859,6 +859,7 @@ namespace Data {
 namespace Import {
 export type ImportPlanData = {
 readonly dry_run: boolean,
+readonly sections: Heptapod.Enums.ImportSection[],
 readonly teams: {
 id: number,
 name: string,
@@ -880,6 +881,11 @@ readonly details: string,
 readonly site_id: number | null,
 readonly client_name: string | null,
 readonly inherits_alert_timing: boolean | null,
+readonly maintenance: {
+one_off: number,
+recurring: number,
+} | null,
+readonly cron_definitions: number | null,
 };
 }
 namespace Ui {
@@ -1254,6 +1260,7 @@ readonly params: Record<string, string | number | boolean | null>,
 export type ImportOhDearPageData = {
 readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly timezones: string[],
+readonly sections: Heptapod.Enums.ImportSection[],
 };
 export type ImportOhDearRunPageData = {
 readonly importRun: {
@@ -1271,6 +1278,7 @@ failed_earlier: number,
 started_at: string | null,
 finished_at: string | null,
 can_retry: boolean,
+sections: Heptapod.Enums.ImportSection[],
 cron: {
 site: string,
 site_id: number,
@@ -2072,6 +2080,7 @@ export type FreshnessSuppression = 'down' | 'maintenance' | 'snooze' | 'uptime_e
 export type HealthStatus = 'ok' | 'warn' | 'down' | 'not-configured';
 export type ImportOperation = 'create' | 'update' | 'partial' | 'skipped' | 'failed';
 export type ImportRunStatus = 'planned' | 'queued' | 'running' | 'completed' | 'incomplete' | 'failed';
+export type ImportSection = 'sites' | 'maintenance' | 'cron';
 export type IncidentCause = 'failed' | 'errored';
 export type IncidentResolutionReason = 'check_disabled' | 'site_paused' | 'site_deleted' | 'moved_to_client';
 export type NotificationCategory = 'outage' | 'failure' | 'check_error' | 'warning' | 'expiring' | 'recovery' | 'changes' | 'system' | 'report';

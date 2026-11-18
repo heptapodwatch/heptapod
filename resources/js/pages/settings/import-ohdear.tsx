@@ -11,6 +11,8 @@ import InputError, { fieldErrorId } from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { CheckboxField } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -123,13 +125,18 @@ function MappingRow({
 export default function ImportOhDear({
     clients: suppliedClients,
     timezones,
+    sections,
 }: Heptapod.Data.Ui.ImportOhDearPageData) {
     const { t } = useTranslation();
     // Clients created from a picker join the list, so every other picker offers them too.
     const [clients, setClients] = useState(suppliedClients);
     const internal = clients.find((client) => client.is_internal)!;
-    const http = useHttpRequest<{ ohdear_token: string }, Plan>({
+    const http = useHttpRequest<
+        { ohdear_token: string; sections: Heptapod.Enums.ImportSection[] },
+        Plan
+    >({
         ohdear_token: '',
+        sections,
     });
     const [plan, setPlan] = useState<Plan | null>(null);
     const [failure, setFailure] = useState(false);
@@ -209,6 +216,10 @@ export default function ImportOhDear({
     };
 
     const rows = plan?.rows ?? [];
+    const includesSites = plan?.sections.includes('sites') === true;
+    const planColumns = includesSites
+        ? '@3xl/table:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,13rem)]'
+        : '@3xl/table:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]';
     const imported = rows.filter((row) =>
         ['create', 'update', 'partial'].includes(row.operation),
     );
@@ -240,15 +251,18 @@ export default function ImportOhDear({
     const payloadTarget = (target: Target) => ({ client_id: Number(target) });
     const runImport = async () => {
         if (!plan?.plan_id) return;
-        const groupKeys = [
-            ...(plan.teams ?? []).map((team) => `team:${team.id}`),
-            ...tags
-                .map((tag) => `tag:${tag}`)
-                .filter(
-                    (key) =>
-                        groups[key] !== undefined && groups[key] !== inherit,
-                ),
-        ];
+        const groupKeys = includesSites
+            ? [
+                  ...(plan.teams ?? []).map((team) => `team:${team.id}`),
+                  ...tags
+                      .map((tag) => `tag:${tag}`)
+                      .filter(
+                          (key) =>
+                              groups[key] !== undefined &&
+                              groups[key] !== inherit,
+                      ),
+              ]
+            : [];
         const overrideEntries = Object.entries(overrides).filter(
             ([, target]) => target !== inherit,
         );
@@ -287,6 +301,44 @@ export default function ImportOhDear({
             />
             <form noValidate onSubmit={submit} aria-busy={http.processing}>
                 <FormSection
+                    title={t('import.sections')}
+                    description={t('import.sections_description')}
+                >
+                    {sections.map((section) => (
+                        <CheckboxField
+                            key={section}
+                            checked={http.data.sections.includes(section)}
+                            disabled={http.processing || starting}
+                            onCheckedChange={(checked) => {
+                                setPlan(null);
+                                setFailure(false);
+                                http.setData(
+                                    'sections',
+                                    sections.filter((value) =>
+                                        value === section
+                                            ? checked === true
+                                            : http.data.sections.includes(
+                                                  value,
+                                              ),
+                                    ),
+                                );
+                            }}
+                        >
+                            {t(`import.section.${section}`)}
+                        </CheckboxField>
+                    ))}
+                    <InputError
+                        role="status"
+                        message={
+                            http.data.sections.length === 0
+                                ? t('import.sections_required')
+                                : Object.entries(http.errors).find(([field]) =>
+                                      field.startsWith('sections'),
+                                  )?.[1]
+                        }
+                    />
+                </FormSection>
+                <FormSection
                     title={t('API token')}
                     description={t('Use a read-only Oh Dear API token.')}
                     detail={t(
@@ -322,7 +374,10 @@ export default function ImportOhDear({
                         <Button
                             type="submit"
                             disabled={
-                                http.processing || !http.data.ohdear_token
+                                http.processing ||
+                                starting ||
+                                !http.data.ohdear_token ||
+                                http.data.sections.length === 0
                             }
                         >
                             {http.processing
@@ -353,66 +408,79 @@ export default function ImportOhDear({
             {plan && <ImportAlertTimingSummary rows={plan.rows} />}
             {plan && plan.rows.length > 0 && (
                 <>
-                    <FormSection
-                        title={t('Clients')}
-                        description={t(
-                            'Sites without an assigned client go to No client.',
-                        )}
-                        detail={t(
-                            'A tag assignment wins over the team assignment; a choice per site wins over both.',
-                        )}
-                    >
-                        <div className="@container/table overflow-hidden rounded-[10px] border">
-                            <ListHeader className="@md/table:grid @md/table:grid-cols-[minmax(0,1fr)_minmax(0,16rem)]">
-                                <span>{t('Oh Dear team or tag')}</span>
-                                <span>{t('Client')}</span>
-                            </ListHeader>
-                            {plan.teams.map((team) => (
-                                <MappingRow
-                                    key={team.id}
-                                    id={`team-${team.id}`}
-                                    label={team.name}
-                                    meta={`${t('Team')} · ${t(':count sites', {
-                                        count: rows.filter(
-                                            (row) => row.team_id === team.id,
-                                        ).length,
-                                    })}`}
-                                    value={groupTarget(`team:${team.id}`)}
-                                    onChange={setGroup(`team:${team.id}`)}
-                                    onCreateClient={createClientFor(
-                                        setGroup(`team:${team.id}`),
+                    {includesSites && (
+                        <FormSection
+                            title={t('Clients')}
+                            description={t(
+                                'Sites without an assigned client go to No client.',
+                            )}
+                            detail={t(
+                                'A tag assignment wins over the team assignment; a choice per site wins over both.',
+                            )}
+                        >
+                            <div className="@container/table overflow-hidden rounded-[10px] border">
+                                <ListHeader className="@md/table:grid @md/table:grid-cols-[minmax(0,1fr)_minmax(0,16rem)]">
+                                    <span>{t('Oh Dear team or tag')}</span>
+                                    <span>{t('Client')}</span>
+                                </ListHeader>
+                                {plan.teams.map((team) => (
+                                    <MappingRow
+                                        key={team.id}
+                                        id={`team-${team.id}`}
+                                        label={team.name}
+                                        meta={`${t('Team')} · ${t(
+                                            ':count sites',
+                                            {
+                                                count: rows.filter(
+                                                    (row) =>
+                                                        row.team_id === team.id,
+                                                ).length,
+                                            },
+                                        )}`}
+                                        value={groupTarget(`team:${team.id}`)}
+                                        onChange={setGroup(`team:${team.id}`)}
+                                        onCreateClient={createClientFor(
+                                            setGroup(`team:${team.id}`),
+                                        )}
+                                        clients={clients}
+                                        disabled={http.processing}
+                                    />
+                                ))}
+                                {tags.map((tag) => (
+                                    <MappingRow
+                                        key={tag}
+                                        id={`tag-${tag}`}
+                                        label={tag}
+                                        meta={`${t('Tag')} · ${t(
+                                            ':count sites',
+                                            {
+                                                count: rows.filter((row) =>
+                                                    row.tags.includes(tag),
+                                                ).length,
+                                            },
+                                        )}`}
+                                        value={groups[`tag:${tag}`] ?? inherit}
+                                        inheritLabel={t(
+                                            'Use the team assignment',
+                                        )}
+                                        onChange={setGroup(`tag:${tag}`)}
+                                        onCreateClient={createClientFor(
+                                            setGroup(`tag:${tag}`),
+                                        )}
+                                        clients={clients}
+                                        disabled={http.processing}
+                                    />
+                                ))}
+                            </div>
+                            {tags.length === 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                    {t(
+                                        'The sites in this account have no tags.',
                                     )}
-                                    clients={clients}
-                                    disabled={http.processing}
-                                />
-                            ))}
-                            {tags.map((tag) => (
-                                <MappingRow
-                                    key={tag}
-                                    id={`tag-${tag}`}
-                                    label={tag}
-                                    meta={`${t('Tag')} · ${t(':count sites', {
-                                        count: rows.filter((row) =>
-                                            row.tags.includes(tag),
-                                        ).length,
-                                    })}`}
-                                    value={groups[`tag:${tag}`] ?? inherit}
-                                    inheritLabel={t('Use the team assignment')}
-                                    onChange={setGroup(`tag:${tag}`)}
-                                    onCreateClient={createClientFor(
-                                        setGroup(`tag:${tag}`),
-                                    )}
-                                    clients={clients}
-                                    disabled={http.processing}
-                                />
-                            ))}
-                        </div>
-                        {tags.length === 0 && (
-                            <p className="text-xs text-muted-foreground">
-                                {t('The sites in this account have no tags.')}
-                            </p>
-                        )}
-                    </FormSection>
+                                </p>
+                            )}
+                        </FormSection>
+                    )}
                     <section
                         aria-labelledby="import-plan"
                         className="space-y-3 py-6"
@@ -423,15 +491,19 @@ export default function ImportOhDear({
                             </SectionHeading>
                             <p className="text-sm text-muted-foreground">
                                 {[
-                                    t(':count sites to import', {
-                                        count: imported.length,
+                                    includesSites
+                                        ? t(':count sites to import', {
+                                              count: imported.length,
+                                          })
+                                        : t(
+                                              'Import into :count existing sites',
+                                              {
+                                                  count: imported.length,
+                                              },
+                                          ),
+                                    t(':count sites skipped', {
+                                        count: skipped.length,
                                     }),
-                                    t(
-                                        ':count existing or unsupported sites skipped',
-                                        {
-                                            count: skipped.length,
-                                        },
-                                    ),
                                     t(':count items not imported', {
                                         count: notImported,
                                     }),
@@ -477,11 +549,15 @@ export default function ImportOhDear({
                             </Alert>
                         )}
                         <div className="@container/table overflow-hidden rounded-[10px] border">
-                            <ListHeader className="@3xl/table:grid @3xl/table:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,13rem)]">
+                            <ListHeader
+                                className={cn('@3xl/table:grid', planColumns)}
+                            >
                                 <span>{t('Site')}</span>
-                                <span>{t('Checks to import')}</span>
+                                {includesSites && (
+                                    <span>{t('Checks to import')}</span>
+                                )}
                                 <span>{t('Not imported')}</span>
-                                <span>{t('Client')}</span>
+                                {includesSites && <span>{t('Client')}</span>}
                             </ListHeader>
                             {rows.map((row) => {
                                 const isSkipped = [
@@ -491,7 +567,10 @@ export default function ImportOhDear({
                                 return (
                                     <ListRow
                                         key={row.source_id}
-                                        className="items-start @3xl/table:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,13rem)]"
+                                        className={cn(
+                                            'items-start',
+                                            planColumns,
+                                        )}
                                     >
                                         <div className="min-w-0 space-y-1">
                                             <TruncatedText
@@ -522,47 +601,71 @@ export default function ImportOhDear({
                                                 <ImportOperationBadge
                                                     operation={row.operation}
                                                     label={t(
-                                                        `import.${row.operation}`,
+                                                        row.operation ===
+                                                            'update' &&
+                                                            !includesSites
+                                                            ? 'import.update_sections'
+                                                            : `import.${row.operation}`,
                                                     )}
                                                 />
                                             )}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-xs text-muted-foreground @3xl/table:hidden">
-                                                {t('Checks to import')}
-                                            </p>
-                                            {row.checks.length +
-                                                row.disabled_checks.length ===
-                                            0 ? (
-                                                <span className="text-muted-foreground">
-                                                    —
-                                                </span>
-                                            ) : (
-                                                <ul className="flex flex-wrap gap-1">
-                                                    {row.checks.map((key) => (
-                                                        <li key={key}>
-                                                            <Badge variant="outline">
-                                                                {checkLabel(
-                                                                    key,
-                                                                )}
-                                                            </Badge>
-                                                        </li>
-                                                    ))}
-                                                    {row.disabled_checks.map(
-                                                        (key) => (
-                                                            <li key={key}>
-                                                                <Badge
-                                                                    variant="outline"
-                                                                    className="text-muted-foreground"
-                                                                >
-                                                                    {`${checkLabel(key)} · ${t('Off')}`}
-                                                                </Badge>
-                                                            </li>
-                                                        ),
+                                            {row.maintenance && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    {t(
+                                                        'import.details.maintenance_source',
+                                                        row.maintenance,
                                                     )}
-                                                </ul>
+                                                </p>
+                                            )}
+                                            {row.cron_definitions !== null && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    {t('import.details.cron', {
+                                                        cron: row.cron_definitions,
+                                                    })}
+                                                </p>
                                             )}
                                         </div>
+                                        {includesSites && (
+                                            <div className="min-w-0">
+                                                <p className="text-xs text-muted-foreground @3xl/table:hidden">
+                                                    {t('Checks to import')}
+                                                </p>
+                                                {row.checks.length +
+                                                    row.disabled_checks
+                                                        .length ===
+                                                0 ? (
+                                                    <span className="text-muted-foreground">
+                                                        —
+                                                    </span>
+                                                ) : (
+                                                    <ul className="flex flex-wrap gap-1">
+                                                        {row.checks.map(
+                                                            (key) => (
+                                                                <li key={key}>
+                                                                    <Badge variant="outline">
+                                                                        {checkLabel(
+                                                                            key,
+                                                                        )}
+                                                                    </Badge>
+                                                                </li>
+                                                            ),
+                                                        )}
+                                                        {row.disabled_checks.map(
+                                                            (key) => (
+                                                                <li key={key}>
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className="text-muted-foreground"
+                                                                    >
+                                                                        {`${checkLabel(key)} · ${t('Off')}`}
+                                                                    </Badge>
+                                                                </li>
+                                                            ),
+                                                        )}
+                                                    </ul>
+                                                )}
+                                            </div>
+                                        )}
                                         <div className="min-w-0">
                                             <p className="text-xs text-muted-foreground @3xl/table:hidden">
                                                 {t('Not imported')}
@@ -584,88 +687,94 @@ export default function ImportOhDear({
                                                 </ul>
                                             )}
                                         </div>
-                                        <div className="min-w-0">
-                                            {isSkipped ? (
-                                                <span className="text-muted-foreground">
-                                                    —
-                                                </span>
-                                            ) : row.site_id !== null ? (
-                                                <p className="text-xs text-muted-foreground">
-                                                    {t(
-                                                        'Already exists, client unchanged',
-                                                    )}
-                                                    {': '}
-                                                    <span className="text-foreground">
-                                                        {row.client_name}
+                                        {includesSites && (
+                                            <div className="min-w-0">
+                                                {isSkipped ? (
+                                                    <span className="text-muted-foreground">
+                                                        —
                                                     </span>
-                                                </p>
-                                            ) : resolve(row) === null ? (
-                                                <ConflictSelect
-                                                    id={`site-${row.source_id}-target`}
-                                                    label={t(
-                                                        'Client for :name',
-                                                        {
-                                                            name:
-                                                                row.label ??
-                                                                row.url,
-                                                        },
-                                                    )}
-                                                    proposed={tagCandidates(
-                                                        row,
-                                                    ).map(targetName)}
-                                                    clients={clients}
-                                                    onValueChange={setOverride(
-                                                        row.source_id,
-                                                    )}
-                                                    onCreateClient={createClientFor(
-                                                        setOverride(
+                                                ) : row.site_id !== null ? (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {t(
+                                                            'Already exists, client unchanged',
+                                                        )}
+                                                        {': '}
+                                                        <span className="text-foreground">
+                                                            {row.client_name}
+                                                        </span>
+                                                    </p>
+                                                ) : resolve(row) === null ? (
+                                                    <ConflictSelect
+                                                        id={`site-${row.source_id}-target`}
+                                                        label={t(
+                                                            'Client for :name',
+                                                            {
+                                                                name:
+                                                                    row.label ??
+                                                                    row.url,
+                                                            },
+                                                        )}
+                                                        proposed={tagCandidates(
+                                                            row,
+                                                        ).map(targetName)}
+                                                        clients={clients}
+                                                        onValueChange={setOverride(
                                                             row.source_id,
-                                                        ),
-                                                    )}
-                                                    disabled={http.processing}
-                                                />
-                                            ) : (
-                                                <ClientField
-                                                    id={`site-${row.source_id}-target`}
-                                                    ariaLabel={t(
-                                                        'Client for :name',
-                                                        {
-                                                            name:
-                                                                row.label ??
-                                                                row.url,
-                                                        },
-                                                    )}
-                                                    clients={clients}
-                                                    leadingOptions={[
-                                                        {
-                                                            value: inherit,
-                                                            label: t(
-                                                                'Automatic: :client',
-                                                                {
-                                                                    client: automatic(
-                                                                        row,
-                                                                    ),
-                                                                },
+                                                        )}
+                                                        onCreateClient={createClientFor(
+                                                            setOverride(
+                                                                row.source_id,
                                                             ),
-                                                        },
-                                                    ]}
-                                                    value={
-                                                        overrides[
-                                                            row.source_id
-                                                        ] ?? inherit
-                                                    }
-                                                    onValueChange={setOverride(
-                                                        row.source_id,
-                                                    )}
-                                                    onCreateClient={createClientFor(
-                                                        setOverride(
+                                                        )}
+                                                        disabled={
+                                                            http.processing
+                                                        }
+                                                    />
+                                                ) : (
+                                                    <ClientField
+                                                        id={`site-${row.source_id}-target`}
+                                                        ariaLabel={t(
+                                                            'Client for :name',
+                                                            {
+                                                                name:
+                                                                    row.label ??
+                                                                    row.url,
+                                                            },
+                                                        )}
+                                                        clients={clients}
+                                                        leadingOptions={[
+                                                            {
+                                                                value: inherit,
+                                                                label: t(
+                                                                    'Automatic: :client',
+                                                                    {
+                                                                        client: automatic(
+                                                                            row,
+                                                                        ),
+                                                                    },
+                                                                ),
+                                                            },
+                                                        ]}
+                                                        value={
+                                                            overrides[
+                                                                row.source_id
+                                                            ] ?? inherit
+                                                        }
+                                                        onValueChange={setOverride(
                                                             row.source_id,
-                                                        ),
-                                                    )}
-                                                    disabled={http.processing}
-                                                />
-                                            )}
-                                        </div>
+                                                        )}
+                                                        onCreateClient={createClientFor(
+                                                            setOverride(
+                                                                row.source_id,
+                                                            ),
+                                                        )}
+                                                        disabled={
+                                                            http.processing
+                                                        }
+                                                    />
+                                                )}
+                                            </div>
+                                        )}
                                     </ListRow>
                                 );
                             })}
