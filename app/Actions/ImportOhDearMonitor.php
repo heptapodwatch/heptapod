@@ -7,6 +7,7 @@ namespace Heptapod\Actions;
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
+use Heptapod\Contracts\OhDear\OhDearIdentityConflict;
 use Heptapod\Contracts\OhDearDefinitionImporter;
 use Heptapod\Contracts\OhDearImportMapping;
 use Heptapod\Contracts\Schema\SecretMinimum;
@@ -288,7 +289,7 @@ final readonly class ImportOhDearMonitor
                     $period = RecurringMaintenancePeriod::query()->where('oh_dear_id', $remote->id)->first();
                     $values = $this->recurringValues($remote, $timezone);
                     if ($period !== null && $period->site_id !== $site->id) {
-                        throw new \LogicException('Oh Dear recurring identity belongs to another site.');
+                        throw new OhDearIdentityConflict('Oh Dear recurring identity belongs to another site.');
                     }
                     if ($period === null) {
                         $period = ($this->createRecurring)($site, $values);
@@ -395,8 +396,13 @@ final readonly class ImportOhDearMonitor
             throw new InvalidOhDearRecurringResponse(__('import.invalid_recurring_response'));
         }
 
-        /** @var list<RemoteRecurringPeriod> $periods */
-        $periods = RemoteRecurringPeriod::collect($items);
+        try {
+            /** @var list<RemoteRecurringPeriod> $periods */
+            $periods = RemoteRecurringPeriod::collect($items);
+        } catch (\TypeError|\ErrorException) {
+            // A row the SDK cannot decode (missing or mistyped fields) is a bad source answer, not a local fault.
+            throw new InvalidOhDearRecurringResponse(__('import.invalid_recurring_response'));
+        }
 
         return $periods;
     }
@@ -429,7 +435,7 @@ final readonly class ImportOhDearMonitor
             $persisted = MaintenancePeriod::query()->where('oh_dear_id', $remote->id)->first();
             $coverage = OhDearImportCoverage::query()->where('oh_dear_id', $remote->id)->first();
             if (($persisted !== null && $persisted->site_id !== $site?->id) || ($coverage !== null && $coverage->site_id !== $site?->id)) {
-                throw new \LogicException('Oh Dear maintenance identity belongs to another site.');
+                throw new OhDearIdentityConflict('Oh Dear maintenance identity belongs to another site.');
             }
             $start = CarbonImmutable::parse($remote->startsAt, $timezone)->utc();
             $end = CarbonImmutable::parse($remote->endsAt, $timezone)->utc();

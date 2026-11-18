@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Heptapod\Actions;
 
+use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\OhDear\OhDearClientFactory;
+use Heptapod\Contracts\OhDear\OhDearIdentityConflict;
+use Heptapod\Contracts\Schema\Field;
 use Heptapod\Data\Import\ImportPlanData;
 use Heptapod\Data\Import\ImportPlanRowData;
 use Heptapod\Enums\ImportOperation;
 use Heptapod\Exceptions\InvalidOhDearRecurringResponse;
-use Heptapod\Exceptions\UndeclaredImportNotice;
 use Heptapod\Models\Site;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\Support\OhDearImportNotices;
@@ -26,7 +28,12 @@ use Throwable;
 /** Plans or imports every monitor of one Oh Dear account. Shared by `heptapod:import-ohdear` and Settings → Import. */
 final readonly class ImportOhDearAccount
 {
-    public function __construct(private ImportOhDearMonitor $import, private InstanceSettings $instance, private OhDearClientFactory $clients) {}
+    /** Site, maintenance and recurring attribute names a validation path may name besides check settings fields. */
+    private const array FieldNames = ['url', 'friendly_name', 'group_name', 'description', 'notes', 'tags', 'checks', 'crawler_headers', 'crawler_settings', 'headers', 'name', 'value',
+        'send_report_to_emails', 'include_check_types_in_report', 'repositories', 'label', 'team_id', 'type', 'values', 'frequency_value', 'frequency_unit', 'failed_notification_threshold',
+        'starts_at', 'ends_at', 'recurrence_type', 'days_of_week', 'day_of_week', 'day_of_month', 'nth_weekday', 'start_time', 'end_time', 'timezone', 'interval', 'anchor_date'];
+
+    public function __construct(private ImportOhDearMonitor $import, private InstanceSettings $instance, private OhDearClientFactory $clients, private CheckRegistry $registry) {}
 
     /**
      * @param  array<int, int|null>|null  $approved  UI imports: the only source monitors to import, each with its approved client for a
@@ -39,7 +46,6 @@ final readonly class ImportOhDearAccount
         $teams = [];
         $rows = [];
         $remoteError = null;
-        $reporting = false;
         try {
             /** @var list<array{id: int, name: string, timezone?: string}> $sourceTeams */
             $sourceTeams = $sdk->me()->teams;
@@ -60,40 +66,21 @@ final readonly class ImportOhDearAccount
                     } else {
                         $rows[] = ($this->import)($sdk, $monitor, $timezone, $dryRun, $approved[$monitor->id] ?? null, $approved !== null);
                     }
-                } catch (UndeclaredImportNotice $exception) {
-                    throw $exception;
                 } catch (ValidationException $exception) {
-                    // Rule messages come from our lang files and never echo the submitted value.
-                    /** @var array<string, list<string>> $errors */
-                    $errors = $exception->errors();
-                    $fields = [];
-                    foreach ($errors as $field => $messages) {
-                        $fields[] = $field.': '.implode(' ', $messages);
-                    }
-                    $rows[] = $this->failed($monitor, __('import.invalid', ['fields' => implode('; ', $fields)]), $exception);
-                } catch (Throwable $exception) {
+                    $rows[] = $this->failed($monitor, $this->validationDetails($exception), $exception);
+                } catch (OhDearException|RequestException|FatalRequestException|InvalidOhDearRecurringResponse|OhDearIdentityConflict $exception) {
+                    // Only source failures are recovered per site; any other fault is local and stops the import (see reportLocalFault).
                     $rows[] = $this->failed($monitor, $this->failureDetails($exception), $exception);
                 }
                 if ($progress instanceof \Closure) {
-                    // A failing caller (e.g. saving the result) is not an Oh Dear failure: it must fail the import, not become a remote error.
-                    $reporting = true;
                     $progress(array_last($rows));
-                    $reporting = false;
                 }
             }
-        } catch (UndeclaredImportNotice $exception) {
-            throw $exception;
         } catch (FatalRequestException $exception) {
             $remoteError = __('import.connection_failed').'; '.$this->failureDetails($exception);
         } catch (OhDearException $exception) {
             // The SDK exception contains the upstream response; never print it or the token.
             $remoteError = __('import.remote_failed', ['status' => $exception->response->status()]).'; '.$this->failureDetails($exception);
-        } catch (Throwable $exception) {
-            if ($reporting) {
-                throw $exception;
-            }
-            $remoteError = $this->failureDetails($exception);
-            $this->logFailure(null, $exception, $remoteError);
         }
         if (! $dryRun) {
             DB::statement('ANALYZE sites, taggables, tags, client_user');
@@ -123,6 +110,49 @@ final readonly class ImportOhDearAccount
         $remote = $exception instanceof OhDearException || $exception instanceof RequestException || $exception instanceof FatalRequestException || $exception instanceof InvalidOhDearRecurringResponse;
 
         return $remote ? 'import.notice.failed_remote' : 'import.notice.failed';
+    }
+
+    /**
+     * The boundary for a fault that is not a source or validation failure (database, programming error): the import stops,
+     * and the log names only the class and place. The message can carry source values, so it is never logged or shown.
+     */
+    public static function reportLocalFault(Throwable $exception): void
+    {
+        Log::error('Oh Dear import stopped by a local error', ['exception' => $exception::class, 'file' => $exception->getFile(), 'line' => $exception->getLine()]);
+    }
+
+    /**
+     * Validation paths can contain source-supplied keys (e.g. a crawler header map), and their messages repeat the path.
+     * Only a path made of known field names and list indexes is shown with its message; anything else is a generic label.
+     */
+    private function validationDetails(ValidationException $exception): string
+    {
+        $known = self::FieldNames;
+        $collect = static function (Field $field) use (&$collect, &$known): void {
+            foreach ($field->properties as $name => $child) {
+                $known[] = $name;
+                $collect($child);
+            }
+            if ($field->items instanceof Field) {
+                $collect($field->items);
+            }
+        };
+        foreach ($this->registry->keys() as $key) {
+            $known[] = $key->value.'_check_settings';
+            foreach ($this->registry->definition($key)->configSchema->fields as $name => $field) {
+                $known[] = $name;
+                $collect($field);
+            }
+        }
+        $fields = [];
+        /** @var array<string, list<string>> $errors */
+        $errors = $exception->errors();
+        foreach ($errors as $path => $messages) {
+            $safe = array_all(explode('.', $path), static fn (string $segment): bool => ctype_digit($segment) || in_array($segment, $known, true));
+            $fields[] = $safe ? $path.': '.implode(' ', $messages) : __('import.invalid_setting');
+        }
+
+        return __('import.invalid', ['fields' => implode('; ', array_unique($fields))]);
     }
 
     /** The operator's record of a failure. It logs the same vetted reason the user sees, never the exception message, which can echo source secrets. */

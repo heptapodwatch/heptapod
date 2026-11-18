@@ -417,6 +417,8 @@
     "import.update": "Aktualisieren",
     "import.failed": "Fehlgeschlagen",
     "import.invalid": "Ungültige Felder: :fields",
+    "import.invalid_setting": "eine Oh-Dear-Einstellung, die nicht angezeigt werden kann",
+    "import.local_error": "Der Import wurde wegen eines Fehlers auf diesem Server (:class) abgebrochen, nicht bei Oh Dear. Details stehen im Server-Log.",
     "import.remote_failed": "Oh Dear-Anfrage fehlgeschlagen (HTTP :status). Keine Antwort oder Geheimnisse ausgegeben.",
     "import.dry_run": "Probelauf: Plan + Konfigurationsprüfung; abschließende Prüfung beim Import. Keine Schreibvorgänge.",
     "import.operation": "Aktion",

@@ -13,6 +13,7 @@ use Heptapod\Contracts\Http\RedirectPolicy;
 use Heptapod\Contracts\Http\TargetResolutionException;
 use Heptapod\Contracts\Notifications\AlertSeverity;
 use Heptapod\Contracts\Notifications\DeliveryState;
+use Heptapod\Contracts\OhDear\OhDearIdentityConflict;
 use Heptapod\Contracts\RunCancelled;
 use Heptapod\Contracts\RunPhase;
 use Heptapod\Contracts\RunResult;
@@ -64,7 +65,7 @@ pest()->presets()->custom('heptapodLaravel', fn (): array => [
     // Addons catch typed transport failures without importing core-only Exceptions.
     expect('Heptapod')
         ->not->toImplement(Throwable::class)
-        ->ignoring([...ArchDrift::ThrowablesOutsideExceptions, 'Heptapod\Exceptions', ExternalNetworkException::class, ExternalTimeoutException::class, FetchException::class, TargetResolutionException::class, StaleEvaluation::class, RunCancelled::class]),
+        ->ignoring([...ArchDrift::ThrowablesOutsideExceptions, 'Heptapod\Exceptions', ExternalNetworkException::class, ExternalTimeoutException::class, FetchException::class, TargetResolutionException::class, StaleEvaluation::class, RunCancelled::class, OhDearIdentityConflict::class]),
 
     expect('Heptapod\Http\Middleware')
         ->classes()

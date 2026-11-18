@@ -17,6 +17,7 @@ use Heptapod\Contracts\EngineMessage;
 use Heptapod\Contracts\Http\FetchException;
 use Heptapod\Contracts\Http\FetchFailure;
 use Heptapod\Contracts\Http\FetchFailureKind;
+use Heptapod\Contracts\OhDear\OhDearIdentityConflict;
 use Heptapod\Contracts\ReclassifiedCheckError;
 use Heptapod\Contracts\RunCancelled;
 use Heptapod\Contracts\StaleEvaluation;
@@ -84,6 +85,7 @@ $notEngineText = [
     ManualRunRefused::class => 'API refusal of a run request, not a run result',
     IconRefreshFailed::class => 'carries a site-icon catalog result, not a run',
     InvalidOhDearRecurringResponse::class => 'Oh Dear import boundary, not a run',
+    OhDearIdentityConflict::class => 'Oh Dear import conflict for one site, not a run',
     OwnerAlreadyExists::class => 'console command error, not a run',
     UndeclaredImportNotice::class => 'Oh Dear import developer error (an undeclared notice code), not a run',
     ApiProblem::class => 'HTTP problem response, not a run',

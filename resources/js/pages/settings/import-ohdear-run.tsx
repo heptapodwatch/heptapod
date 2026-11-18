@@ -186,58 +186,63 @@ export default function ImportOhDearRun({
                                       )
                                     : importRun.error === 'plan_changed'
                                       ? t(
-                                            'The checks this server can run changed since the plan. Nothing was imported. Show the plan again.',
+                                            'The checks this server can run changed since the plan, so this attempt stopped before importing anything. Show the plan again.',
                                         )
-                                      : importRun.status === 'incomplete'
-                                        ? [
-                                              ...(importRun.failed_remote > 0
-                                                  ? [
-                                                        t(
-                                                            ':count sites failed: Oh Dear did not answer for them, so they were not fully imported.',
-                                                            {
-                                                                count: importRun.failed_remote,
-                                                            },
-                                                        ),
-                                                    ]
-                                                  : []),
-                                              ...(importRun.failed >
-                                              importRun.failed_remote
-                                                  ? [
-                                                        t(
-                                                            ':count sites could not be imported. The reason is listed next to each site.',
-                                                            {
-                                                                count:
-                                                                    importRun.failed -
-                                                                    importRun.failed_remote,
-                                                            },
-                                                        ),
-                                                    ]
-                                                  : []),
-                                              ...(importRun.failed_earlier > 0
-                                                  ? [
-                                                        t(
-                                                            ':count sites failed in an earlier attempt and were not read again.',
-                                                            {
-                                                                count: importRun.failed_earlier,
-                                                            },
-                                                        ),
-                                                    ]
-                                                  : []),
-                                              ...(unread > 0
-                                                  ? [
-                                                        t(
-                                                            ':count sites were not read because Oh Dear stopped answering.',
-                                                            { count: unread },
-                                                        ),
-                                                    ]
-                                                  : []),
-                                              t(
-                                                  'The other sites below were committed. Run again to continue: sites already imported are updated, not duplicated.',
-                                              ),
-                                          ].join(' ')
-                                        : t(
-                                              'The import could not finish. Nothing after the last listed site was imported.',
-                                          )}
+                                      : importRun.error === 'local_error'
+                                        ? t(
+                                              'The import stopped because of an error on this server, not at Oh Dear. Sites listed below were imported. The server log has the details (import run :run).',
+                                              { run: importRun.id },
+                                          )
+                                        : importRun.status === 'incomplete'
+                                          ? [
+                                                ...(importRun.failed_remote > 0
+                                                    ? [
+                                                          t(
+                                                              ':count sites failed: Oh Dear did not answer or answered with an error, so they were not fully imported.',
+                                                              {
+                                                                  count: importRun.failed_remote,
+                                                              },
+                                                          ),
+                                                      ]
+                                                    : []),
+                                                ...(importRun.failed >
+                                                importRun.failed_remote
+                                                    ? [
+                                                          t(
+                                                              ':count sites could not be imported. The reason is listed next to each site.',
+                                                              {
+                                                                  count:
+                                                                      importRun.failed -
+                                                                      importRun.failed_remote,
+                                                              },
+                                                          ),
+                                                      ]
+                                                    : []),
+                                                ...(importRun.failed_earlier > 0
+                                                    ? [
+                                                          t(
+                                                              ':count sites failed in an earlier attempt and were not read again.',
+                                                              {
+                                                                  count: importRun.failed_earlier,
+                                                              },
+                                                          ),
+                                                      ]
+                                                    : []),
+                                                ...(unread > 0
+                                                    ? [
+                                                          t(
+                                                              ':count sites were not read because Oh Dear stopped answering or answered with an error.',
+                                                              { count: unread },
+                                                          ),
+                                                      ]
+                                                    : []),
+                                                t(
+                                                    'The other sites below were committed. Run again to continue: sites already imported are updated, not duplicated.',
+                                                ),
+                                            ].join(' ')
+                                          : t(
+                                                'The import could not finish. Nothing after the last listed site was imported.',
+                                            )}
                             </AlertDescription>
                             {importRun.remote_error && (
                                 <AlertDescription className="font-mono text-xs">

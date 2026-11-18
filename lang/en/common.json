@@ -417,6 +417,8 @@
     "import.update": "Update",
     "import.failed": "Failed",
     "import.invalid": "Invalid fields: :fields",
+    "import.invalid_setting": "an Oh Dear setting that cannot be shown",
+    "import.local_error": "The import stopped because of an error on this server (:class), not at Oh Dear. The server log has the details.",
     "import.remote_failed": "Oh Dear request failed (HTTP :status). No response or secrets printed.",
     "import.dry_run": "Dry-run: plan + config validation; final validation happens on import. No writes.",
     "import.operation": "Operation",

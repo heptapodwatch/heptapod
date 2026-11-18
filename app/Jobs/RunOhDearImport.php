@@ -13,6 +13,7 @@ use Heptapod\Data\Import\ImportPlanRowData;
 use Heptapod\Enums\ImportOperation;
 use Heptapod\Enums\ImportRunStatus;
 use Heptapod\Events\LiveSignal;
+use Heptapod\Exceptions\UndeclaredImportNotice;
 use Heptapod\Models\ImportRun;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
@@ -91,7 +92,17 @@ final class RunOhDearImport implements ShouldQueue
         };
         // Stored reasons are text, so they are written in the language of the run's owner, the only user who sees them.
         $locale = User::query()->whereKey($run->user_id)->value('locale');
-        $plan = $this->withLocale(is_string($locale) ? $locale : config()->string('app.locale'), static fn (): ImportPlanData => $import($token, false, $approved, $progress));
+        try {
+            $plan = $this->withLocale(is_string($locale) ? $locale : config()->string('app.locale'), static fn (): ImportPlanData => $import($token, false, $approved, $progress));
+        } catch (UndeclaredImportNotice $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            ImportOhDearAccount::reportLocalFault($exception);
+            // Sites already written stay; the token is kept so "Run again" can continue once the fault is fixed.
+            $this->finish($run, ImportRunStatus::Failed, 'local_error');
+
+            return;
+        }
         $run->remote_error = $plan->remote_error;
         if ($plan->remote_error === null && $failedRows === 0) {
             $this->finish($run, ImportRunStatus::Completed, null);
@@ -161,15 +172,21 @@ final class RunOhDearImport implements ShouldQueue
             /** @var list<string> $notices */
             $notices = $row['notices'] ?? [];
             $skipped = [];
+            // Checks the plan treated as runnable: imported, or left out for their settings (invalid, setup, short secret).
+            /** @var list<string> $considered */
+            $considered = [...(array) ($row['checks'] ?? []), ...(array) ($row['disabled_checks'] ?? [])];
             foreach ($notices as $notice) {
                 $code = $codes[$notice] ?? '';
-                if (str_starts_with($code, 'availability:')) {
-                    $skipped[] = substr($code, strlen('availability:'));
+                [$kind, $type] = explode(':', $code, 2) + [1 => ''];
+                if ($kind === 'availability') {
+                    $skipped[] = $type;
+                } elseif (in_array($kind, ['invalid', 'setup', 'short_secret'], true)) {
+                    $considered[] = $type;
+                } elseif ($code === 'cron:disabled_without_definitions') {
+                    $considered[] = 'cron';
                 }
             }
-            /** @var list<string> $imported */
-            $imported = [...(array) ($row['checks'] ?? []), ...(array) ($row['disabled_checks'] ?? [])];
-            if (array_diff($skipped, $unavailable) !== [] || array_intersect($imported, $unavailable) !== []) {
+            if (array_diff($skipped, $unavailable) !== [] || array_intersect($considered, $unavailable) !== []) {
                 return true;
             }
         }

@@ -388,7 +388,7 @@ test('imports Lighthouse schema defaults for nulls and reports invalid settings'
     expect($site->checks()->where('type', 'uptime')->count())->toBe(1);
 })->with(['defaults', 'invalid']);
 
-test('isolates unexpected monitor exceptions and withholds source messages', function (string $kind, bool $dryRun): void {
+test('isolates Oh Dear failures per monitor, stops on local faults and withholds source messages', function (string $kind, bool $dryRun): void {
     $account = realOhDearAccount();
     $endpoint = '/api/monitors/501/recurring-maintenance-periods';
     $statuses = [];
@@ -408,16 +408,22 @@ test('isolates unexpected monitor exceptions and withholds source messages', fun
     });
     expect(Artisan::call('heptapod:import-ohdear', ['--token' => 'fake-real-account-token', '--dry-run' => $dryRun]))->toBe(1);
     $output = Artisan::output();
-    expect($output)->toContain('501', '502', '503', '504', '505', 'Failed')
-        ->not->toContain('fixture-remote-secret')->not->toContain('fake-real-account-token')->not->toContain('fake-health-secret-');
-    expect(json_encode($logged, JSON_THROW_ON_ERROR))->toContain('Oh Dear import failed', '501')
-        ->not->toContain('fixture-remote-secret')->not->toContain('fake-real-account-token')->not->toContain('fake-health-secret-');
+    expect($output)->not->toContain('fixture-remote-secret')->not->toContain('fake-real-account-token')->not->toContain('fake-health-secret-');
+    expect(json_encode($logged, JSON_THROW_ON_ERROR))->not->toContain('fixture-remote-secret')->not->toContain('fake-real-account-token')->not->toContain('fake-health-secret-');
+    if ($kind === 'unexpected') {
+        // A fault that is not an Oh Dear failure stops the import at the first monitor instead of becoming a per-site failure.
+        expect($output)->toContain('The import stopped because of an error on this server (TypeError), not at Oh Dear.');
+        expect(json_encode($logged, JSON_THROW_ON_ERROR))->toContain('Oh Dear import stopped by a local error', 'TypeError');
+        expect(Site::query()->count())->toBe(0);
+
+        return;
+    }
+    expect($output)->toContain('501', '502', '503', '504', '505', 'Failed');
+    expect(json_encode($logged, JSON_THROW_ON_ERROR))->toContain('Oh Dear import failed', '501');
     if ($kind === 'sdk') {
         expect($output)->toContain('OhDearException', 'GET monitors/{id}/recurring-maintenance-periods', '500');
-    } elseif ($kind === 'transport') {
-        expect($output)->toContain('FatalRequestException', 'GET monitors/{id}/recurring-maintenance-periods', 'no response');
     } else {
-        expect($output)->toContain('TypeError', 'Monitor import failed; the server log has the details.');
+        expect($output)->toContain('FatalRequestException', 'GET monitors/{id}/recurring-maintenance-periods', 'no response');
     }
     expect(Site::query()->where('oh_dear_id', 501)->count())->toBe(0);
     expect(Site::query()->whereIn('oh_dear_id', [502, 503, 504, 505])->count())->toBe($dryRun ? 0 : 4);
@@ -430,10 +436,10 @@ test('rejects malformed recurring envelopes without stopping later monitors', fu
     expect(Artisan::call('heptapod:import-ohdear', ['--token' => 'fake-real-account-token']))->toBe(1);
     $output = Artisan::output();
     expect($output)->toContain('InvalidOhDearRecurringResponse', 'Recurring maintenance response must be a list or an object containing a list in data.')
-        ->not->toContain('fixture-remote-secret', 'fake-real-account-token');
+        ->not->toContain('fixture-remote-secret')->not->toContain('fake-real-account-token');
     expect(Site::query()->where('oh_dear_id', 501)->count())->toBe(0)
         ->and(Site::query()->whereIn('oh_dear_id', [502, 503, 504, 505])->count())->toBe(4);
-})->with(['malformed JSON' => ['{'], 'null' => ['null'], 'scalar' => ['"fixture-remote-secret"'], 'empty object' => ['{}'], 'null data' => [['data' => null]], 'object data' => ['{"data":{}}'], 'non-list' => [['data' => ['bad' => []]]], 'scalar row' => [[null]]]);
+})->with(['malformed JSON' => ['{'], 'null' => ['null'], 'scalar' => ['"fixture-remote-secret"'], 'empty object' => ['{}'], 'null data' => [['data' => null]], 'object data' => ['{"data":{}}'], 'non-list' => [['data' => ['bad' => []]]], 'scalar row' => [[null]], 'undecodable row' => [[['name' => 'fixture-remote-secret']]]]);
 
 test('imports a nonempty recurring list in either supported response shape', function (bool $wrapped): void {
     $account = realOhDearAccount();
@@ -699,7 +705,10 @@ test('plans and imports every site without a check this instance cannot run, wit
 test('a site failing validation shows its reason on the run page and in the log', function (): void {
     $account = realOhDearAccount();
     $account['monitors'][1]['label'] = str_repeat('x', 256);
-    Log::spy();
+    $logged = [];
+    Log::listen(static function (MessageLogged $entry) use (&$logged): void {
+        $logged[] = [$entry->level, $entry->message, $entry->context];
+    });
 
     ['run' => $run, 'results' => $results] = importOhDearThroughSettings($account);
 
@@ -712,18 +721,44 @@ test('a site failing validation shows its reason on the run page and in the log'
         ->and($failed['502']['operation'])->toBe('failed')
         ->and($failed['502']['details'])->toBe($reason.' Server log: import run '.$run['id'].'.')
         ->and($failed->except('502')->pluck('operation')->unique()->all())->toBe(['create']);
-    Log::shouldHaveReceived('warning')->once()->with('Oh Dear import failed', ['ohdear_monitor_id' => 502, 'exception' => ValidationException::class, 'reason' => $reason]);
+    expect($logged)->toBe([['warning', 'Oh Dear import failed', ['ohdear_monitor_id' => 502, 'exception' => ValidationException::class, 'reason' => $reason]]]);
     expect(Context::get('import_run_id'))->toBe($run['id']);
 });
 
-test('refuses a run when the checks this instance can run changed since the plan', function (bool $browserBeforePlan): void {
+test('refuses a run when the checks this instance can run changed since the plan', function (bool $browserBeforePlan, bool $invalidLighthouse): void {
     config(['heptapod.browser.enabled' => $browserBeforePlan]);
+    $account = realOhDearAccount();
+    if ($invalidLighthouse) {
+        // The plan leaves Lighthouse out for its settings, not its availability; the guard must still see the change.
+        foreach (array_keys($account['monitors']) as $index) {
+            $account['monitors'][$index]['lighthouse_check_settings'] = ['cpu_slowdown_modifier' => 0.5];
+        }
+    }
 
-    ['run' => $run] = importOhDearThroughSettings(realOhDearAccount(), static fn () => config(['heptapod.browser.enabled' => ! $browserBeforePlan]));
+    ['plan' => $plan, 'run' => $run] = importOhDearThroughSettings($account, static fn () => config(['heptapod.browser.enabled' => ! $browserBeforePlan]));
 
-    expect($run['status'])->toBe('failed')->and($run['error'])->toBe('plan_changed')
+    expect(array_column($plan, 'operation'))->each->toBe($invalidLighthouse ? 'partial' : 'create')
+        ->and($run['status'])->toBe('failed')->and($run['error'])->toBe('plan_changed')
         ->and(Site::query()->count())->toBe(0);
-})->with(['browser removed' => true, 'browser installed' => false]);
+})->with(['browser removed' => [true, false], 'browser installed' => [false, false], 'invalid Lighthouse settings, browser removed' => [true, true]]);
+
+test('never shows or logs a source-supplied validation path', function (): void {
+    $account = realOhDearAccount();
+    $account['monitors'] = [$account['monitors'][0]];
+    $account['monitors'][0]['crawler_headers'] = ['Authorization: Bearer fixture-leaked-key' => ['name' => 'X-Fixture', 'value' => '********']];
+    app(OhDearAccountTransport::class)->fake($account);
+    $logged = [];
+    Log::listen(static function (MessageLogged $entry) use (&$logged): void {
+        $logged[] = [$entry->message, $entry->context];
+    });
+
+    expect(Artisan::call('heptapod:import-ohdear', ['--token' => 'fake-real-account-token']))->toBe(1);
+    $output = Artisan::output();
+
+    expect($output)->toContain('Failed', 'Invalid fields: an Oh Dear setting that cannot be shown')->not->toContain('fixture-leaked-key');
+    expect(json_encode($logged, JSON_THROW_ON_ERROR))->toContain('Oh Dear import failed')->not->toContain('fixture-leaked-key');
+    expect(Site::query()->count())->toBe(0);
+});
 
 test('the CLI plans and imports every site without a check this instance cannot run', function (bool $dryRun): void {
     config(['heptapod.browser.enabled' => false]);
