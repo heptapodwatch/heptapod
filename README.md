@@ -7,7 +7,8 @@
 
 <p align="center">
   Self-hosted website monitoring for freelancers and agencies.<br>
-  Every client site, watched from one server you own.
+  Every client site, watched from one server you own.<br>
+  Heptapod is young and does not cover everything Oh Dear does: see <a href="#limitations">Limitations</a>.
 </p>
 
 <p align="center">
@@ -23,6 +24,48 @@
   <img alt="The Sites page of a demo agency: one site is down with HTTP 503, and the Needs attention list shows failed cron tasks, broken links, an expiring certificate and a Lighthouse drop across client sites." src=".github/assets/sites-light.png">
 </picture>
 
+## Limitations
+
+Heptapod is not a complete Oh Dear replacement. Some of the gaps below will close; full parity with Oh Dear is not decided and may never happen.
+
+### Not in Heptapod
+
+- No scheduled client reports (monthly email or PDF). You can send a client the current findings or an incident summary by hand.
+- No status pages.
+- Websites over HTTP only: no ping, TCP or other monitor types.
+- Nothing like Oh Dear's AI, ports or DNS blocklist checks.
+- All checks run from your one server, not from several locations. Heptapod cannot tell you when that server is down, so [point a heartbeat at an outside service](https://heptapod.watch/docs/running-it/configuration/#watch-the-watcher).
+
+### Notification channels
+
+- [Channels](https://heptapod.watch/docs/alerts/channels/): email, Slack (bot token), Microsoft Teams (Workflows URL), Discord (bot), Telegram (your own bot), Pushover, ntfy and webhook.
+- No Slack incoming webhook, Discord webhook, Google Chat, Zoom, PagerDuty, Opsgenie or SMS.
+- A channel picks categories (outage, failure, warning …), not single check types.
+
+### Oh Dear import
+
+- Imported: HTTP monitors as sites, with tags and each check's settings where Heptapod has an equivalent; cron checks, where each task gets a new Heptapod ping URL that you put into the task; maintenance periods and recurring maintenance.
+- Under Settings → Import you choose a client for each new site. The command line puts new sites in No client.
+- Not imported: notification channels, status pages and check history (uptime, downtime, response times, Lighthouse scores).
+- Report settings are kept for the Oh Dear-compatible API, but Heptapod sends no reports.
+- Skipped: checks this server cannot run (such as Lighthouse without the browser service) and settings without an equivalent (such as crawl speed and probe locations).
+- The plan lists the skipped checks and settings for each site before anything is imported. After the run, a checklist covers channels, cron ping URLs, status pages and history.
+
+<details>
+<summary>Running the import again</summary>
+
+- Sites are matched by their Oh Dear ID, so a rerun creates no duplicates.
+- For imported sites, Oh Dear wins. Settings changed in Heptapod are overwritten, and checks are turned on or off as in Oh Dear. A check whose Oh Dear settings are invalid keeps its Heptapod settings.
+- A site you deleted in Heptapod is created again. A site you added yourself with the same URL is skipped, not taken over.
+- Sites removed from Oh Dear stay in Heptapod.
+- Existing sites keep their client, and cron tasks keep their ping URLs.
+
+</details>
+
+More in the [import reference](https://heptapod.watch/docs/reference/api/#import-monitors-from-an-oh-dear-account).
+
+Planned, with no date yet: importing notification channels, and Slack webhook, Discord webhook and Google Chat channels.
+
 ## Why Heptapod
 
 - **You own it.** Heptapod runs with Docker Compose on your server, and results stay in your PostgreSQL database. No subscription, no per-site fees, no account with us.
@@ -30,7 +73,7 @@
 - **Made for client work.** Group sites by client and give each client its own alert channels, silent until you turn a category on. Send a client the current findings or an incident summary by email, in their language and time zone.
 - **Alerts that say what happened.** Each alert names the site, the cause and the time. Alert sensitivity sets how long an outage lasts before anyone is told, maintenance windows mute planned work, and **Who gets this** shows which channels hear about a failure and why the others don't. Alerts go to email, Slack, Microsoft Teams, Discord, Telegram, Pushover, ntfy or a webhook.
 - **Ready for scripts and coding agents.** A REST API with scoped tokens, an OpenAPI 3.1 document on every instance, the docs as Markdown at [llms.txt](https://heptapod.watch/llms.txt), and an [agent skill](https://heptapod.watch/docs/reference/coding-agents/) for Claude Code, Codex and others.
-- **Coming from Oh Dear.** Import your monitors from Settings or the command line. Heptapod speaks the Oh Dear API format for a tested set of endpoints: point spatie/laravel-health, spatie/laravel-schedule-monitor or the Oh Dear PHP SDK at your instance. Heptapod is not affiliated with Oh Dear.
+- **Coming from Oh Dear.** Import your monitors from Settings or the command line; [not everything carries over](#limitations). Heptapod speaks the Oh Dear API format for a tested set of endpoints: point spatie/laravel-health, spatie/laravel-schedule-monitor or the Oh Dear PHP SDK at your instance. Heptapod is not affiliated with Oh Dear.
 
 ## What it checks
 
