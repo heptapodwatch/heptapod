@@ -30,11 +30,15 @@ const post = (payload, signal = AbortSignal.timeout(10000)) =>
             payload === null ? null : { proxyToken: token, ...payload },
         ),
     });
-async function startServer() {
-    server = spawn(process.execPath, [join(directory, 'server.mjs')], {
-        env: { ...process.env, CHROME_FLAGS: '--headless --no-sandbox' },
-        stdio: ['ignore', 'inherit', 'pipe'],
-    });
+async function startServer(nodeArgs = []) {
+    server = spawn(
+        process.execPath,
+        [...nodeArgs, join(directory, 'server.mjs')],
+        {
+            env: { ...process.env, CHROME_FLAGS: '--headless --no-sandbox' },
+            stdio: ['ignore', 'inherit', 'pipe'],
+        },
+    );
     // 'close' also waits for stderr, so the exit log line has arrived.
     serverExit = once(server, 'close');
     serverStderr = '';
@@ -494,6 +498,97 @@ void test('retains the last safe unrecognised name after an unsafe unknown event
             !JSON.stringify(body).includes(secret.slice(index, index + 4)),
         );
     }
+});
+// Replaces server.mjs's imports of the given Node modules with the given sources, through an --import preload.
+async function serverPreload(name, modules) {
+    const preload = join(rootDirectory, `${name}.mjs`);
+    const urls = Object.fromEntries(
+        Object.entries(modules).map(([specifier, source]) => [
+            specifier,
+            'data:text/javascript,' + encodeURIComponent(source),
+        ]),
+    );
+    await writeFile(
+        preload,
+        `
+        import { registerHooks } from 'node:module';
+        const urls = ${JSON.stringify(urls)};
+        registerHooks({ resolve(specifier, context, nextResolve) {
+            if (Object.hasOwn(urls, specifier) && context.parentURL?.endsWith('/server.mjs'))
+                return { url: urls[specifier], shortCircuit: true };
+            return nextResolve(specifier, context);
+        } });
+    `,
+    );
+    return ['--import', preload];
+}
+void test('keeps the typed result of a forced termination whatever the process scan sees', async () => {
+    // Linux answers ESRCH when a process exits between opening and reading its /proc stat file; the CI run hit
+    // that right after a budget kill (502 at 150.01 s).
+    const esrch = await serverPreload('proc-esrch', {
+        'node:fs/promises': `
+            import * as fs from 'node:fs/promises';
+            export * from 'node:fs/promises';
+            export async function readFile(path, ...rest) {
+                if (/^\\/proc\\/\\d+\\/stat$/.test(String(path)))
+                    throw Object.assign(new Error('No such process'), { code: 'ESRCH' });
+                return fs.readFile(path, ...rest);
+            }
+        `,
+    });
+    // The worker's process group outlives the server's two-second wait.
+    const groupOutlivesWait = await serverPreload('proc-group-alive', {
+        'node:child_process': `
+            import * as childProcess from 'node:child_process';
+            export * from 'node:child_process';
+            export function spawn(...args) {
+                const child = childProcess.spawn(...args);
+                globalThis.auditWorkerPid = String(child.pid);
+                return child;
+            }
+        `,
+        'node:fs/promises': `
+            import * as fs from 'node:fs/promises';
+            export * from 'node:fs/promises';
+            export async function readdir(path, ...rest) {
+                const entries = await fs.readdir(path, ...rest);
+                return String(path) === '/proc' ? [...entries, globalThis.auditWorkerPid] : entries;
+            }
+            export async function readFile(path, ...rest) {
+                const pid = globalThis.auditWorkerPid;
+                if (String(path) === '/proc/' + pid + '/stat') return pid + ' (node) S 1 ' + pid + ' ' + pid;
+                return fs.readFile(path, ...rest);
+            }
+        `,
+    });
+    for (const nodeArgs of [esrch, groupOutlivesWait]) {
+        server.kill();
+        await serverExit;
+        await startServer(nodeArgs);
+        const response = await post({ url: 'https://example.com/oversize' });
+        assert.equal(response.status, 200);
+        assert.equal(
+            (await response.json()).auditFailure.code,
+            'report_too_large',
+        );
+        const [code] = await Promise.race([
+            serverExit,
+            new Promise((resolve, reject) =>
+                setTimeout(
+                    () => reject(new Error('Server kept running')),
+                    5000,
+                ),
+            ),
+        ]);
+        assert.equal(code, 1);
+    }
+    // A normal audit treats a process that vanished mid-read as gone and keeps serving.
+    await startServer(esrch);
+    assert.equal((await post({ url: 'https://example.com/' })).status, 200);
+    await assertStillRunning();
+    server.kill();
+    await serverExit;
+    await startServer();
 });
 void test('names worker crashes, unscored reports and oversize reports', async () => {
     for (const [path, code, message] of [

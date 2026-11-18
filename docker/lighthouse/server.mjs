@@ -56,7 +56,8 @@ async function waitForProcessGroup(pid) {
             try {
                 stat = await readFile(`/proc/${entry}/stat`, 'utf8');
             } catch (error) {
-                if (error.code === 'ENOENT') continue;
+                // The process exited between listing and reading; Linux reports ESRCH once the file is open.
+                if (error.code === 'ENOENT' || error.code === 'ESRCH') continue;
                 throw error;
             }
             const fields = stat.slice(stat.lastIndexOf(')') + 2).split(' ');
@@ -210,6 +211,9 @@ async function audit(url, options, token, signal) {
     }).finally(async () => {
         signal.removeEventListener('abort', onAbort);
         kill();
+        // After a forced termination the server exits and the PID namespace ends the group; waiting could only
+        // replace the typed result with an error.
+        if (auditTerminated) return;
         try {
             if (child?.pid) await waitForProcessGroup(child.pid);
         } catch (error) {
