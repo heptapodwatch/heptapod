@@ -266,72 +266,62 @@ export function ChannelSheet({
                                     </Button>
                                 }
                             >
-                                {!channel.account_mail ||
-                                channel.status !== 'needs_attention' ? (
-                                    <>
-                                        {!channel.account_mail && (
-                                            <PageHeaderAction
-                                                type="button"
-                                                variant="outline"
-                                                disabled={busy}
-                                                onClick={onEdit}
-                                            >
-                                                <Pencil aria-hidden />
-                                                {t('Edit')}
-                                            </PageHeaderAction>
+                                <PageHeaderAction
+                                    type="button"
+                                    variant="outline"
+                                    disabled={busy}
+                                    onClick={onEdit}
+                                >
+                                    <Pencil aria-hidden />
+                                    {t('Edit')}
+                                </PageHeaderAction>
+                                {channel.status !== 'needs_attention' && (
+                                    <PageHeaderAction
+                                        type="button"
+                                        variant="outline"
+                                        disabled={busy}
+                                        onClick={() => {
+                                            pause.transform(() => ({
+                                                enabled: paused,
+                                            }));
+                                            void pause
+                                                .patch(
+                                                    setEnabled.url(channel.id),
+                                                )
+                                                .then((result) =>
+                                                    toast.success(
+                                                        result.enabled
+                                                            ? t(
+                                                                  'notifications.destination_resumed',
+                                                              )
+                                                            : t(
+                                                                  'notifications.destination_paused_count',
+                                                                  {
+                                                                      count: result.suppressed_count,
+                                                                      formattedCount:
+                                                                          result.suppressed_count,
+                                                                  },
+                                                              ),
+                                                    ),
+                                                )
+                                                .catch(() =>
+                                                    toast.error(
+                                                        t(
+                                                            'notifications.pause_rejected',
+                                                        ),
+                                                    ),
+                                                )
+                                                .finally(onChanged);
+                                        }}
+                                    >
+                                        {paused ? (
+                                            <Play aria-hidden />
+                                        ) : (
+                                            <Pause aria-hidden />
                                         )}
-                                        {channel.status !==
-                                            'needs_attention' && (
-                                            <PageHeaderAction
-                                                type="button"
-                                                variant="outline"
-                                                disabled={busy}
-                                                onClick={() => {
-                                                    pause.transform(() => ({
-                                                        enabled: paused,
-                                                    }));
-                                                    void pause
-                                                        .patch(
-                                                            setEnabled.url(
-                                                                channel.id,
-                                                            ),
-                                                        )
-                                                        .then((result) =>
-                                                            toast.success(
-                                                                result.enabled
-                                                                    ? t(
-                                                                          'notifications.destination_resumed',
-                                                                      )
-                                                                    : t(
-                                                                          'notifications.destination_paused_count',
-                                                                          {
-                                                                              count: result.suppressed_count,
-                                                                              formattedCount:
-                                                                                  result.suppressed_count,
-                                                                          },
-                                                                      ),
-                                                            ),
-                                                        )
-                                                        .catch(() =>
-                                                            toast.error(
-                                                                t(
-                                                                    'notifications.pause_rejected',
-                                                                ),
-                                                            ),
-                                                        )
-                                                        .finally(onChanged);
-                                                }}
-                                            >
-                                                {paused ? (
-                                                    <Play aria-hidden />
-                                                ) : (
-                                                    <Pause aria-hidden />
-                                                )}
-                                                {t(paused ? 'Resume' : 'Pause')}
-                                            </PageHeaderAction>
-                                        )}
-                                    </>
-                                ) : null}
+                                        {t(paused ? 'Resume' : 'Pause')}
+                                    </PageHeaderAction>
+                                )}
                             </CardToolbarActions>
                         </CardAction>
                     </CardHeader>

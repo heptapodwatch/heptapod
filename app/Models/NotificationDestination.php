@@ -42,6 +42,7 @@ use Spatie\Activitylog\Models\Activity;
  * @property string|null $last_outcome_diagnosis
  * @property CarbonImmutable|null $last_outcome_at
  * @property CarbonImmutable|null $failing_since the first failed send since the last accepted one (channel_failing)
+ * @property list<string>|null $check_types null hears all check types
  * @property array<string, mixed> $config
  * @property array<string, mixed>|null $config_secrets
  * @property array<string, string>|null $default_preferences the grid the channel started with; null for factory-made channels
@@ -75,7 +76,7 @@ final class NotificationDestination extends Model
     protected function auditedAttributes(): array
     {
         return ['label', 'channel', 'locale', 'enabled', 'config', 'recipient_kind', 'user_id', 'client_id', 'scope_client_id', 'account_mail',
-            'removed_at', 'removed_reason', 'needs_attention', 'attention_reason'];
+            'removed_at', 'removed_reason', 'needs_attention', 'attention_reason', 'check_types'];
     }
 
     /** @use HasFactory<NotificationDestinationFactory> */
@@ -103,7 +104,7 @@ final class NotificationDestination extends Model
         return [
             'recipient_kind' => RecipientKind::class, 'enabled' => 'boolean', 'needs_attention' => 'boolean', 'account_mail' => 'boolean',
             'config' => DestinationSettings::class, 'config_secrets' => 'encrypted:array', 'last_outcome_at' => 'immutable_datetime', 'failing_since' => 'immutable_datetime',
-            'removed_at' => 'immutable_datetime', 'default_preferences' => 'array',
+            'removed_at' => 'immutable_datetime', 'default_preferences' => 'array', 'check_types' => 'array',
         ];
     }
 

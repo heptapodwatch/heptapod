@@ -65,6 +65,7 @@ const reasonKeys: Record<string, string> = {
     quiet_hours: 'explanation.reason.quiet_hours',
     category_off: 'explanation.reason.category_off',
     site_muted: 'explanation.reason.site_muted',
+    check_type_filtered: 'explanation.reason.check_type_filtered',
     paused: 'explanation.reason.paused',
     needs_attention: 'explanation.reason.needs_attention',
     no_site_access: 'explanation.reason.no_site_access',

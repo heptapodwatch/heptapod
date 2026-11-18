@@ -24,6 +24,8 @@ final class NotificationChannelData extends Data
         public readonly bool $account_mail,
         public readonly ?string $locale,
         public readonly ?int $scope_client_id,
+        /** @var list<string>|null */
+        public readonly ?array $check_types,
         public readonly ?string $attention_reason,
         public readonly ?string $last_outcome,
         public readonly ?string $last_outcome_diagnosis,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Events\Notifications;
 
 use Carbon\CarbonImmutable;
+use Heptapod\Contracts\CheckKey;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\NotificationMode;
 use Heptapod\Enums\RecipientKind;
@@ -63,6 +64,8 @@ final readonly class NotificationRecipients
                 ! $channel->enabled => 'paused',
                 $channel->recipient_kind === RecipientKind::User && ($channel->user_id === null || ! isset($viewers[$channel->user_id])) => 'no_site_access',
                 ! $channel->addressVerified() => 'unverified',
+                $context->filterCheckType instanceof CheckKey && $channel->check_types !== null
+                    && ! in_array($context->filterCheckType->value, $channel->check_types, true) => 'check_type_filtered',
                 default => null,
             }];
         }

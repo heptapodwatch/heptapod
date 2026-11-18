@@ -1611,6 +1611,7 @@ readonly status: 'active' | 'paused' | 'needs_attention' | 'unverified',
 readonly account_mail: boolean,
 readonly locale: string | null,
 readonly scope_client_id: number | null,
+readonly check_types: string[] | null,
 readonly attention_reason: string | null,
 readonly last_outcome: string | null,
 readonly last_outcome_diagnosis: string | null,
@@ -1660,6 +1661,10 @@ id: number,
 name: string,
 }[],
 readonly channel_types: Heptapod.Data.Ui.ChannelTypeData[],
+readonly check_types: {
+value: string,
+label_key: string,
+}[],
 readonly migration_report: string[] | null,
 };
 export type OwnNotificationsPageData = {

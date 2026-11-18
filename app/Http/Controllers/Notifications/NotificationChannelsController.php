@@ -44,7 +44,7 @@ final class NotificationChannelsController extends Controller
         $attributes = $request->except(['recipient_kind', 'client_id']);
         $channel = $save->add($kind, $kind === RecipientKind::User ? $actor : null, $client, $attributes);
 
-        return response()->json(['id' => $channel->id], 201);
+        return response()->json(['id' => $channel->id, 'check_types' => $channel->check_types], 201);
     }
 
     public function update(Request $request, NotificationDestination $channel, SaveNotificationChannel $save): JsonResponse
@@ -52,9 +52,9 @@ final class NotificationChannelsController extends Controller
         Gate::authorize('update', $channel);
         /** @var array<string, mixed> $attributes */
         $attributes = $request->all();
-        $save->edit($channel, $attributes);
+        $channel = $save->edit($channel, $attributes);
 
-        return response()->json(['id' => $channel->id]);
+        return response()->json(['id' => $channel->id, 'check_types' => $channel->check_types]);
     }
 
     /** Remove archives: history stays and queued work is suppressed. The account channel cannot be removed. */

@@ -53,7 +53,8 @@ Each channel row shows a one-sentence summary, for example "Gets outages, failur
 - Leave out single sites. A left-out site sends this channel nothing.
 - **Send test**.
 - **Pause** or **Resume** it. Pausing discards queued automatic alerts; resuming does not bring them back. A send already in progress can still finish.
-- Edit its name and transport settings.
+- In **Edit**, set **Check types** to **All check types** (the default) or **Only selected check types**. The selection applies to check alerts, not System notifications or reports. It does not remove queued alerts or prevent recovery for an opening the channel received.
+- Edit its name and transport settings. For the account email, only **Check types** is editable here.
 - **Remove channel**. Its queued messages are dropped and its delivery history stays. The account email cannot be removed.
 
 The account email follows the account address. After a change, queued alerts wait until the new address is verified. A person cannot add more email channels.
@@ -62,10 +63,14 @@ The account email follows the account address. After a change, queued alerts wai
 
 **Site settings → Alerts** and open incidents show **Who gets this**. For one check and one category, it lists every channel that would be told if it happened at this moment, and when. The site overview and every check tab show one line with the number of channels and a **Details** link to it.
 
-- For the other channels it gives the reason: category off, site left out, paused, no access, quiet hours or digest.
+- For the other channels it gives the reason: category off, site left out, check type not selected, paused, no access, quiet hours or digest.
 - It sends nothing and does not replay history. Members see other people's addresses masked.
 
-The sidebar, Sites and Add site warn when no visible site has a channel for outages or failures. Use **Who gets this** for one check.
+The sidebar, Sites and Add site warn when no visible site has a channel for outages or failures. This warning does not account for a channel's check-type selection. Use **Who gets this** to verify coverage for one check.
+
+## Channel settings requests
+
+The web app's session-authenticated `POST /notification-channels` and `PATCH /notification-channels/{channel}` accept and return `check_types`. Send `null` for all check types or a non-empty list of distinct installed check keys, such as `["uptime", "certificate_health"]`. Omit the field to use all types on creation or leave the selection unchanged on edit. The channel settings page also exposes the saved field.
 
 ## Quiet hours and digests
 

@@ -123,6 +123,31 @@ it('explains each channel exactly as planning then schedules the same event', fu
     expect($explained[$muted->id])->toMatchArray(['status' => 'not_sent', 'reason' => 'site_muted']);
 });
 
+it('routes an uptime outage but not a broken-links failure to an uptime-only channel and explains the exclusion', function (): void {
+    Mail::fake();
+    $this->actingAs(explainUser('Owner'));
+    $uptime = Check::factory()->create(['failure_threshold' => 1]);
+    $links = Check::factory()->for($uptime->site)->create(['type' => CheckKey::BrokenLinks]);
+    $all = notificationRoute(NotificationDestination::factory()->create(), [NotificationCategory::Outage, NotificationCategory::Failure]);
+    $filtered = notificationRoute(NotificationDestination::factory()->create(['label' => 'Uptime only', 'check_types' => ['uptime']]),
+        [NotificationCategory::Outage, NotificationCategory::Failure]);
+
+    [$excluded] = array_values(array_filter(explain($links, NotificationCategory::Failure)['recipients'],
+        fn (array $row): bool => $row['channel_id'] === $filtered->id));
+    expect($excluded)->toMatchArray(['label' => 'Uptime only', 'status' => 'not_sent', 'reason' => 'check_type_filtered']);
+
+    explainObservation($uptime);
+    $incident = Incident::factory()->for($links)->create();
+    $failure = Event::factory()->for($links)->for($incident)->create(['type' => 'incident.opened', 'cause' => 'failed', 'to_result' => CheckResult::Failed]);
+    $outage = Event::query()->where('check_id', $uptime->id)->where('type', 'incident.opened')->sole();
+    foreach ([$outage, $failure] as $event) {
+        app(PlanNotificationEvent::class)($event->id);
+    }
+
+    expect(Delivery::query()->where('event_id', $outage->id)->orderBy('destination_id')->pluck('destination_id')->all())->toBe([$all->id, $filtered->id])
+        ->and(Delivery::query()->where('event_id', $failure->id)->pluck('destination_id')->all())->toBe([$all->id]);
+});
+
 it('marks mail that would only be logged, a delayed outage opener and a stopped check like planning does', function (): void {
     Mail::fake();
     config(['mail.default' => 'array']);
@@ -184,9 +209,17 @@ it('keeps recoveries conditional without an incident and resolves them per chann
     $this->travelTo(CarbonImmutable::parse('2026-10-28T10:09:00Z'));
     dispatchNotifications();
 
+    // Narrowing a channel after it heard the opener does not stop its recovery.
+    $this->patchJson(route('notification-channels.update', $alerted), ['check_types' => ['broken_links']])->assertOk();
     $explained = explainedByChannel(explain($check, NotificationCategory::Recovery, extra: ['recovery_origin' => CheckResult::Failed->value]));
     expect($explained[$alerted->id]['status'])->toBe('now');
     expect($explained[$waiting->id])->toMatchArray(['status' => 'not_sent', 'reason' => 'no_opener']);
+
+    $incident = $check->incidents()->sole();
+    $incident->update(['resolved_at' => now()]);
+    $recovery = notificationRecoveryEvent(Event::query()->where('incident_id', $incident->id)->where('type', 'incident.opened')->sole());
+    app(PlanNotificationEvent::class)($recovery->id);
+    expect(Delivery::query()->where('event_id', $recovery->id)->pluck('destination_id')->all())->toBe([$alerted->id]);
 });
 
 it('explains a recovery after pause and resume exactly as planning admits it', function (): void {

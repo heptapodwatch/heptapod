@@ -85,13 +85,28 @@ it('refuses to list an addon channel without its own description in both languag
     'missing DE without fallback to EN' => ['de', 'en'],
 ]);
 
+it('round-trips the check type selection, preserves it on unrelated edits and clears it with null', function (): void {
+    $this->actingAs(recipientUser('Owner'));
+    $selection = ['uptime', 'certificate_health'];
+    $id = $this->postJson(route('notification-channels.store'), ['recipient_kind' => 'team', 'locale' => 'en',
+        ...recipientWebhook(), 'check_types' => $selection])->assertCreated()->assertJsonPath('check_types', $selection)->json('id');
+    $url = route('notification-channels.update', $id);
+    $this->patchJson($url, ['label' => 'Renamed'])->assertOk()->assertJsonPath('check_types', $selection);
+    $this->getJson(route('settings.notifications.team.data'))->assertOk()->assertJsonPath('channels.0.check_types', $selection);
+
+    $this->patchJson($url, ['check_types' => []])->assertUnprocessable()->assertJsonValidationErrors('check_types');
+    $this->patchJson($url, ['check_types' => ['not_installed']])->assertUnprocessable()->assertJsonValidationErrors('check_types.0');
+    $this->patchJson($url, ['check_types' => null])->assertOk()->assertJsonPath('check_types', null);
+    $this->getJson(route('settings.notifications.team.data'))->assertOk()->assertJsonPath('channels.0.check_types', null);
+});
+
 it('creates team, own and client channels with the design defaults and refuses a second mail address for a user', function (): void {
     $owner = recipientUser('Owner');
     $member = recipientUser('Member');
     $client = Client::factory()->create();
 
     $team = $this->actingAs($owner)->postJson(route('notification-channels.store'), ['recipient_kind' => 'team', 'channel' => 'mail', 'label' => 'Ops',
-        'locale' => 'de', 'config' => ['email' => 'ops@example.test']])->assertCreated()->json('id');
+        'locale' => 'de', 'config' => ['email' => 'ops@example.test']])->assertCreated()->assertJsonPath('check_types', null)->json('id');
     $clientChannel = $this->postJson(route('notification-channels.store'), ['recipient_kind' => 'client', 'client_id' => $client->id, 'channel' => 'mail',
         'label' => 'Shop office', 'config' => ['email' => 'office@shop.test']])->assertCreated()->json('id');
     $this->actingAs($member)->postJson(route('notification-channels.store'), ['recipient_kind' => 'user', 'channel' => 'mail', 'label' => 'Second',
