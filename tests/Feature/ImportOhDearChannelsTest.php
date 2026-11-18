@@ -61,39 +61,46 @@ it('plans and imports only approved channels, encrypts secrets, and delivers a t
     expect($channels[301]->client_id)->toBe($client->id);
     expect($channels[301]->preferences()->get()->keyBy('category.value')['failure']->mode->value)->toBe('immediate');
     expect($channels[301]->preferences()->get()->keyBy('category.value')['outage']->mode->value)->toBe('off');
-    expect($channels[102]->destinationConfig()->string('token'))->toBe('fixture-secret-slack-api');
+    expect($channels[102]->destinationConfig()->string('token'))->toBe('xoxp-2...');
 
     $webhook = $channels[109];
     $raw = DB::table('notification_destinations')->find($webhook->id);
-    expect($raw->config.$raw->config_secrets)->not->toContain('fixture-secret');
-    $target = 'https://hooks.example.test/fixture-secret-webhook';
+    expect($raw->config.$raw->config_secrets)->not->toContain('fixture-secret')->not->toContain('fixture-health-header-secret');
+    $target = 'https://hooks.example/fixture-secret-webhook';
     Http::preventStrayRequests();
     Http::fake([$target => Http::response('', 204)]);
     $this->postJson(route('notification-channels.test', $webhook))->assertOk()->assertJsonPath('status', 'sent');
-    Http::assertSent(static fn (Request $request): bool => $request->url() === $target && $request->hasHeader('Authorization', 'Bearer fixture-secret-header')
+    Http::assertSent(static fn (Request $request): bool => $request->url() === $target && $request->hasHeader('Authorization', 'fixture-health-header-secret')
         && $request->hasHeader('Signature'));
     $audit = DB::table('activity_log')->pluck('properties')->implode(' ');
     $signingSecret = $webhook->destinationConfig()->string('secret');
     foreach ([$plan->getContent(), json_encode($run, JSON_THROW_ON_ERROR), json_encode($logged, JSON_THROW_ON_ERROR), $audit] as $output) {
-        expect($output)->not->toContain('fixture-secret')->not->toContain('fixturesecretpushoverrecipient')->not->toContain($signingSecret);
+        foreach (['fixture-secret', 'fixturesecretpushoverrecipient', 'xoxp-2...', 'fixture-health-header-secret', 'fixture-health-secret', 'fixture-crawler-secret', $signingSecret] as $secret) {
+            expect($output)->not->toContain($secret);
+        }
     }
 });
 
 it('updates the same Oh Dear channels on CLI rerun without printing secrets or silently assigning tags', function (): void {
     $options = ['--token' => 'fixture-secret-import-token', '--only' => 'channels'];
     expect(Artisan::call('heptapod:import-ohdear', [...$options, '--dry-run' => true]))->toBe(0);
-    expect(Artisan::output())->toContain('Assign the tag', 'Adapt the receiver')->not->toContain('fixture-secret');
+    $planOutput = Artisan::output();
+    expect($planOutput)->toContain('Assign the tag', 'Adapt the receiver');
     expect(NotificationDestination::query()->whereNotNull('oh_dear_id')->count())->toBe(0);
     expect(Artisan::call('heptapod:import-ohdear', $options))->toBe(0);
     $firstWriteOutput = Artisan::output();
     $channel = NotificationDestination::query()->where('oh_dear_id', 109)->firstOrFail();
     $secret = $channel->destinationConfig()->string('secret');
-    expect($firstWriteOutput)->not->toContain('fixture-secret')->not->toContain($secret);
     $channel->update(['label' => 'Locally edited', 'enabled' => false]);
 
     expect(Artisan::call('heptapod:import-ohdear', $options))->toBe(0);
-    expect(Artisan::output())->toContain('Update')->not->toContain('fixture-secret')->not->toContain($secret)
-        ->toMatch('/\|\s*201 · Email\s*\|\s*Skipped\s*\|\s*Assign the tag/');
+    $rerunOutput = Artisan::output();
+    expect($rerunOutput)->toContain('Update')->toMatch('/\|\s*201 · Email\s*\|\s*Skipped\s*\|\s*Assign the tag/');
+    foreach ([$planOutput, $firstWriteOutput, $rerunOutput] as $output) {
+        foreach (['fixture-secret', 'fixturesecretpushoverrecipient', 'xoxp-2...', 'fixture-health-header-secret', 'fixture-health-secret', 'fixture-crawler-secret', $secret] as $credential) {
+            expect($output)->not->toContain($credential);
+        }
+    }
     $channel->refresh();
     expect($channel->enabled)->toBeTrue();
     expect($channel->label)->not->toBe('Locally edited');

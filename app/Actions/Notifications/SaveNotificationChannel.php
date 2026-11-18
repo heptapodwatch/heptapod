@@ -88,7 +88,7 @@ final readonly class SaveNotificationChannel
             }
             if ($kind === 'webhook') {
                 $config = new ValidatedConfig($config->public, [...$config->secrets(),
-                    'secret' => $existing?->config_secrets['secret'] ?? bin2hex(random_bytes(32))]);
+                    'secret' => $existing?->destinationConfig()->values()['secret'] ?? bin2hex(random_bytes(32))]);
             }
             $grid = array_fill_keys(array_column(NotificationCategory::grid(), 'value'), NotificationMode::Off);
             foreach ($categories as $category) {

@@ -8,8 +8,15 @@ function assertSanitizedFixtureHosts(array $paths): void
     expect($paths)->not->toBeEmpty();
     foreach ($paths as $path) {
         $payload = json_decode(file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
-        array_walk_recursive($payload, function (mixed $value): void {
+        array_walk_recursive($payload, function (mixed $value) use ($path): void {
             if (! is_string($value)) {
+                return;
+            }
+            // Discord and Google Chat require their real provider hosts. Permit only these synthetic endpoint values.
+            if (str_ends_with($path, '/ohdear/real/notification-destinations.json') && in_array($value, [
+                'https://discord.com/api/webhooks/123456789/fixture-secret-discord',
+                'https://chat.googleapis.com/v1/spaces/AAA/messages?key=fixture-secret-chat-key&token=fixture-secret-chat-token',
+            ], true)) {
                 return;
             }
             preg_match_all('/(?<![a-z0-9-])(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?![a-z0-9-])/i', $value, $matches);

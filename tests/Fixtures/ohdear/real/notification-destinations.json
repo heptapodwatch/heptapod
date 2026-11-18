@@ -6,7 +6,7 @@
                 "channel": "mail",
                 "team_id": 42,
                 "label": "fixture-label-do-not-copy",
-                "destination": { "mail": "import-alerts@example.test" },
+                "destination": { "mail": "import-alerts@alerts.example" },
                 "notification_types": [
                     "HttpUptimeCheckFailedNotification",
                     "HttpUptimeCheckRecoveredNotification"
@@ -18,7 +18,7 @@
                 "channel": "slackApi",
                 "destination": {
                     "channel": "#ops",
-                    "slack_api_token": "fixture-secret-slack-api"
+                    "slack_api_token": "xoxp-2..."
                 },
                 "notification_types": [
                     "HttpUptimeCheckFailedNotification",
@@ -32,7 +32,7 @@
                 "id": 103,
                 "channel": "microsoftTeamsWorkflow",
                 "destination": {
-                    "url": "https://teams.example.test/fixture-secret-workflow"
+                    "url": "https://teams.example/fixture-secret-workflow"
                 },
                 "notification_types": ["LighthouseIssuesDetectedNotification"],
                 "enabled": false
@@ -54,7 +54,7 @@
                 "id": 105,
                 "channel": "ntfy",
                 "destination": {
-                    "serverUrl": "https://ntfy.example.test",
+                    "serverUrl": "https://ntfy.example",
                     "topic": "fixture-secret-ntfy-topic",
                     "accessToken": "fixture-secret-ntfy-token",
                     "priority": "5"
@@ -66,7 +66,7 @@
                 "id": 106,
                 "channel": "slack",
                 "destination": {
-                    "url": "https://hooks.slack.com/services/fixture-secret-slack-hook"
+                    "url": "https://slack.example/services/fixture-secret-slack-hook"
                 },
                 "notification_types": [
                     "BrokenLinksFoundNotification",
@@ -99,11 +99,11 @@
                 "id": 109,
                 "channel": "webhook",
                 "destination": {
-                    "url": "https://hooks.example.test/fixture-secret-webhook",
+                    "url": "https://hooks.example/fixture-secret-webhook",
                     "headers": [
                         {
                             "name": "Authorization",
-                            "value": "Bearer fixture-secret-header"
+                            "value": "fixture-health-header-secret"
                         }
                     ]
                 },
@@ -121,7 +121,7 @@
                 "id": 111,
                 "channel": "microsoftTeams",
                 "destination": {
-                    "url": "https://outlook.webhook.office.com/fixture-secret-legacy"
+                    "url": "https://outlook.example/fixture-secret-legacy"
                 },
                 "notification_types": ["HttpUptimeCheckFailedNotification"],
                 "enabled": true
@@ -130,8 +130,8 @@
                 "id": 112,
                 "channel": "zoom",
                 "destination": {
-                    "url": "https://integrations.zoom.us/chat/webhooks/incomingwebhook/fixture-secret-zoom",
-                    "token": "fixture-secret-zoom-token"
+                    "url": "https://zoom.example/chat/webhooks/incomingwebhook/fixture-secret-zoom",
+                    "token": "fixture-health-secret"
                 },
                 "notification_types": ["HttpUptimeCheckFailedNotification"],
                 "enabled": true
@@ -140,9 +140,9 @@
                 "id": 113,
                 "channel": "pagerDuty",
                 "destination": {
-                    "apiKey": "fixture-secret-pagerduty",
+                    "apiKey": "fixture-health-secret",
                     "serviceId": "fixture-service",
-                    "fromEmail": "alerts@example.test"
+                    "fromEmail": "pagerduty@alerts.example"
                 },
                 "notification_types": ["HttpUptimeCheckFailedNotification"],
                 "enabled": true
@@ -151,7 +151,7 @@
                 "id": 114,
                 "channel": "opsgenie",
                 "destination": {
-                    "apiKey": "fixture-secret-opsgenie",
+                    "apiKey": "fixture-health-secret",
                     "priority": "P3",
                     "euEndpoint": false
                 },
@@ -164,7 +164,7 @@
                 "destination": {
                     "to": "+12025550101",
                     "from": "Oh Dear",
-                    "apiKey": "fixture-secret-sms",
+                    "apiKey": "fixture-health-secret",
                     "apiSecret": "fixture-secret-sms-secret"
                 },
                 "notification_types": ["HttpUptimeCheckFailedNotification"],
@@ -179,7 +179,7 @@
                     "headers": [
                         {
                             "name": "Authorization",
-                            "value": "fixture-secret-invalid-header"
+                            "value": "fixture-crawler-secret"
                         }
                     ]
                 },
@@ -193,7 +193,7 @@
             "id": 201,
             "channel": "mail",
             "tag": { "id": 3, "name": "production" },
-            "destination": { "mail": "production-alerts@example.test" },
+            "destination": { "mail": "production-alerts@alerts.example" },
             "notification_types": ["BrokenLinksFoundNotification"],
             "enabled": true
         },
@@ -201,7 +201,7 @@
             "id": 202,
             "channel": "mail",
             "tag": { "id": 4, "name": "unassigned" },
-            "destination": { "mail": "other-alerts@example.test" },
+            "destination": { "mail": "other-alerts@alerts.example" },
             "notification_types": ["BrokenLinksFoundNotification"],
             "enabled": true
         }
@@ -225,7 +225,7 @@
                 "id": 301,
                 "channel": "mail",
                 "tagGroup": { "id": 6, "label": "Online services" },
-                "destination": { "mail": "group-alerts@example.test" },
+                "destination": { "mail": "group-alerts@alerts.example" },
                 "notification_types": ["DnsIssuesFoundNotification"],
                 "enabled": true
             }
@@ -236,7 +236,7 @@
             {
                 "id": 401,
                 "channel": "mail",
-                "destination": { "mail": "monitor-alerts@example.test" },
+                "destination": { "mail": "monitor-alerts@alerts.example" },
                 "notification_types": ["HttpUptimeCheckFailedNotification"],
                 "enabled": true
             }
