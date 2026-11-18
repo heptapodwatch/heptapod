@@ -8,6 +8,7 @@ import type {
     Channel,
     SettingsPage,
 } from '@/components/recipient-settings/model';
+import { ReplicatorField } from '@/components/replicator-field';
 import { SchemaFields, schemaFieldViews } from '@/components/schema-fields';
 import { SheetForm } from '@/components/sheet-form';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,6 @@ import { Combobox, MultiCombobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { RadioCards } from '@/components/ui/radio-cards';
 import { Sheet } from '@/components/ui/sheet';
 import { emptySelectValue } from '@/components/ui/select';
 import { HttpValidationError, useHttpRequest } from '@/hooks/use-http-request';
@@ -70,10 +70,25 @@ export function ChannelFormSheet({
     const account = channel?.account_mail === true;
     if (!type && !account)
         throw new Error(`Channel type ${form.data.channel} is not installed.`);
-    const settingsFields = type ? schemaFieldViews(type.config_schema) : [];
+    const webhook = type?.key === 'webhook';
+    const settingsFields = type
+        ? schemaFieldViews(type.config_schema).filter(
+              (field) => !webhook || field.name !== 'headers',
+          )
+        : [];
+    const headers = form.data.config.headers;
+    const headerRows =
+        webhook && Array.isArray(headers)
+            ? headers.map((row) => {
+                  if (typeof row === 'string' || typeof row.name !== 'string')
+                      throw new Error('Expected webhook header rows.');
+                  return { name: row.name, value: row.value ?? '********' };
+              })
+            : [];
     // Schema validation reports `values.<field>`; a kept secret that must be entered again reports `config.<field>`.
+    const serverErrors = new Map(Object.entries(form.errors));
     const fieldErrors = Object.fromEntries(
-        Object.entries(form.errors).flatMap(([key, message]) => {
+        [...serverErrors].flatMap(([key, message]) => {
             const field = /^(?:values|config)\.(\w+)/.exec(key)?.[1];
             return field === undefined ? [] : [[field, String(message)]];
         }),
@@ -165,9 +180,9 @@ export function ChannelFormSheet({
             >
                 {channel === null && (
                     <div className="space-y-2">
-                        <Label id={`${id}-type`}>{t('Type')}</Label>
-                        <RadioCards
-                            labelledBy={`${id}-type`}
+                        <Label htmlFor={`${id}-type`}>{t('Type')}</Label>
+                        <Combobox
+                            id={`${id}-type`}
                             invalid={!!form.errors.channel}
                             describedBy={
                                 fieldErrorProps(
@@ -176,15 +191,18 @@ export function ChannelFormSheet({
                                 )['aria-describedby']
                             }
                             value={form.data.channel}
-                            onChange={(value) => {
-                                form.setData('channel', value);
-                                form.setData('config', {});
+                            onValueChange={(value) => {
+                                form.setData((current) => ({
+                                    ...current,
+                                    channel: value,
+                                    config: {},
+                                }));
                                 form.clearErrors();
                             }}
                             options={types.map((item) => ({
                                 value: item.key,
                                 label: t(item.label_key),
-                                description: t(item.description_key),
+                                secondary: t(item.description_key),
                             }))}
                         />
                         <InputError
@@ -225,6 +243,46 @@ export function ChannelFormSheet({
                             }
                         />
                     </>
+                )}
+                {webhook && (
+                    <ReplicatorField
+                        id={`${id}-headers`}
+                        label={t('channels.field.headers')}
+                        columns={[
+                            {
+                                key: 'name',
+                                label: t('channels.field.header_name'),
+                                placeholder: t('channels.field.header_name'),
+                                mono: true,
+                            },
+                            {
+                                key: 'value',
+                                label: t('channels.field.header_value'),
+                                placeholder: t('channels.field.header_value'),
+                                type: 'password',
+                            },
+                        ]}
+                        rows={headerRows}
+                        onRowsChange={(rows) =>
+                            form.setData('config', {
+                                ...form.data.config,
+                                headers: rows,
+                            })
+                        }
+                        max={5}
+                        addLabel={t('channels.headers.add')}
+                        rowName={(index) =>
+                            t('channels.headers.row', { index: index + 1 })
+                        }
+                        empty={t('channels.headers.empty')}
+                        error={(index, key) =>
+                            serverErrors.get(
+                                `values.headers.${index}.${key}`,
+                            ) ??
+                            serverErrors.get(`config.headers.${index}.${key}`)
+                        }
+                        message={serverErrors.get('values.headers')}
+                    />
                 )}
                 {team && (
                     <>

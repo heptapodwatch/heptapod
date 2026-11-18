@@ -15,6 +15,17 @@ use Illuminate\Support\Facades\Notification;
 
 final class WebhookChannel extends TransportChannel
 {
+    private const array ReservedHeaders = [
+        'content-type', 'content-length', 'host', 'user-agent', 'connection', 'keep-alive', 'transfer-encoding',
+        'te', 'trailer', 'upgrade', 'expect', 'proxy-authorization', 'proxy-connection',
+        'idempotency-key', 'x-heptapod-timestamp', 'x-heptapod-delivery', TimestampSigner::HeaderName,
+    ];
+
+    public static function allowsHeaderName(mixed $name): bool
+    {
+        return is_string($name) && ! in_array(strtolower($name), self::ReservedHeaders, true);
+    }
+
     public function key(): string
     {
         return 'webhook';
@@ -41,6 +52,11 @@ final class WebhookChannel extends TransportChannel
             'url' => $this->textField('channels.field.url', true, ['url:http,https', 'webhook_scheme']),
             'secret' => $this->textField('channels.field.secret', true),
             'allow_insecure_http' => new Field(FieldType::Boolean, ['sometimes'], presentation: new FieldPresentation('channels.field.allow_insecure_http')),
+            'headers' => new Field(FieldType::List, ['sometimes', 'max:5'], items: new Field(FieldType::Object, properties: [
+                'name' => new Field(FieldType::String, ['bail', 'required', 'max:255', 'regex:/\A[!#$%&\'*+.^_`|~0-9A-Za-z-]+\z/', 'webhook_header_name', 'distinct:ignore_case'],
+                    presentation: new FieldPresentation('channels.field.header_name')),
+                'value' => $this->headerSecretField('channels.field.header_value', rules: ['max:4096', 'not_in:********']),
+            ]), presentation: new FieldPresentation('channels.field.headers')),
         ]);
     }
 
@@ -70,8 +86,11 @@ final class WebhookChannel extends TransportChannel
             'repositories' => $alert->message->repositories,
         ];
         $signer = new TimestampSigner(now()->getTimestamp());
+        /** @var list<array{name: string, value: string}> $headers */
+        $headers = $destination->values()['headers'] ?? [];
         // Match Spatie's exact JSON bytes. Retries and queuing belong to the notification delivery outbox, not WebhookCallJob.
         $response = $this->http($url)->withHeaders([
+            ...array_column($headers, 'value', 'name'),
             'X-Heptapod-Timestamp' => (string) $signer->timestamp,
             $signer->signatureHeaderName() => $signer->calculateSignature($url, $payload, $destination->string('secret')),
             'X-Heptapod-Delivery' => $alert->message->eventId.':'.$destination->destinationId,

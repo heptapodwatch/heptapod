@@ -190,6 +190,20 @@ function channelOutcomeSend(NotificationDestination $channel, string $path = 'ou
     return $row->refresh();
 }
 
+it('records incoming webhook acceptance and refusal in the delivery ledger', function (string $channel, string $url, int $status, string $state, ?string $diagnosis): void {
+    Http::fake([$url => Http::response('', $status)]);
+    $destination = channelOutcomeChannel($channel, ['url' => $url]);
+    $delivery = channelOutcomeSend($destination);
+
+    expect($delivery->state->value)->toBe($state)
+        ->and($delivery->attempts)->toBe(1)
+        ->and($delivery->last_diagnosis)->toBe($diagnosis);
+})->with([
+    'Slack accepts' => ['slackWebhook', 'https://hooks.example.test/sample-token', 200, 'sent', null],
+    'Discord accepts empty response' => ['discordWebhook', 'https://discord.com/api/webhooks/123456789/sample-token', 204, 'sent', null],
+    'Google Chat refuses' => ['googleChat', 'https://chat.googleapis.com/v1/spaces/AAA/messages?key=sample-key&token=sample-token', 403, 'failed', 'HTTP 403 — RequestException'],
+]);
+
 it('records accepted, logged, rejected and failed mail outcomes with retry only for failures', function (string $case, string $state, ?string $outcome, bool $suppressed, ?string $diagnosis): void {
     match ($case) {
         'accepted' => Mail::mailer()->setSymfonyTransport($transport = new ArrayTransport),

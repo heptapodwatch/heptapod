@@ -245,6 +245,17 @@ final class RenderedAlert extends Notification
             ?? throw new \LogicException('Could not escape alert Markdown.');
     }
 
+    /** @return array{title: string, description: string, url?: string, timestamp: string} */
+    public function discordEmbed(): array
+    {
+        return [
+            'title' => $this->title(true, self::DISCORD_LIMITS['title']),
+            'description' => $this->details(true, self::DISCORD_LIMITS['body']),
+            ...($this->message->link === null ? [] : ['url' => $this->message->link]),
+            'timestamp' => $this->message->since->toIso8601String(),
+        ];
+    }
+
     public function toSlack(): SlackMessage
     {
         $fallback = strtr($this->text(self::SLACK_LIMITS['body']), ['&' => '&amp;', '<' => '&lt;', '>' => '&gt;']);

@@ -8,11 +8,13 @@ use Spatie\WebhookServer\Signer\Signer;
 
 final readonly class TimestampSigner implements Signer
 {
+    public const string HeaderName = 'signature';
+
     public function __construct(public int $timestamp) {}
 
     public function signatureHeaderName(): string
     {
-        return 'Signature';
+        return ucfirst(self::HeaderName);
     }
 
     /** @param array<array-key, mixed> $payload */
