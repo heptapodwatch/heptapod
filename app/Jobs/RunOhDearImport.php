@@ -13,7 +13,6 @@ use Heptapod\Data\Import\ImportPlanRowData;
 use Heptapod\Enums\ImportOperation;
 use Heptapod\Enums\ImportRunStatus;
 use Heptapod\Events\LiveSignal;
-use Heptapod\Exceptions\UndeclaredImportNotice;
 use Heptapod\Models\ImportRun;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
@@ -52,6 +51,13 @@ final class RunOhDearImport implements ShouldQueue
         $run = ImportRun::query()->findOrFail($this->runId);
         Context::add('import_run_id', $run->id);
         LiveSignal::forImport();
+        // Setup, client creation and the import share one boundary: a local fault keeps the sites already written and
+        // the token, so "Run again" can continue once it is fixed.
+        ImportOhDearAccount::stopOnLocalFault(fn () => $this->import($run, $import, $createClient), fn () => $this->finish($run, ImportRunStatus::Failed, 'local_error'));
+    }
+
+    private function import(ImportRun $run, ImportOhDearAccount $import, CreateClient $createClient): void
+    {
         $token = ImportTokenStore::get($run->id);
         if ($token === null) {
             $this->finish($run, ImportRunStatus::Failed, 'token_expired');
@@ -92,17 +98,7 @@ final class RunOhDearImport implements ShouldQueue
         };
         // Stored reasons are text, so they are written in the language of the run's owner, the only user who sees them.
         $locale = User::query()->whereKey($run->user_id)->value('locale');
-        try {
-            $plan = $this->withLocale(is_string($locale) ? $locale : config()->string('app.locale'), static fn (): ImportPlanData => $import($token, false, $approved, $progress));
-        } catch (UndeclaredImportNotice $exception) {
-            throw $exception;
-        } catch (Throwable $exception) {
-            ImportOhDearAccount::reportLocalFault($exception);
-            // Sites already written stay; the token is kept so "Run again" can continue once the fault is fixed.
-            $this->finish($run, ImportRunStatus::Failed, 'local_error');
-
-            return;
-        }
+        $plan = $this->withLocale(is_string($locale) ? $locale : config()->string('app.locale'), static fn (): ImportPlanData => $import($token, false, $approved, $progress));
         $run->remote_error = $plan->remote_error;
         if ($plan->remote_error === null && $failedRows === 0) {
             $this->finish($run, ImportRunStatus::Completed, null);

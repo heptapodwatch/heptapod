@@ -13,7 +13,7 @@ use Heptapod\Contracts\OhDearImportMapping;
 use Heptapod\Contracts\Schema\SecretMinimum;
 use Heptapod\Data\Import\ImportPlanRowData;
 use Heptapod\Enums\ImportOperation;
-use Heptapod\Exceptions\InvalidOhDearRecurringResponse;
+use Heptapod\Exceptions\InvalidOhDearResponse;
 use Heptapod\Maintenance\RecurringMaintenanceAttributes;
 use Heptapod\Models\Client;
 use Heptapod\Models\MaintenancePeriod;
@@ -233,7 +233,9 @@ final readonly class ImportOhDearMonitor
         $cronMapping = $this->registry->importMapping(CheckKey::Cron);
         $cronImporter = $cronMapping?->definitions === null || $this->registry->availability(CheckKey::Cron)->reason !== null ? null : app($cronMapping->definitions);
         if ($cronImporter instanceof OhDearDefinitionImporter) {
-            foreach ($sdk->cronCheckDefinitions($monitor->id) as $definition) {
+            /** @var list<CronCheckDefinition> $remoteDefinitions */
+            $remoteDefinitions = $this->decoded(static fn (): array => iterator_to_array($sdk->cronCheckDefinitions($monitor->id), false), 'import.invalid_cron_response');
+            foreach ($remoteDefinitions as $definition) {
                 $definitions[] = $this->cronAttributes($definition);
             }
             try {
@@ -265,7 +267,7 @@ final readonly class ImportOhDearMonitor
             }
         }
         /** @var list<RemoteMaintenancePeriod> $maintenance */
-        $maintenance = iterator_to_array($sdk->maintenancePeriods($monitor->id), false);
+        $maintenance = $this->decoded(static fn (): array => iterator_to_array($sdk->maintenancePeriods($monitor->id), false), 'import.invalid_maintenance_response');
         /** @var list<RemoteRecurringPeriod> $recurring */
         $recurring = $this->recurringMaintenancePeriods($sdk, $monitor->id);
         foreach ($maintenance as $period) {
@@ -383,28 +385,44 @@ final readonly class ImportOhDearMonitor
         try {
             $shape = $response->object();
         } catch (\JsonException) {
-            throw new InvalidOhDearRecurringResponse(__('import.invalid_recurring_response'));
+            throw new InvalidOhDearResponse('import.invalid_recurring_response');
         }
         if ($shape instanceof \stdClass && isset($shape->data) && is_array($shape->data)) {
             $items = $response->json('data');
         } elseif (is_array($shape)) {
             $items = $response->json();
         } else {
-            throw new InvalidOhDearRecurringResponse(__('import.invalid_recurring_response'));
+            throw new InvalidOhDearResponse('import.invalid_recurring_response');
         }
         if (! is_array($items) || ! array_is_list($items) || array_any($items, static fn (mixed $item): bool => ! is_array($item) || array_is_list($item))) {
-            throw new InvalidOhDearRecurringResponse(__('import.invalid_recurring_response'));
+            throw new InvalidOhDearResponse('import.invalid_recurring_response');
         }
 
-        try {
-            /** @var list<RemoteRecurringPeriod> $periods */
-            $periods = RemoteRecurringPeriod::collect($items);
-        } catch (\TypeError|\ErrorException) {
-            // A row the SDK cannot decode (missing or mistyped fields) is a bad source answer, not a local fault.
-            throw new InvalidOhDearRecurringResponse(__('import.invalid_recurring_response'));
-        }
+        /** @var list<RemoteRecurringPeriod> $periods */
+        $periods = $this->decoded(static fn (): array => RemoteRecurringPeriod::collect($items), 'import.invalid_recurring_response');
 
         return $periods;
+    }
+
+    /**
+     * Reads source data through the data objects of the SDK. A row they cannot decode (missing fields, wrong types) is a bad Oh Dear
+     * answer; a TypeError raised anywhere else is a local fault and must stop the import.
+     *
+     * @template T
+     *
+     * @param  \Closure(): T  $read
+     * @return T
+     */
+    private function decoded(\Closure $read, string $causeKey): mixed
+    {
+        try {
+            return $read();
+        } catch (\TypeError|\ErrorException $exception) {
+            if (! str_contains(str_replace('\\', '/', $exception->getFile()), '/ohdear-php-sdk/src/Dto/')) {
+                throw $exception;
+            }
+            throw new InvalidOhDearResponse($causeKey, $exception->getCode(), $exception);
+        }
     }
 
     /** @param array<string, mixed> $config */

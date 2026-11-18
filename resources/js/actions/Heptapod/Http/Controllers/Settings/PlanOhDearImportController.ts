@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Settings\PlanOhDearImportController::__invoke
-* @see app/Http/Controllers/Settings/PlanOhDearImportController.php:19
+* @see app/Http/Controllers/Settings/PlanOhDearImportController.php:20
 * @route '/settings/import/ohdear/plan'
 */
 const PlanOhDearImportController = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ PlanOhDearImportController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\PlanOhDearImportController::__invoke
-* @see app/Http/Controllers/Settings/PlanOhDearImportController.php:19
+* @see app/Http/Controllers/Settings/PlanOhDearImportController.php:20
 * @route '/settings/import/ohdear/plan'
 */
 PlanOhDearImportController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ PlanOhDearImportController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\PlanOhDearImportController::__invoke
-* @see app/Http/Controllers/Settings/PlanOhDearImportController.php:19
+* @see app/Http/Controllers/Settings/PlanOhDearImportController.php:20
 * @route '/settings/import/ohdear/plan'
 */
 PlanOhDearImportController.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ PlanOhDearImportController.post = (options?: RouteQueryOptions): RouteDefinition
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\PlanOhDearImportController::__invoke
-* @see app/Http/Controllers/Settings/PlanOhDearImportController.php:19
+* @see app/Http/Controllers/Settings/PlanOhDearImportController.php:20
 * @route '/settings/import/ohdear/plan'
 */
 const PlanOhDearImportControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,7 +45,7 @@ const PlanOhDearImportControllerForm = (options?: RouteQueryOptions): RouteFormD
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\PlanOhDearImportController::__invoke
-* @see app/Http/Controllers/Settings/PlanOhDearImportController.php:19
+* @see app/Http/Controllers/Settings/PlanOhDearImportController.php:20
 * @route '/settings/import/ohdear/plan'
 */
 PlanOhDearImportControllerForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

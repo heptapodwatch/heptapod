@@ -190,7 +190,7 @@ export default function ImportOhDearRun({
                                         )
                                       : importRun.error === 'local_error'
                                         ? t(
-                                              'The import stopped because of an error on this server, not at Oh Dear. Sites listed below were imported. The server log has the details (import run :run).',
+                                              'The import stopped because of an error on this server, not at Oh Dear. Sites already imported were kept. The server log has the details (import run :run).',
                                               { run: importRun.id },
                                           )
                                         : importRun.status === 'incomplete'

@@ -83,7 +83,7 @@
     "The import could not finish. Nothing after the last listed site was imported.": "The import could not finish. Nothing after the last listed site was imported.",
     "The Oh Dear token expired before the import started. Start again from the plan.": "The Oh Dear token expired before the import started. Start again from the plan.",
     "The checks this server can run changed since the plan, so this attempt stopped before importing anything. Show the plan again.": "The checks this server can run changed since the plan, so this attempt stopped before importing anything. Show the plan again.",
-    "The import stopped because of an error on this server, not at Oh Dear. Sites listed below were imported. The server log has the details (import run :run).": "The import stopped because of an error on this server, not at Oh Dear. Sites listed below were imported. The server log has the details (import run :run).",
+    "The import stopped because of an error on this server, not at Oh Dear. Sites already imported were kept. The server log has the details (import run :run).": "The import stopped because of an error on this server, not at Oh Dear. Sites already imported were kept. The server log has the details (import run :run).",
     "Follow-up checklist": "Follow-up checklist",
     "Notification channels are not imported. Set up the team’s notification channels for the imported sites.": "Notification channels are not imported. Set up the team’s notification channels for the imported sites.",
     "Cron tasks: update each task to ping its new Heptapod URL.": "Cron tasks: update each task to ping its new Heptapod URL.",

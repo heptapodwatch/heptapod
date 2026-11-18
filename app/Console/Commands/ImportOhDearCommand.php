@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace Heptapod\Console\Commands;
 
 use Heptapod\Actions\ImportOhDearAccount;
+use Heptapod\Data\Import\ImportPlanData;
 use Heptapod\Data\Import\ImportPlanRowData;
-use Heptapod\Exceptions\UndeclaredImportNotice;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
-use Throwable;
 
 #[Signature('heptapod:import-ohdear {--token= : Oh Dear API token (required)} {--dry-run : Preview the import without saving changes}')]
 final class ImportOhDearCommand extends Command
@@ -28,13 +27,9 @@ final class ImportOhDearCommand extends Command
             return self::FAILURE;
         }
         $dryRun = $this->option('dry-run') === true;
-        try {
-            $plan = $import($token, $dryRun);
-        } catch (UndeclaredImportNotice $exception) {
-            throw $exception;
-        } catch (Throwable $exception) {
-            ImportOhDearAccount::reportLocalFault($exception);
-            $this->error(__('import.local_error', ['class' => class_basename($exception)]));
+        $plan = ImportOhDearAccount::stopOnLocalFault(static fn (): ImportPlanData => $import($token, $dryRun), static fn (): null => null);
+        if ($plan === null) {
+            $this->error(__('import.local_error'));
 
             return self::FAILURE;
         }

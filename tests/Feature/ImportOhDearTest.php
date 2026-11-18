@@ -172,7 +172,8 @@ test('invalid report email is rejected before creating a monitor', function (): 
     $this->account['monitors'][0]['send_report_to_emails'] = ['invalid'];
     app(OhDearAccountTransport::class)->fake($this->account);
     expect(Artisan::call('heptapod:import-ohdear', ['--token' => 'fixture-token-secret']))->toBe(1);
-    expect(Artisan::output())->toContain('send_report_to_emails.0');
+    // A nested path is source-shaped: only the field label is shown.
+    expect(Artisan::output())->toContain('Invalid fields: Report settings: invalid')->not->toContain('send_report_to_emails.0');
     expect(Site::query()->count())->toBe(1)->and(DB::table('cron_checks')->count())->toBe(0)->and(DB::table('maintenance_periods')->count())->toBe(0);
 });
 
