@@ -25,6 +25,7 @@ use OhDear\PhpSdk\Exceptions\OhDearException;
 use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Exceptions\Request\RequestException;
 use Saloon\Http\PendingRequest;
+use Saloon\Http\Response;
 use Throwable;
 
 /** Plans or imports every monitor of one Oh Dear account. Shared by `heptapod:import-ohdear` and Settings → Import. */
@@ -89,10 +90,10 @@ final readonly class ImportOhDearAccount
                 }
             }
         } catch (FatalRequestException $exception) {
-            $remoteError = __('import.connection_failed').'; '.$this->failureDetails($exception);
+            $remoteError = $this->failureDetails($exception);
         } catch (OhDearException $exception) {
             // The SDK exception contains the upstream response; never print it or the token.
-            $remoteError = __('import.remote_failed', ['status' => $exception->response->status()]).'; '.$this->failureDetails($exception);
+            $remoteError = $this->failureDetails($exception);
         }
         if (! $dryRun) {
             DB::statement('ANALYZE sites, taggables, tags, client_user');
@@ -178,29 +179,35 @@ final readonly class ImportOhDearAccount
         Log::warning('Oh Dear import failed', ['ohdear_monitor_id' => $monitor?->id, 'exception' => $exception::class, 'file' => $exception->getFile(), 'line' => $exception->getLine(), 'reason' => $reason]);
     }
 
+    /** A plain reason for the owner: which Oh Dear request failed and how, never an exception class or Oh Dear's own wording. */
     private function failureDetails(#[\SensitiveParameter] Throwable $exception): string
     {
-        // An InvalidOhDearResponse message is a lang key naming the endpoint (see the class).
-        $message = $exception instanceof InvalidOhDearResponse ? __($exception->getMessage()) : __('import.unexpected_failed');
+        if ($exception instanceof InvalidOhDearResponse) {
+            // Its message is a lang key naming the endpoint (see the class).
+            return __($exception->getMessage());
+        }
+        if ($exception instanceof OhDearIdentityConflict) {
+            return __('import.identity_conflict');
+        }
         $response = match (true) {
             $exception instanceof OhDearException => $exception->response,
             $exception instanceof RequestException => $exception->getResponse(),
             default => null,
         };
         $pending = $response?->getPendingRequest() ?? ($exception instanceof FatalRequestException ? $exception->getPendingRequest() : null);
-        if ($pending instanceof PendingRequest) {
-            $path = $pending->getRequest()->resolveEndpoint();
-            /** @var string $endpoint */
-            $endpoint = match ($path) {
-                '/me' => 'me',
-                '/monitors' => 'monitors',
-                default => preg_match('~^/monitors/[0-9]+/(cron-checks|maintenance-periods|recurring-maintenance-periods)$~D', $path, $matches) === 1 ? 'monitors/{id}/'.$matches[1] : __('import.unknown_endpoint'),
-            };
-            /** @var string $noResponse */
-            $noResponse = __('import.no_response');
-            $message .= ' '.__('import.request_failed', ['method' => $pending->getMethod()->value, 'endpoint' => $endpoint, 'status' => $response?->status() ?? $noResponse]);
+        if (! $pending instanceof PendingRequest) {
+            return __('import.unexpected_failed');
         }
+        $path = $pending->getRequest()->resolveEndpoint();
+        $request = __(match (true) {
+            $path === '/me' => 'import.request.account',
+            $path === '/monitors' => 'import.request.sites',
+            str_ends_with($path, '/cron-checks') => 'import.request.cron',
+            str_ends_with($path, '/recurring-maintenance-periods') => 'import.request.recurring',
+            str_ends_with($path, '/maintenance-periods') => 'import.request.maintenance',
+            default => 'import.request.other',
+        });
 
-        return explode('@', class_basename($exception))[0].': '.$message;
+        return $response instanceof Response ? __('import.request_http_error', ['request' => $request, 'status' => $response->status()]) : __('import.request_unanswered', ['request' => $request]);
     }
 }
