@@ -30,11 +30,15 @@ const post = (payload, signal = AbortSignal.timeout(10000)) =>
             payload === null ? null : { proxyToken: token, ...payload },
         ),
     });
-async function startServer() {
-    server = spawn(process.execPath, [join(directory, 'server.mjs')], {
-        env: { ...process.env, CHROME_FLAGS: '--headless --no-sandbox' },
-        stdio: ['ignore', 'inherit', 'pipe'],
-    });
+async function startServer(nodeArgs = []) {
+    server = spawn(
+        process.execPath,
+        [...nodeArgs, join(directory, 'server.mjs')],
+        {
+            env: { ...process.env, CHROME_FLAGS: '--headless --no-sandbox' },
+            stdio: ['ignore', 'inherit', 'pipe'],
+        },
+    );
     // 'close' also waits for stderr, so the exit log line has arrived.
     serverExit = once(server, 'close');
     serverStderr = '';
@@ -70,6 +74,42 @@ async function assertExitedAndRestart() {
         /audit terminated; exiting so the container restarts without leftover processes/,
     );
     await startServer();
+}
+async function within(promise, milliseconds, message) {
+    let timer;
+    try {
+        return await Promise.race([
+            promise,
+            new Promise((resolve, reject) => {
+                timer = setTimeout(
+                    () => reject(new Error(message)),
+                    milliseconds,
+                );
+            }),
+        ]);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+async function stopServer() {
+    server.kill();
+    await within(serverExit, 5000, 'Server did not stop');
+}
+async function eventually(condition, message) {
+    for (let attempt = 0; attempt < 100; attempt++) {
+        if (await condition()) return;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    throw new Error(message);
+}
+async function exitedOrZombie(pid) {
+    try {
+        process.kill(pid, 0);
+        return /\) Z /.test(await readFile(`/proc/${pid}/stat`, 'utf8'));
+    } catch (error) {
+        if (['ESRCH', 'ENOENT'].includes(error.code)) return true;
+        throw error;
+    }
 }
 async function assertStillRunning() {
     assert.equal(
@@ -495,6 +535,89 @@ void test('retains the last safe unrecognised name after an unsafe unknown event
         );
     }
 });
+// Replaces server.mjs's imports of the given Node modules with the given sources, through an --import preload.
+async function serverPreload(name, modules) {
+    const preload = join(rootDirectory, `${name}.mjs`);
+    const urls = Object.fromEntries(
+        Object.entries(modules).map(([specifier, source]) => [
+            specifier,
+            'data:text/javascript,' + encodeURIComponent(source),
+        ]),
+    );
+    await writeFile(
+        preload,
+        `
+        import { registerHooks } from 'node:module';
+        const urls = ${JSON.stringify(urls)};
+        registerHooks({ resolve(specifier, context, nextResolve) {
+            if (Object.hasOwn(urls, specifier) && context.parentURL?.endsWith('/server.mjs'))
+                return { url: urls[specifier], shortCircuit: true };
+            return nextResolve(specifier, context);
+        } });
+    `,
+    );
+    return ['--import', preload];
+}
+// An oversized report is a forced termination: the typed result must arrive, then the server exits for restart.
+async function assertTypedResultThenExit(nodeArgs) {
+    await stopServer();
+    await startServer(nodeArgs);
+    const response = await post({ url: 'https://example.com/oversize' });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).auditFailure.code, 'report_too_large');
+    const [code] = await within(serverExit, 5000, 'Server kept running');
+    assert.equal(code, 1);
+}
+void test('keeps the typed result when the process scan reads an exiting process', async () => {
+    // Linux answers ESRCH when a process exits between opening and reading its /proc stat file; the CI run hit
+    // that right after a budget kill (502 at 150.01 s).
+    const esrch = await serverPreload('proc-esrch', {
+        'node:fs/promises': `
+            import * as fs from 'node:fs/promises';
+            export * from 'node:fs/promises';
+            export async function readFile(path, ...rest) {
+                if (/^\\/proc\\/\\d+\\/stat$/.test(String(path)))
+                    throw Object.assign(new Error('No such process'), { code: 'ESRCH' });
+                return fs.readFile(path, ...rest);
+            }
+        `,
+    });
+    await assertTypedResultThenExit(esrch);
+    // A normal audit treats a process that vanished mid-read as gone and keeps serving.
+    await startServer(esrch);
+    assert.equal((await post({ url: 'https://example.com/' })).status, 200);
+    await assertStillRunning();
+    await stopServer();
+    await startServer();
+});
+void test('keeps the typed result when the worker group outlives the cleanup wait', async () => {
+    // /proc shows only the worker, alive and leading its group, so the group never empties.
+    const groupOutlivesWait = await serverPreload('proc-group-alive', {
+        'node:child_process': `
+            import * as childProcess from 'node:child_process';
+            export * from 'node:child_process';
+            export function spawn(...args) {
+                const child = childProcess.spawn(...args);
+                globalThis.auditWorkerPid = String(child.pid);
+                return child;
+            }
+        `,
+        'node:fs/promises': `
+            import * as fs from 'node:fs/promises';
+            export * from 'node:fs/promises';
+            export async function readdir(path, ...rest) {
+                return String(path) === '/proc' ? [globalThis.auditWorkerPid] : fs.readdir(path, ...rest);
+            }
+            export async function readFile(path, ...rest) {
+                const pid = globalThis.auditWorkerPid;
+                if (String(path) === '/proc/' + pid + '/stat') return pid + ' (node) S 1 ' + pid + ' ' + pid;
+                return fs.readFile(path, ...rest);
+            }
+        `,
+    });
+    await assertTypedResultThenExit(groupOutlivesWait);
+    await startServer();
+});
 void test('names worker crashes, unscored reports and oversize reports', async () => {
     for (const [path, code, message] of [
         ['worker-page-crashed', 'page_crashed', 'Renderer crashed'],
@@ -567,19 +690,14 @@ void test(
         });
         assert.ok(Date.now() - start >= 150000);
         assert.ok(Date.now() - start < 155000);
+        // The response is sent before the kill has necessarily taken effect, so wait (bounded) for the processes.
         for (const pid of JSON.parse(
             await readFile(join(directory, 'pids.json'), 'utf8'),
         )) {
-            try {
-                process.kill(pid, 0);
-                assert.match(
-                    await readFile(`/proc/${pid}/stat`, 'utf8'),
-                    /\) Z /,
-                );
-            } catch (error) {
-                if (error.code !== 'ESRCH' && error.code !== 'ENOENT')
-                    throw error;
-            }
+            await eventually(
+                () => exitedOrZombie(pid),
+                `Audit process ${pid} survived the budget kill`,
+            );
         }
         await assertExitedAndRestart();
         assert.equal((await post({ url: 'https://example.com/' })).status, 200);
