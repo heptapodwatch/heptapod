@@ -7,6 +7,7 @@ namespace Heptapod\Console\Commands;
 use Heptapod\Actions\ImportOhDearAccount;
 use Heptapod\Data\Import\ImportPlanData;
 use Heptapod\Data\Import\ImportPlanRowData;
+use Heptapod\Enums\ImportOperation;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
@@ -38,7 +39,8 @@ final class ImportOhDearCommand extends Command
             $this->line(__('import.dry_run'));
         }
         $this->table([__('import.monitor'), __('import.operation'), __('import.details')],
-            array_map(static fn (ImportPlanRowData $row): array => [$row->source_id, __('import.'.$row->operation->value), $row->details], $plan->rows));
+            // A failed row's reason is a summary; the logged entry has the class and place (the web run adds its run id instead).
+            array_map(static fn (ImportPlanRowData $row): array => [$row->source_id, __('import.'.$row->operation->value), $row->operation === ImportOperation::Failed ? $row->details.' '.__('import.cli_log_reference') : $row->details], $plan->rows));
         $this->line(__('alert_sensitivity.import_summary', [
             'inherited' => count(array_filter($plan->rows, static fn (ImportPlanRowData $row): bool => $row->inherits_alert_timing === true)),
             'overridden' => count(array_filter($plan->rows, static fn (ImportPlanRowData $row): bool => $row->inherits_alert_timing === false)),

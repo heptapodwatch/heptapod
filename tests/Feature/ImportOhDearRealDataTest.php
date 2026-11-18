@@ -423,7 +423,7 @@ test('isolates Oh Dear failures per monitor, stops on local faults and withholds
     expect($output)->toContain('501', '502', '503', '504', '505', 'Failed');
     expect(json_encode($logged, JSON_THROW_ON_ERROR))->toContain('Oh Dear import failed', '501');
     if ($kind === 'sdk') {
-        expect($output)->toContain('Oh Dear answered the recurring maintenance request with HTTP 500.')->not->toContain('OhDearException');
+        expect($output)->toContain('Oh Dear answered the recurring maintenance request with HTTP 500. Details are in the server log.')->not->toContain('OhDearException');
     } else {
         expect($output)->toContain('Oh Dear did not answer the recurring maintenance request.')->not->toContain('FatalRequestException');
     }

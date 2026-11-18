@@ -445,6 +445,7 @@
     "import.short_credentials": "Nicht importiert: Geheimnis zu kurz (in Oh Dear oder nach dem Import erneuern): :fields",
     "import.unavailable": "Nicht importiert, auf diesem Server nicht verfügbar: :checks",
     "import.log_reference": "Details stehen im Server-Log (Importlauf :run).",
+    "import.cli_log_reference": "Details stehen im Server-Log.",
     "import.invalid_recurring_response": "Oh Dear hat wiederkehrende Wartungen gesendet, die nicht gelesen werden können.",
     "import.unexpected_failed": "Diese Website konnte nicht importiert werden.",
     "import.request_http_error": "Oh Dear hat die Anfrage (:request) mit HTTP :status beantwortet.",
