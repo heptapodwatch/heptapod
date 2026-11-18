@@ -3,8 +3,6 @@
     "Use the team assignment": "Team-Zuordnung verwenden",
     "Import stays unavailable until a complete plan loads. Show the plan again to start the import.": "Der Import bleibt unverfügbar, bis ein vollständiger Plan geladen ist. Zeigen Sie den Plan erneut an, um den Import zu starten.",
     "Oh Dear stopped answering before all sites were read; only the sites below were read.": "Oh Dear hat nicht mehr geantwortet, bevor alle Websites gelesen waren; nur die folgenden Websites wurden gelesen.",
-    ":count site choices returned to Automatic because their new client was removed._one": ":count Website-Auswahl wurde auf Automatisch zurückgesetzt, weil ihr neuer Kunde entfernt wurde.",
-    ":count site choices returned to Automatic because their new client was removed._other": ":count Website-Auswahlen wurden auf Automatisch zurückgesetzt, weil ihr neuer Kunde entfernt wurde.",
     "Oh Dear API token": "Oh-Dear-API-Token",
     "Show plan": "Plan anzeigen",
     "The plan could not be loaded. Try again.": "Der Plan konnte nicht geladen werden. Versuchen Sie es erneut.",
@@ -24,9 +22,6 @@
     "Checks to import": "Zu importierende Prüfungen",
     "Not imported": "Nicht importiert",
     "Client for :name": "Kunde für :name",
-    "New client name for :name": "Name des neuen Kunden für :name",
-    "New client: :name": "Neuer Kunde: :name",
-    "Unnamed": "Ohne Namen",
     "Automatic: :client": "Automatisch: :client",
     "import.notice.site_exists": "Bereits vorhanden",
     "import.notice.monitor_unsupported": "Monitortyp: nicht verfügbar (Heptapod überwacht Websites über HTTP)",
@@ -73,6 +68,7 @@
     "Not imported for any site": "Für keine Website importiert",
     "Choose a client": "Kunden wählen",
     "Tags of this site point to different clients. Choose one.": "Die Tags dieser Website verweisen auf verschiedene Kunden. Wählen Sie einen.",
+    "Tags of this site point to :clients. Choose one.": "Die Tags dieser Website verweisen auf :clients. Wählen Sie einen davon.",
     "Start import": "Import starten",
     "Choose a client for every site with conflicting tags before the import.": "Wählen Sie vor dem Import für jede Website mit widersprüchlichen Tags einen Kunden.",
     "Import progress": "Importfortschritt",
@@ -112,5 +108,6 @@
     "Use a read-only Oh Dear API token.": "Verwenden Sie ein schreibgeschütztes Oh-Dear-API-Token.",
     "It is used for this import only: it is kept encrypted for at most 15 minutes between the plan and the import, then it expires. It is never shown or logged.": "Es dient nur diesem Import: Zwischen Plan und Import wird es höchstens 15 Minuten verschlüsselt aufbewahrt, danach verfällt es. Es wird nie angezeigt oder protokolliert.",
     "A tag assignment wins over the team assignment; a choice per site wins over both.": "Eine Tag-Zuordnung geht vor der Team-Zuordnung; eine Auswahl pro Website geht vor beiden.",
-    "Sites without an assigned client go to No client.": "Websites ohne Kundenzuordnung kommen in die Gruppe Ohne Kunde."
+    "Sites without an assigned client go to No client.": "Websites ohne Kundenzuordnung kommen in die Gruppe Ohne Kunde.",
+    "Loading plan…": "Plan wird geladen…"
 }

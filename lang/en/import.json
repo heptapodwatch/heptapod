@@ -3,8 +3,6 @@
     "Use the team assignment": "Use the team assignment",
     "Import stays unavailable until a complete plan loads. Show the plan again to start the import.": "Import stays unavailable until a complete plan loads. Show the plan again to start the import.",
     "Oh Dear stopped answering before all sites were read; only the sites below were read.": "Oh Dear stopped answering before all sites were read; only the sites below were read.",
-    ":count site choices returned to Automatic because their new client was removed._one": ":count site choice returned to Automatic because its new client was removed.",
-    ":count site choices returned to Automatic because their new client was removed._other": ":count site choices returned to Automatic because their new client was removed.",
     "Oh Dear API token": "Oh Dear API token",
     "Show plan": "Show plan",
     "The plan could not be loaded. Try again.": "The plan could not be loaded. Try again.",
@@ -24,9 +22,6 @@
     "Checks to import": "Checks to import",
     "Not imported": "Not imported",
     "Client for :name": "Client for :name",
-    "New client name for :name": "New client name for :name",
-    "New client: :name": "New client: :name",
-    "Unnamed": "Unnamed",
     "Automatic: :client": "Automatic: :client",
     "import.notice.site_exists": "Already exists",
     "import.notice.monitor_unsupported": "Monitor type: not available (Heptapod monitors websites over HTTP)",
@@ -73,6 +68,7 @@
     "Not imported for any site": "Not imported for any site",
     "Choose a client": "Choose a client",
     "Tags of this site point to different clients. Choose one.": "Tags of this site point to different clients. Choose one.",
+    "Tags of this site point to :clients. Choose one.": "Tags of this site point to :clients. Choose one.",
     "Start import": "Start import",
     "Choose a client for every site with conflicting tags before the import.": "Choose a client for every site with conflicting tags before the import.",
     "Import progress": "Import progress",
@@ -112,5 +108,6 @@
     "Use a read-only Oh Dear API token.": "Use a read-only Oh Dear API token.",
     "It is used for this import only: it is kept encrypted for at most 15 minutes between the plan and the import, then it expires. It is never shown or logged.": "It is used for this import only: it is kept encrypted for at most 15 minutes between the plan and the import, then it expires. It is never shown or logged.",
     "A tag assignment wins over the team assignment; a choice per site wins over both.": "A tag assignment wins over the team assignment; a choice per site wins over both.",
-    "Sites without an assigned client go to No client.": "Sites without an assigned client go to No client."
+    "Sites without an assigned client go to No client.": "Sites without an assigned client go to No client.",
+    "Loading plan…": "Loading plan…"
 }

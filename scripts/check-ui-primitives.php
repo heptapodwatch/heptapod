@@ -613,9 +613,9 @@ foreach ($files as $path) {
             $failures[] = "{$path}: raw table element; use the shared Table primitives";
         }
     }
-    // Site forms share the authorized, always-visible client creation action and picker.
-    if ($path !== 'resources/js/components/site-fields.tsx' && preg_match('~\bid=[\'"]site-client[\'"]~', $source) === 1) {
-        $failures[] = "{$path}: local site client picker; use SiteClientField";
+    // Pickers that assign something to a client share one field with inline client creation.
+    if ($path !== 'resources/js/components/client-field.tsx' && preg_match('~\bid=[\'"]site-client[\'"]~', $source) === 1) {
+        $failures[] = "{$path}: local client picker; use ClientField";
     }
     // The named presets own display precision. Calendar keys, exports and datetime-local values are machine formats.
     $dateTimeOwners = [

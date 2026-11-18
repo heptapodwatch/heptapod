@@ -5,7 +5,6 @@ import {
     FormSecondaryAction,
 } from '@/components/form-section';
 import {
-    SiteClientField,
     SiteNameField,
     SiteTagsField,
     SiteUrlField,
@@ -30,6 +29,7 @@ import { CheckSettingsSheet } from '@/components/check-settings-sheet';
 import { TextLink } from '@/components/text-link';
 import { team as teamNotifications } from '@/routes/settings/notifications';
 import { ClientCreateSheet } from '@/components/client-create-sheet';
+import { ClientField } from '@/components/client-field';
 import { useSiteUrlProbe } from '@/hooks/use-site-url-probe';
 
 /** Request error keys in page order with the control a refused Add site focuses. */
@@ -534,7 +534,7 @@ function AddSiteForm({
                                     'Choose a client for this site.',
                                 )}
                             >
-                                <SiteClientField
+                                <ClientField
                                     clients={clients}
                                     onCreateClient={
                                         can_create_site

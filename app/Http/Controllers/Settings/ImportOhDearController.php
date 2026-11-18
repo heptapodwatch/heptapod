@@ -8,6 +8,7 @@ use Heptapod\Concerns\AuthorizesSettingsOperator;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CronPingUrl;
 use Heptapod\Contracts\CronTaskStore;
+use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\ImportOhDearPageData;
 use Heptapod\Data\Ui\ImportOhDearRunPageData;
 use Heptapod\Enums\ImportRunStatus;
@@ -26,12 +27,12 @@ final class ImportOhDearController extends Controller
     public function edit(Request $request): Response
     {
         $this->operator($request);
-        $clients = Client::query();
+        $clients = Client::query()->with(Client::AvatarRelations);
         $clients->getQuery()->whereNull('archived_at')->orderByDesc('is_internal')->orderBy('name');
 
         return Inertia::render('settings/import-ohdear', new ImportOhDearPageData(
-            clients: array_values($clients->get(['id', 'name', 'is_internal'])
-                ->map(static fn (Client $client): array => ['id' => $client->id, 'name' => $client->displayName(), 'is_internal' => $client->is_internal])->all()),
+            clients: array_values($clients->get()->map(static fn (Client $client): ClientData => ClientData::fromClient($client))->all()),
+            timezones: \DateTimeZone::listIdentifiers(),
         ));
     }
 

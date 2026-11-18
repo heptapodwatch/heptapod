@@ -4,8 +4,6 @@ import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 import { TextLink } from '@/components/text-link';
 import { show as siteShow } from '@/routes/sites';
-import { Combobox } from '@/components/ui/combobox';
-import { ClientMark } from '@/components/client-mark';
 import { useTranslation } from 'react-i18next';
 import type { ComponentProps, ReactNode } from 'react';
 import InputError, { fieldErrorProps } from '@/components/input-error';
@@ -243,83 +241,6 @@ export function SiteTagsField({
             <p id={`${id}-help`} className="text-xs text-muted-foreground">
                 {t('Tags are separated by commas.')}
             </p>
-            <InputError field={id} message={error} />
-        </div>
-    );
-}
-
-type SiteClientFieldProps = { error?: string } & (
-    | { client: Heptapod.Data.Ui.ClientData }
-    | (Omit<
-          ComponentProps<typeof Combobox>,
-          'options' | 'value' | 'onValueChange' | 'create'
-      > & {
-          clients: Heptapod.Data.Ui.ClientData[];
-          id?: string;
-          value: string;
-          onValueChange: (value: string) => void;
-          onCreateClient?: (name: string) => void;
-      })
-);
-
-export function SiteClientField({ error, ...props }: SiteClientFieldProps) {
-    const { t } = useTranslation();
-    if ('client' in props) {
-        return (
-            <div className="space-y-2">
-                <p className="text-sm leading-none font-medium">
-                    {t('Client')}
-                </p>
-                <p className="flex h-10 items-center gap-2 rounded-md border px-3 text-sm sm:h-8">
-                    <ClientMark client={props.client} small />
-                    {props.client.name}
-                </p>
-            </div>
-        );
-    }
-    const {
-        clients,
-        id = 'site-client',
-        onCreateClient,
-        ...selectProps
-    } = props;
-    const option = (client: Heptapod.Data.Ui.ClientData) => ({
-        value: String(client.id),
-        label: client.name,
-        mark: <ClientMark client={client} small />,
-    });
-    return (
-        <div className="space-y-2">
-            <Label htmlFor={id}>{t('Client')}</Label>
-            {onCreateClient ? (
-                <Combobox
-                    id={id}
-                    options={clients.map(option)}
-                    value={selectProps.value}
-                    onValueChange={selectProps.onValueChange}
-                    disabled={selectProps.disabled}
-                    invalid={!!error}
-                    describedBy={fieldErrorProps(id, error)['aria-describedby']}
-                    create={{
-                        label: (name) =>
-                            name
-                                ? t('clients.create_inline', { name })
-                                : t('New client'),
-                        onCreate: onCreateClient,
-                    }}
-                />
-            ) : (
-                <Combobox
-                    id={id}
-                    options={clients.map(option)}
-                    value={selectProps.value}
-                    placeholder={selectProps.placeholder}
-                    onValueChange={selectProps.onValueChange}
-                    disabled={selectProps.disabled}
-                    invalid={!!error}
-                    describedBy={fieldErrorProps(id, error)['aria-describedby']}
-                />
-            )}
             <InputError field={id} message={error} />
         </div>
     );
