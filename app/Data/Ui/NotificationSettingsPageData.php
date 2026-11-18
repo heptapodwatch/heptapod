@@ -22,8 +22,8 @@ final class NotificationSettingsPageData extends Data
      * @param  array{quiet_start: string|null, quiet_end: string|null, quiet_weekends: bool, digest_time: string, digest_weekdays: list<int>|null, timezone: string}  $schedule
      * @param  list<array{id: int, name: string, client_id: int, client_name: string, host: string, url: string, icon_url: string|null, icon_backing: SiteIconBacking, identity: array{label: string, detail: string}}>  $sites  sites the recipient can be alerted about, for site exceptions
      * @param  list<array{id: int, name: string}>  $clients  team scope choices
-     * @param  list<ChannelTypeData>  $channel_types  the types this recipient's channels may use (SaveNotificationChannel::offers); the
-     *                                                account email is never edited here, so every editable channel's type is listed
+     * @param  list<ChannelTypeData>  $channel_types  transport settings for the channel types this recipient may add; the account email's transport is fixed
+     * @param  list<array{value: string, label_key: string}>  $check_types  installed check types
      * @param  list<string>|null  $migration_report  stored once by the 2026-10-30 conversion; team page only
      */
     public function __construct(
@@ -36,6 +36,7 @@ final class NotificationSettingsPageData extends Data
         public readonly array $sites,
         public readonly array $clients,
         public readonly array $channel_types,
+        public readonly array $check_types,
         public readonly ?array $migration_report = null,
     ) {}
 }

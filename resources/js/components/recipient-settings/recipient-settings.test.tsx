@@ -110,6 +110,7 @@ function channel(overrides: Partial<Channel> = {}): Channel {
         account_mail: false,
         locale: 'en',
         scope_client_id: null,
+        check_types: null,
         attention_reason: null,
         last_outcome: null,
         last_outcome_diagnosis: null,
@@ -160,6 +161,7 @@ function page(channels: Channel[]): SettingsPage {
         ],
         clients: [],
         channel_types: [],
+        check_types: [],
         migration_report: null,
     };
 }

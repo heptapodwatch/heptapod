@@ -255,6 +255,8 @@ it('opens to the Owner, an opted-in Admin and a team System channel and recovers
     $quietAdmin = systemIssueRecipient('Admin');
     $member = systemIssueRecipient('Member', true);
     $slack = systemSlackChannel();
+    $slack->update(['check_types' => ['uptime']]);
+    systemIssueAccountChannel($owner)->update(['check_types' => ['uptime']]);
     $silentTeam = NotificationDestination::factory()->create();
 
     $issue = staleScheduler();

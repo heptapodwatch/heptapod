@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Heptapod\Actions\Notifications;
 
 use Heptapod\Actions\RequestRoutingReconciliation;
+use Heptapod\Contracts\CheckKey;
+use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
 use Heptapod\Contracts\Schema\FieldType;
 use Heptapod\Contracts\Schema\ValidatedConfig;
@@ -19,6 +21,7 @@ use Heptapod\Support\SecretReentry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\In;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -27,18 +30,19 @@ use Illuminate\Validation\ValidationException;
  */
 final readonly class SaveNotificationChannel
 {
-    public function __construct(private ChannelRegistry $channels, private RequestRoutingReconciliation $reconcile) {}
+    public function __construct(private ChannelRegistry $channels, private CheckRegistry $checks, private RequestRoutingReconciliation $reconcile) {}
 
     /** @param array<string, mixed> $attributes */
     public function add(RecipientKind $kind, ?User $user, ?Client $client, array $attributes): NotificationDestination
     {
-        /** @var array{channel: string, label: string, locale?: string, scope_client_id?: int|null, config: array<string, mixed>} $data */
+        /** @var array{channel: string, label: string, locale?: string, scope_client_id?: int|null, check_types?: list<string>|null, config: array<string, mixed>} $data */
         $data = Validator::make($attributes, [
             'channel' => ['required', 'string', Rule::in(array_keys($this->channels->all()))],
             'label' => ['required', 'string', 'max:255'],
             'locale' => [$kind === RecipientKind::Team ? 'required' : 'prohibited', Rule::in(['en', 'de'])],
             'scope_client_id' => [$kind === RecipientKind::Team ? 'nullable' : 'prohibited', 'integer', 'exists:clients,id'],
             'config' => ['present', 'array'],
+            ...$this->checkTypeRules(),
         ], attributes: $this->attributeNames())->validate();
         if (! self::offers($kind, $data['channel'])) {
             throw ValidationException::withMessages(['channel' => __('notifications.user_mail_is_account')]);
@@ -48,7 +52,7 @@ final readonly class SaveNotificationChannel
         return NotificationLocks::transaction(function () use ($kind, $user, $client, $data, $config): NotificationDestination {
             $channel = NotificationDestination::query()->create(['recipient_kind' => $kind, 'user_id' => $user?->id, 'client_id' => $client?->id,
                 'scope_client_id' => $data['scope_client_id'] ?? null, 'channel' => $data['channel'], 'label' => $data['label'],
-                'locale' => $data['locale'] ?? null, 'enabled' => true, 'config' => $config]);
+                'locale' => $data['locale'] ?? null, 'enabled' => true, 'config' => $config, 'check_types' => $data['check_types'] ?? null]);
             $role = $user instanceof User ? array_find(['Owner', 'Admin', 'Member'], static fn (string $name): bool => $user->hasRole($name)) : null;
             NotificationPreference::writeInitialGrid($channel->id, NotificationPreference::defaults($kind, $role));
             $this->reconcile->forChannel($channel);
@@ -57,11 +61,21 @@ final readonly class SaveNotificationChannel
         });
     }
 
+    /** @return array<string, list<string|In>> */
+    private function checkTypeRules(): array
+    {
+        return [
+            'check_types' => ['sometimes', 'nullable', 'array', 'list', 'min:1'],
+            'check_types.*' => ['required', 'string', 'distinct:strict', Rule::in(array_column($this->checks->keys(), 'value'))],
+        ];
+    }
+
     /** @return array<string, string> Validation messages name the fields as the channel form labels them. */
     private function attributeNames(): array
     {
         return array_map(static fn (string $key): string => (string) __($key), ['channel' => 'Type', 'label' => 'Name', 'locale' => 'Language',
-            'scope_client_id' => 'recipient_settings.scope.label', 'config' => 'recipient_settings.form.settings']);
+            'scope_client_id' => 'recipient_settings.scope.label', 'config' => 'recipient_settings.form.settings',
+            'check_types' => 'recipient_settings.check_types.label', 'check_types.*' => 'recipient_settings.check_types.label']);
     }
 
     /** Whether a new channel of this type may be added for this recipient kind: a user's mail is only the account channel. */
@@ -71,30 +85,33 @@ final readonly class SaveNotificationChannel
     }
 
     /**
-     * Label, language, team scope and transport settings. Secrets stay when sent back masked or empty; a changed target
-     * origin requires the secrets again. A widened team scope can reach open outages (design §2.2).
+     * Label, language, team scope, check types and transport settings. Secrets stay when sent back masked or empty; a changed target
+     * origin requires the secrets again. Widening routing can reach open outages (design §2.2).
      *
      * @param  array<string, mixed>  $attributes
      */
     public function edit(NotificationDestination $destination, array $attributes): NotificationDestination
     {
         $team = $destination->recipient_kind === RecipientKind::Team;
-        /** @var array{label?: string, locale?: string, scope_client_id?: int|null, config?: array<string, mixed>} $data */
+        /** @var array{label?: string, locale?: string, scope_client_id?: int|null, check_types?: list<string>|null, config?: array<string, mixed>} $data */
         $data = Validator::make($attributes, [
             'label' => ['sometimes', 'string', 'max:255'],
             'locale' => [$team ? 'sometimes' : 'prohibited', Rule::in(['en', 'de'])],
             'scope_client_id' => [$team ? 'sometimes' : 'prohibited', 'nullable', 'integer', 'exists:clients,id'],
             'config' => [$destination->account_mail ? 'prohibited' : 'sometimes', 'array'],
+            ...$this->checkTypeRules(),
         ], attributes: $this->attributeNames())->validate();
 
         return NotificationLocks::transaction(function () use ($destination, $data): NotificationDestination {
             // NotificationLocks: the target client's key (before level 1: the scope's foreign key takes it at the save, and
             // archiving that client holds it exclusive while it waits for the client's incidents), the open episodes a
-            // widened scope or a resume marks (incidents), then the channel.
+            // widened route or a resume marks (incidents), then the channel.
             if (isset($data['scope_client_id'])) {
                 NotificationLocks::forShare(DB::table('clients')->where('id', $data['scope_client_id']))->first(['id']);
             }
-            if (array_key_exists('scope_client_id', $data) || isset($data['config'])) {
+            $allowsUptime = array_key_exists('check_types', $data)
+                && ($data['check_types'] === null || in_array(CheckKey::Uptime->value, $data['check_types'], true));
+            if (array_key_exists('scope_client_id', $data) || isset($data['config']) || $allowsUptime) {
                 $this->reconcile->lockEpisodes($destination);
             }
             NotificationLocks::channels([$destination->id]);
@@ -102,9 +119,10 @@ final readonly class SaveNotificationChannel
             if ($locked->removed_at !== null) {
                 throw ValidationException::withMessages(['channel' => __('notifications.channel_removed')]);
             }
-            $widened = array_key_exists('scope_client_id', $data) && $locked->scope_client_id !== null && $data['scope_client_id'] !== $locked->scope_client_id;
+            $widenedScope = array_key_exists('scope_client_id', $data) && $locked->scope_client_id !== null && $data['scope_client_id'] !== $locked->scope_client_id;
+            $addedUptime = $allowsUptime && $locked->check_types !== null && ! in_array(CheckKey::Uptime->value, $locked->check_types, true);
             $wasActive = $locked->enabled && ! $locked->needs_attention;
-            $locked->fill(array_intersect_key($data, array_flip(['label', 'locale', 'scope_client_id'])));
+            $locked->fill(array_intersect_key($data, array_flip(['label', 'locale', 'scope_client_id', 'check_types'])));
             if (isset($data['config'])) {
                 $locked->setAttribute('config', $this->mergedConfig($locked, $data['config']));
             }
@@ -112,7 +130,7 @@ final readonly class SaveNotificationChannel
             // like a resume, it can newly reach open outages (design §2.2).
             $locked->save();
             $resumed = ! $wasActive && $locked->enabled && ! $locked->needs_attention;
-            if ($widened || $resumed) {
+            if ($widenedScope || $addedUptime || $resumed) {
                 $this->reconcile->forChannel($locked->refresh());
             }
 

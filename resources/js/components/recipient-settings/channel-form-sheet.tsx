@@ -11,7 +11,7 @@ import type {
 import { SchemaFields, schemaFieldViews } from '@/components/schema-fields';
 import { SheetForm } from '@/components/sheet-form';
 import { Button } from '@/components/ui/button';
-import { Combobox } from '@/components/ui/combobox';
+import { Combobox, MultiCombobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -27,6 +27,7 @@ type Draft = {
     label: string;
     locale: 'en' | 'de';
     scope_client_id: number | null;
+    check_types: string[] | null;
     config: Record<string, FieldValue>;
 };
 
@@ -59,15 +60,17 @@ export function ChannelFormSheet({
             (channel?.locale as Draft['locale'] | null) ??
             (i18n.language === 'de' ? 'de' : 'en'),
         scope_client_id: channel?.scope_client_id ?? null,
+        check_types: channel?.check_types ?? null,
         config: { ...channel?.config },
     });
     const [failure, setFailure] = useState('');
     const type = page.channel_types.find(
         (item) => item.key === form.data.channel,
     );
-    if (!type)
+    const account = channel?.account_mail === true;
+    if (!type && !account)
         throw new Error(`Channel type ${form.data.channel} is not installed.`);
-    const settingsFields = schemaFieldViews(type.config_schema);
+    const settingsFields = type ? schemaFieldViews(type.config_schema) : [];
     // Schema validation reports `values.<field>`; a kept secret that must be entered again reports `config.<field>`.
     const fieldErrors = Object.fromEntries(
         Object.entries(form.errors).flatMap(([key, message]) => {
@@ -75,6 +78,13 @@ export function ChannelFormSheet({
             return field === undefined ? [] : [[field, String(message)]];
         }),
     );
+    const checkTypes = form.data.check_types;
+    const checkTypesError =
+        form.errors.check_types ??
+        Object.entries(form.errors).find(([key]) =>
+            key.startsWith('check_types.'),
+        )?.[1];
+    const checkTypesField = `${id}-check-types-${checkTypes === null ? 'mode' : 'selection'}`;
     const team = page.recipient_kind === 'team';
     form.transform((data) => ({
         ...(channel === null
@@ -86,11 +96,11 @@ export function ChannelFormSheet({
                   channel: data.channel,
               }
             : {}),
-        label: data.label,
+        check_types: data.check_types,
+        ...(account ? {} : { label: data.label, config: data.config }),
         ...(team
             ? { locale: data.locale, scope_client_id: data.scope_client_id }
             : {}),
-        ...(channel?.account_mail ? {} : { config: data.config }),
     }));
     return (
         <Sheet
@@ -102,9 +112,11 @@ export function ChannelFormSheet({
             <SheetForm
                 title={t(channel === null ? 'Add channel' : 'Edit channel')}
                 description={t(
-                    channel !== null
-                        ? 'recipient_settings.form.edit_description'
-                        : `recipient_settings.form.${page.recipient_kind}_description`,
+                    account
+                        ? 'recipient_settings.check_types.account_description'
+                        : channel !== null
+                          ? 'recipient_settings.form.edit_description'
+                          : `recipient_settings.form.${page.recipient_kind}_description`,
                 )}
                 aria-busy={form.processing}
                 onSubmit={(event) => {
@@ -181,36 +193,38 @@ export function ChannelFormSheet({
                         />
                     </div>
                 )}
-                <div className="space-y-2">
-                    <Label htmlFor={`${id}-label`}>{t('Name')}</Label>
-                    <Input
-                        id={`${id}-label`}
-                        value={form.data.label}
-                        placeholder={t(type.label_key)}
-                        aria-invalid={!!form.errors.label}
-                        aria-describedby={`${id}-label-error`}
-                        onChange={(event) =>
-                            form.setData('label', event.target.value)
-                        }
-                    />
-                    <InputError
-                        id={`${id}-label-error`}
-                        message={form.errors.label}
-                    />
-                </div>
-                {!channel?.account_mail && (
-                    <SchemaFields
-                        columns={settingsFields.length === 1 ? 1 : 2}
-                        schema={settingsFields}
-                        values={form.data.config}
-                        errors={fieldErrors}
-                        onChange={(name, value) =>
-                            form.setData('config', {
-                                ...form.data.config,
-                                [name]: value,
-                            })
-                        }
-                    />
+                {!account && (
+                    <>
+                        <div className="space-y-2">
+                            <Label htmlFor={`${id}-label`}>{t('Name')}</Label>
+                            <Input
+                                id={`${id}-label`}
+                                value={form.data.label}
+                                placeholder={type && t(type.label_key)}
+                                aria-invalid={!!form.errors.label}
+                                aria-describedby={`${id}-label-error`}
+                                onChange={(event) =>
+                                    form.setData('label', event.target.value)
+                                }
+                            />
+                            <InputError
+                                id={`${id}-label-error`}
+                                message={form.errors.label}
+                            />
+                        </div>
+                        <SchemaFields
+                            columns={settingsFields.length === 1 ? 1 : 2}
+                            schema={settingsFields}
+                            values={form.data.config}
+                            errors={fieldErrors}
+                            onChange={(name, value) =>
+                                form.setData('config', {
+                                    ...form.data.config,
+                                    [name]: value,
+                                })
+                            }
+                        />
+                    </>
                 )}
                 {team && (
                     <>
@@ -285,6 +299,68 @@ export function ChannelFormSheet({
                         </div>
                     </>
                 )}
+                <div className="space-y-2">
+                    <Label id={`${id}-check-types`}>
+                        {t('recipient_settings.check_types.label')}
+                    </Label>
+                    <RadioGroup
+                        id={`${id}-check-types-mode`}
+                        aria-labelledby={`${id}-check-types`}
+                        {...(checkTypes === null
+                            ? fieldErrorProps(checkTypesField, checkTypesError)
+                            : {})}
+                        value={checkTypes === null ? 'all' : 'selected'}
+                        onValueChange={(value) => {
+                            form.setData(
+                                'check_types',
+                                value === 'all'
+                                    ? null
+                                    : (channel?.check_types ?? []),
+                            );
+                            form.clearErrors('check_types');
+                        }}
+                    >
+                        <RadioGroupItem value="all">
+                            {t('recipient_settings.check_types.all')}
+                        </RadioGroupItem>
+                        <RadioGroupItem value="selected">
+                            {t('recipient_settings.check_types.selected')}
+                        </RadioGroupItem>
+                    </RadioGroup>
+                    {checkTypes !== null && (
+                        <MultiCombobox
+                            id={checkTypesField}
+                            ariaLabel={t(
+                                'recipient_settings.check_types.select',
+                            )}
+                            placeholder={t(
+                                'recipient_settings.check_types.select',
+                            )}
+                            options={page.check_types.map(
+                                ({ value, label_key }) => ({
+                                    value,
+                                    label: t(label_key),
+                                }),
+                            )}
+                            values={checkTypes}
+                            invalid={!!checkTypesError}
+                            describedBy={
+                                fieldErrorProps(
+                                    checkTypesField,
+                                    checkTypesError,
+                                )['aria-describedby']
+                            }
+                            onValuesChange={(values) => {
+                                form.setData('check_types', values);
+                                form.clearErrors('check_types');
+                            }}
+                        />
+                    )}
+                    <InputError
+                        field={checkTypesField}
+                        message={checkTypesError}
+                    />
+                </div>
                 <InputError
                     message={
                         (channel !== null ? form.errors.channel : undefined) ??

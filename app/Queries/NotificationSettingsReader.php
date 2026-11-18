@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Heptapod\Queries;
 
 use Heptapod\Actions\Notifications\SaveNotificationChannel;
+use Heptapod\Contracts\CheckKey;
+use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Data\Ui\ChannelTypeData;
@@ -35,7 +37,7 @@ final readonly class NotificationSettingsReader
     /** Audit event an Owner writes to hide the stored migration report on the team page for the whole instance. */
     public const string MigrationReportDismissed = 'notifications.migration_report_dismissed';
 
-    public function __construct(private ChannelRegistry $channels, private SitePolicy $sites, private InstanceSettings $settings, private GenericSiteIcons $icons) {}
+    public function __construct(private ChannelRegistry $channels, private CheckRegistry $checks, private SitePolicy $sites, private InstanceSettings $settings, private GenericSiteIcons $icons) {}
 
     public function team(User $viewer): NotificationSettingsPageData
     {
@@ -167,11 +169,13 @@ final readonly class NotificationSettingsReader
             $siteRows[$index]['identity'] = $identities[$site['id']];
         }
 
+        $checkTypes = array_map(fn (CheckKey $key): array => ['value' => $key->value, 'label_key' => $this->checks->definition($key)->labelKey], $this->checks->keys());
+
         return new NotificationSettingsPageData($kind, $recipientId, $name, $rows, $grid,
             ['quiet_start' => $schedule->quiet_start, 'quiet_end' => $schedule->quiet_end, 'quiet_weekends' => $schedule->quiet_weekends,
                 'digest_time' => $schedule->digest_time, 'digest_weekdays' => $schedule->digest_weekdays, 'timezone' => $schedule->timezone()],
             $siteRows, $clients, array_values(array_filter(ChannelTypeData::installed($this->channels),
-                static fn (ChannelTypeData $type): bool => SaveNotificationChannel::offers($kind, $type->key))), $report);
+                static fn (ChannelTypeData $type): bool => SaveNotificationChannel::offers($kind, $type->key))), $checkTypes, $report);
     }
 
     /**
@@ -203,7 +207,7 @@ final readonly class NotificationSettingsReader
 
         return new NotificationChannelData($channel->id, $channel->channel, $channel->label,
             $channel->channel === 'mail' && is_string($email) ? $email : null, $status, $channel->account_mail,
-            $channel->locale, $channel->scope_client_id, is_string($reason) ? $reason : null,
+            $channel->locale, $channel->scope_client_id, $channel->check_types, is_string($reason) ? $reason : null,
             $channel->last_outcome, $channel->last_outcome_diagnosis, $channel->last_outcome_at?->toIso8601String(), $queued,
             $channel->config, array_map(NotificationMode::from(...), $preferences),
             $defaults === null ? null : array_map(NotificationMode::from(...), $defaults), $systemLocked, $systemBypassesPause, $mutes, ! $channel->account_mail);
