@@ -28,8 +28,7 @@ final class SecretMerge
             return $value;
         }
         $previous = is_array($previous) ? $previous : [];
-        // Ordered name/value lists retain a secret only for the same header at the same position.
-        if (isset($value['name']) && ($previous['name'] ?? null) !== $value['name']) {
+        if (isset($value['name']) && self::nameKey($field, $previous['name'] ?? null) !== self::nameKey($field, $value['name'])) {
             $previous = [];
         }
         foreach ($field->properties as $name => $child) {
@@ -40,16 +39,26 @@ final class SecretMerge
             }
         }
         if ($field->items instanceof Field) {
-            // A unique header name identifies a row even when an earlier row was removed.
-            $uniqueNames = in_array('distinct:ignore_case', $field->items->properties['name']->rules ?? [], true);
-            $previousByName = $uniqueNames ? array_column($previous, null, 'name') : [];
+            // Case-insensitively unique names identify rows across reordering; other lists use position.
+            $uniqueNames = self::hasCaseInsensitiveNames($field->items);
+            $previousByName = $uniqueNames ? array_change_key_case(array_column($previous, null, 'name')) : [];
             foreach ($value as $index => $item) {
                 $name = is_array($item) ? $item['name'] ?? null : null;
-                $oldItem = $uniqueNames ? (is_string($name) ? $previousByName[$name] ?? null : null) : ($previous[$index] ?? null);
+                $oldItem = $uniqueNames ? (is_string($name) ? $previousByName[strtolower($name)] ?? null : null) : ($previous[$index] ?? null);
                 $value[$index] = self::preserve($field->items, $item, $oldItem, $path.'.'.$index);
             }
         }
 
         return $value;
+    }
+
+    private static function nameKey(Field $field, mixed $name): mixed
+    {
+        return is_string($name) && self::hasCaseInsensitiveNames($field) ? strtolower($name) : $name;
+    }
+
+    private static function hasCaseInsensitiveNames(Field $field): bool
+    {
+        return in_array('distinct:ignore_case', $field->properties['name']->rules ?? [], true);
     }
 }

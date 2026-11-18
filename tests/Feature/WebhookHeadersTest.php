@@ -17,19 +17,20 @@ it('keeps custom header values encrypted, masked, and out of provider failure di
     $id = $this->postJson(route('notification-channels.store'), [
         'channel' => 'webhook', 'label' => 'Custom receiver', 'recipient_kind' => 'team', 'locale' => 'en',
         'config' => ['url' => $url, 'secret' => 'example-signing-secret', 'headers' => [
-            ['name' => 'X-Old', 'value' => 'example-old-secret'], ['name' => 'Authorization', 'value' => $value],
+            ['name' => 'X-Old', 'value' => 'example-old-secret'], ['name' => 'authorization', 'value' => $value],
         ]],
     ])->assertCreated()->json('id');
     $row = DB::table('notification_destinations')->find($id);
     expect($row->config)->not->toContain($value)->and($row->config_secrets)->not->toContain($value);
     $page = $this->getJson(route('settings.notifications.team.data'))->assertOk()->assertDontSee($value);
     $config = collect($page->json('channels'))->firstWhere('id', $id)['config'];
-    expect($config['headers'][1])->toBe(['name' => 'Authorization', 'value' => null]);
+    expect($config['headers'][1])->toBe(['name' => 'authorization', 'value' => null]);
 
-    $headers = [['name' => 'Authorization', 'value' => '********']];
+    $headers = [['name' => 'authorization', 'value' => '********']];
     $this->patchJson(route('notification-channels.update', $id), [
         'config' => ['url' => 'https://other.example.test/hook', 'secret' => 'different-signing-secret', 'headers' => $headers],
     ])->assertUnprocessable()->assertJsonValidationErrors('config.headers.0.value');
+    $headers[0]['name'] = 'Authorization';
     $this->patchJson(route('notification-channels.update', $id), ['config' => ['headers' => $headers]])->assertOk();
     expect(NotificationDestination::query()->findOrFail($id)->destinationConfig()->values()['headers'])->toBe([['name' => 'Authorization', 'value' => $value]]);
 

@@ -49,7 +49,7 @@ final class ChannelsServiceProvider extends ServiceProvider
             $host = strtolower($url['host'] ?? '');
             $path = $url['path'] ?? '';
             if ($parameters[0] === 'discord') {
-                return in_array($host, ['discord.com', 'discordapp.com'], true)
+                return in_array($host, ['discord.com', 'ptb.discord.com', 'canary.discord.com', 'discordapp.com'], true)
                     && preg_match('~\A/api/(?:v[0-9]+/)?webhooks/[0-9]+/[A-Za-z0-9_-]+\z~', $path) === 1;
             }
             if ($parameters[0] !== 'google_chat') {

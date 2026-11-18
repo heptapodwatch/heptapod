@@ -47,6 +47,8 @@ it('offers incoming webhooks in channel settings and sends the provider payload'
 })->with([
     'Slack team' => ['slackWebhook', 'https://mattermost.example.test/hooks/sample-token', 'team', 200],
     'Discord personal' => ['discordWebhook', 'https://discord.com/api/webhooks/123456789/example-token', 'user', 204],
+    'Discord PTB URL' => ['discordWebhook', 'https://ptb.discord.com/api/webhooks/123456789/example-token', 'user', 204],
+    'Discord Canary URL' => ['discordWebhook', 'https://canary.discord.com/api/webhooks/123456789/example-token', 'user', 204],
     'Google Chat client' => ['googleChat', 'https://chat.googleapis.com/v1/spaces/AAA/messages?key=example-key&token=example-token', 'client', 200],
 ]);
 
