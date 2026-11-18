@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Actions\Notifications;
 
 use Heptapod\Actions\RequestRoutingReconciliation;
+use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
 use Heptapod\Contracts\Schema\FieldType;
@@ -85,7 +86,7 @@ final readonly class SaveNotificationChannel
 
     /**
      * Label, language, team scope, check types and transport settings. Secrets stay when sent back masked or empty; a changed target
-     * origin requires the secrets again. A widened team scope can reach open outages (design §2.2).
+     * origin requires the secrets again. Widening routing can reach open outages (design §2.2).
      *
      * @param  array<string, mixed>  $attributes
      */
@@ -104,11 +105,13 @@ final readonly class SaveNotificationChannel
         return NotificationLocks::transaction(function () use ($destination, $data): NotificationDestination {
             // NotificationLocks: the target client's key (before level 1: the scope's foreign key takes it at the save, and
             // archiving that client holds it exclusive while it waits for the client's incidents), the open episodes a
-            // widened scope or a resume marks (incidents), then the channel.
+            // widened route or a resume marks (incidents), then the channel.
             if (isset($data['scope_client_id'])) {
                 NotificationLocks::forShare(DB::table('clients')->where('id', $data['scope_client_id']))->first(['id']);
             }
-            if (array_key_exists('scope_client_id', $data) || isset($data['config'])) {
+            $allowsUptime = array_key_exists('check_types', $data)
+                && ($data['check_types'] === null || in_array(CheckKey::Uptime->value, $data['check_types'], true));
+            if (array_key_exists('scope_client_id', $data) || isset($data['config']) || $allowsUptime) {
                 $this->reconcile->lockEpisodes($destination);
             }
             NotificationLocks::channels([$destination->id]);
@@ -116,7 +119,8 @@ final readonly class SaveNotificationChannel
             if ($locked->removed_at !== null) {
                 throw ValidationException::withMessages(['channel' => __('notifications.channel_removed')]);
             }
-            $widened = array_key_exists('scope_client_id', $data) && $locked->scope_client_id !== null && $data['scope_client_id'] !== $locked->scope_client_id;
+            $widenedScope = array_key_exists('scope_client_id', $data) && $locked->scope_client_id !== null && $data['scope_client_id'] !== $locked->scope_client_id;
+            $addedUptime = $allowsUptime && $locked->check_types !== null && ! in_array(CheckKey::Uptime->value, $locked->check_types, true);
             $wasActive = $locked->enabled && ! $locked->needs_attention;
             $locked->fill(array_intersect_key($data, array_flip(['label', 'locale', 'scope_client_id', 'check_types'])));
             if (isset($data['config'])) {
@@ -126,7 +130,7 @@ final readonly class SaveNotificationChannel
             // like a resume, it can newly reach open outages (design §2.2).
             $locked->save();
             $resumed = ! $wasActive && $locked->enabled && ! $locked->needs_attention;
-            if ($widened || $resumed) {
+            if ($widenedScope || $addedUptime || $resumed) {
                 $this->reconcile->forChannel($locked->refresh());
             }
 

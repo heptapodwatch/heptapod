@@ -17,7 +17,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * Design §2.2: a routing change that can newly reach an open uptime episode marks it in the same transaction;
  * DispatchNotifications drains the marks in bounded batches. Callers: a channel created or resumed with an Outage,
- * Failure or Check error cell on, such a cell turning on, a removed site mute, a widened team scope.
+ * Failure or Check error cell on, such a cell turning on, a removed site mute, a widened team scope or a check-type
+ * selection that starts including uptime.
  *
  * The marks are incident writes (NotificationLocks level 7), and planning holds such an incident while it locks the
  * channel. A caller that changes an existing channel therefore takes {@see self::lockEpisodes()} before the channel. A

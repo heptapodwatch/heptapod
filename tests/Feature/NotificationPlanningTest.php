@@ -260,6 +260,24 @@ it('reconciles an open outage when an Outage, Failure or Check error cell turns 
     expect(Delivery::query()->where('destination_id', $channel->id)->where('state', 'sent')->count())->toBe($category === NotificationCategory::Outage ? 1 : 0);
 })->with([NotificationCategory::Outage, NotificationCategory::Failure, NotificationCategory::CheckError]);
 
+it('sends an open outage to a channel when its check type selection starts including uptime', function (?array $selection): void {
+    Mail::fake();
+    $owner = User::factory()->owner()->create();
+    $channel = notificationRoute(NotificationDestination::factory()->create(['check_types' => ['certificate_health']]), [NotificationCategory::Outage]);
+    $opening = planningOutage();
+    dispatchNotifications();
+    expect(plannedChannels($opening))->toBe([]);
+
+    $this->actingAs($owner)->patchJson(route('notification-channels.update', $channel), ['check_types' => $selection])->assertOk();
+    dispatchNotifications();
+
+    $delivery = Delivery::query()->where('event_id', $opening->id)->where('destination_id', $channel->id)->first();
+    expect($delivery?->state)->toBe(DeliveryState::Sent);
+})->with([
+    'all check types' => [null],
+    'a selection including uptime' => [['certificate_health', 'uptime']],
+]);
+
 it('does not request a reconciliation when a cell other than an opening category turns on', function (): void {
     $opening = planningOutage();
     dispatchNotifications();

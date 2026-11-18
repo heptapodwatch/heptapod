@@ -53,7 +53,7 @@ Each channel row shows a one-sentence summary, for example "Gets outages, failur
 - Leave out single sites. A left-out site sends this channel nothing.
 - **Send test**.
 - **Pause** or **Resume** it. Pausing discards queued automatic alerts; resuming does not bring them back. A send already in progress can still finish.
-- In **Edit**, set **Check types** to **All check types** (the default) or **Only selected check types**. The selection applies to check alerts, not System notifications or reports. It does not remove queued alerts or prevent recovery for an opening the channel received.
+- In **Edit**, set **Check types** to **All check types** (the default) or **Only selected check types**. The selection applies to check alerts, not System notifications or reports. It does not remove queued alerts or prevent recovery for an opening the channel received. Adding **Uptime** can send an opening alert for an outage that is still open.
 - Edit its name and transport settings. For the account email, only **Check types** is editable here.
 - **Remove channel**. Its queued messages are dropped and its delivery history stays. The account email cannot be removed.
 
@@ -67,10 +67,6 @@ The account email follows the account address. After a change, queued alerts wai
 - It sends nothing and does not replay history. Members see other people's addresses masked.
 
 The sidebar, Sites and Add site warn when no visible site has a channel for outages or failures. This warning does not account for a channel's check-type selection. Use **Who gets this** to verify coverage for one check.
-
-## Channel settings requests
-
-The web app's session-authenticated `POST /notification-channels` and `PATCH /notification-channels/{channel}` accept and return `check_types`. Send `null` for all check types or a non-empty list of distinct installed check keys, such as `["uptime", "certificate_health"]`. Omit the field to use all types on creation or leave the selection unchanged on edit. The channel settings page also exposes the saved field.
 
 ## Quiet hours and digests
 
