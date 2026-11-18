@@ -38,9 +38,9 @@ Heptapod is not a complete Oh Dear replacement. Some of the gaps below will clos
 
 ### Notification channels
 
-- [Channels](https://heptapod.watch/docs/alerts/channels/): email, Slack (bot token), Microsoft Teams (Workflows URL), Discord (bot), Telegram (your own bot), Pushover, ntfy and webhook.
-- No Slack incoming webhook, Discord webhook, Google Chat, Zoom, PagerDuty, Opsgenie or SMS.
-- A channel picks categories (outage, failure, warning …), not single check types.
+- [Channels](https://heptapod.watch/docs/alerts/channels/): email, Slack (bot token or incoming webhook), Microsoft Teams (Workflows URL), Discord (bot or webhook), Google Chat, Telegram (your own bot), Pushover, ntfy and webhook.
+- No Zoom, PagerDuty, Opsgenie or SMS.
+- A channel picks categories (outage, failure, warning …) and can be limited to some check types, but not to single events such as "failed" without "recovered".
 
 ### Oh Dear import
 
@@ -54,6 +54,7 @@ Heptapod is not a complete Oh Dear replacement. Some of the gaps below will clos
 <details>
 <summary>Running the import again</summary>
 
+- Choose which sections to import: Sites and checks, Maintenance, Cron checks (`--only=sites,maintenance,cron` on the command line). Leave Sites and checks unticked to keep your site and check settings and to avoid recreating deleted sites.
 - Sites are matched by their Oh Dear ID, so a rerun creates no duplicates.
 - For imported sites, Oh Dear wins. Settings changed in Heptapod are overwritten, and checks are turned on or off as in Oh Dear. A check whose Oh Dear settings are invalid keeps its Heptapod settings.
 - A site you deleted in Heptapod is created again. A site you added yourself with the same URL is skipped, not taken over.
@@ -64,14 +65,14 @@ Heptapod is not a complete Oh Dear replacement. Some of the gaps below will clos
 
 More in the [import reference](https://heptapod.watch/docs/reference/api/#import-monitors-from-an-oh-dear-account).
 
-Planned, with no date yet: importing notification channels, and Slack webhook, Discord webhook and Google Chat channels.
+Planned, with no date yet: importing notification channels.
 
 ## Why Heptapod
 
 - **You own it.** Heptapod runs with Docker Compose on your server, and results stay in your PostgreSQL database. No subscription, no per-site fees, no account with us.
 - **One box for a maintenance retainer.** Uptime, certificates, domains, DNS, broken links, Lighthouse, cron jobs and application health sit on one Sites page, so you stop stitching five tools together.
 - **Made for client work.** Group sites by client and give each client its own alert channels, silent until you turn a category on. Send a client the current findings or an incident summary by email, in their language and time zone.
-- **Alerts that say what happened.** Each alert names the site, the cause and the time. Alert sensitivity sets how long an outage lasts before anyone is told, maintenance windows mute planned work, and **Who gets this** shows which channels hear about a failure and why the others don't. Alerts go to email, Slack, Microsoft Teams, Discord, Telegram, Pushover, ntfy or a webhook.
+- **Alerts that say what happened.** Each alert names the site, the cause and the time. Alert sensitivity sets how long an outage lasts before anyone is told, maintenance windows mute planned work, and **Who gets this** shows which channels hear about a failure and why the others don't. Alerts go to email, Slack, Microsoft Teams, Discord, Google Chat, Telegram, Pushover, ntfy or a webhook.
 - **Ready for scripts and coding agents.** A REST API with scoped tokens, an OpenAPI 3.1 document on every instance, the docs as Markdown at [llms.txt](https://heptapod.watch/llms.txt), and an [agent skill](https://heptapod.watch/docs/reference/coding-agents/) for Claude Code, Codex and others.
 - **Coming from Oh Dear.** Import your monitors from Settings or the command line; [not everything carries over](#limitations). Heptapod speaks the Oh Dear API format for a tested set of endpoints: point spatie/laravel-health, spatie/laravel-schedule-monitor or the Oh Dear PHP SDK at your instance. Heptapod is not affiliated with Oh Dear.
 
