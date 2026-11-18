@@ -210,10 +210,10 @@ async function audit(url, options, token, signal) {
         );
     }).finally(async () => {
         signal.removeEventListener('abort', onAbort);
-        kill();
-        // After a forced termination the server exits and the PID namespace ends the group; waiting could only
-        // replace the typed result with an error.
+        // After a forced termination the server exits and the PID namespace ends the group; terminate() already
+        // sent the kill, and waiting could only replace the typed result with an error.
         if (auditTerminated) return;
+        kill();
         try {
             if (child?.pid) await waitForProcessGroup(child.pid);
         } catch (error) {
