@@ -296,6 +296,8 @@ Owners and Admins can also import under **Settings → Import**. On the command 
 3. Read the plan and the per-monitor notices.
 4. Run the same command without `--dry-run`.
 
+Add `--only=sites,maintenance,cron,channels` (any subset) to read and write only those sections. Settings → Import has the same choice. Leave `sites` out to keep site and check settings you changed in Heptapod.
+
 - The command sends only GET requests to Oh Dear. A dry run writes nothing.
 - Secrets and source ping URLs are never printed.
 - Failed validation or a remote error exits nonzero.
@@ -305,7 +307,10 @@ Owners and Admins can also import under **Settings → Import**. On the command 
 - HTTP monitors, into **No client**, with uptime, performance, certificate, DNS, domain, application health, broken links, mixed content, sitemap and cron settings.
 - Tags and maintenance periods.
 - Disabled checks keep their settings and stay disabled.
-- Not copied: IDs, badges, creation times, results, history and notification channels.
+- Notification channels: team destinations become team channels, active or paused as in Oh Dear. Email, Slack (API and webhook), Microsoft Teams (Workflows), Discord webhook, Google Chat, Pushover, ntfy and webhook are supported. Webhooks get a new signing secret and send Heptapod's payload, so adapt the receiver.
+- Tag and tag-group destinations become client channels only when Settings → Import assigns the tag (or every tag in the group) to one client; the command line skips them.
+- Not imported: Telegram, the old Microsoft Teams connector, Zoom, PagerDuty, Opsgenie, SMS and per-monitor destinations. Notification types map to categories and check types; the plan says when a channel may get more alerts than in Oh Dear.
+- Not copied: IDs, badges, creation times, results and history.
 - Remote probe locations are skipped; Heptapod checks from one server.
 
 ### Notices and failures
@@ -320,6 +325,7 @@ Owners and Admins can also import under **Settings → Import**. On the command 
 ### Reruns
 
 - Reruns update the stored Oh Dear identities. An existing site with an unmapped URL is skipped, never adopted.
+- Channels are matched by their Oh Dear ID, so a rerun updates them without duplicates.
 - Definitions missing from a rerun stay.
 - Cron checks need non-empty source definitions. They keep their local UUIDs on reruns. Point your tasks at the Heptapod ping URLs.
 
