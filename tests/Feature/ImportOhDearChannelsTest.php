@@ -73,7 +73,10 @@ it('plans and imports only approved channels, encrypts secrets, and delivers a t
     Http::assertSent(static fn (Request $request): bool => $request->url() === $target && $request->hasHeader('Authorization', 'Bearer fixture-secret-header')
         && $request->hasHeader('Signature'));
     $audit = DB::table('activity_log')->pluck('properties')->implode(' ');
-    expect($plan->getContent().json_encode($run, JSON_THROW_ON_ERROR).json_encode($logged, JSON_THROW_ON_ERROR).$audit)->not->toContain('fixture-secret', 'fixturesecretpushoverrecipient', $webhook->destinationConfig()->string('secret'));
+    $signingSecret = $webhook->destinationConfig()->string('secret');
+    foreach ([$plan->getContent(), json_encode($run, JSON_THROW_ON_ERROR), json_encode($logged, JSON_THROW_ON_ERROR), $audit] as $output) {
+        expect($output)->not->toContain('fixture-secret')->not->toContain('fixturesecretpushoverrecipient')->not->toContain($signingSecret);
+    }
 });
 
 it('updates the same Oh Dear channels on CLI rerun without printing secrets or silently assigning tags', function (): void {
@@ -82,12 +85,15 @@ it('updates the same Oh Dear channels on CLI rerun without printing secrets or s
     expect(Artisan::output())->toContain('Assign the tag', 'Adapt the receiver')->not->toContain('fixture-secret');
     expect(NotificationDestination::query()->whereNotNull('oh_dear_id')->count())->toBe(0);
     expect(Artisan::call('heptapod:import-ohdear', $options))->toBe(0);
+    $firstWriteOutput = Artisan::output();
     $channel = NotificationDestination::query()->where('oh_dear_id', 109)->firstOrFail();
     $secret = $channel->destinationConfig()->string('secret');
+    expect($firstWriteOutput)->not->toContain('fixture-secret')->not->toContain($secret);
     $channel->update(['label' => 'Locally edited', 'enabled' => false]);
 
     expect(Artisan::call('heptapod:import-ohdear', $options))->toBe(0);
-    expect(Artisan::output())->toContain('Assign the tag', 'Update')->not->toContain('fixture-secret', $secret);
+    expect(Artisan::output())->toContain('Update')->not->toContain('fixture-secret')->not->toContain($secret)
+        ->toMatch('/\|\s*201 · Email\s*\|\s*Skipped\s*\|\s*Assign the tag/');
     $channel->refresh();
     expect($channel->enabled)->toBeTrue();
     expect($channel->label)->not->toBe('Locally edited');

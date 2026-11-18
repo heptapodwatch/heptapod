@@ -60,13 +60,13 @@ final class ImportOhDearCommand extends Command
         if (in_array(ImportSection::Channels, $sections, true)) {
             $this->table([ImportSection::Channels->label(), __('import.operation'), __('import.details')], array_map(static function (ImportChannelRowData $row): array {
                 $unassigned = $row->tags !== [] && $row->operation !== ImportOperation::Skipped;
-                $labels = [...array_map(static fn (NotificationCategory $type): string => __('recipient_settings.category.'.$type->value.'.label'), $row->categories),
-                    ...array_map(static fn (string $notice): string => __($notice), $row->notices)];
-                if ($unassigned) {
-                    $labels = [__('import.notice.channel_no_client')];
-                }
+                $operation = $unassigned ? ImportOperation::Skipped : $row->operation;
+                $categories = $operation === ImportOperation::Skipped ? [] : $row->categories;
+                $notices = $unassigned ? ['import.notice.channel_no_client'] : $row->notices;
+                $labels = [...array_map(static fn (NotificationCategory $type): string => __('recipient_settings.category.'.$type->value.'.label'), $categories),
+                    ...array_map(static fn (string $notice): string => __($notice), $notices)];
 
-                return [$row->source_id.' · '.__($row->kind_label), __('import.'.($unassigned ? 'skipped' : $row->operation->value)), implode('; ', $labels)];
+                return [$row->source_id.' · '.__($row->kind_label), __('import.'.$operation->value), implode('; ', $labels)];
             }, $plan->channels));
         }
         if ($plan->rows !== []) {
