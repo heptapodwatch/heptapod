@@ -61,6 +61,17 @@ router.on('success', (event) => {
         pendingNavigation = null;
     }
 });
+// A write that reached the server drops every prefetched page, in flight ones included, so a hover that read before the
+// write cannot bring the old state back: the user's own change shows at once. A refused write flushes too, harmlessly.
+router.on('finish', (event) => {
+    const visit = event.detail.visit;
+    if (
+        !['get', 'query'].includes(visit.method) &&
+        visit.completed &&
+        !visit.cancelled
+    )
+        router.flushAll();
+});
 router.on('httpException', () => {
     pendingNavigation = null;
 });
@@ -141,6 +152,10 @@ void i18nReady.then(() =>
             }
         },
         strictMode: true,
+        defaults: {
+            // A hovered link's page is fresh for 10 s; up to a minute a visit shows it at once while a hover refetches it.
+            prefetch: { cacheFor: ['10s', '1m'] },
+        },
         withApp(app) {
             return (
                 <TooltipProvider delayDuration={0}>

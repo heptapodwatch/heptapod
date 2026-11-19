@@ -19,7 +19,7 @@ const requests: {
 let sendResponse: HttpResponse;
 vi.mock('@inertiajs/react', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@inertiajs/react')>()),
-    router: { on: () => () => {}, visit: vi.fn() },
+    router: { on: () => () => {}, visit: vi.fn(), flushAll: vi.fn() },
 }));
 /** The real Inertia useHttp over a fake transport: what the server answers is all that is faked. */
 function fakeTransport(config: HttpRequestConfig): Promise<HttpResponse> {

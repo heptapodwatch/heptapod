@@ -67,7 +67,8 @@ class HandleInertiaRequests extends Middleware
             ],
             'overallHealth' => fn (): ?array => $user instanceof User ? app(ShellHealthReader::class)->read($user)->toArray() : null,
             ...($user instanceof User && $user->hasAnyRole(['Owner', 'Admin', 'Member'])
-                ? ['lateRunsCount' => Inertia::defer(static fn (): int => $user->disabled_at === null ? app(RunsReader::class)->lateCount($user) : 0, 'sidebar')]
+                // Inline, not deferred: a deferred group costs every visit a second request that reruns the page controller.
+                ? ['lateRunsCount' => static fn (): int => $user->disabled_at === null ? app(RunsReader::class)->lateCount($user) : 0]
                 : []),
             // Channels the viewer can repair: the team's and clients' for Owners and Admins, and always their own.
             'notificationAttention' => fn (): array => $user instanceof User && $user->disabled_at === null

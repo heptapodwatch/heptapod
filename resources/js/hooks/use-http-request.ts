@@ -6,7 +6,7 @@ import type {
     UrlMethodPair,
     UseHttpSubmitOptions,
 } from '@inertiajs/core';
-import { useHttp } from '@inertiajs/react';
+import { router, useHttp } from '@inertiajs/react';
 import { useMemo } from 'react';
 
 /** The server refused the request with a 422; `errors` are its field messages, already set on the form. */
@@ -64,6 +64,8 @@ export function useHttpRequest<
                 },
             });
             if (refused !== null) throw new HttpValidationError(refused, url);
+            // Like an Inertia write (app.tsx), a successful one drops every prefetched page, in flight ones included.
+            if (method !== 'get' && method !== 'query') router.flushAll();
             return response;
         };
         return {

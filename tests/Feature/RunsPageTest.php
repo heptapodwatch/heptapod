@@ -52,17 +52,15 @@ it('keeps unclaimed late checks out of the active board and shares the authorize
 
     expect(app(CheckRunsReader::class)->state($late->load('site'))->phase)->toBe(RunPhase::Late);
     $this->actingAs($user)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page
-        ->component('runs/index')->missing('late')->missing('lateRunsCount')
+        ->component('runs/index')->missing('late')->where('lateRunsCount', 1)
         ->has('current', 0)
-        ->has('runs', 0)->has('clients', 1)
-        ->loadDeferredProps(['sidebar'], fn (Assert $sidebar): Assert => $sidebar->where('lateRunsCount', 1)));
+        ->has('runs', 0)->has('clients', 1));
     expect(CheckRunAttempt::query()->count())->toBe(0);
     $this->get('/runs?state=late')->assertInertia(fn (Assert $page): Assert => $page->has('current', 0));
     $this->get('/runs?check='.$hidden->id.'&show_same_result=1')->assertInertia(fn (Assert $page): Assert => $page->has('current', 0)->has('runs', 0)
-        ->loadDeferredProps(['sidebar'], fn (Assert $sidebar): Assert => $sidebar->where('lateRunsCount', 1)));
+        ->where('lateRunsCount', 1));
     $late->update(['enabled' => false]);
-    $this->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->missing('late')->has('current', 0)
-        ->loadDeferredProps(['sidebar'], fn (Assert $sidebar): Assert => $sidebar->where('lateRunsCount', 0)));
+    $this->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->missing('late')->has('current', 0)->where('lateRunsCount', 0));
 });
 
 it('filters current and attempt history by authorized client and check type while preserving check-id links', function (): void {
@@ -209,4 +207,59 @@ it('keeps full Runs board and history query counts invariant with more checks', 
     Check::factory()->count(10)->create(['next_run_at' => now()->addHour()]);
 
     expect($queryCount())->toBe($baseline);
+});
+
+it('leaves out the runs of a site deleted while the Runs page reads them', function (string $readAfter, bool $boardReadsAfter): void {
+    $user = User::factory()->create();
+    $user->assignRole('Owner');
+    $kept = Check::factory()->create();
+    $deleted = Check::factory()->create();
+    foreach ([$kept, $deleted] as $check) {
+        CheckRunAttempt::query()->create(['check_id' => $check->id, 'claim_token' => (string) Str::uuid(),
+            'phase' => RunPhase::Running, 'queue' => 'checks-fast', 'requested_at' => now()->subMinute(), 'started_at' => now()->subMinute()]);
+    }
+    $this->actingAs($user)->get('/settings/profile')->assertOk();
+    $pending = true;
+    // The deletion lands right after the named attempts read, before the checks and sites are loaded.
+    DB::listen(function ($query) use (&$pending, $readAfter, $deleted): void {
+        if ($pending && str_contains($query->sql, 'from "check_run_attempts"') && str_contains($query->sql, $readAfter)) {
+            $pending = false;
+            DB::table('sites')->where('id', $deleted->site_id)->delete();
+        }
+    });
+
+    $this->get('/runs')->assertOk()->assertInertia(fn (Assert $page): Assert => $page
+        ->where('current', fn ($rows): bool => collect($rows)->pluck('check_id')->sort()->values()->all() === ($boardReadsAfter ? [$kept->id] : [$kept->id, $deleted->id]))
+        ->where('runs', fn ($rows): bool => collect($rows)->pluck('check_id')->all() === [$kept->id]));
+    expect($pending)->toBeFalse();
+})->with([
+    // The board reads first; a deletion after the history read leaves the board's rows as they were read.
+    'board' => ['order by "requested_at" asc', true],
+    'history' => ['order by "requested_at" desc', false],
+]);
+
+it('shows every surviving queued run when a site past the board cutoff is deleted during the read', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole('Owner');
+    $checks = Check::factory()->count(22)->create();
+    foreach ($checks as $index => $check) {
+        CheckRunAttempt::query()->create(['check_id' => $check->id, 'claim_token' => (string) Str::uuid(),
+            'phase' => RunPhase::Queued, 'queue' => 'checks-fast', 'requested_at' => now()->subMinutes(30 - $index)]);
+    }
+    $deleted = $checks->last();
+    $this->actingAs($user)->get('/settings/profile')->assertOk();
+    $pending = true;
+    // The 22nd queued attempt (outside the first 20) loses its site right after the board's attempts read.
+    DB::listen(function ($query) use (&$pending, $deleted): void {
+        if ($pending && str_contains($query->sql, 'from "check_run_attempts"') && str_contains($query->sql, 'order by "requested_at" asc')) {
+            $pending = false;
+            DB::table('sites')->where('id', $deleted->site_id)->delete();
+        }
+    });
+
+    // 21 survivors: one more than the limit is shown as a card instead of "and 1 more queued".
+    $this->get('/runs')->assertOk()->assertInertia(fn (Assert $page): Assert => $page
+        ->has('current', 21)->where('queued_more', 0)
+        ->where('current', fn ($rows): bool => ! collect($rows)->contains('check_id', $deleted->id)));
+    expect($pending)->toBeFalse();
 });

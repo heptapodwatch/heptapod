@@ -370,6 +370,8 @@ function SavedCheckSettingsSheet({
             form.reset();
             setProbeResult(null);
             setOpen(false);
+            // A plain fetch write, outside Inertia's write invalidation (app.tsx): drop the prefetched pages here.
+            router.flushAll();
             router.reload(reloadOnly ? { only: reloadOnly } : {});
         } catch (error) {
             console.error(error);
