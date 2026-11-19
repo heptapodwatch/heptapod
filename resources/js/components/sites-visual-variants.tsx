@@ -1,4 +1,5 @@
 // MOCKUP ONLY (branch feat-sites-visual, phase 1). Remove in phase 2.
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { QuietDash, StatusDot, statusColor } from '@/components/monitoring';
 import { SegmentedControl } from '@/components/segmented-control';
@@ -207,14 +208,24 @@ export function SitesVisualMockupSwitcher({
 }: {
     dimensions: MockupDimension[];
 }) {
+    // MOCKUP ONLY: collapsible so the page footer (pager, page size) stays reviewable.
+    const [open, setOpen] = useState(true);
     return (
         <div
             data-mockup-switcher
-            className="fixed bottom-3 left-1/2 z-50 flex max-w-[calc(100vw-1.5rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-[10px] border bg-background/95 px-3 py-2 shadow-lg backdrop-blur"
+            className="fixed top-3 right-3 z-50 flex max-w-[min(56rem,calc(100vw-1.5rem))] flex-wrap items-center justify-end gap-x-4 gap-y-2 rounded-[10px] border bg-background/95 px-3 py-2 shadow-lg backdrop-blur"
         >
-            {dimensions.map((dimension) => (
-                <DimensionControl key={dimension} dimension={dimension} />
-            ))}
+            {open &&
+                dimensions.map((dimension) => (
+                    <DimensionControl key={dimension} dimension={dimension} />
+                ))}
+            <button
+                type="button"
+                className="text-xs text-muted-foreground underline"
+                onClick={() => setOpen((value) => !value)}
+            >
+                {open ? 'Hide variants' : 'Variants'}
+            </button>
         </div>
     );
 }
