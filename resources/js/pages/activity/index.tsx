@@ -33,6 +33,9 @@ type ActivityFilters = Heptapod.Data.Ui.ActivityFilterData;
 /** Batches load automatically while scrolling this many times, then "Load older" takes over so the footer stays reachable. */
 const AUTOMATIC_BATCHES = 3;
 
+/** Groups per batch; ActivityController::BatchSize. */
+const ACTIVITY_BATCH = 50;
+
 function isCheckKey(value: string): value is Heptapod.Contracts.CheckKey {
     return Object.hasOwn(checkTypes, value);
 }
@@ -52,18 +55,43 @@ export default function Activity({
         pollFallback: false,
     });
     const groups = events.data;
-    // A keyboard user who loaded the last batch lands on the end note instead of on <body>.
-    const loadedByHand = useRef(false);
+    // The element that last took focus; removing the focused load button moves focus to <body> without a focusin.
+    const lastFocused = useRef<Element | null>(null);
+    useEffect(() => {
+        const track = (event: FocusEvent) => {
+            lastFocused.current = event.target as Element;
+        };
+        document.addEventListener('focusin', track);
+        return () => document.removeEventListener('focusin', track);
+    }, []);
     const shownGroups = new Map(
         groups.map((group) => [group.id, JSON.stringify(group)]),
     );
-    // New or changed groups at the top; a row the newest batch pushed off its end is not another change. A new filter
-    // is a full visit without `head`, so the count starts over with the filter.
-    const pendingChanges = (head?.data ?? []).filter(
-        (group) => shownGroups.get(group.id) !== JSON.stringify(group),
-    ).length;
-    // Applying starts the timeline over from the newest batch, so the loaded batches always join without a gap.
-    const acceptChanges = () =>
+    const incoming = head?.data ?? [];
+    const incomingIds = new Set(incoming.map((group) => group.id));
+    // The window the newest batch covers: all of the range when it is not full, else down to its oldest row. A shown
+    // row older than that was only pushed out by new arrivals; a shown row inside it but missing was removed.
+    const windowStart =
+        incoming.length < ACTIVITY_BATCH
+            ? -Infinity
+            : Date.parse(incoming.at(-1)!.ended_at);
+    // New, changed or removed groups at the top. A new filter is a full visit without `head`, so the count starts over.
+    const pendingChanges =
+        head === undefined
+            ? 0
+            : incoming.filter(
+                  (group) =>
+                      shownGroups.get(group.id) !== JSON.stringify(group),
+              ).length +
+              groups.filter(
+                  (group) =>
+                      !incomingIds.has(group.id) &&
+                      Date.parse(group.ended_at) >= windowStart,
+              ).length;
+    // Applying starts the timeline over from the newest batch, so the loaded batches always join without a gap. An
+    // older batch still loading would append onto the fresh one from its stale cursor, so it is cancelled first.
+    const acceptChanges = () => {
+        router.cancelAll({ prefetch: false, sync: false });
         router.reload({
             only: [
                 'events',
@@ -73,6 +101,7 @@ export default function Activity({
             reset: ['events'],
             onSuccess: () => window.scrollTo({ top: 0 }),
         });
+    };
     const { t } = useTranslation();
     const { url } = usePage();
     const [draft, setDraft] = useState<ActivityFilters>({
@@ -328,11 +357,10 @@ export default function Activity({
                                     <div className="flex justify-center pt-4">
                                         <Button
                                             variant="outline"
+                                            data-load-older
                                             aria-disabled={loading || undefined}
                                             onClick={() => {
-                                                if (loading) return;
-                                                loadedByHand.current = true;
-                                                fetch();
+                                                if (!loading) fetch();
                                             }}
                                         >
                                             {loading && <Spinner />}
@@ -348,10 +376,17 @@ export default function Activity({
                                 <p
                                     tabIndex={-1}
                                     ref={(element) => {
-                                        if (element && loadedByHand.current) {
-                                            loadedByHand.current = false;
+                                        // The load button that just disappeared had focus, which fell to <body>; a
+                                        // reader who moved on (search, a link) keeps their place.
+                                        if (
+                                            element &&
+                                            lastFocused.current?.hasAttribute(
+                                                'data-load-older',
+                                            ) &&
+                                            document.activeElement ===
+                                                document.body
+                                        )
                                             element.focus();
-                                        }
                                     }}
                                     className="pt-4 text-xs text-muted-foreground"
                                 >

@@ -12,8 +12,10 @@ use Heptapod\Checks\Recording\ResultRecorder;
 use Heptapod\Contracts\CheckError;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckOutcome;
+use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Models\Check;
+use Heptapod\Models\Event;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Testing\ClaimedRun;
@@ -64,3 +66,64 @@ it('labels Activity failures by check cause and merges a check error with its re
     'English' => ['en', ['Failed', 'Down', 'Check error', 'Recovered'], 'Check error →'],
     'German' => ['de', ['Fehlgeschlagen', 'Ausgefallen', 'Prüffehler', 'Wiederhergestellt'], 'Prüffehler →'],
 ]);
+
+it('cancels an older batch still loading when the reader applies new changes, so the next load joins the fresh feed', function (): void {
+    Vite::useHotFile(storage_path('framework/testing.hot'));
+    $this->freezeTime();
+    $owner = User::factory()->owner()->create();
+    $this->actingAs($owner);
+    $site = Site::factory()->create(['friendly_name' => 'Batched activity']);
+    // Four checks, each changing state every three hours, staggered: one group per change, no pairs, about 220 groups.
+    $checks = [];
+    foreach ([CheckKey::Dns, CheckKey::Sitemap, CheckKey::BrokenLinks, CheckKey::MixedContent] as $offset => $key) {
+        $checks[] = $check = Check::factory()->for($site)->create(['type' => $key]);
+        $failed = false;
+        for ($at = now()->subDays(6)->addMinutes(45 * $offset); $at->lessThan(now()->subMinutes(30)); $at = $at->addHours(3)) {
+            Event::factory()->for($check)->create(['occurred_at' => $at,
+                'from_result' => $failed ? CheckResult::Failed : CheckResult::Succeeded, 'to_result' => $failed ? CheckResult::Succeeded : CheckResult::Failed]);
+            $failed = ! $failed;
+        }
+    }
+    $page = visit('/activity?period=7d');
+    // Hold every older-batch request in flight until released; aborting a held request fails it like a real abort.
+    $page->script(<<<'JS'
+        (() => {
+            const { open, send, abort } = XMLHttpRequest.prototype;
+            window.__held = [];
+            XMLHttpRequest.prototype.open = function (method, url, ...rest) { this.__url = String(url); return open.call(this, method, url, ...rest); };
+            XMLHttpRequest.prototype.send = function (body) {
+                if (!this.__url.includes('before=') || window.__released) return send.call(this, body);
+                this.__held = true;
+                window.__held.push(() => { if (!this.__aborted) send.call(this, body); });
+            };
+            XMLHttpRequest.prototype.abort = function () {
+                if (!this.__held) return abort.call(this);
+                this.__aborted = true;
+                this.onabort?.(new ProgressEvent('abort'));
+            };
+            window.__release = () => { window.__released = true; window.__held.splice(0).forEach((resume) => resume()); };
+        })()
+        JS);
+    $rows = fn (): array => $page->script('[...document.querySelectorAll("[data-activity-timeline] li")].map((row) => row.querySelector("time").getAttribute("datetime"))');
+    expect($rows())->toHaveCount(50);
+
+    $page->script('window.scrollTo(0, document.body.scrollHeight)');
+    $page->wait(1);
+    expect($page->script('window.__held.length'))->toBe(1);
+
+    Event::factory()->for($checks[0])->create(['occurred_at' => now(), 'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Warning]);
+    $page->script('document.dispatchEvent(new Event("visibilitychange"))');
+    $page->wait(1)->assertSee('1 new change ↑');
+    $page->click('button:has-text("1 new change ↑")');
+    $page->wait(1);
+    $page->script('window.__release()');
+    $page->wait(1);
+    $page->script('window.scrollTo(0, document.body.scrollHeight)');
+    $page->wait(2);
+
+    // The fresh first batch and the next one, in order: the newest 100 changes without a gap or a repeat.
+    $expected = Event::query()->orderByDesc('occurred_at')->orderByDesc('id')->limit(100)->pluck('occurred_at')
+        ->map(fn (CarbonImmutable $at): string => $at->toIso8601String())->all();
+    expect($rows())->toBe($expected);
+    $page->assertNoJavaScriptErrors();
+});
