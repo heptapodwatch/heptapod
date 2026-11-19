@@ -28,6 +28,7 @@
             "errno",
             "errored",
             "filesystem",
+            "frankenphp",
             "geist",
             "gzip",
             "healthcheck",

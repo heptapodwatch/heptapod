@@ -65,7 +65,7 @@ final class SecurityAdvisoryData extends Data
     /**
      * The rules title required|string|max:1000, link required|string|max:2048|url:http,https, cve sometimes|nullable|string|max:64,
      * severity sometimes|nullable|string|max:32, affectedVersions required|string|max:1000 and reportedAt
-     * required|date_format:Y-m-d H:i:s, checked the way Laravel's validator checks them. Lists and incident rows present
+     * required|date_format:Y-m-d H:i:s, checked the way the Laravel validator checks them. Lists and incident rows present
      * stored advisories on every view; a Validator instance per advisory cost about 0.3 ms each.
      *
      * @param  array<int|string, mixed>  $advisory
