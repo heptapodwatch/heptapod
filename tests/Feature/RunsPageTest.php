@@ -237,3 +237,29 @@ it('leaves out the runs of a site deleted while the Runs page reads them', funct
     'board' => ['order by "requested_at" asc', true],
     'history' => ['order by "requested_at" desc', false],
 ]);
+
+it('shows every surviving queued run when a site past the board cutoff is deleted during the read', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole('Owner');
+    $checks = Check::factory()->count(22)->create();
+    foreach ($checks as $index => $check) {
+        CheckRunAttempt::query()->create(['check_id' => $check->id, 'claim_token' => (string) Str::uuid(),
+            'phase' => RunPhase::Queued, 'queue' => 'checks-fast', 'requested_at' => now()->subMinutes(30 - $index)]);
+    }
+    $deleted = $checks->last();
+    $this->actingAs($user)->get('/settings/profile')->assertOk();
+    $pending = true;
+    // The 22nd queued attempt (outside the first 20) loses its site right after the board's attempts read.
+    DB::listen(function ($query) use (&$pending, $deleted): void {
+        if ($pending && str_contains($query->sql, 'from "check_run_attempts"') && str_contains($query->sql, 'order by "requested_at" asc')) {
+            $pending = false;
+            DB::table('sites')->where('id', $deleted->site_id)->delete();
+        }
+    });
+
+    // 21 survivors: one more than the limit is shown as a card instead of "and 1 more queued".
+    $this->get('/runs')->assertOk()->assertInertia(fn (Assert $page): Assert => $page
+        ->has('current', 21)->where('queued_more', 0)
+        ->where('current', fn ($rows): bool => ! collect($rows)->contains('check_id', $deleted->id)));
+    expect($pending)->toBeFalse();
+});

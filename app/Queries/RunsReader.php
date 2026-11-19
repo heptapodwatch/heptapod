@@ -128,6 +128,8 @@ final readonly class RunsReader
         $activeQuery->getQuery()->whereIn('check_id', $runnableIds)->whereIn('phase', ['queued', 'running'])->orderBy('requested_at')->orderBy('id');
         $matchingActive = $activeQuery->get()->filter(static fn (CheckRunAttempt $attempt): bool => ! $filters->state instanceof RunPhase || $filters->state === $attempt->phase)->values();
         $checks = Check::query()->with('site')->findMany($matchingActive->pluck('check_id')->unique()->values()->all())->keyBy('id');
+        // A check or site deleted after the attempts were read leaves its attempts behind; drop them before the cutoff and count.
+        $matchingActive = $matchingActive->filter(static fn (CheckRunAttempt $attempt): bool => $checks->get($attempt->check_id)?->site !== null)->values();
         // The board shows the first queued attempts and every running one; worker pools bound the running set.
         // Select by the instance-wide position inside each pool, then by pool, so every pool's head is shown.
         $positions = $this->queuePositions();
@@ -144,11 +146,7 @@ final readonly class RunsReader
             if (isset($finishedAttempts[$attempt->id])) {
                 continue;
             }
-            $check = $checks->get($attempt->check_id);
-            // A check or site deleted after the attempts were read leaves its attempt behind; it is gone from the board too.
-            if ($check?->site === null) {
-                continue;
-            }
+            $check = $checks->get($attempt->check_id) ?? throw new \LogicException('Active attempt must have a visible check.');
             $activeRows[] = $this->currentRow($check, $this->checkRuns->state($check, $attempt, $positions));
         }
 
