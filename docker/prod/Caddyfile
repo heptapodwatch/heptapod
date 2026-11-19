@@ -20,7 +20,20 @@
     }
 }
 
+# HEPTAPOD_WEB_MODE picks how PHP serves the app. worker (default): Laravel Octane workers boot the app once and keep it
+# in memory between requests. classic: every request boots the app again; the rollback switch.
+(php-worker) {
+    worker {
+        file /app/public/frankenphp-worker.php
+        num 4
+    }
+    index frankenphp-worker.php
+}
+(php-classic) {
+}
+
 # Loopback-only health endpoint works before DNS/ACME and does not redirect to TLS.
+# It stays classic, so it answers even while workers restart.
 http://:8080 {
     header X-Content-Type-Options nosniff
     @health {
@@ -46,7 +59,9 @@ http://:8080 {
         reverse_proxy reverb:8080
     }
     handle {
-        php_server
+        php_server {
+            import php-{$HEPTAPOD_WEB_MODE:worker}
+        }
     }
     # Same filter as the global error logger above.
     log {

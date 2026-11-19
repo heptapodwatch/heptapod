@@ -231,7 +231,7 @@ The pre-live capacity proof used a shared 2-vCPU/4-GiB cgroup with 100 real disp
 
 Lighthouse's measured heavy-page ceiling is the 100-section/1000-row/SVG fixture: three consecutive audits succeeded at the 1536 MiB cap with zero OOM kills. Its cgroup reached the cap and recorded 60 transient reclaim events; after auditing, usage fell to 358 MiB (33 MiB anonymous memory and 325 MiB file cache). Cache reclaim is expected. A 10,000-row fixture exceeded the former 1408 MiB cap and returned 502; do not shrink Lighthouse to 1088 MiB. Larger pages can exhaust the service cap without consuming Postgres's budget. An OOM produces an errored Lighthouse run when the addon is installed, handled by the engine's errored-check alert.
 
-The app at 384 MiB still needs measurement under concurrent UI/API traffic.
+The app container serves the UI and API from four Laravel Octane workers in FrankenPHP worker mode: each worker boots the application once and keeps it in memory, and recycles itself after 1,000 requests. At most four app requests run at the same time; later ones wait for a free worker. Measured against a 100-site database with 1, 4 and 8 concurrent signed-in clients for 60 seconds each: 163 MiB idle, a peak of 259 MiB under load (about 100 requests per second), zero OOM kills. To fall back to the classic mode, which boots the application for every request, set `HEPTAPOD_WEB_MODE=classic` in `.env.prod` and recreate the app container (`dc up -d app`). In the same run the classic mode peaked at 220 MiB and served 48 instead of 101 requests per second at four clients, with a median of 85 instead of 33 ms. Workers keep code and configuration from their start, so restart the app container after you change `.env.prod`.
 
 ## Live stream contract
 

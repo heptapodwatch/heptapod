@@ -45,6 +45,7 @@
     "laravel/fortify": "^1.37.2",
     "laravel/framework": "^13.34",
     "laravel/horizon": "^5.50",
+    "laravel/octane": "^2.25",
     "laravel/passkeys": "^0.2",
     "laravel/reverb": "^1.12",
     "laravel/sanctum": "^4.3",

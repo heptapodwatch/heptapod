@@ -23,6 +23,8 @@ return (new Configuration)
     ->ignoreErrorsOnPackage('laravel/tinker', [ErrorType::UNUSED_DEPENDENCY])
     ->ignoreErrorsOnPackage('laravel/reverb', [ErrorType::UNUSED_DEPENDENCY])
     ->ignoreErrorsOnPackage('laravel/wayfinder', [ErrorType::UNUSED_DEPENDENCY])
+    // The production web role runs Octane's FrankenPHP worker script through public/frankenphp-worker.php.
+    ->ignoreErrorsOnPackage('laravel/octane', [ErrorType::PROD_DEPENDENCY_ONLY_IN_DEV])
     // Production discovers the uptime provider from its Composer manifest, not a core import.
     ->ignoreErrorsOnPackage('heptapod/addon-uptime', [ErrorType::PROD_DEPENDENCY_ONLY_IN_DEV])
     // Production discovers the performance provider from its Composer manifest, not a core import.
