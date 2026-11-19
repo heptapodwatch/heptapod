@@ -34,7 +34,7 @@ Heptapod is not a complete Oh Dear replacement. Some of the gaps below will clos
 - No status pages.
 - Websites over HTTP only: no ping, TCP or other monitor types.
 - Nothing like Oh Dear's AI, ports or DNS blocklist checks.
-- All checks run from your one server, not from several locations. Heptapod cannot tell you when that server is down, so [point a heartbeat at an outside service](https://heptapod.watch/docs/running-it/configuration/#watch-the-watcher).
+- All checks run from your one server, not from several locations. Heptapod cannot tell you when that server is down, so [set up a watchdog](https://heptapod.watch/docs/running-it/watchdog/).
 
 ### Notification channels
 
