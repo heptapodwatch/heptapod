@@ -35,6 +35,7 @@ use Spatie\Activitylog\Models\Activity;
  * @property string $label
  * @property string $channel
  * @property string|null $locale
+ * @property string|null $timezone the channel's own zone; null follows its party
  * @property bool $needs_attention
  * @property string|null $attention_reason
  * @property bool $enabled
@@ -141,7 +142,7 @@ final class NotificationDestination extends Model
         }
 
         return new DestinationConfig($this->id, $this->effectiveLocale(), new ValidatedConfig($config, $this->config_secrets ?? []),
-            $this->timezone(), app(InstanceSettings::class)->name, config()->string('app.url'));
+            $this->resolvedTimezone(), app(InstanceSettings::class)->name, config()->string('app.url'));
     }
 
     /** Team channels store their language; user and client channels derive it from their recipient. */
@@ -156,13 +157,13 @@ final class NotificationDestination extends Model
         return in_array($locale, ['en', 'de'], true) ? $locale : 'en';
     }
 
-    public function timezone(): string
+    /**
+     * The one zone this channel lives in: when it sends (digest slot, quiet hours) and which times its messages show.
+     * Its own choice, else its party's (user, client), else the instance's.
+     */
+    public function resolvedTimezone(): string
     {
-        return match ($this->recipient_kind) {
-            RecipientKind::User => $this->user->timezone ?? app(InstanceSettings::class)->timezone,
-            RecipientKind::Client => $this->client->timezone ?? app(InstanceSettings::class)->timezone,
-            RecipientKind::Team => app(InstanceSettings::class)->timezone,
-        };
+        return $this->timezone ?? NotificationSchedule::partyTimezone($this->recipient_kind, $this->user, $this->client);
     }
 
     /**

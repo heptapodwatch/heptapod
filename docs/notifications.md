@@ -74,7 +74,7 @@ Each channel row shows a one-sentence summary, for example "Gets outages, failur
 - **Send test**.
 - **Pause** or **Resume** it. Pausing discards queued automatic alerts; resuming does not bring them back. A send already in progress can still finish.
 - In **Edit**, set **Check types** to **All check types** (the default) or **Only selected check types**. The selection applies to check alerts, not System notifications or reports. It does not remove queued alerts or prevent recovery for an opening the channel received. Adding **Uptime** can send an opening alert for an outage that is still open.
-- Edit its name and transport settings. For the account email, only **Check types** is editable here.
+- Edit its name, **Timezone** and transport settings. For the account email, only **Check types** and **Timezone** are editable here.
 - **Remove channel**. Its queued messages are dropped and its delivery history stays. The account email cannot be removed.
 
 The account email follows the account address. After a change, queued alerts wait until the new address is verified. A person cannot add more email channels.
@@ -99,7 +99,13 @@ Each recipient has one schedule for all its channels.
 | **Daily digest at**             | Time of the daily digest, 08:00 by default.                                                                 |
 | **Digest days**                 | Days the digest is sent. At least one.                                                                      |
 
-Times use the instance time zone for the team, the profile time zone for a person and the client's time zone for a client.
+Each channel uses one time zone, both for when it sends (quiet hours, the digest) and for the times in its messages:
+
+1. The channel's own **Timezone**, set in its **Edit** sheet.
+2. Otherwise its owner's: the person's profile time zone or the client's time zone. Team channels skip this step.
+3. Otherwise the instance time zone.
+
+The Owner sets the instance time zone in **Settings → General**, a person in **Settings → Profile**, and a client in its **Settings** tab. **Default** keeps a profile, client or channel on the next step of this list, so it follows later changes there. Alert emails use the receiving channel's time zone, not the time zone of the site's client. A time zone or schedule change applies from the next digest: messages already waiting keep the time they were planned for.
 
 - The digest collects open items set to Digest, also those reported on earlier days. A day without items sends nothing.
 - Each item is checked against the recipient's current access.

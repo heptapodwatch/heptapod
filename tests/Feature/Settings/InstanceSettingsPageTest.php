@@ -33,9 +33,9 @@ it('keeps instance page and navigation owner-only', function (string $role): voi
     $original = app(InstanceSettings::class)->name;
 
     $this->actingAs($user)->get('/settings/instance')->assertForbidden();
-    $this->patch('/settings/instance', ['name' => 'Forbidden'])->assertForbidden();
+    $this->patch('/settings/instance', ['name' => 'Forbidden', 'timezone' => 'Europe/Berlin'])->assertForbidden();
     $this->get('/settings/profile')->assertInertia(fn (Assert $page): Assert => $page->where('auth.canManageInstance', false));
-    expect(app(InstanceSettings::class)->name)->toBe($original);
+    expect(app(InstanceSettings::class)->name)->toBe($original)->and(app(InstanceSettings::class)->timezone)->toBe('UTC');
 })->with(['Admin', 'Member']);
 
 it('redirects unauthenticated instance page and name writes to login', function (): void {
@@ -43,17 +43,27 @@ it('redirects unauthenticated instance page and name writes to login', function 
     $this->patch('/settings/instance', ['name' => 'Forbidden'])->assertRedirect('/login');
 });
 
-it('saves only the instance name and redirects the browser form to its page', function (): void {
+it('saves only the instance name and zone and redirects the browser form to its page', function (): void {
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
-    $timezone = app(InstanceSettings::class)->timezone;
 
     $this->actingAs($owner)->patch('/settings/instance', ['name' => '  Agency Monitor  ', 'timezone' => 'Pacific/Honolulu',
         'heartbeat_url' => 'http://127.0.0.1/private', 'smtp' => ['host' => 'changed']])->assertRedirect('/settings/instance');
     expect(app(InstanceSettings::class)->name)->toBe('Agency Monitor');
-    expect(app(InstanceSettings::class)->timezone)->toBe($timezone);
+    expect(app(InstanceSettings::class)->timezone)->toBe('Pacific/Honolulu');
     expect(config('mail.mailers.smtp.host'))->not->toBe('changed');
+    $this->get('/settings/instance')->assertInertia(fn (Assert $page): Assert => $page->where('instancePage.timezone', 'Pacific/Honolulu'));
 });
+
+it('rejects an unknown instance zone without changing the saved one', function (mixed $timezone): void {
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $original = app(InstanceSettings::class)->timezone;
+
+    $this->actingAs($owner)->from('/settings/instance')->patch('/settings/instance', ['name' => 'Agency', 'timezone' => $timezone])
+        ->assertRedirect('/settings/instance')->assertSessionHasErrors('timezone');
+    expect(app(InstanceSettings::class)->timezone)->toBe($original);
+})->with(['empty' => '', 'unknown' => 'Mars/Olympus_Mons', 'not a string' => [['Europe/Berlin']]]);
 
 it('rejects invalid instance names without changing persisted identity', function (mixed $name): void {
     $owner = User::factory()->create();

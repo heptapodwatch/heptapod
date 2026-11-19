@@ -24,6 +24,7 @@ final class NotificationSettingsPageData extends Data
      * @param  list<array{id: int, name: string}>  $clients  team scope choices
      * @param  list<ChannelTypeData>  $channel_types  transport settings for the channel types this recipient may add; the account email's transport is fixed
      * @param  list<array{value: string, label_key: string}>  $check_types  installed check types
+     * @param  list<string>  $timezones  choices for a channel's own zone
      * @param  list<string>|null  $migration_report  stored once by the 2026-10-30 conversion; team page only
      */
     public function __construct(
@@ -37,6 +38,7 @@ final class NotificationSettingsPageData extends Data
         public readonly array $clients,
         public readonly array $channel_types,
         public readonly array $check_types,
+        public readonly array $timezones,
         public readonly ?array $migration_report = null,
     ) {}
 }

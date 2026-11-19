@@ -11,12 +11,15 @@ final readonly class SaveInstanceSettings
 {
     public function __construct(private InstanceSettings $settings) {}
 
-    /** A null design keeps the saved one: a PATCH that names only the instance changes only the name. */
-    public function __invoke(string $name, ?MailDesign $mailDesign): void
+    /** A null design or zone keeps the saved one: a PATCH that names only the instance changes only the name. */
+    public function __invoke(string $name, ?MailDesign $mailDesign, ?string $timezone = null): void
     {
         $this->settings->name = $name;
         if ($mailDesign instanceof MailDesign) {
             $this->settings->mail_design = $mailDesign;
+        }
+        if ($timezone !== null) {
+            $this->settings->timezone = $timezone;
         }
         $this->settings->save();
     }

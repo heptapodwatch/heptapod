@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { TooltipHint } from '@/components/truncated-text';
 import { useFormat } from '@/hooks/use-format';
+import { browserTimezone } from '@/lib/date-time';
 import InvitationLayout from '@/layouts/auth/invitation-layout';
 import { login } from '@/routes';
 import { TextLink } from '@/components/text-link';
@@ -138,6 +139,10 @@ export default function Invitation({
                         ref={formRef}
                         {...store.form(token)}
                         disableWhileProcessing
+                        transform={(data) => ({
+                            ...data,
+                            timezone: browserTimezone(),
+                        })}
                         resetOnError={['password', 'password_confirmation']}
                         resetOnSuccess={['password', 'password_confirmation']}
                         onStart={() => setJoinError(null)}

@@ -9,6 +9,7 @@ use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\User;
 use Heptapod\Queries\RunsReader;
 use Heptapod\Queries\ShellHealthReader;
+use Heptapod\Settings\InstanceSettings;
 use Heptapod\SystemHealth\SystemIssueKind;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -48,17 +49,23 @@ class HandleInertiaRequests extends Middleware
     {
         $request->session()->forget('selected_client_id');
         $user = $request->user();
+        // The user payload below is built now, not at response time: its roles (the user menu) must already be loaded.
+        if ($user instanceof User) {
+            $user->loadMissing('roles');
+        }
 
         return [
             ...parent::share($request),
             'csrfToken' => Inertia::always(static fn (): string => $request->session()->token()),
             'locale' => app()->getLocale(),
-            'timezone' => $user?->getAttribute('timezone') ?? config('app.timezone'),
+            // The viewer's zone: their own, else the instance's (guests too).
+            'timezone' => $user instanceof User ? $user->resolvedTimezone() : app(InstanceSettings::class)->timezone,
             'mailLogOnly' => MailDeliveryMode::logOnly(),
             'mailConfigurationAction' => SystemIssueKind::MailLogOnly->navigationAction($user instanceof User ? $user : null),
             'mailMayOnlyBeLogged' => MailDeliveryMode::includesLocalTransport(),
             'auth' => [
-                'user' => $user,
+                // Like ClientData: `timezone` is the zone in use, `timezone_override` the user's own choice (null follows the instance).
+                'user' => $user instanceof User ? [...$user->toArray(), 'timezone' => $user->resolvedTimezone(), 'timezone_override' => $user->timezone] : $user,
                 'canManageMembers' => $user instanceof User && $user->disabled_at === null && $user->hasAnyRole(['Owner', 'Admin']),
                 'canManageInstance' => $user instanceof User && $user->hasRole('Owner'),
                 'canViewSystemHealth' => $user instanceof User && $user->hasAnyRole(['Owner', 'Admin']),

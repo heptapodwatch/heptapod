@@ -32,7 +32,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
         prefetch: _prefetch,
         ...props
     }: ComponentProps<'a'> & { prefetch?: boolean }) => <a {...props} />,
-    usePage: () => ({ props: { timezone: 'UTC' } }),
+    usePage: () => ({ props: { timezone: 'UTC', instanceTimezone: 'UTC' } }),
 }));
 
 /** The move-blockers check's answer: the sites that cannot move right now. */
@@ -244,8 +244,8 @@ it('keeps the No client name read-only while other settings still save', () => {
     }) as HTMLInputElement;
     expect(name.readOnly).toBe(true);
     expect(name.value).toBe('No client');
-    fireEvent.change(screen.getByRole('textbox', { name: 'Contact name' }), {
-        target: { value: 'Team contact' },
+    fireEvent.change(screen.getByRole('textbox', { name: 'Short name' }), {
+        target: { value: 'NC' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(post).toHaveBeenCalledWith(
@@ -255,7 +255,7 @@ it('keeps the No client name read-only while other settings still save', () => {
     );
     expect(post.mock.calls[0]![1]).toEqual(
         expect.objectContaining({
-            contact_name: 'Team contact',
+            short_name: 'NC',
             _method: 'patch',
         }),
     );
@@ -312,8 +312,8 @@ it('leaves the form clean after successfully saving the avatar and other fields'
     const post = vi.spyOn(router, 'post').mockImplementation(() => {});
     render(page());
     dropAvatar();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Contact name' }), {
-        target: { value: 'Saved contact' },
+    fireEvent.change(screen.getByRole('textbox', { name: 'Short name' }), {
+        target: { value: 'SC' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     const visit = post.mock.calls[0]![2]!;
@@ -346,10 +346,10 @@ it('leaves the form clean after successfully saving the avatar and other fields'
     expect(
         (
             screen.getByRole('textbox', {
-                name: 'Contact name',
+                name: 'Short name',
             }) as HTMLInputElement
         ).value,
-    ).toBe('Saved contact');
+    ).toBe('SC');
 });
 
 it('clears the avatar draft when the saved site icon is chosen again', () => {

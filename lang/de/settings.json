@@ -413,5 +413,13 @@
     "mail_branding.sample.why": "Sie erhalten diese E-Mail, weil der Team-Kanal Ausfälle erhält.",
     "mail_branding.sample.change_notifications": "Benachrichtigungen ändern",
     "mail_branding.preview.failed": "Die Vorschau konnte nicht geladen werden.",
-    "mail_branding.logo.too_many_pixels": "Bild zu groß (max. :max × :max px)."
+    "mail_branding.logo.too_many_pixels": "Bild zu groß (max. :max × :max px).",
+    "Use it": "Übernehmen",
+    "Your browser uses {{zone}}. Use it?": "Ihr Browser verwendet {{zone}}. Übernehmen?",
+    "Team notifications and everything without its own timezone use this one.": "Team-Benachrichtigungen und alles ohne eigene Zeitzone verwenden diese.",
+    "Members, clients and channels can choose their own timezone. New members start with their browser timezone.": "Mitglieder, Kunden und Kanäle können eine eigene Zeitzone wählen. Neue Mitglieder starten mit der Zeitzone ihres Browsers.",
+    "timezone.default": "Standard: {{zone}} ({{source}})",
+    "timezone.source.instance": "Instanz",
+    "timezone.source.client": "Kunde {{name}}",
+    "timezone.source.profile": "Ihr Profil"
 }

@@ -40,7 +40,7 @@ final readonly class RetainedEventMail
     public function build(Event $event, AlertSeverity $severity, RetainedAlert $kind, NotificationDestination $destination, ?NotificationCategory $category): MailModel
     {
         $locale = $destination->effectiveLocale();
-        $timezone = $destination->timezone();
+        $timezone = $destination->resolvedTimezone();
         $site = $kind === RetainedAlert::SiteDeleted ? null : ($event->site ?? throw new \LogicException('A retained alert keeps its live site unless the site was deleted.'));
         $name = $site?->displayName() ?? $event->site_name ?? throw new \LogicException('A retained alert must keep its site label.');
         $label = $site === null ? __('events.deleted_site', ['label' => $name], $locale) : $name;

@@ -24,7 +24,7 @@ it('lets owners create clients, edit branding, and rejects unsafe uploads', func
     $owner->assignRole('Owner');
     $this->actingAs($owner)->get('/clients/create')->assertInertia(fn (Assert $page): Assert => $page->component('clients/settings')->where('client', null));
     $this->post('/clients', [
-        'name' => 'Example', 'short_name' => 'EX', 'contact_name' => 'Ada',
+        'name' => 'Example', 'short_name' => 'EX',
         'locale' => 'de', 'timezone' => 'Europe/Berlin', 'accent_color' => '#3B5068',
         'logo' => UploadedFile::fake()->image('logo.png', 320, 320),
     ])->assertRedirect();
@@ -53,7 +53,7 @@ it('lets owners create clients, edit branding, and rejects unsafe uploads', func
     expect($client->fresh()?->getFirstMedia('logo')?->mime_type)->toBe('image/png');
     // The settings Save: the identity fields and the avatar draft in one spoofed multipart PATCH.
     $this->post('/clients/'.$client->id, [
-        '_method' => 'PATCH', 'name' => 'Renamed with logo', 'short_name' => 'EX', 'contact_name' => 'Ada',
+        '_method' => 'PATCH', 'name' => 'Renamed with logo', 'short_name' => 'EX',
         'locale' => 'de', 'timezone' => 'Europe/Berlin', 'logo' => UploadedFile::fake()->image('replacement.png', 320, 320),
     ])->assertSessionHasNoErrors()->assertRedirect();
     expect($client->refresh()->name)->toBe('Renamed with logo');
@@ -80,8 +80,7 @@ it('preserves stored branding language time and assignments on an identity-only 
     $member->assignRole('Member');
     $member->clients()->attach($client);
 
-    $this->patch('/clients/'.$client->id, ['name' => 'Identity only', 'short_name' => 'IO',
-        'contact_name' => 'New contact'])->assertRedirect();
+    $this->patch('/clients/'.$client->id, ['name' => 'Identity only', 'short_name' => 'IO'])->assertRedirect();
     $client->refresh();
     expect($client->name)->toBe('Identity only')->and($client->locale)->toBe('de')->and($client->timezone)->toBe('Europe/Berlin')
         ->and($client->accent_color)->toBe('#3B5068')->and($client->getFirstMedia('logo')->id)->toBe($logoId);

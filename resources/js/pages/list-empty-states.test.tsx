@@ -399,7 +399,6 @@ function maintenance(
             filter_clients={[]}
             client_id={null}
             site_id={null}
-            timezone="UTC"
             {...changes}
         />,
     );

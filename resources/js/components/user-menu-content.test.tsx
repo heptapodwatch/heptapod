@@ -20,6 +20,7 @@ const user: User = {
     email: 'test@example.test',
     locale: 'en',
     timezone: 'UTC',
+    timezone_override: null,
     roles: [],
     email_verified_at: null,
     created_at: '2026-10-21T12:00:00Z',

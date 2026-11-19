@@ -304,7 +304,7 @@ it('recovers a removed check using its retained name in the mail model', functio
 
     expect($issue->refresh()->details['resolution'])->toBe('check_deleted');
     expect(systemIssueDeliveries($issue->id, 'recovery')->count())->toBe(1);
-    expect(app(SystemIssueMailer::class)->model($issue, true, 'en', true)->subject)->toContain('System recovered');
+    expect(app(SystemIssueMailer::class)->model($issue, true, 'en', true, false, 'UTC')->subject)->toContain('System recovered');
     Mail::assertSent(TemplateMail::class, fn (TemplateMail $mail): bool => str_contains($mail->render(), 'Retained site') && str_contains($mail->render(), 'The check was removed'));
 });
 

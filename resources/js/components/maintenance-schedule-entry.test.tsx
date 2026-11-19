@@ -101,7 +101,6 @@ function page(
             state="all"
             site_name="API"
             can_manage={canManage}
-            timezone="UTC"
             instance_timezone="UTC"
             timezones={['UTC']}
             sites={[target(7, 'Website'), target(8, 'API')]}

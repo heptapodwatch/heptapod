@@ -26,14 +26,15 @@ final readonly class AcceptInvitation
             'email' => ['prohibited'], 'role' => ['prohibited'], 'client_ids' => ['prohibited'],
         ])->validate();
 
-        return DB::transaction(function () use ($token, $data): User {
+        return DB::transaction(function () use ($token, $data, $attributes): User {
             $query = Invitation::query()->where('token_hash', hash('sha256', $token));
             NotificationLocks::forUpdate($query->getQuery());
             $invitation = $query->firstOrFail();
             abort_if($invitation->expires_at->isPast(), 410);
             $userQuery = User::query()->where('email', $invitation->email);
             NotificationLocks::forUpdate($userQuery->getQuery());
-            $user = $userQuery->first() ?? new User(['email' => $invitation->email]);
+            // A re-activated user keeps their zone; a new one starts in the browser's.
+            $user = $userQuery->first() ?? new User(['email' => $invitation->email, 'timezone' => User::initialTimezone($attributes['timezone'] ?? null)]);
             abort_if($user->exists && $user->disabled_at === null, 409);
             $user->fill(['name' => $data['name'], 'password' => $data['password'], 'client_scope' => $invitation->client_scope]);
             $user->forceFill(['email_verified_at' => now(), 'disabled_at' => null])->save();

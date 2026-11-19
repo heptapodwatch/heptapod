@@ -32,7 +32,7 @@ final readonly class AccountMailFactory
         return new MailModel(locale: $locale, subject: __('account_mail.test_subject', locale: $locale), preheader: $headline, headline: $headline,
             footerWhy: __('account_mail.test_why', locale: $locale), instance: $this->instance(), tone: MailTone::Recovered,
             lead: __('account_mail.test_lead', ['actor' => $actor->name, 'channel' => $destination->label,
-                'address' => $destination->destinationConfig()->string('email'), 'sent' => $at->setTimezone($this->settings->timezone)->format('Y-m-d H:i T')], $locale),
+                'address' => $destination->destinationConfig()->string('email'), 'sent' => $at->setTimezone($destination->resolvedTimezone())->format('Y-m-d H:i T')], $locale),
             design: $this->settings->mail_design);
     }
 

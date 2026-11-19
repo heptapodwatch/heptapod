@@ -69,7 +69,7 @@ it('joins through the allowed recipient form, lands in the invited scope and can
         expect($member->id)->toBe($existing->id);
     }
     expect(Invitation::query()->find($invitation->id))->toBeNull();
-    expect($submittedFields)->toBe([['name', 'password', 'password_confirmation'], ['name', 'password', 'password_confirmation']]);
+    expect($submittedFields)->toBe([['name', 'password', 'password_confirmation', 'timezone'], ['name', 'password', 'password_confirmation', 'timezone']]);
     $this->assertAuthenticatedAs($member);
     $page->screenshot(filename: $reactivate ? 'invitation-fixture-reactivated-scoped-landing' : 'invitation-fixture-new-scoped-landing')
         ->click('[data-test="sidebar-menu-button"]')->click('Log out')->assertPathIs('/login');

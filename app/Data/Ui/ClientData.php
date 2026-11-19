@@ -16,17 +16,19 @@ final class ClientData extends Data
     {
         $avatar = app(ResolveClientAvatar::class)($client);
 
-        return new self($client->id, $client->displayName(), $client->locale, $client->timezone, $client->short_name,
-            $client->contact_name, $client->accent_color, $client->archived_at?->toIso8601String(), $client->is_internal, $avatar, $client->avatar_site_id);
+        return new self($client->id, $client->displayName(), $client->locale, $client->resolvedTimezone(), $client->timezone, $client->short_name,
+            $client->accent_color, $client->archived_at?->toIso8601String(), $client->is_internal, $avatar, $client->avatar_site_id);
     }
 
     public function __construct(
         public readonly int $id,
         public readonly string $name,
         public readonly string $locale,
+        /** The zone the client lives in: its own, else the instance's. */
         public readonly string $timezone,
+        /** The client's own choice; null follows the instance. */
+        public readonly ?string $timezone_override,
         public readonly ?string $short_name = null,
-        public readonly ?string $contact_name = null,
         public readonly ?string $accent_color = null,
         public readonly ?string $archived_at = null,
         public readonly bool $is_internal = false,

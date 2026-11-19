@@ -32,7 +32,7 @@ const checkIconIds: Record<CheckKey, string> = {
 };
 const clientBranding = {
     short_name: null,
-    contact_name: null,
+    timezone_override: null,
     accent_color: null,
     avatar: {
         url: null,

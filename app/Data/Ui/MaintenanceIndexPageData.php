@@ -22,7 +22,6 @@ final class MaintenanceIndexPageData extends Data
         public readonly array $windows,
         public readonly ?int $next_page,
         public readonly bool $can_manage,
-        public readonly string $timezone,
         public readonly array $sites,
         public readonly array $clients,
         public readonly array $tags,

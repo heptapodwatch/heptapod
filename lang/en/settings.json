@@ -413,5 +413,13 @@
     "mail_branding.sample.why": "You receive this because the team channel gets outages.",
     "mail_branding.sample.change_notifications": "Change notifications",
     "mail_branding.preview.failed": "The preview could not be loaded.",
-    "mail_branding.logo.too_many_pixels": "Image too large (max :max × :max px)."
+    "mail_branding.logo.too_many_pixels": "Image too large (max :max × :max px).",
+    "Use it": "Use it",
+    "Your browser uses {{zone}}. Use it?": "Your browser uses {{zone}}. Use it?",
+    "Team notifications and everything without its own timezone use this one.": "Team notifications and everything without its own timezone use this one.",
+    "Members, clients and channels can choose their own timezone. New members start with their browser timezone.": "Members, clients and channels can choose their own timezone. New members start with their browser timezone.",
+    "timezone.default": "Default: {{zone}} ({{source}})",
+    "timezone.source.instance": "instance",
+    "timezone.source.client": "client {{name}}",
+    "timezone.source.profile": "your profile"
 }

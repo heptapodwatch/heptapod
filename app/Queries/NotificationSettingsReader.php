@@ -175,7 +175,7 @@ final readonly class NotificationSettingsReader
             ['quiet_start' => $schedule->quiet_start, 'quiet_end' => $schedule->quiet_end, 'quiet_weekends' => $schedule->quiet_weekends,
                 'digest_time' => $schedule->digest_time, 'digest_weekdays' => $schedule->digest_weekdays, 'timezone' => $schedule->timezone()],
             $siteRows, $clients, array_values(array_filter(ChannelTypeData::installed($this->channels),
-                static fn (ChannelTypeData $type): bool => SaveNotificationChannel::offers($kind, $type->key))), $checkTypes, $report);
+                static fn (ChannelTypeData $type): bool => SaveNotificationChannel::offers($kind, $type->key))), $checkTypes, \DateTimeZone::listIdentifiers(), $report);
     }
 
     /**
@@ -207,7 +207,7 @@ final readonly class NotificationSettingsReader
 
         return new NotificationChannelData($channel->id, $channel->channel, $channel->label,
             $channel->channel === 'mail' && is_string($email) ? $email : null, $status, $channel->account_mail,
-            $channel->locale, $channel->scope_client_id, $channel->check_types, is_string($reason) ? $reason : null,
+            $channel->locale, $channel->timezone, $channel->scope_client_id, $channel->check_types, is_string($reason) ? $reason : null,
             $channel->last_outcome, $channel->last_outcome_diagnosis, $channel->last_outcome_at?->toIso8601String(), $queued,
             $channel->config, array_map(NotificationMode::from(...), $preferences),
             $defaults === null ? null : array_map(NotificationMode::from(...), $defaults), $systemLocked, $systemBypassesPause, $mutes, ! $channel->account_mail);

@@ -61,7 +61,7 @@ final class ApiTokensController extends Controller
         })->all();
 
         return new ApiTokenSettingsData(array_values($tokens), CreateApiToken::Abilities, $create->presets($user),
-            array_values($clients->map(static fn (Client $client): array => ['id' => $client->id, 'name' => $client->displayName(), 'short_name' => $client->short_name, 'accent_color' => $client->accent_color, 'avatar' => app(ResolveClientAvatar::class)($client), 'is_internal' => $client->is_internal])->all()), $user->timezone);
+            array_values($clients->map(static fn (Client $client): array => ['id' => $client->id, 'name' => $client->displayName(), 'short_name' => $client->short_name, 'accent_color' => $client->accent_color, 'avatar' => app(ResolveClientAvatar::class)($client), 'is_internal' => $client->is_internal])->all()), $user->resolvedTimezone());
     }
 
     public function store(Request $request, CreateApiToken $create): JsonResponse

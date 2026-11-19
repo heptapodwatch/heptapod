@@ -59,8 +59,6 @@ final readonly class BuildAlertMailContext
         if (! $outage) {
             return $this->eventContext($event, $destination);
         }
-        $site = $event->site ?? throw new \LogicException('Mail context requires a site.');
-        $client = $site->client ?? throw new \LogicException('Mail context requires a client.');
         $check = $event->check ?? throw new \LogicException('Mail context requires a check.');
         $incident = $event->incident ?? throw new \LogicException('Mail context requires an incident.');
         $variant = AlertMailEvent::from($event->type);
@@ -92,7 +90,7 @@ final readonly class BuildAlertMailContext
             throw new \LogicException('Structured alert email requires an addon mail evidence provider.');
         }
         $locale = $destination->effectiveLocale();
-        $timezone = $client->timezone ?? $this->settings->timezone;
+        $timezone = $destination->resolvedTimezone();
         // A cause change to failed names the failure it now sees, not the check error the incident opened with.
         $presentation = ($variant === AlertMailEvent::CauseChanged ? $this->causeChangePresentation($event, $check) : $this->presentations->atOpening($openingIncident))
             ?? throw new \LogicException('Structured alert email requires its shared opening presentation.');
@@ -129,7 +127,7 @@ final readonly class BuildAlertMailContext
         $site = $event->site ?? throw new \LogicException('Mail context requires a site.');
         $client = $site->client ?? throw new \LogicException('Mail context requires a client.');
         $check = $event->check ?? throw new \LogicException('Mail context requires a check.');
-        $timezone = $client->timezone ?? $this->settings->timezone;
+        $timezone = $destination->resolvedTimezone();
         if ($variant === AlertMailEvent::Recovered && $event->incident !== null) {
             // Uptime episodes use this recipient's sent opener, not a later incident in the same episode.
             $openingIncident ??= $event->incident;
@@ -164,9 +162,7 @@ final readonly class BuildAlertMailContext
             throw new \LogicException('Mail event requires addon evidence.');
         }
         $locale = $destination->effectiveLocale();
-        $site = $event->site ?? throw new \LogicException('Mail event requires a site.');
-        $client = $site->client ?? throw new \LogicException('Mail event requires a client.');
-        $timezone = $client->timezone ?? $this->settings->timezone;
+        $timezone = $destination->resolvedTimezone();
         $resultValue = $event->payload['result'] ?? $event->to_result->value ?? null;
         if (! is_string($resultValue)) {
             throw new \LogicException('Alert mail requires a retained final event result.');

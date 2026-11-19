@@ -14,7 +14,11 @@ import ImportOhDear from '@/pages/settings/import-ohdear';
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }));
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const original = await importOriginal<typeof import('@inertiajs/react')>();
-    return { ...original, Head: () => null };
+    return {
+        ...original,
+        Head: () => null,
+        usePage: () => ({ props: { instanceTimezone: 'Europe/Berlin' } }),
+    };
 });
 vi.mock('react-i18next', () => {
     const t = (key: string, params?: Record<string, unknown>) =>

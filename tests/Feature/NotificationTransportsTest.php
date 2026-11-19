@@ -77,8 +77,8 @@ function transportMailMessage(NotificationDestination $destination, string $stat
     $opened = notificationIncidentEvent(['cause' => $errored ? 'errored' : 'failed', 'to_result' => $errored ? CheckResult::Errored : CheckResult::Failed,
         'payload' => $errored ? ['result' => 'errored-or-timed-out'] : []]);
     $opened->site->update(['friendly_name' => $label, 'url' => $siteUrl]);
-    // Alert mail times use the site's client zone (BuildAlertMailContext); N8 owns any change to that.
-    $opened->site->client->update(['timezone' => 'Europe/Berlin']);
+    // Alert mail times use the receiving channel's zone, never the site's client zone (this one is neither recipient's).
+    $opened->site->client->update(['timezone' => 'Asia/Tokyo']);
     $opened->incident->update(['cause' => $errored ? 'errored' : 'failed', 'opened_at' => now(), 'first_failure_at' => now(),
         'evidence' => ['summary' => 'causes.error', 'summary_params' => ['message' => $reason], 'evidence' => [], 'metrics' => null,
             'error' => $errored ? '{"class":"RuntimeException"}' : null, 'run_ended_at' => now()->format('Y-m-d\TH:i:s.uP')]]);
@@ -222,15 +222,16 @@ it('delivers localized payloads through each real transport', function (string $
         expect($mail->getTo()[0]->getAddress())->toBe('operator@example.com')
             ->and($html)->toContain('lang="'.$locale.'"', 'Operations &amp; Monitoring', htmlspecialchars($label, ENT_QUOTES))
             ->and($text)->toContain('Operations & Monitoring', $label);
-        // Localized times, never the raw instant.
+        // Localized times in the channel's zone (the user's, else the instance's), never the raw instant or the client's zone.
+        [$opens, $ends] = $timezone === null ? ['14:30 CEST', '14:31 CEST'] : ['08:30 EDT', '08:31 EDT'];
         expect($text)->toContain(match ($state) {
-            'failed' => $locale === 'en' ? 'since 14:30 CEST' : 'seit 14:30 CEST',
-            'recovered' => '14:30 CEST – 14:31 CEST',
-            'errored' => $locale === 'en' ? 'Oct 1, 2026, 14:30 CEST' : '1. Okt 2026, 14:30 CEST',
-        })->not->toContain('2026-10-01T12:30');
+            'failed' => ($locale === 'en' ? 'since ' : 'seit ').$opens,
+            'recovered' => $opens.' – '.$ends,
+            'errored' => ($locale === 'en' ? 'Oct 1, 2026, ' : '1. Okt 2026, ').$opens,
+        })->not->toContain('2026-10-01T12:30', 'JST');
         expect($mail->getSubject())->toBe(match ([$locale, $state]) {
-            ['en', 'failed'] => '[Down] '.$label.' — '.$summary.' since 14:30 CEST',
-            ['de', 'failed'] => '[Ausgefallen] '.$label.' — '.$summary.' seit 14:30 CEST',
+            ['en', 'failed'] => '[Down] '.$label.' — '.$summary.' since '.$opens,
+            ['de', 'failed'] => '[Ausgefallen] '.$label.' — '.$summary.' seit '.$opens,
             ['en', 'recovered'] => '[Recovered] '.$label.' after 2 min',
             ['de', 'recovered'] => '[Entwarnung] '.$label.' nach 2 Min.',
             ['en', 'errored'] => '[Check error] '.$label.' — the Uptime check could not run',
@@ -331,6 +332,27 @@ it('delivers localized payloads through each real transport', function (string $
         return true;
     });
 })->with(array_map(fn (string $key): array => [$key], array_keys(notificationTransports())))->with(['en', 'de'])->with(['failed', 'errored', 'recovered'])->with(['ordinary' => false, 'hostile markup' => true])->with(['instance timezone' => null, 'destination timezone' => 'America/New_York']);
+
+it('shows alert mail times in the channel\'s own zone, else its user\'s, else the instance\'s', function (?string $channelZone, ?string $userZone, string $since): void {
+    $transport = new ArrayTransport;
+    Mail::mailer()->setSymfonyTransport($transport);
+    $instance = app(InstanceSettings::class);
+    $instance->timezone = 'Europe/Berlin';
+    $instance->save();
+    $channel = app(ChannelRegistry::class)->get('mail');
+    $destination = NotificationDestination::factory()->create(['channel' => 'mail', 'locale' => 'en', 'timezone' => $channelZone,
+        'config' => $channel->configSchema()->validateConfig(notificationTransports()['mail'][0]),
+        'recipient_kind' => RecipientKind::User, 'user_id' => User::factory()->create(['timezone' => $userZone, 'locale' => 'en'])->id]);
+    $message = transportMailMessage($destination, 'failed', 'example.com', 'example.com');
+
+    expect(transportSend($channel, $message, $destination->destinationConfig(), $message->eventId.':'.$destination->id)->status)->toBe(DeliveryState::Sent);
+
+    expect($transport->messages()->sole()->getOriginalMessage()->getTextBody())->toContain('since '.$since);
+})->with([
+    'channel zone' => ['Asia/Kolkata', 'America/New_York', '18:00 IST'],
+    'user zone' => [null, 'America/New_York', '08:30 EDT'],
+    'instance zone' => [null, null, '14:30 CEST'],
+]);
 
 it('returns secret-free failure results for HTTP and network rejections', function (string $key, bool $network): void {
     [$values, $url] = notificationTransports()[$key];

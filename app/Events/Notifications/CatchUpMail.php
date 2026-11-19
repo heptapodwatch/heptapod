@@ -30,7 +30,7 @@ final readonly class CatchUpMail
         $site = $event->site;
         $name = $site?->displayName() ?? $event->site_name ?? throw new \LogicException('A catch-up must retain its site label.');
         $label = $site === null ? __('events.deleted_site', ['label' => $name], $locale) : $name;
-        $rows = $site === null ? $this->retainedRows($event, $locale) : $this->openRows($event, $locale, $destination->timezone());
+        $rows = $site === null ? $this->retainedRows($event, $locale) : $this->openRows($event, $locale, $destination->resolvedTimezone());
         // Failures before check errors, then by check name.
         usort($rows, static fn (array $a, array $b): int => [$a['state'] === 'check_error', $a['check']] <=> [$b['state'] === 'check_error', $b['check']]);
         // The rows share one byte budget, as in the digest; check names are unique per site, so each is its own fallback.

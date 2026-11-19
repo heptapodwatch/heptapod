@@ -155,7 +155,7 @@ function restoreRoutingSchema(): void
         $table->jsonb('notification_types')->nullable();
         $table->string('scope_type')->nullable();
         $table->unsignedBigInteger('scope_id')->nullable();
-        $table->string('timezone')->nullable();
+        // `timezone` exists again since 2026-11-19 (the channel's own zone), in the same shape the old schema had.
         $table->string('quiet_start', 5)->nullable();
         $table->string('quiet_end', 5)->nullable();
         $table->boolean('digest_enabled')->default(false);

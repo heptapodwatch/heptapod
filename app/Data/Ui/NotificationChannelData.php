@@ -23,6 +23,8 @@ final class NotificationChannelData extends Data
         public readonly string $status,
         public readonly bool $account_mail,
         public readonly ?string $locale,
+        /** The channel's own zone; null follows its recipient (the page's schedule zone). */
+        public readonly ?string $timezone,
         public readonly ?int $scope_client_id,
         /** @var list<string>|null */
         public readonly ?array $check_types,

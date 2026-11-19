@@ -24,7 +24,8 @@ class ProfileUpdateRequest extends FormRequest
         return [
             ...$this->profileRules($user->id),
             'locale' => ['sometimes', 'required', 'string', 'in:en,de'],
-            'timezone' => ['sometimes', 'required', 'string', 'timezone:all'],
+            // Null returns to the default: the instance zone.
+            'timezone' => ['sometimes', 'nullable', 'string', 'timezone:all'],
         ];
     }
 }

@@ -1,5 +1,9 @@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { TimezoneCombobox } from '@/components/timezone-combobox';
+import {
+    BrowserTimezoneHint,
+    TimezoneCombobox,
+    useInstanceTimezone,
+} from '@/components/timezone-combobox';
 import {
     FormSection,
     FormActions,
@@ -33,6 +37,7 @@ export default function Profile({
 }) {
     const { t } = useTranslation();
     const { auth } = usePage().props;
+    const instanceTimezone = useInstanceTimezone();
     const user = auth.user;
     if (!user) throw new Error('Profile requires an authenticated user');
     const initials = useInitials();
@@ -40,7 +45,7 @@ export default function Profile({
         name: user.name,
         email: user.email,
         locale: user.locale,
-        timezone: user.timezone,
+        timezone: user.timezone_override,
     });
     const pendingErrorFocus = useRef<string | undefined>(undefined);
     useEffect(() => {
@@ -64,7 +69,7 @@ export default function Profile({
                     name: savedUser.name,
                     email: savedUser.email,
                     locale: savedUser.locale,
-                    timezone: savedUser.timezone,
+                    timezone: savedUser.timezone_override,
                 };
                 form.setDefaults(saved);
                 form.setData(saved);
@@ -196,58 +201,78 @@ export default function Profile({
                         title={t('Language and time')}
                         description={t('Times are shown in your timezone.')}
                     >
-                        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)]">
-                            <div className="space-y-1.5">
-                                <Label id="locale-label">{t('Language')}</Label>
-                                <RadioGroup
-                                    id="locale"
-                                    aria-labelledby="locale-label"
-                                    aria-invalid={!!form.errors.locale}
-                                    aria-describedby={
-                                        form.errors.locale
-                                            ? 'locale-error'
-                                            : undefined
-                                    }
-                                    name="locale"
-                                    value={String(form.data.locale)}
-                                    onValueChange={(value) =>
-                                        form.setData('locale', value as Locale)
-                                    }
-                                >
-                                    <RadioGroupItem value={String('en')}>
-                                        {t('English')}
-                                    </RadioGroupItem>
-                                    <RadioGroupItem value={String('de')}>
-                                        {t('German')}
-                                    </RadioGroupItem>
-                                </RadioGroup>
-                                <InputError
-                                    id="locale-error"
-                                    message={form.errors.locale}
-                                />
-                            </div>
-                            <div className="space-y-1.5">
-                                <Label htmlFor="timezone">
-                                    {t('Timezone')}
-                                </Label>
-                                <TimezoneCombobox
-                                    id="timezone"
-                                    timezones={timezones}
-                                    value={String(form.data.timezone)}
-                                    onValueChange={(value) =>
-                                        form.setData('timezone', value)
-                                    }
-                                    invalid={!!form.errors.timezone}
-                                    describedBy={
-                                        form.errors.timezone
-                                            ? 'timezone-error'
-                                            : undefined
-                                    }
-                                />
-                                <InputError
-                                    id="timezone-error"
-                                    message={form.errors.timezone}
-                                />
+                        <div className="space-y-4">
+                            <BrowserTimezoneHint
+                                onDefault={user.timezone_override === null}
+                                current={user.timezone}
+                                draft={form.data.timezone}
+                                timezones={timezones}
+                                onUse={(zone) => form.setData('timezone', zone)}
+                            />
+                            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)]">
+                                <div className="space-y-1.5">
+                                    <Label id="locale-label">
+                                        {t('Language')}
+                                    </Label>
+                                    <RadioGroup
+                                        id="locale"
+                                        aria-labelledby="locale-label"
+                                        aria-invalid={!!form.errors.locale}
+                                        aria-describedby={
+                                            form.errors.locale
+                                                ? 'locale-error'
+                                                : undefined
+                                        }
+                                        name="locale"
+                                        value={String(form.data.locale)}
+                                        onValueChange={(value) =>
+                                            form.setData(
+                                                'locale',
+                                                value as Locale,
+                                            )
+                                        }
+                                    >
+                                        <RadioGroupItem value={String('en')}>
+                                            {t('English')}
+                                        </RadioGroupItem>
+                                        <RadioGroupItem value={String('de')}>
+                                            {t('German')}
+                                        </RadioGroupItem>
+                                    </RadioGroup>
+                                    <InputError
+                                        id="locale-error"
+                                        message={form.errors.locale}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="timezone">
+                                        {t('Timezone')}
+                                    </Label>
+                                    <TimezoneCombobox
+                                        id="timezone"
+                                        timezones={timezones}
+                                        value={form.data.timezone}
+                                        onValueChange={(value: string | null) =>
+                                            form.setData('timezone', value)
+                                        }
+                                        defaultZone={{
+                                            zone: instanceTimezone,
+                                            source: t(
+                                                'timezone.source.instance',
+                                            ),
+                                        }}
+                                        invalid={!!form.errors.timezone}
+                                        describedBy={
+                                            form.errors.timezone
+                                                ? 'timezone-error'
+                                                : undefined
+                                        }
+                                    />
+                                    <InputError
+                                        id="timezone-error"
+                                        message={form.errors.timezone}
+                                    />
+                                </div>
                             </div>
                         </div>
                     </FormSection>

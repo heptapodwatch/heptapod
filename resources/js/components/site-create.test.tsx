@@ -24,6 +24,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
             props: {
                 auth: { user: { id: userId }, canManageChannels: true },
                 timezone: 'UTC',
+                instanceTimezone: 'UTC',
                 overallHealth: { notifications_covered: notificationsCovered },
             },
         }),
@@ -633,9 +634,8 @@ it('creates a client in a sheet with the normal form and selects it in place', a
     expect(JSON.parse(request.mock.calls[0]![0].data as string)).toEqual({
         name: 'New Studio',
         short_name: '',
-        contact_name: '',
         locale: 'en',
-        timezone: 'UTC',
+        timezone: null,
     });
     expect(within(clientField()!).getByText('New Studio')).not.toBeNull();
     expect(stored().client_id).toBe('987');
