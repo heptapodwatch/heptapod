@@ -42,6 +42,8 @@ import type {
     UptimeBucketDto,
 } from '@/types/monitoring';
 import { TextLink } from '@/components/text-link';
+// MOCKUP ONLY (branch feat-sites-visual, phase 1). Remove in phase 2.
+import { useMockupVariant } from '@/lib/sites-visual-variants';
 
 export const statusColor: Record<SiteState | 'running', string> = {
     running: 'var(--muted-foreground)',
@@ -392,17 +394,47 @@ const checkSummaryOrder = [
 ];
 
 /** One strip slot: dashed when not set up, empty when turned off, otherwise the status shape (snoozed: bars cut out). */
+/** MOCKUP ONLY (phase 1): a short centred dash, so a row of off slots never reads as one dashed line. */
+export function QuietDash() {
+    return (
+        <span className="flex size-[11px] items-center justify-center">
+            <span
+                aria-hidden
+                className="h-[1.5px] w-[5px] rounded-full"
+                style={{ background: statusColor.disabled }}
+            />
+        </span>
+    );
+}
+
 function CheckMarkGlyph({ mark }: { mark: CheckMark }) {
+    // MOCKUP ONLY (phase 1): A = unset and off share one quiet dash; B = unset is an empty slot, off a dash;
+    // C = A with OK as a small solid dot.
+    const variant = useMockupVariant('strip');
     switch (mark.kind) {
         case 'unset':
+            if (variant === 'a' || variant === 'c') return <QuietDash />;
+            if (variant === 'b') return <span className="size-[11px]" />;
             return (
                 <span className="size-[11px] rounded-[2px] border border-dashed border-border-strong bg-card opacity-50" />
             );
         case 'off':
-            return <span className="size-[11px]" />;
+            return variant === 'current' ? (
+                <span className="size-[11px]" />
+            ) : (
+                <QuietDash />
+            );
         case 'snoozed':
             return <StatusDot state={mark.state} snoozed strip />;
         case 'status':
+            if (variant === 'c' && mark.state === 'ok')
+                return (
+                    <span
+                        aria-hidden
+                        className="size-[6px] rounded-full"
+                        style={{ background: statusColor.ok }}
+                    />
+                );
             return <StatusDot state={mark.state} label={mark.label} strip />;
     }
 }

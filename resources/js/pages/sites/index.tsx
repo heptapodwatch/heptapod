@@ -38,6 +38,9 @@ import { useFormat } from '@/hooks/use-format';
 import { statusLabels } from '@/lib/status';
 import { checkTypes } from '@/lib/check-types';
 import { SeverityBadge } from '@/components/security-advisory-list';
+// MOCKUP ONLY (branch feat-sites-visual, phase 1). Remove in phase 2.
+import { SitesVisualMockupSwitcher } from '@/components/sites-visual-variants';
+import { useMockupVariant } from '@/lib/sites-visual-variants';
 import {
     show as siteShow,
     index as sitesIndex,
@@ -245,52 +248,58 @@ export default function SitesIndex({
             },
         );
     };
+    // MOCKUP ONLY (phase 1): header variants live in the band; the empty portfolio keeps today's header.
+    const head = useMockupVariant('head');
+    const mockupHead = head !== 'current' && tiles.sites > 0;
+    const addSiteAction = can_create ? (
+        <Button asChild>
+            <Link href={sitesCreate.url()} prefetch data-shortcut-create>
+                <Plus />
+                {t('Add site')}
+            </Link>
+        </Button>
+    ) : null;
     return (
         <>
             <Head title={t('Sites')} />
+            <SitesVisualMockupSwitcher
+                dimensions={['strip', 'lighthouse', 'head']}
+            />
             <PageContainer>
-                <PageHeader
-                    title={t('Sites')}
-                    count={format.number(summary.total)}
-                    description={[
-                        summary.total > 0
-                            ? t('sites.list_summary', {
-                                  count: summary.total,
-                                  formattedCount: format.number(summary.total),
-                              })
-                            : t('No sites monitored yet'),
-                        summary.attention > 0
-                            ? t('sites.list_attention', {
-                                  count: format.number(summary.attention),
-                              })
-                            : null,
-                        summary.paused > 0
-                            ? t('sites.list_paused', {
-                                  count: format.number(summary.paused),
-                              })
-                            : null,
-                    ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    notices={<MonitoringHealthNotices />}
-                    actions={
-                        <>
-                            {can_create && (
-                                <Button asChild>
-                                    <Link
-                                        href={sitesCreate.url()}
-                                        prefetch
-                                        data-shortcut-create
-                                    >
-                                        <Plus />
-                                        {t('Add site')}
-                                    </Link>
-                                </Button>
-                            )}
-                        </>
-                    }
-                />
+                {!mockupHead && (
+                    <PageHeader
+                        title={t('Sites')}
+                        count={format.number(summary.total)}
+                        description={[
+                            summary.total > 0
+                                ? t('sites.list_summary', {
+                                      count: summary.total,
+                                      formattedCount: format.number(
+                                          summary.total,
+                                      ),
+                                  })
+                                : t('No sites monitored yet'),
+                            summary.attention > 0
+                                ? t('sites.list_attention', {
+                                      count: format.number(summary.attention),
+                                  })
+                                : null,
+                            summary.paused > 0
+                                ? t('sites.list_paused', {
+                                      count: format.number(summary.paused),
+                                  })
+                                : null,
+                        ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        notices={<MonitoringHealthNotices />}
+                        actions={addSiteAction}
+                    />
+                )}
                 <SitesAttentionBand
+                    head={mockupHead ? head : 'current'}
+                    headActions={addSiteAction}
+                    headNotices={<MonitoringHealthNotices />}
                     tiles={tiles}
                     needsAttention={needs_attention}
                     needsAttentionTotal={needs_attention_total}

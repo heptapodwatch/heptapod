@@ -808,5 +808,8 @@
     "Clear filters to see the last 24 hours.": "Filter entfernen, um die letzten 24 Stunden zu sehen.",
     "replicator.remove": "{{name}} entfernen",
     "replicator.max_reached_one": "Höchstens {{formattedCount}} Eintrag.",
-    "replicator.max_reached_other": "Höchstens {{formattedCount}} Einträge."
+    "replicator.max_reached_other": "Höchstens {{formattedCount}} Einträge.",
+    "No Lighthouse check": "Keine Lighthouse-Prüfung",
+    "No scores yet": "Noch keine Werte",
+    "Lowest score: {{score}}": "Niedrigster Wert: {{score}}"
 }

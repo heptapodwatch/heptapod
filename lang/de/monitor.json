@@ -125,5 +125,9 @@
     "site_overview.coming_domain": "Domain läuft am {{date}} ab",
     "site_overview.coming_maintenance": "Wartung {{time}}",
     "site_overview.coming_nothing": "In den nächsten 12 Monaten ist nichts geplant",
-    "site_overview.response_peaks": "Spitzenwerte der letzten 24 Stunden"
+    "site_overview.response_peaks": "Spitzenwerte der letzten 24 Stunden",
+    "sites.head.more_attention_one": "{{formattedCount}} weitere Website braucht Aufmerksamkeit.",
+    "sites.head.more_attention_other": "{{formattedCount}} weitere Websites brauchen Aufmerksamkeit.",
+    "sites.head.portfolio": "{{sites}} bei {{clients}}",
+    "sites.head.last_result": "letztes Ergebnis {{time}}"
 }

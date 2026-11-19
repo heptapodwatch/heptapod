@@ -28,5 +28,7 @@ final class SiteRowData extends Data
         public readonly array $checks,
         public readonly ?string $checked_at,
         public readonly SiteIdentityData $identity,
+        /** Null without a Lighthouse check or when its latest run recorded no scores (a check error). */
+        public readonly ?LighthouseScoresData $lighthouse = null,
     ) {}
 }

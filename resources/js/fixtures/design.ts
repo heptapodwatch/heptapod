@@ -165,6 +165,7 @@ export const sites: SiteDto[] = names.map((name, index) => {
               : 1,
         tags: [state === 'paused' ? 'staging' : 'production'],
         state,
+        lighthouse: null,
         identity: {
             icon_url: null,
             icon_backing: 'none',

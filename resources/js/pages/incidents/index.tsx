@@ -27,6 +27,9 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { PageHeader } from '@/components/page-header';
+// MOCKUP ONLY (branch feat-sites-visual, phase 1). Remove in phase 2.
+import { SitesVisualMockupSwitcher } from '@/components/sites-visual-variants';
+import { useMockupVariant } from '@/lib/sites-visual-variants';
 import { SegmentedControl } from '@/components/segmented-control';
 import { PageContainer } from '@/components/page-container';
 import { Head, Link, router, usePage } from '@inertiajs/react';
@@ -182,12 +185,31 @@ export default function IncidentsIndex({
             </span>
         </TooltipHint>,
     ];
+    const stats = t(
+        '30 days: {{count}} incidents · {{duration}} total · median {{median}}',
+        {
+            count: summary.count,
+            formattedCount: format.number(summary.count),
+            duration: format.duration(summary.total_duration_seconds),
+            median:
+                summary.median_duration_seconds === null
+                    ? '—'
+                    : format.duration(summary.median_duration_seconds),
+        },
+    );
+    // MOCKUP ONLY (phase 1): I1 moves the stats line into the header, I2 drops it.
+    const incidentsHead = useMockupVariant('incidents');
     return (
         <PageContainer>
             <Head title={t('Incidents')} />
+            <SitesVisualMockupSwitcher dimensions={['incidents']} />
             <PageHeader
                 title={t('Incidents')}
-                description={t('pages.incidents.description')}
+                description={
+                    incidentsHead === 'i1'
+                        ? stats
+                        : t('pages.incidents.description')
+                }
                 actions={
                     <>
                         <Button variant="outline" asChild>
@@ -295,24 +317,9 @@ export default function IncidentsIndex({
                     </SelectContent>
                 </Select>
             </FilterBar>
-            <p className="text-xs text-muted-foreground">
-                {t(
-                    '30 days: {{count}} incidents · {{duration}} total · median {{median}}',
-                    {
-                        count: summary.count,
-                        formattedCount: format.number(summary.count),
-                        duration: format.duration(
-                            summary.total_duration_seconds,
-                        ),
-                        median:
-                            summary.median_duration_seconds === null
-                                ? '—'
-                                : format.duration(
-                                      summary.median_duration_seconds,
-                                  ),
-                    },
-                )}
-            </p>
+            {incidentsHead === 'current' && (
+                <p className="text-xs text-muted-foreground">{stats}</p>
+            )}
             <PendingChanges
                 count={buffered.pendingCount}
                 apply={buffered.apply}

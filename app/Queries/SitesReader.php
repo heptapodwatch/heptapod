@@ -25,6 +25,7 @@ use Heptapod\Contracts\SecurityAdvisoryPackageData;
 use Heptapod\Data\Ui\CheckRunStateData;
 use Heptapod\Data\Ui\CheckStripData;
 use Heptapod\Data\Ui\ClientData;
+use Heptapod\Data\Ui\LighthouseScoresData;
 use Heptapod\Data\Ui\ResponsePointData;
 use Heptapod\Data\Ui\SiteIdentityData;
 use Heptapod\Data\Ui\SiteListSummaryData;
@@ -64,7 +65,8 @@ use Spatie\Tags\Tag;
  * @phpstan-type CheckRunProjection array{check_id: int, phase: value-of<RunPhase>, attempt_id: int|null, queue: string|null, queue_position: int|null, progress_n: int|null, progress_total: int|null, phase_label: string|null, started_at: string|null, actor: string|null, due_at: string|null, can_cancel: bool, requested_at: string|null}
  * @phpstan-type CheckStripProjection array{pending_recheck: bool, freshness_suppressed_by: value-of<FreshnessSuppression>|null, freshness_suppression_label_key: string|null, dependency_headline_key: string|null, not_fresh: bool, state: value-of<SiteStatus>, id: int, key: value-of<CheckKey>, label_key: string, icon_id: string, enabled: bool, result: value-of<CheckResult>, open_incident_id: int|null, open_incident_started_at: string|null, summary: string|null, summary_params: array<string, string|int|float|bool|null>, checked_at: string|null, snoozed_until: string|null, unavailable_reason: string|null, run: CheckRunProjection|null, open_incident_requires_complete_recovery: bool, uptime_parent_incident_id: int|null, affected_checks: list<string>, held_after_recovery: bool, next_run_at: string|null, presentation?: array<array-key, mixed>|null}
  * @phpstan-type SiteHistoryProjection array{site_id: int, uptime: float|null, response: array{start: string, step_seconds: int, values: list<int|null>, marks: list<array{slot: int, failure_count: int, error_count: int, warning_count: int, failure_status: value-of<BucketStatus>|null}>}}
- * @phpstan-type SiteRowProjection array{id: int, name: string, url: string, client_id: int, tags: list<string>, state: value-of<SiteStatus>, uptime: float|null, response: list<ResponsePointProjection>, checks: list<CheckStripProjection>, checked_at: string|null, identity: SiteIdentityProjection}
+ * @phpstan-type SiteRowProjection array{id: int, name: string, url: string, client_id: int, tags: list<string>, state: value-of<SiteStatus>, uptime: float|null, response: list<ResponsePointProjection>, checks: list<CheckStripProjection>, checked_at: string|null, identity: SiteIdentityProjection, lighthouse: LighthouseScoresProjection|null}
+ * @phpstan-type LighthouseScoresProjection array{performance: int, accessibility: int, best_practices: int, seo: int}
  */
 final readonly class SitesReader
 {
@@ -367,6 +369,7 @@ final readonly class SitesReader
             $identity['state'] = SiteStatus::from($identity['state']);
             $identity['icon_backing'] = SiteIconBacking::from($identity['icon_backing']);
             $row['identity'] = new SiteIdentityData(...$identity);
+            $row['lighthouse'] = $row['lighthouse'] === null ? null : new LighthouseScoresData(...$row['lighthouse']);
 
             return new SiteRowData(...$row);
         }, $this->rowPayloads($sites, $includeHistory, $includePresentations));
@@ -484,6 +487,7 @@ final readonly class SitesReader
                     'failure_status' => $bucket['failure_status']?->value];
             }
             $strip = [];
+            $lighthouse = null;
             $checkedAt = null;
             $checksById = $site->checks->keyBy('id');
             $openIncidents = $site->checks->flatMap(static fn (Check $check) => $check->incidents);
@@ -505,6 +509,15 @@ final readonly class SitesReader
                 $incident?->setRelation('site', $site);
                 $grouped = UptimeDependencies::isGrouped($incident);
                 $run = $runs->get($checkId);
+                // The run is already loaded for the strip, so the scores cost no query. Keys: the Lighthouse addon's metric schema.
+                if ($key === CheckKey::Lighthouse && $run instanceof CheckRun) {
+                    $metrics = $run->metrics ?? [];
+                    [$performance, $accessibility, $bestPractices, $seo] = [$metrics['performance_score'] ?? null, $metrics['accessibility_score'] ?? null,
+                        $metrics['best_practices_score'] ?? null, $metrics['seo_score'] ?? null];
+                    if (is_int($performance) && is_int($accessibility) && is_int($bestPractices) && is_int($seo)) {
+                        $lighthouse = ['performance' => $performance, 'accessibility' => $accessibility, 'best_practices' => $bestPractices, 'seo' => $seo];
+                    }
+                }
                 $summary = $this->summaries->project($check, $run);
                 $presentation = null;
                 if ($presents instanceof Closure && $presents($check, $incident, $site)) {
@@ -588,6 +601,7 @@ final readonly class SitesReader
                 'response' => $response, 'checks' => $strip, 'checked_at' => $this->timestamp($checkedAt),
                 'identity' => ['id' => $identity->id, 'name' => $identity->name, 'url' => $identity->url, 'client_id' => $identity->client_id,
                     'state' => $identity->state->value, 'icon_url' => $identity->icon_url, 'icon_backing' => $identity->icon_backing->value],
+                'lighthouse' => $lighthouse,
             ];
         }
 

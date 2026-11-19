@@ -1497,6 +1497,12 @@ readonly invitation: Heptapod.Data.Ui.InvitationData | null,
 readonly token?: string,
 readonly passwordRules?: string,
 };
+export type LighthouseScoresData = {
+readonly performance: number,
+readonly accessibility: number,
+readonly best_practices: number,
+readonly seo: number,
+};
 export type ListResponseMarkData = {
 readonly slot: number,
 readonly failure_count: number,
@@ -1928,6 +1934,7 @@ readonly response: Heptapod.Data.Ui.ResponsePointData[],
 readonly checks: Heptapod.Data.Ui.CheckStripData[],
 readonly checked_at: string | null,
 readonly identity: Heptapod.Data.Ui.SiteIdentityData,
+readonly lighthouse: Heptapod.Data.Ui.LighthouseScoresData | null,
 };
 export type SiteSettingsPageData = {
 readonly site: Heptapod.Data.Ui.SiteRowData,

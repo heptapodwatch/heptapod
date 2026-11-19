@@ -58,6 +58,12 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useFormat } from '@/hooks/use-format';
+// MOCKUP ONLY (branch feat-sites-visual, phase 1). Remove in phase 2.
+import { useMockupVariant } from '@/lib/sites-visual-variants';
+import {
+    hasLighthouse,
+    LighthouseCell,
+} from '@/components/sites-visual-variants';
 import { useCheckHeadline } from '@/hooks/use-check-headline';
 import { useStreamState } from '@/hooks/use-live';
 import { currentRunState } from '@/lib/live-store';
@@ -260,6 +266,7 @@ export function DataTable({
     const format = useFormat();
     const headline = useCheckHeadline();
     const runs = useStreamState('runs');
+    const lighthouseVariant = useMockupVariant('lighthouse');
     const [sorting, setSorting] = useState<SortingState>([]);
     const root = useRef<HTMLDivElement>(null);
     const hasUptimeCheck = (site: SiteDto) =>
@@ -360,6 +367,21 @@ export function DataTable({
             header: t('Checks'),
             cell: SiteTableChecksCell,
         }),
+        // MOCKUP ONLY (phase 1): the Lighthouse column variants.
+        ...(full && lighthouseVariant !== 'off' && data.some(hasLighthouse)
+            ? [
+                  columnHelper.display({
+                      id: 'lighthouse',
+                      header: t('checks.lighthouse.label'),
+                      cell: ({ row }) => (
+                          <LighthouseCell
+                              site={row.original}
+                              variant={lighthouseVariant}
+                          />
+                      ),
+                  }),
+              ]
+            : []),
         columnHelper.display({
             id: 'response',
             header: t('24h'),
@@ -415,7 +437,9 @@ export function DataTable({
                                   ? '@[900px]/table:table-cell @[900px]/table:w-[225px]'
                                   : id === 'response'
                                     ? 'text-right @[1100px]/table:table-cell @[1100px]/table:w-[108px]'
-                                    : 'w-[84px]',
+                                    : id === 'lighthouse'
+                                      ? '@[1000px]/table:table-cell @[1000px]/table:w-[104px]'
+                                      : 'w-[84px]',
                         );
     const table = useTable({
         features,
@@ -532,6 +556,17 @@ export function DataTable({
                         </span>
                     )}
                 </span>
+                {lighthouseVariant !== 'off' && hasLighthouse(site) && (
+                    <span className="flex w-full items-center justify-between gap-2 text-xs">
+                        <span className="text-muted-foreground">
+                            {t('checks.lighthouse.label')}
+                        </span>
+                        <LighthouseCell
+                            site={site}
+                            variant={lighthouseVariant}
+                        />
+                    </span>
+                )}
             </>
         );
     };
