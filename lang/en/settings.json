@@ -301,7 +301,7 @@
     "Read-only backup cleanup policy.": "Read-only backup cleanup policy.",
     "These values do not describe monitoring history retention.": "These values do not describe monitoring history retention.",
     "If this server stops, it cannot tell you.": "If this server stops, it cannot tell you.",
-    "Use an external monitor.": "Use an external monitor.",
+    "Use a watchdog outside this server.": "Use a watchdog outside this server.",
     "Server configuration is read-only.": "Server configuration is read-only.",
     "A backup is only proven once you have restored it.": "A backup is only proven once you have restored it.",
     "A token acts with your current rights.": "A token acts with your current rights.",

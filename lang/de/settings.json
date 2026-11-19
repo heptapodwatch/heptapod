@@ -301,7 +301,7 @@
     "Read-only backup cleanup policy.": "Schreibgeschützte Bereinigungsregeln für Sicherungen.",
     "These values do not describe monitoring history retention.": "Diese Werte beschreiben nicht die Aufbewahrung des Prüfverlaufs.",
     "If this server stops, it cannot tell you.": "Wenn dieser Server ausfällt, kann er Sie nicht informieren.",
-    "Use an external monitor.": "Nutzen Sie eine externe Überwachung.",
+    "Use a watchdog outside this server.": "Nutzen Sie einen Watchdog außerhalb dieses Servers.",
     "Server configuration is read-only.": "Die Serverkonfiguration ist schreibgeschützt.",
     "A backup is only proven once you have restored it.": "Eine Sicherung ist erst nach einer Wiederherstellung nachgewiesen.",
     "A token acts with your current rights.": "Ein Token nutzt Ihre aktuellen Rechte.",

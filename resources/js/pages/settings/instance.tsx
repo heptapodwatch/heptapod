@@ -267,7 +267,7 @@ export default function Instance({
                 <FormSection
                     title={t('Watch the watcher')}
                     description={t('If this server stops, it cannot tell you.')}
-                    detail={t('Use an external monitor.')}
+                    detail={t('Use a watchdog outside this server.')}
                 >
                     <div className="space-y-4">
                         <dl className="space-y-4">
