@@ -11,6 +11,7 @@ use Heptapod\Data\Ui\SiteListSummaryData;
 use Heptapod\Data\Ui\SitesFilterData;
 use Heptapod\Data\Ui\SitesIndexPageData;
 use Heptapod\Enums\SiteStatus;
+use Heptapod\Http\ListPageSize;
 use Heptapod\Models\User;
 use Heptapod\Queries\DashboardSummaryReader;
 use Heptapod\Queries\SitesReader;
@@ -43,17 +44,17 @@ final class SitesIndexController extends Controller
             'filter.advisory' => ['sometimes', 'nullable', 'string', 'max:2048'],
             'sort' => ['sometimes', 'string', 'max:100'],
             'page' => ['sometimes', 'integer', 'min:1'],
-            'per_page' => ['sometimes', 'integer', Rule::in([10, 20, 50, 100])],
         ])->validate();
 
+        $perPage = ListPageSize::resolve($request, 'sites');
         $partial = $request->header('X-Inertia-Partial-Component') === 'sites/index';
         $index = null;
-        $readIndex = static function () use ($reader, $user, $request, &$index): array {
-            return $index ??= $reader->index($user, $request);
+        $readIndex = static function () use ($reader, $user, $request, $perPage, &$index): array {
+            return $index ??= $reader->index($user, $request, $perPage);
         };
         $page = null;
-        $read = static function () use ($reader, $user, $request, $partial, $readIndex, &$page): LengthAwarePaginator {
-            return $page ??= $partial ? $reader->page($user, $request) : $readIndex()['page'];
+        $read = static function () use ($reader, $user, $request, $perPage, $partial, $readIndex, &$page): LengthAwarePaginator {
+            return $page ??= $partial ? $reader->page($user, $request, $perPage) : $readIndex()['page'];
         };
         $attention = null;
         $readAttention = static function () use ($reader, $user, $partial, $readIndex, &$attention): array {

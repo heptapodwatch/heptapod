@@ -27,9 +27,6 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { PageHeader } from '@/components/page-header';
-// MOCKUP ONLY (branch feat-sites-visual, phase 1). Remove in phase 2.
-import { SitesVisualMockupSwitcher } from '@/components/sites-visual-variants';
-import { useMockupVariant } from '@/lib/sites-visual-variants';
 import { SegmentedControl } from '@/components/segmented-control';
 import { PageContainer } from '@/components/page-container';
 import { Head, Link, router, usePage } from '@inertiajs/react';
@@ -197,19 +194,13 @@ export default function IncidentsIndex({
                     : format.duration(summary.median_duration_seconds),
         },
     );
-    // MOCKUP ONLY (phase 1): I1 moves the stats line into the header, I2 drops it.
-    const incidentsHead = useMockupVariant('incidents');
     return (
         <PageContainer>
             <Head title={t('Incidents')} />
-            <SitesVisualMockupSwitcher dimensions={['incidents']} />
             <PageHeader
                 title={t('Incidents')}
-                description={
-                    incidentsHead === 'i1'
-                        ? stats
-                        : t('pages.incidents.description')
-                }
+                // The 30-day record is the header's one line, like the Sites meta line.
+                description={stats}
                 actions={
                     <>
                         <Button variant="outline" asChild>
@@ -317,9 +308,6 @@ export default function IncidentsIndex({
                     </SelectContent>
                 </Select>
             </FilterBar>
-            {incidentsHead === 'current' && (
-                <p className="text-xs text-muted-foreground">{stats}</p>
-            )}
             <PendingChanges
                 count={buffered.pendingCount}
                 apply={buffered.apply}
@@ -436,6 +424,7 @@ export default function IncidentsIndex({
                     }
                     page={pagination.current_page}
                     lastPage={pagination.last_page}
+                    pageSize={pagination.per_page}
                 />
             )}
         </PageContainer>

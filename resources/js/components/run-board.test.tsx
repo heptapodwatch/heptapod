@@ -46,6 +46,7 @@ const filters: Heptapod.Data.Ui.RunsFilterData = {
     state: null,
     before: null,
     show_same_result: false,
+    per_page: 50,
     period: '24h',
 };
 

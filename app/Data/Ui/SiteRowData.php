@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Data\Ui;
 
+use Heptapod\Contracts\ListScore;
 use Heptapod\Enums\SiteStatus;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
@@ -15,6 +16,7 @@ final class SiteRowData extends Data
      * @param  list<string>  $tags
      * @param  list<ResponsePointData>  $response
      * @param  list<CheckStripData>  $checks
+     * @param  list<ListScore>  $list_scores
      */
     public function __construct(
         public readonly int $id,
@@ -28,9 +30,7 @@ final class SiteRowData extends Data
         public readonly array $checks,
         public readonly ?string $checked_at,
         public readonly SiteIdentityData $identity,
-        /** Null without a Lighthouse check or when its latest run recorded no scores (a check error). */
-        public readonly ?LighthouseScoresData $lighthouse = null,
-        /** The enabled performance check's slow threshold; null without one. */
-        public readonly ?int $response_threshold_ms = null,
+        /** Scores of an enabled check that lists them (ListScoresProvider: Lighthouse); empty without a scored latest run. */
+        public readonly array $list_scores = [],
     ) {}
 }

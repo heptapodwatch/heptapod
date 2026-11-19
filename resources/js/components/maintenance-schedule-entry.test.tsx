@@ -97,6 +97,7 @@ function page(
             next_page={null}
             previous_page={null}
             total={windows.length}
+            per_page={50}
             state="all"
             site_name="API"
             can_manage={canManage}

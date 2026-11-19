@@ -5,7 +5,6 @@ import { stateCountOrder, statusLabels } from '@/lib/status';
 import type { SiteState } from '@/types/monitoring';
 import { useTranslation } from 'react-i18next';
 import { useFormat } from '@/hooks/use-format';
-import { cn } from '@/lib/utils';
 import {
     Tooltip,
     TooltipContent,
@@ -70,11 +69,8 @@ function arcs(tiles: Heptapod.Data.Ui.DashboardTilesData): Arc[] {
  */
 export function SitesStateRing({
     tiles,
-    className,
 }: {
     tiles: Heptapod.Data.Ui.DashboardTilesData;
-    /** MOCKUP ONLY (phase 1): the header variants size the ring. */
-    className?: string;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -134,10 +130,7 @@ export function SitesStateRing({
                     aria-label={t('Sites')}
                     data-sites-state-ring
                     data-down={tiles.down > 0 ? '' : undefined}
-                    className={cn(
-                        'sites-state-ring size-7 rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-                        className,
-                    )}
+                    className="sites-state-ring size-12 shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:size-13"
                 >
                     <svg
                         aria-hidden="true"

@@ -160,6 +160,7 @@ export default function MaintenanceIndex({
     next_page,
     previous_page,
     total,
+    per_page,
     state,
     site_name,
     can_manage,
@@ -749,6 +750,7 @@ export default function MaintenanceIndex({
                     })}
                     previous={pageLink(previous_page)}
                     next={pageLink(next_page)}
+                    pageSize={per_page}
                 />
             )}
             <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>

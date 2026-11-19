@@ -20,5 +20,7 @@ final class ActivityGroupData extends Data
         public readonly ?CheckResult $first_state,
         public readonly ?CheckResult $second_state,
         public readonly ?CheckResult $current_state,
+        /** The failure this recovery ends, shown in the same row ("Failed → Recovered after 3m"); null when unpaired. */
+        public readonly ?EventData $earlier = null,
     ) {}
 }

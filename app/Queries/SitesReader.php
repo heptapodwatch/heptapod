@@ -19,13 +19,14 @@ use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\CheckRunPresentationData;
 use Heptapod\Contracts\CheckRunPresentationInput;
+use Heptapod\Contracts\ListScore;
+use Heptapod\Contracts\ListScoresProvider;
 use Heptapod\Contracts\RunPhase;
 use Heptapod\Contracts\SecurityAdvisoryIndex;
 use Heptapod\Contracts\SecurityAdvisoryPackageData;
 use Heptapod\Data\Ui\CheckRunStateData;
 use Heptapod\Data\Ui\CheckStripData;
 use Heptapod\Data\Ui\ClientData;
-use Heptapod\Data\Ui\LighthouseScoresData;
 use Heptapod\Data\Ui\ResponsePointData;
 use Heptapod\Data\Ui\SiteIdentityData;
 use Heptapod\Data\Ui\SiteListSummaryData;
@@ -65,8 +66,7 @@ use Spatie\Tags\Tag;
  * @phpstan-type CheckRunProjection array{check_id: int, phase: value-of<RunPhase>, attempt_id: int|null, queue: string|null, queue_position: int|null, progress_n: int|null, progress_total: int|null, phase_label: string|null, started_at: string|null, actor: string|null, due_at: string|null, can_cancel: bool, requested_at: string|null}
  * @phpstan-type CheckStripProjection array{pending_recheck: bool, freshness_suppressed_by: value-of<FreshnessSuppression>|null, freshness_suppression_label_key: string|null, dependency_headline_key: string|null, not_fresh: bool, state: value-of<SiteStatus>, id: int, key: value-of<CheckKey>, label_key: string, icon_id: string, enabled: bool, result: value-of<CheckResult>, open_incident_id: int|null, open_incident_started_at: string|null, summary: string|null, summary_params: array<string, string|int|float|bool|null>, checked_at: string|null, snoozed_until: string|null, unavailable_reason: string|null, run: CheckRunProjection|null, open_incident_requires_complete_recovery: bool, uptime_parent_incident_id: int|null, affected_checks: list<string>, held_after_recovery: bool, next_run_at: string|null, presentation?: array<array-key, mixed>|null}
  * @phpstan-type SiteHistoryProjection array{site_id: int, uptime: float|null, response: array{start: string, step_seconds: int, values: list<int|null>, marks: list<array{slot: int, failure_count: int, error_count: int, warning_count: int, failure_status: value-of<BucketStatus>|null}>}}
- * @phpstan-type SiteRowProjection array{id: int, name: string, url: string, client_id: int, tags: list<string>, state: value-of<SiteStatus>, uptime: float|null, response: list<ResponsePointProjection>, checks: list<CheckStripProjection>, checked_at: string|null, identity: SiteIdentityProjection, lighthouse: LighthouseScoresProjection|null, response_threshold_ms: int|null}
- * @phpstan-type LighthouseScoresProjection array{performance: int, accessibility: int, best_practices: int, seo: int}
+ * @phpstan-type SiteRowProjection array{id: int, name: string, url: string, client_id: int, tags: list<string>, state: value-of<SiteStatus>, uptime: float|null, response: list<ResponsePointProjection>, checks: list<CheckStripProjection>, checked_at: string|null, identity: SiteIdentityProjection, list_scores: list<array{label_key: string, score: int}>}
  */
 final readonly class SitesReader
 {
@@ -150,6 +150,20 @@ final readonly class SitesReader
         $query->getQuery()->orderByRaw('name COLLATE "'.$collation.'" '.($descending ? 'DESC' : 'ASC'));
     }
 
+    /**
+     * By the client's display name, then the site name. A correlated primary-key lookup per visible site; the page
+     * query already sorts every visible site for the name and status orders (EXPLAIN in the lane evidence).
+     *
+     * @param  Builder<Site>  $query
+     */
+    private function orderByClient(Builder $query, bool $descending): void
+    {
+        $collation = self::collation();
+        $query->getQuery()->orderByRaw('(SELECT '.Client::displayNameSql().' FROM clients WHERE clients.id = sites.client_id) COLLATE "'.$collation.'" '
+            .($descending ? 'DESC' : 'ASC'), [__('No client')]);
+        $this->orderByName($query, false);
+    }
+
     /** @param Builder<Site> $query
      * @return Builder<Site>
      */
@@ -173,9 +187,9 @@ final readonly class SitesReader
     }
 
     /** @return LengthAwarePaginator<int, Site> */
-    public function page(User $user, Request $request): LengthAwarePaginator
+    public function page(User $user, Request $request, int $perPage): LengthAwarePaginator
     {
-        return $this->pageQuery($this->projected($user), $request)->paginate($this->perPage($request))->withQueryString();
+        return $this->pageQuery($this->projected($user), $request)->paginate($perPage)->withQueryString();
     }
 
     /** @param Builder<Site> $query
@@ -185,6 +199,7 @@ final readonly class SitesReader
     {
         $sortName = $this->orderByName(...);
         $sortStatus = $this->orderByStatus(...);
+        $sortClient = $this->orderByClient(...);
         $advisories = $this->advisoryFilter(...);
         $builder = QueryBuilder::for($query, $request)
             ->allowedFilters(
@@ -224,7 +239,7 @@ final readonly class SitesReader
                     });
                 }),
             )
-            ->allowedSorts(AllowedSort::callback('status', $sortStatus), AllowedSort::callback('name', $sortName), 'url')
+            ->allowedSorts(AllowedSort::callback('status', $sortStatus), AllowedSort::callback('name', $sortName), AllowedSort::callback('client', $sortClient), 'url')
             ->defaultSort(AllowedSort::callback('status', $sortStatus));
         $builder->getEloquentBuilder()->getQuery()->orderBy('sites.id');
 
@@ -272,7 +287,7 @@ final readonly class SitesReader
      *
      * @return array{page: LengthAwarePaginator<int, Site>, attention: EloquentCollection<int, Site>, summary: SiteListSummaryData, states: array<string, int>}
      */
-    public function index(User $user, Request $request): array
+    public function index(User $user, Request $request, int $perPage): array
     {
         $siteColumns = ['sites.id', 'sites.client_id', 'sites.url', 'sites.friendly_name', 'sites.icon_hash', 'sites.icon_backing', 'sites.crawler_headers', 'sites.name', 'sites.state'];
         $visible = $this->projected($user)->getQuery()->select($siteColumns);
@@ -288,10 +303,10 @@ final readonly class SitesReader
         $attentionRank = SiteStatus::rankSql('attention.state');
         $collation = self::collation();
         $stateSql = implode(', ', $states);
-        /** @var object{total: int, filtered_total: int, attention: string} $row */
+        /** @var object{total: int, clients: int, filtered_total: int, attention: string} $row */
         $row = DB::selectOne(<<<SQL
             WITH visible AS MATERIALIZED ({$visible->toSql()})
-            SELECT count(*)::int AS total, {$stateSql},
+            SELECT count(*)::int AS total, count(DISTINCT client_id)::int AS clients, {$stateSql},
                 (SELECT count(*)::int FROM ({$count->toSql()}) matched) AS filtered_total,
                 (SELECT coalesce(json_agg(attention ORDER BY {$attentionRank}, attention.name COLLATE "{$collation}", attention.id), '[]'::json)
                     FROM ({$attention->toSql()}) attention) AS attention
@@ -301,32 +316,26 @@ final readonly class SitesReader
         /** @var list<array<string, mixed>> $attentionRows */
         $attentionRows = json_decode($row->attention, true, flags: JSON_THROW_ON_ERROR);
         /** @var array<string, int> $counts */
-        $counts = array_diff_key((array) $row, array_flip(['filtered_total', 'attention']));
+        $counts = array_diff_key((array) $row, array_flip(['filtered_total', 'attention', 'clients']));
         $attentionTotal = array_sum(array_map(static fn (SiteStatus $status): int => $counts[$status->value], SiteStatus::attention()));
         // These are partial Site projections; encrypted crawler headers retain their database representation.
         $attentionSites = Site::hydrate($attentionRows);
-        $paginator = new LengthAwarePaginator(new EloquentCollection, $row->filtered_total, $this->perPage($request), $currentPage, [
+        $paginator = new LengthAwarePaginator(new EloquentCollection, $row->filtered_total, $perPage, $currentPage, [
             'path' => LengthAwarePaginator::resolveCurrentPath(),
         ]);
 
         return ['page' => $paginator->withQueryString(), 'attention' => $attentionSites,
-            'summary' => new SiteListSummaryData($row->total, $attentionTotal, $counts['paused']), 'states' => $counts];
-    }
-
-    /** The validated `per_page` (10, 20, 50 or 100; SitesIndexController rejects anything else), 50 when absent. */
-    private function perPage(Request $request): int
-    {
-        return $request->integer('per_page', 50);
+            'summary' => new SiteListSummaryData($row->total, $attentionTotal, $counts['paused'], $row->clients), 'states' => $counts];
     }
 
     public function summary(User $user): SiteListSummaryData
     {
-        /** @var \stdClass&object{total: int, attention: int, paused: int} $summary */
+        /** @var \stdClass&object{total: int, clients: int, attention: int, paused: int} $summary */
         $summary = DB::query()->fromSub($this->projected($user), 'visible_sites')
-            ->selectRaw('count(*)::int AS total, count(*) FILTER (WHERE '.SiteStatus::attentionSql('state').")::int AS attention, count(*) FILTER (WHERE state = 'paused')::int AS paused")
+            ->selectRaw('count(*)::int AS total, count(DISTINCT client_id)::int AS clients, count(*) FILTER (WHERE '.SiteStatus::attentionSql('state').")::int AS attention, count(*) FILTER (WHERE state = 'paused')::int AS paused")
             ->first() ?? throw new \LogicException('Site summary query must return one row.');
 
-        return new SiteListSummaryData($summary->total, $summary->attention, $summary->paused);
+        return new SiteListSummaryData($summary->total, $summary->attention, $summary->paused, $summary->clients);
     }
 
     public function filters(Request $request): SitesFilterData
@@ -375,7 +384,7 @@ final readonly class SitesReader
             $identity['state'] = SiteStatus::from($identity['state']);
             $identity['icon_backing'] = SiteIconBacking::from($identity['icon_backing']);
             $row['identity'] = new SiteIdentityData(...$identity);
-            $row['lighthouse'] = $row['lighthouse'] === null ? null : new LighthouseScoresData(...$row['lighthouse']);
+            $row['list_scores'] = array_map(static fn (array $score): ListScore => new ListScore(...$score), $row['list_scores']);
 
             return new SiteRowData(...$row);
         }, $this->rowPayloads($sites, $includeHistory, $includePresentations));
@@ -484,7 +493,6 @@ final readonly class SitesReader
         $rows = [];
         $registeredKeys = $this->registry->keys();
         $checkMetadata = [];
-        $performanceDefault = null;
         foreach ($sites as $site) {
             $series = $includeHistory && isset($uptimeIds[$site->id]) ? $samples[$uptimeIds[$site->id]] : [];
             $response = [];
@@ -494,8 +502,7 @@ final readonly class SitesReader
                     'failure_status' => $bucket['failure_status']?->value];
             }
             $strip = [];
-            $lighthouse = null;
-            $responseThreshold = null;
+            $listScores = [];
             $checkedAt = null;
             $checksById = $site->checks->keyBy('id');
             $openIncidents = $site->checks->flatMap(static fn (Check $check) => $check->incidents);
@@ -517,20 +524,10 @@ final readonly class SitesReader
                 $incident?->setRelation('site', $site);
                 $grouped = UptimeDependencies::isGrouped($incident);
                 $run = $runs->get($checkId);
-                // The run is already loaded for the strip, so the scores cost no query. Keys: the Lighthouse addon's metric schema.
-                if ($key === CheckKey::Lighthouse && $run instanceof CheckRun) {
-                    $metrics = $run->metrics ?? [];
-                    [$performance, $accessibility, $bestPractices, $seo] = [$metrics['performance_score'] ?? null, $metrics['accessibility_score'] ?? null,
-                        $metrics['best_practices_score'] ?? null, $metrics['seo_score'] ?? null];
-                    if (is_int($performance) && is_int($accessibility) && is_int($bestPractices) && is_int($seo)) {
-                        $lighthouse = ['performance' => $performance, 'accessibility' => $accessibility, 'best_practices' => $bestPractices, 'seo' => $seo];
-                    }
-                }
-                if ($key === CheckKey::Performance && $check->enabled) {
-                    // The performance check's own slow threshold, so the response line colours by speed, not by site state.
-                    $performanceDefault ??= $this->registry->get(CheckKey::Performance)->definition()->configSchema->defaults()['threshold_in_ms'] ?? null;
-                    $threshold = $check->config['threshold_in_ms'] ?? $performanceDefault;
-                    $responseThreshold = is_int($threshold) ? $threshold : null;
+                // The run is already loaded for the strip, so the scores cost no query.
+                $scores = $check->enabled && $run instanceof CheckRun ? $this->registry->implementation($key, ListScoresProvider::class)?->listScores($run->metrics) : null;
+                if ($scores !== null && $scores !== []) {
+                    $listScores = array_map(static fn (ListScore $score): array => ['label_key' => $score->label_key, 'score' => $score->score], $scores);
                 }
                 $summary = $this->summaries->project($check, $run);
                 $presentation = null;
@@ -615,8 +612,7 @@ final readonly class SitesReader
                 'response' => $response, 'checks' => $strip, 'checked_at' => $this->timestamp($checkedAt),
                 'identity' => ['id' => $identity->id, 'name' => $identity->name, 'url' => $identity->url, 'client_id' => $identity->client_id,
                     'state' => $identity->state->value, 'icon_url' => $identity->icon_url, 'icon_backing' => $identity->icon_backing->value],
-                'lighthouse' => $lighthouse,
-                'response_threshold_ms' => $responseThreshold,
+                'list_scores' => $listScores,
             ];
         }
 

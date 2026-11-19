@@ -6,6 +6,7 @@ namespace Heptapod\Queries;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckResult;
+use Heptapod\Contracts\Notifications\AlertSeverity;
 use Heptapod\Data\Ui\ActivityGroupData;
 use Heptapod\Data\Ui\EventData;
 use Heptapod\Events\EventPresenter;
@@ -17,7 +18,6 @@ use Heptapod\Policies\SitePolicy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Query\Builder as QueryBuilder;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /** @phpstan-type ActivityGroupRow \stdClass&object{id: int, latest_id: int, check_id: int|null, event_count: int, started_at: string, ended_at: string, first_state: string|null, second_state: string|null, current_state: string|null} */
@@ -166,37 +166,49 @@ final readonly class EventsReader
         return Event::query()->with(['site.client', 'check', 'incident'])->whereKey($eventIds)->get()->keyBy('id');
     }
 
-    /** @return array{events: list<ActivityGroupData>, older: int|null, newer: int|null} */
-    public function readActivity(QueryBuilder $groups, ?Event $cursor = null, bool $newer = false): array
+    /**
+     * One Activity batch, newest first: up to $limit groups older than $cursor. A recovery directly after its own
+     * failure (same site and check, one event each) becomes one row carrying that failure as `earlier`. The batch reads
+     * two groups past $limit, so a pair is never split across batches: when the last row it takes is a recovery whose
+     * failure would open the next batch, the failure joins this one, and `older` continues after it.
+     *
+     * @return array{groups: list<ActivityGroupData>, older: int|null}
+     */
+    public function activityBatch(QueryBuilder $groups, ?Event $cursor, int $limit): array
     {
         $query = DB::query()->fromSub($groups, 'groups');
         if ($cursor instanceof Event) {
-            $query->whereRowValues(['ended_at', 'latest_id'], $newer ? '>' : '<', [$cursor->occurred_at->format('Y-m-d H:i:s.uP'), $cursor->id]);
+            $query->whereRowValues(['ended_at', 'latest_id'], '<', [$cursor->occurred_at->format('Y-m-d H:i:s.uP'), $cursor->id]);
         }
-        /** @var Collection<int, ActivityGroupRow> $fetched */
-        $fetched = $query->orderBy('ended_at', $newer ? 'asc' : 'desc')->orderBy('latest_id', $newer ? 'asc' : 'desc')->limit(21)->get();
-        $more = $fetched->count() > 20;
-        $rows = $fetched->take(20);
-        if ($newer) {
-            $rows = $rows->reverse()->values();
-        }
-        $events = $this->present($this->activityHeadEvents(array_values($rows->map(static fn (object $row): int => $row->latest_id)->all()))->values());
+        /** @var list<ActivityGroupRow> $rows */
+        $rows = $query->orderByDesc('ended_at')->orderByDesc('latest_id')->limit($limit + 2)->get()->all();
+        $events = $this->present($this->activityHeadEvents(array_map(static fn (object $row): int => $row->latest_id, $rows))->values());
         $byId = [];
         foreach ($events as $event) {
             $byId[$event->id] = $event;
         }
         $result = [];
-        foreach ($rows as $row) {
-            $result[] = new ActivityGroupData($row->id, $byId[$row->latest_id], $row->event_count,
-                CarbonImmutable::parse($row->started_at)->toIso8601String(), CarbonImmutable::parse($row->ended_at)->toIso8601String(),
+        $taken = 0;
+        while ($taken < $limit && $taken < count($rows)) {
+            $row = $rows[$taken];
+            $next = $rows[$taken + 1] ?? null;
+            $latest = $byId[$row->latest_id];
+            $earlier = $next === null ? null : $byId[$next->latest_id];
+            $paired = $next !== null && $earlier !== null && $row->event_count === 1 && $next->event_count === 1
+                && $latest->severity === AlertSeverity::Recovered
+                && ! in_array($earlier->severity, [AlertSeverity::Recovered, AlertSeverity::Info], true)
+                && $latest->site_id !== null && $latest->site_id === $earlier->site_id && $latest->check === $earlier->check;
+            $startedAt = $paired ? $next->started_at : $row->started_at;
+            $result[] = new ActivityGroupData($row->id, $latest, $row->event_count,
+                CarbonImmutable::parse($startedAt)->toIso8601String(), CarbonImmutable::parse($row->ended_at)->toIso8601String(),
                 $row->first_state === null ? null : CheckResult::from($row->first_state),
                 $row->second_state === null ? null : CheckResult::from($row->second_state),
-                $row->current_state === null ? null : CheckResult::from($row->current_state));
+                $row->current_state === null ? null : CheckResult::from($row->current_state),
+                $paired ? $earlier : null);
+            $taken += $paired ? 2 : 1;
         }
 
-        return ['events' => $result,
-            'older' => ($newer ? $cursor instanceof Event : $more) ? $rows->last()?->latest_id : null,
-            'newer' => ($newer ? $more : $cursor instanceof Event) ? $rows->first()?->latest_id : null];
+        return ['groups' => $result, 'older' => count($rows) > $taken ? $rows[$taken - 1]->latest_id : null];
     }
 
     /** @return list<EventData> */

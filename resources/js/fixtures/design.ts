@@ -165,8 +165,7 @@ export const sites: SiteDto[] = names.map((name, index) => {
               : 1,
         tags: [state === 'paused' ? 'staging' : 'production'],
         state,
-        lighthouse: null,
-        response_threshold_ms: index === 3 ? 400 : 2000,
+        list_scores: [],
         identity: {
             icon_url: null,
             icon_backing: 'none',
@@ -1077,6 +1076,7 @@ export function sitesPageFixture(
             total: data.length,
             attention: attention.length,
             paused: data.filter((site) => site.state === 'paused').length,
+            clients: new Set(data.map((site) => site.client_id)).size,
         },
         can_create: true,
         pagination: pagination(data.length),

@@ -13,10 +13,6 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SitesStateRing, tileColumns } from '@/components/sites-state-ring';
-// MOCKUP ONLY (branch feat-sites-visual, phase 1). Remove in phase 2.
-import { PageHeader } from '@/components/page-header';
-import type { MockupVariant } from '@/lib/sites-visual-variants';
-import { StateSentence } from '@/components/foundation-primitives';
 import {
     MonitoringTime,
     StatusBadge,
@@ -55,8 +51,8 @@ function motionAllowed(): boolean {
 }
 
 /**
- * Health headline, state ring and attention rows above the Sites list. The list's own All/Attention filter is
- * separate; only the "Show all" link changes it, through onShowAll.
+ * The Sites page header (state ring, health headline, one meta line with the state breakdown) and the attention rows
+ * above the list. "Show all" filters the list to the sites needing attention, through onShowAll.
  *
  * Unlike the list, the band applies live changes at once: entries and exits move with
  * the shared FLIP in the same commit as the headline and ring. Its height follows the visible rows.
@@ -67,19 +63,21 @@ export function SitesAttentionBand({
     needsAttentionTotal: liveTotal,
     clients,
     onShowAll,
-    head = 'current',
-    headActions,
-    headNotices,
+    actions,
+    notices,
+    clientCount,
 }: {
     tiles: Heptapod.Data.Ui.DashboardTilesData;
     needsAttention: Heptapod.Data.Ui.SiteRowData[];
     needsAttentionTotal: number;
     clients: Heptapod.Data.Ui.ClientData[];
     onShowAll: () => void;
-    /** MOCKUP ONLY (phase 1): a header variant other than today's renders the page header here. */
-    head?: MockupVariant<'head'>;
-    headActions?: ReactNode;
-    headNotices?: ReactNode;
+    /** The page header's actions (Add site). */
+    actions?: ReactNode;
+    /** Page-level notices below the header (monitoring health). */
+    notices?: ReactNode;
+    /** Clients with at least one visible site. */
+    clientCount: number;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -219,70 +217,29 @@ export function SitesAttentionBand({
                             count: needsAttentionTotal,
                             formattedCount: format.number(needsAttentionTotal),
                         });
-    // Sites that are neither OK nor in the band are named by state, so none is silent (also next to a full band).
-    const notOk = stateCountOrder
-        .filter(
-            (
-                state,
-            ): state is
-                | 'pending'
-                | 'maintenance'
-                | 'paused'
-                | 'disabled'
-                | 'unavailable' =>
-                state === 'pending' ||
-                state === 'maintenance' ||
-                state === 'paused' ||
-                state === 'disabled' ||
-                state === 'unavailable',
-        )
-        .filter((state) => tiles[state] > 0)
-        .map((state) =>
-            t(`sites.not_ok_${state}`, { count: format.number(tiles[state]) }),
-        )
-        .join(' · ');
-    const detail = stale
-        ? t('Last known result: {{time}}. These states may be stale.', {
-              time: health.last_result_at
-                  ? format.relative(health.last_result_at)
-                  : '—',
-          })
-        : [
-              degraded && needsAttentionTotal > 0
-                  ? t('{{count}} sites need attention.', {
-                        count: needsAttentionTotal,
-                        formattedCount: format.number(needsAttentionTotal),
-                    })
-                  : '',
-              active > 0 ? notOk : '',
-          ]
-              .filter(Boolean)
-              .join(' · ') || undefined;
-    // MOCKUP ONLY (phase 1): the header variants H1–H3 replace the page header and this sentence block.
-    // shortcut: counts the visible unarchived clients, also those without a site; phase 2 needs a real count.
-    const clientCount = clients.filter(
-        (client) => client.archived_at === null,
-    ).length;
     const moreAttention =
         down && !stale && !degraded ? needsAttentionTotal - tiles.down : 0;
     const headline =
         moreAttention > 0
             ? `${sentence} ${t('sites.head.more_attention', { count: moreAttention, formattedCount: format.number(moreAttention) })}`
             : sentence;
-    const portfolio = t('sites.head.portfolio', {
-        sites: t('{{count}} sites', {
-            count: tiles.sites,
-            formattedCount: format.number(tiles.sites),
-        }),
-        clients: t('{{count}} clients', {
-            count: clientCount,
-            formattedCount: format.number(clientCount),
-        }),
-    });
-    const headMeta = stale
-        ? detail
+    const meta = stale
+        ? t('Last known result: {{time}}. These states may be stale.', {
+              time: health.last_result_at
+                  ? format.relative(health.last_result_at)
+                  : '—',
+          })
         : [
-              portfolio,
+              t('sites.head.portfolio', {
+                  sites: t('{{count}} sites', {
+                      count: tiles.sites,
+                      formattedCount: format.number(tiles.sites),
+                  }),
+                  clients: t('{{count}} clients', {
+                      count: clientCount,
+                      formattedCount: format.number(clientCount),
+                  }),
+              }),
               health.last_result_at
                   ? t('sites.head.last_result', {
                         time: format.relative(health.last_result_at),
@@ -291,109 +248,58 @@ export function SitesAttentionBand({
           ]
               .filter(Boolean)
               .join(' · ');
-    const breakdown = stateCountOrder.filter(
-        (state) => state !== 'ok' && tiles[tileColumns[state]] > 0,
-    );
-    const mockupHead =
-        head === 'h3' ? (
-            <PageHeader
-                title={t('Sites')}
-                leading={<SitesStateRing tiles={tiles} />}
-                description={`${headline} ${portfolio}.`}
-                notices={headNotices}
-                actions={headActions}
-            />
-        ) : (
+    // Every state but OK with its count, so paused, pending and off sites are never silent beside a calm headline.
+    const breakdown = stale
+        ? []
+        : stateCountOrder.filter(
+              (state) => state !== 'ok' && tiles[tileColumns[state]] > 0,
+          );
+
+    return (
+        <div ref={rootRef} className="min-w-0 space-y-4">
+            {/* The page header: ring, headline, one meta line with the state breakdown. The h1 stays "Sites". */}
             <header data-page-header className="flex min-w-0 flex-col gap-4">
                 <h1 className="sr-only">{t('Sites')}</h1>
                 <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex min-w-0 items-center gap-4">
-                        <SitesStateRing
-                            tiles={tiles}
-                            className="size-12 shrink-0 sm:size-13"
-                        />
+                        <SitesStateRing tiles={tiles} />
+                        {/* A fixed line count (three below sm, one from sm) so a long site name never moves the band. */}
                         <div className="min-w-0 space-y-1">
                             <TruncatedText content={headline}>
-                                <p className="line-clamp-3 text-headline sm:line-clamp-1 sm:text-page-title">
+                                <p
+                                    data-sites-headline
+                                    className="line-clamp-3 text-headline sm:line-clamp-1 sm:text-page-title"
+                                >
                                     {headline}
                                 </p>
                             </TruncatedText>
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                                <span>{headMeta}</span>
-                                {head === 'h2' &&
-                                    !stale &&
-                                    breakdown.map((state) => (
-                                        <span
-                                            key={state}
-                                            className="inline-flex items-center gap-1"
-                                        >
-                                            {/* The dot's accessible name is the state word; the ring tooltip lists every count. */}
-                                            <StatusDot state={state} />
-                                            <span className="font-mono tabular-nums">
-                                                {format.number(
-                                                    tiles[tileColumns[state]],
-                                                )}
-                                            </span>
+                                <span>{meta}</span>
+                                {breakdown.map((state) => (
+                                    <span
+                                        key={state}
+                                        className="inline-flex items-center gap-1"
+                                    >
+                                        {/* The dot's accessible name is the state word; the ring tooltip lists every count. */}
+                                        <StatusDot state={state} />
+                                        <span className="font-mono tabular-nums">
+                                            {format.number(
+                                                tiles[tileColumns[state]],
+                                            )}
                                         </span>
-                                    ))}
+                                    </span>
+                                ))}
                             </div>
                         </div>
                     </div>
-                    {headActions && (
+                    {actions && (
                         <div className="flex shrink-0 items-center gap-2 sm:ml-auto">
-                            {headActions}
+                            {actions}
                         </div>
                     )}
                 </div>
-                {headNotices}
+                {notices}
             </header>
-        );
-
-    return (
-        <div ref={rootRef} className="min-w-0 space-y-4">
-            {head !== 'current' ? (
-                mockupHead
-            ) : (
-                <div className="flex items-start gap-3">
-                    <SitesStateRing tiles={tiles} />
-                    <div className="min-w-0 flex-1">
-                        <StateSentence
-                            state={
-                                stale
-                                    ? 'check-error'
-                                    : active === 0
-                                      ? 'paused'
-                                      : degraded
-                                        ? 'warning'
-                                        : down
-                                          ? 'down'
-                                          : (needsAttention[0]?.state ??
-                                            // Paused, pending, maintenance and off sites live in the detail line, never as Warning.
-                                            (needsAttentionTotal === 0 &&
-                                            health.notifications_covered
-                                                ? 'ok'
-                                                : 'warning'))
-                            }
-                            // A fixed number of lines (two below sm, one from sm) so a long site name never moves the band.
-                            sentence={
-                                <TruncatedText content={sentence}>
-                                    <span className="line-clamp-2 min-h-[2lh] basis-full sm:line-clamp-1 sm:min-h-0 sm:min-w-0 sm:flex-1 sm:basis-0">
-                                        {sentence}
-                                    </span>
-                                </TruncatedText>
-                            }
-                            // Always one detail line (empty when there is nothing to say), so it never moves the band.
-                            detail={
-                                <TruncatedText content={detail}>
-                                    <span className="block truncate">
-                                        {detail ?? '\u00a0'}
-                                    </span>
-                                </TruncatedText>
-                            }
-                        />
-                    </div>
-                </div>
-            )}
             {!stale && active > 0 && !health.notifications_covered && (
                 <Alert
                     tone="danger"

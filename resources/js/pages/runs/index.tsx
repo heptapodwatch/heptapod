@@ -88,6 +88,8 @@ export default function Runs({
                 Object.entries({
                     ...next,
                     show_same_result: next.show_same_result ? 1 : undefined,
+                    // The server remembers the page size; the URL names it only when it was just chosen.
+                    per_page: undefined,
                 }).filter(([, value]) => value !== null && value !== undefined),
             ),
             {
@@ -378,6 +380,7 @@ export default function Runs({
                                                       filters.show_same_result
                                                           ? 1
                                                           : undefined,
+                                                  per_page: undefined,
                                                   before: next_cursor,
                                               },
                                           }),
@@ -390,6 +393,7 @@ export default function Runs({
                                       }
                                     : null
                             }
+                            pageSize={filters.per_page}
                         />
                     </div>
                 )}

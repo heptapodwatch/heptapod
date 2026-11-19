@@ -11,6 +11,7 @@ use Heptapod\Actions\ResolveClientAvatar;
 use Heptapod\Actions\UpdateMaintenancePeriod;
 use Heptapod\Data\Ui\MaintenanceIndexPageData;
 use Heptapod\Data\Ui\MaintenanceTargetOptionData;
+use Heptapod\Http\ListPageSize;
 use Heptapod\Http\MaintenanceReturnContext;
 use Heptapod\Maintenance\LocalMaintenanceTime;
 use Heptapod\Models\Client;
@@ -45,7 +46,8 @@ final class MaintenanceController extends Controller
         $siteId = isset($filters['site_id']) ? (int) $filters['site_id'] : null;
         $clientId = isset($filters['client_id']) ? (int) $filters['client_id'] : null;
         $state = $filters['state'] ?? 'all';
-        $result = $reader->index($user, (int) ($filters['page'] ?? 1), $siteId, $clientId, $state);
+        $perPage = ListPageSize::resolve($request, 'maintenance');
+        $result = $reader->index($user, $perPage, (int) ($filters['page'] ?? 1), $siteId, $clientId, $state);
         $canManage = $user->hasAnyRole(['Owner', 'Admin']);
         $siteOptions = Site::query();
         $siteOptions->getQuery()->orderBy('id');
@@ -84,7 +86,7 @@ final class MaintenanceController extends Controller
             $canManage, $user->timezone, array_values($sites), array_values($clients), array_values($tags),
             $instanceTimezone, $timezones,
             array_values($filterClients), $clientId, $siteId, $result['site_name'], $state,
-            $result['previous_page'], $result['total'])->toArray());
+            $result['previous_page'], $result['total'], $perPage)->toArray());
     }
 
     public function show(Request $request, Site $site, MaintenanceReader $reader): JsonResponse

@@ -83,6 +83,12 @@ it('keeps page query counts constant from three to thirty sites', function (stri
     'site overview' => ['/sites/1', 'sites/show', ''],
     'check detail' => ['/sites/1/checks/1', 'sites/show', ''],
     'incidents list' => ['/incidents', 'incidents/index', ''],
+    'sites list, 100 per page by client' => ['/sites?per_page=100&sort=client', 'sites/index', 'sites'],
+    'sites history, 100 per page' => ['/sites?per_page=100', 'sites/index', 'sites_history'],
+    'incidents list, 100 per page' => ['/incidents?per_page=100', 'incidents/index', ''],
+    'clients list, 100 per page' => ['/clients?per_page=100', 'clients/index', ''],
+    'runs, 100 per page' => ['/runs?per_page=100', 'runs/index', ''],
+    'activity' => ['/activity?period=7d', 'activity/index', ''],
 ]);
 
 it('keeps fixed-seed page props within the JSON payload budget', function (string $path, string $component, string $props, int $budget): void {

@@ -22,8 +22,6 @@ import { RunBar } from '@/components/foundation-primitives';
 import { ProductCheckDetail } from '@/components/product-check-detail';
 import { AlertChannelsLine } from '@/components/alert-channels-line';
 import { SiteOverviewContent } from '@/components/site-overview-content';
-// MOCKUP ONLY (branch feat-sites-visual, phase 1). Remove in phase 2.
-import { SitesVisualMockupSwitcher } from '@/components/sites-visual-variants';
 import { MonitoringTime } from '@/components/monitoring';
 import { SiteTabs } from '@/components/site-tabs';
 import { checkState, stateCountOrder } from '@/lib/status';
@@ -238,7 +236,6 @@ export default function SiteShow(page: SitePage) {
     return (
         <>
             <Head title={header.name} />
-            <SitesVisualMockupSwitcher dimensions={['spark']} />
             {openUptime && (
                 <IncidentBanner
                     siteName={header.name}

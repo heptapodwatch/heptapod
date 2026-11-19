@@ -4,21 +4,26 @@ declare(strict_types=1);
 
 namespace Heptapod\Data\Ui;
 
+use Inertia\OptionalProp;
+use Inertia\ScrollProp;
 use Spatie\LaravelData\Data;
+use Spatie\TypeScriptTransformer\Attributes\LiteralTypeScriptType;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
 final class ActivityPageData extends Data
 {
     /**
-     * @param  list<ActivityGroupData>  $events
+     * @param  ScrollProp<mixed>|ActivityBatchData  $events  Infinite scroll of ActivityBatchData, newest first; cursor `before`.
+     * @param  OptionalProp|ActivityBatchData|null  $head  The newest batch, sent only on live reloads.
      * @param  list<EventData>  $expanded_events
      * @param  list<ClientData>  $clients
      */
     public function __construct(
-        public readonly array $events,
-        public readonly ?int $older_cursor,
-        public readonly ?int $newer_cursor,
+        #[LiteralTypeScriptType('Heptapod.Data.Ui.ActivityBatchData')]
+        public readonly ScrollProp|ActivityBatchData $events,
+        #[LiteralTypeScriptType('Heptapod.Data.Ui.ActivityBatchData | undefined')]
+        public readonly OptionalProp|ActivityBatchData|null $head,
         public readonly int $retention_days,
         public readonly array $clients,
         public readonly ActivityFilterData $filters,

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\IncidentsIndexController::__invoke
-* @see app/Http/Controllers/IncidentsIndexController.php:22
+* @see app/Http/Controllers/IncidentsIndexController.php:23
 * @route '/incidents'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentsIndexController::__invoke
-* @see app/Http/Controllers/IncidentsIndexController.php:22
+* @see app/Http/Controllers/IncidentsIndexController.php:23
 * @route '/incidents'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentsIndexController::__invoke
-* @see app/Http/Controllers/IncidentsIndexController.php:22
+* @see app/Http/Controllers/IncidentsIndexController.php:23
 * @route '/incidents'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentsIndexController::__invoke
-* @see app/Http/Controllers/IncidentsIndexController.php:22
+* @see app/Http/Controllers/IncidentsIndexController.php:23
 * @route '/incidents'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentsIndexController::__invoke
-* @see app/Http/Controllers/IncidentsIndexController.php:22
+* @see app/Http/Controllers/IncidentsIndexController.php:23
 * @route '/incidents'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentsIndexController::__invoke
-* @see app/Http/Controllers/IncidentsIndexController.php:22
+* @see app/Http/Controllers/IncidentsIndexController.php:23
 * @route '/incidents'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentsIndexController::__invoke
-* @see app/Http/Controllers/IncidentsIndexController.php:22
+* @see app/Http/Controllers/IncidentsIndexController.php:23
 * @route '/incidents'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

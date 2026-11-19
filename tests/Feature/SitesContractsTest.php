@@ -83,15 +83,15 @@ it('keeps explicit list client filters independent of stale session selection an
         'X-Inertia-Partial-Data' => 'sites',
     ] : [];
     $response = $this->get($uri, $headers)->assertOk()->assertSessionMissing('selected_client_id');
-    expect($response->inertiaProps()[$rows])->toHaveCount($role === 'Member' ? 2 : 3);
+    expect(data_get($response->inertiaProps(), $rows))->toHaveCount($role === 'Member' ? 2 : 3);
     $response = $this->withSession(['selected_client_id' => $first->id])->get($uri.'?'.$filter.'='.$second->id, $headers)->assertOk();
-    expect($response->inertiaProps()[$rows])->toHaveCount(1);
+    expect(data_get($response->inertiaProps(), $rows))->toHaveCount(1);
     $response = $this->get($uri.'?'.$filter.'='.$foreign->id, $headers)->assertOk();
-    expect($response->inertiaProps()[$rows])->toHaveCount($role === 'Member' ? 0 : 1);
+    expect(data_get($response->inertiaProps(), $rows))->toHaveCount($role === 'Member' ? 0 : 1);
 })->with([
     ['/sites', 'sites', 'filter[client_id]'],
     ['/incidents', 'incidents', 'filter[client_id]'],
-    ['/activity', 'events', 'client'],
+    ['/activity', 'events.data', 'client'],
 ])->with(['Owner', 'Member']);
 
 it('counts late runs with the check-page engine definition and excludes foreign paused disabled and queued checks', function (): void {

@@ -88,8 +88,8 @@ it('transfers the whole site and retained history through settings with an actor
     $this->actingAs($oldMember)->get('/sites/'.$site->id)->assertNotFound();
     $this->actingAs($newMember)->get('/sites/'.$site->id)->assertOk();
     $this->actingAs($owner)->delete('/sites/'.$site->id, ['name' => $site->displayName()])->assertRedirect();
-    $this->actingAs($oldMember)->get('/activity')->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->has('events', 0));
-    $this->actingAs($newMember)->get('/activity')->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->has('events', 1));
+    $this->actingAs($oldMember)->get('/activity')->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->has('events.data', 0));
+    $this->actingAs($newMember)->get('/activity')->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->has('events.data', 1));
 })->with(['Owner', 'Admin']);
 
 it('rejects Members even when they can access both clients', function (bool $archived): void {
@@ -172,7 +172,7 @@ it('ends an open Down incident silently and opens a fresh episode for the new cl
     $this->get('/incidents/'.$ended->id)->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
         ->where('evidence.recovery_summary', 'incidents.resolution.moved_to_client'));
     $this->get('/activity')->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
-        ->where('events.0.latest.id', $resolution->id)->where('events.0.latest.message_params.administrative_resolution', true));
+        ->where('events.data.0.latest.id', $resolution->id)->where('events.data.0.latest.message_params.administrative_resolution', true));
 
     $this->travelTo(CarbonImmutable::parse('2026-10-27T12:31:00Z'));
     $observeDown();

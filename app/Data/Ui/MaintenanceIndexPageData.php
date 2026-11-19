@@ -35,5 +35,6 @@ final class MaintenanceIndexPageData extends Data
         public readonly string $state = 'all',
         public readonly ?int $previous_page = null,
         public readonly int $total = 0,
+        public readonly int $per_page = 50,
     ) {}
 }

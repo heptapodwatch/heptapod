@@ -1,7 +1,6 @@
-import { ActivityFeedGroup } from '@/components/activity-feed-group';
+import { ActivityTimeline } from '@/components/activity-timeline';
 import { Activity as ActivityIcon } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
-import { ListFooter } from '@/components/list-footer';
 import {
     FilterBar,
     FilterCombobox,
@@ -10,10 +9,12 @@ import {
 import { clientComboboxOptions } from '@/components/entity-combobox';
 import { PageHeader } from '@/components/page-header';
 import { PageContainer } from '@/components/page-container';
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, InfiniteScroll, router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 import {
     Select,
     SelectContent,
@@ -23,20 +24,15 @@ import {
 import { PendingChanges } from '@/components/pending-changes';
 import { useBufferedChanges } from '@/hooks/use-buffered-changes';
 import { useLiveReload } from '@/hooks/use-live';
-import { useFormat } from '@/hooks/use-format';
 import { checkTypes } from '@/lib/check-types';
 import { index as activityIndex } from '@/routes/activity';
 import { exportMethod as exportIncidents } from '@/routes/incidents';
 import { TextLink } from '@/components/text-link';
-// MOCKUP ONLY (branch feat-sites-visual, phase 1). Remove in phase 2.
-import { ActivityTimeline } from '@/components/activity-timeline-variants';
-import { SitesVisualMockupSwitcher } from '@/components/sites-visual-variants';
-import { useMockupVariant } from '@/lib/sites-visual-variants';
 
-type ActivityFilters = Omit<
-    Heptapod.Data.Ui.ActivityFilterData,
-    'before' | 'after'
->;
+type ActivityFilters = Heptapod.Data.Ui.ActivityFilterData;
+
+/** Batches load automatically while scrolling this many times, then "Load older" takes over so the footer stays reachable. */
+const AUTOMATIC_BATCHES = 3;
 
 function isCheckKey(value: string): value is Heptapod.Contracts.CheckKey {
     return Object.hasOwn(checkTypes, value);
@@ -44,8 +40,7 @@ function isCheckKey(value: string): value is Heptapod.Contracts.CheckKey {
 
 export default function Activity({
     events,
-    older_cursor,
-    newer_cursor,
+    head,
     retention_days,
     clients,
     filters,
@@ -53,53 +48,66 @@ export default function Activity({
     expanded_events,
     event_page,
 }: Heptapod.Data.Ui.ActivityPageData) {
+    // Live changes reload only the newest batch; older batches the user loaded stay as they are.
     const reloadPage = useLiveReload(
         ['state.changed'],
-        ['events', 'older_cursor', 'newer_cursor'],
+        ['head'],
         undefined,
         true,
         { pollFallback: false },
     );
+    // The first batch of these filters is the live, buffered top of the list until a live reload brings `head`.
+    const filterKey = JSON.stringify(filters);
+    const [firstBatch, setFirstBatch] = useState({
+        key: filterKey,
+        rows: events.data,
+    });
+    if (firstBatch.key !== filterKey) {
+        setFirstBatch({ key: filterKey, rows: events.data });
+    }
     const buffered = useBufferedChanges(
-        events,
+        head?.data ?? firstBatch.rows,
         (group) => group.id,
         undefined,
         (group) => JSON.stringify(group),
     );
-    const [animatedIds, setAnimatedIds] = useState<Set<number>>(new Set());
+    const latest = head?.data ?? firstBatch.rows;
     const shownGroups = new Map(
         buffered.rows.map((group) => [group.id, JSON.stringify(group)]),
     );
-    // A row pushed off the end of this page is not another new change.
+    // A row pushed off the end of the newest batch is not another new change.
     const pendingChanges =
         buffered.pendingCount === 0
             ? 0
             : Math.max(
                   1,
-                  events.filter(
+                  latest.filter(
                       (group) =>
                           shownGroups.get(group.id) !== JSON.stringify(group),
                   ).length,
               );
     const acceptChanges = () => {
-        const shown = new Set(buffered.rows.map((group) => group.id));
-        setAnimatedIds(
-            new Set(
-                events
-                    .filter((group) => !shown.has(group.id))
-                    .map((group) => group.id),
-            ),
-        );
         buffered.apply();
         if (expanded_id !== null) {
             reloadPage({ only: ['expanded_events'] });
         }
     };
+    // Older batches continue below the shown top; a group or a merged failure already shown there is not repeated.
+    const shownEvents = new Set(
+        buffered.rows.flatMap((group) => [
+            group.latest.id,
+            ...(group.earlier ? [group.earlier.id] : []),
+        ]),
+    );
+    const groups = [
+        ...buffered.rows,
+        ...events.data.filter(
+            (group) =>
+                !shownGroups.has(group.id) && !shownEvents.has(group.latest.id),
+        ),
+    ];
     const { t } = useTranslation();
-    const format = useFormat();
     const { url } = usePage();
-    // MOCKUP ONLY (phase 1): the timeline variants A1–A3.
-    const activityVariant = useMockupVariant('activity');
     const [draft, setDraft] = useState<ActivityFilters>({
         q: filters.q,
         client: filters.client,
@@ -126,15 +134,7 @@ export default function Activity({
             check: filters.check,
             period: filters.period,
         }));
-    }, [
-        filters.q,
-        filters.client,
-        filters.check,
-        filters.period,
-        filters.before,
-        filters.after,
-        url,
-    ]);
+    }, [filters.q, filters.client, filters.check, filters.period, url]);
     useEffect(() => {
         const removeStart = router.on('start', ({ detail }) => {
             if (!detail.visit.async) {
@@ -161,6 +161,8 @@ export default function Activity({
             {
                 preserveState: true,
                 preserveScroll: true,
+                // New filters start the timeline over instead of appending to the loaded batches.
+                reset: ['events'],
                 onBeforeUpdate: () => {
                     ownSearchResponse.current = next.q.trim();
                 },
@@ -188,7 +190,6 @@ export default function Activity({
     return (
         <PageContainer>
             <Head title={t('Activity')} />
-            <SitesVisualMockupSwitcher dimensions={['activity']} />
             <PageHeader
                 title={t('Activity')}
                 description={t('pages.activity.description')}
@@ -317,7 +318,7 @@ export default function Activity({
                     })}
                 </p>
             )}
-            {buffered.rows.length === 0 ? (
+            {groups.length === 0 ? (
                 <EmptyState
                     icon={ActivityIcon}
                     title={t('No changes in the last 24 hours.')}
@@ -336,87 +337,67 @@ export default function Activity({
                         ),
                     }}
                 />
-            ) : activityVariant !== 'current' ? (
-                <ActivityTimeline
-                    groups={buffered.rows}
-                    variant={activityVariant}
-                />
             ) : (
-                <div className="@container/table overflow-hidden rounded-lg border">
-                    {buffered.rows.map((group) => (
-                        <ActivityFeedGroup
-                            key={group.id}
-                            group={group}
-                            filters={filters}
-                            expanded={expanded_id === group.id}
-                            details={
-                                expanded_id === group.id ? expanded_events : []
-                            }
-                            eventPage={event_page}
-                            animate={animatedIds.has(group.id)}
-                        />
-                    ))}
-                </div>
-            )}
-            {buffered.rows.length > 0 && (
-                <ListFooter
-                    count={t('activity.list.count', {
-                        count: buffered.rows.length,
-                        formattedCount: format.number(buffered.rows.length),
-                    })}
-                    previous={
-                        newer_cursor !== null
-                            ? {
-                                  href: activityIndex.url({
-                                      query: {
-                                          ...filters,
-                                          before: undefined,
-                                          after:
-                                              buffered.rows[0]?.latest.id ??
-                                              newer_cursor,
-                                          group: undefined,
-                                          event_page: undefined,
-                                      },
-                                  }),
-                              }
-                            : null
-                    }
-                    next={
-                        older_cursor !== null
-                            ? {
-                                  href: activityIndex.url({
-                                      query: {
-                                          ...filters,
-                                          after: undefined,
-                                          before:
-                                              buffered.rows.at(-1)?.latest.id ??
-                                              older_cursor,
-                                          group: undefined,
-                                          event_page: undefined,
-                                      },
-                                  }),
-                              }
-                            : null
-                    }
-                />
-            )}
-            {older_cursor === null && buffered.rows.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                    {t(
-                        'End of activity in this range. Older changes are not shown.',
-                    )}{' '}
-                    <TextLink
-                        variant="secondary"
-                        document
-                        href={exportIncidents.url({
-                            query: { filter: { status: 'all', period: 'all' } },
-                        })}
-                    >
-                        {t(
-                            'Older changes: see the incident timeline or the export.',
+                // Batches of 50 load while scrolling, then on "Load older"; the URL keeps no cursor. One wrapper keeps
+                // InfiniteScroll's sentinels out of the page's flex gap.
+                <div>
+                    <InfiniteScroll
+                        data="events"
+                        onlyNext
+                        preserveUrl
+                        manualAfter={AUTOMATIC_BATCHES}
+                        loading={() => (
+                            <p className="flex items-center justify-center gap-2 pt-4 text-xs text-muted-foreground">
+                                <Spinner />
+                                {t('Loading older changes…')}
+                            </p>
                         )}
-                    </TextLink>
-                </p>
+                        next={({ fetch, loading, hasMore, manualMode }) =>
+                            hasMore ? (
+                                manualMode && !loading ? (
+                                    <div className="flex justify-center pt-4">
+                                        <Button
+                                            variant="outline"
+                                            onClick={fetch}
+                                        >
+                                            {t('Load older changes')}
+                                        </Button>
+                                    </div>
+                                ) : null
+                            ) : (
+                                <p className="pt-4 text-xs text-muted-foreground">
+                                    {t(
+                                        'End of activity in this range. Older changes are not shown.',
+                                    )}{' '}
+                                    <TextLink
+                                        variant="secondary"
+                                        document
+                                        href={exportIncidents.url({
+                                            query: {
+                                                filter: {
+                                                    status: 'all',
+                                                    period: 'all',
+                                                },
+                                            },
+                                        })}
+                                    >
+                                        {t(
+                                            'Older changes: see the incident timeline or the export.',
+                                        )}
+                                    </TextLink>
+                                </p>
+                            )
+                        }
+                    >
+                        <ActivityTimeline
+                            groups={groups}
+                            filters={filters}
+                            expandedId={expanded_id}
+                            expandedEvents={expanded_events}
+                            eventPage={event_page}
+                        />
+                    </InfiniteScroll>
+                </div>
             )}
         </PageContainer>
     );

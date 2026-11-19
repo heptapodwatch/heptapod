@@ -180,9 +180,9 @@ final readonly class IncidentsReader
         return $query;
     }
 
-    public function index(User $user, Request $request, bool $includeClients = true): IncidentsIndexData
+    public function index(User $user, Request $request, int $perPage, bool $includeClients = true): IncidentsIndexData
     {
-        $page = $this->filtered($user, $request)->paginate(50)->withQueryString();
+        $page = $this->filtered($user, $request)->paginate($perPage)->withQueryString();
         $filters = new IncidentFilterData($request->filled('filter.status') ? $request->string('filter.status')->toString() : self::DefaultStatus,
             $request->filled('filter.cause') ? IncidentCause::from($request->string('filter.cause')->toString()) : null,
             $request->filled('filter.check') ? CheckKey::from($request->string('filter.check')->toString()) : null,

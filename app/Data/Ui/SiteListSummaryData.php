@@ -10,5 +10,6 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 #[TypeScript]
 final class SiteListSummaryData extends Data
 {
-    public function __construct(public readonly int $total, public readonly int $attention, public readonly int $paused) {}
+    /** @param int $clients Clients with at least one visible site. */
+    public function __construct(public readonly int $total, public readonly int $attention, public readonly int $paused, public readonly int $clients) {}
 }

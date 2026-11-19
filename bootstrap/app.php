@@ -44,7 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Global entry throttle runs before route authentication, so invalid tokens are bounded too.
         $middleware->append(ThrottleApiEntry::class);
         $middleware->alias(['throttle' => ThrottleRequestsExactly::class]);
-        $middleware->encryptCookies(except: ['appearance', 'sidebar_state', 'locale']);
+        $middleware->encryptCookies(except: ['appearance', 'sidebar_state', 'locale', 'list_page_sizes']);
         // Settings → Email refuses a sender name or footer with any line break, also at the edge, so those keep their raw value.
         $middleware->trimStrings(except: [fn (Request $request): bool => $request->is('api/*'), 'sender_name', 'footer']);
         $middleware->convertEmptyStringsToNull(except: [fn (Request $request): bool => $request->is('api/*')]);

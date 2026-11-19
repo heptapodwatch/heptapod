@@ -28,6 +28,7 @@ import { checkTypes } from '@/lib/check-types';
 import {
     bucketStates,
     checkMark,
+    checkState,
     type CheckMark,
     eventLabel,
     eventState,
@@ -49,8 +50,6 @@ import type {
     UptimeBucketDto,
 } from '@/types/monitoring';
 import { TextLink } from '@/components/text-link';
-// MOCKUP ONLY (branch feat-sites-visual, phase 1). Remove in phase 2.
-import { useMockupVariant } from '@/lib/sites-visual-variants';
 
 export const statusColor: Record<SiteState | 'running', string> = {
     running: 'var(--muted-foreground)',
@@ -65,6 +64,20 @@ export const statusColor: Record<SiteState | 'running', string> = {
     failed: 'var(--status-down)',
     'check-error': 'var(--status-error)',
 };
+
+/**
+ * The 24 h response line's colour comes from the site's own speed, not its overall state: the performance check's
+ * state (Warning or Failed when it is slow), neutral while it is OK or pending and for sites without one.
+ */
+export function responseLineColor(checks: CheckDto[]): string {
+    const performance = checks.find(
+        (check) => check.key === 'performance' && check.enabled,
+    );
+    const state = performance ? checkState(performance) : 'ok';
+    return state === 'ok' || state === 'pending'
+        ? 'var(--muted-foreground)'
+        : statusColor[state];
+}
 
 export function StatusDot({
     state,
@@ -400,48 +413,15 @@ const checkSummaryOrder = [
     ),
 ];
 
-/** One strip slot: dashed when not set up, empty when turned off, otherwise the status shape (snoozed: bars cut out). */
-/** MOCKUP ONLY (phase 1): a short centred dash, so a row of off slots never reads as one dashed line. */
-export function QuietDash() {
-    return (
-        <span className="flex size-[11px] items-center justify-center">
-            <span
-                aria-hidden
-                className="h-[1.5px] w-[5px] rounded-full"
-                style={{ background: statusColor.disabled }}
-            />
-        </span>
-    );
-}
-
+/** One strip slot: its status shape; not set up and turned off share the short Off dash (the tooltip says which). */
 function CheckMarkGlyph({ mark }: { mark: CheckMark }) {
-    // MOCKUP ONLY (phase 1): A = unset and off share one quiet dash; B = unset is an empty slot, off a dash;
-    // C = A with OK as a small solid dot.
-    const variant = useMockupVariant('strip');
     switch (mark.kind) {
         case 'unset':
-            if (variant === 'a' || variant === 'c') return <QuietDash />;
-            if (variant === 'b') return <span className="size-[11px]" />;
-            return (
-                <span className="size-[11px] rounded-[2px] border border-dashed border-border-strong bg-card opacity-50" />
-            );
         case 'off':
-            return variant === 'current' ? (
-                <span className="size-[11px]" />
-            ) : (
-                <QuietDash />
-            );
+            return <StatusDot state="disabled" label={mark.label} strip />;
         case 'snoozed':
             return <StatusDot state={mark.state} snoozed strip />;
         case 'status':
-            if (variant === 'c' && mark.state === 'ok')
-                return (
-                    <span
-                        aria-hidden
-                        className="size-[6px] rounded-full"
-                        style={{ background: statusColor.ok }}
-                    />
-                );
             return <StatusDot state={mark.state} label={mark.label} strip />;
     }
 }
@@ -637,6 +617,7 @@ export function EventTimeline({
     showClientName = false,
     clock = false,
     lead,
+    below,
 }: {
     events: EventDto[];
     showSiteName?: boolean;
@@ -646,6 +627,8 @@ export function EventTimeline({
     clock?: boolean;
     /** Text before the message, e.g. the earlier state of a collapsed pair ("Failed →"). */
     lead?: (event: EventDto) => ReactNode;
+    /** Content under an event's detail line, e.g. a flapping group's own events. */
+    below?: (event: EventDto) => ReactNode;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -764,6 +747,7 @@ export function EventTimeline({
                                         </>
                                     )}
                             </p>
+                            {below?.(event)}
                         </div>
                     </li>
                 );

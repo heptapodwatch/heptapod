@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\RunsController::__invoke
-* @see app/Http/Controllers/RunsController.php:26
+* @see app/Http/Controllers/RunsController.php:27
 * @route '/runs'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\RunsController::__invoke
-* @see app/Http/Controllers/RunsController.php:26
+* @see app/Http/Controllers/RunsController.php:27
 * @route '/runs'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\RunsController::__invoke
-* @see app/Http/Controllers/RunsController.php:26
+* @see app/Http/Controllers/RunsController.php:27
 * @route '/runs'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\RunsController::__invoke
-* @see app/Http/Controllers/RunsController.php:26
+* @see app/Http/Controllers/RunsController.php:27
 * @route '/runs'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\RunsController::__invoke
-* @see app/Http/Controllers/RunsController.php:26
+* @see app/Http/Controllers/RunsController.php:27
 * @route '/runs'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \Heptapod\Http\Controllers\RunsController::__invoke
-* @see app/Http/Controllers/RunsController.php:26
+* @see app/Http/Controllers/RunsController.php:27
 * @route '/runs'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\RunsController::__invoke
-* @see app/Http/Controllers/RunsController.php:26
+* @see app/Http/Controllers/RunsController.php:27
 * @route '/runs'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

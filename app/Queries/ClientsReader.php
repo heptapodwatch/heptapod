@@ -25,7 +25,7 @@ final readonly class ClientsReader
 {
     public function __construct(private SitesReader $sites, private DashboardSummaryReader $summaries, private IncidentsReader $incidents, private SitePolicy $policy) {}
 
-    public function index(User $user, Request $request): ClientsIndexPageData
+    public function index(User $user, Request $request, int $perPage): ClientsIndexPageData
     {
         $archived = $request->input('filter.state') === 'archived';
         $clients = Client::forBrowsing($this->policy->visibleClients($user, $archived));
@@ -63,7 +63,7 @@ final readonly class ClientsReader
             $query->getEloquentBuilder()->getQuery()->orderByRaw('coalesce(attention.attention_rank, '.SiteStatus::quietRankLiteral().')');
         }
         $query->getEloquentBuilder()->getQuery()->orderByRaw('clients.name COLLATE "'.$collation.'"')->orderBy('clients.id');
-        $page = $query->paginate(50)->withQueryString();
+        $page = $query->paginate($perPage)->withQueryString();
         /** @var list<int> $ids */
         $ids = $page->getCollection()->pluck('id')->all();
         $summaries = $this->summaries->read($user, $ids, includeArchived: $archived, uptimeDays: 30);
@@ -91,13 +91,13 @@ final readonly class ClientsReader
     }
 
     /** @return array{sites: list<SiteRowData>, pagination: PaginationData} */
-    public function sitePage(User $user, int $id): array
+    public function sitePage(User $user, int $id, int $perPage): array
     {
         $sites = $this->sites->projected($user, includeArchived: true);
         $sites->getQuery()->where('client_id', $id);
         $this->sites->orderByStatus($sites);
         $sites->getQuery()->orderBy('sites.id');
-        $page = $sites->paginate(50)->withQueryString();
+        $page = $sites->paginate($perPage)->withQueryString();
 
         return ['sites' => $this->sites->rows($page->getCollection()),
             'pagination' => new PaginationData($page->currentPage(), $page->perPage(), $page->total(), $page->lastPage(), $page->nextPageUrl(), $page->previousPageUrl())];

@@ -6,6 +6,7 @@ namespace Heptapod\Http\Controllers;
 
 use Heptapod\Data\Ui\ClientsIndexPageData;
 use Heptapod\Data\Ui\PaginationData;
+use Heptapod\Http\ListPageSize;
 use Heptapod\Models\User;
 use Heptapod\Queries\ClientsReader;
 use Illuminate\Http\Request;
@@ -24,9 +25,10 @@ final class ClientsIndexController extends Controller
         abort_unless($user->hasAnyRole(['Owner', 'Admin', 'Member']), 403);
         Validator::make($request->all(), ['filter' => ['sometimes', 'array:search,state'], 'filter.search' => ['sometimes', 'nullable', 'string', 'max:255'], 'filter.state' => ['sometimes', 'in:all,attention,archived'], 'page' => ['sometimes', 'integer', 'min:1']])->validate();
 
+        $perPage = ListPageSize::resolve($request, 'clients');
         $page = null;
-        $read = static function () use ($reader, $user, $request, &$page): ClientsIndexPageData {
-            return $page ??= $reader->index($user, $request);
+        $read = static function () use ($reader, $user, $request, $perPage, &$page): ClientsIndexPageData {
+            return $page ??= $reader->index($user, $request, $perPage);
         };
 
         return Inertia::render('clients/index', new ClientsIndexPageData(

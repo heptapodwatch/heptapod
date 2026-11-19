@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\ActivityController::__invoke
-* @see app/Http/Controllers/ActivityController.php:22
+* @see app/Http/Controllers/ActivityController.php:26
 * @route '/activity'
 */
 const ActivityController = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ ActivityController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\ActivityController::__invoke
-* @see app/Http/Controllers/ActivityController.php:22
+* @see app/Http/Controllers/ActivityController.php:26
 * @route '/activity'
 */
 ActivityController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ ActivityController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\ActivityController::__invoke
-* @see app/Http/Controllers/ActivityController.php:22
+* @see app/Http/Controllers/ActivityController.php:26
 * @route '/activity'
 */
 ActivityController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ ActivityController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> =
 
 /**
 * @see \Heptapod\Http\Controllers\ActivityController::__invoke
-* @see app/Http/Controllers/ActivityController.php:22
+* @see app/Http/Controllers/ActivityController.php:26
 * @route '/activity'
 */
 ActivityController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ ActivityController.head = (options?: RouteQueryOptions): RouteDefinition<'head'>
 
 /**
 * @see \Heptapod\Http\Controllers\ActivityController::__invoke
-* @see app/Http/Controllers/ActivityController.php:22
+* @see app/Http/Controllers/ActivityController.php:26
 * @route '/activity'
 */
 const ActivityControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const ActivityControllerForm = (options?: RouteQueryOptions): RouteFormDefinitio
 
 /**
 * @see \Heptapod\Http\Controllers\ActivityController::__invoke
-* @see app/Http/Controllers/ActivityController.php:22
+* @see app/Http/Controllers/ActivityController.php:26
 * @route '/activity'
 */
 ActivityControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ ActivityControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<
 
 /**
 * @see \Heptapod\Http\Controllers\ActivityController::__invoke
-* @see app/Http/Controllers/ActivityController.php:22
+* @see app/Http/Controllers/ActivityController.php:26
 * @route '/activity'
 */
 ActivityControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

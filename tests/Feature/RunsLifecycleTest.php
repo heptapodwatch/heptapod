@@ -109,7 +109,7 @@ it('serves scoped schedule, live attempts, actors and late tolerance without lea
     $this->actingAs($user)->post("/sites/{$site->id}/checks/{$check->id}/run")->assertRedirect();
     $attempt = CheckRunAttempt::query()->where('check_id', $check->id)->sole();
     expect($attempt->actor_user_id)->toBe($user->id)->and($attempt->phase)->toBe(RunPhase::Queued);
-    $runs = app(RunsReader::class)->history($user)->toArray();
+    $runs = app(RunsReader::class)->history($user, 50)->toArray();
     expect($runs['runs'][0]['check_id'])->toBe($check->id)
         ->and($runs['runs'][0]['run']['actor'])->toBe($user->name)
         ->and($runs['runs'][0]['run']['phase'])->toBe('queued');
@@ -126,7 +126,7 @@ it('serves scoped schedule, live attempts, actors and late tolerance without lea
     $attempt->update(['due_at' => now()->subSeconds(359)]);
     expect(app(RunsReader::class)->lateCount($user))->toBe(0);
     $attempt->update(['due_at' => now()->subSeconds(361)]);
-    $runs = app(RunsReader::class)->history($user)->toArray();
+    $runs = app(RunsReader::class)->history($user, 50)->toArray();
     expect(app(RunsReader::class)->lateCount($user))->toBe(0);
     expect($runs['runs'][0]['run']['phase'])->toBe('queued')
         ->and($runs['runs'][0]['run']['queue_position'])->toBe(1);
@@ -386,7 +386,7 @@ it('records a finished result if completion acquired the check lock before cance
     expect($attempt->refresh()->phase)->toBe(RunPhase::Failed)
         ->and(CheckRun::query()->count())->toBe(1)
         ->and($attempt->check_run_id)->toBe(CheckRun::query()->sole()->id);
-    $run = app(RunsReader::class)->history($user)->toArray()['runs'][0];
+    $run = app(RunsReader::class)->history($user, 50)->toArray()['runs'][0];
     expect($run['summary'])->toBe('causes.error')
         ->and($run['summary_params']['message'])->toBe('failed');
 });
@@ -442,7 +442,7 @@ it('bounds filtered history work as older attempts accumulate', function (): voi
     DB::statement('ANALYZE check_run_attempts');
     DB::enableQueryLog();
     DB::flushQueryLog();
-    $runs = app(RunsReader::class)->history($user, $check->id);
+    $runs = app(RunsReader::class)->history($user, 50, $check->id);
     expect($runs->runs)->toHaveCount(50);
     $list = collect(DB::getQueryLog())->first(static fn (array $query): bool => str_contains($query['query'], '"check_run_attempts"')
         && str_contains($query['query'], '"check_id" = ?') && str_contains($query['query'], 'order by "requested_at" desc, "id" desc'));

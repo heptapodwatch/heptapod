@@ -11,6 +11,7 @@ use Heptapod\Data\Ui\RunsBoardData;
 use Heptapod\Data\Ui\RunsFilterData;
 use Heptapod\Data\Ui\RunsHistoryPageData;
 use Heptapod\Data\Ui\RunsIndexPageData;
+use Heptapod\Http\ListPageSize;
 use Heptapod\Models\User;
 use Heptapod\Queries\RunsReader;
 use Heptapod\Queries\SitesReader;
@@ -48,6 +49,7 @@ final class RunsController extends Controller
             $request->filled('before') ? $request->integer('before') : null,
             $request->boolean('show_same_result'),
             $period,
+            ListPageSize::resolve($request, 'runs'),
         );
 
         $board = null;
@@ -56,7 +58,7 @@ final class RunsController extends Controller
             return $board ??= $reader->board($user, $filters);
         };
         $readHistory = function () use (&$history, $reader, $user, $filters, $since): RunsHistoryPageData {
-            return $history ??= $reader->history($user, $filters->check, $filters->before, $filters->client, $filters->type?->value, $filters->state, $filters->show_same_result, since: $since);
+            return $history ??= $reader->history($user, $filters->per_page, $filters->check, $filters->before, $filters->client, $filters->type?->value, $filters->state, $filters->show_same_result, since: $since);
         };
 
         return Inertia::render('runs/index', new RunsIndexPageData(

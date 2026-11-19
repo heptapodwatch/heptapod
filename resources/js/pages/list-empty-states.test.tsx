@@ -202,7 +202,7 @@ function sites(
             sites={[]}
             clients={[]}
             tags={[]}
-            summary={{ total: 0, attention: 0, paused: 0 }}
+            summary={{ total: 0, attention: 0, paused: 0, clients: 0 }}
             can_create={canCreate}
             filters={{ ...siteFilters, ...filters }}
             pagination={pagination}
@@ -300,15 +300,12 @@ const activityFilters: Heptapod.Data.Ui.ActivityFilterData = {
     client: null,
     check: null,
     period: '24h',
-    before: null,
-    after: null,
 };
 function activity(filters: Partial<Heptapod.Data.Ui.ActivityFilterData>) {
     render(
         <ActivityIndex
-            events={[]}
-            older_cursor={null}
-            newer_cursor={null}
+            events={{ data: [] }}
+            head={undefined}
             retention_days={90}
             clients={[]}
             filters={{ ...activityFilters, ...filters }}
@@ -343,6 +340,7 @@ const runFilters: Heptapod.Data.Ui.RunsFilterData = {
     state: null,
     before: null,
     show_same_result: false,
+    per_page: 50,
     period: '24h',
 };
 function runs(filters: Partial<Heptapod.Data.Ui.RunsFilterData>) {
@@ -389,6 +387,7 @@ function maintenance(
             next_page={null}
             previous_page={null}
             total={0}
+            per_page={50}
             state="all"
             site_name={null}
             can_manage={true}

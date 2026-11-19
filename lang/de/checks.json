@@ -75,7 +75,7 @@
     "Check could not run": "Prüfung konnte nicht ausgeführt werden",
     "Check nameserver sync": "Nameserver-Abgleich prüfen",
     "Domain expiry changed": "Domain-Ablaufdatum geändert",
-    "Uptime 30d": "Erreichbarkeit · 30 Tage",
+    "Uptime 30d": "30 Tage",
     "Checked": "Geprüft",
     "24-hour uptime": "Erreichbarkeit der letzten 24 Stunden",
     "events.check_error": "Prüffehler",
