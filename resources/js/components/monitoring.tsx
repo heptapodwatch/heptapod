@@ -1,4 +1,3 @@
-import { pageCacheTag } from '@/lib/page-cache';
 import { listCardPadding, tableRowHeight } from '@/components/ui/table';
 import { PresentationChanges } from '@/components/presentation-changes';
 import { SiteAvatar } from '@/components/site-avatar';
@@ -676,7 +675,6 @@ export function EventTimeline({
                                         <TextLink
                                             href={incidentShow.url(incidentId)}
                                             prefetch
-                                            cacheTags={pageCacheTag}
                                         >
                                             {message}
                                         </TextLink>

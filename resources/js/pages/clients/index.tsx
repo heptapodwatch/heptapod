@@ -1,4 +1,3 @@
-import { pageCacheTag } from '@/lib/page-cache';
 import { ListFooter } from '@/components/list-footer';
 import { FilterBar } from '@/components/filter-bar';
 import { SegmentedControl } from '@/components/segmented-control';
@@ -276,7 +275,6 @@ export default function ClientsIndex({
                                     <Link
                                         href={clientShow.url(client.id)}
                                         prefetch
-                                        cacheTags={pageCacheTag}
                                         className={cn(
                                             'block space-y-2',
                                             listCardPadding,

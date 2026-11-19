@@ -1,4 +1,3 @@
-import { pageCacheTag } from '@/lib/page-cache';
 import { Deferred, Link } from '@inertiajs/react';
 import { ArrowRight } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
@@ -535,7 +534,6 @@ function LaunchpadCard({
                                 check: check.id,
                             })}
                             prefetch
-                            cacheTags={pageCacheTag}
                         >
                             {t('Open check')}
                             <ArrowRight aria-hidden="true" />

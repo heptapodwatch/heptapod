@@ -8,7 +8,6 @@ import type {
 } from '@inertiajs/core';
 import { router, useHttp } from '@inertiajs/react';
 import { useMemo } from 'react';
-import { pageCacheTag } from '@/lib/page-cache';
 
 /** The server refused the request with a 422; `errors` are its field messages, already set on the form. */
 export class HttpValidationError extends HttpError {
@@ -65,8 +64,8 @@ export function useHttpRequest<
                 },
             });
             if (refused !== null) throw new HttpValidationError(refused, url);
-            // Like an Inertia write (app.tsx visitOptions), a successful one drops every prefetched page.
-            if (method !== 'get') router.flushByCacheTags(pageCacheTag);
+            // Like an Inertia write (app.tsx), a successful one drops every prefetched page, in flight ones included.
+            if (method !== 'get' && method !== 'query') router.flushAll();
             return response;
         };
         return {

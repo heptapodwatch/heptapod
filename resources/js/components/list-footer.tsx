@@ -1,4 +1,3 @@
-import { pageCacheTag } from '@/lib/page-cache';
 import { Link } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -49,7 +48,6 @@ export function ListFooter({
                     preserveState={target.preserveState}
                     preserveScroll
                     prefetch
-                    cacheTags={pageCacheTag}
                 >
                     {t(label)}
                 </Link>

@@ -1,4 +1,3 @@
-import { pageCacheTag } from '@/lib/page-cache';
 import { Link } from '@inertiajs/react';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -94,7 +93,6 @@ export function NavMain({
                                                     : undefined
                                             }
                                             prefetch
-                                            cacheTags={pageCacheTag}
                                             onSuccess={() =>
                                                 setOpenMobile(false)
                                             }

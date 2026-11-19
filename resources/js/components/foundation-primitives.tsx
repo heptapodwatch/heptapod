@@ -1,4 +1,3 @@
-import { pageCacheTag } from '@/lib/page-cache';
 import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import type { ReactNode } from 'react';
 import { Link } from '@inertiajs/react';
@@ -478,7 +477,6 @@ export function AttentionRow({
         <Link
             href={href}
             prefetch
-            cacheTags={pageCacheTag}
             className={cn(
                 'flex min-h-10 items-center gap-3 border-b px-3 text-sm',
                 rowTargetClass,

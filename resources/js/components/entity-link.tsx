@@ -1,4 +1,3 @@
-import { pageCacheTag } from '@/lib/page-cache';
 import { Link, router } from '@inertiajs/react';
 import type { MouseEvent, ReactNode } from 'react';
 import { linkTextClass } from '@/components/text-link';
@@ -89,13 +88,7 @@ export function EntityLink({
         </span>
     );
     const element = href ? (
-        <Link
-            href={href}
-            prefetch
-            cacheTags={pageCacheTag}
-            aria-label={ariaLabel}
-            className={outer}
-        >
+        <Link href={href} prefetch aria-label={ariaLabel} className={outer}>
             {icon}
             {label}
         </Link>

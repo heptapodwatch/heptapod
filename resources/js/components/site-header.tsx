@@ -1,4 +1,3 @@
-import { pageCacheTag } from '@/lib/page-cache';
 import { TooltipHint } from '@/components/truncated-text';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { SiteAvatar } from '@/components/site-avatar';
@@ -168,7 +167,6 @@ export function SiteHeader({
                         : { site_id: site.id },
                 })}
                 prefetch
-                cacheTags={pageCacheTag}
             >
                 {t(
                     maintenance?.state === 'active'
@@ -221,7 +219,6 @@ export function SiteHeader({
                         variant="secondary"
                         href={clientShow.url(client.id)}
                         prefetch
-                        cacheTags={pageCacheTag}
                     >
                         {client.name}
                     </TextLink>
@@ -253,7 +250,6 @@ export function SiteHeader({
                                 variant="secondary"
                                 href={clientShow.url(client.id)}
                                 prefetch
-                                cacheTags={pageCacheTag}
                             >
                                 {client.name}
                             </TextLink>
