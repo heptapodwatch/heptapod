@@ -1456,6 +1456,7 @@ readonly name: string,
 readonly mail_design: Heptapod.Contracts.Mail.MailDesign,
 readonly timezone: string,
 readonly timezones: string[],
+readonly internal_client_follows_timezone: boolean,
 readonly url: string,
 readonly smtp: {
 host: string | null,

@@ -99,7 +99,7 @@ Each recipient has one schedule for all its channels.
 | **Daily digest at**             | Time of the daily digest, 08:00 by default.                                                                 |
 | **Digest days**                 | Days the digest is sent. At least one.                                                                      |
 
-Times use the instance time zone for the team, the profile time zone for a person and the client's time zone for a client. The Owner sets the instance time zone in **Settings → General**, a person in **Settings → Profile**, and a client in its **Settings** tab.
+Times use the instance time zone for the team, the profile time zone for a person and the client's time zone for a client. The Owner sets the instance time zone in **Settings → General**, a person in **Settings → Profile**, and a client in its **Settings** tab. A time zone or schedule change applies from the next digest: messages already waiting keep the time they were planned for.
 
 - The digest collects open items set to Digest, also those reported on earlier days. A day without items sends nothing.
 - Each item is checked against the recipient's current access.

@@ -72,6 +72,12 @@ it('moves the still-UTC Internal client and, when asked, the still-UTC Owner pro
 
     $this->patch('/settings/instance', ['name' => 'Agency', 'timezone' => 'America/Chicago', 'use_for_profile' => true])->assertRedirect();
     expect($owner->refresh()->timezone)->toBe('Asia/Tokyo');
+
+    // A save that keeps the zone (a rename) leaves a client set back to UTC alone.
+    $internal->update(['timezone' => 'UTC']);
+    $this->patch('/settings/instance', ['name' => 'Renamed', 'timezone' => 'America/Chicago'])->assertRedirect();
+    expect($internal->refresh()->timezone)->toBe('UTC');
+    $this->get('/settings/instance')->assertInertia(fn (Assert $page): Assert => $page->where('instancePage.internal_client_follows_timezone', true));
 });
 
 it('rejects an unknown instance zone without changing the saved one', function (mixed $timezone): void {

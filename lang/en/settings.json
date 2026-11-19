@@ -415,6 +415,7 @@
     "mail_branding.preview.failed": "The preview could not be loaded.",
     "mail_branding.logo.too_many_pixels": "Image too large (max :max × :max px).",
     "Use it": "Use it",
+    "Saving also sets this timezone for No client.": "Saving also sets this timezone for No client.",
     "Your browser uses {{zone}}. Use it?": "Your browser uses {{zone}}. Use it?",
     "Also use it for my profile": "Also use it for my profile",
     "Team notifications use this timezone.": "Team notifications use this timezone.",

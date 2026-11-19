@@ -19,7 +19,7 @@ it('discards instance drafts and saves the canonical name across reloads with co
 
     $page = visit('/settings/profile')->click('General')->assertPathIs('/settings/instance')
         ->assertSee('Backup retention')->assertDisabled('button[type="submit"]');
-    expect($page->script('document.querySelectorAll("main input, main select, main textarea").length'))->toBe(1);
+    expect($page->script('document.querySelectorAll("main dl input, main dl select, main dl textarea, main dl button").length'))->toBe(0);
     $page->fill('name', 'Discard draft')->assertSee('Unsaved changes')->click('Discard')->assertValue('name', $original);
     expect(app(InstanceSettings::class)->name)->toBe($original);
     $page->script('window.__instancePendingLocked = false; new MutationObserver(() => { const form = document.querySelector("form"); if (form.getAttribute("aria-busy") === "true" && document.querySelector("#instance-name").disabled && document.querySelector("button[type=submit]").disabled) window.__instancePendingLocked = true; }).observe(document.querySelector("form"), { attributes: true, subtree: true });');
@@ -82,7 +82,7 @@ it('keeps read-only configuration and instance drafts usable in the responsive l
         ->assertSee('smtp.example.test')->assertDontSee('private-user')->assertDontSee('private-password')->assertDontSee('private-heartbeat');
     $page->script('document.documentElement.classList.toggle("dark", '.($theme === 'dark' ? 'true' : 'false').'); document.documentElement.style.colorScheme = "'.$theme.'";');
     expect($page->script('document.documentElement.scrollWidth <= innerWidth'))->toBeTrue();
-    expect($page->script('document.querySelectorAll("form input, form select, form textarea").length'))->toBe(1);
+    expect($page->script('document.querySelectorAll("form dl input, form dl select, form dl textarea, form dl button").length'))->toBe(0);
     $page->screenshot(filename: 'instance-populated-'.$suffix);
     $page->fill('name', 'Matrix draft')->assertSee($locale === 'de' ? 'Ungespeicherte Änderungen' : 'Unsaved changes')
         ->assertEnabled('button[type="submit"]')->screenshot(filename: 'instance-draft-'.$suffix)

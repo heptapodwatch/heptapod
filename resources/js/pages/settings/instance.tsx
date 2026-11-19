@@ -59,6 +59,10 @@ export default function Instance({
     // The hint also offers the browser's zone for the Owner's own profile, only while that profile is still on UTC.
     const [hintedZone, setHintedZone] = useState<string | null>(null);
     const [useForProfile, setUseForProfile] = useState(true);
+    const resetHint = () => {
+        setHintedZone(null);
+        setUseForProfile(true);
+    };
     const pendingErrorFocus = useRef(false);
     useEffect(() => {
         if (!form.processing && pendingErrorFocus.current) {
@@ -103,6 +107,7 @@ export default function Instance({
                             };
                             form.setDefaults(saved);
                             form.setData(saved);
+                            resetHint();
                         },
                         onError: () => {
                             pendingErrorFocus.current = true;
@@ -201,6 +206,15 @@ export default function Instance({
                                     id="instance-timezone-error"
                                     message={form.errors.timezone}
                                 />
+                                {instancePage.internal_client_follows_timezone &&
+                                    form.data.timezone !==
+                                        instancePage.timezone && (
+                                        <p className="text-xs text-muted-foreground">
+                                            {t(
+                                                'Saving also sets this timezone for No client.',
+                                            )}
+                                        </p>
+                                    )}
                             </div>
                         </div>
                     </div>
@@ -347,7 +361,10 @@ export default function Instance({
                     <FormSecondaryAction
                         size="sm"
                         disabled={!form.isDirty || form.processing}
-                        onClick={() => form.resetAndClearErrors()}
+                        onClick={() => {
+                            form.resetAndClearErrors();
+                            resetHint();
+                        }}
                     >
                         {t('Discard')}
                     </FormSecondaryAction>
