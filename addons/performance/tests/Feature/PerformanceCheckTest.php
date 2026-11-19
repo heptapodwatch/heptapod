@@ -197,9 +197,9 @@ it('notes a confirmed speed-up once as an info event and re-arms only after thre
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
     $this->actingAs($owner)->get('/activity?period=all')->assertInertia(fn (Assert $page): Assert => $page
-        ->where('events.0.latest.id', $event->id)
-        ->where('events.0.latest.severity', 'info')
-        ->where('events.0.latest.message', 'Got faster: 2 s → 0.3 s (-85%).'));
+        ->where('events.data.0.latest.id', $event->id)
+        ->where('events.data.0.latest.severity', 'info')
+        ->where('events.data.0.latest.message', 'Got faster: 2 s → 0.3 s (-85%).'));
 
     $check = evaluatePerformanceSequence([0.3, 0.3, 0.3, 0.3, 2.0, 2.0, 0.3, 2.0, 2.0, 0.3, 0.3, 0.3]);
     expect(performanceImprovements($check))->toBe(1);

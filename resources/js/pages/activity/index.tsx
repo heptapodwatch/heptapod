@@ -1,7 +1,6 @@
-import { ActivityFeedGroup } from '@/components/activity-feed-group';
+import { ActivityTimeline } from '@/components/activity-timeline';
 import { Activity as ActivityIcon } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
-import { ListFooter } from '@/components/list-footer';
 import {
     FilterBar,
     FilterCombobox,
@@ -10,10 +9,12 @@ import {
 import { clientComboboxOptions } from '@/components/entity-combobox';
 import { PageHeader } from '@/components/page-header';
 import { PageContainer } from '@/components/page-container';
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, InfiniteScroll, router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 import {
     Select,
     SelectContent,
@@ -21,18 +22,19 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { PendingChanges } from '@/components/pending-changes';
-import { useBufferedChanges } from '@/hooks/use-buffered-changes';
 import { useLiveReload } from '@/hooks/use-live';
-import { useFormat } from '@/hooks/use-format';
 import { checkTypes } from '@/lib/check-types';
 import { index as activityIndex } from '@/routes/activity';
 import { exportMethod as exportIncidents } from '@/routes/incidents';
 import { TextLink } from '@/components/text-link';
 
-type ActivityFilters = Omit<
-    Heptapod.Data.Ui.ActivityFilterData,
-    'before' | 'after'
->;
+type ActivityFilters = Heptapod.Data.Ui.ActivityFilterData;
+
+/** Batches load automatically while scrolling this many times, then "Load older" takes over so the footer stays reachable. */
+const AUTOMATIC_BATCHES = 3;
+
+/** Groups per batch; ActivityController::BatchSize. */
+const ACTIVITY_BATCH = 50;
 
 function isCheckKey(value: string): value is Heptapod.Contracts.CheckKey {
     return Object.hasOwn(checkTypes, value);
@@ -40,8 +42,7 @@ function isCheckKey(value: string): value is Heptapod.Contracts.CheckKey {
 
 export default function Activity({
     events,
-    older_cursor,
-    newer_cursor,
+    head,
     retention_days,
     clients,
     filters,
@@ -49,50 +50,59 @@ export default function Activity({
     expanded_events,
     event_page,
 }: Heptapod.Data.Ui.ActivityPageData) {
-    const reloadPage = useLiveReload(
-        ['state.changed'],
-        ['events', 'older_cursor', 'newer_cursor'],
-        undefined,
-        true,
-        { pollFallback: false },
-    );
-    const buffered = useBufferedChanges(
-        events,
-        (group) => group.id,
-        undefined,
-        (group) => JSON.stringify(group),
-    );
-    const [animatedIds, setAnimatedIds] = useState<Set<number>>(new Set());
+    // Live changes reload only the newest batch (`head`); the shown timeline never changes underneath the reader.
+    useLiveReload(['state.changed'], ['head'], undefined, true, {
+        pollFallback: false,
+    });
+    const groups = events.data;
+    // The element that last took focus; removing the focused load button moves focus to <body> without a focusin.
+    const lastFocused = useRef<Element | null>(null);
+    useEffect(() => {
+        const track = (event: FocusEvent) => {
+            lastFocused.current = event.target as Element;
+        };
+        document.addEventListener('focusin', track);
+        return () => document.removeEventListener('focusin', track);
+    }, []);
     const shownGroups = new Map(
-        buffered.rows.map((group) => [group.id, JSON.stringify(group)]),
+        groups.map((group) => [group.id, JSON.stringify(group)]),
     );
-    // A row pushed off the end of this page is not another new change.
+    const incoming = head?.data ?? [];
+    const incomingIds = new Set(incoming.map((group) => group.id));
+    // The window the newest batch covers: all of the range when it is not full, else down to its oldest row. A shown
+    // row older than that was only pushed out by new arrivals; a shown row inside it but missing was removed.
+    const windowStart =
+        incoming.length < ACTIVITY_BATCH
+            ? -Infinity
+            : Date.parse(incoming.at(-1)!.ended_at);
+    // New, changed or removed groups at the top. A new filter is a full visit without `head`, so the count starts over.
     const pendingChanges =
-        buffered.pendingCount === 0
+        head === undefined
             ? 0
-            : Math.max(
-                  1,
-                  events.filter(
-                      (group) =>
-                          shownGroups.get(group.id) !== JSON.stringify(group),
-                  ).length,
-              );
+            : incoming.filter(
+                  (group) =>
+                      shownGroups.get(group.id) !== JSON.stringify(group),
+              ).length +
+              groups.filter(
+                  (group) =>
+                      !incomingIds.has(group.id) &&
+                      Date.parse(group.ended_at) >= windowStart,
+              ).length;
+    // Applying starts the timeline over from the newest batch, so the loaded batches always join without a gap. An
+    // older batch still loading would append onto the fresh one from its stale cursor, so it is cancelled first.
     const acceptChanges = () => {
-        const shown = new Set(buffered.rows.map((group) => group.id));
-        setAnimatedIds(
-            new Set(
-                events
-                    .filter((group) => !shown.has(group.id))
-                    .map((group) => group.id),
-            ),
-        );
-        buffered.apply();
-        if (expanded_id !== null) {
-            reloadPage({ only: ['expanded_events'] });
-        }
+        router.cancelAll({ prefetch: false, sync: false });
+        router.reload({
+            only: [
+                'events',
+                'head',
+                ...(expanded_id !== null ? ['expanded_events'] : []),
+            ],
+            reset: ['events'],
+            onSuccess: () => window.scrollTo({ top: 0 }),
+        });
     };
     const { t } = useTranslation();
-    const format = useFormat();
     const { url } = usePage();
     const [draft, setDraft] = useState<ActivityFilters>({
         q: filters.q,
@@ -120,15 +130,7 @@ export default function Activity({
             check: filters.check,
             period: filters.period,
         }));
-    }, [
-        filters.q,
-        filters.client,
-        filters.check,
-        filters.period,
-        filters.before,
-        filters.after,
-        url,
-    ]);
+    }, [filters.q, filters.client, filters.check, filters.period, url]);
     useEffect(() => {
         const removeStart = router.on('start', ({ detail }) => {
             if (!detail.visit.async) {
@@ -155,6 +157,8 @@ export default function Activity({
             {
                 preserveState: true,
                 preserveScroll: true,
+                // New filters start the timeline over instead of appending to the loaded batches.
+                reset: ['events'],
                 onBeforeUpdate: () => {
                     ownSearchResponse.current = next.q.trim();
                 },
@@ -310,7 +314,7 @@ export default function Activity({
                     })}
                 </p>
             )}
-            {buffered.rows.length === 0 ? (
+            {groups.length === 0 ? (
                 <EmptyState
                     icon={ActivityIcon}
                     title={t('No changes in the last 24 hours.')}
@@ -330,81 +334,94 @@ export default function Activity({
                     }}
                 />
             ) : (
-                <div className="@container/table overflow-hidden rounded-lg border">
-                    {buffered.rows.map((group) => (
-                        <ActivityFeedGroup
-                            key={group.id}
-                            group={group}
-                            filters={filters}
-                            expanded={expanded_id === group.id}
-                            details={
-                                expanded_id === group.id ? expanded_events : []
-                            }
-                            eventPage={event_page}
-                            animate={animatedIds.has(group.id)}
-                        />
-                    ))}
-                </div>
-            )}
-            {buffered.rows.length > 0 && (
-                <ListFooter
-                    count={t('activity.list.count', {
-                        count: buffered.rows.length,
-                        formattedCount: format.number(buffered.rows.length),
-                    })}
-                    previous={
-                        newer_cursor !== null
-                            ? {
-                                  href: activityIndex.url({
-                                      query: {
-                                          ...filters,
-                                          before: undefined,
-                                          after:
-                                              buffered.rows[0]?.latest.id ??
-                                              newer_cursor,
-                                          group: undefined,
-                                          event_page: undefined,
-                                      },
-                                  }),
-                              }
-                            : null
-                    }
-                    next={
-                        older_cursor !== null
-                            ? {
-                                  href: activityIndex.url({
-                                      query: {
-                                          ...filters,
-                                          after: undefined,
-                                          before:
-                                              buffered.rows.at(-1)?.latest.id ??
-                                              older_cursor,
-                                          group: undefined,
-                                          event_page: undefined,
-                                      },
-                                  }),
-                              }
-                            : null
-                    }
-                />
-            )}
-            {older_cursor === null && buffered.rows.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                    {t(
-                        'End of activity in this range. Older changes are not shown.',
-                    )}{' '}
-                    <TextLink
-                        variant="secondary"
-                        document
-                        href={exportIncidents.url({
-                            query: { filter: { status: 'all', period: 'all' } },
-                        })}
+                // Batches of 50 load while scrolling, then on "Load older"; the URL keeps no cursor. One wrapper keeps
+                // InfiniteScroll's sentinels out of the page's flex gap.
+                <div>
+                    <InfiniteScroll
+                        data="events"
+                        onlyNext
+                        preserveUrl
+                        manualAfter={AUTOMATIC_BATCHES}
+                        loading={({ manualMode }) =>
+                            manualMode ? null : (
+                                <p className="flex items-center justify-center gap-2 pt-4 text-xs text-muted-foreground">
+                                    <Spinner />
+                                    {t('Loading older changes…')}
+                                </p>
+                            )
+                        }
+                        next={({ fetch, loading, hasMore, manualMode }) =>
+                            hasMore ? (
+                                // The button stays mounted while it loads, so keyboard focus stays on it.
+                                manualMode ? (
+                                    <div className="flex justify-center pt-4">
+                                        <Button
+                                            variant="outline"
+                                            data-load-older
+                                            aria-disabled={loading || undefined}
+                                            onClick={() => {
+                                                if (!loading) fetch();
+                                            }}
+                                        >
+                                            {loading && <Spinner />}
+                                            {t(
+                                                loading
+                                                    ? 'Loading older changes…'
+                                                    : 'Load older changes',
+                                            )}
+                                        </Button>
+                                    </div>
+                                ) : null
+                            ) : (
+                                <p
+                                    tabIndex={-1}
+                                    ref={(element) => {
+                                        // The load button that just disappeared had focus, which fell to <body>; a
+                                        // reader who moved on (search, a link) keeps their place.
+                                        if (
+                                            element &&
+                                            lastFocused.current?.hasAttribute(
+                                                'data-load-older',
+                                            ) &&
+                                            document.activeElement ===
+                                                document.body
+                                        )
+                                            element.focus();
+                                    }}
+                                    className="pt-4 text-xs text-muted-foreground"
+                                >
+                                    {t(
+                                        'End of activity in this range. Older changes are not shown.',
+                                    )}{' '}
+                                    <TextLink
+                                        variant="secondary"
+                                        document
+                                        href={exportIncidents.url({
+                                            query: {
+                                                filter: {
+                                                    status: 'all',
+                                                    period: 'all',
+                                                },
+                                            },
+                                        })}
+                                    >
+                                        {t(
+                                            'Older changes: see the incident timeline or the export.',
+                                        )}
+                                    </TextLink>
+                                </p>
+                            )
+                        }
                     >
-                        {t(
-                            'Older changes: see the incident timeline or the export.',
-                        )}
-                    </TextLink>
-                </p>
+                        <ActivityTimeline
+                            groups={groups}
+                            filters={filters}
+                            expandedId={expanded_id}
+                            expandedEvents={expanded_events}
+                            eventPage={event_page}
+                        />
+                    </InfiniteScroll>
+                </div>
             )}
         </PageContainer>
     );

@@ -125,5 +125,9 @@
     "site_overview.coming_domain": "Domain expires on {{date}}",
     "site_overview.coming_maintenance": "Maintenance {{time}}",
     "site_overview.coming_nothing": "Nothing scheduled in the next 12 months",
-    "site_overview.response_peaks": "Peaks over the last 24 hours"
+    "site_overview.response_peaks": "Peaks over the last 24 hours",
+    "sites.head.more_attention_one": "{{formattedCount}} more site needs attention.",
+    "sites.head.more_attention_other": "{{formattedCount}} more sites need attention.",
+    "sites.head.portfolio": "{{sites}} across {{clients}}",
+    "sites.head.last_result": "last result {{time}}"
 }

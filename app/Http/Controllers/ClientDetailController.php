@@ -8,6 +8,7 @@ use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\ClientDetailPageData;
 use Heptapod\Data\Ui\DashboardTilesData;
 use Heptapod\Data\Ui\PaginationData;
+use Heptapod\Http\ListPageSize;
 use Heptapod\Models\User;
 use Heptapod\Queries\ClientsReader;
 use Illuminate\Http\Request;
@@ -26,9 +27,10 @@ final class ClientDetailController extends Controller
 
         // Eager, so a missing or hidden client 404s first; the closure keeps nested partials (client.name) resolving the whole client.
         $clientData = $reader->client($user, $client);
+        $perPage = ListPageSize::resolve($request, 'client_sites');
         $sitePage = null;
-        $getSites = static function () use ($reader, $user, $client, &$sitePage): array {
-            return $sitePage ??= $reader->sitePage($user, $client);
+        $getSites = static function () use ($reader, $user, $client, $perPage, &$sitePage): array {
+            return $sitePage ??= $reader->sitePage($user, $client, $perPage);
         };
 
         return Inertia::render('clients/show', new ClientDetailPageData(

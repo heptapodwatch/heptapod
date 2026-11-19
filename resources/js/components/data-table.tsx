@@ -1,4 +1,4 @@
-import { TruncatedText } from '@/components/truncated-text';
+import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import { SiteAvatar } from '@/components/site-avatar';
 import {
     columnVisibilityFeature,
@@ -38,7 +38,9 @@ import {
     StatusBadge,
     StatusDot,
     CheckStrip,
+    responseLineColor,
     responseTimeSummary,
+    statusColor,
 } from '@/components/monitoring';
 import { Sparkline } from '@/components/sparkline';
 import {
@@ -55,9 +57,15 @@ import {
 import {
     Tooltip,
     TooltipContent,
+    TooltipDetails,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useFormat } from '@/hooks/use-format';
+import {
+    SiteColumnsMenu,
+    useSiteColumnChoices,
+    type HideableSiteColumn,
+} from '@/components/site-table-columns';
 import { useCheckHeadline } from '@/hooks/use-check-headline';
 import { useStreamState } from '@/hooks/use-live';
 import { currentRunState } from '@/lib/live-store';
@@ -98,14 +106,8 @@ function SiteTableNameCell({
     row,
 }: CellContext<typeof features, SiteDto, string>) {
     const { t } = useTranslation();
-    const {
-        full,
-        showClient,
-        selected,
-        onSelectionChange,
-        siteHref,
-        clientFor,
-    } = useSiteTableCellOptions();
+    const { full, selected, onSelectionChange, siteHref } =
+        useSiteTableCellOptions();
     return (
         <div className="flex min-w-0 items-center gap-3">
             {onSelectionChange && (
@@ -145,11 +147,6 @@ function SiteTableNameCell({
                     compact={full}
                     href={siteHref?.(row.original)}
                 />
-                {full && showClient && (
-                    <span className="block truncate text-xs text-muted-foreground @[1300px]/table:hidden">
-                        {clientFor(row.original).name}
-                    </span>
-                )}
             </div>
         </div>
     );
@@ -188,12 +185,95 @@ function SiteTableResponseCell({
                     data={row.original.response}
                     state={row.original.state}
                     decorative
+                    color={responseLineColor(row.original.checks)}
                 />
             </div>
             <span className="sr-only">
                 {responseTimeSummary(row.original.response, t, format)}
             </span>
         </>
+    );
+}
+
+/** A site whose Lighthouse check runs; the score column shows once a listed site has one. */
+function hasListScoreCheck(site: SiteDto): boolean {
+    return site.checks.some(
+        (check) =>
+            check.key === 'lighthouse' &&
+            check.enabled &&
+            check.state !== 'unavailable',
+    );
+}
+
+/** The report's score bands: 90 and up good, 50 to 89 needs improvement, below 50 poor. */
+function scoreState(score: number): 'ok' | 'warning' | 'failed' {
+    return score >= 90 ? 'ok' : score >= 50 ? 'warning' : 'failed';
+}
+
+/** The latest Lighthouse scores as four small numbers; good ones stay muted, the rest take their band's colour. */
+function ListScoresCell({ site }: { site: SiteDto }) {
+    const { t } = useTranslation();
+    const format = useFormat();
+    const label = t('checks.lighthouse.label');
+    const check = site.checks.find((item) => item.key === 'lighthouse');
+    if (!hasListScoreCheck(site) || site.list_scores.length === 0) {
+        const reason = hasListScoreCheck(site)
+            ? t('No scores yet')
+            : t('No Lighthouse check');
+        return (
+            <TooltipHint label={label} content={reason}>
+                <span className="inline-flex">
+                    <StatusDot state="disabled" label={reason} strip />
+                </span>
+            </TooltipHint>
+        );
+    }
+    const facts = site.list_scores.map(
+        (score) => `${t(score.label_key)}: ${score.score}`,
+    );
+    const lowest = Math.min(...site.list_scores.map((score) => score.score));
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <span
+                    role="img"
+                    tabIndex={-1}
+                    aria-label={`${t('lighthouse.scores')}: ${facts.join(', ')}`}
+                    className="inline-flex items-center gap-1"
+                >
+                    {site.list_scores.map((score) => (
+                        <span
+                            key={score.label_key}
+                            aria-hidden
+                            className="w-[3ch] text-right font-mono text-xs tabular-nums"
+                            style={{
+                                color:
+                                    scoreState(score.score) === 'ok'
+                                        ? 'var(--muted-foreground)'
+                                        : statusColor[scoreState(score.score)],
+                            }}
+                        >
+                            {score.score}
+                        </span>
+                    ))}
+                </span>
+            </TooltipTrigger>
+            <TooltipContent>
+                <TooltipDetails
+                    subject={t('lighthouse.scores')}
+                    facts={[
+                        ...facts,
+                        ...(check?.checked_at
+                            ? [format.exact(check.checked_at)]
+                            : []),
+                    ]}
+                    status={{
+                        state: scoreState(lowest),
+                        label: t('Lowest score: {{score}}', { score: lowest }),
+                    }}
+                />
+            </TooltipContent>
+        </Tooltip>
     );
 }
 
@@ -239,7 +319,13 @@ export function DataTable({
     onSort,
     siteHref,
     historyLoading = false,
+    pageSize = 50,
+    sort,
 }: {
+    /** The server's current sort (`name`, `-client`, …); the matching header shows its direction. */
+    sort?: string;
+    /** The server's page size; the table shows the whole page it gets. */
+    pageSize?: number;
     /** Uptime and response arrive after the rows; their cells hold a skeleton of the same size until then. */
     historyLoading?: boolean;
     onPrefetch?: (site: SiteDto) => void;
@@ -260,6 +346,55 @@ export function DataTable({
     const format = useFormat();
     const headline = useCheckHeadline();
     const runs = useStreamState('runs');
+    const columnChoices = useSiteColumnChoices();
+    const showsScores = full && data.some(hasListScoreCheck);
+    // Lighthouse shows by default only where at least half of the listed sites have it, so a few scored sites do not
+    // squeeze Site, Client and Why on every row.
+    const scoresByDefault =
+        data.filter(hasListScoreCheck).length * 2 >= data.length;
+    // The column choice applies to the full Sites table and its cards; the compact table has fixed columns.
+    const shows = (column: HideableSiteColumn) =>
+        !full ||
+        (columnChoices.get(column) ??
+            (column === 'list_scores' ? scoresByDefault : true));
+    const hideable: HideableSiteColumn[] = [
+        ...(showClient ? (['client_id'] as const) : []),
+        'why',
+        'checks',
+        ...(showsScores ? (['list_scores'] as const) : []),
+        'response',
+        'uptime',
+        'checked_at',
+    ];
+    const columnsMenu = (
+        <SiteColumnsMenu
+            columns={hideable}
+            choices={columnChoices}
+            shows={shows}
+        />
+    );
+    // The server sorts by these columns; clicking the sorted column again reverses it.
+    const serverSorts: Record<string, string> = {
+        state: 'status',
+        name: 'name',
+        client_id: 'client',
+    };
+    const nextSort = (column: string) =>
+        sort === serverSorts[column]
+            ? `-${serverSorts[column]}`
+            : serverSorts[column]!;
+    const ariaSort = (column: string, clientSorted: false | 'asc' | 'desc') =>
+        serverMode
+            ? sort === serverSorts[column]
+                ? 'ascending'
+                : sort === `-${serverSorts[column]}`
+                  ? 'descending'
+                  : 'none'
+            : clientSorted === 'asc'
+              ? 'ascending'
+              : clientSorted === 'desc'
+                ? 'descending'
+                : 'none';
     const [sorting, setSorting] = useState<SortingState>([]);
     const root = useRef<HTMLDivElement>(null);
     const hasUptimeCheck = (site: SiteDto) =>
@@ -360,6 +495,15 @@ export function DataTable({
             header: t('Checks'),
             cell: SiteTableChecksCell,
         }),
+        ...(showsScores
+            ? [
+                  columnHelper.display({
+                      id: 'list_scores',
+                      header: t('checks.lighthouse.label'),
+                      cell: ({ row }) => <ListScoresCell site={row.original} />,
+                  }),
+              ]
+            : []),
         columnHelper.display({
             id: 'response',
             header: t('24h'),
@@ -375,8 +519,9 @@ export function DataTable({
                     <span
                         className={cn(
                             'text-xs',
+                            // "No uptime check" wraps, so its long German form never widens the column.
                             !hasUptimeCheck(row.original) &&
-                                'text-muted-foreground',
+                                'block hyphens-auto whitespace-normal text-muted-foreground',
                             row.original.uptime !== null &&
                                 'font-mono tabular-nums',
                         )}
@@ -400,22 +545,24 @@ export function DataTable({
             : id === 'state'
               ? 'w-px'
               : id === 'name'
-                ? 'w-auto max-w-0'
+                ? 'w-[170px] max-w-[170px]'
                 : id === 'why'
-                  ? 'w-[175px]'
+                  ? 'w-auto max-w-0 min-w-[96px]'
                   : id === 'uptime'
-                    ? 'hidden @[1100px]/table:table-cell @[1100px]/table:w-[128px] text-right'
+                    ? 'hidden @[1100px]/table:table-cell @[1100px]/table:w-[128px] @[1100px]/table:max-w-[128px] text-right'
                     : id === 'checked_at'
-                      ? 'w-[145px] text-right'
+                      ? 'w-[118px] text-right'
                       : cn(
                             'hidden',
                             id === 'client_id'
-                                ? '@[1300px]/table:table-cell @[1300px]/table:w-[120px]'
+                                ? '@[600px]/table:table-cell @[600px]/table:w-[110px] @[600px]/table:max-w-[110px]'
                                 : id === 'checks'
-                                  ? '@[900px]/table:table-cell @[900px]/table:w-[225px]'
+                                  ? '@[900px]/table:table-cell @[900px]/table:w-[172px]'
                                   : id === 'response'
                                     ? 'text-right @[1100px]/table:table-cell @[1100px]/table:w-[108px]'
-                                    : 'w-[84px]',
+                                    : id === 'list_scores'
+                                      ? '@[1000px]/table:table-cell @[1000px]/table:w-[104px]'
+                                      : 'w-[84px]',
                         );
     const table = useTable({
         features,
@@ -423,14 +570,16 @@ export function DataTable({
         columns,
         state: {
             sorting,
-            pagination: { pageIndex, pageSize: 50 },
+            pagination: { pageIndex, pageSize },
             columnVisibility: {
                 state: true,
-                client_id: full,
-                checks: full,
-                why: full,
-                response: full,
-                checked_at: full,
+                client_id: full && shows('client_id'),
+                checks: full && shows('checks'),
+                why: full && shows('why'),
+                response: full && shows('response'),
+                checked_at: full && shows('checked_at'),
+                uptime: shows('uptime'),
+                list_scores: shows('list_scores'),
             },
         },
         onSortingChange: (updater) => {
@@ -491,12 +640,12 @@ export function DataTable({
                         {site.url}
                     </span>
                 </TruncatedText>
-                {showClient && (
+                {showClient && shows('client_id') && (
                     <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
                         <span className="truncate">{clientFor(site).name}</span>
                     </span>
                 )}
-                {worstCheck ? (
+                {!shows('why') ? null : worstCheck ? (
                     <span
                         className="text-xs break-words text-muted-foreground"
                         data-site-card-check
@@ -512,7 +661,12 @@ export function DataTable({
                         {why(site)}
                     </span>
                 ) : null}
-                <span className="flex w-full items-center justify-between gap-2 border-t pt-2 text-xs">
+                <span
+                    className={cn(
+                        'flex w-full items-center justify-between gap-2 border-t pt-2 text-xs',
+                        !shows('uptime') && 'hidden',
+                    )}
+                >
                     <span className="text-muted-foreground">
                         {t('30-day uptime')}
                     </span>
@@ -532,6 +686,14 @@ export function DataTable({
                         </span>
                     )}
                 </span>
+                {shows('list_scores') && hasListScoreCheck(site) && (
+                    <span className="flex w-full items-center justify-between gap-2 text-xs">
+                        <span className="text-muted-foreground">
+                            {t('checks.lighthouse.label')}
+                        </span>
+                        <ListScoresCell site={site} />
+                    </span>
+                )}
             </>
         );
     };
@@ -592,15 +754,10 @@ export function DataTable({
                                             className={cn(
                                                 columnClass(header.column.id),
                                             )}
-                                            aria-sort={
-                                                header.column.getIsSorted() ===
-                                                'asc'
-                                                    ? 'ascending'
-                                                    : header.column.getIsSorted() ===
-                                                        'desc'
-                                                      ? 'descending'
-                                                      : 'none'
-                                            }
+                                            aria-sort={ariaSort(
+                                                header.column.id,
+                                                header.column.getIsSorted(),
+                                            )}
                                         >
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
@@ -608,13 +765,11 @@ export function DataTable({
                                                         disabled={
                                                             serverMode
                                                                 ? !onSort ||
-                                                                  ![
-                                                                      'name',
-                                                                      'state',
-                                                                  ].includes(
+                                                                  !(
                                                                       header
                                                                           .column
-                                                                          .id,
+                                                                          .id in
+                                                                      serverSorts
                                                                   )
                                                                 : !header.column.getCanSort()
                                                         }
@@ -653,12 +808,11 @@ export function DataTable({
                                                             serverMode
                                                                 ? () =>
                                                                       onSort?.(
-                                                                          header
-                                                                              .column
-                                                                              .id ===
-                                                                              'state'
-                                                                              ? 'status'
-                                                                              : 'name',
+                                                                          nextSort(
+                                                                              header
+                                                                                  .column
+                                                                                  .id,
+                                                                          ),
                                                                       )
                                                                 : header.column.getToggleSortingHandler()
                                                         }
@@ -670,13 +824,9 @@ export function DataTable({
                                                         </span>
                                                         {(serverMode
                                                             ? !!onSort &&
-                                                              [
-                                                                  'name',
-                                                                  'state',
-                                                              ].includes(
-                                                                  header.column
-                                                                      .id,
-                                                              )
+                                                              header.column
+                                                                  .id in
+                                                                  serverSorts
                                                             : header.column.getCanSort()) && (
                                                             <ArrowUpDown className="size-3" />
                                                         )}
@@ -694,6 +844,12 @@ export function DataTable({
                                             </Tooltip>
                                         </TableHead>
                                     ))}
+                                    {full && (
+                                        // Its own cell, so hiding any column never hides the gear.
+                                        <TableHead className="w-10 px-1 text-right">
+                                            {columnsMenu}
+                                        </TableHead>
+                                    )}
                                 </TableRow>
                             ))}
                         </TableHeader>
@@ -741,12 +897,21 @@ export function DataTable({
                                             <FlexRender cell={cell} />
                                         </TableCell>
                                     ))}
+                                    {full && (
+                                        <TableCell className="w-10 px-1" />
+                                    )}
                                 </TableRow>
                             ))}
                         </TableBody>
                     </Table>
                 </SiteTableCellContext.Provider>
             </div>
+            {full && (
+                // The cards have no header row, so the column choice sits above them.
+                <div className="-mt-1 mb-1 flex justify-end @[600px]/table:hidden">
+                    {columnsMenu}
+                </div>
+            )}
             <ul className="divide-y overflow-hidden rounded-lg border @[600px]/table:hidden">
                 {table.getRowModel().rows.map((row) => (
                     <li

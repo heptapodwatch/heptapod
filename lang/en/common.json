@@ -745,8 +745,6 @@
     "All activity in the last {{days}} days": "All activity in the last {{days}} days",
     "api_tokens.list.count_one": "{{formattedCount}} token",
     "api_tokens.list.count_other": "{{formattedCount}} tokens",
-    "activity.list.count_one": "{{formattedCount}} change on this page",
-    "activity.list.count_other": "{{formattedCount}} changes on this page",
     "End of activity in this range. Older changes are not shown.": "End of activity in this range. Older changes are not shown.",
     "Older changes: see the incident timeline or the export.": "Older changes: see the incident timeline or the export.",
     "now {{state}}": "now {{state}}",
@@ -808,5 +806,15 @@
     "Clear filters to see the last 24 hours.": "Clear filters to see the last 24 hours.",
     "replicator.remove": "Remove {{name}}",
     "replicator.max_reached_one": "Up to {{formattedCount}} entry.",
-    "replicator.max_reached_other": "Up to {{formattedCount}} entries."
+    "replicator.max_reached_other": "Up to {{formattedCount}} entries.",
+    "No Lighthouse check": "No Lighthouse check",
+    "No scores yet": "No scores yet",
+    "Lowest score: {{score}}": "Lowest score: {{score}}",
+    "Columns": "Columns",
+    "Show columns": "Show columns",
+    "Reset columns": "Reset columns",
+    "Rows": "Rows",
+    "Rows per page": "Rows per page",
+    "Load older changes": "Load older changes",
+    "Loading older changes…": "Loading older changes…"
 }

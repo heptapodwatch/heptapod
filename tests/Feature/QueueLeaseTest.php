@@ -50,7 +50,7 @@ it('keeps a manual crawl behind two long crawls queued and visible after the old
         $waiting->refresh()->load('site');
         $state = app(CheckRunsReader::class)->state($waiting);
         expect($state->phase)->toBe(RunPhase::Queued)->and($state->queue_position)->toBe(3);
-        $row = collect(app(RunsReader::class)->history($viewer)->toArray()['runs'])->firstWhere('check_id', $waiting->id);
+        $row = collect(app(RunsReader::class)->history($viewer, 50)->toArray()['runs'])->firstWhere('check_id', $waiting->id);
         expect($row['run']['phase'])->toBe('queued')->and($row['run']['queue_position'])->toBe(3)
             ->and($row['requested_at'])->toBe($requestedAt->toIso8601String());
         DB::table('checks')->whereIn('id', $checks->modelKeys())->update([

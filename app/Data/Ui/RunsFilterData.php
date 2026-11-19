@@ -22,5 +22,6 @@ final class RunsFilterData extends Data
         public readonly bool $show_same_result,
         #[LiteralTypeScriptType("'24h' | '7d'")]
         public readonly string $period,
+        public readonly int $per_page = 50,
     ) {}
 }

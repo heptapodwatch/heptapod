@@ -18,7 +18,7 @@ const RADIUS = 15.9155;
 const RESHARE_MS = 600;
 
 /** The tile column of each site state. */
-const tileColumns = {
+export const tileColumns = {
     down: 'down',
     failed: 'failed',
     'check-error': 'check_errors',
@@ -130,7 +130,7 @@ export function SitesStateRing({
                     aria-label={t('Sites')}
                     data-sites-state-ring
                     data-down={tiles.down > 0 ? '' : undefined}
-                    className="sites-state-ring size-7 rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    className="sites-state-ring size-12 shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:size-13"
                 >
                     <svg
                         aria-hidden="true"

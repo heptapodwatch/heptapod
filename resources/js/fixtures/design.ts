@@ -165,6 +165,7 @@ export const sites: SiteDto[] = names.map((name, index) => {
               : 1,
         tags: [state === 'paused' ? 'staging' : 'production'],
         state,
+        list_scores: [],
         identity: {
             icon_url: null,
             icon_backing: 'none',
@@ -649,6 +650,7 @@ export const dashboardEvents: EventDto[] = (
     [
         {
             run_id: null,
+            check_id: null,
             id: 1,
             site_id: 23,
             client_id: null,
@@ -670,6 +672,7 @@ export const dashboardEvents: EventDto[] = (
         },
         {
             run_id: null,
+            check_id: null,
             id: 2,
             site_id: 22,
             client_id: null,
@@ -691,6 +694,7 @@ export const dashboardEvents: EventDto[] = (
         },
         {
             run_id: null,
+            check_id: null,
             id: 3,
             site_id: 21,
             client_id: null,
@@ -712,6 +716,7 @@ export const dashboardEvents: EventDto[] = (
         },
         {
             run_id: null,
+            check_id: null,
             id: 4,
             site_id: 1,
             client_id: null,
@@ -733,6 +738,7 @@ export const dashboardEvents: EventDto[] = (
         },
         {
             run_id: null,
+            check_id: null,
             id: 5,
             site_id: 3,
             client_id: null,
@@ -754,6 +760,7 @@ export const dashboardEvents: EventDto[] = (
         },
         {
             run_id: null,
+            check_id: null,
             id: 6,
             site_id: 23,
             client_id: null,
@@ -858,6 +865,7 @@ export function overviewEvents(site: SiteDto): EventDto[] {
             ...dashboardEvents.filter((event) => event.site_id === site.id),
             {
                 run_id: null,
+                check_id: null,
                 id: 101,
                 site_id: site.id,
                 client_id: null,
@@ -879,6 +887,7 @@ export function overviewEvents(site: SiteDto): EventDto[] {
             },
             {
                 run_id: null,
+                check_id: null,
                 id: 102,
                 site_id: site.id,
                 client_id: null,
@@ -1075,6 +1084,7 @@ export function sitesPageFixture(
             total: data.length,
             attention: attention.length,
             paused: data.filter((site) => site.state === 'paused').length,
+            clients: new Set(data.map((site) => site.client_id)).size,
         },
         can_create: true,
         pagination: pagination(data.length),

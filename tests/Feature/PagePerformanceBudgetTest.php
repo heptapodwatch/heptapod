@@ -7,12 +7,15 @@ use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
+use Heptapod\Models\CheckRunAttempt;
 use Heptapod\Models\CheckRunRollupHourly;
 use Heptapod\Models\Client;
+use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-03T12:00:00Z'));
@@ -33,6 +36,11 @@ function seedPagePerformanceSites(int $from, int $until, Client $client): void
             ]);
             Incident::factory()->for($check)->create();
             CheckRun::factory()->for($check)->create(['metrics' => ['total_time_in_seconds' => 0.125]]);
+            // Activity and the Runs history read these: one finished attempt and a failure/recovery pair per check.
+            CheckRunAttempt::query()->create(['check_id' => $check->id, 'claim_token' => Str::uuid()->toString(),
+                'phase' => 'done', 'queue' => 'checks-fast', 'requested_at' => now()->subHour(), 'finished_at' => now()->subMinutes(59)]);
+            Event::factory()->for($check)->create(['occurred_at' => now()->subHours(5)->subMinutes($id), 'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Failed]);
+            Event::factory()->for($check)->create(['occurred_at' => now()->subHours(2)->subMinutes($id), 'from_result' => CheckResult::Failed, 'to_result' => CheckResult::Succeeded]);
             if ($type === CheckKey::Uptime) {
                 for ($hour = 1; $hour <= 24; $hour++) {
                     CheckRunRollupHourly::factory()->for($check)->create([
@@ -83,6 +91,14 @@ it('keeps page query counts constant from three to thirty sites', function (stri
     'site overview' => ['/sites/1', 'sites/show', ''],
     'check detail' => ['/sites/1/checks/1', 'sites/show', ''],
     'incidents list' => ['/incidents', 'incidents/index', ''],
+    'sites list, 100 per page by client' => ['/sites?per_page=100&sort=client', 'sites/index', 'sites'],
+    'sites history, 100 per page' => ['/sites?per_page=100', 'sites/index', 'sites_history'],
+    'incidents list, 100 per page' => ['/incidents?per_page=100', 'incidents/index', ''],
+    'clients list, 100 per page' => ['/clients?per_page=100', 'clients/index', ''],
+    'runs, 100 per page' => ['/runs?per_page=100', 'runs/index', ''],
+    'activity' => ['/activity?period=7d', 'activity/index', ''],
+    'activity live head' => ['/activity?period=7d', 'activity/index', 'head'],
+    'runs history, 100 per page' => ['/runs?per_page=100', 'runs/index', 'runs,next_cursor'],
 ]);
 
 it('keeps fixed-seed page props within the JSON payload budget', function (string $path, string $component, string $props, int $budget): void {

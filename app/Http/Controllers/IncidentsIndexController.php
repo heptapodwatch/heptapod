@@ -9,6 +9,7 @@ use Heptapod\Data\Ui\IncidentsIndexData;
 use Heptapod\Data\Ui\IncidentsIndexPageData;
 use Heptapod\Data\Ui\IncidentSummaryData;
 use Heptapod\Data\Ui\PaginationData;
+use Heptapod\Http\ListPageSize;
 use Heptapod\Http\Requests\IncidentsFilterRequest;
 use Heptapod\Models\User;
 use Heptapod\Queries\IncidentsReader;
@@ -23,9 +24,10 @@ final class IncidentsIndexController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
+        $perPage = ListPageSize::resolve($request, 'incidents');
         $page = null;
-        $read = static function () use ($reader, $user, $request, &$page): IncidentsIndexData {
-            return $page ??= $reader->index($user, $request, false);
+        $read = static function () use ($reader, $user, $request, $perPage, &$page): IncidentsIndexData {
+            return $page ??= $reader->index($user, $request, $perPage, false);
         };
 
         return Inertia::render('incidents/index', new IncidentsIndexPageData(

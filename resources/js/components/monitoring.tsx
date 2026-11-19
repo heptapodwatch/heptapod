@@ -3,7 +3,14 @@ import { PresentationChanges } from '@/components/presentation-changes';
 import { SiteAvatar } from '@/components/site-avatar';
 import { EmptyState } from '@/components/empty-state';
 import { AlertCircle, Globe } from 'lucide-react';
-import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import {
+    useLayoutEffect,
+    useRef,
+    useState,
+    type CSSProperties,
+    type ReactNode,
+} from 'react';
+import { AbsoluteTime } from '@/components/absolute-time';
 import { EntityLink } from '@/components/entity-link';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -17,10 +24,12 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { show as incidentShow } from '@/routes/incidents';
+import { show as checkShow } from '@/routes/sites/checks';
 import { checkTypes } from '@/lib/check-types';
 import {
     bucketStates,
     checkMark,
+    checkState,
     type CheckMark,
     eventLabel,
     eventState,
@@ -56,6 +65,21 @@ export const statusColor: Record<SiteState | 'running', string> = {
     failed: 'var(--status-down)',
     'check-error': 'var(--status-error)',
 };
+
+/**
+ * The 24 h response line's colour comes from the site's own speed, not its overall state: the performance check's
+ * Warning or Failed colour when it is slow; neutral in every other state (a check error says nothing about speed)
+ * and for sites without one.
+ */
+export function responseLineColor(checks: CheckDto[]): string {
+    const performance = checks.find(
+        (check) => check.key === 'performance' && check.enabled,
+    );
+    const state = performance ? checkState(performance) : 'ok';
+    return state === 'warning' || state === 'failed'
+        ? statusColor[state]
+        : 'var(--muted-foreground)';
+}
 
 export function StatusDot({
     state,
@@ -391,15 +415,12 @@ const checkSummaryOrder = [
     ),
 ];
 
-/** One strip slot: dashed when not set up, empty when turned off, otherwise the status shape (snoozed: bars cut out). */
+/** One strip slot: its status shape; not set up and turned off share the short Off dash (the tooltip says which). */
 function CheckMarkGlyph({ mark }: { mark: CheckMark }) {
     switch (mark.kind) {
         case 'unset':
-            return (
-                <span className="size-[11px] rounded-[2px] border border-dashed border-border-strong bg-card opacity-50" />
-            );
         case 'off':
-            return <span className="size-[11px]" />;
+            return <StatusDot state="disabled" label={mark.label} strip />;
         case 'snoozed':
             return <StatusDot state={mark.state} snoozed strip />;
         case 'status':
@@ -595,9 +616,21 @@ export function MonitoringTime({
 export function EventTimeline({
     events,
     showSiteName = false,
+    showClientName = false,
+    clock = false,
+    lead,
+    below,
 }: {
     events: EventDto[];
     showSiteName?: boolean;
+    /** Cross-site lists (Activity): the client after the check in the detail line. */
+    showClientName?: boolean;
+    /** Day-grouped lists: the event clock (seconds) instead of the relative time. */
+    clock?: boolean;
+    /** Text before the message, e.g. the earlier state of a collapsed pair ("Failed →"). */
+    lead?: (event: EventDto) => ReactNode;
+    /** Content under an event's detail line, e.g. a flapping group's own events. */
+    below?: (event: EventDto) => ReactNode;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -635,10 +668,18 @@ export function EventTimeline({
                         </span>
                         <div className="min-w-0 space-y-1">
                             <div className="grid grid-cols-[6rem_1fr] items-baseline gap-4">
-                                <MonitoringTime
-                                    value={event.time}
-                                    className="font-mono text-xs text-muted-foreground tabular-nums"
-                                />
+                                {clock ? (
+                                    <AbsoluteTime
+                                        value={event.time}
+                                        mode="eventTime"
+                                        className="font-mono text-xs text-muted-foreground tabular-nums"
+                                    />
+                                ) : (
+                                    <MonitoringTime
+                                        value={event.time}
+                                        className="font-mono text-xs text-muted-foreground tabular-nums"
+                                    />
+                                )}
 
                                 <span className="text-sm">
                                     {showSiteName && (
@@ -671,6 +712,7 @@ export function EventTimeline({
                                             ·{' '}
                                         </>
                                     )}
+                                    {lead?.(event)}
                                     {incidentId != null ? (
                                         <TextLink
                                             href={incidentShow.url(incidentId)}
@@ -687,7 +729,26 @@ export function EventTimeline({
                                 <PresentationChanges changes={event.changes} />
                                 {event.changes.length > 0 && ' · '}
                                 {event.check !== null &&
-                                    t(checkTypes[event.check].label)}
+                                    (event.site_id !== null &&
+                                    event.check_id !== null ? (
+                                        <TextLink
+                                            variant="secondary"
+                                            href={checkShow.url({
+                                                site: event.site_id,
+                                                check: event.check_id,
+                                            })}
+                                        >
+                                            {t(checkTypes[event.check].label)}
+                                        </TextLink>
+                                    ) : (
+                                        t(checkTypes[event.check].label)
+                                    ))}
+                                {showClientName && event.client_name !== '' && (
+                                    <>
+                                        {event.check !== null && ' · '}
+                                        {event.client_name}
+                                    </>
+                                )}
                                 {event.duration_seconds !== null &&
                                     event.duration_seconds > 0 && (
                                         <>
@@ -701,6 +762,7 @@ export function EventTimeline({
                                         </>
                                     )}
                             </p>
+                            {below?.(event)}
                         </div>
                     </li>
                 );

@@ -24,7 +24,7 @@ final readonly class MaintenanceReader
     public function __construct(private SitePolicy $policy, private MaintenanceTargets $targets) {}
 
     /** @return array{windows: list<MaintenanceWindowData>, next_page: int|null, previous_page: int|null, total: int, site_name: string|null} */
-    public function index(User $user, int $page = 1, ?int $siteId = null, ?int $clientId = null, string $state = 'all'): array
+    public function index(User $user, int $perPage, int $page = 1, ?int $siteId = null, ?int $clientId = null, string $state = 'all'): array
     {
         abort_unless($user->hasAnyRole(['Owner', 'Admin', 'Member']), 403);
         $query = $siteId === null ? MaintenancePeriod::query() : MaintenancePeriod::targetingSite($siteId);
@@ -50,10 +50,10 @@ final readonly class MaintenanceReader
                 ->whereRaw($effectiveEnd.($state === 'active' ? ' > ?' : ' <= ?'), [$timestamp]);
         }
         $query->getQuery()->orderByDesc('maintenance_periods.starts_at')->orderByDesc('maintenance_periods.id');
-        $windows = $query->paginate(50, ['*'], 'page', $page);
+        $windows = $query->paginate($perPage, ['*'], 'page', $page);
         if ($page > $windows->lastPage()) {
             $page = $windows->lastPage();
-            $windows = $query->paginate(50, ['*'], 'page', $page);
+            $windows = $query->paginate($perPage, ['*'], 'page', $page);
         }
         $byType = $windows->getCollection()->groupBy('target_type');
         $sites = Site::query();

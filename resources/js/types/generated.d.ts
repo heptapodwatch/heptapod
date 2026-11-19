@@ -607,6 +607,10 @@ readonly lists: Record<string, string[]>,
 };
 export type DomainRegistrationSource = 'rdap' | 'whois';
 export type ExecutionMode = 'poll' | 'push' | 'derived';
+export type ListScore = {
+readonly label_key: string,
+readonly score: number,
+};
 export type NoResultReason = 'performance_no_samples' | 'performance_uptime_interval_too_long' | 'mixed_content_start_page_not_scanned' | 'cron_tasks_pending';
 export type PreviousResult = {
 readonly run: Heptapod.Contracts.RunReference,
@@ -902,13 +906,14 @@ readonly cron_definitions: number | null,
 };
 }
 namespace Ui {
+export type ActivityBatchData = {
+readonly data: Heptapod.Data.Ui.ActivityGroupData[],
+};
 export type ActivityFilterData = {
 readonly q: string,
 readonly client: number | null,
 readonly check: Heptapod.Contracts.CheckKey | null,
 readonly period: string,
-readonly before: number | null,
-readonly after: number | null,
 };
 export type ActivityGroupData = {
 readonly id: number,
@@ -919,11 +924,11 @@ readonly ended_at: string,
 readonly first_state: Heptapod.Contracts.CheckResult | null,
 readonly second_state: Heptapod.Contracts.CheckResult | null,
 readonly current_state: Heptapod.Contracts.CheckResult | null,
+readonly earlier: Heptapod.Data.Ui.EventData | null,
 };
 export type ActivityPageData = {
-readonly events: Heptapod.Data.Ui.ActivityGroupData[],
-readonly older_cursor: number | null,
-readonly newer_cursor: number | null,
+readonly events: Heptapod.Data.Ui.ActivityBatchData,
+readonly head: Heptapod.Data.Ui.ActivityBatchData | undefined,
 readonly retention_days: number,
 readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly filters: Heptapod.Data.Ui.ActivityFilterData,
@@ -1249,6 +1254,7 @@ readonly icon_backing: Heptapod.Enums.SiteIconBacking,
 readonly client_id: number | null,
 readonly changes: Heptapod.Contracts.CheckRunPresentationPartData[],
 readonly run_id: number | null,
+readonly check_id: number | null,
 };
 export type FinishedRunData = {
 readonly id: number,
@@ -1527,6 +1533,7 @@ readonly site_name: string | null,
 readonly state: string,
 readonly previous_page: number | null,
 readonly total: number,
+readonly per_page: number,
 };
 export type MaintenanceSiteHeaderData = {
 readonly id: number | null,
@@ -1776,6 +1783,7 @@ readonly state: Heptapod.Contracts.RunPhase | null,
 readonly before: number | null,
 readonly show_same_result: boolean,
 readonly period: '24h' | '7d',
+readonly per_page: number,
 };
 export type RunsHistoryPageData = {
 readonly runs: Heptapod.Data.Ui.RunRowData[],
@@ -1855,6 +1863,7 @@ export type SiteListSummaryData = {
 readonly total: number,
 readonly attention: number,
 readonly paused: number,
+readonly clients: number,
 };
 export type SiteOverviewPageData = {
 readonly site: Heptapod.Data.Ui.SiteRowData,
@@ -1928,6 +1937,7 @@ readonly response: Heptapod.Data.Ui.ResponsePointData[],
 readonly checks: Heptapod.Data.Ui.CheckStripData[],
 readonly checked_at: string | null,
 readonly identity: Heptapod.Data.Ui.SiteIdentityData,
+readonly list_scores: Heptapod.Contracts.ListScore[],
 };
 export type SiteSettingsPageData = {
 readonly site: Heptapod.Data.Ui.SiteRowData,

@@ -16,7 +16,5 @@ final class ActivityFilterData extends Data
         public readonly ?int $client,
         public readonly ?CheckKey $check,
         public readonly string $period,
-        public readonly ?int $before,
-        public readonly ?int $after,
     ) {}
 }

@@ -70,6 +70,7 @@ it('keeps monitoring-health causes out of the band; PageHeader notices own them'
             needsAttentionTotal={0}
             clients={[]}
             onShowAll={() => {}}
+            clientCount={0}
         />,
         { wrapper: TooltipProvider },
     );
@@ -87,6 +88,7 @@ const attentionSite = (id: number): Heptapod.Data.Ui.SiteRowData => ({
     response: [],
     checks: [],
     checked_at: null,
+    list_scores: [],
     identity: {
         id,
         name: `Site ${id}`,
@@ -108,6 +110,7 @@ it('links overflow as "Show all N" for every site needing attention, never "+N m
             needsAttentionTotal={7}
             clients={[]}
             onShowAll={onShowAll}
+            clientCount={0}
         />,
         { wrapper: TooltipProvider },
     );
@@ -122,7 +125,7 @@ it('links overflow as "Show all N" for every site needing attention, never "+N m
 });
 
 it.each(['maintenance', 'paused', 'pending', 'disabled'] as const)(
-    'calls the portfolio OK when the only non-OK sites are %s; the detail line names them',
+    'calls the portfolio OK when the only non-OK sites are %s; the meta line names them',
     (state) => {
         causes = [];
         const { container } = render(
@@ -132,17 +135,24 @@ it.each(['maintenance', 'paused', 'pending', 'disabled'] as const)(
                 needsAttentionTotal={0}
                 clients={[]}
                 onShowAll={() => {}}
+                clientCount={0}
             />,
             { wrapper: TooltipProvider },
         );
-        const badge = container.querySelector('h2 [data-state]');
-        expect(badge?.getAttribute('data-state')).toBe('ok');
         expect(
-            screen.getByText('{{count}} of {{total}} sites are OK.'),
-        ).toBeTruthy();
-        expect(screen.getByText(`sites.not_ok_${state}`)).toBeTruthy();
+            container.querySelector('[data-sites-headline]')?.textContent,
+        ).toBe('{{count}} of {{total}} sites are OK.');
+        expect(breakdown(container)).toEqual([state]);
     },
 );
+
+/** The states drawn in the header's meta line, in order. */
+const breakdown = (container: HTMLElement) =>
+    [
+        ...container.querySelectorAll<HTMLElement>(
+            '[data-page-header] .status-ring',
+        ),
+    ].map((dot) => dot.dataset.state);
 
 const bandSite = (
     id: number,
@@ -152,74 +162,52 @@ const bandSite = (
     return { ...site, state, identity: { ...site.identity, state } };
 };
 
-/** Headline chip for every portfolio state; the detail line keeps non-band states (heptapod-ui-rules Sites headline). */
+/** The header's meta line shows the shape of every non-OK state, so no site is silent (heptapod-ui-rules Sites header). */
 it.each([
     {
         name: 'a Down site in the band',
         tileState: { down: 1, ok: 3 },
         band: ['down'],
-        chip: 'down',
+        breakdown: ['down'],
     },
     {
-        name: 'a Failed site in the band',
-        tileState: { failed: 1, ok: 3 },
+        name: 'a Failed and a paused site',
+        tileState: { failed: 1, paused: 1, ok: 2 },
         band: ['failed'],
-        chip: 'failed',
+        breakdown: ['failed', 'paused'],
     },
     {
         name: 'a Warning site in the band',
         tileState: { warning: 1, ok: 3 },
         band: ['warning'],
-        chip: 'warning',
+        breakdown: ['warning'],
     },
     {
         name: 'a Check error site in the band',
         tileState: { check_errors: 1, ok: 3 },
         band: ['check-error'],
-        chip: 'check-error',
-    },
-    {
-        name: 'all OK but alerts not covered',
-        tileState: { ok: 4 },
-        band: [],
-        health: { notifications_covered: false },
-        chip: 'warning',
-    },
-    {
-        name: 'monitoring degraded',
-        tileState: { ok: 4 },
-        band: [],
-        health: { status: 'warn' },
-        chip: 'warning',
-    },
-    {
-        name: 'stale monitoring (dispatcher down)',
-        tileState: { ok: 4 },
-        band: [],
-        health: { status: 'down', last_result_at: null, dispatcher_at: null },
-        chip: 'check-error',
-    },
-    {
-        name: 'no active checks',
-        tileState: { paused: 4, ok: 0 },
-        band: [],
-        health: { active_checks: 0 },
-        chip: 'paused',
+        breakdown: ['check-error'],
     },
     {
         name: 'only an unavailable site besides OK sites',
         tileState: { unavailable: 1, ok: 3 },
         band: [],
-        chip: 'ok',
-        detail: 'sites.not_ok_unavailable',
+        breakdown: ['unavailable'],
     },
     {
         name: 'all sites OK',
         tileState: { ok: 4 },
         band: [],
-        chip: 'ok',
+        breakdown: [],
     },
-] as const)('shows the $chip chip for $name', (row) => {
+    {
+        name: 'stale monitoring (dispatcher down), which states only that',
+        tileState: { warning: 1, ok: 3 },
+        band: [],
+        health: { status: 'down', last_result_at: null, dispatcher_at: null },
+        breakdown: [],
+    },
+] as const)('shows the state breakdown for $name', (row) => {
     causes = [];
     health = { ...okHealth, ...('health' in row ? row.health : {}) };
     const { container } = render(
@@ -231,13 +219,9 @@ it.each([
             needsAttentionTotal={row.band.length}
             clients={[]}
             onShowAll={() => {}}
+            clientCount={1}
         />,
         { wrapper: TooltipProvider },
     );
-    expect(
-        container.querySelector('h2 [data-state]')?.getAttribute('data-state'),
-    ).toBe(row.chip);
-    if ('detail' in row && row.detail) {
-        expect(screen.getByText(row.detail)).toBeTruthy();
-    }
+    expect(breakdown(container)).toEqual([...row.breakdown]);
 });

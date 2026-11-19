@@ -86,9 +86,16 @@
     animation: status-ring-sweep 1.1s linear infinite;
 }
 
+/* Dense strips: OK is a small solid dot, so a healthy row stays calm; Off and not set up are one short dash, never a gap. */
 .status-ring[data-strip][data-state='ok'] {
-    background: radial-gradient(circle, currentColor 0 2px, transparent 2.1px);
+    background: radial-gradient(circle, currentColor 0 3px, transparent 3.1px);
     box-shadow: none;
+}
+
+.status-ring[data-strip][data-state='disabled'],
+.status-ring[data-strip][data-state='unavailable'] {
+    background: linear-gradient(currentColor, currentColor) center / 5px 1.5px
+        no-repeat;
 }
 
 .status-ring[data-strip][data-state='failed'],

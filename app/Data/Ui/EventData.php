@@ -41,5 +41,12 @@ final class EventData extends Data
         public readonly array $changes = [],
         // The stored run that produced this event, when the recorder named one.
         public readonly ?int $run_id = null,
+        public readonly ?int $check_id = null,
     ) {}
+
+    /** The elapsed time of a recovery that recorded none, taken from the failure it ends. */
+    public function withDuration(int $seconds): self
+    {
+        return clone ($this, ['duration_seconds' => $seconds]);
+    }
 }

@@ -137,10 +137,17 @@ export function eventState(event: {
     }
 }
 
-/** The accessible label override for an event whose shape is shared with another state. */
+/**
+ * The word for an event whose shape is shared with another state: a recovery is Recovered, not OK; an administrative
+ * resolution (pause, disable, deletion, move) is Closed, never Recovered; an information event is Information.
+ */
 export function eventLabel(event: {
     severity: Heptapod.Contracts.Notifications.AlertSeverity;
+    message_params?: Record<string, string | number | boolean | null>;
 }): string | undefined {
+    if (event.message_params?.administrative_resolution === true)
+        return 'Closed';
+    if (event.severity === 'recovered') return 'activity.recovered';
     return event.severity === 'info' ? 'Information' : undefined;
 }
 

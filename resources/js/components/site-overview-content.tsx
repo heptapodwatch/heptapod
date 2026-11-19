@@ -15,6 +15,7 @@ import {
     ContentState,
     EventTimeline,
     MonitoringTime,
+    responseLineColor,
     responseTimeSummary,
     StatusBadge,
     UptimeBar,
@@ -581,6 +582,7 @@ function ResponseCard({ page, check }: { page: Page; check: Check }) {
                     data={page.site.response}
                     state={uptime ? checkState(uptime) : 'ok'}
                     decorative
+                    color={responseLineColor(page.site.checks)}
                 />
                 <span className="sr-only">
                     {responseTimeSummary(page.site.response, t, format)}

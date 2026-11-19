@@ -56,9 +56,12 @@ export function Sparkline({
     label = 'Response time',
     unit = 'ms',
     decorative = false,
+    color: colorOverride,
 }: {
     data: ResponsePointDto[];
     state?: SiteState;
+    /** The response line's colour from the site's own speed (`responseLineColor`) instead of `state`. */
+    color?: string;
     label?: string;
     unit?: 'ms' | 'percent' | 'count';
     decorative?: boolean;
@@ -90,7 +93,8 @@ export function Sparkline({
     const points = hasLine ? sparklinePoints(data) : [];
     const selectedPoint = selected === null ? undefined : points[selected];
     const color =
-        state === 'ok' ? 'var(--muted-foreground)' : statusColor[state];
+        colorOverride ??
+        (state === 'ok' ? 'var(--muted-foreground)' : statusColor[state]);
     const values = (point ? [point] : data).flatMap((item) =>
         item.value === null ? [] : [item.value],
     );

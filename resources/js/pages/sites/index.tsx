@@ -22,7 +22,6 @@ import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable } from '@/components/data-table';
 import { listResponsePoints } from '@/components/monitoring';
-import { SegmentedControl } from '@/components/segmented-control';
 import { EmptyState } from '@/components/empty-state';
 import { SitesAttentionBand } from '@/components/sites-attention-band';
 import { Button } from '@/components/ui/button';
@@ -245,52 +244,31 @@ export default function SitesIndex({
             },
         );
     };
+    const addSiteAction = can_create ? (
+        <Button asChild>
+            <Link href={sitesCreate.url()} prefetch data-shortcut-create>
+                <Plus />
+                {t('Add site')}
+            </Link>
+        </Button>
+    ) : null;
     return (
         <>
             <Head title={t('Sites')} />
             <PageContainer>
-                <PageHeader
-                    title={t('Sites')}
-                    count={format.number(summary.total)}
-                    description={[
-                        summary.total > 0
-                            ? t('sites.list_summary', {
-                                  count: summary.total,
-                                  formattedCount: format.number(summary.total),
-                              })
-                            : t('No sites monitored yet'),
-                        summary.attention > 0
-                            ? t('sites.list_attention', {
-                                  count: format.number(summary.attention),
-                              })
-                            : null,
-                        summary.paused > 0
-                            ? t('sites.list_paused', {
-                                  count: format.number(summary.paused),
-                              })
-                            : null,
-                    ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    notices={<MonitoringHealthNotices />}
-                    actions={
-                        <>
-                            {can_create && (
-                                <Button asChild>
-                                    <Link
-                                        href={sitesCreate.url()}
-                                        prefetch
-                                        data-shortcut-create
-                                    >
-                                        <Plus />
-                                        {t('Add site')}
-                                    </Link>
-                                </Button>
-                            )}
-                        </>
-                    }
-                />
+                {/* The band is the header of a portfolio with sites (ring, headline, meta); an empty one gets the plain header. */}
+                {tiles.sites === 0 && (
+                    <PageHeader
+                        title={t('Sites')}
+                        description={t('No sites monitored yet')}
+                        notices={<MonitoringHealthNotices />}
+                        actions={addSiteAction}
+                    />
+                )}
                 <SitesAttentionBand
+                    actions={addSiteAction}
+                    notices={<MonitoringHealthNotices />}
+                    clientCount={summary.clients}
                     tiles={tiles}
                     needsAttention={needs_attention}
                     needsAttentionTotal={needs_attention_total}
@@ -334,25 +312,6 @@ export default function SitesIndex({
                                 onChange={(event) =>
                                     changeSearch(event.target.value)
                                 }
-                            />
-                        }
-                        segmented={
-                            <SegmentedControl
-                                label={t('Sites')}
-                                value={filters.attention ? 'attention' : 'all'}
-                                onValueChange={(value) =>
-                                    visit({
-                                        attention:
-                                            value === 'attention' ? '1' : null,
-                                    })
-                                }
-                                options={[
-                                    { value: 'all', label: t('All') },
-                                    {
-                                        value: 'attention',
-                                        label: t('Attention'),
-                                    },
-                                ]}
                             />
                         }
                     >
@@ -428,6 +387,7 @@ export default function SitesIndex({
                             pagination={pagination}
                             hasFilters={hasFilters}
                             canCreate={can_create}
+                            sort={filters.sort}
                             onSort={(sort) => visit({}, sort)}
                         />
                     )}
@@ -444,6 +404,7 @@ function SitesList({
     pagination,
     hasFilters,
     canCreate,
+    sort,
     onSort,
 }: {
     sites: Heptapod.Data.Ui.SiteRowData[];
@@ -452,6 +413,7 @@ function SitesList({
     pagination: Heptapod.Data.Ui.PaginationData;
     hasFilters: boolean;
     canCreate: boolean;
+    sort: string;
     onSort: (sort: string) => void;
 }) {
     const { t } = useTranslation();
@@ -494,6 +456,8 @@ function SitesList({
                         full
                         serverMode
                         historyLoading={history === undefined}
+                        pageSize={pagination.per_page}
+                        sort={sort}
                         onSort={(sort) => onSort(sort)}
                         onSelect={(site) => router.visit(siteShow.url(site.id))}
                         siteHref={(site) => siteShow.url(site.id)}
@@ -539,6 +503,7 @@ function SitesList({
                     }
                     page={pagination.current_page}
                     lastPage={pagination.last_page}
+                    pageSize={pagination.per_page}
                 />
             )}
         </>

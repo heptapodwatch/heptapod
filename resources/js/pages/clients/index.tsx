@@ -362,6 +362,7 @@ export default function ClientsIndex({
                         }
                         page={pagination.current_page}
                         lastPage={pagination.last_page}
+                        pageSize={pagination.per_page}
                     />
                 )}
             </PageContainer>

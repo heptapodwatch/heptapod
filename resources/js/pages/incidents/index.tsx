@@ -182,12 +182,25 @@ export default function IncidentsIndex({
             </span>
         </TooltipHint>,
     ];
+    const stats = t(
+        '30 days: {{count}} incidents · {{duration}} total · median {{median}}',
+        {
+            count: summary.count,
+            formattedCount: format.number(summary.count),
+            duration: format.duration(summary.total_duration_seconds),
+            median:
+                summary.median_duration_seconds === null
+                    ? '—'
+                    : format.duration(summary.median_duration_seconds),
+        },
+    );
     return (
         <PageContainer>
             <Head title={t('Incidents')} />
             <PageHeader
                 title={t('Incidents')}
-                description={t('pages.incidents.description')}
+                // The 30-day record is the header's one line, like the Sites meta line.
+                description={stats}
                 actions={
                     <>
                         <Button variant="outline" asChild>
@@ -295,24 +308,6 @@ export default function IncidentsIndex({
                     </SelectContent>
                 </Select>
             </FilterBar>
-            <p className="text-xs text-muted-foreground">
-                {t(
-                    '30 days: {{count}} incidents · {{duration}} total · median {{median}}',
-                    {
-                        count: summary.count,
-                        formattedCount: format.number(summary.count),
-                        duration: format.duration(
-                            summary.total_duration_seconds,
-                        ),
-                        median:
-                            summary.median_duration_seconds === null
-                                ? '—'
-                                : format.duration(
-                                      summary.median_duration_seconds,
-                                  ),
-                    },
-                )}
-            </p>
             <PendingChanges
                 count={buffered.pendingCount}
                 apply={buffered.apply}
@@ -429,6 +424,7 @@ export default function IncidentsIndex({
                     }
                     page={pagination.current_page}
                     lastPage={pagination.last_page}
+                    pageSize={pagination.per_page}
                 />
             )}
         </PageContainer>

@@ -22,6 +22,8 @@ use Heptapod\Contracts\CheckType;
 use Heptapod\Contracts\ChromiumRenderer;
 use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\LatestRunEvidence;
+use Heptapod\Contracts\ListScore;
+use Heptapod\Contracts\ListScoresProvider;
 use Heptapod\Contracts\Mail\MailEventFacts;
 use Heptapod\Contracts\Mail\MailEvidenceProvider;
 use Heptapod\Contracts\Mail\MailTone;
@@ -39,7 +41,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Spatie\Lighthouse\LighthouseResult;
 
-final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistoryProvider, CheckRunPresenter, CheckType, MailEvidenceProvider, ReportsAvailability
+final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistoryProvider, CheckRunPresenter, CheckType, ListScoresProvider, MailEvidenceProvider, ReportsAvailability
 {
     private const array Categories = ['performance' => 'performance', 'accessibility' => 'accessibility', 'best_practices' => 'best-practices', 'seo' => 'seo'];
 
@@ -208,6 +210,20 @@ final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistor
         return $recovery instanceof CheckRunPresentationInput
             ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
             : [new NoteBlock(__('lighthouse.mail_details_not_retained', locale: $locale))];
+    }
+
+    public function listScores(?array $metrics): array
+    {
+        $scores = [];
+        foreach (array_keys(self::Categories) as $category) {
+            $score = $metrics[$category.'_score'] ?? null;
+            if (! is_int($score)) {
+                return [];
+            }
+            $scores[] = new ListScore('lighthouse.'.$category, $score);
+        }
+
+        return $scores;
     }
 
     public function definition(): CheckDefinition

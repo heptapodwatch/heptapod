@@ -39,7 +39,7 @@ final readonly class RunsReader
 
     public function __construct(private SitePolicy $policy, private CheckRunsReader $checkRuns, private CauseSummary $summaries, private CheckRunPresentations $presentations, private CheckRegistry $registry) {}
 
-    public function history(User $user, ?int $checkId = null, ?int $before = null, ?int $clientId = null, ?string $type = null, ?RunPhase $phase = null, bool $showSameResult = true, ?CarbonImmutable $since = null): RunsHistoryPageData
+    public function history(User $user, int $perPage, ?int $checkId = null, ?int $before = null, ?int $clientId = null, ?string $type = null, ?RunPhase $phase = null, bool $showSameResult = true, ?CarbonImmutable $since = null): RunsHistoryPageData
     {
         /** @var list<int> $historyIds */
         $historyIds = $this->visibleChecks($user, $checkId, $clientId, $type)->toBase()->pluck('checks.id')->all();
@@ -67,9 +67,9 @@ final readonly class RunsReader
         if (! $showSameResult) {
             $rowsQuery->getQuery()->whereRaw('history_result_repeated IS NOT TRUE');
         }
-        $rowsQuery->getQuery()->orderByDesc('requested_at')->orderByDesc('id')->limit(51);
+        $rowsQuery->getQuery()->orderByDesc('requested_at')->orderByDesc('id')->limit($perPage + 1);
         $attempts = $rowsQuery->get();
-        $cursor = $attempts->count() > 50 ? $attempts->get(49)?->id : null;
+        $cursor = $attempts->count() > $perPage ? $attempts->get($perPage - 1)?->id : null;
         $runQuery = CheckRun::query()->with('check.site');
         // Attempts carry the physical accepted-run identity, not a globally unique id.
         $runQuery->where(function (Builder $query) use ($attempts): void {
@@ -84,7 +84,7 @@ final readonly class RunsReader
         });
         $recordedRuns = $runQuery->get()->keyBy(static fn (CheckRun $run): string => $run->id.'|'.$run->ended_at->format('U.u').'|'.$run->check_id);
         $rows = [];
-        foreach ($attempts->take(50) as $attempt) {
+        foreach ($attempts->take($perPage) as $attempt) {
             $check = $attempt->check;
             $site = $check?->site;
             // Checks and sites load after the attempts; one deleted in between takes its attempts with it.

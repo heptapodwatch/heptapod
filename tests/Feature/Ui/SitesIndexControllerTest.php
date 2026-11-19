@@ -296,3 +296,24 @@ it('uses the same display name in SQL projections, incidents and notification ev
     'IPv6' => ['https://[2001:db8::1]/shop/', null, '[2001:db8::1]/shop'],
     'IPv6 port and credentials' => ['https://user:pass@[2001:db8::1]:8443/shop/?email=alice@other.test', null, '[2001:db8::1]:8443/shop'],
 ]);
+
+it('sorts sites by client display name, then site name, in both directions', function (): void {
+    $owner = User::factory()->owner()->create(['locale' => 'de']);
+    $zebra = Client::factory()->create(['name' => 'Zebra GmbH']);
+    $apfel = Client::factory()->create(['name' => 'Äpfel AG']);
+    $internal = Client::query()->where('is_internal', true)->firstOrFail();
+    Site::factory()->for($zebra)->create(['friendly_name' => 'Alpha']);
+    Site::factory()->for($apfel)->create(['friendly_name' => 'Beta']);
+    Site::factory()->for($apfel)->create(['friendly_name' => 'Alpha']);
+    Site::factory()->for($internal)->create(['friendly_name' => 'Gamma']);
+    $labels = [$zebra->id => 'Zebra GmbH', $apfel->id => 'Äpfel AG', $internal->id => 'Ohne Kunde'];
+    $names = fn (string $sort): array => array_map(
+        static fn (array $site): string => $site['name'].' / '.$labels[$site['client_id']],
+        $this->get('/sites?sort='.$sort, ['X-Inertia-Partial-Component' => 'sites/index', 'X-Inertia-Partial-Data' => 'sites'])->assertOk()->inertiaProps()['sites'],
+    );
+
+    // "Ohne Kunde" is the internal client's German display name and sorts between Ä and Z (ICU collation).
+    $this->actingAs($owner);
+    expect($names('client'))->toBe(['Alpha / Äpfel AG', 'Beta / Äpfel AG', 'Gamma / Ohne Kunde', 'Alpha / Zebra GmbH'])
+        ->and($names('-client'))->toBe(['Alpha / Zebra GmbH', 'Gamma / Ohne Kunde', 'Alpha / Äpfel AG', 'Beta / Äpfel AG']);
+});

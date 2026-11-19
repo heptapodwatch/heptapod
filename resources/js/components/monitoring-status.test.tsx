@@ -140,7 +140,7 @@ it('moves the tooltip straight to the next check cell when the pointer slides ac
     ).toEqual([expect.stringContaining('checks.performance.label')]);
 });
 
-it('draws each check slot from its own state: snoozed keeps the result colour, turned off is empty, not set up dashed', () => {
+it('draws each check slot from its own state: snoozed keeps the result colour, turned off and not set up share the Off dash', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-03T12:00:00Z'));
     const base = galleryChecks.find((check) => check.key === 'uptime')!;
@@ -200,10 +200,11 @@ it('draws each check slot from its own state: snoozed keeps the result colour, t
     expect(slot('domain').getAttribute('aria-label')).toBe(
         'domain · Turned off',
     );
-    expect(dot('domain')).toBeNull();
+    expect(dot('domain')?.dataset.state).toBe('disabled');
     // A gap without current data reads as no result yet, never as Off.
     expect(dot('broken_links')?.dataset.state).toBe('pending');
     expect(slot('checks.lighthouse.label').dataset.checkMark).toBe('unset');
+    expect(dot('checks.lighthouse.label')?.dataset.state).toBe('disabled');
     expect(
         screen
             .queryAllByRole('img')

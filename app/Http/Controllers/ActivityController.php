@@ -6,6 +6,7 @@ namespace Heptapod\Http\Controllers;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckKey;
+use Heptapod\Data\Ui\ActivityBatchData;
 use Heptapod\Data\Ui\ActivityFilterData;
 use Heptapod\Data\Ui\ActivityPageData;
 use Heptapod\Models\User;
@@ -16,9 +17,12 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Inertia\ScrollMetadata;
 
 final class ActivityController extends Controller
 {
+    private const int BatchSize = 50;
+
     public function __invoke(Request $request, EventsReader $reader, SitesReader $sites): Response
     {
         $user = $request->user();
@@ -28,8 +32,7 @@ final class ActivityController extends Controller
             'client' => ['sometimes', 'integer', 'min:1'],
             'check' => ['sometimes', Rule::enum(CheckKey::class)],
             'period' => ['sometimes', Rule::in(['24h', '7d', '30d', 'all'])],
-            'before' => ['sometimes', 'integer', 'min:1', 'prohibits:after'],
-            'after' => ['sometimes', 'integer', 'min:1', 'prohibits:before'],
+            'before' => ['sometimes', 'integer', 'min:1'],
             'group' => ['sometimes', 'integer', 'min:1'],
             'event_page' => ['sometimes', 'integer', 'min:1', 'max:10000'],
         ])->validate();
@@ -47,18 +50,33 @@ final class ActivityController extends Controller
         $client = $request->filled('client') ? $request->integer('client') : null;
         $check = $request->filled('check') ? CheckKey::from($request->string('check')->toString()) : null;
         $before = $request->filled('before') ? $request->integer('before') : null;
-        $after = $request->filled('after') ? $request->integer('after') : null;
-        $cursorId = $before ?? $after;
-        $cursor = $cursorId === null ? null : $reader->activityCursor($user, $cursorId, $since, $search, $client, $check?->value);
-        $groups = $reader->activityGroups($user, $since, $search, $client, $check?->value, cursor: $cursor, newer: $after !== null, limit: 21);
-        $feed = $reader->readActivity($groups, $cursor, $after !== null);
+        $loaded = null;
+        $batch = static function (?int $before) use ($reader, $user, $since, $search, $client, $check): array {
+            $cursor = $before === null ? null : $reader->activityCursor($user, $before, $since, $search, $client, $check?->value);
+
+            return $reader->activityBatch($reader->activityGroups($user, $since, $search, $client, $check?->value, cursor: $cursor, limit: self::BatchSize + 2), $cursor, self::BatchSize);
+        };
         $groupId = $request->filled('group') ? $request->integer('group') : null;
         $eventPage = $request->integer('event_page', 1);
         $expanded = $groupId === null ? [] : $reader->activityDetails($user, $groupId, $eventPage, $since, $search, $client, $check?->value);
 
         abort_if($groupId !== null && $expanded === [], 404);
 
-        return Inertia::render('activity/index', new ActivityPageData($feed['events'], $feed['older'], $feed['newer'], $retentionDays,
-            $sites->clients($user), new ActivityFilterData($search ?? '', $client, $check, $period, $before, $after), $groupId, $expanded, $eventPage)->toArray());
+        return Inertia::render('activity/index', new ActivityPageData(
+            // Older batches load by infinite scroll (`before` = the last group's latest event); the URL keeps no cursor.
+            events: Inertia::scroll(static function () use (&$loaded, $batch, $before): ActivityBatchData {
+                return new ActivityBatchData(($loaded ??= $batch($before))['groups']);
+            }, metadata: static function () use (&$loaded, $batch, $before): ScrollMetadata {
+                return new ScrollMetadata('before', null, ($loaded ??= $batch($before))['older'], $before);
+            }),
+            // Live reloads ask for the newest batch only; the loaded older batches stay as they are.
+            head: Inertia::optional(static fn (): ActivityBatchData => new ActivityBatchData($batch(null)['groups'])),
+            retention_days: $retentionDays,
+            clients: $sites->clients($user),
+            filters: new ActivityFilterData($search ?? '', $client, $check, $period),
+            expanded_id: $groupId,
+            expanded_events: $expanded,
+            event_page: $eventPage,
+        ));
     }
 }
