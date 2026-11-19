@@ -46,6 +46,8 @@ import { cn } from '@/lib/utils';
 import { show as incidentShow } from '@/routes/incidents';
 import { index as maintenanceIndex } from '@/routes/maintenance';
 import { show as checkShow } from '@/routes/sites/checks';
+// MOCKUP ONLY (branch feat-sites-visual, phase 1). Remove in phase 2.
+import { useResponseLine } from '@/components/sites-visual-variants-2';
 
 type Page = Heptapod.Data.Ui.SiteOverviewPageData;
 type Check = Heptapod.Data.Ui.CheckStripData;
@@ -551,6 +553,7 @@ function ResponseCard({ page, check }: { page: Page; check: Check }) {
     const { t } = useTranslation();
     const format = useFormat();
     const uptime = page.site.checks.find((item) => item.key === 'uptime');
+    const line = useResponseLine(page.site);
     return (
         <LaunchpadCard
             title={t('Response time')}
@@ -581,6 +584,7 @@ function ResponseCard({ page, check }: { page: Page; check: Check }) {
                     data={page.site.response}
                     state={uptime ? checkState(uptime) : 'ok'}
                     decorative
+                    {...line}
                 />
                 <span className="sr-only">
                     {responseTimeSummary(page.site.response, t, format)}

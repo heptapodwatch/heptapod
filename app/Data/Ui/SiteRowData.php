@@ -30,5 +30,7 @@ final class SiteRowData extends Data
         public readonly SiteIdentityData $identity,
         /** Null without a Lighthouse check or when its latest run recorded no scores (a check error). */
         public readonly ?LighthouseScoresData $lighthouse = null,
+        /** The enabled performance check's slow threshold; null without one. */
+        public readonly ?int $response_threshold_ms = null,
     ) {}
 }

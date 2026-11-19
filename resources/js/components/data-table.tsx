@@ -64,6 +64,11 @@ import {
     hasLighthouse,
     LighthouseCell,
 } from '@/components/sites-visual-variants';
+import {
+    SitesColumnsMenu,
+    useHiddenColumns,
+    useResponseLine,
+} from '@/components/sites-visual-variants-2';
 import { useCheckHeadline } from '@/hooks/use-check-headline';
 import { useStreamState } from '@/hooks/use-live';
 import { currentRunState } from '@/lib/live-store';
@@ -90,6 +95,8 @@ type SiteTableCellOptions = {
     clientFor: (site: SiteDto) => Heptapod.Data.Ui.ClientData;
     runs: ReturnType<typeof useStreamState<'runs'>>;
     historyLoading: boolean;
+    /** MOCKUP ONLY (phase 1): with the column variants the client lives in its own column only. */
+    clientInSiteCell: boolean;
 };
 const SiteTableCellContext = createContext<SiteTableCellOptions | null>(null);
 function useSiteTableCellOptions() {
@@ -111,6 +118,7 @@ function SiteTableNameCell({
         onSelectionChange,
         siteHref,
         clientFor,
+        clientInSiteCell,
     } = useSiteTableCellOptions();
     return (
         <div className="flex min-w-0 items-center gap-3">
@@ -151,7 +159,7 @@ function SiteTableNameCell({
                     compact={full}
                     href={siteHref?.(row.original)}
                 />
-                {full && showClient && (
+                {full && showClient && clientInSiteCell && (
                     <span className="block truncate text-xs text-muted-foreground @[1300px]/table:hidden">
                         {clientFor(row.original).name}
                     </span>
@@ -186,6 +194,7 @@ function SiteTableResponseCell({
     const { t } = useTranslation();
     const format = useFormat();
     const { historyLoading } = useSiteTableCellOptions();
+    const line = useResponseLine(row.original);
     if (historyLoading) return <Skeleton className="h-6 w-20" />;
     return (
         <>
@@ -194,6 +203,7 @@ function SiteTableResponseCell({
                     data={row.original.response}
                     state={row.original.state}
                     decorative
+                    {...line}
                 />
             </div>
             <span className="sr-only">
@@ -245,7 +255,10 @@ export function DataTable({
     onSort,
     siteHref,
     historyLoading = false,
+    pageSize = 50,
 }: {
+    /** The server's page size; the table shows the whole page it gets. */
+    pageSize?: number;
     /** Uptime and response arrive after the rows; their cells hold a skeleton of the same size until then. */
     historyLoading?: boolean;
     onPrefetch?: (site: SiteDto) => void;
@@ -267,6 +280,12 @@ export function DataTable({
     const headline = useCheckHeadline();
     const runs = useStreamState('runs');
     const lighthouseVariant = useMockupVariant('lighthouse');
+    const columnsVariant = useMockupVariant('cols');
+    const hiddenColumns = useHiddenColumns();
+    // MOCKUP ONLY (phase 1): with a column variant the Client column always shows (unless hidden) and leaves the Site cell.
+    const chosenColumns = full && columnsVariant !== 'current';
+    const shows = (column: Parameters<typeof hiddenColumns.has>[0]) =>
+        !chosenColumns || !hiddenColumns.has(column);
     const [sorting, setSorting] = useState<SortingState>([]);
     const root = useRef<HTMLDivElement>(null);
     const hasUptimeCheck = (site: SiteDto) =>
@@ -422,9 +441,13 @@ export function DataTable({
             : id === 'state'
               ? 'w-px'
               : id === 'name'
-                ? 'w-auto max-w-0'
+                ? chosenColumns
+                    ? 'w-[190px] max-w-[190px]'
+                    : 'w-auto max-w-0'
                 : id === 'why'
-                  ? 'w-[175px]'
+                  ? chosenColumns
+                      ? 'w-auto max-w-0 min-w-[120px]'
+                      : 'w-[175px]'
                   : id === 'uptime'
                     ? 'hidden @[1100px]/table:table-cell @[1100px]/table:w-[128px] text-right'
                     : id === 'checked_at'
@@ -432,7 +455,9 @@ export function DataTable({
                       : cn(
                             'hidden',
                             id === 'client_id'
-                                ? '@[1300px]/table:table-cell @[1300px]/table:w-[120px]'
+                                ? chosenColumns
+                                    ? '@[600px]/table:table-cell @[600px]/table:w-[130px]'
+                                    : '@[1300px]/table:table-cell @[1300px]/table:w-[120px]'
                                 : id === 'checks'
                                   ? '@[900px]/table:table-cell @[900px]/table:w-[225px]'
                                   : id === 'response'
@@ -447,14 +472,16 @@ export function DataTable({
         columns,
         state: {
             sorting,
-            pagination: { pageIndex, pageSize: 50 },
+            pagination: { pageIndex, pageSize },
             columnVisibility: {
                 state: true,
-                client_id: full,
-                checks: full,
-                why: full,
-                response: full,
-                checked_at: full,
+                client_id: full && shows('client_id'),
+                checks: full && shows('checks'),
+                why: full && shows('why'),
+                response: full && shows('response'),
+                checked_at: full && shows('checked_at'),
+                uptime: shows('uptime'),
+                lighthouse: shows('lighthouse'),
             },
         },
         onSortingChange: (updater) => {
@@ -515,7 +542,7 @@ export function DataTable({
                         {site.url}
                     </span>
                 </TruncatedText>
-                {showClient && (
+                {showClient && shows('client_id') && (
                     <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
                         <span className="truncate">{clientFor(site).name}</span>
                     </span>
@@ -531,12 +558,17 @@ export function DataTable({
                         {isSnoozed(worstCheck, Date.now()) &&
                             ` · ${t('Snoozed until {{time}}', { time: format.timestamp(worstCheck.snoozed_until!) })}`}
                     </span>
-                ) : why(site) ? (
+                ) : shows('why') && why(site) ? (
                     <span className="line-clamp-2 text-xs text-muted-foreground">
                         {why(site)}
                     </span>
                 ) : null}
-                <span className="flex w-full items-center justify-between gap-2 border-t pt-2 text-xs">
+                <span
+                    className={cn(
+                        'flex w-full items-center justify-between gap-2 border-t pt-2 text-xs',
+                        !shows('uptime') && 'hidden',
+                    )}
+                >
                     <span className="text-muted-foreground">
                         {t('30-day uptime')}
                     </span>
@@ -556,17 +588,19 @@ export function DataTable({
                         </span>
                     )}
                 </span>
-                {lighthouseVariant !== 'off' && hasLighthouse(site) && (
-                    <span className="flex w-full items-center justify-between gap-2 text-xs">
-                        <span className="text-muted-foreground">
-                            {t('checks.lighthouse.label')}
+                {lighthouseVariant !== 'off' &&
+                    shows('lighthouse') &&
+                    hasLighthouse(site) && (
+                        <span className="flex w-full items-center justify-between gap-2 text-xs">
+                            <span className="text-muted-foreground">
+                                {t('checks.lighthouse.label')}
+                            </span>
+                            <LighthouseCell
+                                site={site}
+                                variant={lighthouseVariant}
+                            />
                         </span>
-                        <LighthouseCell
-                            site={site}
-                            variant={lighthouseVariant}
-                        />
-                    </span>
-                )}
+                    )}
             </>
         );
     };
@@ -615,13 +649,14 @@ export function DataTable({
                         clientFor,
                         runs,
                         historyLoading,
+                        clientInSiteCell: !chosenColumns,
                     }}
                 >
                     <Table className={full ? 'table-auto' : 'table-fixed'}>
                         <TableHeader>
                             {table.getHeaderGroups().map((group) => (
                                 <TableRow key={group.id}>
-                                    {group.headers.map((header) => (
+                                    {group.headers.map((header, index) => (
                                         <TableHead
                                             key={header.id}
                                             className={cn(
@@ -727,6 +762,15 @@ export function DataTable({
                                                     )}
                                                 </TooltipContent>
                                             </Tooltip>
+                                            {chosenColumns &&
+                                                columnsVariant === 'c2' &&
+                                                index ===
+                                                    group.headers.length -
+                                                        1 && (
+                                                    <span className="ml-1 inline-flex align-middle">
+                                                        <SitesColumnsMenu trigger="c2" />
+                                                    </span>
+                                                )}
                                         </TableHead>
                                     ))}
                                 </TableRow>

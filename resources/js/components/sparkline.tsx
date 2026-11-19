@@ -56,9 +56,15 @@ export function Sparkline({
     label = 'Response time',
     unit = 'ms',
     decorative = false,
+    color: colorOverride,
+    slowAbove = null,
 }: {
     data: ResponsePointDto[];
     state?: SiteState;
+    /** MOCKUP ONLY (phase 1): the line colour from the site's own speed instead of its state. */
+    color?: string;
+    /** MOCKUP ONLY (phase 1): samples above this many ms are traced in the Warning colour over the line. */
+    slowAbove?: number | null;
     label?: string;
     unit?: 'ms' | 'percent' | 'count';
     decorative?: boolean;
@@ -90,7 +96,17 @@ export function Sparkline({
     const points = hasLine ? sparklinePoints(data) : [];
     const selectedPoint = selected === null ? undefined : points[selected];
     const color =
-        state === 'ok' ? 'var(--muted-foreground)' : statusColor[state];
+        colorOverride ??
+        (state === 'ok' ? 'var(--muted-foreground)' : statusColor[state]);
+    const slowPoints =
+        slowAbove === null
+            ? []
+            : points.map((point, index) => {
+                  const value = data[index]?.value ?? null;
+                  return value !== null && value > slowAbove
+                      ? point
+                      : { x: point.x, y: null };
+              });
     const values = (point ? [point] : data).flatMap((item) =>
         item.value === null ? [] : [item.value],
     );
@@ -159,6 +175,30 @@ export function Sparkline({
                                 fill="none"
                                 className="recharts-line-curve"
                             />
+                        )}
+                        {slowPoints.some((point) => point.y !== null) && (
+                            <>
+                                <Curve
+                                    type="monotone"
+                                    layout="horizontal"
+                                    points={slowPoints}
+                                    stroke={statusColor.warning}
+                                    strokeWidth={2}
+                                    fill="none"
+                                />
+                                {slowPoints.map((point, index) =>
+                                    point.y === null ? null : (
+                                        <circle
+                                            key={index}
+                                            data-sparkline-slow
+                                            cx={point.x}
+                                            cy={point.y}
+                                            r={1.5}
+                                            fill={statusColor.warning}
+                                        />
+                                    ),
+                                )}
+                            </>
                         )}
                         {selectedPoint?.y != null && (
                             <circle

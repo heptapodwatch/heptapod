@@ -65,7 +65,7 @@ use Spatie\Tags\Tag;
  * @phpstan-type CheckRunProjection array{check_id: int, phase: value-of<RunPhase>, attempt_id: int|null, queue: string|null, queue_position: int|null, progress_n: int|null, progress_total: int|null, phase_label: string|null, started_at: string|null, actor: string|null, due_at: string|null, can_cancel: bool, requested_at: string|null}
  * @phpstan-type CheckStripProjection array{pending_recheck: bool, freshness_suppressed_by: value-of<FreshnessSuppression>|null, freshness_suppression_label_key: string|null, dependency_headline_key: string|null, not_fresh: bool, state: value-of<SiteStatus>, id: int, key: value-of<CheckKey>, label_key: string, icon_id: string, enabled: bool, result: value-of<CheckResult>, open_incident_id: int|null, open_incident_started_at: string|null, summary: string|null, summary_params: array<string, string|int|float|bool|null>, checked_at: string|null, snoozed_until: string|null, unavailable_reason: string|null, run: CheckRunProjection|null, open_incident_requires_complete_recovery: bool, uptime_parent_incident_id: int|null, affected_checks: list<string>, held_after_recovery: bool, next_run_at: string|null, presentation?: array<array-key, mixed>|null}
  * @phpstan-type SiteHistoryProjection array{site_id: int, uptime: float|null, response: array{start: string, step_seconds: int, values: list<int|null>, marks: list<array{slot: int, failure_count: int, error_count: int, warning_count: int, failure_status: value-of<BucketStatus>|null}>}}
- * @phpstan-type SiteRowProjection array{id: int, name: string, url: string, client_id: int, tags: list<string>, state: value-of<SiteStatus>, uptime: float|null, response: list<ResponsePointProjection>, checks: list<CheckStripProjection>, checked_at: string|null, identity: SiteIdentityProjection, lighthouse: LighthouseScoresProjection|null}
+ * @phpstan-type SiteRowProjection array{id: int, name: string, url: string, client_id: int, tags: list<string>, state: value-of<SiteStatus>, uptime: float|null, response: list<ResponsePointProjection>, checks: list<CheckStripProjection>, checked_at: string|null, identity: SiteIdentityProjection, lighthouse: LighthouseScoresProjection|null, response_threshold_ms: int|null}
  * @phpstan-type LighthouseScoresProjection array{performance: int, accessibility: int, best_practices: int, seo: int}
  */
 final readonly class SitesReader
@@ -175,7 +175,7 @@ final readonly class SitesReader
     /** @return LengthAwarePaginator<int, Site> */
     public function page(User $user, Request $request): LengthAwarePaginator
     {
-        return $this->pageQuery($this->projected($user), $request)->paginate(50)->withQueryString();
+        return $this->pageQuery($this->projected($user), $request)->paginate($this->perPage($request))->withQueryString();
     }
 
     /** @param Builder<Site> $query
@@ -305,12 +305,18 @@ final readonly class SitesReader
         $attentionTotal = array_sum(array_map(static fn (SiteStatus $status): int => $counts[$status->value], SiteStatus::attention()));
         // These are partial Site projections; encrypted crawler headers retain their database representation.
         $attentionSites = Site::hydrate($attentionRows);
-        $paginator = new LengthAwarePaginator(new EloquentCollection, $row->filtered_total, 50, $currentPage, [
+        $paginator = new LengthAwarePaginator(new EloquentCollection, $row->filtered_total, $this->perPage($request), $currentPage, [
             'path' => LengthAwarePaginator::resolveCurrentPath(),
         ]);
 
         return ['page' => $paginator->withQueryString(), 'attention' => $attentionSites,
             'summary' => new SiteListSummaryData($row->total, $attentionTotal, $counts['paused']), 'states' => $counts];
+    }
+
+    /** The validated `per_page` (10, 20, 50 or 100; SitesIndexController rejects anything else), 50 when absent. */
+    private function perPage(Request $request): int
+    {
+        return $request->integer('per_page', 50);
     }
 
     public function summary(User $user): SiteListSummaryData
@@ -478,6 +484,7 @@ final readonly class SitesReader
         $rows = [];
         $registeredKeys = $this->registry->keys();
         $checkMetadata = [];
+        $performanceDefault = null;
         foreach ($sites as $site) {
             $series = $includeHistory && isset($uptimeIds[$site->id]) ? $samples[$uptimeIds[$site->id]] : [];
             $response = [];
@@ -488,6 +495,7 @@ final readonly class SitesReader
             }
             $strip = [];
             $lighthouse = null;
+            $responseThreshold = null;
             $checkedAt = null;
             $checksById = $site->checks->keyBy('id');
             $openIncidents = $site->checks->flatMap(static fn (Check $check) => $check->incidents);
@@ -517,6 +525,12 @@ final readonly class SitesReader
                     if (is_int($performance) && is_int($accessibility) && is_int($bestPractices) && is_int($seo)) {
                         $lighthouse = ['performance' => $performance, 'accessibility' => $accessibility, 'best_practices' => $bestPractices, 'seo' => $seo];
                     }
+                }
+                if ($key === CheckKey::Performance && $check->enabled) {
+                    // The performance check's own slow threshold, so the response line colours by speed, not by site state.
+                    $performanceDefault ??= $this->registry->get(CheckKey::Performance)->definition()->configSchema->defaults()['threshold_in_ms'] ?? null;
+                    $threshold = $check->config['threshold_in_ms'] ?? $performanceDefault;
+                    $responseThreshold = is_int($threshold) ? $threshold : null;
                 }
                 $summary = $this->summaries->project($check, $run);
                 $presentation = null;
@@ -602,6 +616,7 @@ final readonly class SitesReader
                 'identity' => ['id' => $identity->id, 'name' => $identity->name, 'url' => $identity->url, 'client_id' => $identity->client_id,
                     'state' => $identity->state->value, 'icon_url' => $identity->icon_url, 'icon_backing' => $identity->icon_backing->value],
                 'lighthouse' => $lighthouse,
+                'response_threshold_ms' => $responseThreshold,
             ];
         }
 

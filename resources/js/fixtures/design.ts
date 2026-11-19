@@ -166,6 +166,7 @@ export const sites: SiteDto[] = names.map((name, index) => {
         tags: [state === 'paused' ? 'staging' : 'production'],
         state,
         lighthouse: null,
+        response_threshold_ms: index === 3 ? 400 : 2000,
         identity: {
             icon_url: null,
             icon_backing: 'none',

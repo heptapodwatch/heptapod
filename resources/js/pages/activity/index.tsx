@@ -28,6 +28,10 @@ import { checkTypes } from '@/lib/check-types';
 import { index as activityIndex } from '@/routes/activity';
 import { exportMethod as exportIncidents } from '@/routes/incidents';
 import { TextLink } from '@/components/text-link';
+// MOCKUP ONLY (branch feat-sites-visual, phase 1). Remove in phase 2.
+import { ActivityTimeline } from '@/components/activity-timeline-variants';
+import { SitesVisualMockupSwitcher } from '@/components/sites-visual-variants';
+import { useMockupVariant } from '@/lib/sites-visual-variants';
 
 type ActivityFilters = Omit<
     Heptapod.Data.Ui.ActivityFilterData,
@@ -94,6 +98,8 @@ export default function Activity({
     const { t } = useTranslation();
     const format = useFormat();
     const { url } = usePage();
+    // MOCKUP ONLY (phase 1): the timeline variants A1–A3.
+    const activityVariant = useMockupVariant('activity');
     const [draft, setDraft] = useState<ActivityFilters>({
         q: filters.q,
         client: filters.client,
@@ -182,6 +188,7 @@ export default function Activity({
     return (
         <PageContainer>
             <Head title={t('Activity')} />
+            <SitesVisualMockupSwitcher dimensions={['activity']} />
             <PageHeader
                 title={t('Activity')}
                 description={t('pages.activity.description')}
@@ -328,6 +335,11 @@ export default function Activity({
                             'Clear filters to see the last 24 hours.',
                         ),
                     }}
+                />
+            ) : activityVariant !== 'current' ? (
+                <ActivityTimeline
+                    groups={buffered.rows}
+                    variant={activityVariant}
                 />
             ) : (
                 <div className="@container/table overflow-hidden rounded-lg border">

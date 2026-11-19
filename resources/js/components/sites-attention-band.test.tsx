@@ -88,6 +88,7 @@ const attentionSite = (id: number): Heptapod.Data.Ui.SiteRowData => ({
     checks: [],
     checked_at: null,
     lighthouse: null,
+    response_threshold_ms: null,
     identity: {
         id,
         name: `Site ${id}`,

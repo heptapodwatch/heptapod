@@ -43,6 +43,7 @@ final class SitesIndexController extends Controller
             'filter.advisory' => ['sometimes', 'nullable', 'string', 'max:2048'],
             'sort' => ['sometimes', 'string', 'max:100'],
             'page' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', Rule::in([10, 20, 50, 100])],
         ])->validate();
 
         $partial = $request->header('X-Inertia-Partial-Component') === 'sites/index';

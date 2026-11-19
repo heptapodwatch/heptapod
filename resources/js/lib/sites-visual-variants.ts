@@ -7,6 +7,10 @@ export const mockupDimensions = {
     lighthouse: ['off', 'l1', 'l2', 'l3'],
     head: ['current', 'h1', 'h2', 'h3'],
     incidents: ['current', 'i1', 'i2'],
+    spark: ['current', 'p1', 'p2', 'p3'],
+    cols: ['current', 'c1', 'c2', 'c3'],
+    pagesize: ['current', 's1', 's2'],
+    activity: ['current', 'a1', 'a2', 'a3'],
 } as const;
 
 export type MockupDimension = keyof typeof mockupDimensions;

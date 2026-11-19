@@ -811,5 +811,14 @@
     "replicator.max_reached_other": "Up to {{formattedCount}} entries.",
     "No Lighthouse check": "No Lighthouse check",
     "No scores yet": "No scores yet",
-    "Lowest score: {{score}}": "Lowest score: {{score}}"
+    "Lowest score: {{score}}": "Lowest score: {{score}}",
+    "Columns": "Columns",
+    "Sort by": "Sort by",
+    "Show columns": "Show columns",
+    "Reset columns": "Reset columns",
+    "Rows": "Rows",
+    "Rows per page": "Rows per page",
+    "{{count}} per page": "{{count}} per page",
+    "Name A–Z": "Name A–Z",
+    "Name Z–A": "Name Z–A"
 }

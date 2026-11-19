@@ -811,5 +811,14 @@
     "replicator.max_reached_other": "Höchstens {{formattedCount}} Einträge.",
     "No Lighthouse check": "Keine Lighthouse-Prüfung",
     "No scores yet": "Noch keine Werte",
-    "Lowest score: {{score}}": "Niedrigster Wert: {{score}}"
+    "Lowest score: {{score}}": "Niedrigster Wert: {{score}}",
+    "Columns": "Spalten",
+    "Sort by": "Sortieren nach",
+    "Show columns": "Spalten anzeigen",
+    "Reset columns": "Spalten zurücksetzen",
+    "Rows": "Zeilen",
+    "Rows per page": "Zeilen pro Seite",
+    "{{count}} per page": "{{count}} pro Seite",
+    "Name A–Z": "Name A–Z",
+    "Name Z–A": "Name Z–A"
 }

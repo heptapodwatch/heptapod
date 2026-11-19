@@ -42,6 +42,10 @@ import { SeverityBadge } from '@/components/security-advisory-list';
 import { SitesVisualMockupSwitcher } from '@/components/sites-visual-variants';
 import { useMockupVariant } from '@/lib/sites-visual-variants';
 import {
+    PageSizeControl,
+    SitesColumnsMenu,
+} from '@/components/sites-visual-variants-2';
+import {
     show as siteShow,
     index as sitesIndex,
     create as sitesCreate,
@@ -195,6 +199,7 @@ export default function SitesIndex({
         changes: Record<string, string | null>,
         sort = filters.sort,
         searchOptions: LiveSearchVisitOptions = {},
+        perPage = pagination.per_page,
     ) => {
         cancelPendingSearch();
         const current = {
@@ -231,6 +236,8 @@ export default function SitesIndex({
                     Object.entries(current).filter(([, value]) => value),
                 ),
                 sort,
+                // MOCKUP ONLY (phase 1): the page size rides along; 50 is the default and stays out of the URL.
+                ...(perPage !== 50 ? { per_page: perPage } : {}),
             },
             {
                 ...searchOptions,
@@ -250,6 +257,7 @@ export default function SitesIndex({
     };
     // MOCKUP ONLY (phase 1): header variants live in the band; the empty portfolio keeps today's header.
     const head = useMockupVariant('head');
+    const columnsVariant = useMockupVariant('cols');
     const mockupHead = head !== 'current' && tiles.sites > 0;
     const addSiteAction = can_create ? (
         <Button asChild>
@@ -263,7 +271,14 @@ export default function SitesIndex({
         <>
             <Head title={t('Sites')} />
             <SitesVisualMockupSwitcher
-                dimensions={['strip', 'lighthouse', 'head']}
+                dimensions={[
+                    'strip',
+                    'lighthouse',
+                    'head',
+                    'spark',
+                    'cols',
+                    'pagesize',
+                ]}
             />
             <PageContainer>
                 {!mockupHead && (
@@ -344,6 +359,21 @@ export default function SitesIndex({
                                     changeSearch(event.target.value)
                                 }
                             />
+                        }
+                        actions={
+                            columnsVariant === 'c1' ||
+                            columnsVariant === 'c3' ? (
+                                <SitesColumnsMenu
+                                    trigger={columnsVariant}
+                                    sort={filters.sort}
+                                    onSort={(sort) => visit({}, sort)}
+                                />
+                            ) : columnsVariant === 'c2' ? (
+                                // The gear lives in the table header; the cards below 640 px have none, so they get the menu here.
+                                <span className="sm:hidden">
+                                    <SitesColumnsMenu trigger="c1" />
+                                </span>
+                            ) : undefined
                         }
                         segmented={
                             <SegmentedControl
@@ -438,6 +468,9 @@ export default function SitesIndex({
                             hasFilters={hasFilters}
                             canCreate={can_create}
                             onSort={(sort) => visit({}, sort)}
+                            onPageSize={(size) =>
+                                visit({}, filters.sort, {}, size)
+                            }
                         />
                     )}
                 </Deferred>
@@ -454,6 +487,7 @@ function SitesList({
     hasFilters,
     canCreate,
     onSort,
+    onPageSize,
 }: {
     sites: Heptapod.Data.Ui.SiteRowData[];
     history: Heptapod.Data.Ui.SiteHistoryData[] | undefined;
@@ -462,8 +496,10 @@ function SitesList({
     hasFilters: boolean;
     canCreate: boolean;
     onSort: (sort: string) => void;
+    onPageSize: (size: number) => void;
 }) {
     const { t } = useTranslation();
+    const pageSizeVariant = useMockupVariant('pagesize');
     const format = useFormat();
     // Merged before buffering, so a held row keeps the history it was shown with.
     const rows = useMemo(() => {
@@ -503,6 +539,7 @@ function SitesList({
                         full
                         serverMode
                         historyLoading={history === undefined}
+                        pageSize={pagination.per_page}
                         onSort={(sort) => onSort(sort)}
                         onSelect={(site) => router.visit(siteShow.url(site.id))}
                         siteHref={(site) => siteShow.url(site.id)}
@@ -548,6 +585,15 @@ function SitesList({
                     }
                     page={pagination.current_page}
                     lastPage={pagination.last_page}
+                    extra={
+                        pageSizeVariant !== 'current' && (
+                            <PageSizeControl
+                                variant={pageSizeVariant}
+                                value={pagination.per_page}
+                                onChange={onPageSize}
+                            />
+                        )
+                    }
                 />
             )}
         </>

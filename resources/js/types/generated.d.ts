@@ -1935,6 +1935,7 @@ readonly checks: Heptapod.Data.Ui.CheckStripData[],
 readonly checked_at: string | null,
 readonly identity: Heptapod.Data.Ui.SiteIdentityData,
 readonly lighthouse: Heptapod.Data.Ui.LighthouseScoresData | null,
+readonly response_threshold_ms: number | null,
 };
 export type SiteSettingsPageData = {
 readonly site: Heptapod.Data.Ui.SiteRowData,

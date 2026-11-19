@@ -22,6 +22,10 @@ const dimensionLabels: Record<MockupDimension, string> = {
     lighthouse: 'Lighthouse',
     head: 'Header',
     incidents: 'Header',
+    spark: 'Sparkline',
+    cols: 'Columns',
+    pagesize: 'Page size',
+    activity: 'Timeline',
 };
 
 function DimensionControl({ dimension }: { dimension: MockupDimension }) {
