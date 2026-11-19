@@ -159,8 +159,9 @@ final class NotificationDestination extends Model
     public function timezone(): string
     {
         return match ($this->recipient_kind) {
+            // A deleted user's archived channel has no user any more; its history renders in the instance zone.
             RecipientKind::User => $this->user->timezone ?? app(InstanceSettings::class)->timezone,
-            RecipientKind::Client => $this->client->timezone ?? app(InstanceSettings::class)->timezone,
+            RecipientKind::Client => $this->client->timezone ?? throw new \LogicException('A client recipient always has its client.'),
             RecipientKind::Team => app(InstanceSettings::class)->timezone,
         };
     }

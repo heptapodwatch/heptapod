@@ -7,8 +7,8 @@ import {
     FormSecondaryAction,
 } from '@/components/form-section';
 import { PageHeader } from '@/components/page-header';
-import { Head, useForm } from '@inertiajs/react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { Head, useForm, usePage } from '@inertiajs/react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,11 @@ import { Label } from '@/components/ui/label';
 import { useFormat } from '@/hooks/use-format';
 import { update } from '@/routes/settings/instance';
 import { TextLink } from '@/components/text-link';
+import {
+    BrowserTimezoneHint,
+    TimezoneCombobox,
+} from '@/components/timezone-combobox';
+import { CheckboxField } from '@/components/ui/checkbox';
 
 function ConfigValue({
     label,
@@ -46,9 +51,14 @@ export default function Instance({
 }) {
     const { t } = useTranslation();
     const { number } = useFormat();
+    const ownerTimezone = usePage().props.auth.user?.timezone;
     const form = useForm({
         name: instancePage.name,
+        timezone: instancePage.timezone,
     });
+    // The hint also offers the browser's zone for the Owner's own profile, only while that profile is still on UTC.
+    const [hintedZone, setHintedZone] = useState<string | null>(null);
+    const [useForProfile, setUseForProfile] = useState(true);
     const pendingErrorFocus = useRef(false);
     useEffect(() => {
         if (!form.processing && pendingErrorFocus.current) {
@@ -75,12 +85,22 @@ export default function Instance({
                 className="space-y-4"
                 onSubmit={(event) => {
                     event.preventDefault();
+                    form.transform((data) => ({
+                        ...data,
+                        use_for_profile:
+                            ownerTimezone === 'UTC' &&
+                            useForProfile &&
+                            data.timezone === hintedZone,
+                    }));
                     form.patch(update.url(), {
                         preserveScroll: true,
                         onSuccess: ({ props }) => {
                             const page =
                                 props.instancePage as Heptapod.Data.Ui.InstanceSettingsData;
-                            const saved = { name: page.name };
+                            const saved = {
+                                name: page.name,
+                                timezone: page.timezone,
+                            };
                             form.setDefaults(saved);
                             form.setData(saved);
                         },
@@ -127,6 +147,62 @@ export default function Instance({
                                 mono
                             />
                         </dl>
+                    </div>
+                </FormSection>
+                <FormSection
+                    title={t('Timezone')}
+                    description={t('Team notifications use this timezone.')}
+                    detail={t(
+                        'New members start with their browser timezone, or with this one when the browser sends none. Members and clients keep their own timezones.',
+                    )}
+                >
+                    <div className="space-y-4">
+                        <BrowserTimezoneHint
+                            saved={instancePage.timezone}
+                            draft={form.data.timezone}
+                            timezones={instancePage.timezones}
+                            onUse={(zone) => {
+                                setHintedZone(zone);
+                                form.setData('timezone', zone);
+                            }}
+                        >
+                            {ownerTimezone === 'UTC' && (
+                                <CheckboxField
+                                    checked={useForProfile}
+                                    onCheckedChange={(checked) =>
+                                        setUseForProfile(checked === true)
+                                    }
+                                >
+                                    {t('Also use it for my profile')}
+                                </CheckboxField>
+                            )}
+                        </BrowserTimezoneHint>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="instance-timezone">
+                                    {t('Timezone')}
+                                </Label>
+                                <TimezoneCombobox
+                                    id="instance-timezone"
+                                    timezones={instancePage.timezones}
+                                    value={form.data.timezone}
+                                    onValueChange={(value) =>
+                                        form.setData('timezone', value)
+                                    }
+                                    disabled={form.processing}
+                                    invalid={!!form.errors.timezone}
+                                    describedBy={
+                                        form.errors.timezone
+                                            ? 'instance-timezone-error'
+                                            : undefined
+                                    }
+                                />
+                                <InputError
+                                    id="instance-timezone-error"
+                                    message={form.errors.timezone}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </FormSection>
                 <FormSection

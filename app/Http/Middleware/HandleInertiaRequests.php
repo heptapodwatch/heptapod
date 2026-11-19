@@ -9,6 +9,7 @@ use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\User;
 use Heptapod\Queries\RunsReader;
 use Heptapod\Queries\ShellHealthReader;
+use Heptapod\Settings\InstanceSettings;
 use Heptapod\SystemHealth\SystemIssueKind;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -53,7 +54,7 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'csrfToken' => Inertia::always(static fn (): string => $request->session()->token()),
             'locale' => app()->getLocale(),
-            'timezone' => $user?->getAttribute('timezone') ?? config('app.timezone'),
+            'timezone' => $user?->getAttribute('timezone') ?? app(InstanceSettings::class)->timezone,
             'mailLogOnly' => MailDeliveryMode::logOnly(),
             'mailConfigurationAction' => SystemIssueKind::MailLogOnly->navigationAction($user instanceof User ? $user : null),
             'mailMayOnlyBeLogged' => MailDeliveryMode::includesLocalTransport(),

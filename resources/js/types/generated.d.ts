@@ -1454,6 +1454,8 @@ readonly instancePage: Heptapod.Data.Ui.InstanceSettingsData,
 export type InstanceSettingsData = {
 readonly name: string,
 readonly mail_design: Heptapod.Contracts.Mail.MailDesign,
+readonly timezone: string,
+readonly timezones: string[],
 readonly url: string,
 readonly smtp: {
 host: string | null,
@@ -1520,7 +1522,6 @@ export type MaintenanceIndexPageData = {
 readonly windows: Heptapod.Data.Ui.MaintenanceWindowData[],
 readonly next_page: number | null,
 readonly can_manage: boolean,
-readonly timezone: string,
 readonly sites: Heptapod.Data.Ui.MaintenanceTargetOptionData[],
 readonly clients: Heptapod.Data.Ui.MaintenanceTargetOptionData[],
 readonly tags: Heptapod.Data.Ui.MaintenanceTargetOptionData[],

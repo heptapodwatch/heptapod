@@ -100,8 +100,8 @@ final class NotificationSchedule extends Model
     public function timezone(): string
     {
         return match ($this->recipient_kind) {
-            RecipientKind::User => $this->user->timezone ?? app(InstanceSettings::class)->timezone,
-            RecipientKind::Client => $this->client->timezone ?? app(InstanceSettings::class)->timezone,
+            RecipientKind::User => $this->user->timezone ?? throw new \LogicException('A user recipient always has its user.'),
+            RecipientKind::Client => $this->client->timezone ?? throw new \LogicException('A client recipient always has its client.'),
             RecipientKind::Team => app(InstanceSettings::class)->timezone,
         };
     }

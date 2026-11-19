@@ -162,7 +162,7 @@ final class RunOhDearImport implements ShouldQueue
                     $locked = $query->findOrFail($run->id);
                     $created = $locked->created_client_ids;
                     if (! isset($created[$name])) {
-                        $created[$name] = $createClient(['name' => $name])->id;
+                        $created[$name] = $createClient(['name' => $name], $run->user_id === null ? null : User::query()->find($run->user_id))->id;
                         $locked->created_client_ids = $created;
                         $locked->save();
                     }

@@ -83,7 +83,7 @@ final class MaintenanceController extends Controller
         }
 
         return Inertia::render('maintenance/index', new MaintenanceIndexPageData($result['windows'], $result['next_page'],
-            $canManage, $user->timezone, array_values($sites), array_values($clients), array_values($tags),
+            $canManage, array_values($sites), array_values($clients), array_values($tags),
             $instanceTimezone, $timezones,
             array_values($filterClients), $clientId, $siteId, $result['site_name'], $state,
             $result['previous_page'], $result['total'], $perPage)->toArray());

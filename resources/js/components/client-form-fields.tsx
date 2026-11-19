@@ -16,15 +16,17 @@ export type ClientFormValues = {
     timezone: string;
 };
 
+/** A new client starts in its creator's timezone. */
 export function clientFormValues(
-    client: Heptapod.Data.Ui.ClientData | null = null,
+    client: Heptapod.Data.Ui.ClientData | null,
+    creatorTimezone: string,
 ): ClientFormValues {
     return {
         name: client?.name ?? '',
         short_name: client?.short_name ?? '',
         contact_name: client?.contact_name ?? '',
         locale: client?.locale ?? 'en',
-        timezone: client?.timezone ?? 'UTC',
+        timezone: client?.timezone ?? creatorTimezone,
     };
 }
 

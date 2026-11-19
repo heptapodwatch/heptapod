@@ -9,6 +9,7 @@ use Database\Factories\UserFactory;
 use Heptapod\Concerns\AuditsConfiguration;
 use Heptapod\Enums\ClientScope;
 use Heptapod\Notifications\PasswordReset;
+use Heptapod\Settings\InstanceSettings;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -59,6 +60,13 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasRoles, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+
+    /** A new account starts in its browser's zone; a missing or unknown browser zone falls back to the instance zone. */
+    public static function initialTimezone(mixed $browserTimezone): string
+    {
+        return is_string($browserTimezone) && in_array($browserTimezone, \DateTimeZone::listIdentifiers(), true)
+            ? $browserTimezone : app(InstanceSettings::class)->timezone;
+    }
 
     public function sendPasswordResetNotification(#[\SensitiveParameter] mixed $token): void
     {

@@ -92,3 +92,8 @@ export function formatDateTime(
         ...formats[preset],
     }).format(new Date(value));
 }
+
+/** The browser's IANA zone as the platform reports it; the server validates it against its own list. */
+export function browserTimezone(): string {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}

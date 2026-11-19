@@ -33,6 +33,7 @@ class CreateNewUser implements CreatesNewUsers
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => $input['password'],
+            'timezone' => User::initialTimezone($input['timezone'] ?? null),
         ]);
     }
 }

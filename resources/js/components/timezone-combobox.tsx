@@ -1,5 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
+import { browserTimezone } from '@/lib/date-time';
 
 const offsetCache = new Map<string, string>();
 
@@ -105,5 +109,49 @@ export function TimezoneCombobox({
             invalid={invalid}
             describedBy={describedBy}
         />
+    );
+}
+
+/**
+ * The one-off offer for a zone still on the installed UTC: "Use it" puts the browser's zone into the draft, and the
+ * form's own Save stores it. Hidden once the zone is saved, or when the browser reports UTC or a zone the server lacks.
+ */
+export function BrowserTimezoneHint({
+    saved,
+    draft,
+    timezones,
+    onUse,
+    children,
+}: {
+    saved: string;
+    draft: string;
+    timezones: string[];
+    onUse: (zone: string) => void;
+    children?: ReactNode;
+}) {
+    const { t } = useTranslation();
+    const zone = browserTimezone();
+    if (saved !== 'UTC' || zone === 'UTC' || !timezones.includes(zone))
+        return null;
+    return (
+        <Alert
+            tone="info"
+            action={
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={draft === zone}
+                    onClick={() => onUse(zone)}
+                >
+                    {t('Use it')}
+                </Button>
+            }
+        >
+            <AlertDescription>
+                {t('Your browser uses {{zone}}. Use it?', { zone })}
+            </AlertDescription>
+            {children}
+        </Alert>
     );
 }

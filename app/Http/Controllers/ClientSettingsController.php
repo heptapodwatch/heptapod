@@ -32,7 +32,7 @@ final class ClientSettingsController extends Controller
         Gate::authorize('create', Client::class);
         /** @var array<string, mixed> $attributes */
         $attributes = $request->all();
-        $client = $create($attributes);
+        $client = $create($attributes, $request->user());
         if ($request->expectsJson()) {
             return response()->json(ClientData::fromClient($client)->toArray(), 201);
         }
