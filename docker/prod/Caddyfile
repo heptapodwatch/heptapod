@@ -1,9 +1,29 @@
+# HEPTAPOD_WEB_MODE picks how PHP serves the app. classic (default): every request boots the app. worker (opt-in): Laravel
+# Octane workers boot it once and keep it in memory; HEPTAPOD_WEB_WORKERS of them serve requests, the rest wait.
+# REQUEST_MAX_EXECUTION_TIME is Octane's per-request limit (its max_execution_time), the same 30 s classic PHP applies.
+(frankenphp-worker) {
+    worker {
+        file /app/public/frankenphp-worker.php
+        num {$HEPTAPOD_WEB_WORKERS:4}
+        env REQUEST_MAX_EXECUTION_TIME 30
+    }
+}
+(frankenphp-classic) {
+}
+(php-worker) {
+    index frankenphp-worker.php
+}
+(php-classic) {
+}
+
 {
     admin off
     http_port 8080
     https_port 8443
     auto_https disable_redirects
-    frankenphp
+    frankenphp {
+        import frankenphp-{$HEPTAPOD_WEB_MODE:classic}
+    }
     # Capability URLs (invitations, password resets, email verification, cron pings) carry their secret in a
     # path segment or query value, in any percent-encoding. Both loggers keep query keys and
     # path segments shorter than 24 characters only; the Referer is dropped.
@@ -20,20 +40,8 @@
     }
 }
 
-# HEPTAPOD_WEB_MODE picks how PHP serves the app. worker (default): Laravel Octane workers boot the app once and keep it
-# in memory between requests. classic: every request boots the app again; the rollback switch.
-(php-worker) {
-    worker {
-        file /app/public/frankenphp-worker.php
-        num 4
-    }
-    index frankenphp-worker.php
-}
-(php-classic) {
-}
-
 # Loopback-only health endpoint works before DNS/ACME and does not redirect to TLS.
-# It stays classic, so it answers even while workers restart.
+# It runs through the same serving path as the app, so readiness covers the worker pool in worker mode.
 http://:8080 {
     header X-Content-Type-Options nosniff
     @health {
@@ -42,7 +50,9 @@ http://:8080 {
     }
     handle @health {
         root * /app/public
-        php_server
+        php_server {
+            import php-{$HEPTAPOD_WEB_MODE:classic}
+        }
     }
     # External 443 maps to internal 8443; never leak the container port in redirects.
     handle {
@@ -60,7 +70,7 @@ http://:8080 {
     }
     handle {
         php_server {
-            import php-{$HEPTAPOD_WEB_MODE:worker}
+            import php-{$HEPTAPOD_WEB_MODE:classic}
         }
     }
     # Same filter as the global error logger above.
