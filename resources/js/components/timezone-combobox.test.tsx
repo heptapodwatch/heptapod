@@ -64,6 +64,39 @@ it('renders only the passed server list, plus a stored value missing from it', (
     );
 });
 
+it('offers the inherited default first and maps it to null both ways', () => {
+    const onValueChange = vi.fn();
+    const { rerender } = render(
+        <TimezoneCombobox
+            id="tz"
+            timezones={['Europe/Berlin', 'Asia/Kolkata']}
+            value={null}
+            onValueChange={onValueChange}
+            defaultZone={{ zone: 'Europe/Berlin', source: 'instance' }}
+        />,
+    );
+    const trigger = screen.getByRole('combobox');
+    expect(trigger.textContent).toContain('timezone.default');
+    fireEvent.click(trigger);
+    expect(screen.getAllByRole('option').at(0)?.textContent).toContain(
+        'timezone.default',
+    );
+    fireEvent.click(screen.getByRole('option', { name: /Asia\/Kolkata/ }));
+    expect(onValueChange).toHaveBeenLastCalledWith('Asia/Kolkata');
+    rerender(
+        <TimezoneCombobox
+            id="tz"
+            timezones={['Europe/Berlin', 'Asia/Kolkata']}
+            value="Asia/Kolkata"
+            onValueChange={onValueChange}
+            defaultZone={{ zone: 'Europe/Berlin', source: 'instance' }}
+        />,
+    );
+    fireEvent.click(screen.getByRole('combobox'));
+    fireEvent.click(screen.getByRole('option', { name: /timezone\.default/ }));
+    expect(onValueChange).toHaveBeenLastCalledWith(null);
+});
+
 it('reports exact summer and winter offsets under a frozen clock', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-07-15T12:00:00Z'));

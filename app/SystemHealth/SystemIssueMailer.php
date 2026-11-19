@@ -272,7 +272,7 @@ final readonly class SystemIssueMailer
         }
         $locale = $channel->effectiveLocale();
         $owner = self::systemLockedOn($channel);
-        $mail = $this->model($issue, $recovered, $locale, $owner, $channel->recipient_kind === RecipientKind::Team);
+        $mail = $this->model($issue, $recovered, $locale, $owner, $channel->recipient_kind === RecipientKind::Team, $channel->resolvedTimezone());
         $facts = [];
         foreach ($mail->blocks as $block) {
             if ($block instanceof FactsBlock) {
@@ -289,11 +289,12 @@ final readonly class SystemIssueMailer
         return new SystemIssueNotification($message, $mail, $event->id.':'.$channel->id);
     }
 
-    public function model(SystemIssue $issue, bool $recovered, string $locale, bool $owner, bool $team = false): MailModel
+    /** Times show in the receiving channel's zone. */
+    public function model(SystemIssue $issue, bool $recovered, string $locale, bool $owner, bool $team, string $timezone): MailModel
     {
         $title = __('system_mail.'.$issue->kind->value.'.title', locale: $locale);
         $time = fn (?string $at): string => $at === null ? __('system_mail.never', locale: $locale)
-            : CarbonImmutable::parse($at)->setTimezone($this->settings->timezone)->format('Y-m-d H:i T');
+            : CarbonImmutable::parse($at)->setTimezone($timezone)->format('Y-m-d H:i T');
         $rows = [['label' => __('system_mail.since', locale: $locale), 'value' => new Cell($time($issue->opened_at->toIso8601String()), true)]];
         if ($recovered) {
             $rows[] = ['label' => __('system_mail.resolved', locale: $locale), 'value' => new Cell($time($issue->resolved_at?->toIso8601String()), true)];

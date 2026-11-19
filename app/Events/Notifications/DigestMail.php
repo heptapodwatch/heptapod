@@ -60,7 +60,7 @@ final readonly class DigestMail
         $items = MailRowBudget::fit(array_map(static fn (array $row): array => ['text' => $labels[$row['site']], 'key' => $row['site'],
             'meta' => __('checks.'.$row['check']->value.'.label', locale: $locale).' · '.__($row['category'] === null ? 'emails.digest_unclassified' : 'recipient_settings.category.'.$row['category']->value.'.label', locale: $locale),
         ], $shown), array_map(static fn (int $id): string => SiteLabels::withId($id, $sites[$id]), array_combine(array_keys($sites), array_keys($sites))));
-        $at = $digest->occurred_at->setTimezone($destination->timezone());
+        $at = $digest->occurred_at->setTimezone($destination->resolvedTimezone());
         $at->locale($locale);
         $blocks = [new ListBlock(__('emails.digest_as_of', ['time' => $at->isoFormat('ll, HH:mm z')], $locale), $items)];
         $hidden = count($rows) - count($items);

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers\Settings;
 
 use Heptapod\Actions\SaveInstanceSettings;
-use Heptapod\Actions\UpdateProfile;
 use Heptapod\Contracts\Mail\MailDesign;
 use Heptapod\Data\Ui\InstancePageData;
 use Heptapod\Data\Ui\InstanceSettingsData;
@@ -42,18 +41,14 @@ final class InstanceController extends Controller
         return InstanceSettingsData::current($settings, $health);
     }
 
-    public function update(Request $request, SaveInstanceSettings $save, UpdateProfile $updateProfile): JsonResponse|RedirectResponse
+    public function update(Request $request, SaveInstanceSettings $save): JsonResponse|RedirectResponse
     {
-        $owner = $this->owner($request);
-        /** @var array{name: string, mail_design?: string, timezone?: string, use_for_profile?: bool} $data */
+        $this->owner($request);
+        /** @var array{name: string, mail_design?: string, timezone?: string} $data */
         $data = Validator::make($request->all(), ['name' => ['required', 'string', 'max:120'], 'mail_design' => ['sometimes', 'required', Rule::enum(MailDesign::class)],
-            'timezone' => ['sometimes', 'required', 'string', 'timezone:all'], 'use_for_profile' => ['sometimes', 'boolean']],
+            'timezone' => ['sometimes', 'required', 'string', 'timezone:all']],
             attributes: ['mail_design' => __('instance.mail_design.label')])->validate();
         $save($data['name'], isset($data['mail_design']) ? MailDesign::from($data['mail_design']) : null, $data['timezone'] ?? null);
-        // The browser-zone hint offers the Owner's own profile too, but only while that profile is still on UTC.
-        if (isset($data['timezone']) && ($data['use_for_profile'] ?? false) && $owner->timezone === 'UTC') {
-            $updateProfile($owner, ['timezone' => $data['timezone']]);
-        }
 
         if ($request->expectsJson()) {
             return response()->json(['name' => $data['name'], 'mail_design' => app(InstanceSettings::class)->mail_design->value]);
@@ -64,11 +59,9 @@ final class InstanceController extends Controller
         return to_route('settings.instance.edit');
     }
 
-    private function owner(Request $request): User
+    private function owner(Request $request): void
     {
         $user = $request->user();
         abort_unless($user instanceof User && $user->hasRole('Owner'), 403);
-
-        return $user;
     }
 }

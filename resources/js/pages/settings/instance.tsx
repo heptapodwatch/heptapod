@@ -7,8 +7,8 @@ import {
     FormSecondaryAction,
 } from '@/components/form-section';
 import { PageHeader } from '@/components/page-header';
-import { Head, useForm, usePage } from '@inertiajs/react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Head, useForm } from '@inertiajs/react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,6 @@ import {
     BrowserTimezoneHint,
     TimezoneCombobox,
 } from '@/components/timezone-combobox';
-import { CheckboxField } from '@/components/ui/checkbox';
 
 function ConfigValue({
     label,
@@ -51,18 +50,10 @@ export default function Instance({
 }) {
     const { t } = useTranslation();
     const { number } = useFormat();
-    const ownerTimezone = usePage().props.auth.user?.timezone;
     const form = useForm({
         name: instancePage.name,
         timezone: instancePage.timezone,
     });
-    // The hint also offers the browser's zone for the Owner's own profile, only while that profile is still on UTC.
-    const [hintedZone, setHintedZone] = useState<string | null>(null);
-    const [useForProfile, setUseForProfile] = useState(true);
-    const resetHint = () => {
-        setHintedZone(null);
-        setUseForProfile(true);
-    };
     const pendingErrorFocus = useRef(false);
     useEffect(() => {
         if (!form.processing && pendingErrorFocus.current) {
@@ -89,13 +80,6 @@ export default function Instance({
                 className="space-y-4"
                 onSubmit={(event) => {
                     event.preventDefault();
-                    form.transform((data) => ({
-                        ...data,
-                        use_for_profile:
-                            ownerTimezone === 'UTC' &&
-                            useForProfile &&
-                            data.timezone === hintedZone,
-                    }));
                     form.patch(update.url(), {
                         preserveScroll: true,
                         onSuccess: ({ props }) => {
@@ -107,7 +91,6 @@ export default function Instance({
                             };
                             form.setDefaults(saved);
                             form.setData(saved);
-                            resetHint();
                         },
                         onError: () => {
                             pendingErrorFocus.current = true;
@@ -156,32 +139,21 @@ export default function Instance({
                 </FormSection>
                 <FormSection
                     title={t('Timezone')}
-                    description={t('Team notifications use this timezone.')}
+                    description={t(
+                        'Team notifications and everything without its own timezone use this one.',
+                    )}
                     detail={t(
-                        'New members start with their browser timezone, or with this one when the browser sends none. Members and clients keep their own timezones.',
+                        'Members, clients and channels can choose their own timezone. New members start with their browser timezone.',
                     )}
                 >
                     <div className="space-y-4">
                         <BrowserTimezoneHint
-                            saved={instancePage.timezone}
+                            onDefault={instancePage.timezone === 'UTC'}
+                            current={instancePage.timezone}
                             draft={form.data.timezone}
                             timezones={instancePage.timezones}
-                            onUse={(zone) => {
-                                setHintedZone(zone);
-                                form.setData('timezone', zone);
-                            }}
-                        >
-                            {ownerTimezone === 'UTC' && (
-                                <CheckboxField
-                                    checked={useForProfile}
-                                    onCheckedChange={(checked) =>
-                                        setUseForProfile(checked === true)
-                                    }
-                                >
-                                    {t('Also use it for my profile')}
-                                </CheckboxField>
-                            )}
-                        </BrowserTimezoneHint>
+                            onUse={(zone) => form.setData('timezone', zone)}
+                        />
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label htmlFor="instance-timezone">
@@ -206,15 +178,6 @@ export default function Instance({
                                     id="instance-timezone-error"
                                     message={form.errors.timezone}
                                 />
-                                {instancePage.internal_client_follows_timezone &&
-                                    form.data.timezone !==
-                                        instancePage.timezone && (
-                                        <p className="text-xs text-muted-foreground">
-                                            {t(
-                                                'Saving also sets this timezone for No client.',
-                                            )}
-                                        </p>
-                                    )}
                             </div>
                         </div>
                     </div>
@@ -361,10 +324,7 @@ export default function Instance({
                     <FormSecondaryAction
                         size="sm"
                         disabled={!form.isDirty || form.processing}
-                        onClick={() => {
-                            form.resetAndClearErrors();
-                            resetHint();
-                        }}
+                        onClick={() => form.resetAndClearErrors()}
                     >
                         {t('Discard')}
                     </FormSecondaryAction>

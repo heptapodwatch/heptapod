@@ -12,7 +12,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 
 /**
- * Quiet hours and the digest slot of one recipient. The timezone is derived: the user's, the client's or the instance's.
+ * Quiet hours and the digest slot of one recipient. The timezone is derived: the channel's own (when read for a
+ * channel), else the user's or the client's, else the instance's.
  *
  * @property int $id
  * @property RecipientKind $recipient_kind
@@ -27,6 +28,9 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
 #[Guarded(['id'])]
 final class NotificationSchedule extends Model
 {
+    /** The channel's own zone when this schedule was read for one channel (forChannels); null follows the party. */
+    private ?string $channelTimezone = null;
+
     protected function casts(): array
     {
         return ['recipient_kind' => RecipientKind::class, 'quiet_weekends' => 'boolean', 'digest_weekdays' => 'array'];
@@ -77,6 +81,9 @@ final class NotificationSchedule extends Model
                 RecipientKind::User => $byUser[$channel->user_id ?? 0] ?? null,
                 RecipientKind::Client => $byClient[$channel->client_id ?? 0] ?? null,
             } ?? self::defaults($channel->recipient_kind, $channel->user_id, $channel->client_id);
+            // Channels of one recipient share its schedule, but each may have its own zone.
+            $schedule = clone $schedule;
+            $schedule->channelTimezone = $channel->timezone;
             if ($channel->relationLoaded('user')) {
                 $schedule->setRelation('user', $channel->user);
             }
@@ -99,11 +106,17 @@ final class NotificationSchedule extends Model
 
     public function timezone(): string
     {
-        return match ($this->recipient_kind) {
-            RecipientKind::User => $this->user->timezone ?? throw new \LogicException('A user recipient always has its user.'),
-            RecipientKind::Client => $this->client->timezone ?? throw new \LogicException('A client recipient always has its client.'),
-            RecipientKind::Team => app(InstanceSettings::class)->timezone,
-        };
+        return $this->channelTimezone ?? self::partyTimezone($this->recipient_kind, $this->user, $this->client);
+    }
+
+    /** A party's zone: the user's or the client's own, else the instance's. A deleted user's archived channel has no user. */
+    public static function partyTimezone(RecipientKind $kind, ?User $user, ?Client $client): string
+    {
+        return match ($kind) {
+            RecipientKind::User => $user?->resolvedTimezone(),
+            RecipientKind::Client => $client?->resolvedTimezone(),
+            RecipientKind::Team => null,
+        } ?? app(InstanceSettings::class)->timezone;
     }
 
     /** @return list<int>|null */

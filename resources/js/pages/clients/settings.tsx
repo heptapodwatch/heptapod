@@ -11,7 +11,7 @@ import {
 import { PageHeader } from '@/components/page-header';
 import { ClientHeader } from '@/components/client-header';
 import { PageContainer } from '@/components/page-container';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -121,7 +121,7 @@ export default function ClientSettings({
     const restoreForm = useForm({ resume_sites: true });
     const creating = client === null;
     const form = useForm({
-        ...clientFormValues(client, usePage().props.timezone),
+        ...clientFormValues(client),
         avatar: null as ClientAvatarDraft,
     });
     const save = (event: FormEvent<HTMLFormElement>) => {

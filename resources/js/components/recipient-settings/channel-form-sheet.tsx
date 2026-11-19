@@ -11,6 +11,7 @@ import type {
 import { ReplicatorField } from '@/components/replicator-field';
 import { SchemaFields, schemaFieldViews } from '@/components/schema-fields';
 import { SheetForm } from '@/components/sheet-form';
+import { TimezoneCombobox } from '@/components/timezone-combobox';
 import { Button } from '@/components/ui/button';
 import { Combobox, MultiCombobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
@@ -26,13 +27,15 @@ type Draft = {
     channel: string;
     label: string;
     locale: 'en' | 'de';
+    /** Null follows the recipient's zone. */
+    timezone: string | null;
     scope_client_id: number | null;
     check_types: string[] | null;
     config: Record<string, FieldValue>;
 };
 
 /**
- * Add a channel, or edit one's label, language, team scope and transport settings. Secrets are never sent back to the
+ * Add a channel, or edit one's label, language, timezone, team scope and transport settings. Secrets are never sent back to the
  * browser: on edit an empty secret field keeps the stored value.
  */
 export function ChannelFormSheet({
@@ -59,6 +62,7 @@ export function ChannelFormSheet({
         locale:
             (channel?.locale as Draft['locale'] | null) ??
             (i18n.language === 'de' ? 'de' : 'en'),
+        timezone: channel?.timezone ?? null,
         scope_client_id: channel?.scope_client_id ?? null,
         check_types: channel?.check_types ?? null,
         config: { ...channel?.config },
@@ -112,6 +116,7 @@ export function ChannelFormSheet({
               }
             : {}),
         check_types: data.check_types,
+        timezone: data.timezone,
         ...(account ? {} : { label: data.label, config: data.config }),
         ...(team
             ? { locale: data.locale, scope_client_id: data.scope_client_id }
@@ -285,77 +290,105 @@ export function ChannelFormSheet({
                     />
                 )}
                 {team && (
-                    <>
-                        <div className="space-y-2">
-                            <Label id={`${id}-locale`}>{t('Language')}</Label>
-                            <RadioGroup
-                                aria-labelledby={`${id}-locale`}
-                                {...fieldErrorProps(
-                                    `${id}-locale-group`,
-                                    form.errors.locale,
-                                )}
-                                value={form.data.locale}
-                                onValueChange={(value) =>
-                                    form.setData(
-                                        'locale',
-                                        value as Draft['locale'],
-                                    )
-                                }
-                            >
-                                <RadioGroupItem value="en">
-                                    {t('English')}
-                                </RadioGroupItem>
-                                <RadioGroupItem value="de">
-                                    {t('German')}
-                                </RadioGroupItem>
-                            </RadioGroup>
-                            <InputError
-                                field={`${id}-locale-group`}
-                                message={form.errors.locale}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor={`${id}-scope`}>
-                                {t('recipient_settings.scope.label')}
-                            </Label>
-                            <Combobox
-                                id={`${id}-scope`}
-                                invalid={!!form.errors.scope_client_id}
-                                describedBy={
-                                    fieldErrorProps(
-                                        `${id}-scope`,
-                                        form.errors.scope_client_id,
-                                    )['aria-describedby']
-                                }
-                                value={
-                                    form.data.scope_client_id === null
-                                        ? emptySelectValue
-                                        : String(form.data.scope_client_id)
-                                }
-                                onValueChange={(value) =>
-                                    form.setData(
-                                        'scope_client_id',
-                                        value === emptySelectValue
-                                            ? null
-                                            : Number(value),
-                                    )
-                                }
-                                options={[
-                                    {
-                                        value: emptySelectValue,
-                                        label: t(
-                                            'recipient_settings.scope.all',
-                                        ),
-                                    },
-                                    ...clientComboboxOptions(page.clients),
-                                ]}
-                            />
-                            <InputError
-                                field={`${id}-scope`}
-                                message={form.errors.scope_client_id}
-                            />
-                        </div>
-                    </>
+                    <div className="space-y-2">
+                        <Label id={`${id}-locale`}>{t('Language')}</Label>
+                        <RadioGroup
+                            aria-labelledby={`${id}-locale`}
+                            {...fieldErrorProps(
+                                `${id}-locale-group`,
+                                form.errors.locale,
+                            )}
+                            value={form.data.locale}
+                            onValueChange={(value) =>
+                                form.setData('locale', value as Draft['locale'])
+                            }
+                        >
+                            <RadioGroupItem value="en">
+                                {t('English')}
+                            </RadioGroupItem>
+                            <RadioGroupItem value="de">
+                                {t('German')}
+                            </RadioGroupItem>
+                        </RadioGroup>
+                        <InputError
+                            field={`${id}-locale-group`}
+                            message={form.errors.locale}
+                        />
+                    </div>
+                )}
+                <div className="space-y-2">
+                    <Label htmlFor={`${id}-timezone`}>{t('Timezone')}</Label>
+                    <TimezoneCombobox
+                        id={`${id}-timezone`}
+                        timezones={page.timezones}
+                        value={form.data.timezone}
+                        onValueChange={(value: string | null) =>
+                            form.setData('timezone', value)
+                        }
+                        defaultZone={{
+                            zone: page.schedule.timezone,
+                            source:
+                                page.recipient_kind === 'team'
+                                    ? t('timezone.source.instance')
+                                    : page.recipient_kind === 'user'
+                                      ? t('timezone.source.profile')
+                                      : t('timezone.source.client', {
+                                            name: page.recipient_name,
+                                        }),
+                        }}
+                        invalid={!!form.errors.timezone}
+                        describedBy={
+                            fieldErrorProps(
+                                `${id}-timezone`,
+                                form.errors.timezone,
+                            )['aria-describedby']
+                        }
+                    />
+                    <InputError
+                        field={`${id}-timezone`}
+                        message={form.errors.timezone}
+                    />
+                </div>
+                {team && (
+                    <div className="space-y-2">
+                        <Label htmlFor={`${id}-scope`}>
+                            {t('recipient_settings.scope.label')}
+                        </Label>
+                        <Combobox
+                            id={`${id}-scope`}
+                            invalid={!!form.errors.scope_client_id}
+                            describedBy={
+                                fieldErrorProps(
+                                    `${id}-scope`,
+                                    form.errors.scope_client_id,
+                                )['aria-describedby']
+                            }
+                            value={
+                                form.data.scope_client_id === null
+                                    ? emptySelectValue
+                                    : String(form.data.scope_client_id)
+                            }
+                            onValueChange={(value) =>
+                                form.setData(
+                                    'scope_client_id',
+                                    value === emptySelectValue
+                                        ? null
+                                        : Number(value),
+                                )
+                            }
+                            options={[
+                                {
+                                    value: emptySelectValue,
+                                    label: t('recipient_settings.scope.all'),
+                                },
+                                ...clientComboboxOptions(page.clients),
+                            ]}
+                        />
+                        <InputError
+                            field={`${id}-scope`}
+                            message={form.errors.scope_client_id}
+                        />
+                    </div>
                 )}
                 <div className="space-y-2">
                     <Label id={`${id}-check-types`}>

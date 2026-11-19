@@ -23,21 +23,12 @@ export function ClientHeader({
                 description={t('pages.client.header_description')}
                 leading={<ClientMark client={client} />}
                 meta={
-                    client.contact_name || client.archived_at ? (
-                        <>
-                            {client.contact_name && (
-                                <span>
-                                    {t('Contact name')}: {client.contact_name}
-                                </span>
+                    client.archived_at ? (
+                        <span>
+                            {t(
+                                'This client is archived. Monitoring is paused.',
                             )}
-                            {client.archived_at && (
-                                <span>
-                                    {t(
-                                        'This client is archived. Monitoring is paused.',
-                                    )}
-                                </span>
-                            )}
-                        </>
+                        </span>
                     ) : undefined
                 }
             />

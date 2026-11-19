@@ -244,6 +244,7 @@ Tested operations:
 - Snooze `minutes` takes an integer or a digit-only string, at most 525600.
 - Implemented operations add 422 (`Error`) and 429 (`ErrorMessage`) responses.
 - Page size is 1–200, default 200. Mixing the two paging styles returns 422. `filter[team_id]` must be 1.
+- `getMe` returns the instance time zone as the team's `timezone`. Client and user time zones are not part of the API. They are set in the web UI, where an empty one follows the instance time zone; the web client form sends `timezone: null` to return a client to that default.
 - Run and summary check errors serialize as `failed`. Check snapshots keep `errored-or-timed-out`.
 - `ohdear_url` fields point to local report pages.
 - Tags expose their names and only accessible site IDs. There is no tag update or delete.

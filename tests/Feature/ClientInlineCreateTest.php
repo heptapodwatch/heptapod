@@ -12,12 +12,11 @@ beforeEach(function (): void {
 
 it('creates a client through the existing endpoint and returns its selectable identity for JSON callers', function (): void {
     $owner = User::factory()->owner()->create();
-    $response = $this->actingAs($owner)->postJson('/clients', ['name' => 'New Studio', 'short_name' => 'NS', 'contact_name' => 'Studio Contact', 'locale' => 'de', 'timezone' => 'Europe/Berlin'])->assertCreated()
+    $response = $this->actingAs($owner)->postJson('/clients', ['name' => 'New Studio', 'short_name' => 'NS', 'locale' => 'de', 'timezone' => 'Europe/Berlin'])->assertCreated()
         ->assertJsonPath('name', 'New Studio')->assertJsonPath('is_internal', false);
     $client = Client::query()->findOrFail($response->json('id'));
     expect($client->name)->toBe('New Studio');
     expect($client->short_name)->toBe('NS');
-    expect($client->contact_name)->toBe('Studio Contact');
     expect($client->locale)->toBe('de');
     expect($client->timezone)->toBe('Europe/Berlin');
     expect($client->archived_at)->toBeNull();

@@ -37,11 +37,12 @@ final readonly class SaveNotificationChannel
     /** @param array<string, mixed> $attributes */
     public function add(RecipientKind $kind, ?User $user, ?Client $client, array $attributes): NotificationDestination
     {
-        /** @var array{channel: string, label: string, locale?: string, scope_client_id?: int|null, check_types?: list<string>|null, config: array<string, mixed>} $data */
+        /** @var array{channel: string, label: string, locale?: string, timezone?: string|null, scope_client_id?: int|null, check_types?: list<string>|null, config: array<string, mixed>} $data */
         $data = Validator::make($attributes, [
             'channel' => ['required', 'string', Rule::in(array_keys($this->channels->all()))],
             'label' => ['required', 'string', 'max:255'],
             'locale' => [$kind === RecipientKind::Team ? 'required' : 'prohibited', Rule::in(['en', 'de'])],
+            'timezone' => ['sometimes', 'nullable', 'string', 'timezone:all'],
             'scope_client_id' => [$kind === RecipientKind::Team ? 'nullable' : 'prohibited', 'integer', 'exists:clients,id'],
             'config' => ['present', 'array'],
             ...$this->checkTypeRules(),
@@ -56,7 +57,7 @@ final readonly class SaveNotificationChannel
 
             return $this->create(['recipient_kind' => $kind, 'user_id' => $user?->id, 'client_id' => $client?->id,
                 'scope_client_id' => $data['scope_client_id'] ?? null, 'channel' => $data['channel'], 'label' => $data['label'],
-                'locale' => $data['locale'] ?? null, 'enabled' => true, 'config' => $config, 'check_types' => $data['check_types'] ?? null], NotificationPreference::defaults($kind, $role));
+                'locale' => $data['locale'] ?? null, 'timezone' => $data['timezone'] ?? null, 'enabled' => true, 'config' => $config, 'check_types' => $data['check_types'] ?? null], NotificationPreference::defaults($kind, $role));
         });
     }
 
@@ -137,7 +138,7 @@ final readonly class SaveNotificationChannel
     /** @return array<string, string> Validation messages name the fields as the channel form labels them. */
     private function attributeNames(): array
     {
-        return array_map(static fn (string $key): string => (string) __($key), ['channel' => 'Type', 'label' => 'Name', 'locale' => 'Language',
+        return array_map(static fn (string $key): string => (string) __($key), ['channel' => 'Type', 'label' => 'Name', 'locale' => 'Language', 'timezone' => 'Timezone',
             'scope_client_id' => 'recipient_settings.scope.label', 'config' => 'recipient_settings.form.settings',
             'check_types' => 'recipient_settings.check_types.label', 'check_types.*' => 'recipient_settings.check_types.label']);
     }
@@ -157,10 +158,12 @@ final readonly class SaveNotificationChannel
     public function edit(NotificationDestination $destination, array $attributes): NotificationDestination
     {
         $team = $destination->recipient_kind === RecipientKind::Team;
-        /** @var array{label?: string, locale?: string, scope_client_id?: int|null, check_types?: list<string>|null, config?: array<string, mixed>} $data */
+        /** @var array{label?: string, locale?: string, timezone?: string|null, scope_client_id?: int|null, check_types?: list<string>|null, config?: array<string, mixed>} $data */
         $data = Validator::make($attributes, [
             'label' => ['sometimes', 'string', 'max:255'],
             'locale' => [$team ? 'sometimes' : 'prohibited', Rule::in(['en', 'de'])],
+            // Every channel may have its own zone; null follows its recipient.
+            'timezone' => ['sometimes', 'nullable', 'string', 'timezone:all'],
             'scope_client_id' => [$team ? 'sometimes' : 'prohibited', 'nullable', 'integer', 'exists:clients,id'],
             'config' => [$destination->account_mail ? 'prohibited' : 'sometimes', 'array'],
             ...$this->checkTypeRules(),
@@ -186,7 +189,7 @@ final readonly class SaveNotificationChannel
             $widenedScope = array_key_exists('scope_client_id', $data) && $locked->scope_client_id !== null && $data['scope_client_id'] !== $locked->scope_client_id;
             $addedUptime = $allowsUptime && $locked->check_types !== null && ! in_array(CheckKey::Uptime->value, $locked->check_types, true);
             $wasActive = $locked->enabled && ! $locked->needs_attention;
-            $locked->fill(array_intersect_key($data, array_flip(['label', 'locale', 'scope_client_id', 'check_types'])));
+            $locked->fill(array_intersect_key($data, array_flip(['label', 'locale', 'timezone', 'scope_client_id', 'check_types'])));
             if (isset($data['config'])) {
                 $locked->setAttribute('config', $this->mergedConfig($locked, $data['config']));
             }

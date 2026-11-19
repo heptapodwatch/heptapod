@@ -109,6 +109,7 @@ function channel(overrides: Partial<Channel> = {}): Channel {
         status: 'active',
         account_mail: false,
         locale: 'en',
+        timezone: null,
         scope_client_id: null,
         check_types: null,
         attention_reason: null,
@@ -162,6 +163,7 @@ function page(channels: Channel[]): SettingsPage {
         clients: [],
         channel_types: [],
         check_types: [],
+        timezones: ['UTC', 'Europe/Berlin'],
         migration_report: null,
     };
 }

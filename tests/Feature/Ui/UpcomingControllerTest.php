@@ -177,6 +177,7 @@ it('bounds All to twelve months and a hundred chronological dates with a stable 
     // Upper budget: page shell and shell health (25458fc44/0a385128), the bounded maintenance, domain and
     // certificate reads, batched client avatars (36aca5a1a), and the sidebar's late runs count, which every page
     // now reads inline instead of in a second, deferred request.
-    expect($fewQueries)->toBeLessThanOrEqual(24, 'upcoming used '.$fewQueries.' queries, over its budget of 24');
+    // +1 since 2026-11-19: the instance zone, shared as the default of every zone field.
+    expect($fewQueries)->toBeLessThanOrEqual(25, 'upcoming used '.$fewQueries.' queries, over its budget of 25');
     expect(collect($response->inertiaProps()['items'])->max('date'))->toBeLessThanOrEqual('2027-10-04T00:30:00+00:00');
 })->with([2, 20]);

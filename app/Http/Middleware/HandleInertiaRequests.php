@@ -54,7 +54,9 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'csrfToken' => Inertia::always(static fn (): string => $request->session()->token()),
             'locale' => app()->getLocale(),
+            // The viewer's zone (their own, else the instance's) and the instance zone a default on any level falls back to.
             'timezone' => $user?->getAttribute('timezone') ?? app(InstanceSettings::class)->timezone,
+            'instanceTimezone' => app(InstanceSettings::class)->timezone,
             'mailLogOnly' => MailDeliveryMode::logOnly(),
             'mailConfigurationAction' => SystemIssueKind::MailLogOnly->navigationAction($user instanceof User ? $user : null),
             'mailMayOnlyBeLogged' => MailDeliveryMode::includesLocalTransport(),

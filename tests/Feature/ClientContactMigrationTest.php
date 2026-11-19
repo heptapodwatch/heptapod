@@ -26,23 +26,24 @@ function clientContactsPath(): string
     return 'database/migrations/2026_10_30_000003_move_client_contacts_to_channels.php';
 }
 
-/** The clients table of 2026-10-29: contact_email still a column. */
+/** The clients table of 2026-10-29: contact_email and contact_name still columns (the name left on 2026-11-19). */
 function restoreClientContactColumn(): void
 {
     Schema::table('clients', function (Blueprint $table): void {
         $table->string('contact_email')->nullable();
+        $table->string('contact_name')->nullable();
     });
     DB::table('migrations')->where('migration', basename(clientContactsPath(), '.php'))->delete();
 }
 
 it('turns each client contact address into a client mail channel that hears nothing automatically and drops the column', function (): void {
     restoreClientContactColumn();
-    $named = Client::factory()->create(['name' => 'Studio', 'contact_name' => 'Ada Lovelace', 'locale' => 'de']);
-    $unnamed = Client::factory()->create(['name' => 'Shop', 'contact_name' => '  ']);
+    $named = Client::factory()->create(['name' => 'Studio', 'locale' => 'de']);
+    $unnamed = Client::factory()->create(['name' => 'Shop']);
     $without = Client::factory()->create(['name' => 'Quiet']);
     $blank = Client::factory()->create(['name' => 'Blank']);
-    DB::table('clients')->where('id', $named->id)->update(['contact_email' => 'ada@studio.test']);
-    DB::table('clients')->where('id', $unnamed->id)->update(['contact_email' => ' orders@shop.test ']);
+    DB::table('clients')->where('id', $named->id)->update(['contact_email' => 'ada@studio.test', 'contact_name' => 'Ada Lovelace']);
+    DB::table('clients')->where('id', $unnamed->id)->update(['contact_email' => ' orders@shop.test ', 'contact_name' => '  ']);
     DB::table('clients')->where('id', $blank->id)->update(['contact_email' => '']);
     $site = Site::factory()->create(['client_id' => $named->id]);
 

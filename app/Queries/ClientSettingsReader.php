@@ -42,7 +42,7 @@ final readonly class ClientSettingsReader
         $icons = $client->sites->filter(static fn (Site $site): bool => $site->icon_hash !== null)->sortBy('url')->map(static fn (Site $site): ClientAvatarSiteData => new ClientAvatarSiteData($site->id, $site->displayName(), is_string(parse_url($site->url, PHP_URL_HOST)) ? parse_url($site->url, PHP_URL_HOST) : $site->url))->values()->all();
 
         $timezones = \DateTimeZone::listIdentifiers();
-        if (! in_array($client->timezone, $timezones, true)) {
+        if ($client->timezone !== null && ! in_array($client->timezone, $timezones, true)) {
             $timezones[] = $client->timezone;
         }
 

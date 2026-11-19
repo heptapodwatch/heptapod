@@ -56,7 +56,8 @@ it('limits every search group and scopes all matches without leaking secrets', f
     expect($response->getContent())->not->toContain('Matching hidden');
     expect(count($queries))->toBeLessThanOrEqual($fewQueries, 'search grew from '.$fewQueries.' to '.count($queries).' queries as each group grew from 2 to 10 results');
     // Upper budget: auth plus one bounded read per group, batched client avatars (36aca5a1a) and current incident presentations (e04c03b5d).
-    expect($fewQueries)->toBeLessThanOrEqual(17, 'search used '.$fewQueries.' queries, over its budget of 17');
+    // +1 since 2026-11-19: the instance zone, shared as the default of every zone field.
+    expect($fewQueries)->toBeLessThanOrEqual(18, 'search used '.$fewQueries.' queries, over its budget of 18');
     if ($count === 300) {
         $siteQuery = collect($queries)->first(fn (array $query): bool => str_contains($query['query'], 'from "sites"') && str_contains($query['query'], 'CASE state'));
         expect($siteQuery)->not->toBeNull();

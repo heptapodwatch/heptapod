@@ -15,6 +15,7 @@ declare module '@inertiajs/core' {
             mailMayOnlyBeLogged: boolean;
             locale: 'en' | 'de';
             timezone: string;
+            instanceTimezone: string;
             auth: Auth;
             sidebarOpen: boolean;
             liveChannels: string[];

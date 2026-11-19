@@ -1005,7 +1005,7 @@ it('uses the instance timezone for team quiet hours and digests', function (): v
     Http::preventStrayRequests();
     Http::fake(['https://receiver.test/alerts' => Http::response([], 200)]);
     $destination = notificationWebhook()->refresh();
-    expect($destination->timezone())->toBe('Europe/Berlin');
+    expect($destination->resolvedTimezone())->toBe('Europe/Berlin');
     notificationSchedule($destination, ['quiet_start' => '22:00', 'quiet_end' => '07:00', 'digest_time' => '08:00']);
     notificationRule($destination, 'check.warning', NotificationMode::Digest);
     $warning = Event::factory()->create(['to_result' => CheckResult::Warning]);

@@ -1,4 +1,3 @@
-import { usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -29,7 +28,7 @@ export function ClientCreateSheet({
     const { t } = useTranslation();
     const [failure, setFailure] = useState('');
     const form = useHttpRequest<ClientFormValues, Heptapod.Data.Ui.ClientData>({
-        ...clientFormValues(null, usePage().props.timezone),
+        ...clientFormValues(),
         name: initialName,
     });
     return (

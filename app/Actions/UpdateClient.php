@@ -22,15 +22,15 @@ final class UpdateClient
         if ($incoming instanceof UploadedFile && in_array($incoming->getError(), [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
             throw ValidationException::withMessages(['logo' => __('File too large (max 2 MB)')]);
         }
-        /** @var array{name?: string, short_name?: string|null, contact_name?: string|null, locale?: string, timezone?: string, accent_color?: string, logo?: UploadedFile|null, remove_logo?: bool, avatar_site_id?: int|numeric-string|null} $data */
+        /** @var array{name?: string, short_name?: string|null, locale?: string, timezone?: string|null, accent_color?: string, logo?: UploadedFile|null, remove_logo?: bool, avatar_site_id?: int|numeric-string|null} $data */
         $data = Validator::make($attributes, [
             'name' => [$client->exists ? 'sometimes' : 'required', 'string', 'max:255'],
             'short_name' => ['sometimes', 'nullable', 'string', 'max:8'],
-            'contact_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             // A client's contacts are its mail channels (/clients/{client}/notifications) since 2026-10-30.
             'contact_email' => ['prohibited'],
             'locale' => ['sometimes', Rule::in(['en', 'de'])],
-            'timezone' => ['sometimes', 'timezone'],
+            // Null clears the client's own zone, so it follows the instance again.
+            'timezone' => ['sometimes', 'nullable', 'timezone:all'],
             'accent_color' => ['sometimes', Rule::in(['#7C5E10', '#3B5068', '#2F5D4A', '#5B3A4A', '#4B4B57', '#3F4A3A', '#4A4A2F', '#3F3F46'])],
             'logo' => ['bail', 'sometimes', 'nullable', 'file', 'max:2048', 'mimetypes:image/png,image/jpeg,image/webp', 'extensions:png,jpg,jpeg,webp'],
             'remove_logo' => ['sometimes', 'boolean'],
@@ -77,7 +77,7 @@ final class UpdateClient
                 'avatar_site_id' => ['nullable', Rule::exists('sites', 'id')->where('client_id', $client->id)->whereNotNull('icon_hash')],
             ], ['avatar_site_id.exists' => __('Choose a site belonging to this client with a stored icon.')])->validate();
             /** @var array<string, mixed> $values */
-            $values = Arr::only($data, ['name', 'short_name', 'contact_name', 'locale', 'timezone', 'accent_color', 'avatar_site_id']);
+            $values = Arr::only($data, ['name', 'short_name', 'locale', 'timezone', 'accent_color', 'avatar_site_id']);
             $choiceChanged = array_key_exists('avatar_site_id', $data) && $data['avatar_site_id'] !== $client->avatar_site_id;
             $avatarChanged = $upload instanceof UploadedFile || ($data['remove_logo'] ?? false) || $choiceChanged;
             if ($upload instanceof UploadedFile || ($data['remove_logo'] ?? false)) {

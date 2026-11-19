@@ -1,8 +1,9 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
+import { emptySelectValue } from '@/components/ui/select';
 import { browserTimezone } from '@/lib/date-time';
 
 const offsetCache = new Map<string, string>();
@@ -70,68 +71,99 @@ export function timezoneOptions(
     ];
 }
 
-/** The one timezone picker: the server IANA list, grouped by region, searchable by city, zone or UTC offset. */
-export function TimezoneCombobox({
-    id,
-    value,
-    onValueChange,
-    timezones,
-    pinned,
-    disabled = false,
-    invalid = false,
-    describedBy,
-}: {
+type TimezoneComboboxProps = {
     id?: string;
-    value: string;
-    onValueChange: (value: string) => void;
     /** Server IANA list (DateTimeZone::listIdentifiers) — the only source; the browser list may name zones the server rejects. */
     timezones: string[];
     pinned?: string[];
     disabled?: boolean;
     invalid?: boolean;
     describedBy?: string;
-}) {
+} & (
+    | {
+          value: string;
+          onValueChange: (value: string) => void;
+          defaultZone?: undefined;
+      }
+    | {
+          /** Null is the default: the zone this level inherits. */
+          value: string | null;
+          onValueChange: (value: string | null) => void;
+          /** The inherited zone and where it comes from, named by the first option ("Default: Europe/Berlin (instance)"). */
+          defaultZone: { zone: string; source: string };
+      }
+);
+
+/**
+ * The one timezone picker: the server IANA list, grouped by region, searchable by city, zone or UTC offset. On a level
+ * that inherits (profile, client, channel) the first option is the default and names its zone and source.
+ */
+export function TimezoneCombobox(props: TimezoneComboboxProps) {
+    const { t } = useTranslation();
+    const { id, value, timezones, pinned, defaultZone } = props;
     const options = useMemo(() => {
         // A stored legacy zone stays selectable even when the list omits it.
         const withValue =
             value && !timezones.includes(value)
                 ? [value, ...timezones]
                 : timezones;
-        return timezoneOptions(withValue, pinned);
-    }, [timezones, pinned, value]);
+        const zones = timezoneOptions(withValue, pinned);
+        return defaultZone === undefined
+            ? zones
+            : [
+                  {
+                      value: emptySelectValue,
+                      label: t('timezone.default', {
+                          zone: defaultZone.zone,
+                          source: defaultZone.source,
+                      }),
+                      secondary: timezoneOffset(defaultZone.zone),
+                      searchText: defaultZone.zone,
+                  },
+                  ...zones,
+              ];
+    }, [timezones, pinned, value, defaultZone, t]);
     return (
         <Combobox
             id={id}
             options={options}
-            value={value}
-            onValueChange={onValueChange}
-            disabled={disabled}
-            invalid={invalid}
-            describedBy={describedBy}
+            value={value ?? emptySelectValue}
+            onValueChange={(next) => {
+                if (props.defaultZone === undefined) props.onValueChange(next);
+                else
+                    props.onValueChange(
+                        next === emptySelectValue ? null : next,
+                    );
+            }}
+            disabled={props.disabled ?? false}
+            invalid={props.invalid ?? false}
+            describedBy={props.describedBy}
         />
     );
 }
 
 /**
- * The one-off offer for a zone still on the installed UTC: "Use it" puts the browser's zone into the draft, and the
- * form's own Save stores it. Hidden once the zone is saved, or when the browser reports UTC or a zone the server lacks.
+ * The one-off offer of the browser's zone while a level is on its default: "Use it" puts the zone into the draft, and
+ * the form's own Save stores it. Hidden when the zone in use already is the browser's, or the server lacks it.
  */
 export function BrowserTimezoneHint({
-    saved,
+    onDefault,
+    current,
     draft,
     timezones,
     onUse,
-    children,
 }: {
-    saved: string;
-    draft: string;
+    /** The level still uses its default (the instance: UTC; a profile: no own zone). */
+    onDefault: boolean;
+    /** The zone in use now. */
+    current: string;
+    draft: string | null;
     timezones: string[];
     onUse: (zone: string) => void;
-    children?: ReactNode;
 }) {
     const { t } = useTranslation();
     const zone = browserTimezone();
-    if (saved !== 'UTC' || zone === 'UTC' || !timezones.includes(zone))
+    if (!onDefault || zone === current || !timezones.includes(zone))
         return null;
     return (
         <Alert
@@ -151,7 +183,6 @@ export function BrowserTimezoneHint({
             <AlertDescription>
                 {t('Your browser uses {{zone}}. Use it?', { zone })}
             </AlertDescription>
-            {children}
         </Alert>
     );
 }

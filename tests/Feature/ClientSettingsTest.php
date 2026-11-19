@@ -29,7 +29,7 @@ it('refuses internal name changes but saves other fields with an unchanged store
 
     $this->actingAs($owner)->patchJson('/clients/'.$client->id, ['name' => 'New name', 'timezone' => 'Europe/Berlin'])
         ->assertUnprocessable()->assertJsonValidationErrors('name');
-    expect($client->fresh()->name)->toBe('Previously renamed')->and($client->fresh()->timezone)->toBe('UTC');
+    expect($client->fresh()->name)->toBe('Previously renamed')->and($client->fresh()->timezone)->toBeNull();
     $this->patchJson('/clients/'.$client->id, ['name' => 'Previously renamed', 'timezone' => 'Europe/Berlin'])->assertRedirect();
     expect($client->fresh()->name)->toBe('Previously renamed')->and($client->fresh()->timezone)->toBe('Europe/Berlin');
 });

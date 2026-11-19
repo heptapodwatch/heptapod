@@ -44,7 +44,7 @@ final class FindingsExportController extends Controller
         abort_unless($provider instanceof FindingsExportProvider, 404);
         abort_if($provider->exportFindings($checkRow->type, $check, $run) === null, 404);
         $redaction = RedactionContext::forSite($siteRow, $checkRow);
-        $timezone = $user->timezone;
+        $timezone = $user->resolvedTimezone();
 
         return response()->streamDownload(static function () use ($provider, $checkRow, $run, $redaction, $timezone, $since): void {
             DB::transaction(static function () use ($provider, $checkRow, $run, $redaction, $timezone, $since): void {

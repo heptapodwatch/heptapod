@@ -131,7 +131,7 @@ final class ClientMessageComposer
             // Confirmed findings first; unverifiable pages only fill the table when there is room.
             $facts['shown'] = array_slice([...$shown, ...$later], 0, self::ShownRows);
             $facts['attach'] = $attach;
-            $facts['attachment_filename'] = $attach ? $this->filename($check->type, $facts['site_host'], $run->endedAt->setTimezone($client->timezone)) : null;
+            $facts['attachment_filename'] = $attach ? $this->filename($check->type, $facts['site_host'], $run->endedAt->setTimezone($client->resolvedTimezone())) : null;
             $facts['subject'] = $confirmed === 0
                 ? __(($facts['unverified'] === 0 ? 'client_messages.subject.limited_only.' : 'client_messages.subject.unverified_only.').$check->type->value,
                     ['site' => $facts['site_host']])
@@ -220,7 +220,7 @@ final class ClientMessageComposer
     {
         $host = parse_url($site->url, PHP_URL_HOST);
 
-        return ['kind' => $kind, 'locale' => $locale, 'timezone' => $client->timezone, 'instance' => $this->settings->name,
+        return ['kind' => $kind, 'locale' => $locale, 'timezone' => $client->resolvedTimezone(), 'instance' => $this->settings->name,
             'site_label' => $site->displayName(), 'site_host' => is_string($host) ? $host : $site->displayName(), 'check_type' => $check->type->value,
             'observed_at' => '', 'total' => 0, 'confirmed' => 0, 'unverified' => 0, 'shown' => [], 'incident' => null, 'note' => $note, 'attach' => false, 'attachment_filename' => null,
             'sender' => ['name' => $sender->name, 'address' => $sender->email], 'subject' => '', 'design' => $design->value];

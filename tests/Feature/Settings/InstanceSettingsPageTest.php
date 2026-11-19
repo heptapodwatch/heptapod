@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Heptapod\Models\Client;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -56,30 +55,6 @@ it('saves only the instance name and zone and redirects the browser form to its 
     $this->get('/settings/instance')->assertInertia(fn (Assert $page): Assert => $page->where('instancePage.timezone', 'Pacific/Honolulu'));
 });
 
-it('moves the still-UTC Internal client and, when asked, the still-UTC Owner profile to a new instance zone', function (): void {
-    $owner = User::factory()->create(['timezone' => 'UTC']);
-    $owner->assignRole('Owner');
-    $internal = Client::query()->where('is_internal', true)->sole();
-    expect($internal->timezone)->toBe('UTC');
-
-    $this->actingAs($owner)->patch('/settings/instance', ['name' => 'Agency', 'timezone' => 'Europe/Berlin'])->assertRedirect();
-    expect($internal->refresh()->timezone)->toBe('Europe/Berlin')->and($owner->refresh()->timezone)->toBe('UTC');
-
-    $this->patch('/settings/instance', ['name' => 'Agency', 'timezone' => 'Asia/Tokyo', 'use_for_profile' => true])->assertRedirect();
-    expect(app(InstanceSettings::class)->timezone)->toBe('Asia/Tokyo')
-        ->and($internal->refresh()->timezone)->toBe('Europe/Berlin')
-        ->and($owner->refresh()->timezone)->toBe('Asia/Tokyo');
-
-    $this->patch('/settings/instance', ['name' => 'Agency', 'timezone' => 'America/Chicago', 'use_for_profile' => true])->assertRedirect();
-    expect($owner->refresh()->timezone)->toBe('Asia/Tokyo');
-
-    // A save that keeps the zone (a rename) leaves a client set back to UTC alone.
-    $internal->update(['timezone' => 'UTC']);
-    $this->patch('/settings/instance', ['name' => 'Renamed', 'timezone' => 'America/Chicago'])->assertRedirect();
-    expect($internal->refresh()->timezone)->toBe('UTC');
-    $this->get('/settings/instance')->assertInertia(fn (Assert $page): Assert => $page->where('instancePage.internal_client_follows_timezone', true));
-});
-
 it('rejects an unknown instance zone without changing the saved one', function (mixed $timezone): void {
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
@@ -87,8 +62,7 @@ it('rejects an unknown instance zone without changing the saved one', function (
 
     $this->actingAs($owner)->from('/settings/instance')->patch('/settings/instance', ['name' => 'Agency', 'timezone' => $timezone])
         ->assertRedirect('/settings/instance')->assertSessionHasErrors('timezone');
-    expect(app(InstanceSettings::class)->timezone)->toBe($original)
-        ->and(Client::query()->where('is_internal', true)->sole()->timezone)->toBe('UTC');
+    expect(app(InstanceSettings::class)->timezone)->toBe($original);
 })->with(['empty' => '', 'unknown' => 'Mars/Olympus_Mons', 'not a string' => [['Europe/Berlin']]]);
 
 it('rejects invalid instance names without changing persisted identity', function (mixed $name): void {

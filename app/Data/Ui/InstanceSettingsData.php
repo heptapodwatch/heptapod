@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Heptapod\Data\Ui;
 
 use Heptapod\Contracts\Mail\MailDesign;
-use Heptapod\Models\Client;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\SystemHealth\ReadSystemHealth;
 use Heptapod\SystemHealth\SystemIssueMailer;
@@ -26,8 +25,6 @@ final class InstanceSettingsData extends Data
         public readonly MailDesign $mail_design,
         public readonly string $timezone,
         public readonly array $timezones,
-        /** Saving a changed instance zone also moves the Internal client while it is still on UTC (SaveInstanceSettings). */
-        public readonly bool $internal_client_follows_timezone,
         public readonly string $url,
         public readonly array $smtp,
         public readonly string $mailer,
@@ -50,8 +47,7 @@ final class InstanceSettingsData extends Data
         /** @var array{keep_all_backups_for_days: int, keep_daily_backups_for_days: int, keep_weekly_backups_for_weeks: int, keep_monthly_backups_for_months: int, keep_yearly_backups_for_years: int, delete_oldest_backups_when_using_more_megabytes_than: int|null} $retention */
         $retention = config()->array('backup.cleanup.default_strategy');
 
-        return new self($settings->name, $settings->mail_design, $settings->timezone, \DateTimeZone::listIdentifiers(),
-            Client::query()->getQuery()->where('is_internal', true)->where('timezone', 'UTC')->exists(), config()->string('app.url'),
+        return new self($settings->name, $settings->mail_design, $settings->timezone, \DateTimeZone::listIdentifiers(), config()->string('app.url'),
             ['host' => $smtp['host'] ?? null, 'port' => $smtp['port'] ?? null,
                 'scheme' => $smtp['scheme'] ?? null, 'username_configured' => filled($smtp['username'] ?? null),
                 'password_configured' => filled($smtp['password'] ?? null)],

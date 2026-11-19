@@ -35,7 +35,7 @@ export default function Profile({
     timezones: string[];
 }) {
     const { t } = useTranslation();
-    const { auth } = usePage().props;
+    const { auth, instanceTimezone } = usePage().props;
     const user = auth.user;
     if (!user) throw new Error('Profile requires an authenticated user');
     const initials = useInitials();
@@ -201,8 +201,9 @@ export default function Profile({
                     >
                         <div className="space-y-4">
                             <BrowserTimezoneHint
-                                saved={user.timezone}
-                                draft={String(form.data.timezone)}
+                                onDefault={user.timezone === null}
+                                current={instanceTimezone}
+                                draft={form.data.timezone}
                                 timezones={timezones}
                                 onUse={(zone) => form.setData('timezone', zone)}
                             />
@@ -248,10 +249,16 @@ export default function Profile({
                                     <TimezoneCombobox
                                         id="timezone"
                                         timezones={timezones}
-                                        value={String(form.data.timezone)}
-                                        onValueChange={(value) =>
+                                        value={form.data.timezone}
+                                        onValueChange={(value: string | null) =>
                                             form.setData('timezone', value)
                                         }
+                                        defaultZone={{
+                                            zone: instanceTimezone,
+                                            source: t(
+                                                'timezone.source.instance',
+                                            ),
+                                        }}
                                         invalid={!!form.errors.timezone}
                                         describedBy={
                                             form.errors.timezone

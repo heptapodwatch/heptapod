@@ -29,6 +29,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property int $id
  * @property string $name
  * @property string $email
+ * @property string|null $timezone
  * @property Carbon|null $email_verified_at
  * @property string $password
  * @property string|null $two_factor_secret
@@ -61,11 +62,16 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasRoles, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
-    /** A new account starts in its browser's zone; a missing or unknown browser zone falls back to the instance zone. */
-    public static function initialTimezone(mixed $browserTimezone): string
+    /** A new account stores its browser's zone; a missing or unknown browser zone stores none, so it follows the instance. */
+    public static function initialTimezone(mixed $browserTimezone): ?string
     {
-        return is_string($browserTimezone) && in_array($browserTimezone, \DateTimeZone::listIdentifiers(), true)
-            ? $browserTimezone : app(InstanceSettings::class)->timezone;
+        return is_string($browserTimezone) && in_array($browserTimezone, \DateTimeZone::listIdentifiers(), true) ? $browserTimezone : null;
+    }
+
+    /** The user's own zone, or the instance zone while they keep the default. */
+    public function resolvedTimezone(): string
+    {
+        return $this->timezone ?? app(InstanceSettings::class)->timezone;
     }
 
     public function sendPasswordResetNotification(#[\SensitiveParameter] mixed $token): void

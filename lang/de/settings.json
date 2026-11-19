@@ -415,9 +415,11 @@
     "mail_branding.preview.failed": "Die Vorschau konnte nicht geladen werden.",
     "mail_branding.logo.too_many_pixels": "Bild zu groß (max. :max × :max px).",
     "Use it": "Übernehmen",
-    "Saving also sets this timezone for No client.": "Beim Speichern erhält auch die Gruppe Ohne Kunde diese Zeitzone.",
     "Your browser uses {{zone}}. Use it?": "Ihr Browser verwendet {{zone}}. Übernehmen?",
-    "Also use it for my profile": "Auch für mein Profil verwenden",
-    "Team notifications use this timezone.": "Team-Benachrichtigungen verwenden diese Zeitzone.",
-    "New members start with their browser timezone, or with this one when the browser sends none. Members and clients keep their own timezones.": "Neue Mitglieder starten mit der Zeitzone ihres Browsers oder, wenn der Browser keine sendet, mit dieser. Mitglieder und Kunden behalten ihre eigenen Zeitzonen."
+    "Team notifications and everything without its own timezone use this one.": "Team-Benachrichtigungen und alles ohne eigene Zeitzone verwenden diese.",
+    "Members, clients and channels can choose their own timezone. New members start with their browser timezone.": "Mitglieder, Kunden und Kanäle können eine eigene Zeitzone wählen. Neue Mitglieder starten mit der Zeitzone ihres Browsers.",
+    "timezone.default": "Standard: {{zone}} ({{source}})",
+    "timezone.source.instance": "Instanz",
+    "timezone.source.client": "Kunde {{name}}",
+    "timezone.source.profile": "Ihr Profil"
 }

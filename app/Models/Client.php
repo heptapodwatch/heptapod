@@ -5,6 +5,7 @@ namespace Heptapod\Models;
 use Carbon\CarbonImmutable;
 use Database\Factories\ClientFactory;
 use Heptapod\Concerns\AuditsConfiguration;
+use Heptapod\Settings\InstanceSettings;
 use Illuminate\Database\Eloquent\Attributes\DateFormat;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,7 +21,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 /**
  * @property CarbonImmutable|null $archived_at
  * @property string|null $short_name
- * @property string|null $contact_name
+ * @property string|null $timezone
  * @property string|null $accent_color
  * @property int|null $avatar_site_id
  */
@@ -35,6 +36,12 @@ final class Client extends Model implements HasMedia
     public function displayName(?string $locale = null): string
     {
         return $this->is_internal ? __('No client', locale: $locale) : $this->name;
+    }
+
+    /** The client's own zone, or the instance zone while it keeps the default. */
+    public function resolvedTimezone(): string
+    {
+        return $this->timezone ?? app(InstanceSettings::class)->timezone;
     }
 
     /** @return literal-string */
@@ -56,7 +63,7 @@ final class Client extends Model implements HasMedia
 
     protected function auditedAttributes(): array
     {
-        return ['name', 'slug', 'short_name', 'contact_name', 'locale', 'timezone', 'accent_color', 'is_internal', 'archived_at'];
+        return ['name', 'slug', 'short_name', 'locale', 'timezone', 'accent_color', 'is_internal', 'archived_at'];
     }
 
     /** @use HasFactory<ClientFactory> */

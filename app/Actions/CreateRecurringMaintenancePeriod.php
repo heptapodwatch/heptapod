@@ -14,7 +14,7 @@ final readonly class CreateRecurringMaintenancePeriod
     /** @param array<string, mixed> $attributes */
     public function __invoke(Site $site, array $attributes, bool $generateNow = true): RecurringMaintenancePeriod
     {
-        $attributes['timezone'] ??= $site->client()->getQuery()->firstOrFail()->timezone;
+        $attributes['timezone'] ??= $site->client()->getQuery()->firstOrFail()->resolvedTimezone();
         $validated = $this->attributes->validate($attributes);
 
         return DB::transaction(function () use ($site, $validated, $generateNow): RecurringMaintenancePeriod {

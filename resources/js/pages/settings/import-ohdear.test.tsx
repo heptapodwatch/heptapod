@@ -17,7 +17,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
     return {
         ...original,
         Head: () => null,
-        usePage: () => ({ props: { timezone: 'Europe/Berlin' } }),
+        usePage: () => ({ props: { instanceTimezone: 'Europe/Berlin' } }),
     };
 });
 vi.mock('react-i18next', () => {
