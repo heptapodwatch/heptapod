@@ -7,6 +7,8 @@ namespace Heptapod\Queries;
 use Carbon\CarbonImmutable;
 use Heptapod\Checks\CauseSummary;
 use Heptapod\Checks\CheckRunPresentations;
+use Heptapod\Contracts\CheckKey;
+use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\RunPhase;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\RunResult;
@@ -24,6 +26,7 @@ use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 
 final readonly class RunsReader
@@ -34,7 +37,7 @@ final readonly class RunsReader
     /** Newest finished runs on the board, within the last day; older ones are in the history. */
     private const int BOARD_FINISHED = 20;
 
-    public function __construct(private SitePolicy $policy, private CheckRunsReader $checkRuns, private CauseSummary $summaries, private CheckRunPresentations $presentations) {}
+    public function __construct(private SitePolicy $policy, private CheckRunsReader $checkRuns, private CauseSummary $summaries, private CheckRunPresentations $presentations, private CheckRegistry $registry) {}
 
     public function history(User $user, ?int $checkId = null, ?int $before = null, ?int $clientId = null, ?string $type = null, ?RunPhase $phase = null, bool $showSameResult = true, ?CarbonImmutable $since = null): RunsHistoryPageData
     {
@@ -84,8 +87,9 @@ final readonly class RunsReader
         foreach ($attempts->take(50) as $attempt) {
             $check = $attempt->check;
             $site = $check?->site;
+            // Checks and sites load after the attempts; one deleted in between takes its attempts with it.
             if ($check === null || $site === null) {
-                throw new \LogicException('Run attempt must belong to an existing check and site.');
+                continue;
             }
             $recordedRun = $attempt->check_run_id === null || $attempt->finished_at === null ? null
                 : $recordedRuns->get($attempt->check_run_id.'|'.$attempt->finished_at->format('U.u').'|'.$attempt->check_id);
@@ -140,7 +144,11 @@ final readonly class RunsReader
             if (isset($finishedAttempts[$attempt->id])) {
                 continue;
             }
-            $check = $checks->get($attempt->check_id) ?? throw new \LogicException('Active attempt must have a visible check.');
+            $check = $checks->get($attempt->check_id);
+            // A check or site deleted after the attempts were read leaves its attempt behind; it is gone from the board too.
+            if ($check?->site === null) {
+                continue;
+            }
             $activeRows[] = $this->currentRow($check, $this->checkRuns->state($check, $attempt, $positions));
         }
 
@@ -215,21 +223,24 @@ final readonly class RunsReader
         return $this->finishedRows($runQuery->get(), $attempts);
     }
 
+    /**
+     * CheckRunsReader::state()'s Late rule as one count, because every page's sidebar asks it: an enabled check of an active
+     * site, of an available type, past its due time plus grace, with no attempt it is waiting on (none queued or running,
+     * and none holding its claim). Queue positions play no part, so a backlog adds no work.
+     */
     public function lateCount(User $user): int
     {
-        $checkQuery = Check::query()->with('site');
-        // Every page's sidebar asks this: load only checks past their due time plus grace, CheckRunsReader::state() decides the rest.
-        $checkQuery->getQuery()->whereIn('site_id', $this->policy->activeVisibleSiteIds($user))->where('enabled', true)
-            ->whereRaw("next_run_at + greatest(60, ceil(interval_seconds * 0.1)) * interval '1 second' < ?::timestamptz", [CarbonImmutable::now('UTC')->format('Y-m-d H:i:s.uP')]);
-        $checks = $checkQuery->get();
-        if ($checks->isEmpty()) {
-            return 0;
-        }
-        $attemptQuery = CheckRunAttempt::query()->with('actor');
-        $attemptQuery->getQuery()->whereIn('check_id', $checks->pluck('id')->all())->whereIn('phase', [RunPhase::Queued, RunPhase::Running]);
-        $attempts = $attemptQuery->get()->keyBy('check_id');
+        $available = array_values(array_map(static fn (CheckKey $key): string => $key->value,
+            array_filter($this->registry->keys(), fn (CheckKey $key): bool => $this->registry->availability($key)->reason === null)));
+        $query = DB::table('checks')->whereIntegerInRaw('site_id', $this->policy->activeVisibleSiteIds($user))->where('enabled', true)
+            ->whereIn('type', $available)
+            ->whereRaw("next_run_at + greatest(60, ceil(interval_seconds * 0.1)) * interval '1 second' < ?::timestamptz", [CarbonImmutable::now('UTC')->format('Y-m-d H:i:s.uP')])
+            ->whereNotExists(static fn (QueryBuilder $attempt): QueryBuilder => $attempt->from('check_run_attempts')->whereColumn('check_run_attempts.check_id', 'checks.id')
+                ->whereIn('check_run_attempts.phase', [RunPhase::Queued->value, RunPhase::Running->value]))
+            // checks.claim_token is a uuid, the attempt's a string.
+            ->whereNotExists(static fn (QueryBuilder $claim): QueryBuilder => $claim->from('check_run_attempts')->whereRaw('check_run_attempts.claim_token = checks.claim_token::text'));
 
-        return $checks->filter(fn (Check $check): bool => $this->checkRuns->state($check, $attempts->get($check->id))->phase === RunPhase::Late)->count();
+        return $query->count();
     }
 
     /** @return Builder<Check> */

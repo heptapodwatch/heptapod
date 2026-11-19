@@ -208,3 +208,32 @@ it('keeps full Runs board and history query counts invariant with more checks', 
 
     expect($queryCount())->toBe($baseline);
 });
+
+it('leaves out the runs of a site deleted while the Runs page reads them', function (string $readAfter, bool $boardReadsAfter): void {
+    $user = User::factory()->create();
+    $user->assignRole('Owner');
+    $kept = Check::factory()->create();
+    $deleted = Check::factory()->create();
+    foreach ([$kept, $deleted] as $check) {
+        CheckRunAttempt::query()->create(['check_id' => $check->id, 'claim_token' => (string) Str::uuid(),
+            'phase' => RunPhase::Running, 'queue' => 'checks-fast', 'requested_at' => now()->subMinute(), 'started_at' => now()->subMinute()]);
+    }
+    $this->actingAs($user)->get('/settings/profile')->assertOk();
+    $pending = true;
+    // The deletion lands right after the named attempts read, before the checks and sites are loaded.
+    DB::listen(function ($query) use (&$pending, $readAfter, $deleted): void {
+        if ($pending && str_contains($query->sql, 'from "check_run_attempts"') && str_contains($query->sql, $readAfter)) {
+            $pending = false;
+            DB::table('sites')->where('id', $deleted->site_id)->delete();
+        }
+    });
+
+    $this->get('/runs')->assertOk()->assertInertia(fn (Assert $page): Assert => $page
+        ->where('current', fn ($rows): bool => collect($rows)->pluck('check_id')->sort()->values()->all() === ($boardReadsAfter ? [$kept->id] : [$kept->id, $deleted->id]))
+        ->where('runs', fn ($rows): bool => collect($rows)->pluck('check_id')->all() === [$kept->id]));
+    expect($pending)->toBeFalse();
+})->with([
+    // The board reads first; a deletion after the history read leaves the board's rows as they were read.
+    'board' => ['order by "requested_at" asc', true],
+    'history' => ['order by "requested_at" desc', false],
+]);
