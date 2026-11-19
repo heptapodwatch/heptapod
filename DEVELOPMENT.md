@@ -1,6 +1,6 @@
 # Development
 
-Heptapod develops in Docker Compose. PHP 8.5.12 (FrankenPHP), Composer, Node 24 and aspell run in the containers, so you need no host PHP or Node.
+Heptapod develops in Docker Compose. PHP 8.5.13 (FrankenPHP), Composer, Node 24 and aspell run in the containers, so you need no host PHP or Node.
 
 ## Set up a checkout
 
@@ -80,7 +80,7 @@ docker compose --profile fixtures up -d --wait fixtures fixtures-alt dns-fixture
 
 ## Tooling
 
-Run project commands through the app container. CI runs static checks on PHP 8.5.12, Node 24, Postgres 17, Redis and aspell.
+Run project commands through the app container. CI runs static checks on PHP 8.5.13, Node 24, Postgres 17, Redis and aspell.
 
 Run affected PHP tests with `docker compose exec app bash scripts/run-tests.sh focused <test-file>`, or the non-quarantined Feature/Unit suites with `docker compose exec app bash scripts/run-tests.sh ci-php`. Use random order and record the seed as shown in [development test hooks](docs/deploy/operations.md#development-test-hooks).
 
