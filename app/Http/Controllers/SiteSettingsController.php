@@ -11,6 +11,7 @@ use Heptapod\Http\Requests\UpdateSiteAlertSensitivityRequest;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Queries\SiteDetailReader;
+use Heptapod\Settings\InstanceSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -27,7 +28,7 @@ final class SiteSettingsController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 401);
 
-        return Inertia::render('sites/settings', $reader->settings($user, $site));
+        return Inertia::render('sites/settings', $reader->settings($user, $site))->with('instanceTimezone', app(InstanceSettings::class)->timezone);
     }
 
     public function update(UpdateSiteAlertSensitivityRequest $request, Site $site, UpdateSiteSettings $update): RedirectResponse

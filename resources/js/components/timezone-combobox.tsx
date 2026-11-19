@@ -1,3 +1,4 @@
+import { usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -69,6 +70,16 @@ export function timezoneOptions(
             ),
         ),
     ];
+}
+
+/** The instance zone a page with a zone field supplies; a page that renders one without it is a bug. */
+export function useInstanceTimezone(): string {
+    const zone = usePage().props.instanceTimezone;
+    if (zone === undefined)
+        throw new Error(
+            'This page renders a zone field without instanceTimezone.',
+        );
+    return zone;
 }
 
 type TimezoneComboboxProps = {

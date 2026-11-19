@@ -99,6 +99,5 @@ it('bounds target presentation queries', function (int $count): void {
     $queries = DB::getQueryLog();
     DB::disableQueryLog();
     expect($response->inertiaProps()['items'])->toHaveCount(min($count, 100));
-    // +1 since 2026-11-19: the instance zone, shared as the default of every zone field.
-    expect(count($queries))->toBeLessThanOrEqual(21);
+    expect(count($queries))->toBeLessThanOrEqual(20);
 })->with([1, 150]);

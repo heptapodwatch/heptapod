@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Enums\NotificationMode;
+use Heptapod\Enums\RecipientKind;
 use Heptapod\Models\Client;
 use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
@@ -41,7 +42,7 @@ it('stores no zone for a new client, the command-line Owner and No client, so th
         $this->get('/clients/'.$client->id.'/settings')->assertInertia(fn (Assert $page): Assert => $page
             ->where('client.timezone', $client->timezone ?? 'Europe/Berlin')->where('client.timezone_override', $client->timezone));
     }
-    $this->get('/settings/profile')->assertInertia(fn (Assert $page): Assert => $page->where('timezone', 'Europe/Berlin')->where('auth.user.timezone', null));
+    $this->get('/settings/profile')->assertInertia(fn (Assert $page): Assert => $page->where('timezone', 'Europe/Berlin')->where('auth.user.timezone', 'Europe/Berlin')->where('auth.user.timezone_override', null));
     $this->actingAs($traveller)->get('/settings/profile')->assertInertia(fn (Assert $page): Assert => $page->where('timezone', 'America/Chicago'));
     expect([$owner->refresh()->timezone, $follows->refresh()->timezone, $internal->refresh()->timezone])->toBe([null, null, null]);
 });
@@ -81,18 +82,24 @@ it('keeps the zone of a re-activated account', function (): void {
     expect(User::query()->where('email', 'back@example.test')->sole()->timezone)->toBe('America/Chicago');
 });
 
-it('plans a channel digest in the channel\'s own zone, else in its party\'s', function (?string $channelZone, string $due): void {
+it('plans a channel digest in the channel\'s own zone, else in its party\'s, else in the instance\'s', function (?string $userZone, ?string $channelZone, string $due): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-01T23:00:00Z'));
     $instance = app(InstanceSettings::class);
     $instance->timezone = 'Europe/Berlin';
     $instance->save();
     Http::preventStrayRequests();
-    $owner = User::factory()->owner()->create();
     $channel = notificationWebhook();
-    if ($channelZone !== null) {
-        $this->actingAs($owner)->patchJson(route('notification-channels.update', $channel->id), ['timezone' => $channelZone])->assertOk();
+    // A user channel (an Admin sees every site); without a user zone, the team channel.
+    $editor = User::factory()->admin()->create(['timezone' => $userZone]);
+    if ($userZone !== null) {
+        $channel->update(['recipient_kind' => RecipientKind::User, 'user_id' => $editor->id]);
+    } else {
+        $editor = User::factory()->owner()->create();
     }
-    notificationSchedule($channel, ['digest_time' => '08:00']);
+    if ($channelZone !== null) {
+        $this->actingAs($editor)->patchJson(route('notification-channels.update', $channel->id), ['timezone' => $channelZone])->assertOk();
+    }
+    notificationSchedule($channel->refresh(), ['digest_time' => '08:00']);
     notificationRule($channel, 'check.warning', NotificationMode::Digest);
     $warning = Event::factory()->create(['to_result' => CheckResult::Warning]);
     $warning->check->update(['latest_run_result' => CheckResult::Warning]);
@@ -101,6 +108,8 @@ it('plans a channel digest in the channel\'s own zone, else in its party\'s', fu
 
     expect(Delivery::query()->sole()->next_attempt_at->toIso8601String())->toBe($due);
 })->with([
-    'team channel without its own zone: the instance\'s 08:00' => [null, '2026-10-02T06:00:00+00:00'],
-    'team channel with its own zone: its 08:00' => ['America/New_York', '2026-10-02T12:00:00+00:00'],
+    'team channel: the instance\'s 08:00' => [null, null, '2026-10-02T06:00:00+00:00'],
+    'team channel with its own zone: its 08:00' => [null, 'America/New_York', '2026-10-02T12:00:00+00:00'],
+    'user channel: the user\'s 08:00' => ['America/Chicago', null, '2026-10-02T13:00:00+00:00'],
+    'user channel with its own zone: its 08:00' => ['America/Chicago', 'America/New_York', '2026-10-02T12:00:00+00:00'],
 ]);

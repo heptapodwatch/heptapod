@@ -9,6 +9,7 @@ use Heptapod\Http\Controllers\Controller;
 use Heptapod\Http\Requests\Settings\ProfileDeleteRequest;
 use Heptapod\Http\Requests\Settings\ProfileUpdateRequest;
 use Heptapod\Models\User;
+use Heptapod\Settings\InstanceSettings;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,7 +31,7 @@ final class ProfileController extends Controller
             mustVerifyEmail: $request->user() instanceof MustVerifyEmail,
             status: $status,
             timezones: \DateTimeZone::listIdentifiers(),
-        ));
+        ))->with('instanceTimezone', app(InstanceSettings::class)->timezone);
     }
 
     /**

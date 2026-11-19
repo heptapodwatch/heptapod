@@ -17,6 +17,7 @@ use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\Check;
 use Heptapod\Models\Client;
 use Heptapod\Models\ImportRun;
+use Heptapod\Settings\InstanceSettings;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -35,7 +36,7 @@ final class ImportOhDearController extends Controller
             clients: array_values($clients->get()->map(static fn (Client $client): ClientData => ClientData::fromClient($client))->all()),
             timezones: \DateTimeZone::listIdentifiers(),
             sections: ImportSection::cases(),
-        ));
+        ))->with('instanceTimezone', app(InstanceSettings::class)->timezone);
     }
 
     public function show(Request $request, string $run, CronTaskStore $tasks, CronPingUrl $pingUrl): Response

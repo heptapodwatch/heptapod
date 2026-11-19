@@ -416,8 +416,7 @@ it('bounds Runs list query work and SQL count as attempt history grows', functio
         ->and(count($queries))->toBeLessThanOrEqual($fewQueries, 'the Runs list grew from '.$fewQueries.' to '.count($queries).' queries as attempts grew from 2 to '.$count)
         // Upper budget: page shell and shell health, the sidebar's inline late runs count, the bounded current/queued/finished
         // attempt pages and their batched presentations.
-        // +1 since 2026-11-19: the instance zone, shared as the default of every zone field.
-        ->and($fewQueries)->toBeLessThanOrEqual(31, 'the Runs list used '.$fewQueries.' queries, over its budget of 31')
+        ->and($fewQueries)->toBeLessThanOrEqual(30, 'the Runs list used '.$fewQueries.' queries, over its budget of 30')
         ->and(QueryPlanWork::forQuery($list['query'], $list['bindings']))->toBeLessThan($count * 20);
     expect(collect($queries)->filter(static fn (array $query): bool => str_contains($query['query'], 'select count(*)') && str_contains($query['query'], '"queue" = ?')))->toBeEmpty();
     $response->assertInertia(fn (Assert $page): Assert => $page->component('runs/index')->where('runs.0.run.queue_position', $count));

@@ -28,8 +28,8 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
 #[Guarded(['id'])]
 final class NotificationSchedule extends Model
 {
-    /** The channel's own zone when this schedule was read for one channel (forChannels); null follows the party. */
-    private ?string $channelTimezone = null;
+    /** The channel this schedule was read for (forChannels): its resolved zone is the schedule's. */
+    private ?NotificationDestination $channel = null;
 
     protected function casts(): array
     {
@@ -43,8 +43,8 @@ final class NotificationSchedule extends Model
     }
 
     /**
-     * Schedules for many channels in one query. The recipient relation already loaded on each channel is reused for
-     * the timezone, so routing many channels never loads a user or client per channel.
+     * Schedules for many channels in one query. Each one resolves its zone through its channel, reusing the recipient
+     * relation already loaded there, so routing many channels never loads a user or client per channel.
      *
      * @param  iterable<NotificationDestination>  $channels
      * @return array<int, self> keyed by channel id
@@ -83,13 +83,7 @@ final class NotificationSchedule extends Model
             } ?? self::defaults($channel->recipient_kind, $channel->user_id, $channel->client_id);
             // Channels of one recipient share its schedule, but each may have its own zone.
             $schedule = clone $schedule;
-            $schedule->channelTimezone = $channel->timezone;
-            if ($channel->relationLoaded('user')) {
-                $schedule->setRelation('user', $channel->user);
-            }
-            if ($channel->relationLoaded('client')) {
-                $schedule->setRelation('client', $channel->client);
-            }
+            $schedule->channel = $channel;
             $schedules[$channel->id] = $schedule;
         }
 
@@ -106,7 +100,7 @@ final class NotificationSchedule extends Model
 
     public function timezone(): string
     {
-        return $this->channelTimezone ?? self::partyTimezone($this->recipient_kind, $this->user, $this->client);
+        return $this->channel?->resolvedTimezone() ?? self::partyTimezone($this->recipient_kind, $this->user, $this->client);
     }
 
     /** A party's zone: the user's or the client's own, else the instance's. A deleted user's archived channel has no user. */

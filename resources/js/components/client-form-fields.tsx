@@ -1,11 +1,13 @@
 import { TooltipHint } from '@/components/truncated-text';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { formatDateTime } from '@/lib/date-time';
-import { usePage } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import { FormSection } from '@/components/form-section';
 import InputError, { fieldErrorProps } from '@/components/input-error';
-import { TimezoneCombobox } from '@/components/timezone-combobox';
+import {
+    TimezoneCombobox,
+    useInstanceTimezone,
+} from '@/components/timezone-combobox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -40,7 +42,7 @@ export function ClientFormFields(form: {
     internal?: boolean;
 }) {
     const { t } = useTranslation();
-    const { instanceTimezone } = usePage().props;
+    const instanceTimezone = useInstanceTimezone();
     const timezone = form.data.timezone ?? instanceTimezone;
     const validTimezone = form.timezones.includes(timezone);
     return (

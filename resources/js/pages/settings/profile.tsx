@@ -2,6 +2,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
     BrowserTimezoneHint,
     TimezoneCombobox,
+    useInstanceTimezone,
 } from '@/components/timezone-combobox';
 import {
     FormSection,
@@ -35,7 +36,8 @@ export default function Profile({
     timezones: string[];
 }) {
     const { t } = useTranslation();
-    const { auth, instanceTimezone } = usePage().props;
+    const { auth } = usePage().props;
+    const instanceTimezone = useInstanceTimezone();
     const user = auth.user;
     if (!user) throw new Error('Profile requires an authenticated user');
     const initials = useInitials();
@@ -43,7 +45,7 @@ export default function Profile({
         name: user.name,
         email: user.email,
         locale: user.locale,
-        timezone: user.timezone,
+        timezone: user.timezone_override,
     });
     const pendingErrorFocus = useRef<string | undefined>(undefined);
     useEffect(() => {
@@ -67,7 +69,7 @@ export default function Profile({
                     name: savedUser.name,
                     email: savedUser.email,
                     locale: savedUser.locale,
-                    timezone: savedUser.timezone,
+                    timezone: savedUser.timezone_override,
                 };
                 form.setDefaults(saved);
                 form.setData(saved);
@@ -201,8 +203,8 @@ export default function Profile({
                     >
                         <div className="space-y-4">
                             <BrowserTimezoneHint
-                                onDefault={user.timezone === null}
-                                current={instanceTimezone}
+                                onDefault={user.timezone_override === null}
+                                current={user.timezone}
                                 draft={form.data.timezone}
                                 timezones={timezones}
                                 onUse={(zone) => form.setData('timezone', zone)}

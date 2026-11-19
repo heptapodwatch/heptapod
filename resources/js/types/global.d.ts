@@ -15,7 +15,8 @@ declare module '@inertiajs/core' {
             mailMayOnlyBeLogged: boolean;
             locale: 'en' | 'de';
             timezone: string;
-            instanceTimezone: string;
+            /** Only on pages with a zone field (Inertia `->with`): the default an empty zone follows. */
+            instanceTimezone?: string;
             auth: Auth;
             sidebarOpen: boolean;
             liveChannels: string[];

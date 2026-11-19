@@ -3,8 +3,10 @@ export type User = {
     name: string;
     email: string;
     locale: 'en' | 'de';
-    /** The own zone; null follows the instance. */
-    timezone: string | null;
+    /** The zone in use: the user's own, else the instance's. */
+    timezone: string;
+    /** The user's own choice; null follows the instance. */
+    timezone_override: string | null;
     roles: { name: string }[];
     avatar?: string;
     email_verified_at: string | null;

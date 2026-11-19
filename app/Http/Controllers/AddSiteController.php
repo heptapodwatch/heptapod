@@ -12,6 +12,7 @@ use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 use Heptapod\Queries\AddSiteReader;
+use Heptapod\Settings\InstanceSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -29,7 +30,8 @@ final class AddSiteController extends Controller
 
         Validator::make($request->all(), ['client_id' => ['sometimes', 'integer', 'min:1']])->validate();
 
-        return Inertia::render('sites/create', $reader->read($user, $request->filled('client_id') ? $request->integer('client_id') : null)->toArray());
+        return Inertia::render('sites/create', $reader->read($user, $request->filled('client_id') ? $request->integer('client_id') : null)->toArray())
+            ->with('instanceTimezone', app(InstanceSettings::class)->timezone);
     }
 
     public function store(Request $request, CreateSite $create, SitePolicy $policy, SiteProbe $probe, NormaliseSiteUrl $normalise): RedirectResponse
