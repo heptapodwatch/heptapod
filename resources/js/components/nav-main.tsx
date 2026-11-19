@@ -92,7 +92,12 @@ export function NavMain({
                                                       })
                                                     : undefined
                                             }
-                                            prefetch
+                                            // The daily monitoring views load with the sidebar, so their first click is instant.
+                                            prefetch={
+                                                item.group === 'Primary'
+                                                    ? ['mount', 'hover']
+                                                    : true
+                                            }
                                             onSuccess={() =>
                                                 setOpenMobile(false)
                                             }

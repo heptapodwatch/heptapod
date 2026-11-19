@@ -1,4 +1,4 @@
-import { createInertiaApp, router } from '@inertiajs/react';
+import { createInertiaApp, http, router } from '@inertiajs/react';
 import { configureEcho } from '@laravel/echo-react';
 import { i18nReady } from '@/lib/i18n';
 import { Toaster } from '@/components/ui/sonner';
@@ -93,6 +93,37 @@ function recoverNavigation(failedUrl?: string): boolean {
     return true;
 }
 
+// Prefetched pages (hovered or mounted links) stay cached for a minute. A visit shows a cached page at once; one older than
+// PREFETCH_FRESH_MS is reloaded in the background right after, so fresh data follows.
+const PREFETCH_FRESH_MS = 10_000;
+const prefetchedAt = new Map<string, number>();
+// The page URL comes back percent-encoded, a link's URL may not be: compare both in one encoding.
+function pageKey(url: string | URL): string {
+    const target = new URL(url, location.href);
+    target.search = new URLSearchParams(target.search).toString();
+    target.hash = '';
+    return target.href;
+}
+router.on('prefetched', (event) => {
+    prefetchedAt.set(pageKey(event.detail.visit.url), Date.now());
+});
+router.on('navigate', (event) => {
+    if (!event.detail.cached) return;
+    const age =
+        Date.now() - (prefetchedAt.get(pageKey(event.detail.page.url)) ?? 0);
+    if (age >= PREFETCH_FRESH_MS) router.reload();
+});
+// Any successful write can change every page, so no cached page may outlive it: the user's own action shows at once.
+const inertiaHttp = http.getClient();
+http.setClient({
+    request: (config) =>
+        inertiaHttp.request(config).then((response) => {
+            if (config.method !== 'get' && response.status < 400)
+                router.flushAll();
+            return response;
+        }),
+});
+
 window.addEventListener('vite:preloadError', (event) => {
     if (recoverNavigation()) event.preventDefault();
 });
@@ -141,6 +172,9 @@ void i18nReady.then(() =>
             }
         },
         strictMode: true,
+        defaults: {
+            prefetch: { cacheFor: [PREFETCH_FRESH_MS, '1m'] },
+        },
         withApp(app) {
             return (
                 <TooltipProvider delayDuration={0}>

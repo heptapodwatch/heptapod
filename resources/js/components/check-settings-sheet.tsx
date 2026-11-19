@@ -370,6 +370,8 @@ function SavedCheckSettingsSheet({
             form.reset();
             setProbeResult(null);
             setOpen(false);
+            // A plain fetch bypasses the Inertia client, which drops cached pages after a write (app.tsx).
+            router.flushAll();
             router.reload(reloadOnly ? { only: reloadOnly } : {});
         } catch (error) {
             console.error(error);
