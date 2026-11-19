@@ -214,10 +214,11 @@ it('holds site, check, and incident detail query budgets as related history grow
     // history, presentation and freshness reads. e04c03b5d presentations, f80f6d32a freshness, 78bd4a4b episode
     // pages, 36aca5a1a avatars and 25458fc44/0a385128 shell health are batched reads, not per-history-row queries.
     // Feed-visible events add their batched site, client, check and incident loads. The overview reads the site's repository links once.
+    // The sidebar's late runs count is read inline, not in a second deferred request (two reads).
     [$path, $budget, $rendered] = match ($page) {
-        'site' => ['/sites/'.$site->id, 56, static fn (array $props): int => count($props['events'])],
-        'check' => ['/sites/'.$site->id.'/checks/'.$check->id, 59, static fn (array $props): int => count($props['runs'])],
-        'incident' => ['/incidents/'.$incident->id, 70, static fn (array $props): int => collect($props['timeline'])->where('event.type', 'incident.cause_changed')->count()],
+        'site' => ['/sites/'.$site->id, 58, static fn (array $props): int => count($props['events'])],
+        'check' => ['/sites/'.$site->id.'/checks/'.$check->id, 61, static fn (array $props): int => count($props['runs'])],
+        'incident' => ['/incidents/'.$incident->id, 72, static fn (array $props): int => collect($props['timeline'])->where('event.type', 'incident.cause_changed')->count()],
     };
     $measure = function () use ($path, $rendered): array {
         DB::enableQueryLog();

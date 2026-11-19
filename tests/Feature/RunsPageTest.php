@@ -52,17 +52,15 @@ it('keeps unclaimed late checks out of the active board and shares the authorize
 
     expect(app(CheckRunsReader::class)->state($late->load('site'))->phase)->toBe(RunPhase::Late);
     $this->actingAs($user)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page
-        ->component('runs/index')->missing('late')->missing('lateRunsCount')
+        ->component('runs/index')->missing('late')->where('lateRunsCount', 1)
         ->has('current', 0)
-        ->has('runs', 0)->has('clients', 1)
-        ->loadDeferredProps(['sidebar'], fn (Assert $sidebar): Assert => $sidebar->where('lateRunsCount', 1)));
+        ->has('runs', 0)->has('clients', 1));
     expect(CheckRunAttempt::query()->count())->toBe(0);
     $this->get('/runs?state=late')->assertInertia(fn (Assert $page): Assert => $page->has('current', 0));
     $this->get('/runs?check='.$hidden->id.'&show_same_result=1')->assertInertia(fn (Assert $page): Assert => $page->has('current', 0)->has('runs', 0)
-        ->loadDeferredProps(['sidebar'], fn (Assert $sidebar): Assert => $sidebar->where('lateRunsCount', 1)));
+        ->where('lateRunsCount', 1));
     $late->update(['enabled' => false]);
-    $this->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->missing('late')->has('current', 0)
-        ->loadDeferredProps(['sidebar'], fn (Assert $sidebar): Assert => $sidebar->where('lateRunsCount', 0)));
+    $this->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->missing('late')->has('current', 0)->where('lateRunsCount', 0));
 });
 
 it('filters current and attempt history by authorized client and check type while preserving check-id links', function (): void {

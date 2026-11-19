@@ -192,8 +192,8 @@ it('paginates incidents within a fixed query budget', function (int $count): voi
     expect(count($queries))->toBeLessThanOrEqual($fewQueries, 'the incident list grew from '.$fewQueries.' to '.count($queries).' queries as incidents grew from 2 to '.$count)
         ->and(count(array_filter($queries, static fn (array $query): bool => str_contains($query['query'], 'percentile_cont(0.5)'))))->toBe(1);
     // Upper budget: page shell and shell health (25458fc44/0a385128), one incident page with batched
-    // current/opening presentations (83aee8842) and one duration-median read.
-    expect($fewQueries)->toBeLessThanOrEqual(22, 'the incident list used '.$fewQueries.' queries, over its budget of 22');
+    // current/opening presentations (83aee8842), one duration-median read and the sidebar's inline late runs count.
+    expect($fewQueries)->toBeLessThanOrEqual(24, 'the incident list used '.$fewQueries.' queries, over its budget of 24');
     DB::enableQueryLog();
     DB::flushQueryLog();
     $this->withHeaders(['X-Inertia' => 'true', 'X-Inertia-Version' => $response->inertiaPage()['version'],

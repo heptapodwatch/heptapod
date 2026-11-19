@@ -108,8 +108,7 @@ it('counts late runs with the check-page engine definition and excludes foreign 
     Check::factory()->for(Site::factory()->for($client)->create(['paused_at' => now()]))->create(['next_run_at' => now()->subHour()]);
     Check::factory()->create(['next_run_at' => now()->subHour()]);
 
-    $this->actingAs($user)->get('/sites')->assertOk()->assertInertia(fn ($page) => $page->missing('lateRunCount')
-        ->loadDeferredProps(['sidebar'], fn ($deferred) => $deferred->missing('lateRunCount')));
+    $this->actingAs($user)->get('/sites')->assertOk()->assertInertia(fn ($page) => $page->where('lateRunsCount', 1));
     expect(app(RunsReader::class)->lateCount($user))->toBe(1);
     $this->get('/sites/'.$site->id.'/checks/'.$late->id)->assertOk()->assertInertia(fn ($page) => $page->where('schedule.run.phase', 'late'));
     $this->post('/sites/'.$site->id.'/checks/'.$late->id.'/run')->assertForbidden();

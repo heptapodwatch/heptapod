@@ -90,12 +90,12 @@ it('keeps Maintenance visibility while excluding paused deleting and disabled ad
     expect($items)->toHaveCount(4)->and(array_column($items, 'type'))->toBe(['maintenance', 'maintenance', 'maintenance', 'domain']);
 });
 
-it('does not register a sidebar deferred request for guests or users without a monitoring role', function (): void {
+it('does not share the late runs count with guests or users without a monitoring role', function (): void {
     $guest = $this->get('/login')->assertOk()->inertiaPage();
-    expect($guest['deferredProps'] ?? [])->not->toHaveKey('sidebar');
+    expect($guest['props'])->not->toHaveKey('lateRunsCount');
 
     $roleless = $this->actingAs(User::factory()->create())->get('/settings/profile')->assertOk()->inertiaPage();
-    expect($roleless['deferredProps'] ?? [])->not->toHaveKey('sidebar');
+    expect($roleless['props'])->not->toHaveKey('lateRunsCount');
 });
 
 it('reads offsetless certificate and domain expiry in UTC under a non-UTC database session', function (): void {
@@ -175,7 +175,8 @@ it('bounds All to twelve months and a hundred chronological dates with a stable 
     $response->assertOk()->assertInertia(fn ($page) => $page->component('upcoming/index')->has('items', 100)->where('days', 'all'));
     expect(count($queries))->toBeLessThanOrEqual($fewQueries, 'upcoming grew from '.$fewQueries.' to '.count($queries).' queries as maintenance sites grew from 1 to '.$count);
     // Upper budget: page shell and shell health (25458fc44/0a385128), the bounded maintenance, domain and
-    // certificate reads, and batched client avatars (36aca5a1a).
-    expect($fewQueries)->toBeLessThanOrEqual(22, 'upcoming used '.$fewQueries.' queries, over its budget of 22');
+    // certificate reads, batched client avatars (36aca5a1a), and the sidebar's late runs count, which every page
+    // now reads inline instead of in a second, deferred request.
+    expect($fewQueries)->toBeLessThanOrEqual(24, 'upcoming used '.$fewQueries.' queries, over its budget of 24');
     expect(collect($response->inertiaProps()['items'])->max('date'))->toBeLessThanOrEqual('2027-10-04T00:30:00+00:00');
 })->with([2, 20]);

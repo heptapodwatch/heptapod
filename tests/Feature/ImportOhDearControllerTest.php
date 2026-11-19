@@ -126,7 +126,9 @@ it('renders imported cron tasks in stable order with constant lookup queries', f
     DB::enableQueryLog();
     DB::flushQueryLog();
 
-    $response = $this->get('/settings/import/ohdear/runs/'.$run->id, ['X-Inertia' => 'true', 'X-Inertia-Version' => $version]);
+    // Only the import run, so the shared sidebar props (their own checks reads) stay out of the count.
+    $response = $this->get('/settings/import/ohdear/runs/'.$run->id, ['X-Inertia' => 'true', 'X-Inertia-Version' => $version,
+        'X-Inertia-Partial-Component' => 'settings/import-ohdear-run', 'X-Inertia-Partial-Data' => 'importRun']);
     $queries = DB::getQueryLog();
     DB::disableQueryLog();
 
