@@ -1,3 +1,4 @@
+import { pageCacheTag } from '@/lib/page-cache';
 import { Link } from '@inertiajs/react';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -92,12 +93,8 @@ export function NavMain({
                                                       })
                                                     : undefined
                                             }
-                                            // The daily monitoring views load with the sidebar, so their first click is instant.
-                                            prefetch={
-                                                item.group === 'Primary'
-                                                    ? ['mount', 'hover']
-                                                    : true
-                                            }
+                                            prefetch
+                                            cacheTags={pageCacheTag}
                                             onSuccess={() =>
                                                 setOpenMobile(false)
                                             }

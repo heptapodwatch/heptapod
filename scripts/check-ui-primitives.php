@@ -471,6 +471,21 @@ foreach ($files as $path) {
             }
         }
     }
+    // A prefetched page carries the page cache tag, so a write drops it (resources/js/lib/page-cache.ts).
+    if (preg_match_all('~<\w+(?=\s)(?:=>|[^<>])*?(?<!=)>~s', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
+        foreach ($matches[0] as [$tag, $offset]) {
+            if (tagHasAttribute($tag, 'prefetch') && (! tagHasAttribute($tag, 'cacheTags=') || preg_match('~\scacheTags=\{\s*pageCacheTag\s*\}~', $tag) !== 1)) {
+                $failures[] = sprintf('%s:%d: prefetch without cacheTags={pageCacheTag}', $path, substr_count($source, "\n", 0, $offset) + 1);
+            }
+        }
+    }
+    if (preg_match_all('~\brouter\.prefetch\(~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
+        foreach ($matches[0] as [, $offset]) {
+            if (! str_contains(expressionValue($source, $offset + strlen('router.prefetch')), 'cacheTags: pageCacheTag')) {
+                $failures[] = sprintf('%s:%d: router.prefetch without cacheTags: pageCacheTag', $path, substr_count($source, "\n", 0, $offset) + 1);
+            }
+        }
+    }
     // An empty list shows only its EmptyState (heptapod-ui-rules Lists): a column header whose list holds a bare EmptyState (the
     // next EmptyState within 1500 characters, before another header) renders only in a branch (`&& (` or `? (`).
     if (preg_match_all('~<(?:ListHeader|TableHeader)[\s>]~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {

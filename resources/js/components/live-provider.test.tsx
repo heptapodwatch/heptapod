@@ -32,7 +32,7 @@ vi.mock('@laravel/echo-react', () => {
     };
 });
 vi.mock('@inertiajs/react', () => ({
-    router: { on: () => () => {} },
+    router: { on: () => () => {}, flushAll: vi.fn() },
     usePage: () => ({ props: { liveChannels: ['instance', 'client.2'] } }),
 }));
 vi.mock('@/lib/live-store', () => ({

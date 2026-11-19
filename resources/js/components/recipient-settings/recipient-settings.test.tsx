@@ -31,7 +31,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
     usePage: () => ({
         props: { auth: { canManageInstance: true }, timezone: 'UTC' },
     }),
-    router: { on: () => () => {}, reload: vi.fn() },
+    router: { on: () => () => {}, reload: vi.fn(), flushByCacheTags: vi.fn() },
 }));
 /** The real Inertia useHttp over a fake transport: only the server's answer is faked. */
 function fakeTransport(config: HttpRequestConfig): Promise<HttpResponse> {

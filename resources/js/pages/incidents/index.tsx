@@ -1,3 +1,4 @@
+import { pageCacheTag } from '@/lib/page-cache';
 import { ListFooter } from '@/components/list-footer';
 import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import { AbsoluteTime } from '@/components/absolute-time';
@@ -393,6 +394,7 @@ export default function IncidentsIndex({
                                 key={incident.id}
                                 href={incidentShow.url(incident.id)}
                                 prefetch
+                                cacheTags={pageCacheTag}
                                 aria-label={incidentLabel(incident)}
                                 className={cn(
                                     'grid min-w-0 gap-2',

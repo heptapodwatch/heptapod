@@ -1,3 +1,4 @@
+import { pageCacheTag } from '@/lib/page-cache';
 import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { AbsoluteTime } from '@/components/absolute-time';
@@ -260,6 +261,7 @@ export function IncidentEpisode({
             <Link
                 href={checkShow.url({ site: page.site.id, check: check.id })}
                 prefetch
+                cacheTags={pageCacheTag}
             >
                 {t('Open check')}
                 <ArrowRight aria-hidden="true" />

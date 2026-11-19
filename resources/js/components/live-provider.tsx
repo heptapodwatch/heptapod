@@ -29,7 +29,10 @@ async function catchUpSinceRender() {
         }
         ({ changed } = (await response.json()) as { changed: boolean });
     } finally {
-        if (changed) requestCatchUp();
+        if (changed) {
+            router.flushAll();
+            requestCatchUp();
+        }
     }
 }
 
@@ -59,10 +62,11 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         names.forEach((name) =>
             echo()
                 .join(name)
-                .listen(
-                    '.LiveSignal',
-                    receiveLiveSignal as (event: LiveSignal) => void,
-                )
+                .listen('.LiveSignal', (signal: LiveSignal) => {
+                    // A prefetched page may predate the change; the next visit reads it fresh.
+                    router.flushAll();
+                    receiveLiveSignal(signal);
+                })
                 .subscribed(() => {
                     if (!active) return;
                     pending.delete(name);
@@ -70,6 +74,8 @@ export function LiveProvider({ children }: { children: ReactNode }) {
                         window.clearTimeout(lost);
                         if (setStreamStatus('connected'))
                             void catchUpSinceRender();
+                        // A reconnect may have missed changes; the views reload, the prefetched pages go.
+                        else router.flushAll();
                     }
                 })
                 .error(() => {

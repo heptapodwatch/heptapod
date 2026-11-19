@@ -1,3 +1,4 @@
+import { pageCacheTag } from '@/lib/page-cache';
 import { Link, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -69,6 +70,7 @@ export function BrandLink({
                 {...props}
                 href={brand.href}
                 prefetch
+                cacheTags={pageCacheTag}
                 aria-label={label}
                 className={cn('hp-brand-link', className)}
             >

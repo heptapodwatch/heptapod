@@ -27,6 +27,8 @@ export default function ManagePasskeys(props: Props) {
         );
 
     const handleRegisterSuccess = () => {
+        // The passkeys package registers with its own fetch, outside Inertia's write invalidation (app.tsx).
+        router.flushAll();
         router.reload();
     };
 

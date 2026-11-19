@@ -1,3 +1,4 @@
+import { pageCacheTag } from '@/lib/page-cache';
 import { ListFooter } from '@/components/list-footer';
 import {
     FilterBar,
@@ -280,6 +281,7 @@ export default function SitesIndex({
                                     <Link
                                         href={sitesCreate.url()}
                                         prefetch
+                                        cacheTags={pageCacheTag}
                                         data-shortcut-create
                                     >
                                         <Plus />

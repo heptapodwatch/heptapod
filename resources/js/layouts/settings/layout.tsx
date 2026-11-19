@@ -1,3 +1,4 @@
+import { pageCacheTag } from '@/lib/page-cache';
 import { PageContainer } from '@/components/page-container';
 import { useTranslation } from 'react-i18next';
 import { Link, usePage } from '@inertiajs/react';
@@ -80,6 +81,7 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                                                             : undefined
                                                     }
                                                     prefetch
+                                                    cacheTags={pageCacheTag}
                                                 >
                                                     <item.icon aria-hidden />
                                                     <span>{t(item.title)}</span>

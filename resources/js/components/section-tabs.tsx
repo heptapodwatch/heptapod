@@ -1,3 +1,4 @@
+import { pageCacheTag } from '@/lib/page-cache';
 import { Link } from '@inertiajs/react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -66,6 +67,7 @@ export function SectionTabs({
             href={item.href}
             aria-current={item.value === value ? 'page' : undefined}
             prefetch
+            cacheTags={pageCacheTag}
             data-muted={item.muted || undefined}
             className={cn(
                 horizontalNavigationItemClass,

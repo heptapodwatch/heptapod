@@ -1,3 +1,4 @@
+import { pageCacheTag } from '@/lib/page-cache';
 import { ListFooter } from '@/components/list-footer';
 import {
     EntityLink,
@@ -151,9 +152,11 @@ export default function ClientDetail({
                                     router.visit(siteShow.url(site.id))
                                 }
                                 onPrefetch={(site) =>
-                                    router.prefetch(siteShow.url(site.id), {
-                                        method: 'get',
-                                    })
+                                    router.prefetch(
+                                        siteShow.url(site.id),
+                                        { method: 'get' },
+                                        { cacheTags: pageCacheTag },
+                                    )
                                 }
                             />
                         ) : (
@@ -242,6 +245,9 @@ export default function ClientDetail({
                                                                     incident.id,
                                                                 )}
                                                                 prefetch
+                                                                cacheTags={
+                                                                    pageCacheTag
+                                                                }
                                                                 className="font-mono text-xs"
                                                             >
                                                                 INC-
@@ -307,6 +313,7 @@ export default function ClientDetail({
                                                     incident.id,
                                                 )}
                                                 prefetch
+                                                cacheTags={pageCacheTag}
                                                 className={cn(
                                                     'flex items-center justify-between gap-2',
                                                     listCardPadding,

@@ -1,3 +1,4 @@
+import { pageCacheTag } from '@/lib/page-cache';
 import { ListFooter } from '@/components/list-footer';
 import { TruncatedText } from '@/components/truncated-text';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -466,6 +467,7 @@ export default function MaintenanceIndex({
                             variant="secondary"
                             href={siteShow.url(site_id)}
                             prefetch
+                            cacheTags={pageCacheTag}
                         >
                             {site_name}
                         </TextLink>

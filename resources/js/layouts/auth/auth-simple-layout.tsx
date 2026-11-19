@@ -1,3 +1,4 @@
+import { pageCacheTag } from '@/lib/page-cache';
 import { Link } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import AppLogo from '@/components/app-logo';
@@ -17,6 +18,7 @@ export default function AuthSimpleLayout({
                         <Link
                             href="/"
                             prefetch
+                            cacheTags={pageCacheTag}
                             className="hp-brand-link rounded-sm [--brand-mark-h:28px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                         >
                             <AppLogo />

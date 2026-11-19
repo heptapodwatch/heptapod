@@ -1,3 +1,4 @@
+import { pageCacheTag } from '@/lib/page-cache';
 import { useTranslation } from 'react-i18next';
 import { edit as apiTokens } from '@/routes/settings/api-tokens';
 import { TextLink } from '@/components/text-link';
@@ -14,7 +15,11 @@ export function TasksApiNotice({ canManage }: { canManage: boolean }) {
                 )}
             </p>
             {canManage && (
-                <TextLink href={apiTokens.url()} prefetch>
+                <TextLink
+                    href={apiTokens.url()}
+                    prefetch
+                    cacheTags={pageCacheTag}
+                >
                     {t('API tokens')}
                 </TextLink>
             )}

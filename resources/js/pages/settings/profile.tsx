@@ -1,3 +1,4 @@
+import { pageCacheTag } from '@/lib/page-cache';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { TimezoneCombobox } from '@/components/timezone-combobox';
 import {
@@ -185,7 +186,11 @@ export default function Profile({
                                 {t(
                                     'Password, passkeys and two-factor authentication are in',
                                 )}{' '}
-                                <TextLink href={editSecurity()} prefetch>
+                                <TextLink
+                                    href={editSecurity()}
+                                    prefetch
+                                    cacheTags={pageCacheTag}
+                                >
                                     {t('Security')}
                                 </TextLink>
                                 .
