@@ -147,6 +147,7 @@ export default function ClientDetail({
                                 showClient={false}
                                 full
                                 serverMode
+                                pageSize={pagination.per_page}
                                 onSelect={(site) =>
                                     router.visit(siteShow.url(site.id))
                                 }

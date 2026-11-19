@@ -25,15 +25,6 @@ type Group = Heptapod.Data.Ui.ActivityGroupData;
 /** The partial reload of a flapping group's own events; the timeline and its loaded batches stay as they are. */
 const detailProps = ['expanded_id', 'expanded_events', 'event_page'];
 
-/** An administrative resolution (pause, disable, deletion, move) is Closed, never Recovered. */
-function eventBadgeLabel(event: EventDto) {
-    if (event.message_params.administrative_resolution === true)
-        return 'Closed';
-    return event.severity === 'recovered'
-        ? 'activity.recovered'
-        : eventLabel(event);
-}
-
 /**
  * Activity as the site overview's event timeline, grouped by calendar day (relative day + date header, the event
  * clock per row). A recovery the server paired with its failure reads "Failed → Recovered after 3m"; a flapping group
@@ -141,7 +132,7 @@ export function ActivityTimeline({
                                 />
                                 <StatusBadge
                                     state={eventState(item)}
-                                    label={eventBadgeLabel(item)}
+                                    label={eventLabel(item)}
                                 />
                                 <span className="text-xs break-words">
                                     {item.message}

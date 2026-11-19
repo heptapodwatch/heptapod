@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckResult;
+use Heptapod\Contracts\SuppressionComponent;
 use Heptapod\Enums\ClientScope;
 use Heptapod\Models\Check;
 use Heptapod\Models\Client;
@@ -19,12 +20,13 @@ beforeEach(function (): void {
 });
 
 /** Activity as the Inertia client reads it (the page JSON keeps `scrollProps`); `$only` makes it a partial reload. */
-function activityPage(string $url, ?string $only = null): TestResponse
+function activityPage(string $url, ?string $only = null, ?string $reset = null): TestResponse
 {
     $version = test()->get('/activity')->assertOk()->inertiaPage()['version'];
 
     return test()->get($url, ['X-Inertia' => 'true', 'X-Inertia-Version' => $version,
-        ...($only === null ? [] : ['X-Inertia-Partial-Component' => 'activity/index', 'X-Inertia-Partial-Data' => $only])])->assertOk();
+        ...($only === null ? [] : ['X-Inertia-Partial-Component' => 'activity/index', 'X-Inertia-Partial-Data' => $only]),
+        ...($reset === null ? [] : ['X-Inertia-Reset' => $reset])])->assertOk();
 }
 
 it('omits initial scheduled-task observations from Activity', function (): void {
@@ -111,6 +113,9 @@ it('loads Activity in batches of 50 and never splits a failure from its recovery
         ->and(array_column(array_column($batch, 'latest'), 'id'))->toBe([...array_column($newest, 'id'), $recovery->id])
         ->and($batch[49]['earlier']['id'])->toBe($failure->id)
         ->and($batch[49]['started_at'])->toBe($failure->occurred_at->toIso8601String())
+        // The recovery recorded no duration; the pair's three hours stand in, and the check links by its id.
+        ->and($batch[49]['latest']['duration_seconds'])->toBe(3 * 3600)
+        ->and($batch[49]['latest']['check_id'])->toBe($paired->id)
         ->and($batch[0]['earlier'])->toBeNull()
         // The next batch continues after the merged failure, so it is never shown twice.
         ->and($first->json('scrollProps.events'))->toMatchArray(['pageName' => 'before', 'nextPage' => $failure->id]);
@@ -124,4 +129,40 @@ it('loads Activity in batches of 50 and never splits a failure from its recovery
     $head = activityPage('/activity?period=7d', 'head');
     expect($head->json('props.head.data.49.earlier.id'))->toBe($failure->id)
         ->and($head->json('props'))->not->toHaveKey('events');
+});
+
+it('pairs only a recovery of the same check component from the state its failure entered', function (): void {
+    $owner = User::factory()->owner()->create();
+    $check = Check::factory()->for(Site::factory())->create(['type' => CheckKey::Cron]);
+    $task = fn (int $id): array => ['component_type' => SuppressionComponent::Cron, 'component_id' => $id];
+    // Another task of the same check recovers: not this failure's recovery.
+    Event::factory()->for($check)->create(['occurred_at' => now()->subHours(1), 'from_result' => CheckResult::Failed, 'to_result' => CheckResult::Succeeded, ...$task(2)]);
+    Event::factory()->for($check)->create(['occurred_at' => now()->subHours(4), 'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Failed, ...$task(1)]);
+    // The same task recovers from Warning, a state its older failure never entered.
+    Event::factory()->for($check)->create(['occurred_at' => now()->subHours(8), 'from_result' => CheckResult::Warning, 'to_result' => CheckResult::Succeeded, ...$task(1)]);
+    Event::factory()->for($check)->create(['occurred_at' => now()->subHours(12), 'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Failed, ...$task(1)]);
+
+    $this->actingAs($owner);
+    expect(activityPage('/activity?period=7d')->json('props.events.data.*.earlier'))->toBe([null, null, null, null]);
+});
+
+it('starts the timeline over from the newest batch when the buffered changes are applied', function (): void {
+    $owner = User::factory()->owner()->create();
+    $check = Check::factory()->for(Site::factory())->create(['type' => CheckKey::Dns]);
+    $old = [];
+    foreach (range(1, 60) as $minute) {
+        $old[] = Event::factory()->for($check)->create(['occurred_at' => now()->subHours(3)->subMinutes($minute * 3), 'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Warning]);
+    }
+    $this->actingAs($owner);
+    $first = activityPage('/activity?period=7d');
+    // The reader scrolled one batch further; then a change arrives and the live reload sees it only in `head`.
+    activityPage('/activity?period=7d&before='.$first->json('scrollProps.events.nextPage'), 'events');
+    $arrived = Event::factory()->for($check)->create(['occurred_at' => now()->subMinute(), 'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Failed]);
+    expect(activityPage('/activity?period=7d', 'head')->json('props.head.data.0.latest.id'))->toBe($arrived->id);
+
+    // Apply: the client reloads `events` and `head` with the scroll prop reset, from the top of the feed.
+    $applied = activityPage('/activity?period=7d', 'events,head', 'events');
+    expect(array_column($applied->json('props.events.data.*.latest'), 'id'))->toBe([$arrived->id, ...array_column(array_slice($old, 0, 49), 'id')])
+        ->and($applied->json('props.head.data.0.latest.id'))->toBe($arrived->id)
+        ->and($applied->json('scrollProps.events'))->toMatchArray(['reset' => true, 'currentPage' => null, 'nextPage' => $old[48]->id]);
 });

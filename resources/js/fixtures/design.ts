@@ -650,6 +650,7 @@ export const dashboardEvents: EventDto[] = (
     [
         {
             run_id: null,
+            check_id: null,
             id: 1,
             site_id: 23,
             client_id: null,
@@ -671,6 +672,7 @@ export const dashboardEvents: EventDto[] = (
         },
         {
             run_id: null,
+            check_id: null,
             id: 2,
             site_id: 22,
             client_id: null,
@@ -692,6 +694,7 @@ export const dashboardEvents: EventDto[] = (
         },
         {
             run_id: null,
+            check_id: null,
             id: 3,
             site_id: 21,
             client_id: null,
@@ -713,6 +716,7 @@ export const dashboardEvents: EventDto[] = (
         },
         {
             run_id: null,
+            check_id: null,
             id: 4,
             site_id: 1,
             client_id: null,
@@ -734,6 +738,7 @@ export const dashboardEvents: EventDto[] = (
         },
         {
             run_id: null,
+            check_id: null,
             id: 5,
             site_id: 3,
             client_id: null,
@@ -755,6 +760,7 @@ export const dashboardEvents: EventDto[] = (
         },
         {
             run_id: null,
+            check_id: null,
             id: 6,
             site_id: 23,
             client_id: null,
@@ -859,6 +865,7 @@ export function overviewEvents(site: SiteDto): EventDto[] {
             ...dashboardEvents.filter((event) => event.site_id === site.id),
             {
                 run_id: null,
+                check_id: null,
                 id: 101,
                 site_id: site.id,
                 client_id: null,
@@ -880,6 +887,7 @@ export function overviewEvents(site: SiteDto): EventDto[] {
             },
             {
                 run_id: null,
+                check_id: null,
                 id: 102,
                 site_id: site.id,
                 client_id: null,

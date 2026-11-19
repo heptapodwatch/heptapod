@@ -168,7 +168,9 @@ final readonly class EventsReader
 
     /**
      * One Activity batch, newest first: up to $limit groups older than $cursor. A recovery directly after its own
-     * failure (same site and check, one event each) becomes one row carrying that failure as `earlier`. The batch reads
+     * failure becomes one row carrying that failure as `earlier`: one event each, the same check (and component), the
+     * recovery leaving exactly the state the failure entered, never an administrative close. A recovery without its own
+     * duration takes the pair's elapsed time. The batch reads
      * two groups past $limit, so a pair is never split across batches: when the last row it takes is a recovery whose
      * failure would open the next batch, the failure joins this one, and `older` continues after it.
      *
@@ -182,7 +184,8 @@ final readonly class EventsReader
         }
         /** @var list<ActivityGroupRow> $rows */
         $rows = $query->orderByDesc('ended_at')->orderByDesc('latest_id')->limit($limit + 2)->get()->all();
-        $events = $this->present($this->activityHeadEvents(array_map(static fn (object $row): int => $row->latest_id, $rows))->values());
+        $models = $this->activityHeadEvents(array_map(static fn (object $row): int => $row->latest_id, $rows));
+        $events = $this->present($models->values());
         $byId = [];
         foreach ($events as $event) {
             $byId[$event->id] = $event;
@@ -194,10 +197,15 @@ final readonly class EventsReader
             $next = $rows[$taken + 1] ?? null;
             $latest = $byId[$row->latest_id];
             $earlier = $next === null ? null : $byId[$next->latest_id];
-            $paired = $next !== null && $earlier !== null && $row->event_count === 1 && $next->event_count === 1
-                && $latest->severity === AlertSeverity::Recovered
-                && ! in_array($earlier->severity, [AlertSeverity::Recovered, AlertSeverity::Info], true)
-                && $latest->site_id !== null && $latest->site_id === $earlier->site_id && $latest->check === $earlier->check;
+            $recovery = $models->get($row->latest_id) ?? throw new \LogicException('Activity head event missing.');
+            $failure = $next === null ? null : ($models->get($next->latest_id) ?? throw new \LogicException('Activity head event missing.'));
+            $paired = $next !== null && $earlier !== null && $failure !== null && $row->event_count === 1 && $next->event_count === 1
+                && $this->recovers($recovery, $failure)
+                && $latest->severity === AlertSeverity::Recovered && ($latest->message_params['administrative_resolution'] ?? false) !== true
+                && ! in_array($earlier->severity, [AlertSeverity::Recovered, AlertSeverity::Info], true);
+            if ($paired && $latest->duration_seconds === null) {
+                $latest = $latest->withDuration((int) $failure->occurred_at->diffInSeconds($recovery->occurred_at));
+            }
             $startedAt = $paired ? $next->started_at : $row->started_at;
             $result[] = new ActivityGroupData($row->id, $latest, $row->event_count,
                 CarbonImmutable::parse($startedAt)->toIso8601String(), CarbonImmutable::parse($row->ended_at)->toIso8601String(),
@@ -209,6 +217,15 @@ final readonly class EventsReader
         }
 
         return ['groups' => $result, 'older' => count($rows) > $taken ? $rows[$taken - 1]->latest_id : null];
+    }
+
+    /** The recovery ends exactly this failure: same check and component, back from the state the failure entered. */
+    private function recovers(Event $recovery, Event $failure): bool
+    {
+        return $recovery->check_id !== null && $recovery->check_id === $failure->check_id
+            && $recovery->component_type === $failure->component_type && $recovery->component_id === $failure->component_id
+            && $failure->to_result !== null && $failure->to_result !== CheckResult::Succeeded
+            && $recovery->from_result === $failure->to_result && $recovery->to_result === CheckResult::Succeeded;
     }
 
     /** @return list<EventData> */

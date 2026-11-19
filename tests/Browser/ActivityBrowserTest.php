@@ -19,7 +19,7 @@ use Heptapod\Models\User;
 use Heptapod\Testing\ClaimedRun;
 use Illuminate\Support\Facades\Vite;
 
-it('labels Activity failures by check cause and preserves historical errors and recovery', function (string $locale, array $labels): void {
+it('labels Activity failures by check cause and merges a check error with its recovery', function (string $locale, array $labels, string $merged): void {
     Vite::useHotFile(storage_path('framework/testing.hot'));
     $this->freezeTime();
     $this->seed(DatabaseSeeder::class);
@@ -46,18 +46,21 @@ it('labels Activity failures by check cause and preserves historical errors and 
             app(ResultRecorder::class)->record(new RecordableRun($check->id, $claim->claimToken, $claim->startedAt, $ended, $outcome));
             if ($offset >= 2) {
                 $eventTime = $offset === 2 && $key === CheckKey::BrokenLinks ? $at->addMinute() : $ended;
-                $rows[] = ['selector' => 'main div.grid:has(a[href="/sites/'.$site->id.'"]):has(time[datetime="'.$eventTime->toIso8601String().'"])', 'label' => array_shift($labels)];
+                $rows[] = ['selector' => '[data-activity-timeline] li:has(a[href="/sites/'.$site->id.'"]):has(time[datetime="'.$eventTime->toIso8601String().'"])', 'label' => array_shift($labels)];
             }
         }
     }
 
+    // The check error and the recovery that ends it are one timeline row: the recovery's ring, the error as its lead.
+    [$failed, $down, $checkError, $recovered] = $rows;
     $page = visit('/activity?period=all');
-    foreach ($rows as $row) {
-        $page->assertSeeIn($row['selector'].' [data-slot="badge"]', $row['label'])
-            ->assertAttribute($row['selector'].' [data-slot="badge"]', 'aria-label', $row['label']);
+    foreach ([$failed, $down, $recovered] as $row) {
+        $page->assertAttribute($row['selector'].' > span > .status-ring', 'aria-label', $row['label']);
     }
-    $page->assertNoJavaScriptErrors();
+    $page->assertSeeIn($recovered['selector'], $merged)
+        ->assertNotPresent($checkError['selector'])
+        ->assertNoJavaScriptErrors();
 })->with([
-    'English' => ['en', ['Failed', 'Down', 'Check error', 'Recovered']],
-    'German' => ['de', ['Fehlgeschlagen', 'Ausgefallen', 'Prüffehler', 'Wiederhergestellt']],
+    'English' => ['en', ['Failed', 'Down', 'Check error', 'Recovered'], 'Check error →'],
+    'German' => ['de', ['Fehlgeschlagen', 'Ausgefallen', 'Prüffehler', 'Wiederhergestellt'], 'Prüffehler →'],
 ]);

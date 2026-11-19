@@ -24,6 +24,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { show as incidentShow } from '@/routes/incidents';
+import { show as checkShow } from '@/routes/sites/checks';
 import { checkTypes } from '@/lib/check-types';
 import {
     bucketStates,
@@ -67,16 +68,17 @@ export const statusColor: Record<SiteState | 'running', string> = {
 
 /**
  * The 24 h response line's colour comes from the site's own speed, not its overall state: the performance check's
- * state (Warning or Failed when it is slow), neutral while it is OK or pending and for sites without one.
+ * Warning or Failed colour when it is slow; neutral in every other state (a check error says nothing about speed)
+ * and for sites without one.
  */
 export function responseLineColor(checks: CheckDto[]): string {
     const performance = checks.find(
         (check) => check.key === 'performance' && check.enabled,
     );
     const state = performance ? checkState(performance) : 'ok';
-    return state === 'ok' || state === 'pending'
-        ? 'var(--muted-foreground)'
-        : statusColor[state];
+    return state === 'warning' || state === 'failed'
+        ? statusColor[state]
+        : 'var(--muted-foreground)';
 }
 
 export function StatusDot({
@@ -727,7 +729,20 @@ export function EventTimeline({
                                 <PresentationChanges changes={event.changes} />
                                 {event.changes.length > 0 && ' · '}
                                 {event.check !== null &&
-                                    t(checkTypes[event.check].label)}
+                                    (event.site_id !== null &&
+                                    event.check_id !== null ? (
+                                        <TextLink
+                                            variant="secondary"
+                                            href={checkShow.url({
+                                                site: event.site_id,
+                                                check: event.check_id,
+                                            })}
+                                        >
+                                            {t(checkTypes[event.check].label)}
+                                        </TextLink>
+                                    ) : (
+                                        t(checkTypes[event.check].label)
+                                    ))}
                                 {showClientName && event.client_name !== '' && (
                                     <>
                                         {event.check !== null && ' · '}

@@ -1254,6 +1254,7 @@ readonly icon_backing: Heptapod.Enums.SiteIconBacking,
 readonly client_id: number | null,
 readonly changes: Heptapod.Contracts.CheckRunPresentationPartData[],
 readonly run_id: number | null,
+readonly check_id: number | null,
 };
 export type FinishedRunData = {
 readonly id: number,

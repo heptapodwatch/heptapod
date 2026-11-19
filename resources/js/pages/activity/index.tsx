@@ -22,7 +22,6 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { PendingChanges } from '@/components/pending-changes';
-import { useBufferedChanges } from '@/hooks/use-buffered-changes';
 import { useLiveReload } from '@/hooks/use-live';
 import { checkTypes } from '@/lib/check-types';
 import { index as activityIndex } from '@/routes/activity';
@@ -48,64 +47,32 @@ export default function Activity({
     expanded_events,
     event_page,
 }: Heptapod.Data.Ui.ActivityPageData) {
-    // Live changes reload only the newest batch; older batches the user loaded stay as they are.
-    const reloadPage = useLiveReload(
-        ['state.changed'],
-        ['head'],
-        undefined,
-        true,
-        { pollFallback: false },
-    );
-    // The first batch of these filters is the live, buffered top of the list until a live reload brings `head`.
-    const filterKey = JSON.stringify(filters);
-    const [firstBatch, setFirstBatch] = useState({
-        key: filterKey,
-        rows: events.data,
+    // Live changes reload only the newest batch (`head`); the shown timeline never changes underneath the reader.
+    useLiveReload(['state.changed'], ['head'], undefined, true, {
+        pollFallback: false,
     });
-    if (firstBatch.key !== filterKey) {
-        setFirstBatch({ key: filterKey, rows: events.data });
-    }
-    const buffered = useBufferedChanges(
-        head?.data ?? firstBatch.rows,
-        (group) => group.id,
-        undefined,
-        (group) => JSON.stringify(group),
-    );
-    const latest = head?.data ?? firstBatch.rows;
+    const groups = events.data;
+    // A keyboard user who loaded the last batch lands on the end note instead of on <body>.
+    const loadedByHand = useRef(false);
     const shownGroups = new Map(
-        buffered.rows.map((group) => [group.id, JSON.stringify(group)]),
+        groups.map((group) => [group.id, JSON.stringify(group)]),
     );
-    // A row pushed off the end of the newest batch is not another new change.
-    const pendingChanges =
-        buffered.pendingCount === 0
-            ? 0
-            : Math.max(
-                  1,
-                  latest.filter(
-                      (group) =>
-                          shownGroups.get(group.id) !== JSON.stringify(group),
-                  ).length,
-              );
-    const acceptChanges = () => {
-        buffered.apply();
-        if (expanded_id !== null) {
-            reloadPage({ only: ['expanded_events'] });
-        }
-    };
-    // Older batches continue below the shown top; a group or a merged failure already shown there is not repeated.
-    const shownEvents = new Set(
-        buffered.rows.flatMap((group) => [
-            group.latest.id,
-            ...(group.earlier ? [group.earlier.id] : []),
-        ]),
-    );
-    const groups = [
-        ...buffered.rows,
-        ...events.data.filter(
-            (group) =>
-                !shownGroups.has(group.id) && !shownEvents.has(group.latest.id),
-        ),
-    ];
+    // New or changed groups at the top; a row the newest batch pushed off its end is not another change. A new filter
+    // is a full visit without `head`, so the count starts over with the filter.
+    const pendingChanges = (head?.data ?? []).filter(
+        (group) => shownGroups.get(group.id) !== JSON.stringify(group),
+    ).length;
+    // Applying starts the timeline over from the newest batch, so the loaded batches always join without a gap.
+    const acceptChanges = () =>
+        router.reload({
+            only: [
+                'events',
+                'head',
+                ...(expanded_id !== null ? ['expanded_events'] : []),
+            ],
+            reset: ['events'],
+            onSuccess: () => window.scrollTo({ top: 0 }),
+        });
     const { t } = useTranslation();
     const { url } = usePage();
     const [draft, setDraft] = useState<ActivityFilters>({
@@ -346,26 +313,48 @@ export default function Activity({
                         onlyNext
                         preserveUrl
                         manualAfter={AUTOMATIC_BATCHES}
-                        loading={() => (
-                            <p className="flex items-center justify-center gap-2 pt-4 text-xs text-muted-foreground">
-                                <Spinner />
-                                {t('Loading older changes…')}
-                            </p>
-                        )}
+                        loading={({ manualMode }) =>
+                            manualMode ? null : (
+                                <p className="flex items-center justify-center gap-2 pt-4 text-xs text-muted-foreground">
+                                    <Spinner />
+                                    {t('Loading older changes…')}
+                                </p>
+                            )
+                        }
                         next={({ fetch, loading, hasMore, manualMode }) =>
                             hasMore ? (
-                                manualMode && !loading ? (
+                                // The button stays mounted while it loads, so keyboard focus stays on it.
+                                manualMode ? (
                                     <div className="flex justify-center pt-4">
                                         <Button
                                             variant="outline"
-                                            onClick={fetch}
+                                            aria-disabled={loading || undefined}
+                                            onClick={() => {
+                                                if (loading) return;
+                                                loadedByHand.current = true;
+                                                fetch();
+                                            }}
                                         >
-                                            {t('Load older changes')}
+                                            {loading && <Spinner />}
+                                            {t(
+                                                loading
+                                                    ? 'Loading older changes…'
+                                                    : 'Load older changes',
+                                            )}
                                         </Button>
                                     </div>
                                 ) : null
                             ) : (
-                                <p className="pt-4 text-xs text-muted-foreground">
+                                <p
+                                    tabIndex={-1}
+                                    ref={(element) => {
+                                        if (element && loadedByHand.current) {
+                                            loadedByHand.current = false;
+                                            element.focus();
+                                        }
+                                    }}
+                                    className="pt-4 text-xs text-muted-foreground"
+                                >
                                     {t(
                                         'End of activity in this range. Older changes are not shown.',
                                     )}{' '}

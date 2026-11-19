@@ -94,3 +94,28 @@ it('shows the worst active check, preferring an open incident then its ID, with 
     );
     expect(summary.classList.contains('break-words')).toBe(true);
 });
+
+it('keeps the column gear in its own header cell when every hideable column is hidden', async () => {
+    await i18n.changeLanguage('en');
+    document.cookie = `sites_hidden_columns=${encodeURIComponent('client_id:0,why:0,checks:0,list_scores:0,response:0,uptime:0,checked_at:0')}; path=/`;
+    const { container } = render(
+        <I18nextProvider i18n={i18n}>
+            <TooltipProvider>
+                <DataTable
+                    data={sites.slice(0, 3)}
+                    clients={clients}
+                    full
+                    serverMode
+                    onSelect={() => {}}
+                />
+            </TooltipProvider>
+        </I18nextProvider>,
+    );
+    const headers = [...container.querySelectorAll('thead th')];
+    // Status, Site and the gear's own cell remain; the gear is never inside a column the user can hide.
+    expect(headers).toHaveLength(3);
+    expect(
+        headers.at(-1)?.querySelector('button[aria-label="Columns"]'),
+    ).not.toBeNull();
+    document.cookie = 'sites_hidden_columns=; path=/; max-age=0';
+});

@@ -63,7 +63,7 @@ import {
 import { useFormat } from '@/hooks/use-format';
 import {
     SiteColumnsMenu,
-    useHiddenSiteColumns,
+    useSiteColumnChoices,
     type HideableSiteColumn,
 } from '@/components/site-table-columns';
 import { useCheckHeadline } from '@/hooks/use-check-headline';
@@ -346,11 +346,17 @@ export function DataTable({
     const format = useFormat();
     const headline = useCheckHeadline();
     const runs = useStreamState('runs');
-    const hiddenColumns = useHiddenSiteColumns();
+    const columnChoices = useSiteColumnChoices();
+    const showsScores = full && data.some(hasListScoreCheck);
+    // Lighthouse shows by default only where at least half of the listed sites have it, so a few scored sites do not
+    // squeeze Site, Client and Why on every row.
+    const scoresByDefault =
+        data.filter(hasListScoreCheck).length * 2 >= data.length;
     // The column choice applies to the full Sites table and its cards; the compact table has fixed columns.
     const shows = (column: HideableSiteColumn) =>
-        !full || !hiddenColumns.has(column);
-    const showsScores = full && data.some(hasListScoreCheck);
+        !full ||
+        (columnChoices.get(column) ??
+            (column === 'list_scores' ? scoresByDefault : true));
     const hideable: HideableSiteColumn[] = [
         ...(showClient ? (['client_id'] as const) : []),
         'why',
@@ -360,6 +366,13 @@ export function DataTable({
         'uptime',
         'checked_at',
     ];
+    const columnsMenu = (
+        <SiteColumnsMenu
+            columns={hideable}
+            choices={columnChoices}
+            shows={shows}
+        />
+    );
     // The server sorts by these columns; clicking the sorted column again reverses it.
     const serverSorts: Record<string, string> = {
         state: 'status',
@@ -538,13 +551,13 @@ export function DataTable({
                   : id === 'uptime'
                     ? 'hidden @[1100px]/table:table-cell @[1100px]/table:w-[128px] @[1100px]/table:max-w-[128px] text-right'
                     : id === 'checked_at'
-                      ? 'w-[145px] text-right'
+                      ? 'w-[118px] text-right'
                       : cn(
                             'hidden',
                             id === 'client_id'
                                 ? '@[600px]/table:table-cell @[600px]/table:w-[110px] @[600px]/table:max-w-[110px]'
                                 : id === 'checks'
-                                  ? '@[900px]/table:table-cell @[900px]/table:w-[225px]'
+                                  ? '@[900px]/table:table-cell @[900px]/table:w-[172px]'
                                   : id === 'response'
                                     ? 'text-right @[1100px]/table:table-cell @[1100px]/table:w-[108px]'
                                     : id === 'list_scores'
@@ -632,7 +645,7 @@ export function DataTable({
                         <span className="truncate">{clientFor(site).name}</span>
                     </span>
                 )}
-                {worstCheck ? (
+                {!shows('why') ? null : worstCheck ? (
                     <span
                         className="text-xs break-words text-muted-foreground"
                         data-site-card-check
@@ -643,7 +656,7 @@ export function DataTable({
                         {isSnoozed(worstCheck, Date.now()) &&
                             ` · ${t('Snoozed until {{time}}', { time: format.timestamp(worstCheck.snoozed_until!) })}`}
                     </span>
-                ) : shows('why') && why(site) ? (
+                ) : why(site) ? (
                     <span className="line-clamp-2 text-xs text-muted-foreground">
                         {why(site)}
                     </span>
@@ -735,7 +748,7 @@ export function DataTable({
                         <TableHeader>
                             {table.getHeaderGroups().map((group) => (
                                 <TableRow key={group.id}>
-                                    {group.headers.map((header, index) => (
+                                    {group.headers.map((header) => (
                                         <TableHead
                                             key={header.id}
                                             className={cn(
@@ -829,18 +842,14 @@ export function DataTable({
                                                     )}
                                                 </TooltipContent>
                                             </Tooltip>
-                                            {full &&
-                                                index ===
-                                                    group.headers.length -
-                                                        1 && (
-                                                    <span className="ml-1 inline-flex align-middle">
-                                                        <SiteColumnsMenu
-                                                            columns={hideable}
-                                                        />
-                                                    </span>
-                                                )}
                                         </TableHead>
                                     ))}
+                                    {full && (
+                                        // Its own cell, so hiding any column never hides the gear.
+                                        <TableHead className="w-10 px-1 text-right">
+                                            {columnsMenu}
+                                        </TableHead>
+                                    )}
                                 </TableRow>
                             ))}
                         </TableHeader>
@@ -888,6 +897,9 @@ export function DataTable({
                                             <FlexRender cell={cell} />
                                         </TableCell>
                                     ))}
+                                    {full && (
+                                        <TableCell className="w-10 px-1" />
+                                    )}
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -897,7 +909,7 @@ export function DataTable({
             {full && (
                 // The cards have no header row, so the column choice sits above them.
                 <div className="-mt-1 mb-1 flex justify-end @[600px]/table:hidden">
-                    <SiteColumnsMenu columns={hideable} />
+                    {columnsMenu}
                 </div>
             )}
             <ul className="divide-y overflow-hidden rounded-lg border @[600px]/table:hidden">
