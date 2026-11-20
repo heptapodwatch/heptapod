@@ -20,4 +20,14 @@ interface ListPaging
      * @return LengthAwarePaginator<int, mixed>
      */
     public function paginate(QueryBuilder|EloquentBuilder $query, string $list): LengthAwarePaginator;
+
+    /**
+     * Pages an already-ordered in-memory list (e.g. backup archives read from a filesystem disk) with the same size and cookie.
+     *
+     * @template TItem
+     *
+     * @param  list<TItem>  $items
+     * @return LengthAwarePaginator<int, TItem>
+     */
+    public function paginateList(array $items, string $list): LengthAwarePaginator;
 }

@@ -7,8 +7,6 @@ namespace Heptapod\Queries;
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\PaginationData;
-use Heptapod\Http\ListPageSize;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Spatie\Backup\BackupDestination\Backup;
 use Spatie\Backup\BackupDestination\BackupCollection;
@@ -28,23 +26,14 @@ final readonly class BackupHistoryReader
         $reachable = $destination->isReachable();
         $path = route('settings.updates.edit');
 
-        $allArchives = $reachable ? BackupCollection::createFromFiles(
+        $allArchives = $reachable ? array_values(BackupCollection::createFromFiles(
             $destination->disk(),
             $destination->disk()->allFiles($name),
-        )->map(static fn (Backup $backup): array => [
+        )->toBase()->map(static fn (Backup $backup): array => [
             'created_at' => $backup->date()->toIso8601String(),
             'size_bytes' => $backup->sizeInBytes(),
-        ])->values() : collect();
-        $archivesPerPage = ListPageSize::resolve(request(), 'backup_archives', 'backup_archives_per_page');
-        $archivesPage = LengthAwarePaginator::resolveCurrentPage('backup_archives_page');
-        $archivesPaginator = new LengthAwarePaginator(
-            $allArchives->forPage($archivesPage, $archivesPerPage)->values(),
-            $allArchives->count(),
-            $archivesPerPage,
-            $archivesPage,
-            ['path' => $path, 'pageName' => 'backup_archives_page'],
-        );
-        $archivesPaginator->withQueryString();
+        ])->all()) : [];
+        $archivesPaginator = $this->paging->paginateList($allArchives, 'backup_archives')->withPath($path);
 
         $columns = ['id', 'requested_by', 'state', 'disk', 'http_status', 'requested_at', 'started_at', 'completed_at'];
         $runsPaginator = $this->paging->paginate(

@@ -19,4 +19,21 @@ final readonly class RequestListPaging implements ListPaging
         /** @var LengthAwarePaginator<int, mixed> */
         return $query->paginate($perPage, ['*'], $list.'_page')->withQueryString();
     }
+
+    public function paginateList(array $items, string $list): LengthAwarePaginator
+    {
+        $request = request();
+        $perPage = ListPageSize::resolve($request, $list, $list.'_per_page');
+        $pageName = $list.'_page';
+        $page = LengthAwarePaginator::resolveCurrentPage($pageName);
+        $paginator = new LengthAwarePaginator(
+            array_slice($items, ($page - 1) * $perPage, $perPage),
+            count($items),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'pageName' => $pageName],
+        );
+
+        return $paginator->withQueryString();
+    }
 }
