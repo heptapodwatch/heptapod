@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Actions;
 
+use Heptapod\Events\LiveSignal;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\DB;
 use Spatie\Backup\Events\BackupHasFailed;
@@ -19,6 +20,7 @@ final class RecordBackupOutcome
         $status = is_int($code) && $code >= 400 && $code <= 599 ? $code : null;
         $id = Context::get('backup-run-id');
         $data = ['state' => $state, 'disk' => $disk, 'http_status' => $status, 'completed_at' => now('UTC')];
+        LiveSignal::forBackup();
         if (is_int($id)) {
             $changed = DB::table('backup_runs')->where('id', $id)->where('state', 'running')->update($data);
             if ($changed !== 1) {

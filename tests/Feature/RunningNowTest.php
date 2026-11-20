@@ -12,8 +12,10 @@ use Heptapod\Enums\ClientScope;
 use Heptapod\Events\LiveSignal;
 use Heptapod\Jobs\RunCheck;
 use Heptapod\Models\Check;
+use Heptapod\Models\ImportRun;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
+use Heptapod\Support\ImportTokenStore;
 use Heptapod\Testing\FakeOutboundHttp;
 use Illuminate\Support\Facades\Event as FrameworkEvent;
 use Illuminate\Support\Facades\Queue;
@@ -73,6 +75,44 @@ it('keeps another client\'s manual runs from a restricted Member', function (): 
         ->has('runningNow.check_runs', 1)
         ->where('runningNow.check_runs.0.check_id', $visible->id)
         ->where('runningNow.check_runs.0.mine', false));
+});
+
+it('shares Oh Dear imports with Owners and Admins only, and the starter\'s result for a minute', function (): void {
+    $owner = runningNowUser('Owner');
+    $admin = runningNowUser('Admin');
+    $member = runningNowUser('Member');
+    $run = ImportRun::query()->create(['user_id' => $admin->id, 'source' => 'ohdear', 'status' => 'planned', 'expected' => 1,
+        'teams' => [], 'plan' => [['source_id' => '101', 'operation' => 'create', 'team_id' => 1]], 'results' => [], 'created_client_ids' => []]);
+    ImportTokenStore::put($run->id, 'fixture-running-now-secret');
+    $this->actingAs($admin)->postJson('/settings/import/ohdear/runs/'.$run->id.'/start', ['expected' => 1, 'groups' => ['team:1' => ['new_client' => 'Imported']], 'overrides' => []])
+        ->assertCreated();
+
+    $this->actingAs($admin)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page
+        ->has('runningNow.imports', 1)->where('runningNow.imports.0.id', $run->id)->where('runningNow.imports.0.status', 'queued')
+        ->where('runningNow.imports.0.mine', true));
+    $this->actingAs($owner)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->where('runningNow.imports.0.mine', false));
+    $this->actingAs($member)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->has('runningNow.imports', 0));
+
+    $run->forceFill(['status' => 'completed', 'finished_at' => now()])->save();
+    $this->actingAs($owner)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->has('runningNow.imports', 0));
+    $this->actingAs($admin)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->where('runningNow.imports.0.status', 'completed'));
+    $this->travel(61)->seconds();
+    $this->actingAs($admin)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->has('runningNow.imports', 0));
+});
+
+it('shares a requested backup with Owners only and signals its state changes', function (): void {
+    $owner = runningNowUser('Owner');
+    $other = runningNowUser('Owner');
+    $admin = runningNowUser('Admin');
+    FrameworkEvent::fake([LiveSignal::class]);
+
+    $this->actingAs($owner)->postJson('/settings/backups')->assertSuccessful();
+    FrameworkEvent::assertDispatched(LiveSignal::class, static fn (LiveSignal $signal): bool => $signal->topic === 'backup.changed');
+
+    $this->actingAs($owner)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page
+        ->where('runningNow.backup.state', 'queued')->where('runningNow.backup.mine', true));
+    $this->actingAs($other)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->where('runningNow.backup.mine', false));
+    $this->actingAs($admin)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->where('runningNow.backup', null));
 });
 
 it('keeps the viewer\'s own finished result for a minute and nobody else\'s', function (): void {

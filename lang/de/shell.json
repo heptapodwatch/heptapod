@@ -26,5 +26,9 @@
     "run.summary.queued_other": "{{count}} in Warteschlange",
     "run.statusGroup": "Läuft gerade und Status",
     "run.onThisSite": "Läuft auf dieser Website",
-    "run.notStarted": "Nicht gestartet: {{checks}}"
+    "run.notStarted": "Nicht gestartet: {{checks}}",
+    "run.import": "Oh-Dear-Import",
+    "run.backup": "Sicherung",
+    "run.openImport": "Import öffnen",
+    "run.openBackups": "Sicherungen öffnen"
 }

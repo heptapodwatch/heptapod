@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/page-header';
 import { HttpError, HttpResponseError } from '@inertiajs/core';
 import { Head, usePage } from '@inertiajs/react';
 import { useHttpRequest } from '@/hooks/use-http-request';
+import { onLiveSignal } from '@/lib/live-store';
 import { Archive, ExternalLink } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { useEffect, useState, type ComponentProps } from 'react';
@@ -102,6 +103,24 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
             setRefreshFailed(true);
         }
     };
+    // A backup's state changes (queued, running, finished) arrive live; only the backup list is read again.
+    const backupsShown = backups !== null;
+    useEffect(() => {
+        if (!backupsShown) return;
+        const stop = onLiveSignal((signal) => {
+            if (signal.topic !== 'backup.changed') return;
+            void history.get(backupData.url()).then(
+                (next) => setPage((current) => ({ ...current, backups: next })),
+                (error: unknown) => {
+                    if (!(error instanceof HttpError)) throw error;
+                    setRefreshFailed(true);
+                },
+            );
+        });
+        return () => {
+            stop();
+        };
+    }, [backupsShown]);
     const backUpNow = async () => {
         setBackupError(null);
         try {

@@ -9,6 +9,9 @@ import {
     runProgress,
     useRunDetail,
     YouMarker,
+    type RunLifecycle,
+    type RunOutcome,
+    type RunProgress,
 } from '@/components/run-family';
 import { TooltipDetails } from '@/components/ui/tooltip';
 import {
@@ -18,7 +21,7 @@ import {
     SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { useFormat } from '@/hooks/use-format';
-import { useRunningNow, type RunningCheckRun } from '@/hooks/use-running-now';
+import { useRunningNow, useRunningWork } from '@/hooks/use-running-now';
 import { checkTypes } from '@/lib/check-types';
 import { index as runsIndex } from '@/routes/runs';
 import {
@@ -81,52 +84,91 @@ function StatusRow({
 
 export const manualRunsHref = runsIndex.url({ query: { started: 'manual' } });
 
-function useRunRowText() {
+/** One run row of the footer, whatever ran: a check run, an import or a backup. */
+type FooterRun = {
+    key: string;
+    lifecycle: RunLifecycle;
+    outcome: RunOutcome | undefined;
+    progress: RunProgress | undefined;
+    label: string;
+    secondary: string | undefined;
+    mine: boolean;
+    href: string;
+};
+
+/** Every run row in footer order: the viewer's results first, then the viewer's runs in flight, then everyone else's. */
+export function useFooterRuns(): { rows: FooterRun[]; total: number } {
     const { t } = useTranslation();
+    const format = useFormat();
     const detail = useRunDetail();
-    return (run: RunningCheckRun) => ({
+    const { runs, activeCount } = useRunningNow();
+    const work = useRunningWork();
+    const checkRows = runs.map((run): FooterRun => ({
+        key: `check:${run.attemptId}`,
+        lifecycle: run.lifecycle,
+        outcome: run.outcome,
+        progress:
+            run.lifecycle === 'running' ? runProgress(run.state) : undefined,
         label: `${t(checkTypes[run.check_type].label)} · ${run.site_name}`,
         secondary:
             run.lifecycle === 'finished'
                 ? t(runOutcomeWord[run.outcome!])
                 : detail(run.state, { narrow: true }),
-    });
+        mine: run.mine,
+        href: run.href,
+    }));
+    const workRows = work.map((item): FooterRun => ({
+        key: item.key,
+        lifecycle: item.lifecycle,
+        outcome: item.outcome,
+        progress: undefined,
+        label: t(item.kind === 'import' ? 'run.import' : 'run.backup'),
+        secondary:
+            item.lifecycle === 'finished'
+                ? t(runOutcomeWord[item.outcome!])
+                : item.lifecycle === 'running' && item.at
+                  ? t('run.since', { time: format.time(item.at) })
+                  : undefined,
+        mine: item.mine,
+        href: item.href,
+    }));
+    const rank = (row: FooterRun) =>
+        row.lifecycle === 'finished' ? 0 : row.mine ? 1 : 2;
+    const rows = [...checkRows, ...workRows].sort((a, b) => rank(a) - rank(b));
+    const shownChecks = checkRows.filter((row) => row.lifecycle !== 'finished');
+    // Check runs beyond the shared page of runs count too; imports and the backup are all in the data.
+    return {
+        rows,
+        total: rows.length + Math.max(0, activeCount - shownChecks.length),
+    };
 }
 
-function RunRows({ runs, total }: { runs: RunningCheckRun[]; total: number }) {
+function RunRows({ rows, total }: { rows: FooterRun[]; total: number }) {
     const { t } = useTranslation();
-    const text = useRunRowText();
-    const shown = runs.slice(0, RUN_ROWS);
+    const shown = rows.slice(0, RUN_ROWS);
     const more = total - shown.length;
     const expanded = 'group-data-[collapsible=icon]:hidden';
-    const lead = shown.find((run) => run.lifecycle === 'running') ?? shown[0];
+    const lead = shown.find((row) => row.lifecycle === 'running') ?? shown[0];
     return (
         <>
-            {shown.map((run) => {
-                const row = text(run);
-                return (
-                    <StatusRow
-                        key={run.attemptId}
-                        className={expanded}
-                        leading={
-                            <RunGlyph
-                                phase={run.lifecycle}
-                                progress={
-                                    run.lifecycle === 'running'
-                                        ? runProgress(run.state)
-                                        : undefined
-                                }
-                                outcome={run.outcome}
-                            />
-                        }
-                        label={row.label}
-                        secondary={row.secondary}
-                        trailing={run.mine ? <YouMarker /> : undefined}
-                        href={run.href}
-                        tooltip={row.label}
-                    />
-                );
-            })}
+            {shown.map((row) => (
+                <StatusRow
+                    key={row.key}
+                    className={expanded}
+                    leading={
+                        <RunGlyph
+                            phase={row.lifecycle}
+                            progress={row.progress}
+                            outcome={row.outcome}
+                        />
+                    }
+                    label={row.label}
+                    secondary={row.secondary}
+                    trailing={row.mine ? <YouMarker /> : undefined}
+                    href={row.href}
+                    tooltip={row.label}
+                />
+            ))}
             {more > 0 && (
                 <StatusRow
                     className={expanded}
@@ -145,11 +187,7 @@ function RunRows({ runs, total }: { runs: RunningCheckRun[]; total: number }) {
                         <span className="relative inline-flex">
                             <RunGlyph
                                 phase={lead.lifecycle}
-                                progress={
-                                    lead.lifecycle === 'running'
-                                        ? runProgress(lead.state)
-                                        : undefined
-                                }
+                                progress={lead.progress}
                                 outcome={lead.outcome}
                             />
                             <span className="absolute -top-2 -right-2.5 rounded-full bg-foreground px-1 text-micro leading-4 text-background tabular-nums">
@@ -163,12 +201,11 @@ function RunRows({ runs, total }: { runs: RunningCheckRun[]; total: number }) {
                         children: (
                             <TooltipDetails
                                 subject={t('Running now')}
-                                facts={shown.map((run) => {
-                                    const row = text(run);
-                                    return row.secondary
+                                facts={shown.map((row) =>
+                                    row.secondary
                                         ? `${row.label}: ${row.secondary}`
-                                        : row.label;
-                                })}
+                                        : row.label,
+                                )}
                             />
                         ),
                     }}
@@ -236,21 +273,22 @@ function useHealthRow() {
 export function SidebarStatus() {
     const { t } = useTranslation();
     const { notificationAttention: channels, auth } = usePage().props;
-    const { runs, activeCount } = useRunningNow();
+    const { rows, total } = useFooterRuns();
     const health = useHealthRow();
-    const finished = runs.filter((run) => run.lifecycle === 'finished');
-    const total = activeCount + finished.length;
-    if (runs.length === 0 && !health && channels.length === 0) return null;
-    const running = runs.filter((run) => run.lifecycle === 'running').length;
-    const queued = runs.filter((run) => run.lifecycle === 'queued').length;
+    if (rows.length === 0 && !health && channels.length === 0) return null;
     // Only this summary is announced, never each progress tick.
+    const count = (lifecycle: RunLifecycle) =>
+        rows.filter((row) => row.lifecycle === lifecycle).length;
     const summary = [
-        ...finished.map(
-            (run) =>
-                `${t(checkTypes[run.check_type].label)} · ${run.site_name}: ${t(runOutcomeWord[run.outcome!])}`,
-        ),
-        ...(running ? [t('run.summary.running', { count: running })] : []),
-        ...(queued ? [t('run.summary.queued', { count: queued })] : []),
+        ...rows
+            .filter((row) => row.lifecycle === 'finished')
+            .map((row) => `${row.label}: ${row.secondary}`),
+        ...(count('running')
+            ? [t('run.summary.running', { count: count('running') })]
+            : []),
+        ...(count('queued')
+            ? [t('run.summary.queued', { count: count('queued') })]
+            : []),
     ].join(' · ');
     return (
         <>
@@ -259,7 +297,7 @@ export function SidebarStatus() {
                     {summary}
                 </p>
                 <SidebarMenu>
-                    {runs.length > 0 && <RunRows runs={runs} total={total} />}
+                    {rows.length > 0 && <RunRows rows={rows} total={total} />}
                     {health && (
                         <StatusRow
                             leading={<StatusDot state={health.state} />}

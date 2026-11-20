@@ -1774,6 +1774,14 @@ readonly icon_url: string | null,
 readonly icon_backing: Heptapod.Enums.SiteIconBacking,
 readonly presentation: Heptapod.Contracts.CheckRunPresentationData | null,
 };
+export type RunningBackupData = {
+readonly id: number,
+readonly state: 'queued' | 'running' | 'complete' | 'failed',
+readonly mine: boolean,
+readonly requested_at: string,
+readonly started_at: string | null,
+readonly completed_at: string | null,
+};
 export type RunningCheckRunData = {
 readonly check_id: number,
 readonly site_id: number,
@@ -1784,9 +1792,19 @@ readonly mine: boolean,
 readonly result: Heptapod.Contracts.RunResult | null,
 readonly finished_at: string | null,
 };
+export type RunningImportData = {
+readonly id: string,
+readonly status: Heptapod.Enums.ImportRunStatus,
+readonly mine: boolean,
+readonly requested_at: string,
+readonly started_at: string | null,
+readonly finished_at: string | null,
+};
 export type RunningNowData = {
 readonly check_runs: Heptapod.Data.Ui.RunningCheckRunData[],
 readonly active_check_runs: number,
+readonly imports: Heptapod.Data.Ui.RunningImportData[],
+readonly backup: Heptapod.Data.Ui.RunningBackupData | null,
 };
 export type RunsBoardData = {
 readonly current: Heptapod.Data.Ui.CurrentRunData[],

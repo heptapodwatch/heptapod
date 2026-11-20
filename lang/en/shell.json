@@ -26,5 +26,9 @@
     "run.summary.queued_other": "{{count}} queued",
     "run.statusGroup": "Running now and status",
     "run.onThisSite": "Running on this site",
-    "run.notStarted": "Not started: {{checks}}"
+    "run.notStarted": "Not started: {{checks}}",
+    "run.import": "Oh Dear import",
+    "run.backup": "Backup",
+    "run.openImport": "Open import",
+    "run.openBackups": "Open backups"
 }

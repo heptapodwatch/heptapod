@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { RunGlyph } from '@/components/run-family';
 import { Button } from '@/components/ui/button';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
-import { useRunningNow } from '@/hooks/use-running-now';
+import { useFooterRuns } from '@/components/sidebar-status';
 
 export function AppMobileHeader({
     onOpenSearch,
@@ -31,11 +31,9 @@ export function AppMobileHeader({
 function MobileRunsTrigger() {
     const { t } = useTranslation();
     const { setOpenMobile } = useSidebar();
-    const { runs, activeCount } = useRunningNow();
-    const lead = runs.find((run) => run.lifecycle === 'running') ?? runs[0];
+    const { rows, total: count } = useFooterRuns();
+    const lead = rows.find((row) => row.lifecycle === 'running') ?? rows[0];
     if (!lead) return null;
-    const count =
-        activeCount + runs.filter((run) => run.lifecycle === 'finished').length;
     return (
         <Button
             variant="ghost"

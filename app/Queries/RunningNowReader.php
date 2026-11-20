@@ -5,17 +5,25 @@ declare(strict_types=1);
 namespace Heptapod\Queries;
 
 use Carbon\CarbonImmutable;
+use Heptapod\Checks\Execution\ExecutionBudget;
 use Heptapod\Checks\Execution\RunOrigin;
 use Heptapod\Contracts\RunReference;
+use Heptapod\Data\Ui\RunningBackupData;
 use Heptapod\Data\Ui\RunningCheckRunData;
+use Heptapod\Data\Ui\RunningImportData;
 use Heptapod\Data\Ui\RunningNowData;
+use Heptapod\Enums\ImportRunStatus;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\CheckRunAttempt;
+use Heptapod\Models\ImportRun;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
 
 /**
- * Manual work in flight that the viewer may see. Scheduled runs never appear: they are the engine's heartbeat and live on Runs.
+ * Manual work in flight that the viewer may see: check runs a person started, Oh Dear imports and backups. Scheduled runs
+ * never appear: they are the engine's heartbeat and live on Runs.
  * The read is bounded and backed by partial indexes over manual attempts only (check_run_attempts_manual_active,
  * check_run_attempts_manual_finished), so a backlog of scheduled runs adds no work.
  */
@@ -53,7 +61,43 @@ final readonly class RunningNowReader
             throw new \LogicException('The active run count must be an integer.');
         }
 
-        return new RunningNowData(array_values(array_map(fn (CheckRunAttempt $attempt): RunningCheckRunData => $this->row($attempt, $user), $attempts)), $activeTotal);
+        return new RunningNowData(array_values(array_map(fn (CheckRunAttempt $attempt): RunningCheckRunData => $this->row($attempt, $user), $attempts)), $activeTotal,
+            $user->hasAnyRole(['Owner', 'Admin']) ? $this->imports($user, $since) : [], $user->hasRole('Owner') ? $this->backup($user, $since) : null);
+    }
+
+    /**
+     * Imports are Owner/Admin work (AuthorizesSettingsOperator). Never `results`: one row per monitor, too large for every page.
+     * import_runs_active keeps the in-flight read off finished runs.
+     *
+     * @return list<RunningImportData>
+     */
+    private function imports(User $user, string $since): array
+    {
+        $query = ImportRun::query();
+        $query->getQuery()->select(['id', 'user_id', 'status', 'created_at', 'started_at', 'finished_at'])
+            ->where(static fn (QueryBuilder $active): QueryBuilder => $active->whereIn('status', [ImportRunStatus::Queued->value, ImportRunStatus::Running->value])
+                ->orWhere(static fn (QueryBuilder $own): QueryBuilder => $own->where('user_id', $user->id)->where('finished_at', '>=', $since)
+                    ->whereIn('status', [ImportRunStatus::Completed->value, ImportRunStatus::Incomplete->value, ImportRunStatus::Failed->value])))
+            ->orderByRaw('finished_at IS NULL')->orderBy('created_at')->limit(5);
+
+        return array_values(array_map(static fn (ImportRun $run): RunningImportData => new RunningImportData($run->id, $run->status, $run->user_id === $user->id,
+            $run->created_at->toIso8601String(), $run->started_at?->toIso8601String(), $run->finished_at?->toIso8601String()), $query->get()->all()));
+    }
+
+    /** Backups are Owner work (RequestBackup); at most one is in flight. */
+    private function backup(User $user, string $since): ?RunningBackupData
+    {
+        // A running backup past the retry window is stale; RequestBackup fails it on the next request, so it is not shown.
+        $stale = CarbonImmutable::now('UTC')->subSeconds(ExecutionBudget::RetryAfter)->format('Y-m-d H:i:s.uP');
+        /** @var (\stdClass&object{id: int, requested_by: int|null, state: string, requested_at: string, started_at: string|null, completed_at: string|null})|null $row */
+        $row = DB::table('backup_runs')->where(static fn (QueryBuilder $query): QueryBuilder => $query->where('state', 'queued')
+            ->orWhere(static fn (QueryBuilder $running): QueryBuilder => $running->where('state', 'running')->where('started_at', '>', $stale))
+            ->orWhere(static fn (QueryBuilder $own): QueryBuilder => $own->where('requested_by', $user->id)->where('completed_at', '>=', $since)))
+            ->orderByRaw('completed_at IS NULL DESC')->orderByDesc('id')->first(['id', 'requested_by', 'state', 'requested_at', 'started_at', 'completed_at']);
+        $iso = static fn (?string $at): ?string => $at === null ? null : CarbonImmutable::parse($at)->toIso8601String();
+
+        return $row === null ? null : new RunningBackupData($row->id, $row->state, $row->requested_by === $user->id,
+            CarbonImmutable::parse($row->requested_at)->toIso8601String(), $iso($row->started_at), $iso($row->completed_at));
     }
 
     private function row(CheckRunAttempt $attempt, User $user): RunningCheckRunData

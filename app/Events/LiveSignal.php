@@ -40,6 +40,12 @@ final readonly class LiveSignal
         self::afterCommit(new self('import.progress', [], now()->toIso8601String(), null));
     }
 
+    /** A backup changed state; contentless, like an import's progress. Owners are always on the instance channel. */
+    public static function forBackup(): void
+    {
+        self::afterCommit(new self('backup.changed', [], now()->toIso8601String(), null));
+    }
+
     public static function forClient(Client $client): void
     {
         self::forClients([$client->id]);
