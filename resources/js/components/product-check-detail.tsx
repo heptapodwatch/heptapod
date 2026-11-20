@@ -14,9 +14,7 @@ import { ResponseBreakdown } from '@/components/response-breakdown';
 import { useCheckHeadline } from '@/hooks/use-check-headline';
 import { usePage } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
-import { checkTypes } from '@/lib/check-types';
-import { findingsTimestamp } from '@/lib/findings-export';
-import { findings as findingsCsv } from '@/routes/sites/checks';
+import { findings as findingsExport } from '@/routes/sites/checks';
 
 export function ProductCheckDetail({
     page,
@@ -28,7 +26,7 @@ export function ProductCheckDetail({
     requestedRun: RequestedRun;
 }) {
     const headlineFor = useCheckHeadline();
-    const { timezone, auth } = usePage().props;
+    const { auth } = usePage().props;
     const { t } = useTranslation();
     const { check } = page;
     const [sendOpen, setSendOpen] = useState(false);
@@ -94,28 +92,14 @@ export function ProductCheckDetail({
                                 'sitemap',
                             ].includes(check.key)
                                 ? {
-                                      site: `${page.header.name} (${page.header.url})`,
-                                      check: t(checkTypes[check.key].label),
-                                      headline,
-                                      checkedRunId: latest?.id ?? null,
-                                      checkedAt: check.checked_at
-                                          ? findingsTimestamp(
-                                                check.checked_at,
-                                                timezone,
-                                            )
-                                          : null,
-                                      downloadUrl: (run, observedAt) =>
-                                          findingsCsv.url(
+                                      url: (format, query) =>
+                                          findingsExport.url(
                                               {
                                                   site: page.header.id,
                                                   check: check.id,
+                                                  format,
                                               },
-                                              {
-                                                  query: {
-                                                      run,
-                                                      observed_at: observedAt,
-                                                  },
-                                              },
+                                              { query },
                                           ),
                                   }
                                 : undefined

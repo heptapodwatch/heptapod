@@ -1,0 +1,23 @@
+{
+    "export.sheet_description": "Wählen Sie das Format und den Umfang.",
+    "export.format.label": "Format",
+    "export.format.csv": "CSV",
+    "export.format.md": "Markdown",
+    "export.format.txt": "Text",
+    "export.csv_no_copy": "CSV ist eine Datei für Tabellenkalkulationen. Zum Kopieren dienen Markdown oder Text.",
+    "export.include": "Umfang",
+    "export.copied": "Kopiert",
+    "export.download": "Herunterladen",
+    "export.failed": "Der Export ist fehlgeschlagen. Versuchen Sie es erneut.",
+    "export.capped": "Enthält die ersten :shown von :total Zeilen.",
+    "export.manual_title": "Export kopieren",
+    "export.scope.all_findings_one": "Die :count Fundstelle",
+    "export.scope.all_findings_other": "Alle :count Fundstellen",
+    "export.scope.shown_one": "Nur die :count angezeigte",
+    "export.scope.shown_other": "Nur die :count angezeigten",
+    "export.scope.matching_incidents_one": "Die :count passende Störung",
+    "export.scope.matching_incidents_other": "Alle :count passenden Störungen",
+    "export.scope.every_incident": "Alle Störungen, ohne Filter",
+    "export.scope.attachment": "Der versendete Anhang",
+    "export.findings.title": "Fundstellen (:check) · :site"
+}

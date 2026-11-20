@@ -4,6 +4,7 @@ use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\DomainRegistrationSource;
 use Heptapod\Contracts\ExecutionMode;
+use Heptapod\Contracts\Export\ColumnType;
 use Heptapod\Contracts\ExternalNetworkException;
 use Heptapod\Contracts\ExternalTimeoutException;
 use Heptapod\Contracts\Http\AutomatedCheckBlockReason;
@@ -43,7 +44,7 @@ pest()->presets()->custom('heptapodLaravel', fn (): array => [
     // Addons need these wire/schema enums in Contracts, not the core-only Enums namespace.
     expect('Heptapod')
         ->not->toBeEnums()
-        ->ignoring([...ArchDrift::EnumsOutsideEnums, 'Heptapod\Enums', CheckKey::class, CheckResult::class, RunResult::class, RunPhase::class, ExecutionMode::class, FieldType::class, DomainRegistrationSource::class, SuppressionComponent::class, AlertSeverity::class, DeliveryState::class, FetchFailureKind::class, AutomatedCheckBlockReason::class, RedirectPolicy::class]),
+        ->ignoring([...ArchDrift::EnumsOutsideEnums, 'Heptapod\Enums', CheckKey::class, CheckResult::class, RunResult::class, RunPhase::class, ExecutionMode::class, ColumnType::class, FieldType::class, DomainRegistrationSource::class, SuppressionComponent::class, AlertSeverity::class, DeliveryState::class, FetchFailureKind::class, AutomatedCheckBlockReason::class, RedirectPolicy::class]),
 
     expect('Heptapod\Enums')
         ->toBeEnums()

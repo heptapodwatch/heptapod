@@ -118,7 +118,12 @@ export function useRowHints() {
     const handlers = {
         onFocus: (event: FocusEvent<HTMLElement>) => {
             const target = event.target;
-            if (pointerFocus.current || !target.matches(rowFocusTarget)) {
+            // React bubbles focus out of portals: a sheet opened from the row is not the row's own control.
+            if (
+                pointerFocus.current ||
+                !event.currentTarget.contains(target) ||
+                !target.matches(rowFocusTarget)
+            ) {
                 return;
             }
             const items = [...entries.current]

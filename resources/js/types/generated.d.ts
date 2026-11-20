@@ -2102,6 +2102,7 @@ export type ClientScope = 'all' | 'restricted';
 export type DatabaseDataClass = 'check_results' | 'attempts' | 'hourly_rollups' | 'daily_rollups' | 'history' | 'other';
 export type DeliveryGroupOutcome = 'accepted' | 'logged' | 'failed' | 'suppressed' | 'pending' | 'mixed' | 'unrecorded';
 export type DeliveryOutcome = 'accepted' | 'rejected' | 'failed' | 'logged' | 'suppressed' | 'pending' | 'sending';
+export type ExportFormat = 'csv' | 'md' | 'txt';
 export type FreshnessSuppression = 'down' | 'maintenance' | 'snooze' | 'uptime_error';
 export type HealthStatus = 'ok' | 'warn' | 'down' | 'not-configured';
 export type ImportOperation = 'create' | 'update' | 'partial' | 'skipped' | 'failed';

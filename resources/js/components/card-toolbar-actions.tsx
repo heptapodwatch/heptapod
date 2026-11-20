@@ -11,11 +11,14 @@ export function CardToolbarActions({
     children,
     outside,
     primary,
+    exportAction,
 }: {
-    children: ReactNode;
+    children?: ReactNode;
     outside?: ReactNode;
     /** Keep one primary visible and put the remaining actions in More at every width. */
     primary?: ReactNode;
+    /** The card's ExportButton: first and visible at every width; only the other actions fold below 640 px. */
+    exportAction?: ReactNode;
 }) {
     const narrow = useIsBelowSm();
     const [open, setOpen] = useState(false);
@@ -31,11 +34,17 @@ export function CardToolbarActions({
                     )}
                 </div>
             ) : narrow ? (
-                <ActionsOverflowMenu open={open} onOpenChange={setOpen}>
-                    {children}
-                </ActionsOverflowMenu>
+                <div className="flex items-center gap-2">
+                    {exportAction}
+                    {children && (
+                        <ActionsOverflowMenu open={open} onOpenChange={setOpen}>
+                            {children}
+                        </ActionsOverflowMenu>
+                    )}
+                </div>
             ) : (
                 <div className="flex flex-wrap items-center justify-end gap-2">
+                    {exportAction}
                     {children}
                 </div>
             )}

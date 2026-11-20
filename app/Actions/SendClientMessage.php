@@ -11,6 +11,7 @@ use Heptapod\Contracts\Mail\MailRenderer;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
 use Heptapod\Enums\RecipientKind;
 use Heptapod\Events\Notifications\NotificationLocks;
+use Heptapod\Export\Csv;
 use Heptapod\Jobs\SendNotification;
 use Heptapod\Models\Check;
 use Heptapod\Models\Client;
@@ -101,12 +102,12 @@ final readonly class SendClientMessage
             $path = self::Directory.'/'.Str::uuid().'.csv';
             // php://temp keeps at most 2 MiB in memory and spills the rest to a temporary file.
             $file = fopen('php://temp', 'w+b');
-            if ($file === false || fwrite($file, "\xEF\xBB\xBF") !== 3) {
+            if ($file === false || fwrite($file, Csv::ByteOrderMark) !== strlen(Csv::ByteOrderMark)) {
                 throw new \RuntimeException('Cannot write the client message CSV.');
             }
-            $bytes = 3;
+            $bytes = strlen(Csv::ByteOrderMark);
             $head = array_map(static fn (string $column): string => (string) __('client_messages.column.'.$column, locale: $client->locale), ['url', 'result', 'classification', 'found_on', 'link_text']);
-            $bytes += $this->append($file, $this->csvLine($head));
+            $bytes += $this->append($file, Csv::line($head));
         }
         $writeRow = null;
         if (is_resource($file)) {
@@ -120,7 +121,7 @@ final readonly class SendClientMessage
                     $rawBytes += strlen($field);
                 }
                 $tooLarge = $tooLarge || $rawBytes > ClientMessageComposer::MaxBytes - $bytes;
-                $line = $tooLarge ? '' : $this->csvLine($cells);
+                $line = $tooLarge ? '' : Csv::line($cells);
                 // A row that would cross the byte limit is never written. The refusal waits until the composer has counted
                 // every row, so its row limit keeps precedence.
                 if ($tooLarge || $bytes + strlen($line) > ClientMessageComposer::MaxBytes) {
@@ -393,28 +394,6 @@ final readonly class SendClientMessage
                 throw new ThrottleRequestsException(__('client_messages.too_many'), headers: ['Retry-After' => (string) $retry]);
             }
         }
-    }
-
-    /**
-     * One encoded CSV line, so its size is known before it is written.
-     *
-     * @param  list<mixed>  $cells  text only; anything else is a programming error
-     */
-    private function csvLine(array $cells): string
-    {
-        $safe = array_map(static function (mixed $value): string {
-            $text = is_string($value) ? $value : throw new \LogicException('A CSV cell must be text.');
-
-            return preg_match('/^(?:[\x00-\x20]*[=+@-]|[\t\r\n])/u', $text) === 1 ? "'".$text : $text;
-        }, $cells);
-        $buffer = fopen('php://memory', 'w+b');
-        if ($buffer === false || fputcsv($buffer, $safe, ',', '"', '', "\r\n") === false || ! rewind($buffer)) {
-            throw new \RuntimeException('Cannot encode a client message CSV row.');
-        }
-        $line = stream_get_contents($buffer);
-        fclose($buffer);
-
-        return $line === false ? throw new \RuntimeException('Cannot encode a client message CSV row.') : $line;
     }
 
     /**

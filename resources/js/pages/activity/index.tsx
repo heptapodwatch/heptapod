@@ -396,7 +396,7 @@ export default function Activity({
                                     <TextLink
                                         variant="secondary"
                                         document
-                                        href={exportIncidents.url({
+                                        href={exportIncidents.url('csv', {
                                             query: {
                                                 filter: {
                                                     status: 'all',

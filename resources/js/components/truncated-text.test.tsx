@@ -5,6 +5,7 @@ import {
     render,
     screen,
 } from '@testing-library/react';
+import { createPortal } from 'react-dom';
 import { afterEach, expect, it } from 'vitest';
 import { TooltipHint, TruncatedText } from './truncated-text';
 import { ListRow } from './ui/table';
@@ -160,4 +161,24 @@ it('makes a cut-off value in a read-only list row (no link or button) one keyboa
         Reflect.deleteProperty(HTMLElement.prototype, 'scrollWidth');
         Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth');
     }
+});
+
+it("shows a row's combined hint for the row's own button, not for a sheet the row opened", async () => {
+    // React bubbles focus out of portals, so a sheet opened from a row would otherwise float the row hint above it.
+    render(
+        <ListRow>
+            <TooltipHint label="Sent" content="Friday, November 20, 2026">
+                <span>Nov 20</span>
+            </TooltipHint>
+            <button type="button">Open message</button>
+            {createPortal(<button type="button">CSV</button>, document.body)}
+        </ListRow>,
+    );
+    await focus(screen.getByRole('button', { name: 'CSV' }));
+    expect(screen.queryByRole('tooltip')).toBeNull();
+
+    await focus(screen.getByRole('button', { name: 'Open message' }));
+    expect(screen.getByRole('tooltip').textContent).toContain(
+        'Friday, November 20, 2026',
+    );
 });

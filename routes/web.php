@@ -93,7 +93,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('clients/{client}/move-blockers', ClientMoveBlockersController::class)->whereNumber('client')->name('clients.move-blockers');
     Route::get('clients/{client}/client-messages', [ClientMessagesController::class, 'index'])->whereNumber('client')->name('clients.messages.index');
     Route::get('clients/{client}/client-messages/{message}', [ClientMessagesController::class, 'show'])->whereNumber(['client', 'message'])->name('clients.messages.show');
-    Route::get('clients/{client}/client-messages/{message}/attachment', ClientMessageAttachmentController::class)->whereNumber(['client', 'message'])->name('clients.messages.attachment');
+    Route::get('clients/{client}/client-messages/{message}/attachment.{format}', ClientMessageAttachmentController::class)->whereNumber(['client', 'message'])->name('clients.messages.attachment');
     Route::post('clients/{client}/client-messages/preview', ClientMessagePreviewController::class)->whereNumber('client')->name('clients.messages.preview');
     Route::post('clients/{client}/client-messages', [ClientMessagesController::class, 'store'])->whereNumber('client')->name('clients.messages.store');
     Route::get('maintenance', [MaintenanceController::class, 'index'])->name('maintenance.index');
@@ -104,7 +104,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::delete('maintenance/{window}', [MaintenanceController::class, 'destroy'])->whereNumber('window')->name('maintenance.destroy');
     Route::post('maintenance/{window}/end', EndMaintenanceController::class)->whereNumber('window')->name('maintenance.end');
     Route::get('incidents', IncidentsIndexController::class)->name('incidents.index');
-    Route::get('incidents/export', IncidentExportController::class)->name('incidents.export');
+    Route::get('incidents/export.{format}', IncidentExportController::class)->name('incidents.export');
     Route::get('incidents/{incident}/alerts/{event}', IncidentAlertPreviewController::class)->whereNumber(['incident', 'event'])->name('incidents.alert-preview');
     Route::get('incidents/{incident}', IncidentDetailController::class)->whereNumber('incident')->name('incidents.show');
     Route::put('incidents/{incident}/note', [IncidentActionsController::class, 'update'])->whereNumber('incident')->name('incidents.note');
@@ -125,7 +125,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::post('sites/{site}/pause', [SiteMonitoringController::class, 'store'])->whereNumber('site')->name('sites.pause');
     Route::post('sites/{site}/resume', [SiteMonitoringController::class, 'destroy'])->whereNumber('site')->name('sites.resume');
     Route::get('sites/{site}/checks/{check}', CheckTabController::class)->whereNumber(['site', 'check'])->name('sites.checks.show');
-    Route::get('sites/{site}/checks/{check}/findings.csv', FindingsExportController::class)->whereNumber(['site', 'check'])->name('sites.checks.findings');
+    Route::get('sites/{site}/checks/{check}/findings.{format}', FindingsExportController::class)->whereNumber(['site', 'check'])->name('sites.checks.findings');
     Route::patch('sites/{site}/checks/{check}', UpdateCheckSettingsController::class)->whereNumber(['site', 'check'])->name('sites.checks.update');
     Route::post('sites/{site}/checks/{check}/enable', EnableSiteCheckController::class)->whereNumber(['site', 'check'])->name('sites.checks.enable');
     Route::post('sites/{site}/checks/{check}/disable', DisableSiteCheckController::class)->whereNumber(['site', 'check'])->name('sites.checks.disable');

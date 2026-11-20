@@ -4,7 +4,7 @@ import { TooltipHint } from '@/components/truncated-text';
 import { cn } from '@/lib/utils';
 import { SectionHeading } from '@/components/section-heading';
 import { useTranslation } from 'react-i18next';
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { MonitoringTime } from '@/components/monitoring';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import {
@@ -24,12 +24,9 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { useFormat } from '@/hooks/use-format';
-import { usePage } from '@inertiajs/react';
-import { findingsTimestamp } from '@/lib/findings-export';
 import { safeHttpUrl, TextLink } from '@/components/text-link';
 import {
     FindingsExport,
-    FindingsExportFallback,
     type FindingsExportContext,
 } from '@/components/findings-export';
 
@@ -395,10 +392,7 @@ export function CrawlFindings({
     exportContext?: FindingsExportContext;
 }) {
     const { t } = useTranslation();
-    const { timezone } = usePage().props;
     const format = useFormat();
-    const [manualText, setManualText] = useState<string | null>(null);
-    const timestamp = (value: string) => findingsTimestamp(value, timezone);
     const isNew = (finding: Findings['findings'][number]) =>
         Boolean(
             newSince &&
@@ -441,83 +435,27 @@ export function CrawlFindings({
                 </CardTitle>
                 <CardAction>
                     <CardToolbarActions
-                        outside={
-                            <FindingsExportFallback
-                                manualText={manualText}
-                                onClose={() => setManualText(null)}
-                            />
-                        }
-                    >
-                        {exportContext &&
-                            history.snapshot_run &&
-                            history.observed_at && (
+                        exportAction={
+                            exportContext &&
+                            history.snapshot_run && (
                                 <FindingsExport
-                                    onClipboardUnavailable={setManualText}
                                     context={exportContext}
-                                    observedRunId={history.snapshot_run.id}
-                                    observedAt={
-                                        history.observed_at
-                                            ? timestamp(history.observed_at)
-                                            : null
-                                    }
-                                    downloadUrl={exportContext.downloadUrl(
-                                        history.snapshot_run.id,
-                                        history.snapshot_run.endedAt,
-                                    )}
-                                    totalRows={
+                                    run={history.snapshot_run}
+                                    total={
                                         history.total_findings +
                                         history.total_not_verifiable
                                     }
-                                    totalNotVerifiable={
-                                        history.total_not_verifiable
+                                    shown={
+                                        findings.length + notVerifiable.length
                                     }
-                                    groups={[
-                                        {
-                                            rows: history.findings.map(
-                                                (finding) => ({
-                                                    url: finding.url,
-                                                    result:
-                                                        history.check_type ===
-                                                        'mixed_content'
-                                                            ? t(
-                                                                  'checks.mixed_content.label',
-                                                              )
-                                                            : String(
-                                                                  finding.status_code ??
-                                                                      (finding.reason_key
-                                                                          ? t(
-                                                                                finding.reason_key,
-                                                                            )
-                                                                          : t(
-                                                                                'No response',
-                                                                            )),
-                                                              ),
-                                                    foundOn: finding.found_on,
-                                                    linkText: finding.link_text,
-                                                    since: finding.first_seen_in_retained_history_at
-                                                        ? timestamp(
-                                                              finding.first_seen_in_retained_history_at,
-                                                          )
-                                                        : null,
-                                                    isNew: isNew(finding),
-                                                }),
-                                            ),
-                                        },
-                                        {
-                                            notVerifiable: true,
-                                            rows: notVerifiable.map(
-                                                (finding) => ({
-                                                    url: finding.url,
-                                                    result: t(
-                                                        `crawl.not_verifiable.${finding.reason}`,
-                                                    ),
-                                                    foundOn: finding.source,
-                                                }),
-                                            ),
-                                        },
-                                    ]}
+                                    shownPerGroup={Math.max(
+                                        findings.length,
+                                        notVerifiable.length,
+                                    )}
                                 />
-                            )}
+                            )
+                        }
+                    >
                         {action}
                     </CardToolbarActions>
                 </CardAction>

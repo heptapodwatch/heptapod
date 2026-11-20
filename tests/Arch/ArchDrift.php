@@ -61,7 +61,6 @@ final class ArchDrift
      */
     public const array ReadSnapshotTransactions = [
         ['file' => 'app/Http/Controllers/Api/FindingsController.php', 'method' => '__invoke', 'call' => 'transaction'],
-        ['file' => 'app/Http/Controllers/FindingsExportController.php', 'method' => '__invoke', 'call' => 'transaction'],
     ];
 
     /** Enums outside Heptapod\Enums beyond the reviewed addon wire enums. @var list<class-string> */

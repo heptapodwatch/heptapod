@@ -1,6 +1,6 @@
 import { CardToolbarActions } from '@/components/card-toolbar-actions';
 import { cn } from '@/lib/utils';
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { EvidenceFacts } from '@/components/evidence-facts';
 import { ScoreRing } from '@/components/foundation-primitives';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -32,7 +32,6 @@ import { useFormat } from '@/hooks/use-format';
 import { parseResult, runState } from '@/lib/status';
 import {
     FindingsExport,
-    FindingsExportFallback,
     type FindingsExportContext,
 } from '@/components/findings-export';
 
@@ -160,7 +159,6 @@ export function CheckEvidence({
 }) {
     const { t } = useTranslation();
     const format = useFormat();
-    const [manualText, setManualText] = useState<string | null>(null);
     const cardHeading = (title: string) => (
         <CardHeader>
             <CardTitle>{t(title)}</CardTitle>
@@ -204,87 +202,30 @@ export function CheckEvidence({
                     <CardTitle>{t('sitemap.issues_title')}</CardTitle>
                     <CardAction>
                         <CardToolbarActions
-                            outside={
-                                <FindingsExportFallback
-                                    manualText={manualText}
-                                    onClose={() => setManualText(null)}
-                                />
-                            }
-                        >
-                            {exportContext &&
+                            exportAction={
+                                exportContext &&
                                 detail.export_run &&
                                 (detail.issues.length > 0 ||
                                     detail.not_verifiable.length > 0) && (
                                     <FindingsExport
-                                        onClipboardUnavailable={setManualText}
                                         context={exportContext}
-                                        observedRunId={detail.export_run.id}
-                                        observedAt={exportContext.checkedAt}
-                                        downloadUrl={exportContext.downloadUrl(
-                                            detail.export_run.id,
-                                            detail.export_run.endedAt,
-                                        )}
-                                        totalRows={
+                                        run={detail.export_run}
+                                        total={
                                             detail.totalIssuesCount +
                                             detail.not_verifiable.length
                                         }
-                                        totalNotVerifiable={
+                                        shown={
+                                            detail.issues.length +
                                             detail.not_verifiable.length
                                         }
-                                        groups={[
-                                            {
-                                                rows: detail.issues.map(
-                                                    (issue) => {
-                                                        const status =
-                                                            issue.kind &&
-                                                            issue.kind !==
-                                                                'http_status'
-                                                                ? t(
-                                                                      `sitemap.status.${issue.kind}`,
-                                                                  )
-                                                                : String(
-                                                                      issue.status ??
-                                                                          problemText(
-                                                                              issue,
-                                                                          ),
-                                                                  );
-                                                        const problem =
-                                                            issue.kind ===
-                                                                'tls' &&
-                                                            !issue.type.startsWith(
-                                                                'causes.tls.',
-                                                            )
-                                                                ? t(
-                                                                      'TLS certificate verification failed',
-                                                                  )
-                                                                : problemText(
-                                                                      issue,
-                                                                  );
-                                                        return {
-                                                            url: issue.url,
-                                                            result:
-                                                                status ===
-                                                                problem
-                                                                    ? status
-                                                                    : `${status} · ${problem}`,
-                                                        };
-                                                    },
-                                                ),
-                                            },
-                                            {
-                                                notVerifiable: true,
-                                                rows: detail.not_verifiable.map(
-                                                    (finding) => ({
-                                                        url: finding.url,
-                                                        result: t(
-                                                            `sitemap.not_verifiable.${finding.reason}`,
-                                                        ),
-                                                    }),
-                                                ),
-                                            },
-                                        ]}
+                                        shownPerGroup={Math.max(
+                                            detail.issues.length,
+                                            detail.not_verifiable.length,
+                                        )}
                                     />
-                                )}
+                                )
+                            }
+                        >
                             {action}
                         </CardToolbarActions>
                     </CardAction>

@@ -19,6 +19,7 @@ import {
     index as messagesIndex,
     show as messageShow,
 } from '@/routes/clients/messages';
+import { ExportButton } from '@/components/export-sheet';
 import { RowActions } from '@/components/row-actions';
 import { deliveryOutcomeStates } from '@/lib/status';
 import {
@@ -182,6 +183,24 @@ export function ClientMessagesList({
                                 state={deliveryOutcomeStates[row.state]}
                                 label={stateLabel[row.state]}
                             />
+                            {row.kind !== 'alert' && row.attachment && (
+                                <ExportButton
+                                    kind="client_messages"
+                                    variant="ghost"
+                                    scopes={[
+                                        {
+                                            key: 'attachment',
+                                            label: t('export.scope.attachment'),
+                                            url: (format) =>
+                                                attachmentUrl.url({
+                                                    client: client.id,
+                                                    message: row.event_id,
+                                                    format,
+                                                }),
+                                        },
+                                    ]}
+                                />
+                            )}
                             {row.kind !== 'alert' && (
                                 <RowActions
                                     label={row.subject}
@@ -192,23 +211,6 @@ export function ClientMessagesList({
                                             ),
                                             onSelect: () => setOpened(row),
                                         },
-                                        ...(row.attachment
-                                            ? [
-                                                  {
-                                                      label: t('Download CSV'),
-                                                      onSelect: () =>
-                                                          window.location.assign(
-                                                              attachmentUrl.url(
-                                                                  {
-                                                                      client: client.id,
-                                                                      message:
-                                                                          row.event_id,
-                                                                  },
-                                                              ),
-                                                          ),
-                                                  },
-                                              ]
-                                            : []),
                                         ...(canSend && row.resend
                                             ? [
                                                   {

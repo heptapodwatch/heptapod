@@ -12,7 +12,9 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@inertiajs/react')>()),
     router: { on: () => () => {}, visit: vi.fn() },
     useHttp: () => ({}),
-    usePage: () => ({ props: { timezone: 'UTC', locale: 'en' } }),
+    usePage: () => ({
+        props: { timezone: 'UTC', locale: 'en', exportRowLimit: 10000 },
+    }),
 }));
 vi.mock('react-i18next', () => {
     const t = (key: string, values?: Record<string, unknown>) =>
@@ -64,34 +66,52 @@ afterEach(() => {
     vi.unstubAllGlobals();
 });
 
-it('opens the message as sent and offers its stored CSV from the row actions', async () => {
+it('opens the message as sent and exports its stored attachment from the row', async () => {
     const assign = vi.fn();
     vi.stubGlobal('location', { assign });
     render(<ClientMessagesList client={{ id: 3, name: 'Müller GmbH' }} />);
-    fireEvent.pointerDown(
-        // The row menu names the row once: "More actions for <subject>".
-        await screen.findByRole('button', {
-            name: 'More actions for :name({"name":"Broken links on shop.test: 2 found"})',
-        }),
-        { button: 0, ctrlKey: false },
-    );
-    fireEvent.click(
-        await screen.findByRole('menuitem', { name: 'Download CSV' }),
-    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Export' }));
+    fireEvent.click(screen.getByRole('button', { name: 'export.download' }));
     expect(assign).toHaveBeenCalledWith(
-        '/clients/3/client-messages/7/attachment',
+        '/clients/3/client-messages/7/attachment.csv',
     );
 
-    fireEvent.pointerDown(
-        screen.getByRole('button', {
-            name: 'More actions for :name({"name":"Broken links on shop.test: 2 found"})',
-        }),
-        { button: 0, ctrlKey: false },
+    // Copy fetches the server's Markdown of the same attachment, not text built in the browser.
+    const write = vi.fn(async (items: ClipboardItem[]) => {
+        await items[0]?.getType('text/plain');
+    });
+    vi.stubGlobal('navigator', { clipboard: { write } });
+    vi.stubGlobal(
+        'ClipboardItem',
+        class {
+            constructor(private readonly data: Record<string, Promise<Blob>>) {}
+            getType(type: string) {
+                return this.data[type];
+            }
+        },
     );
+    const messages = globalThis.fetch;
+    const fetchExport = vi.fn(async (url: string, init?: RequestInit) =>
+        url.includes('/attachment.')
+            ? ({ ok: true, text: async () => '| URL |' } as Response)
+            : messages(url, init),
+    );
+    vi.stubGlobal('fetch', fetchExport);
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'export.format.md' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    expect(
+        await screen.findByRole('button', { name: 'export.copied' }),
+    ).toBeTruthy();
+    expect(fetchExport).toHaveBeenCalledWith(
+        '/clients/3/client-messages/7/attachment.md',
+        expect.anything(),
+    );
+    expect(write).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
     fireEvent.click(
-        await screen.findByRole('menuitem', {
-            name: 'client_messages.list.open',
-        }),
+        screen.getByRole('button', { name: 'client_messages.list.open' }),
     );
     await waitFor(() =>
         expect(

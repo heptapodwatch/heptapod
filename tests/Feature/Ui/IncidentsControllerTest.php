@@ -225,7 +225,7 @@ it('defaults to 30 days and can list older incidents on request', function (): v
         ->has('incidents', 1)->where('incidents.0.id', $open->id)->where('filters.period', '30d'));
     $this->get('/incidents?filter[period]=30d')->assertInertia(fn (Assert $page): Assert => $page
         ->has('incidents', 1)->where('incidents.0.id', $open->id));
-    $csv = $this->get('/incidents/export')->assertOk()->streamedContent();
+    $csv = $this->get('/incidents/export.csv')->assertOk()->streamedContent();
     $csvRows = array_map(str_getcsv(...), explode("\n", trim($csv)));
     expect($csvRows)->toHaveCount(2)->and($csvRows[1][0])->toBe((string) $open->id);
     $this->get('/incidents?filter[status]=all&filter[period]=all')->assertOk()->assertInertia(fn (Assert $page): Assert => $page
@@ -348,33 +348,42 @@ it('uses bounded query plans for recovery, summary and retained good runs', func
     }
 });
 
-it('exports only filtered and scoped incidents and escapes spreadsheet formulas', function (): void {
+it('exports only filtered and scoped incidents in every format and escapes spreadsheet formulas', function (): void {
     $this->withoutVite();
-    $client = Client::factory()->create(['name' => '=HYPERLINK("https://bad.example")']);
+    $this->travelTo(CarbonImmutable::parse('2026-10-05T10:00:00Z'));
+    $client = Client::factory()->create(['name' => '＝HYPERLINK("https://bad.example")']);
     $user = User::factory()->create(['client_scope' => ClientScope::Restricted]);
     $user->assignRole('Member');
     $user->clients()->attach($client);
     $site = Site::factory()->for($client)->create(['friendly_name' => "\t=SUM(1,1)"]);
     $check = Check::factory()->for($site)->create(['type' => CheckKey::Uptime]);
     $incident = Incident::factory()->for($check)->create();
-    Incident::factory()->create();
+    $foreign = Incident::factory()->create();
 
-    $response = $this->actingAs($user)->get('/incidents/export?filter[status]=open');
+    $response = $this->actingAs($user)->get('/incidents/export.csv?filter[status]=open');
 
-    $response->assertOk()->assertDownload('incidents.csv');
+    $response->assertOk()->assertDownload('incidents-2026-10-05.csv');
+    expect($response->headers->get('Cache-Control'))->toContain('no-store');
     $content = $response->streamedContent();
-    expect($content)->toContain("'\t=SUM(1,1)", "'=HYPERLINK(")->not->toContain('Hidden recipient');
-    $rows = array_map(str_getcsv(...), explode("\n", trim($content)));
+    // UTF-8 with BOM and CRLF, so spreadsheets read umlauts and rows alike; formula signs (also full-width) stay text.
+    expect($content)->toStartWith("\xEF\xBB\xBFID,State,")->toContain("'\t=SUM(1,1)", "'＝HYPERLINK(")->not->toContain('Hidden recipient');
+    $rows = array_map(str_getcsv(...), explode("\r\n", trim(substr($content, 3))));
     expect($rows)->toHaveCount(2)->and($rows[1][0])->toBe((string) $incident->id);
+    $markdown = $this->get('/incidents/export.md?filter[status]=open')->assertOk()->assertDownload('incidents-2026-10-05.md')->streamedContent();
+    expect($markdown)->toStartWith("# Incidents\n\n| ID | State | Site | Client | Check | Cause | Summary | Started | Resolved | Duration (seconds) |\n| ---: | --- |")
+        ->toContain('| '.$incident->id.' | Open | ')->not->toContain('| '.$foreign->id.' |');
+    $text = $this->get('/incidents/export.txt?filter[status]=open')->assertOk()->streamedContent();
+    expect($text)->toStartWith("Incidents\n\nID {$incident->id}\nState: Open\nSite: \t=SUM(1,1)\n");
     $user->update(['locale' => 'de']);
-    $german = $this->get('/incidents/export?filter[status]=open')->assertDownload('incidents.csv');
-    $translated = array_map(str_getcsv(...), explode("\n", trim($german->streamedContent())));
+    $german = $this->get('/incidents/export.csv?filter[status]=open')->assertDownload('stoerungen-2026-10-05.csv');
+    $translated = array_map(str_getcsv(...), explode("\r\n", trim(substr($german->streamedContent(), 3))));
     expect($translated[0])->toBe(['ID', 'Zustand', 'Website', 'Kunde', 'Prüfung', 'Ursache', 'Zusammenfassung', 'Beginn', 'Behoben', 'Dauer (Sekunden)'])
         ->and($translated[1][1])->toBe('Offen');
-    $this->get('/incidents/export?filter[status]=invalid')->assertSessionHasErrors('filter.status');
+    $this->get('/incidents/export.csv?filter[status]=invalid')->assertSessionHasErrors('filter.status');
+    $this->get('/incidents/export.pdf')->assertNotFound();
 });
 
-it('refuses a CSV export beyond the bounded row cap', function (): void {
+it('exports the first rows up to the row cap and says so', function (): void {
     $this->withoutVite();
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
@@ -388,8 +397,9 @@ it('refuses a CSV export beyond the bounded row cap', function (): void {
     DB::table('incidents')->insert($row);
 
     $owner->update(['locale' => 'de']);
-    $this->actingAs($owner)->get('/incidents/export?filter[status]=all')->assertStatus(413)
-        ->assertSee('Der Vorfallexport überschreitet 10000 Zeilen. Grenze die Filter ein.');
+    $text = $this->actingAs($owner)->get('/incidents/export.txt?filter[status]=all')->assertOk()->streamedContent();
+    expect(substr_count($text, "\nID "))->toBe(10000)
+        ->and($text)->toEndWith("\nEnthält die ersten 10.000 von 10.001 Zeilen.\n");
 });
 
 it('renders only actual incident mail for operators using the mail renderer', function (): void {
