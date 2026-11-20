@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Testing\AssertableInertia as Assert;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -184,14 +185,34 @@ it('renders signed-in navigation dead ends inside AppLayout, resets Inertia sing
         ->assertSee('Page not found')
         ->assertSee('Sign in');
 
-    // Signed-in 404 → in-shell Inertia error page (status 404, no redirect) + resets Inertia singleton state for Octane workers.
-    $this->actingAs($owner)
-        ->get('/does-not-exist-anywhere')
-        ->assertNotFound()
-        ->assertInertia(fn (Assert $page): Assert => $page
-            ->component('errors/show')
-            ->where('status', 404)
-            ->where('title', __('errors.404.title')));
+    // Signed-in 404 → in-shell Inertia error page (status 404, no redirect) + canonical HTTPS origin in raw page data + resets Inertia singleton state for Octane workers.
+    $canonicalOrigin = 'https://monitor.example.com:8443';
+    URL::useOrigin($canonicalOrigin);
+    URL::forceScheme('https');
+    try {
+        $signedIn404 = $this->actingAs($owner)
+            ->get('/missing-ops-page')
+            ->assertNotFound()
+            ->assertHeaderMissing('Location')
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('errors/show')
+                ->where('status', 404)
+                ->where('title', __('errors.404.title'))
+                ->where('recovery_url', $canonicalOrigin.'/sites')
+                ->where('secondary_url', $canonicalOrigin.'/incidents'));
+        $body = $signedIn404->getContent();
+        expect($body)->not->toBeFalse();
+        expect(preg_match('#<script\b[^>]*\bdata-page="app"[^>]*>(.*?)</script>#s', (string) $body, $match))->toBe(1);
+        /** @var array{component?: string, props?: array{status?: int, recovery_url?: string, secondary_url?: string}} $embedded */
+        $embedded = json_decode(html_entity_decode($match[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'), true, flags: JSON_THROW_ON_ERROR);
+        expect($embedded['component'] ?? null)->toBe('errors/show')
+            ->and($embedded['props']['status'] ?? null)->toBe(404)
+            ->and($embedded['props']['recovery_url'] ?? null)->toBe($canonicalOrigin.'/sites')
+            ->and($embedded['props']['secondary_url'] ?? null)->toBe($canonicalOrigin.'/incidents');
+    } finally {
+        URL::useOrigin(null);
+        URL::forceScheme(null);
+    }
     expect(Inertia::getShared())->toBe([])
         ->and(Inertia::getVersion())->toBe('');
 
