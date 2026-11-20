@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\HealthProbeEvaluator;
 use Heptapod\Contracts\Http\FetchFailure;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Models\Check;
 use Heptapod\Models\User;
 use Heptapod\Support\SecretMerge;
@@ -62,8 +63,19 @@ final readonly class HealthSettingsProbe
         foreach ($config['headers'] ?? [] as $header) {
             $headers[strtolower($header['name'])][] = $header['value'];
         }
-        $attempts = RateLimiter::hit('health-check-probe:'.$actor->id, 60);
-        abort_if($attempts > 6, 429);
+        $key = 'health-check-probe:'.$actor->id;
+        $attempts = RateLimiter::hit($key, 60);
+        if ($attempts > 6) {
+            $retryAfter = max(1, RateLimiter::availableIn($key));
+
+            throw new ExpectedRefusal(
+                status: 429,
+                messageKey: 'errors.429.retry_in',
+                params: ['wait' => ExpectedRefusal::cooldownParts($retryAfter, $actor)['wait']],
+                errorCode: 'health_probe_rate_limited',
+                retryAfterSeconds: $retryAfter,
+            );
+        }
         $response = $this->probe->fetch($config['result_url'], $headers);
         if ($response->failure instanceof FetchFailure || $response->status === null) {
             return ['result' => 'unreachable', 'component_count' => null];

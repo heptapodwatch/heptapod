@@ -10,7 +10,11 @@ import InputError from '@/components/input-error';
 import { SheetForm } from '@/components/sheet-form';
 import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
-import { HttpValidationError, useHttpRequest } from '@/hooks/use-http-request';
+import {
+    HttpValidationError,
+    httpErrorMessage,
+    useHttpRequest,
+} from '@/hooks/use-http-request';
 import { store } from '@/routes/clients';
 
 export function ClientCreateSheet({
@@ -51,7 +55,13 @@ export function ClientCreateSheet({
                         .then(onCreated)
                         .catch((error: unknown) => {
                             if (!(error instanceof HttpValidationError))
-                                setFailure(t('combobox.create_failed'));
+                                setFailure(
+                                    httpErrorMessage(
+                                        error,
+                                        t,
+                                        'combobox.create_failed',
+                                    ),
+                                );
                         });
                 }}
                 footer={

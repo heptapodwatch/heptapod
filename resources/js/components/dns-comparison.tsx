@@ -186,12 +186,20 @@ export function DnsComparison({
                                             onError: (errors) => {
                                                 requestedRun.abandon();
                                                 callbacks.onError();
-                                                // The server race ("A check is running right now…") arrives here.
-                                                toast.error(
-                                                    Object.values(errors).join(
-                                                        ' · ',
-                                                    ),
-                                                );
+                                                const messages = Object.entries(
+                                                    errors,
+                                                )
+                                                    .filter(
+                                                        ([key]) =>
+                                                            key !== '_refusal',
+                                                    )
+                                                    .map(([, value]) => value);
+                                                // The server race ("A check is running right now…") arrives here; `_refusal` already flashed a toast.
+                                                if (messages.length > 0) {
+                                                    toast.error(
+                                                        messages.join(' · '),
+                                                    );
+                                                }
                                                 router.reload({
                                                     only: [
                                                         'history',

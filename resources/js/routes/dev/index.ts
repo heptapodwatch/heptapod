@@ -1,4 +1,5 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
+import errors from './errors'
 /**
 * @see routes/web.php:70
 * @route '/dev/components'
@@ -75,6 +76,7 @@ components.form = componentsForm
 
 const dev = {
     components: Object.assign(components, components),
+    errors: Object.assign(errors, errors),
 }
 
 export default dev

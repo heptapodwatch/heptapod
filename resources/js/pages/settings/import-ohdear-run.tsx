@@ -14,7 +14,14 @@ import { RunStatus } from '@/components/run-family';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { listCardPadding, ListHeader, ListRow } from '@/components/ui/table';
-import { HttpValidationError, useHttpRequest } from '@/hooks/use-http-request';
+import {
+    HttpValidationError,
+    httpErrorMessage,
+    httpErrorStatus,
+    useHttpRequest,
+} from '@/hooks/use-http-request';
+import { useClipboard } from '@/hooks/use-clipboard';
+import { toast } from 'sonner';
 import { useLiveReload } from '@/hooks/use-live';
 import { useFormat } from '@/hooks/use-format';
 import { ListFooter } from '@/components/list-footer';
@@ -64,6 +71,7 @@ const statusRuns = {
 
 function CopyUrl({ url }: { url: string }) {
     const { t } = useTranslation();
+    const [, copy] = useClipboard();
     const [copied, setCopied] = useState(false);
     return (
         <div className="flex min-w-0 items-center gap-2">
@@ -77,8 +85,11 @@ function CopyUrl({ url }: { url: string }) {
                 size="sm"
                 variant="outline"
                 onClick={async () => {
-                    await navigator.clipboard.writeText(url);
-                    setCopied(true);
+                    if (await copy(url)) {
+                        setCopied(true);
+                    } else {
+                        toast.warning(t('errors.clipboard_unavailable'));
+                    }
                 }}
             >
                 {t(copied ? 'Copied' : 'Copy')}
@@ -103,6 +114,16 @@ export default function ImportOhDearRun({
         active,
     );
     const retry = useHttpRequest<Record<string, never>, { url: string }>();
+    const retryImport = async () => {
+        try {
+            await retry.post(retryRoute.url(importRun.id));
+        } catch (error: unknown) {
+            if (error instanceof HttpValidationError) return;
+            toast.warning(httpErrorMessage(error, t));
+            if (httpErrorStatus(error) !== 409) return;
+        }
+        router.reload({ only: ['importRun'] });
+    };
     const done = importRun.processed;
     const unread = Math.max(0, importRun.expected - done);
     const finished = !active;
@@ -142,26 +163,9 @@ export default function ImportOhDearRun({
                                             <Button
                                                 type="button"
                                                 disabled={retry.processing}
-                                                onClick={async () => {
-                                                    try {
-                                                        await retry.post(
-                                                            retryRoute.url(
-                                                                importRun.id,
-                                                            ),
-                                                        );
-                                                    } catch (error: unknown) {
-                                                        // The refusal shows below.
-                                                        if (
-                                                            error instanceof
-                                                            HttpValidationError
-                                                        )
-                                                            return;
-                                                        throw error;
-                                                    }
-                                                    router.reload({
-                                                        only: ['importRun'],
-                                                    });
-                                                }}
+                                                onClick={() =>
+                                                    void retryImport()
+                                                }
                                             >
                                                 {t('Run again')}
                                             </Button>

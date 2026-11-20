@@ -17,7 +17,7 @@ import {
 import { Combobox } from '@/components/ui/combobox';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useHttpRequest } from '@/hooks/use-http-request';
+import { httpErrorMessage, useHttpRequest } from '@/hooks/use-http-request';
 import { notifications as clientNotifications } from '@/routes/clients';
 import { explain } from '@/routes/notifications';
 import { team as teamNotifications } from '@/routes/settings/notifications';
@@ -103,12 +103,12 @@ export function NotificationExplanation({
     const { auth } = usePage().props;
     const [checkId, setCheckId] = useState(defaultCheckId);
     const [category, setCategory] = useState<Category>(defaultCategory);
-    const [failure, setFailure] = useState(false);
+    const [failureMessage, setFailureMessage] = useState<string | null>(null);
     const request = useHttpRequest<Record<string, never>, Explanation>();
     const [result, setResult] = useState<Explanation | null>(null);
     useEffect(() => {
         let active = true;
-        setFailure(false);
+        setFailureMessage(null);
         void request
             .get(
                 explain.url({
@@ -125,8 +125,11 @@ export function NotificationExplanation({
             .then((explanation) => {
                 if (active) setResult(explanation);
             })
-            .catch(() => {
-                if (active) setFailure(true);
+            .catch((error: unknown) => {
+                if (active)
+                    setFailureMessage(
+                        httpErrorMessage(error, t, 'explanation.failed'),
+                    );
             });
         return () => {
             active = false;
@@ -217,8 +220,8 @@ export function NotificationExplanation({
                         </Select>
                     </div>
                 </div>
-                {failure ? (
-                    <InputError message={t('explanation.failed')} />
+                {failureMessage ? (
+                    <InputError message={failureMessage} />
                 ) : result === null || request.processing ? (
                     <Skeleton className="h-24 w-full" />
                 ) : result.status === 'not_applicable' ? (

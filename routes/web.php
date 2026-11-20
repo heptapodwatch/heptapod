@@ -68,6 +68,16 @@ Route::middleware(['guest', 'throttle:6,1'])->group(function (): void {
 
 if (app()->environment(['local', 'testing'])) {
     Route::get('/dev/components', fn (): Response => Inertia::render('dev/components'))->name('dev.components');
+    Route::get('/dev/errors/{status}', static function (int $status): Illuminate\Http\Response {
+        $recoveryUrl = $status === 503 ? url('/dev/errors/503') : ($status === 401 ? route('login') : route('sites.index'));
+        $recoveryLabel = __($status === 503 ? 'Try again' : ($status === 401 ? 'Sign in' : 'Go to Sites'));
+
+        return response()->view('errors.error', [
+            'status' => $status,
+            'recoveryUrl' => $recoveryUrl,
+            'recoveryLabel' => is_string($recoveryLabel) ? $recoveryLabel : 'Go to Sites',
+        ], $status);
+    })->whereIn('status', ['401', '403', '404', '409', '410', '413', '419', '422', '429', '500', '503'])->name('dev.errors.show');
 }
 
 if (app()->isLocal()) {

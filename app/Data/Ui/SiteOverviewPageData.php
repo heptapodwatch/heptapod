@@ -21,7 +21,7 @@ final class SiteOverviewPageData extends Data
      * @param  ClosureLazy|list<IncidentData>  $incidents
      * @param  ClosureLazy|list<RunAllCheckData>  $run_all_checks
      * @param  ClosureLazy|array{hours24: ?float, days7: ?float, days30: ?float, days90: ?float}  $uptime_ranges
-     * @param  ClosureLazy|array{queued: int, unavailable: int, results: list<array{check_id: int, status: string, reason: string|null}>}|null  $run_all_result
+     * @param  ClosureLazy|array{queued: int, cooldown?: int, unavailable: int, results: list<array{check_id: int, status: string, reason: string|null}>}|null  $run_all_result
      * @param  InertiaDeferred|list<UpcomingItemData>  $upcoming  the next certificate expiry, domain expiry and maintenance window
      * @param  ClosureLazy|list<SiteRepositoryData>  $repositories
      * @param  InertiaDeferred|int|null  $alert_channels  channels an uptime outage would reach now; null without an enabled uptime check

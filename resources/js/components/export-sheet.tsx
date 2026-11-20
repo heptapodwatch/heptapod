@@ -2,8 +2,8 @@ import { usePage } from '@inertiajs/react';
 import { ClipboardCheck, Download } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
 import { FormSecondaryAction } from '@/components/form-section';
+import InputError from '@/components/input-error';
 import { SegmentedControl } from '@/components/segmented-control';
 import { SheetForm } from '@/components/sheet-form';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Sheet } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
 import { useFormat } from '@/hooks/use-format';
+import { httpResponseMessage } from '@/hooks/use-http-request';
 
 type ExportFormat = Heptapod.Enums.ExportFormat;
 
@@ -47,9 +48,33 @@ function remembered(kind: string): Remembered | null {
     return stored === null ? null : (JSON.parse(stored) as Remembered);
 }
 
+function filenameFromDisposition(
+    header: string | null,
+    fallback: string,
+): string {
+    if (!header) return fallback;
+    const star = /filename\*=UTF-8''([^;]+)/i.exec(header);
+    if (star?.[1]) {
+        try {
+            return decodeURIComponent(star[1]);
+        } catch {
+            // Fall through to plain filename token.
+        }
+    }
+    const plain = /filename="?([^";]+)"?/i.exec(header);
+    return plain?.[1]?.trim() || fallback;
+}
+
+class ExportFetchError extends Error {
+    constructor(message: string) {
+        super(message);
+    }
+}
+
 /**
  * The one export control (heptapod-ui-rules Exports): an Export button that opens a sheet with Format, Include and
- * Cancel · Copy · Download. Every format comes from the server; Copy fetches the same file as Download.
+ * Cancel · Copy · Download. Every format comes from the server; Copy and Download both fetch the same endpoint so
+ * server refusals (410 expired snapshot, 413 CSV row limit, 403/404, offline) stay inline inside the sheet.
  */
 export function ExportButton({
     kind,
@@ -71,6 +96,8 @@ export function ExportButton({
     const [format, setFormat] = useState<ExportFormat>('csv');
     const [scopeKey, setScopeKey] = useState(scopes[0]?.key ?? '');
     const [copied, setCopied] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [exportError, setExportError] = useState<string | null>(null);
     const [manualText, setManualText] = useState<string | null>(null);
     const rowLimit = usePage().props.exportRowLimit;
     const formatter = useFormat();
@@ -95,6 +122,7 @@ export function ExportButton({
             );
         }
         setCopied(false);
+        setExportError(null);
         setOpen(true);
     };
     const remember = () =>
@@ -102,14 +130,76 @@ export function ExportButton({
             `export:${kind}`,
             JSON.stringify({ format, scope: scope.key } satisfies Remembered),
         );
+
+    const requestExport = async (): Promise<Response> => {
+        let response: Response;
+        try {
+            response = await fetch(scope.url(format), {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json' },
+            });
+        } catch {
+            throw new ExportFetchError(t('errors.network'));
+        }
+        if (!response.ok) {
+            const payload: { message?: string; code?: string } | null =
+                await response.json().catch(() => null);
+            throw new ExportFetchError(
+                httpResponseMessage(
+                    response.status,
+                    payload,
+                    t,
+                    'export.failed',
+                ),
+            );
+        }
+        return response;
+    };
+
+    const download = async () => {
+        remember();
+        setExportError(null);
+        setBusy(true);
+        try {
+            const response = await requestExport();
+            const blob = await response.blob();
+            const filename = filenameFromDisposition(
+                response.headers.get('content-disposition'),
+                `export.${format}`,
+            );
+            const objectUrl = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = objectUrl;
+            anchor.download = filename;
+            document.body.append(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(objectUrl);
+            setOpen(false);
+        } catch (error: unknown) {
+            setExportError(
+                error instanceof ExportFetchError
+                    ? error.message
+                    : t('export.failed'),
+            );
+        } finally {
+            setBusy(false);
+        }
+    };
+
     const copy = async () => {
         remember();
-        const text = fetch(scope.url(format), {
-            headers: { Accept: 'text/plain' },
-        }).then((response) => {
-            if (!response.ok) throw new Error(`Export ${response.status}`);
-            return response.text();
-        });
+        setExportError(null);
+        let failureMessage: string | null = null;
+        const text = requestExport()
+            .then((response) => response.text())
+            .catch((error: unknown) => {
+                failureMessage =
+                    error instanceof ExportFetchError
+                        ? error.message
+                        : t('export.failed');
+                throw error;
+            });
         try {
             if (!navigator.clipboard) throw new Error('No clipboard');
             // A promised ClipboardItem keeps the click's user activation (Safari) while the server answers.
@@ -124,13 +214,14 @@ export function ExportButton({
         } catch {
             const value = await text.catch(() => null);
             if (value === null) {
-                toast.error(t('export.failed'));
+                setExportError(failureMessage ?? t('export.failed'));
                 return;
             }
             setOpen(false);
             setManualText(value);
         }
     };
+
     return (
         <>
             <Button
@@ -149,17 +240,18 @@ export function ExportButton({
                     description={t('export.sheet_description')}
                     onSubmit={(event) => {
                         event.preventDefault();
-                        remember();
-                        window.location.assign(scope.url(format));
-                        setOpen(false);
+                        void download();
                     }}
                     footer={
                         <>
-                            <FormSecondaryAction onClick={() => setOpen(false)}>
+                            <FormSecondaryAction
+                                disabled={busy}
+                                onClick={() => setOpen(false)}
+                            >
                                 {t('Cancel')}
                             </FormSecondaryAction>
                             <FormSecondaryAction
-                                disabled={format === 'csv'}
+                                disabled={format === 'csv' || busy}
                                 onClick={() => void copy()}
                             >
                                 {copied ? (
@@ -171,7 +263,7 @@ export function ExportButton({
                                     t('Copy')
                                 )}
                             </FormSecondaryAction>
-                            <Button type="submit" disabled={csvRefused}>
+                            <Button type="submit" disabled={csvRefused || busy}>
                                 {t('export.download')}
                             </Button>
                         </>
@@ -189,6 +281,7 @@ export function ExportButton({
                                     onValueChange={(next) => {
                                         setFormat(next as ExportFormat);
                                         setCopied(false);
+                                        setExportError(null);
                                     }}
                                     options={formats.map((option) => ({
                                         value: option.value,
@@ -214,6 +307,7 @@ export function ExportButton({
                                     onValueChange={(next) => {
                                         setScopeKey(next);
                                         setCopied(false);
+                                        setExportError(null);
                                     }}
                                 >
                                     {scopes.map((option) => (
@@ -241,6 +335,7 @@ export function ExportButton({
                                       })}
                             </p>
                         )}
+                        <InputError message={exportError} />
                     </div>
                 </SheetForm>
             </Sheet>

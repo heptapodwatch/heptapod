@@ -29,6 +29,7 @@ use Heptapod\Events\EventPresenter;
 use Heptapod\Events\Notifications\AlertConfirmation;
 use Heptapod\Events\Notifications\NotificationEventTypes;
 use Heptapod\Events\Notifications\UptimeAlertEpisode;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Incidents\UptimeDependencies;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
@@ -404,7 +405,14 @@ final readonly class IncidentsReader
         }
         if ($group === null) {
             // A saved full-page URL can outlive a group; explicit expansion requests still reject it.
-            abort_if($requireGroup, 404);
+            if ($requireGroup) {
+                throw new ExpectedRefusal(
+                    status: 404,
+                    messageKey: 'errors.activity.group_pruned',
+                    errorCode: 'notification_group_pruned',
+                    tone: 'info',
+                );
+            }
 
             return null;
         }

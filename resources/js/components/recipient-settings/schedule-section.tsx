@@ -15,7 +15,11 @@ import { CheckboxField } from '@/components/ui/checkbox';
 import { TimeField } from '@/components/ui/date-time-field';
 import { Label } from '@/components/ui/label';
 import { WeekdayToggleGroup } from '@/components/ui/weekday-toggle-group';
-import { HttpValidationError, useHttpRequest } from '@/hooks/use-http-request';
+import {
+    HttpValidationError,
+    httpErrorMessage,
+    useHttpRequest,
+} from '@/hooks/use-http-request';
 import { TextLink } from '@/components/text-link';
 import { settings as clientSettings } from '@/routes/clients';
 import { update } from '@/routes/notification-schedules';
@@ -109,7 +113,13 @@ export function ScheduleSection({
                     })
                     .catch((error: unknown) => {
                         if (!(error instanceof HttpValidationError))
-                            setFailure(t('recipient_settings.save_failed'));
+                            setFailure(
+                                httpErrorMessage(
+                                    error,
+                                    t,
+                                    'recipient_settings.save_failed',
+                                ),
+                            );
                     });
             }}
         >

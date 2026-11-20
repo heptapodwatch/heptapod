@@ -17,7 +17,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Sheet } from '@/components/ui/sheet';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
-import { HttpValidationError, useHttpRequest } from '@/hooks/use-http-request';
+import {
+    HttpValidationError,
+    httpErrorMessage,
+    useHttpRequest,
+} from '@/hooks/use-http-request';
 import { show as clientShow } from '@/routes/clients';
 import {
     preview as previewMessage,
@@ -239,7 +243,11 @@ export function SendToClientSheet({
                             if (!(error instanceof HttpValidationError))
                                 form.setError(
                                     'channel_ids',
-                                    t('client_messages.send_failed'),
+                                    httpErrorMessage(
+                                        error,
+                                        t,
+                                        'client_messages.send_failed',
+                                    ),
                                 );
                         });
                 }}

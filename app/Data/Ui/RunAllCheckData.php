@@ -17,5 +17,6 @@ final class RunAllCheckData extends Data
         public readonly string $queue,
         public readonly int $maximum_seconds,
         public readonly bool $available,
+        public readonly ?string $cooldown_until = null,
     ) {}
 }

@@ -1132,6 +1132,7 @@ readonly freshness_suppression: Heptapod.Contracts.CheckRunPresentationPartData 
 readonly mail_design: Heptapod.Contracts.Mail.MailDesign,
 readonly alert_channels?: number | null,
 readonly can_move: boolean,
+readonly cooldown_until: string | null,
 };
 export type ClientAvatarData = {
 readonly url: string | null,
@@ -1249,6 +1250,17 @@ readonly logo_dark_url: string | null,
 readonly sender_name_max: number,
 readonly footer_max: number,
 readonly logo_max_kilobytes: number,
+};
+export type ErrorPageData = {
+readonly status: number,
+readonly title: string,
+readonly description: string,
+readonly recovery_url: string,
+readonly recovery_label: string,
+readonly secondary_url: string | null,
+readonly secondary_label: string | null,
+readonly code: string | null,
+readonly retry_after: number | null,
 };
 export type EventData = {
 readonly id: number,
@@ -1399,6 +1411,7 @@ readonly can_snooze: boolean,
 readonly can_unsnooze: boolean,
 readonly opening_delivery_explanation: string | null,
 readonly mail_design: Heptapod.Contracts.Mail.MailDesign,
+readonly cooldown_until: string | null,
 };
 export type IncidentEvidenceData = {
 readonly facts: Record<string, any>,
@@ -1769,6 +1782,7 @@ readonly check_type: Heptapod.Contracts.CheckKey,
 readonly queue: string,
 readonly maximum_seconds: number,
 readonly available: boolean,
+readonly cooldown_until: string | null,
 };
 export type RunRowData = {
 readonly id: number,
@@ -1937,6 +1951,7 @@ days90: number | null,
 },
 readonly run_all_result: {
 queued: number,
+cooldown?: number,
 unavailable: number,
 results: {
 check_id: number,
@@ -2145,6 +2160,7 @@ has_active_run: boolean,
 schedule_utc: string,
 retention: Record<string, number | null>,
 uses_default_retention: boolean,
+cooldown_until: string | null,
 observed_at: string,
 } | null,
 };

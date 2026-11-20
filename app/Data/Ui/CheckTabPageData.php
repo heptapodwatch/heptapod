@@ -54,5 +54,7 @@ final class CheckTabPageData extends Data
         /** Channels this check's outage (uptime) or failure would reach now; null when the check is off or never reports it. */
         public readonly InertiaDeferred|int|null $alert_channels,
         public readonly ClosureLazy|bool $can_move = false,
+        /** UTC ISO-8601 instant when this check's manual cooldown ends, or null when ready. */
+        public readonly ClosureLazy|string|null $cooldown_until = null,
     ) {}
 }

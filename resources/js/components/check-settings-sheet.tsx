@@ -5,6 +5,7 @@ import { NumberField } from '@/components/ui/number-field';
 import { Label } from '@/components/ui/label';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { httpResponseMessage } from '@/hooks/use-http-request';
 import {
     SchemaFields,
     schemaFieldViews,
@@ -277,11 +278,6 @@ function SavedCheckSettingsSheet({
                     ),
                 },
             );
-            if (response.status === 429) {
-                if (version === probeVersion.current)
-                    setProbeMessage(t('Health probe rate limit reached'));
-                return;
-            }
             if (response.status === 422) {
                 const payload: { errors?: Record<string, string[]> } =
                     await response.json();
@@ -299,8 +295,21 @@ function SavedCheckSettingsSheet({
                     );
                 return;
             }
-            if (!response.ok)
-                throw new Error(`Health probe failed: HTTP ${response.status}`);
+            if (!response.ok) {
+                const payload: { message?: string; code?: string } | null =
+                    await response.json().catch(() => null);
+                if (version === probeVersion.current) {
+                    setProbeMessage(
+                        httpResponseMessage(
+                            response.status,
+                            payload,
+                            t,
+                            'Health probe unavailable',
+                        ),
+                    );
+                }
+                return;
+            }
             const result: HealthProbeResult = await response.json();
             if (
                 ![
@@ -338,35 +347,37 @@ function SavedCheckSettingsSheet({
                     body: JSON.stringify(form.data),
                 },
             );
-            if (
-                response.status === 429 ||
-                response.status === 409 ||
-                response.status === 422
-            ) {
+            if (response.status === 422) {
                 setProbeResult(null);
                 const payload: { errors?: Record<string, string[]> } | null =
-                    response.status === 422 ? await response.json() : null;
+                    await response.json().catch(() => null);
                 setProbeMessage(
                     t(
-                        response.status === 429
-                            ? 'Health probe rate limit reached'
-                            : response.status === 409
-                              ? 'checks.settings_changed'
-                              : Object.keys(payload?.errors ?? {}).some((key) =>
-                                      key.startsWith(
-                                          'application_health_check_settings.',
-                                      ),
-                                  )
-                                ? 'api.secrets_host_change'
-                                : 'Invalid health settings',
+                        Object.keys(payload?.errors ?? {}).some((key) =>
+                            key.startsWith(
+                                'application_health_check_settings.',
+                            ),
+                        )
+                            ? 'api.secrets_host_change'
+                            : 'Invalid health settings',
                     ),
                 );
                 return;
             }
-            if (!response.ok)
-                throw new Error(
-                    `Health settings save failed: HTTP ${response.status}`,
+            if (!response.ok) {
+                setProbeResult(null);
+                const payload: { message?: string; code?: string } | null =
+                    await response.json().catch(() => null);
+                setProbeMessage(
+                    httpResponseMessage(
+                        response.status,
+                        payload,
+                        t,
+                        'Health probe unavailable',
+                    ),
                 );
+                return;
+            }
             form.reset();
             setProbeResult(null);
             setOpen(false);

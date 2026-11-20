@@ -9,6 +9,7 @@ use Heptapod\Contracts\CheckKey;
 use Heptapod\Data\Ui\ActivityBatchData;
 use Heptapod\Data\Ui\ActivityFilterData;
 use Heptapod\Data\Ui\ActivityPageData;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Models\User;
 use Heptapod\Queries\EventsReader;
 use Heptapod\Queries\SitesReader;
@@ -58,7 +59,14 @@ final class ActivityController extends Controller
         $groupId = $request->filled('group') ? $request->integer('group') : null;
         $expanded = $groupId === null ? null : $reader->activityDetails($user, $groupId, $since, $search, $client, $check?->value);
 
-        abort_if($expanded !== null && $expanded['events'] === [], 404);
+        if ($expanded !== null && $expanded['events'] === []) {
+            throw new ExpectedRefusal(
+                status: 404,
+                messageKey: 'errors.activity.group_pruned',
+                errorCode: 'activity_group_pruned',
+                tone: 'info',
+            );
+        }
 
         return Inertia::render('activity/index', new ActivityPageData(
             // Older batches load by infinite scroll (`before` = the last group's latest event); the URL keeps no cursor.

@@ -12,6 +12,7 @@ use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\ActivityGroupData;
 use Heptapod\Data\Ui\EventData;
 use Heptapod\Events\EventPresenter;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\Client;
 use Heptapod\Models\Event;
@@ -249,7 +250,14 @@ final readonly class EventsReader
         /** @var ActivityGroupRow|null $group */
         $group = $this->activityGroups($user, $since, $search, $clientId, $type, $id)
             ->orderByDesc('ended_at')->orderByDesc('latest_id')->limit(1)->first();
-        abort_if($group === null, 404);
+        if ($group === null) {
+            throw new ExpectedRefusal(
+                status: 404,
+                messageKey: 'errors.activity.group_pruned',
+                errorCode: 'activity_group_pruned',
+                tone: 'info',
+            );
+        }
         $query = $this->filtered($user, null, $group->check_id, null, $since, $search, $clientId, $type);
         $query->getQuery()->where(static function (QueryBuilder $members) use ($id): void {
             $members->where('flap_group_id', $id)->orWhere('id', $id);

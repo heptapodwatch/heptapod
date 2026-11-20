@@ -67,14 +67,61 @@ afterEach(() => {
 });
 
 it('opens the message as sent and exports its stored attachment from the row', async () => {
-    const assign = vi.fn();
-    vi.stubGlobal('location', { assign });
+    const createObjectURL = vi.fn(() => 'blob:attachment');
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', {
+        ...URL,
+        createObjectURL,
+        revokeObjectURL,
+    });
+    const baseFetch = globalThis.fetch;
+    const downloadFetch = vi.fn(async (url: string, init?: RequestInit) =>
+        url.includes('/attachment.csv')
+            ? ({
+                  ok: true,
+                  headers: new Headers({
+                      'content-disposition':
+                          'attachment; filename="findings.csv"',
+                  }),
+                  blob: async () => new Blob(['URL\n'], { type: 'text/csv' }),
+              } as Response)
+            : baseFetch(url, init),
+    );
+    vi.stubGlobal('fetch', downloadFetch);
     render(<ClientMessagesList client={{ id: 3, name: 'Müller GmbH' }} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Export' }));
     fireEvent.click(screen.getByRole('button', { name: 'export.download' }));
-    expect(assign).toHaveBeenCalledWith(
-        '/clients/3/client-messages/7/attachment.csv',
+    await waitFor(() =>
+        expect(downloadFetch).toHaveBeenCalledWith(
+            '/clients/3/client-messages/7/attachment.csv',
+            expect.objectContaining({
+                credentials: 'same-origin',
+            }),
+        ),
     );
+    expect(createObjectURL).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:attachment');
+
+    // A refused download keeps the Export sheet open and surfaces the server's localized message inline.
+    const refusedFetch = vi.fn(async (url: string, init?: RequestInit) =>
+        url.includes('/attachment.csv')
+            ? ({
+                  ok: false,
+                  status: 410,
+                  json: async () => ({
+                      message: 'Snapshot expired before download.',
+                      code: 'findings_snapshot_expired',
+                  }),
+              } as Response)
+            : baseFetch(url, init),
+    );
+    vi.stubGlobal('fetch', refusedFetch);
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    fireEvent.click(screen.getByRole('button', { name: 'export.download' }));
+    expect(
+        await screen.findByText('Snapshot expired before download.'),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
     // Copy fetches the server's Markdown of the same attachment, not text built in the browser.
     let copiedText: string | undefined;
@@ -91,11 +138,10 @@ it('opens the message as sent and exports its stored attachment from the row', a
             }
         },
     );
-    const messages = globalThis.fetch;
     const fetchExport = vi.fn(async (url: string, init?: RequestInit) =>
         url.includes('/attachment.')
             ? ({ ok: true, text: async () => '| URL |' } as Response)
-            : messages(url, init),
+            : baseFetch(url, init),
     );
     vi.stubGlobal('fetch', fetchExport);
     fireEvent.click(screen.getByRole('button', { name: 'Export' }));

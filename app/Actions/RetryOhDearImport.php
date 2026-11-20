@@ -6,6 +6,7 @@ namespace Heptapod\Actions;
 
 use Heptapod\Enums\ImportRunStatus;
 use Heptapod\Events\LiveSignal;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Jobs\RunOhDearImport;
 use Heptapod\Models\ImportRun;
 use Heptapod\Support\ImportTokenStore;
@@ -22,7 +23,13 @@ final readonly class RetryOhDearImport
         // Compare-and-set on the observed attempt: a retry that read an older attempt cannot claim a newer one.
         $query = ImportRun::query()->getQuery()->where('id', $importRun->id)->where('attempts', $importRun->attempts)->whereIn('status', [ImportRunStatus::Incomplete->value, ImportRunStatus::Failed->value]);
         $claimed = $query->update(['status' => ImportRunStatus::Queued->value, 'attempts' => $importRun->attempts + 1, 'updated_at' => now()]);
-        abort_if($claimed !== 1, 409);
+        if ($claimed !== 1) {
+            throw new ExpectedRefusal(
+                status: 409,
+                messageKey: 'errors.import.cannot_retry',
+                errorCode: 'import_cannot_retry',
+            );
+        }
         RunOhDearImport::dispatch($importRun->id);
         LiveSignal::forImportChange();
     }

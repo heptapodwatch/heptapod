@@ -7,6 +7,7 @@ namespace Heptapod\Http\Controllers\Notifications;
 use Heptapod\Actions\ArchiveNotificationChannel;
 use Heptapod\Actions\Notifications\SaveNotificationChannel;
 use Heptapod\Enums\RecipientKind;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\Client;
 use Heptapod\Models\NotificationDestination;
@@ -61,7 +62,13 @@ final class NotificationChannelsController extends Controller
     public function destroy(Request $request, NotificationDestination $channel, ArchiveNotificationChannel $archive): JsonResponse
     {
         Gate::authorize('update', $channel);
-        abort_if($channel->account_mail, 422, __('notifications.account_channel_kept'));
+        if ($channel->account_mail) {
+            throw new ExpectedRefusal(
+                status: 422,
+                messageKey: 'notifications.account_channel_kept',
+                errorCode: 'account_channel_kept',
+            );
+        }
         $actor = $request->user();
         abort_unless($actor instanceof User, 401);
         $suppressed = $archive($channel, ArchiveNotificationChannel::Archived, $actor);

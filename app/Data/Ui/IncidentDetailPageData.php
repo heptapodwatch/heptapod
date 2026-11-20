@@ -53,5 +53,7 @@ final class IncidentDetailPageData extends Data
         public readonly ClosureLazy|string|null $opening_delivery_explanation,
         /** The instance mail design: the preset of a new message in Send to client. */
         public readonly ClosureLazy|MailDesign $mail_design,
+        /** UTC ISO-8601 instant when this check's manual cooldown ends, or null when ready. */
+        public readonly ClosureLazy|string|null $cooldown_until = null,
     ) {}
 }

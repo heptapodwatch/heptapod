@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { FormSecondaryAction } from '@/components/form-section';
 import { ImageDropzone } from '@/components/image-dropzone';
 import { InfoTooltip } from '@/components/info-tooltip';
@@ -121,6 +122,7 @@ export function useLogoDraft(file: File | null): LogoDraft | null {
 
 /** A saved logo, read into a File so the dropzone and the preview treat it like a new upload. */
 export function useSavedLogo(url: string | null): File | null {
+    const { t } = useTranslation();
     const [file, setFile] = useState<File | null>(null);
     useEffect(() => {
         let active = true;
@@ -143,11 +145,14 @@ export function useSavedLogo(url: string | null): File | null {
                         }),
                     );
                 }
+            })
+            .catch(() => {
+                if (active) toast.warning(t('errors.logo_load_failed'));
             });
         return () => {
             active = false;
         };
-    }, [url]);
+    }, [url, t]);
     return file;
 }
 

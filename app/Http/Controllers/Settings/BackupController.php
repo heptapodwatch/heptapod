@@ -15,9 +15,7 @@ final class BackupController extends Controller
 {
     public function index(Request $request, BackupHistoryReader $history): JsonResponse
     {
-        $this->owner($request);
-
-        return response()->json($history->read());
+        return response()->json($history->read($this->owner($request)));
     }
 
     public function store(Request $request, RequestBackup $backup): JsonResponse

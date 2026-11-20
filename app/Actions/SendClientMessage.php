@@ -11,6 +11,7 @@ use Heptapod\Contracts\Mail\MailRenderer;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
 use Heptapod\Enums\RecipientKind;
 use Heptapod\Events\Notifications\NotificationLocks;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Export\Csv;
 use Heptapod\Jobs\SendNotification;
 use Heptapod\Models\Check;
@@ -23,14 +24,12 @@ use Heptapod\Models\NotificationPreference;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Notifications\Client\ClientMessageNotification;
-use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 /**
  * "Send to client" (design §4): a person decides that a client hears about a check's findings or an incident now.
@@ -366,7 +365,11 @@ final readonly class SendClientMessage
             return null;
         }
         if (($event->payload['request_hash'] ?? null) !== $hash) {
-            throw new ConflictHttpException(__('client_messages.idempotency_conflict'));
+            throw new ExpectedRefusal(
+                status: 409,
+                messageKey: 'client_messages.idempotency_conflict',
+                errorCode: 'client_message_idempotency_conflict',
+            );
         }
         /** @var list<int> $deliveryIds */
         $deliveryIds = DB::table('deliveries')->where('event_id', $event->id)->orderBy('id')->pluck('id')->all();
@@ -391,7 +394,13 @@ final readonly class SendClientMessage
             $oldestCounted = $query->value('occurred_at');
             if (is_string($oldestCounted)) {
                 $retry = max(1, (int) ceil(CarbonImmutable::parse($oldestCounted)->addSeconds($seconds)->diffInSeconds($now, true)));
-                throw new ThrottleRequestsException(__('client_messages.too_many'), headers: ['Retry-After' => (string) $retry]);
+
+                throw new ExpectedRefusal(
+                    status: 429,
+                    messageKey: 'client_messages.too_many',
+                    errorCode: 'client_message_quota_exceeded',
+                    retryAfterSeconds: $retry,
+                );
             }
         }
     }

@@ -41,6 +41,7 @@ use Heptapod\Contracts\SiteCheckSettingsReader;
 use Heptapod\Events\LiveSignal;
 use Heptapod\Events\Notifications\NotificationEventTypes;
 use Heptapod\Events\OutboxRecorded;
+use Heptapod\Http\ErrorResponses;
 use Heptapod\Http\Outbound\GuardedDeliveryHttp;
 use Heptapod\Http\Outbound\GuzzleOutboundHttp;
 use Heptapod\Http\Outbound\GuzzlePacedHttpClient;
@@ -100,6 +101,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Inertia\Inertia;
 use Laravel\Horizon\Events\MasterSupervisorLooped;
 use Psr\Log\LoggerInterface;
 use Spatie\Backup\Events\BackupHasFailed;
@@ -229,6 +231,7 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(6)->by($identity.'|'.$id);
         });
+        Inertia::handleExceptionsUsing(ErrorResponses::respond(...));
     }
 
     /**

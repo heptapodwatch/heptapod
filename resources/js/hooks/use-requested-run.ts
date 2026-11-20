@@ -1,5 +1,7 @@
 import type { Page } from '@inertiajs/core';
+import i18n from 'i18next';
 import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { onLiveSignal, useStreamState, type RunState } from '@/lib/live-store';
 import { show as attemptShow } from '@/routes/sites/checks/attempts';
 
@@ -127,8 +129,10 @@ export function useRequestedRun(siteId: number, checkId: number | null) {
                 endedAt: attempt.ended_at,
                 result: attempt.result,
             });
-        })().catch((error: unknown) => {
-            if (!controller.signal.aborted) throw error;
+        })().catch(() => {
+            if (!controller.signal.aborted) {
+                toast.warning(i18n.t('errors.run_poll_failed'));
+            }
         });
         return () => controller.abort();
     }, [runningAttemptId, reconnected, dataFrom]);
@@ -142,9 +146,15 @@ export function useRequestedRun(siteId: number, checkId: number | null) {
         },
         /** Reads the attempt id from the successful POST response. */
         accept: (page: Page) => {
-            const attemptId = (page.flash as Record<string, unknown>)
-                .requested_run_attempt_id;
+            const flash = page.flash as Record<string, unknown>;
+            const attemptId = flash.requested_run_attempt_id;
             if (typeof attemptId !== 'number') {
+                // An expected refusal redirects back with a flash toast instead of scheduling an attempt.
+                if (flash.toast !== undefined) {
+                    finishedBeforeAccept.current.clear();
+                    setState({ phase: 'idle' });
+                    return;
+                }
                 throw new Error('Run request response names no attempt.');
             }
             const early = finishedBeforeAccept.current.get(attemptId);

@@ -12,6 +12,7 @@ import { SiteRunningStrip } from '@/components/site-running-strip';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 import { IncidentBanner } from '@/components/incident-banner';
+import { CooldownReason, useCooldown } from '@/components/cooldown-reason';
 import {
     CheckRunStatusRow,
     RunCheckReason,
@@ -153,6 +154,12 @@ export default function SiteShow(page: SitePage) {
                   ),
           );
     const uptimeCheck = site.checks.find((check) => check.key === 'uptime');
+    const cooldownUntil = isCheck ? (page.cooldown_until ?? null) : null;
+    const { active: inCooldown, remainingSeconds: cooldownSeconds } =
+        useCooldown(cooldownUntil);
+    const checkActionErrors = Object.entries(errors)
+        .filter(([key]) => key !== '_refusal')
+        .map(([, message]) => message);
     const runAction =
         isCheck &&
         page.can_run &&
@@ -165,6 +172,7 @@ export default function SiteShow(page: SitePage) {
                         pending ||
                         enablePending ||
                         (page.check.enabled && activeRun !== null) ||
+                        (page.check.enabled && inCooldown) ||
                         (page.check.enabled &&
                             page.check.unavailable_reason !== null)
                     }
@@ -208,12 +216,24 @@ export default function SiteShow(page: SitePage) {
                               : 'Turn on',
                     )}
                 </Button>
-                {Object.values(errors).map((message, index) => (
+                {checkActionErrors.map((message, index) => (
                     <InputError key={index} message={message} />
                 ))}
                 {page.check.enabled && activeRun && (
                     <RunCheckReason run={activeRun} />
                 )}
+                {page.check.enabled && !activeRun && inCooldown && (
+                    <CooldownReason
+                        until={cooldownUntil}
+                        remainingSeconds={cooldownSeconds}
+                    />
+                )}
+            </div>
+        ) : checkActionErrors.length > 0 ? (
+            <div className="space-y-1">
+                {checkActionErrors.map((message, index) => (
+                    <InputError key={index} message={message} />
+                ))}
             </div>
         ) : null;
     return (

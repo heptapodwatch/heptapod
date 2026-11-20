@@ -7,6 +7,7 @@ namespace Heptapod\Actions;
 use Heptapod\Auth\MemberAccessGuard;
 use Heptapod\Enums\ClientScope;
 use Heptapod\Events\Notifications\NotificationLocks;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -34,7 +35,14 @@ final readonly class ChangeMemberAccess
             $query = User::query()->whereKey($member->id);
             NotificationLocks::forUpdate($query->getQuery());
             $current = $query->firstOrFail();
-            abort_if($current->disabled_at !== null, 404);
+            if ($current->disabled_at !== null) {
+                throw new ExpectedRefusal(
+                    status: 404,
+                    messageKey: 'errors.members.already_removed',
+                    errorCode: 'member_already_removed',
+                    tone: 'info',
+                );
+            }
             abort_if($currentActor->disabled_at !== null, 403);
             $this->guard->authorize($currentActor, $current);
             abort_if($data['role'] !== 'Member' && ! $currentActor->hasRole('Owner'), 403);

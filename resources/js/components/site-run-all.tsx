@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import { listRowPadding } from '@/components/ui/table';
 import { router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeaderAction } from '@/components/page-header-actions';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -36,9 +36,23 @@ export function SiteRunAll({
     const format = useFormat();
     const [open, setOpen] = useState(false);
     const [fastOnly, setFastOnly] = useState(false);
+    const [now, setNow] = useState(() => Date.now());
+    useEffect(() => {
+        if (!open) return;
+        setNow(Date.now());
+        const timer = window.setInterval(() => setNow(Date.now()), 5000);
+        return () => window.clearInterval(timer);
+    }, [open]);
     if (!plans.length) return null;
+    const isInCooldown = (plan: RunPlan) =>
+        plan.cooldown_until !== null &&
+        plan.cooldown_until !== undefined &&
+        Date.parse(plan.cooldown_until) > now;
     const eligible = plans.filter(
-        (plan) => plan.available && (!fastOnly || plan.queue === 'checks-fast'),
+        (plan) =>
+            plan.available &&
+            !isInCooldown(plan) &&
+            (!fastOnly || plan.queue === 'checks-fast'),
     ).length;
 
     return (
@@ -81,6 +95,7 @@ export function SiteRunAll({
                             );
                         const skippedForSpeed =
                             fastOnly && plan.queue !== 'checks-fast';
+                        const cooledDown = isInCooldown(plan);
                         return (
                             <div
                                 key={plan.check_id}
@@ -93,6 +108,12 @@ export function SiteRunAll({
                                 <span className="text-xs text-muted-foreground sm:text-right">
                                     {!plan.available ? (
                                         t('Unavailable')
+                                    ) : cooledDown && plan.cooldown_until ? (
+                                        t('errors.run_all_cooldown', {
+                                            time: format.time(
+                                                plan.cooldown_until,
+                                            ),
+                                        })
                                     ) : skippedForSpeed ? (
                                         t('Skipped: fast checks only')
                                     ) : (

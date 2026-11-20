@@ -15,8 +15,8 @@ assert.ok(
 const publicOrigin = 'https://monitor.example.com:8443';
 
 for (const [locale, throttleTitle, expiredTitle] of [
-    ['en', 'Too Many Requests', 'Session expired · Heptapod'],
-    ['de', 'Zu viele Anfragen', 'Sitzung abgelaufen · Heptapod'],
+    ['en', 'Too many requests · Heptapod', 'Session expired · Heptapod'],
+    ['de', 'Zu viele Anfragen · Heptapod', 'Sitzung abgelaufen · Heptapod'],
 ]) {
     await test(`raw production login failures and session recovery in ${locale}`, async () => {
         const context = await request.newContext({

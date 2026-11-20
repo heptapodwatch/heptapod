@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers;
 
 use Heptapod\Checks\CheckRunPresentations;
+use Heptapod\Checks\Execution\ClaimService;
 use Heptapod\Contracts\AlertPreviewRenderer;
 use Heptapod\Contracts\CheckDetailData;
 use Heptapod\Contracts\CheckHistoryData;
@@ -37,7 +38,7 @@ use Spatie\LaravelData\Lazy;
 
 final class IncidentDetailController extends Controller
 {
-    public function __invoke(Request $request, int $incident, IncidentsReader $reader, SiteDetailReader $details, CheckRunPresentations $presentations): Response
+    public function __invoke(Request $request, int $incident, IncidentsReader $reader, SiteDetailReader $details, CheckRunPresentations $presentations, ClaimService $claims): Response
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
@@ -91,6 +92,7 @@ final class IncidentDetailController extends Controller
             can_unsnooze: Lazy::closure(static fn (): bool => $open && $row->snoozed_until !== null && $row->snoozed_until->isFuture() && Gate::forUser($user)->allows('snooze', $check)),
             opening_delivery_explanation: Lazy::closure(static fn (): ?string => $reader->openingDeliveryExplanation($getIncident())),
             mail_design: Lazy::closure(static fn (): MailDesign => app(InstanceSettings::class)->mail_design),
+            cooldown_until: Lazy::closure(static fn (): ?string => $claims->cooldownUntil($check)?->toIso8601String()),
         ));
     }
 }

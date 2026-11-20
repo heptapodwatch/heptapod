@@ -36,7 +36,9 @@ it('admits exactly five wrong login attempts per email and IP, then rejects with
     }
     foreach (['wrong-password', 'password'] as $password) {
         $this->postJson(route('login.store'), ['email' => $user->email, 'password' => $password])->assertTooManyRequests()
-            ->assertHeader('Retry-After', '60')->assertHeader('X-RateLimit-Remaining', '0')->assertJsonPath('message', 'Too Many Attempts.');
+            ->assertHeader('Retry-After', '60')->assertHeader('X-RateLimit-Remaining', '0')
+            ->assertJsonPath('code', 'rate_limited')
+            ->assertJsonPath('message', 'Too many requests. Please try again in 1 min.');
     }
 
     $this->assertGuest();

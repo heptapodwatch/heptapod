@@ -130,7 +130,12 @@ $emailSave = $request('POST', '/settings/email', ['headers' => ['X-XSRF-TOKEN' =
 verify($emailSave->getStatusCode() === 302 && $emailSave->getHeader('Location') === ['https://monitor.example.com:8443/settings/email'], 'Email settings save must redirect to the canonical HTTPS settings origin: '.$emailSave->getStatusCode().' '.$emailSave->getHeaderLine('Location'));
 $signedInMissing = $request('GET', '/missing-ops-page');
 verify($signedInMissing->getStatusCode() === 404 && $signedInMissing->getHeader('Location') === [], 'Signed-in missing page must retain raw 404 without redirect');
-verify(str_contains((string) $signedInMissing->getBody(), 'href="https://monitor.example.com:8443/sites"'), 'Signed-in error recovery must use the canonical HTTPS sites origin');
+$signedInMissingBody = (string) $signedInMissing->getBody();
+verify(preg_match('#<script\b[^>]*\bdata-page="app"[^>]*>(.*?)</script>#s', $signedInMissingBody, $signedInMissingMatch) === 1, 'Signed-in missing page must embed Inertia page data');
+$signedInMissingPage = json_decode(html_entity_decode($signedInMissingMatch[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'), true, flags: JSON_THROW_ON_ERROR);
+verify(($signedInMissingPage['component'] ?? null) === 'errors/show' && ($signedInMissingPage['props']['status'] ?? null) === 404, 'Signed-in missing page must render the in-shell Inertia 404 component');
+verify(($signedInMissingPage['props']['recovery_url'] ?? null) === 'https://monitor.example.com:8443/sites', 'Signed-in error recovery must use the canonical HTTPS sites origin');
+verify(($signedInMissingPage['props']['secondary_url'] ?? null) === 'https://monitor.example.com:8443/incidents', 'Signed-in error secondary recovery must use the canonical HTTPS incidents origin');
 $legacyAppearance = $request('GET', '/settings/appearance');
 verify($legacyAppearance->getStatusCode() === 301 && $legacyAppearance->getHeaderLine('Location') === 'https://monitor.example.com:8443/settings/profile', 'Appearance alias origin wrong: '.$legacyAppearance->getStatusCode().' '.$legacyAppearance->getHeaderLine('Location'));
 $legacyDashboard = $request('GET', '/dashboard');

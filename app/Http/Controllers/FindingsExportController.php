@@ -16,6 +16,7 @@ use Heptapod\Contracts\FindingsExportProvider;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\SecretRedactor;
 use Heptapod\Enums\ExportFormat;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Export\ExportResponse;
 use Heptapod\Http\ListPageSize;
 use Heptapod\Models\Check;
@@ -60,7 +61,6 @@ final class FindingsExportController extends Controller
         abort_unless(in_array($checkRow->type, $registry->keys(), true), 404);
         $provider = $registry->get($checkRow->type)->persistence();
         abort_unless($provider instanceof FindingsExportProvider, 404);
-        abort_if($provider->exportFindings($checkRow->type, $check, $run) === null, 404);
         $redaction = RedactionContext::forSite($siteRow, $checkRow);
         $redact = static fn (string $value): string => SecretRedactor::redact($value, $redaction->secrets, $redaction->urls);
         $timezone = $user->resolvedTimezone();
@@ -86,9 +86,21 @@ final class FindingsExportController extends Controller
             ...($scoped instanceof Incident ? [['label' => __('Incident'), 'value' => '#'.$scoped->id]] : []),
             ...($latest instanceof CheckRun ? [['label' => __('Checked at'), 'value' => $time($latest->ended_at)]] : []),
             ...($latest?->id === $run->id ? [] : [['label' => __('Findings from'), 'value' => $time($run->endedAt)]])];
-        $rows = (static function () use ($provider, $checkRow, $run, $redact, $time, $since, $pages, $paged): \Generator {
-            $rows = $provider->exportFindings($checkRow->type, $checkRow->id, $run)
-                ?? throw new \RuntimeException('Findings snapshot expired before the export started.');
+        $rows = (static function () use ($provider, $checkRow, $site, $check, $run, $redact, $time, $since, $pages, $paged): \Generator {
+            // ExportResponse runs this generator inside one share-locked transaction before sending HTTP headers, so
+            // an expired snapshot always becomes HTTP 410 without a TOCTOU window between pre-check and stream start.
+            $rows = $provider->exportFindings($checkRow->type, $checkRow->id, $run);
+            if ($rows === null) {
+                throw new ExpectedRefusal(
+                    status: 410,
+                    messageKey: 'errors.findings.expired',
+                    errorCode: 'findings_snapshot_expired',
+                    titleKey: 'errors.findings.expired_title',
+                    recoveryRoute: 'sites.checks.show',
+                    recoveryRouteParams: ['site' => $site, 'check' => $check],
+                    recoveryLabelKey: 'Back to check',
+                );
+            }
             // The page lists each group (findings, not verifiable) in this order; once every group is past its listed page,
             // the provider's remaining pages are not read. A group without a page window has no rows on This page.
             $counts = ['finding' => 0, 'not_verifiable' => 0];

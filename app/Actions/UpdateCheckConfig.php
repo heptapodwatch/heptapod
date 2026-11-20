@@ -14,6 +14,7 @@ use Heptapod\Contracts\Schema\FieldType;
 use Heptapod\Enums\AlertSensitivity;
 use Heptapod\Events\Notifications\EffectiveAlertSensitivity;
 use Heptapod\Events\Notifications\NotificationLocks;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Models\Check;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\Support\SecretMerge;
@@ -48,7 +49,13 @@ final readonly class UpdateCheckConfig
             $schedule = $this->validateSchedule($settings, $check->type === CheckKey::Uptime);
             $schema = $this->registry->get($check->type)->definition()->configSchema;
             $previous = $check->exists ? $check->executionConfig() : [];
-            abort_if($expectedPreviousConfig !== null && $previous !== $expectedPreviousConfig, 409, __('checks.settings_changed'));
+            if ($expectedPreviousConfig !== null && $previous !== $expectedPreviousConfig) {
+                throw new ExpectedRefusal(
+                    status: 409,
+                    messageKey: 'checks.settings_changed',
+                    errorCode: 'check_settings_changed',
+                );
+            }
             $incoming = Arr::except($settings, ['frequency_value', 'frequency_unit', 'failed_notification_threshold']);
             $supplied = $incoming;
             foreach ($schema->fields as $name => $field) {

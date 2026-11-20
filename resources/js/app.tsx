@@ -1,5 +1,7 @@
 import { createInertiaApp, router } from '@inertiajs/react';
 import { configureEcho } from '@laravel/echo-react';
+import i18n from 'i18next';
+import { toast } from 'sonner';
 import { i18nReady } from '@/lib/i18n';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -72,8 +74,45 @@ router.on('finish', (event) => {
     )
         router.flushAll();
 });
-router.on('httpException', () => {
+router.on('httpException', (event) => {
     pendingNavigation = null;
+    const response = event.detail.response;
+    // Inertia responses (e.g. pages/errors/show) render inside AppLayout; never suppress them.
+    if (response.headers['x-inertia'] !== undefined) {
+        return;
+    }
+    // Non-Inertia HTML/text responses (500/503 Blade, proxy 502/504, disabled-account 401, Nginx 413) must never open
+    // Inertia's raw iframe modal; show a translated notice instead.
+    event.preventDefault();
+    const status = response.status;
+    if (status === 401) {
+        if (
+            response.headers['x-heptapod-auth-error'] === 'account_disabled' &&
+            typeof response.data === 'string' &&
+            response.data.includes('hp-brand')
+        ) {
+            document.open();
+            document.write(response.data);
+            document.close();
+            return;
+        }
+        toast.error(i18n.t('errors.401.session'), {
+            action: {
+                label: i18n.t('Sign in'),
+                onClick: () => window.location.assign('/login'),
+            },
+        });
+    } else if (status === 419) {
+        toast.warning(i18n.t('errors.419.refreshed'));
+    } else if (status === 413) {
+        toast.warning(i18n.t('errors.413.upload'));
+    } else if (status === 429) {
+        toast.warning(i18n.t('errors.429.description'));
+    } else if (status === 502 || status === 503 || status === 504) {
+        toast.warning(i18n.t('errors.503.action'));
+    } else {
+        toast.error(i18n.t('errors.500.action'));
+    }
 });
 router.on('cancel', () => {
     pendingNavigation = null;
@@ -117,7 +156,10 @@ router.on('networkError', (event) => {
         )
     ) {
         event.preventDefault();
+        return;
     }
+    event.preventDefault();
+    toast.warning(i18n.t('errors.network'));
 });
 
 configureEcho(
