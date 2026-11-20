@@ -688,6 +688,20 @@ foreach ($files as $path) {
             }
         }
     }
+    // A pill radius follows its content. A container that stretches to the row width keeps the panel radius:
+    // a full-width rounded-full bar reads as an oversized button (the old run bar on the check tab).
+    // Named exceptions: the search field is a pill by design, and a tab trigger is one segment inside a pill track.
+    $fullWidthPillExceptions = ['resources/js/components/ui/input.tsx', 'resources/js/components/ui/tabs.tsx'];
+    if (! in_array($path, $fullWidthPillExceptions, true) && preg_match_all('~<[A-Za-z][\w.]*(?=\s)(?:[^<>]|=>)*?className=~s', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
+        foreach ($matches[0] as [$text, $offset]) {
+            $value = expressionValue($source, $offset + strlen($text));
+            $stretches = preg_match('~(?<![\w:-])(?:w-full|flex-1|grow)(?![\w.-])~', $value) === 1;
+            $track = preg_match('~(?<![\w:-])h-(?:0\.5|1|1\.5|2)(?![\w.-])|progress-bar|progress-value~', $value) === 1;
+            if ($stretches && ! $track && preg_match('~(?<![\w:-])rounded-full(?![\w-])~', $value) === 1) {
+                $failures[] = sprintf('%s:%d: full-width pill; stretching containers use the panel radius, pills follow their content', $path, substr_count($source, "\n", 0, $offset) + 1);
+            }
+        }
+    }
     $focusException = $focusRingAllowlist[$path][0] ?? null;
     $focusExceptionHits = 0;
     foreach ([$otherFocusRing, $plainFocusRing] as $pattern) {
