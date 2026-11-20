@@ -8,12 +8,13 @@ use Carbon\CarbonImmutable;
 use Heptapod\Models\User;
 use Illuminate\Contracts\Debug\ShouldntReport;
 use RuntimeException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 /**
  * Expected user-reachable refusal rendered centrally in bootstrap/app.php and ErrorResponses.
  * Never reported as an unexpected server fault; carries a localized message key and optional retry timing.
  */
-final class ExpectedRefusal extends RuntimeException implements ShouldntReport
+final class ExpectedRefusal extends RuntimeException implements HttpExceptionInterface, ShouldntReport
 {
     /**
      * @param  array<string, int|float|string>  $params
@@ -40,6 +41,17 @@ final class ExpectedRefusal extends RuntimeException implements ShouldntReport
         $translated = __($this->messageKey, $this->params);
 
         return is_string($translated) ? $translated : $this->messageKey;
+    }
+
+    public function getStatusCode(): int
+    {
+        return $this->status;
+    }
+
+    /** @return array<string, string> */
+    public function getHeaders(): array
+    {
+        return $this->headers();
     }
 
     /** @return array<string, string> */

@@ -147,17 +147,6 @@ final class ErrorResponses
             return self::flashBack($request, 'warning', self::text('errors.419.refreshed'));
         }
 
-        // Stale partial reload (e.g. expanding a pruned Activity or Incident delivery group): keep the feed and refresh.
-        if (in_array($status, [403, 404, 410], true) && self::isPartialReload($request)) {
-            self::resolveLocale($request, $status);
-
-            return self::redirectCleanPartial(
-                $request,
-                $status === 403 ? 'error' : 'warning',
-                self::text($status === 403 ? 'errors.403.action' : 'errors.404.action'),
-            );
-        }
-
         // Stale-tab Inertia mutation hitting 403 or 404: keep user in place and refresh props instead of opening an error modal.
         if (
             in_array($status, [403, 404], true)
@@ -213,16 +202,23 @@ final class ErrorResponses
             /** @var array<string, mixed> $props */
             $props = $pageData->toArray();
             // ExceptionResponse::toResponse() sets a version closure capturing $request on Inertia's singleton factory;
-            // Octane's PrepareInertiaForNextOperation only flushes shared props, so reset all request-derived state here.
+            // Octane's PrepareInertiaForNextOperation only flushes shared props. Restore the plain version string right
+            // away so Inertia\Middleware::checkVersion() still succeeds for this request, and clear all request-derived
+            // factory state at termination before the worker serves another operation.
+            $previousVersion = Inertia::getVersion();
             try {
                 $rendered = $exceptionResponse
                     ->render('errors/show', $props)
                     ->withSharedData()
                     ->toResponse($request);
             } finally {
-                Inertia::flushShared();
-                Inertia::version(null);
+                Inertia::version($previousVersion);
                 Inertia::setRootView('app');
+                app()->terminating(static function (): void {
+                    Inertia::flushShared();
+                    Inertia::version(null);
+                    Inertia::setRootView('app');
+                });
             }
 
             foreach (['Retry-After', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'] as $header) {
