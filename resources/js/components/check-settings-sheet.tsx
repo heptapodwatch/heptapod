@@ -278,8 +278,25 @@ function SavedCheckSettingsSheet({
                 },
             );
             if (response.status === 429) {
+                const payload: { message?: string } | null = await response
+                    .json()
+                    .catch(() => null);
                 if (version === probeVersion.current)
-                    setProbeMessage(t('Health probe rate limit reached'));
+                    setProbeMessage(
+                        payload?.message ??
+                            t('Health probe rate limit reached'),
+                    );
+                return;
+            }
+            if (response.status === 401 || response.status === 419) {
+                if (version === probeVersion.current)
+                    setProbeMessage(
+                        t(
+                            response.status === 401
+                                ? 'errors.401.session'
+                                : 'errors.419.refreshed',
+                        ),
+                    );
                 return;
             }
             if (response.status === 422) {
@@ -344,21 +361,35 @@ function SavedCheckSettingsSheet({
                 response.status === 422
             ) {
                 setProbeResult(null);
-                const payload: { errors?: Record<string, string[]> } | null =
-                    response.status === 422 ? await response.json() : null;
+                const payload: {
+                    message?: string;
+                    errors?: Record<string, string[]>;
+                } | null = await response.json().catch(() => null);
+                setProbeMessage(
+                    response.status === 429
+                        ? (payload?.message ??
+                              t('Health probe rate limit reached'))
+                        : response.status === 409
+                          ? (payload?.message ?? t('checks.settings_changed'))
+                          : t(
+                                Object.keys(payload?.errors ?? {}).some((key) =>
+                                    key.startsWith(
+                                        'application_health_check_settings.',
+                                    ),
+                                )
+                                    ? 'api.secrets_host_change'
+                                    : 'Invalid health settings',
+                            ),
+                );
+                return;
+            }
+            if (response.status === 401 || response.status === 419) {
+                setProbeResult(null);
                 setProbeMessage(
                     t(
-                        response.status === 429
-                            ? 'Health probe rate limit reached'
-                            : response.status === 409
-                              ? 'checks.settings_changed'
-                              : Object.keys(payload?.errors ?? {}).some((key) =>
-                                      key.startsWith(
-                                          'application_health_check_settings.',
-                                      ),
-                                  )
-                                ? 'api.secrets_host_change'
-                                : 'Invalid health settings',
+                        response.status === 401
+                            ? 'errors.401.session'
+                            : 'errors.419.refreshed',
                     ),
                 );
                 return;

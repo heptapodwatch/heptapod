@@ -60,12 +60,26 @@ export function useSiteUrlProbe(url: string, auto: boolean, siteId?: number) {
                     }),
                 });
                 if (!response.ok) {
-                    const error =
-                        response.status === 422 ? await response.json() : null;
+                    const payload: {
+                        message?: string;
+                        errors?: Record<string, string[]>;
+                    } | null = response.headers
+                        .get('content-type')
+                        ?.includes('application/json')
+                        ? await response.json().catch(() => null)
+                        : null;
                     if (!controller.signal.aborted) {
                         setProbeError(
-                            error?.errors?.url?.[0] ??
-                                t('sites.url_probe_failed'),
+                            payload?.errors?.url?.[0] ??
+                                (response.status === 401
+                                    ? t('errors.401.session')
+                                    : response.status === 419
+                                      ? t('errors.419.refreshed')
+                                      : response.status >= 400 &&
+                                          response.status < 500 &&
+                                          payload?.message
+                                        ? payload.message
+                                        : t('sites.url_probe_failed')),
                         );
                         setAddressInvalid(response.status === 422);
                         setProbeState('error');

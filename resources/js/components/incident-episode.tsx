@@ -473,6 +473,7 @@ export function IncidentEpisode({
                                 {t(runPending ? 'Running check…' : 'Run check')}
                             </Button>
                             {activeRun && <RunCheckReason run={activeRun} />}
+                            <InputError message={errors.check} />
                         </div>
                     ) : undefined
                 }
@@ -535,7 +536,6 @@ export function IncidentEpisode({
                                 </PageHeaderAction>
                             )}
                         {clientAction}
-                        <InputError message={errors.check} />
                     </>
                 }
             />

@@ -39,7 +39,11 @@ import { Button } from '@/components/ui/button';
 import { MultiCombobox } from '@/components/ui/combobox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Sheet } from '@/components/ui/sheet';
-import { HttpValidationError, useHttpRequest } from '@/hooks/use-http-request';
+import {
+    HttpValidationError,
+    httpErrorMessage,
+    useHttpRequest,
+} from '@/hooks/use-http-request';
 import { cn } from '@/lib/utils';
 import {
     destroy,
@@ -247,9 +251,11 @@ export function ChannelSheet({
                                                                   ),
                                                         );
                                                 })
-                                                .catch(() =>
+                                                .catch((error: unknown) =>
                                                     toast.error(
-                                                        t(
+                                                        httpErrorMessage(
+                                                            error,
+                                                            t,
                                                             'recipient_settings.test_failed',
                                                         ),
                                                     ),
@@ -304,9 +310,11 @@ export function ChannelSheet({
                                                               ),
                                                     ),
                                                 )
-                                                .catch(() =>
+                                                .catch((error: unknown) =>
                                                     toast.error(
-                                                        t(
+                                                        httpErrorMessage(
+                                                            error,
+                                                            t,
                                                             'notifications.pause_rejected',
                                                         ),
                                                     ),
@@ -599,8 +607,14 @@ export function ChannelSheet({
                         onChanged();
                         onClose();
                         return true;
-                    } catch {
-                        toast.error(t('recipient_settings.remove.failed'));
+                    } catch (error: unknown) {
+                        toast.error(
+                            httpErrorMessage(
+                                error,
+                                t,
+                                'recipient_settings.remove.failed',
+                            ),
+                        );
                         return false;
                     }
                 }}

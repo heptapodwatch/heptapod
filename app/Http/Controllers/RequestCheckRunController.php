@@ -7,6 +7,8 @@ namespace Heptapod\Http\Controllers;
 use Heptapod\Actions\RequestCheckRun;
 use Heptapod\Checks\Execution\ManualRunRefused;
 use Heptapod\Checks\Execution\RunOrigin;
+use Heptapod\Exceptions\ExpectedRefusal;
+use Heptapod\Http\ErrorResponses;
 use Heptapod\Http\Requests\RequestCheckRunRequest;
 use Heptapod\Models\Check;
 use Heptapod\Models\User;
@@ -27,7 +29,29 @@ final class RequestCheckRunController extends Controller
         try {
             $attempt = $run($target, RunOrigin::Manual, actor: $user);
         } catch (ManualRunRefused $refused) {
-            abort(429, headers: ['Retry-After' => (string) $refused->retryAfterSeconds]);
+            $parts = ErrorResponses::cooldownParts($refused->retryAfterSeconds, $user);
+
+            throw $refused->reason === 'queue_admission_limited'
+                ? new ExpectedRefusal(
+                    status: 429,
+                    messageKey: 'errors.check_queue_busy',
+                    params: ['wait' => $parts['wait']],
+                    errorCode: 'queue_admission_limited',
+                    retryAfterSeconds: $refused->retryAfterSeconds,
+                    recoveryRoute: 'sites.checks.show',
+                    recoveryRouteParams: ['site' => $site, 'check' => $check],
+                    recoveryLabelKey: 'Back to check',
+                )
+                : new ExpectedRefusal(
+                    status: 429,
+                    messageKey: 'errors.check_cooldown',
+                    params: $parts,
+                    errorCode: 'check_cooldown',
+                    retryAfterSeconds: $refused->retryAfterSeconds,
+                    recoveryRoute: 'sites.checks.show',
+                    recoveryRouteParams: ['site' => $site, 'check' => $check],
+                    recoveryLabelKey: 'Back to check',
+                );
         }
 
         // The requesting tab matches the later run.finished signal against this attempt.
