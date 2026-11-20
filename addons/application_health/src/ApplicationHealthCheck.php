@@ -89,7 +89,7 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
         if ($failed === []) {
             return null;
         }
-        $advisories = count($failed) === 1 && $failed[0]->name === SecurityAdvisoryData::Component ? SecurityAdvisoryData::fromSpatieMeta($failed[0]->meta) : [];
+        $advisories = count($failed) === 1 && $failed[0]->name === SecurityAdvisoryData::Component ? SecurityAdvisoryData::parseSpatieMeta($failed[0]->meta) : [];
         if ($advisories !== []) {
             $packages = array_values(array_unique(array_map(static fn (SecurityAdvisoryData $advisory): string => $advisory->package, $advisories)));
             $visible = CheckRunPresentationData::headlineCount(count($packages), 2);

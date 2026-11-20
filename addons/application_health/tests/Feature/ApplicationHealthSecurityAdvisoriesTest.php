@@ -86,24 +86,25 @@ it('shows the advisories of a failed spatie security advisories result in the ch
         ->assertInertia(fn (Assert $page): Assert => $page
             ->where('history.components.0.name', 'SecurityAdvisories')
             ->where('history.components.0.latest_result', 'failed')
-            ->has('history.components.0.advisories', 15)
-            ->where('history.components.0.advisories.0', [
+            ->has('history.advisories', 15)
+            ->where('history.advisories.0', [
                 'package' => 'dompdf/dompdf', 'advisory_id' => 'CVE-2026-59943',
                 'title' => 'Dompdf: Embedded SVG images can leak existence of files and directories within the filesystem',
                 'link' => 'https://github.com/advisories/GHSA-j8qw-6jw8-r297', 'cve' => 'CVE-2026-59943', 'severity' => 'medium',
                 'affected_versions' => '<3.1.6', 'reported_at' => '2026-07-22T22:52:44+00:00',
             ])
             // An advisory without a CVE is identified by its link.
-            ->where('history.components.0.advisories.9.package', 'phenx/php-svg-lib')
-            ->where('history.components.0.advisories.9.cve', null)
-            ->where('history.components.0.advisories.9.advisory_id', 'https://github.com/advisories/GHSA-97m3-52wr-xvv2')
+            ->where('history.advisories.9.package', 'phenx/php-svg-lib')
+            ->where('history.advisories.9.cve', null)
+            ->where('history.advisories.9.advisory_id', 'https://github.com/advisories/GHSA-97m3-52wr-xvv2')
             ->where('history.components.1.name', 'Database')
-            ->where('history.components.1.advisories', null)
             ->where('history.advisories_pagination.total', 15)->where('history.advisories_pagination.last_page', 1));
-    // The advisories page like every list: the second page of ten holds the last five, in the same order.
-    $this->get('/sites/'.$check->site_id.'/checks/'.$check->id.'?health_advisories_per_page=10&health_advisories_page=2')
-        ->assertInertia(fn (Assert $page): Assert => $page->has('history.components.0.advisories', 5)
-            ->where('history.advisories_pagination.last_page', 2)->where('history.components.1.advisories', null));
+    // The advisories page like every list: the second page of ten holds the last five, in the same order,
+    // and stays present even when components are on another page.
+    $this->get('/sites/'.$check->site_id.'/checks/'.$check->id.'?health_advisories_per_page=10&health_advisories_page=2&health_components_per_page=10&health_components_page=2')
+        ->assertInertia(fn (Assert $page): Assert => $page->has('history.advisories', 5)
+            ->where('history.advisories_pagination.total', 15)
+            ->where('history.advisories_pagination.last_page', 2));
 });
 
 it('stores the advisories of the 1.2 check, which sends null CVE and severity values and extra keys', function (): void {
@@ -118,12 +119,12 @@ it('stores the advisories of the 1.2 check, which sends null CVE and severity va
 
     $this->actingAs($owner)->get('/sites/'.$check->site_id.'/checks/'.$check->id)->assertOk()
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->has('history.components.0.advisories', 2)
-            ->where('history.components.0.advisories.0.cve', 'CVE-2026-128083')
-            ->where('history.components.0.advisories.0.severity', 'low')
-            ->where('history.components.0.advisories.1.cve', null)
-            ->where('history.components.0.advisories.1.severity', null)
-            ->where('history.components.0.advisories.1.advisory_id', 'https://github.com/advisories/GHSA-97m3-52wr-xvv2'));
+            ->has('history.advisories', 2)
+            ->where('history.advisories.0.cve', 'CVE-2026-128083')
+            ->where('history.advisories.0.severity', 'low')
+            ->where('history.advisories.1.cve', null)
+            ->where('history.advisories.1.severity', null)
+            ->where('history.advisories.1.advisory_id', 'https://github.com/advisories/GHSA-97m3-52wr-xvv2'));
 });
 
 it('filters the Sites list by open advisory, package and advisory ID within the viewer scope', function (): void {

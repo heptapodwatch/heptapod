@@ -103,7 +103,6 @@ final readonly class ApplicationHealthPersistence implements RunPersistence, Sec
                 'status' => mb_substr($snapshot['status'], 0, 160),
                 'short_summary' => mb_substr($snapshot['shortSummary'], 0, 160),
                 'latest_result' => $snapshot['latest_result'],
-                'advisories' => $snapshot['name'] === SecurityAdvisoryData::Component ? $advisories : null,
             ];
             $valid ??= (object) ['run_id' => $row->run_id, 'run_ended_at' => $row->run_ended_at];
         }
@@ -126,7 +125,7 @@ final readonly class ApplicationHealthPersistence implements RunPersistence, Sec
 
         return new ApplicationHealthDetailData($valid?->run_id, $valid === null ? null : CarbonImmutable::parse($valid->run_ended_at)->utc()->toIso8601String(),
             $valid !== null && $lastAttemptAt !== null && CarbonImmutable::parse($lastAttemptAt)->greaterThan(CarbonImmutable::parse($valid->run_ended_at)),
-            $components, PaginationData::fromPaginator($componentsPage), $attempts, PaginationData::fromPaginator($advisoriesPage));
+            $components, PaginationData::fromPaginator($componentsPage), $attempts, $advisories, PaginationData::fromPaginator($advisoriesPage));
     }
 
     public function stage(CheckContext $context, string $dataset, array $rows): void
@@ -216,7 +215,7 @@ final readonly class ApplicationHealthPersistence implements RunPersistence, Sec
             'check_id' => $checkId, 'package' => $advisory->package, 'advisory_id' => $advisory->advisory_id,
             'title' => $advisory->title, 'link' => $advisory->link, 'cve' => $advisory->cve, 'severity' => $advisory->severity,
             'affected_versions' => $advisory->affected_versions, 'reported_at' => $advisory->reported_at,
-        ], $component === null ? [] : SecurityAdvisoryData::fromSpatieMeta($component['meta']));
+        ], $component === null ? [] : SecurityAdvisoryData::parseSpatieMeta($component['meta']));
         foreach (array_chunk($rows, 500) as $chunk) {
             DB::table('application_health_advisories')->insert($chunk);
         }

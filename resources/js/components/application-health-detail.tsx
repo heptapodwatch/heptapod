@@ -57,24 +57,28 @@ export function ApplicationHealthDetail({
                                     />
                                     <div className="min-w-0 flex-1 space-y-1">
                                         <strong className="block break-words">
-                                            {component.advisories
+                                            {component.name ===
+                                            'SecurityAdvisories'
                                                 ? t('Security advisories')
                                                 : component.label ||
                                                   component.name}
                                         </strong>
                                         <p className="break-words text-muted-foreground">
-                                            {component.advisories?.length
+                                            {component.name ===
+                                                'SecurityAdvisories' &&
+                                            history.advisories_pagination
+                                                .total > 0
                                                 ? t(
                                                       '{{count}} open advisories',
                                                       {
-                                                          count: component
-                                                              .advisories
-                                                              .length,
+                                                          count: history
+                                                              .advisories_pagination
+                                                              .total,
                                                           formattedCount:
                                                               format.number(
-                                                                  component
-                                                                      .advisories
-                                                                      .length,
+                                                                  history
+                                                                      .advisories_pagination
+                                                                      .total,
                                                               ),
                                                       },
                                                   )
@@ -82,18 +86,6 @@ export function ApplicationHealthDetail({
                                                   component.status}
                                         </p>
                                     </div>
-                                    {component.advisories?.length ? (
-                                        <div className="basis-full">
-                                            <SecurityAdvisoryList
-                                                advisories={
-                                                    component.advisories
-                                                }
-                                                pagination={
-                                                    history.advisories_pagination
-                                                }
-                                            />
-                                        </div>
-                                    ) : null}
                                 </li>
                             ))}
                         </ul>
@@ -116,6 +108,27 @@ export function ApplicationHealthDetail({
                     )}
                 </CardContent>
             </Card>
+            {history.advisories.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>{t('Security advisories')}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                            {t('{{count}} open advisories', {
+                                count: history.advisories_pagination.total,
+                                formattedCount: format.number(
+                                    history.advisories_pagination.total,
+                                ),
+                            })}
+                        </p>
+                        <SecurityAdvisoryList
+                            advisories={history.advisories}
+                            pagination={history.advisories_pagination}
+                        />
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }
