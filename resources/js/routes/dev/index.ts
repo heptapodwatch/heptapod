@@ -73,83 +73,8 @@ componentsForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> 
 
 components.form = componentsForm
 
-/**
-* @see routes/web.php:71
-* @route '/dev/components/errors'
-*/
-export const errors = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
-    url: errors.url(options),
-    method: 'get',
-})
-
-errors.definition = {
-    methods: ["get","head"],
-    url: '/dev/components/errors',
-} satisfies RouteDefinition<["get","head"]>
-
-/**
-* @see routes/web.php:71
-* @route '/dev/components/errors'
-*/
-errors.url = (options?: RouteQueryOptions) => {
-    return errors.definition.url + queryParams(options)
-}
-
-/**
-* @see routes/web.php:71
-* @route '/dev/components/errors'
-*/
-errors.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
-    url: errors.url(options),
-    method: 'get',
-})
-
-/**
-* @see routes/web.php:71
-* @route '/dev/components/errors'
-*/
-errors.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
-    url: errors.url(options),
-    method: 'head',
-})
-
-/**
-* @see routes/web.php:71
-* @route '/dev/components/errors'
-*/
-const errorsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: errors.url(options),
-    method: 'get',
-})
-
-/**
-* @see routes/web.php:71
-* @route '/dev/components/errors'
-*/
-errorsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: errors.url(options),
-    method: 'get',
-})
-
-/**
-* @see routes/web.php:71
-* @route '/dev/components/errors'
-*/
-errorsForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: errors.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'get',
-})
-
-errors.form = errorsForm
-
 const dev = {
     components: Object.assign(components, components),
-    errors: Object.assign(errors, errors),
 }
 
 export default dev

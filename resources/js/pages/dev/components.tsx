@@ -1,6 +1,6 @@
 import { SectionHeading } from '@/components/section-heading';
 import { FormSection } from '@/components/form-section';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { PageContainer } from '@/components/page-container';
 import { useTranslation } from 'react-i18next';
@@ -100,9 +100,6 @@ export default function Components() {
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild variant="outline">
-                        <Link href="/dev/components/errors">Error mockups</Link>
-                    </Button>
                     <AppearanceTabs />
                     <SegmentedControl
                         label={t('Language')}

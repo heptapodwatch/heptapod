@@ -68,7 +68,6 @@ Route::middleware(['guest', 'throttle:6,1'])->group(function (): void {
 
 if (app()->environment(['local', 'testing'])) {
     Route::get('/dev/components', fn (): Response => Inertia::render('dev/components'))->name('dev.components');
-    Route::get('/dev/components/errors', fn (): Response => Inertia::render('dev/errors'))->name('dev.errors');
 }
 
 if (app()->isLocal()) {

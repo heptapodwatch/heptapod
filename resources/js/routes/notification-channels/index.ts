@@ -2,7 +2,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import siteMutes from './site-mutes'
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::store
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:24
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:25
 * @route '/notification-channels'
 */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -17,7 +17,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::store
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:24
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:25
 * @route '/notification-channels'
 */
 store.url = (options?: RouteQueryOptions) => {
@@ -26,7 +26,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::store
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:24
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:25
 * @route '/notification-channels'
 */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -36,7 +36,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::store
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:24
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:25
 * @route '/notification-channels'
 */
 const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -46,7 +46,7 @@ const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::store
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:24
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:25
 * @route '/notification-channels'
 */
 storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -58,7 +58,7 @@ store.form = storeForm
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::update
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:50
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:51
 * @route '/notification-channels/{channel}'
 */
 export const update = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -73,7 +73,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::update
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:50
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:51
 * @route '/notification-channels/{channel}'
 */
 update.url = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ update.url = (args: { channel: number | { id: number } } | [channel: number | { 
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::update
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:50
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:51
 * @route '/notification-channels/{channel}'
 */
 update.patch = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -116,7 +116,7 @@ update.patch = (args: { channel: number | { id: number } } | [channel: number | 
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::update
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:50
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:51
 * @route '/notification-channels/{channel}'
 */
 const updateForm = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -131,7 +131,7 @@ const updateForm = (args: { channel: number | { id: number } } | [channel: numbe
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::update
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:50
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:51
 * @route '/notification-channels/{channel}'
 */
 updateForm.patch = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -148,7 +148,7 @@ update.form = updateForm
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::destroy
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:61
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:62
 * @route '/notification-channels/{channel}'
 */
 export const destroy = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -163,7 +163,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::destroy
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:61
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:62
 * @route '/notification-channels/{channel}'
 */
 destroy.url = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -196,7 +196,7 @@ destroy.url = (args: { channel: number | { id: number } } | [channel: number | {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::destroy
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:61
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:62
 * @route '/notification-channels/{channel}'
 */
 destroy.delete = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -206,7 +206,7 @@ destroy.delete = (args: { channel: number | { id: number } } | [channel: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::destroy
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:61
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:62
 * @route '/notification-channels/{channel}'
 */
 const destroyForm = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -221,7 +221,7 @@ const destroyForm = (args: { channel: number | { id: number } } | [channel: numb
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::destroy
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:61
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:62
 * @route '/notification-channels/{channel}'
 */
 destroyForm.delete = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
