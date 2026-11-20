@@ -309,6 +309,7 @@ it('delivers localized payloads through each real transport', function (string $
                 expect($body['blocks'][0]['text']['type'])->toBe('plain_text');
                 expect($body['blocks'][1]['text']['type'])->toBe('mrkdwn');
                 expect($body['blocks'][1]['text']['verbatim'])->toBeTrue();
+                expect($body['mrkdwn'] ?? true)->toBeTrue();
                 expect($body['parse'])->toBe('none');
                 expect($body['blocks'][1]['text']['text'])->not->toContain('<https://evil.test|T>');
                 expect($body['text'])->not->toContain('<https://evil.test|T>');
@@ -328,7 +329,7 @@ it('delivers localized payloads through each real transport', function (string $
             expect($text)->not->toContain(' is down', 'ist ausgefallen');
         }
         if ($state === 'recovered') {
-            $expectedDuration = $key === 'webhook' ? '90' : ($locale === 'de' ? '1 Min. 30 Sek.' : '1m 30s');
+            $expectedDuration = $key === 'webhook' ? '90' : ($locale === 'de' ? '1 Min. 30 Sek.' : '1 min 30 s');
             expect($text)->toContain($expectedDuration);
         }
 
@@ -475,7 +476,7 @@ it('localizes component summary timestamps for people but preserves webhook ISO 
     expect(transportSend($channel, $message, $config, '42:9')->status)->toBe(DeliveryState::Sent);
     $request = Http::recorded()->sole()[0];
     $text = $key === 'webhook' ? $request['summary'] : $request['text'];
-    $expectedDuration = $key === 'webhook' ? '300' : ($locale === 'de' ? '5 Min.' : '5m');
+    $expectedDuration = $key === 'webhook' ? '300' : ($locale === 'de' ? '5 Min.' : '5 min');
     expect($text)->toContain('Backup', $at, $expectedDuration);
     Http::assertSentCount(1);
 })->with([

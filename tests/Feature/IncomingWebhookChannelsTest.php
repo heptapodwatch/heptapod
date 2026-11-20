@@ -160,6 +160,7 @@ it('sends Block Kit with clickable links, Mattermost-compatible fallback text an
             ->and($payload['blocks'][3])->toBe(['type' => 'context', 'elements' => [['type' => 'plain_text', 'text' => 'Heptapod Monitor']]])
             ->and($payload['text'])->toContain($siteLink, $expectedDuration, $incidentLink)
             ->and($payload['text'])->not->toContain('86540')
+            ->and($payload['mrkdwn'] ?? true)->toBeTrue()
             ->and($payload['unfurl_links'])->toBeFalse()
             ->and($payload['unfurl_media'])->toBeFalse();
 
@@ -172,10 +173,10 @@ it('sends Block Kit with clickable links, Mattermost-compatible fallback text an
         return true;
     });
 })->with([
-    'Slack API EN' => ['slack', 'en', '1d 2m', 'Total duration', 'Open incident'],
-    'Slack API DE' => ['slack', 'de', '1 Tg. 2 Min.', 'Gesamtdauer', 'Störung öffnen'],
-    'Slack webhook EN' => ['slackWebhook', 'en', '1d 2m', 'Total duration', 'Open incident'],
-    'Slack webhook DE' => ['slackWebhook', 'de', '1 Tg. 2 Min.', 'Gesamtdauer', 'Störung öffnen'],
+    'Slack API EN' => ['slack', 'en', '1 day 2 min', 'Total duration', 'Open incident'],
+    'Slack API DE' => ['slack', 'de', '1 Tag 2 Min.', 'Gesamtdauer', 'Störung öffnen'],
+    'Slack webhook EN' => ['slackWebhook', 'en', '1 day 2 min', 'Total duration', 'Open incident'],
+    'Slack webhook DE' => ['slackWebhook', 'de', '1 Tag 2 Min.', 'Gesamtdauer', 'Störung öffnen'],
 ]);
 
 it('bounds oversized Slack webhook content within Block Kit limits without breaking UTF-8, entities or links', function (): void {
@@ -218,12 +219,13 @@ it('bounds oversized Slack webhook content within Block Kit limits without break
         expect(strlen($headerText))->toBeLessThanOrEqual(150)
             ->and(strlen($sectionText))->toBeLessThanOrEqual(3000)
             ->and(strlen($payload['text']))->toBeLessThanOrEqual(3000)
+            ->and($payload['mrkdwn'] ?? true)->toBeTrue()
             ->and(mb_check_encoding($headerText.$sectionText.$payload['text'], 'UTF-8'))->toBeTrue()
             ->and($sectionText)->toContain('shortened')->not->toContain('<https://evil.test|T>')
             ->and($payload['text'])->toContain('shortened')->not->toContain('<https://evil.test|T>')
             ->and($payload['text'])->toEndWith('<'.$incidentUrl.'|Open incident>')
             ->and($payload['blocks'][2]['text']['text'])->toBe('<'.$incidentUrl.'|Open incident>')
-            ->and(implode("\n", $fields))->toContain('<https://long.example.test/status?[redacted]|long.example.test/status?[redacted]>');
+            ->and(implode("\n", $fields))->toContain('<https://long.example.test/status?[redacted]|long.example.test/status>');
         foreach ($fields as $field) {
             expect(strlen($field))->toBeLessThanOrEqual(2000);
         }
@@ -231,3 +233,80 @@ it('bounds oversized Slack webhook content within Block Kit limits without break
         return true;
     });
 });
+
+it('keeps 2048-byte site URLs and URLs with Markdown delimiters clickable in both Block Kit and Mattermost fallback', function (string $siteUrl, string $expectedEncodedUrl, bool $overflowsField): void {
+    $this->travelTo(CarbonImmutable::parse('2026-11-20T12:00:00Z'));
+    $client = Client::factory()->create(['locale' => 'en']);
+    $site = Site::factory()->for($client)->create(['friendly_name' => 'edge.example.test', 'url' => $siteUrl]);
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::Uptime]);
+    $incident = Incident::factory()->for($check)->create([
+        'site_id' => $site->id, 'opened_at' => now(), 'first_failure_at' => now(),
+        'evidence' => ['summary' => 'causes.error', 'summary_params' => ['message' => str_repeat('Timeout waiting for upstream. ', 40)]],
+    ]);
+    $event = Event::factory()->create([
+        'site_id' => $site->id, 'check_id' => $check->id, 'incident_id' => $incident->id,
+        'type' => 'incident.opened', 'cause' => 'failed', 'to_result' => CheckResult::Failed,
+        'payload' => ['summary' => 'causes.error', 'summary_params' => ['message' => str_repeat('Timeout waiting for upstream. ', 40)]],
+    ]);
+    $webhookUrl = 'https://mattermost.example.test/hooks/sample-token';
+    $destination = NotificationDestination::factory()->create([
+        'channel' => 'slackWebhook', 'locale' => 'en',
+        'config' => app(ChannelRegistry::class)->get('slackWebhook')->configSchema()->validateConfig(['url' => $webhookUrl]),
+    ]);
+    $delivery = Delivery::query()->create(['event_id' => $event->id, 'destination_id' => $destination->id,
+        'next_attempt_at' => now(), 'suppression_evaluated_at' => now()]);
+
+    Http::preventStrayRequests();
+    Http::fake([$webhookUrl => Http::response('ok', 200)]);
+
+    app()->call(new SendNotification($delivery->id)->handle(...));
+
+    expect($delivery->refresh()->state)->toBe(DeliveryState::Sent);
+    $incidentUrl = route('incidents.show', ['incident' => $incident->id]);
+    Http::assertSent(function (Request $request) use ($expectedEncodedUrl, $incidentUrl, $overflowsField): bool {
+        $payload = $request->data();
+        expect($payload['mrkdwn'] ?? true)->toBeTrue()
+            ->and(strlen($payload['text']))->toBeLessThanOrEqual(3000)
+            ->and($payload['text'])->toContain('<'.$expectedEncodedUrl.'|')
+            ->and($payload['text'])->toEndWith('<'.$incidentUrl.'|Open incident>');
+
+        // Every `<url|label>` in fallback text must translate cleanly under Mattermost's `<url|label>` -> `[label](url)` rewrite.
+        preg_match_all('/<([^<>]+)>/', $payload['text'], $matches);
+        $destinations = [];
+        foreach ($matches[1] as $inner) {
+            expect(substr_count($inner, '|'))->toBe(1);
+            [$dest, $label] = explode('|', $inner, 2);
+            expect($dest)->not->toContain(')', '(', ' ', '\\')
+                ->and($label)->not->toContain('|', '[', ']');
+            $destinations[] = $dest;
+        }
+        expect($destinations)->toContain($expectedEncodedUrl, $incidentUrl);
+
+        foreach ($payload['blocks'][1]['fields'] as $field) {
+            expect(strlen($field['text']))->toBeLessThanOrEqual(2000);
+        }
+        if ($overflowsField) {
+            expect($payload['blocks'][2]['type'])->toBe('section')
+                ->and($payload['blocks'][2]['text']['type'])->toBe('mrkdwn')
+                ->and($payload['blocks'][2]['text']['verbatim'])->toBeTrue()
+                ->and(strlen($payload['blocks'][2]['text']['text']))->toBeLessThanOrEqual(3000)
+                ->and($payload['blocks'][2]['text']['text'])->toContain('<'.$expectedEncodedUrl.'|')
+                ->and($payload['blocks'][3]['text']['text'])->toBe('<'.$incidentUrl.'|Open incident>');
+        } else {
+            expect(collect($payload['blocks'][1]['fields'])->pluck('text')->implode("\n"))->toContain('<'.$expectedEncodedUrl.'|');
+        }
+
+        return true;
+    });
+})->with([
+    '2021-byte URL spills to section' => [
+        'https://edge.example.test/'.str_repeat('a', 1995),
+        'https://edge.example.test/'.str_repeat('a', 1995),
+        true,
+    ],
+    'URL with ) and |' => [
+        'https://edge.example.test/status)live|check',
+        'https://edge.example.test/status%29live%7Ccheck',
+        false,
+    ],
+]);

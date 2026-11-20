@@ -621,11 +621,11 @@ it('renders failed check incidents separately from site outages through dispatch
     Http::assertSentCount(4);
 })->with([
     'broken links EN' => ['en', CheckKey::BrokenLinks, '[Failed] PORT Magazine — Broken links: HTTP 503', '[Recovered] PORT Magazine — No broken links found',
-        'Oct 1, 2026, 12:00 UTC', 'Recovered after 7 min', 'Total duration: 7m', 'Total downtime: 420 seconds'],
+        'Oct 1, 2026, 12:00 UTC', 'Recovered after 7 min', 'Total duration: 7 min', 'Total downtime: 420 seconds'],
     'broken links DE' => ['de', CheckKey::BrokenLinks, '[Fehlgeschlagen] PORT Magazine — Defekte Links: HTTP 503', '[Entwarnung] PORT Magazine — Keine defekten Links gefunden',
         '1. Okt 2026, 12:00 UTC', 'Entwarnung nach 7 Min.', 'Gesamtdauer: 7 Min.', 'Gesamte Ausfallzeit: 420 Sekunden'],
     'uptime EN' => ['en', CheckKey::Uptime, '[Down] PORT Magazine — HTTP 503 since 12:00 UTC', '[Recovered] PORT Magazine after 7 min',
-        'PORT Magazine is down', 'PORT Magazine is up again after 7 min', 'Total downtime: 7m', 'Total downtime: 420 seconds'],
+        'PORT Magazine is down', 'PORT Magazine is up again after 7 min', 'Total downtime: 7 min', 'Total downtime: 420 seconds'],
     'uptime DE' => ['de', CheckKey::Uptime, '[Ausgefallen] PORT Magazine — HTTP 503 seit 12:00 UTC', '[Entwarnung] PORT Magazine nach 7 Min.',
         'PORT Magazine ist ausgefallen', 'PORT Magazine ist nach 7 Min. wieder erreichbar', 'Gesamte Ausfallzeit: 7 Min.', 'Gesamte Ausfallzeit: 420 Sekunden'],
 ]);
