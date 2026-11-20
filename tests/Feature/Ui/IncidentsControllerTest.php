@@ -391,7 +391,34 @@ it('exports only filtered and scoped incidents in every format and escapes sprea
         ->and($translated[1][1])->toBe('Offen')
         ->and(array_slice($translated[1], 4, 2))->toBe(['Erreichbarkeit', 'Fehlgeschlagen']);
     $this->get('/incidents/export.csv?filter[status]=invalid')->assertSessionHasErrors('filter.status');
+    $this->get('/incidents/export.csv?per_page=7')->assertSessionHasErrors('per_page');
     $this->get('/incidents/export.pdf')->assertNotFound();
+});
+
+it('exports only This page of incidents when page and per_page are given', function (): void {
+    $this->withoutVite();
+    $owner = User::factory()->owner()->create();
+    foreach (range(1, 12) as $minute) {
+        $check = Check::factory()->create();
+        Incident::factory()->for($check)->create([
+            'site_id' => $check->site_id,
+            'opened_at' => now()->subMinutes($minute),
+            'first_failure_at' => now()->subMinutes($minute),
+            'resolved_at' => null,
+        ]);
+    }
+    $page2Ids = array_map(
+        static fn (array $row): string => (string) $row['id'],
+        $this->actingAs($owner)->get('/incidents?filter[status]=open&per_page=10&page=2')->assertOk()->inertiaProps()['incidents'],
+    );
+    expect($page2Ids)->toHaveCount(2);
+
+    $csv = $this->get('/incidents/export.csv?filter[status]=open&per_page=10&page=2')->assertOk()->streamedContent();
+    $exportedIds = array_map(
+        static fn (string $line): string => (string) (str_getcsv($line)[0] ?? ''),
+        array_slice(explode("\r\n", rtrim(substr($csv, 3), "\r\n")), 1),
+    );
+    expect($exportedIds)->toBe($page2Ids);
 });
 
 it('exports the first rows up to the row cap in text and refuses a CSV that would drop rows', function (): void {

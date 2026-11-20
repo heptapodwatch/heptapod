@@ -1298,3 +1298,46 @@ it('pages the check tab\'s sitemap issues from the retained snapshot, past the b
     expect($all)->toHaveCount(55)->and(array_unique($all))->toHaveCount(55)
         ->and($urls('?findings_per_page=20&findings_page=3'))->toBe(array_slice($all, 40));
 });
+
+it('exports every sitemap not-verifiable row from sitemap_findings past the 50-row snapshot projection cap and matches This page', function (): void {
+    $context = sitemapContext(['speed' => 'fastest']);
+    $brokenUrls = array_map(static fn (int $index): string => 'http://fixtures.test/gone-'.$index, range(1, 15));
+    $blockedUrls = array_map(static fn (int $index): string => 'http://fixtures.test/blocked-'.$index, range(1, 55));
+    app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static function (FetchRequest $request) use ($brokenUrls, $blockedUrls): FetchResult {
+        if ($request->url === 'http://fixtures.test/sitemap.xml') {
+            return new FetchResult(200, sitemapXml([...$brokenUrls, ...$blockedUrls]));
+        }
+        if (str_contains($request->url, '/blocked-')) {
+            return new FetchResult(403, headers: ['cf-mitigated' => ['challenge']]);
+        }
+
+        return new FetchResult(404, failure: new FetchFailure(FetchFailureKind::HttpStatus, 404));
+    }));
+    $run = runSitemap($context);
+    $user = User::factory()->owner()->create();
+    // All scope: 15 broken + all 55 not-verifiable rows (past the 50-row snapshot projection cap).
+    $detail = $this->actingAs($user)->get('/sites/'.$context->siteId.'/checks/'.$context->checkId.'?findings_per_page=10&findings_page=2&not_verifiable_per_page=10&not_verifiable_page=6')
+        ->assertOk()->inertiaProps()['detail'];
+    $exportUrl = static fn (array $query = []): string => route('sites.checks.findings', [
+        'site' => $context->siteId, 'check' => $context->checkId, 'format' => 'csv',
+        'run' => $detail['export_run']['id'], 'observed_at' => $detail['export_run']['endedAt'], ...$query,
+    ]);
+    $csvUrls = static fn (string $csv): array => array_map(
+        static fn (string $line): string => (string) (str_getcsv($line)[0] ?? ''),
+        array_slice(explode("\r\n", rtrim(substr($csv, 3), "\r\n")), 1),
+    );
+    $allExported = $csvUrls($this->get($exportUrl())->assertOk()->streamedContent());
+    expect($allExported)->toHaveCount(70);
+
+    // This page scope: matches the exact page-2 rows displayed on the check tab for both groups.
+    $expectedPage = [
+        ...array_column($detail['issues'], 'url'),
+        ...array_column($detail['not_verifiable'], 'url'),
+    ];
+    expect($expectedPage)->toHaveCount(10);
+    $pageExported = $csvUrls($this->get($exportUrl([
+        'findings_per_page' => 10, 'findings_page' => 2,
+        'not_verifiable_per_page' => 10, 'not_verifiable_page' => 6,
+    ]))->assertOk()->streamedContent());
+    expect($pageExported)->toBe($expectedPage);
+});

@@ -6,6 +6,7 @@ namespace Heptapod\Http\Requests;
 
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Enums\IncidentCause;
+use Heptapod\Http\ListPageSize;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -29,6 +30,7 @@ final class IncidentsFilterRequest extends FormRequest
             'filter.started_after' => ['sometimes', 'nullable', 'date'],
             'filter.started_before' => ['sometimes', 'nullable', 'date', ...($this->filled('filter.started_after') ? ['after_or_equal:filter.started_after'] : [])],
             'page' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', Rule::in(ListPageSize::Sizes)],
         ];
     }
 }

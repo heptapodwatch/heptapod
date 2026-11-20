@@ -99,6 +99,25 @@ export default function IncidentsIndex({
     ].filter(Boolean).length;
     const unfiltered = { status: 'all', period: 'all' };
     const exportScopes: ExportScope[] = [
+        ...(pagination.last_page > 1
+            ? [
+                  {
+                      key: 'page',
+                      label: t('export.scope.page', {
+                          count: incidents.length,
+                      }),
+                      count: incidents.length,
+                      url: (format: Heptapod.Enums.ExportFormat) =>
+                          exportIncidents.url(format, {
+                              query: {
+                                  filter: activeFilter,
+                                  page: pagination.current_page,
+                                  per_page: pagination.per_page,
+                              },
+                          }),
+                  },
+              ]
+            : []),
         {
             key: 'matching',
             label: t('export.scope.matching_incidents', {
