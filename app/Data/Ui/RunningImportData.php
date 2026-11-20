@@ -14,6 +14,8 @@ final class RunningImportData extends Data
 {
     public function __construct(
         public readonly string $id,
+        /** "Run again" reuses the id; the attempt tells its result apart from the previous one. */
+        public readonly int $attempts,
         public readonly ImportRunStatus $status,
         public readonly bool $mine,
         public readonly string $requested_at,

@@ -10,7 +10,7 @@ vi.mock('@inertiajs/react', () => ({
     }: ComponentProps<'a'> & { prefetch?: boolean }) => <a {...props} />,
     usePage: () => ({
         url: '/runs',
-        props: { timezone: 'UTC', auth: { user: null } },
+        props: { timezone: 'UTC', auth: { user: { id: 7 } } },
     }),
     router: { on: () => () => {}, reload: vi.fn() },
 }));
@@ -81,6 +81,7 @@ function active(
             can_cancel: false,
             requested_at: null,
             actor_id: null,
+            origin: null,
         },
     };
 }
@@ -101,6 +102,7 @@ function done(attempt: number): Heptapod.Data.Ui.FinishedRunData {
         icon_url: null,
         icon_backing: 'none',
         attempt_id: attempt,
+        actor_id: null,
     };
 }
 
@@ -184,13 +186,18 @@ it('shows a run that was never on the board in its real column at once', () => {
     expect(columnOf(container, 'Site 3')).toBe('finished');
 });
 
-it('names every failed run Failed, uptime included: run results are OK, Warning, Failed or Check error', () => {
+it("shows every finished result as a visible chip, uptime failures as Failed, and You on the viewer's own run", () => {
     const { container } = render(
         <RunBoard
             data={board(
                 [],
                 [
-                    { ...done(1), result: 'failed' },
+                    {
+                        ...done(1),
+                        result: 'failed',
+                        summary: 'causes.error',
+                        actor_id: 7,
+                    },
                     { ...done(2), result: 'failed', check_type: 'cron' },
                 ],
             )}
@@ -201,12 +208,11 @@ it('names every failed run Failed, uptime included: run results are OK, Warning,
         '[data-run-column="finished"]',
     )!;
     const [uptime, cron] = within(finished).getAllByRole('listitem');
-    expect(
-        within(uptime!).getByRole('img', { name: 'Finished · Failed' }),
-    ).toBeTruthy();
-    expect(
-        within(cron!).getByRole('img', { name: 'Finished · Failed' }),
-    ).toBeTruthy();
+    // The headline does not replace the result word.
+    expect(within(uptime!).getByText('Failed')).toBeTruthy();
+    expect(within(uptime!).getByText('You')).toBeTruthy();
+    expect(within(cron!).getByText('Failed')).toBeTruthy();
+    expect(within(cron!).queryByText('You')).toBeNull();
 });
 
 it('moves cards without delay under reduced motion', () => {

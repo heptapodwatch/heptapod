@@ -174,6 +174,8 @@ export function currentRunState(
         started_at: persisted.started_at,
         actor: persisted.actor,
         phase_label: persisted.phase_label,
+        origin: persisted.origin ?? undefined,
+        attempt_id: persisted.attempt_id ?? undefined,
         at: persisted.requested_at ?? undefined,
     };
 }
@@ -192,6 +194,7 @@ export function receiveLiveSignal(signal: LiveSignal) {
     } else if (
         signal.topic === 'state.changed' ||
         signal.topic === 'import.progress' ||
+        signal.topic === 'import.changed' ||
         signal.topic === 'backup.changed'
     ) {
         stateListeners.forEach((listener) => listener(signal));

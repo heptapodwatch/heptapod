@@ -9,9 +9,9 @@ import { useTranslation } from 'react-i18next';
 import { StatusDot } from '@/components/monitoring';
 import { ResultSummary } from '@/components/result-summary';
 import {
-    RunGlyph,
     RunLine,
     RunResultChip,
+    YouMarker,
     runOutcome,
     runProgress,
     useRunDetail,
@@ -25,7 +25,7 @@ import {
     useLiveRunBoard,
     type LiveRunBoardData,
 } from '@/hooks/use-live-run-board';
-import { useStreamState } from '@/lib/live-store';
+import { useRunState, useStreamState } from '@/lib/live-store';
 import { checkTypes } from '@/lib/check-types';
 import { cn } from '@/lib/utils';
 import { show as checkShow } from '@/routes/sites/checks';
@@ -151,7 +151,7 @@ function StartedBy({ run }: { run: Heptapod.Data.Ui.CheckRunStateData }) {
 
 function useMine() {
     const userId = usePage().props.auth.user?.id;
-    return (run: Heptapod.Data.Ui.CheckRunStateData) =>
+    return (run: { actor_id: number | null }) =>
         userId !== undefined && run.actor_id === userId;
 }
 
@@ -177,13 +177,24 @@ function RunningDetail({ row }: { row: Heptapod.Data.Ui.CurrentRunData }) {
     const { t } = useTranslation();
     const detail = useRunDetail();
     const mine = useMine();
+    // Progress comes from this attempt's own live signals; a progress tick never reloads the board.
+    const signal = useRunState(row.check_id);
+    const live =
+        signal?.attempt_id === row.run.attempt_id && signal.phase === 'progress'
+            ? signal
+            : row.run;
     return (
         <span className="block space-y-0.5">
             <RunLine
                 phase="running"
                 label={t('Running')}
-                detail={detail({ ...row.run, phase: 'started' })}
-                progress={runProgress(row.run)}
+                detail={detail({
+                    ...row.run,
+                    phase: 'started',
+                    progress_n: live.progress_n,
+                    progress_total: live.progress_total,
+                })}
+                progress={runProgress(live)}
                 mine={mine(row.run)}
                 bar
                 className="px-0 py-0"
@@ -193,32 +204,28 @@ function RunningDetail({ row }: { row: Heptapod.Data.Ui.CurrentRunData }) {
     );
 }
 
+/** The result as a chip (with You for the viewer's own run), then the stored headline and the duration. */
 function FinishedDetail({ row }: { row: Heptapod.Data.Ui.FinishedRunData }) {
     const format = useFormat();
-    const outcome = runOutcome(row.result);
+    const mine = useMine();
     return (
-        <span className="flex min-w-0 items-start gap-2 text-xs">
-            {row.summary !== null ? (
-                <>
-                    <span className="mt-0.5 shrink-0">
-                        <RunGlyph phase="finished" outcome={outcome} />
+        <span className="block space-y-1 text-xs">
+            <span className="flex items-center gap-2">
+                <RunResultChip outcome={runOutcome(row.result)} />
+                {mine(row) && <YouMarker />}
+                {row.duration_ms !== null && (
+                    <span className="ms-auto shrink-0 font-mono text-muted-foreground tabular-nums">
+                        {format.number(row.duration_ms)} ms
                     </span>
-                    <span className="min-w-0 flex-1 text-muted-foreground">
-                        <ResultSummary
-                            message={row.summary}
-                            params={row.summary_params}
-                            presentation={row.presentation}
-                        />
-                    </span>
-                </>
-            ) : (
-                <span className="min-w-0 flex-1">
-                    <RunResultChip outcome={outcome} />
-                </span>
-            )}
-            {row.duration_ms !== null && (
-                <span className="shrink-0 font-mono text-muted-foreground tabular-nums">
-                    {format.number(row.duration_ms)} ms
+                )}
+            </span>
+            {row.summary !== null && (
+                <span className="block min-w-0 text-muted-foreground">
+                    <ResultSummary
+                        message={row.summary}
+                        params={row.summary_params}
+                        presentation={row.presentation}
+                    />
                 </span>
             )}
         </span>

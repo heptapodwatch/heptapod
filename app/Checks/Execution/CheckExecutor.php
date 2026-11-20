@@ -185,7 +185,7 @@ final readonly class CheckExecutor
                 'lease_expires_at' => $this->clock->now()->addSeconds(ExecutionBudget::runningLease($timeout))])->save();
             $attempt = CheckRunAttempt::query()->with('actor')->where('claim_token', $claimToken)->firstOrFail();
             $attempt->update(['phase' => RunPhase::Running, 'started_at' => $at]);
-            LiveSignal::forRun('run.started', $site, $check->id, $attempt->origin, $at, $attempt->actor?->name);
+            LiveSignal::forRun('run.started', $site, $check->id, $attempt->origin, $at, $attempt->actor?->name, attemptId: $attempt->id);
 
             $config = $check->executionConfig();
             if ($check->run_headers !== null) {

@@ -6,6 +6,7 @@ namespace Heptapod\Data\Ui;
 
 use Heptapod\Contracts\RunPhase;
 use Spatie\LaravelData\Data;
+use Spatie\TypeScriptTransformer\Attributes\LiteralTypeScriptType;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
@@ -27,5 +28,8 @@ final class CheckRunStateData extends Data
         public readonly ?string $requested_at = null,
         /** Who started the run, so the viewer's own run carries the one "You" marker. */
         public readonly ?int $actor_id = null,
+        /** Who started it: Running now and the site strip show manual runs only. */
+        #[LiteralTypeScriptType("'scheduled' | 'manual' | 'system' | null")]
+        public readonly ?string $origin = null,
     ) {}
 }

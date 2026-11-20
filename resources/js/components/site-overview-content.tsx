@@ -64,7 +64,7 @@ type SiteCheckRow = {
     when: ReactNode;
     /** The row's one target; a paused site has none (Resume is the header action). */
     href: string | null;
-    checkId?: number;
+    check?: Check;
 };
 
 /** The Sites attention band's State · What · When widths. */
@@ -363,7 +363,7 @@ function useCheckRow(siteId: number) {
         const state = checkState(check);
         return {
             key: `check:${check.id}`,
-            checkId: check.id,
+            check,
             state,
             snoozed,
             stateLabel:
@@ -428,7 +428,7 @@ export function SiteCheckList({
             {[...leading, ...checks.map(checkRow)].map((row) => (
                 <ListRow
                     key={row.key}
-                    data-site-check={row.checkId}
+                    data-site-check={row.check?.id}
                     className={cn(
                         checkListColumns,
                         'sm:items-center',
@@ -450,9 +450,7 @@ export function SiteCheckList({
                         <p className="text-xs break-words text-muted-foreground">
                             {row.detail}
                         </p>
-                        {row.checkId !== undefined && (
-                            <CheckRowRunMarker checkId={row.checkId} />
-                        )}
+                        {row.check && <CheckRowRunMarker check={row.check} />}
                     </div>
                     <span className="font-mono text-xs text-muted-foreground">
                         {row.when}

@@ -6,8 +6,7 @@ namespace Heptapod\Queries;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Checks\Execution\ExecutionBudget;
-use Heptapod\Checks\Execution\RunOrigin;
-use Heptapod\Contracts\RunReference;
+use Heptapod\Contracts\RunResult;
 use Heptapod\Data\Ui\RunningBackupData;
 use Heptapod\Data\Ui\RunningCheckRunData;
 use Heptapod\Data\Ui\RunningImportData;
@@ -29,7 +28,7 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class RunningNowReader
 {
-    /** Runs sent to every page; the footer shows three, the site strip filters by site. */
+    /** Runs sent to every page; the footer shows three and counts the rest. */
     private const int LIMIT = 20;
 
     /** How long the viewer's own finished run stays in the shell with its result. */
@@ -40,47 +39,79 @@ final readonly class RunningNowReader
     public function forUser(User $user): RunningNowData
     {
         $since = CarbonImmutable::now('UTC')->subSeconds(self::OWN_RESULT_SECONDS)->format('Y-m-d H:i:s.uP');
-        $query = CheckRunAttempt::query()->with('check.site', 'actor');
-        $query->getQuery()->select('check_run_attempts.*')->join('checks', 'checks.id', '=', 'check_run_attempts.check_id')
-            ->where('check_run_attempts.origin', RunOrigin::Manual->value)
-            ->whereIntegerInRaw('checks.site_id', $this->policy->visibleSiteIds($user))
-            // One read: the active runs (a leftover of a replaced lease is not the check's current run; the cast matches
-            // RunsReader::lateCount) and the viewer's own recorded results of the last minute, counted apart.
-            ->whereRaw(<<<'SQL'
-                ((check_run_attempts.phase IN ('queued', 'running') AND check_run_attempts.claim_token = checks.claim_token::text)
-                    OR (check_run_attempts.actor_user_id = ? AND check_run_attempts.finished_at >= ?::timestamptz AND check_run_attempts.check_run_id IS NOT NULL))
-                SQL, [$user->id, $since])
-            ->selectRaw("count(*) FILTER (WHERE check_run_attempts.phase IN ('queued', 'running')) OVER () AS active_total")
-            ->orderByRaw('check_run_attempts.finished_at IS NULL')
-            ->orderByRaw('coalesce(check_run_attempts.actor_user_id = ?, false) DESC', [$user->id])
-            ->orderBy('check_run_attempts.requested_at')->orderBy('check_run_attempts.id')
-            ->limit(self::LIMIT);
-        $attempts = $query->get()->all();
-        $activeTotal = $attempts === [] ? 0 : $attempts[0]->getAttribute('active_total');
-        if (! is_int($activeTotal)) {
-            throw new \LogicException('The active run count must be an integer.');
-        }
+        // The candidates come from the manual-only partial indexes first (materialized, so the planner never starts from
+        // the visible checks); visibility and the current claim are then checked per candidate through checks' primary key.
+        // A leftover of a replaced lease is not the check's current run (the cast matches RunsReader::lateCount).
+        /** @var list<\stdClass&object{id: int, active_total: int}> $picked */
+        $picked = DB::select(<<<'SQL'
+            WITH candidate AS MATERIALIZED (
+                SELECT id, check_id, claim_token, phase, actor_user_id, requested_at, finished_at FROM check_run_attempts
+                WHERE origin = 'manual' AND (phase IN ('queued', 'running')
+                    OR (actor_user_id = ? AND finished_at >= ?::timestamptz AND check_run_id IS NOT NULL))
+            )
+            SELECT candidate.id, count(*) FILTER (WHERE candidate.phase IN ('queued', 'running')) OVER () AS active_total
+            FROM candidate JOIN checks ON checks.id = candidate.check_id
+            WHERE checks.site_id = ANY(?::bigint[])
+                AND (candidate.phase NOT IN ('queued', 'running') OR candidate.claim_token = checks.claim_token::text)
+            ORDER BY candidate.finished_at IS NULL, coalesce(candidate.actor_user_id = ?, false) DESC, candidate.requested_at, candidate.id
+            LIMIT ?
+            SQL, [$user->id, $since, '{'.implode(',', $this->policy->visibleSiteIds($user)).'}', $user->id, self::LIMIT]);
+        $attempts = CheckRunAttempt::query()->with('check.site', 'actor')->findMany(array_map(static fn (\stdClass $row): int => $row->id, $picked))->keyBy('id');
+        $results = $this->results(array_values($attempts->filter(static fn (CheckRunAttempt $attempt): bool => $attempt->finished_at !== null)->all()), $since);
+        $rows = array_map(fn (\stdClass $row): RunningCheckRunData => $this->row($attempts->get($row->id)
+            ?? throw new \LogicException('A picked run must load.'), $user, $results), $picked);
 
-        return new RunningNowData(array_values(array_map(fn (CheckRunAttempt $attempt): RunningCheckRunData => $this->row($attempt, $user), $attempts)), $activeTotal,
+        return new RunningNowData($rows, $picked === [] ? 0 : $picked[0]->active_total,
             $user->hasAnyRole(['Owner', 'Admin']) ? $this->imports($user, $since) : [], $user->hasRole('Owner') ? $this->backup($user, $since) : null);
     }
 
     /**
+     * The recorded results of the viewer's finished runs in one read, pruned to the result window's partitions.
+     *
+     * @param  list<CheckRunAttempt>  $finished
+     * @return array<int, RunResult> by attempt id
+     */
+    private function results(array $finished, string $since): array
+    {
+        if ($finished === []) {
+            return [];
+        }
+        $tuples = [];
+        $bindings = [];
+        foreach ($finished as $attempt) {
+            $tuples[] = '(?, ?, ?)';
+            array_push($bindings, $attempt->check_id, $attempt->check_run_id, $attempt->finished_at?->format('Y-m-d H:i:s.uP'));
+        }
+        $runs = CheckRun::query()->where('ended_at', '>=', $since);
+        $runs->getQuery()->whereRaw('(check_id, id, ended_at) IN ('.implode(', ', $tuples).')', $bindings);
+        $byRun = [];
+        foreach ($runs->get(['check_id', 'id', 'ended_at', 'result']) as $run) {
+            $byRun[$run->check_id.'|'.$run->id] = $run->result;
+        }
+        $results = [];
+        foreach ($finished as $attempt) {
+            $results[$attempt->id] = $byRun[$attempt->check_id.'|'.$attempt->check_run_id] ?? throw new \LogicException('A finished run must have its recorded result.');
+        }
+
+        return $results;
+    }
+
+    /**
      * Imports are Owner/Admin work (AuthorizesSettingsOperator). Never `results`: one row per monitor, too large for every page.
-     * import_runs_active keeps the in-flight read off finished runs.
+     * import_runs_active and import_runs_user_finished keep the read off the finished history.
      *
      * @return list<RunningImportData>
      */
     private function imports(User $user, string $since): array
     {
         $query = ImportRun::query();
-        $query->getQuery()->select(['id', 'user_id', 'status', 'created_at', 'started_at', 'finished_at'])
+        $query->getQuery()->select(['id', 'user_id', 'status', 'attempts', 'created_at', 'started_at', 'finished_at'])
             ->where(static fn (QueryBuilder $active): QueryBuilder => $active->whereIn('status', [ImportRunStatus::Queued->value, ImportRunStatus::Running->value])
                 ->orWhere(static fn (QueryBuilder $own): QueryBuilder => $own->where('user_id', $user->id)->where('finished_at', '>=', $since)
                     ->whereIn('status', [ImportRunStatus::Completed->value, ImportRunStatus::Incomplete->value, ImportRunStatus::Failed->value])))
             ->orderByRaw('finished_at IS NULL')->orderBy('created_at')->limit(5);
 
-        return array_values(array_map(static fn (ImportRun $run): RunningImportData => new RunningImportData($run->id, $run->status, $run->user_id === $user->id,
+        return array_values(array_map(static fn (ImportRun $run): RunningImportData => new RunningImportData($run->id, $run->attempts, $run->status, $run->user_id === $user->id,
             $run->created_at->toIso8601String(), $run->started_at?->toIso8601String(), $run->finished_at?->toIso8601String()), $query->get()->all()));
     }
 
@@ -103,15 +134,14 @@ final readonly class RunningNowReader
             })->first();
     }
 
-    private function row(CheckRunAttempt $attempt, User $user): RunningCheckRunData
+    /** @param array<int, RunResult> $results */
+    private function row(CheckRunAttempt $attempt, User $user, array $results): RunningCheckRunData
     {
         $check = $attempt->check ?? throw new \LogicException('A run must have a check.');
         $site = $check->site ?? throw new \LogicException('A run must have a site.');
-        $result = $attempt->check_run_id !== null && $attempt->finished_at !== null
-            ? CheckRun::forRun(new RunReference($attempt->check_run_id, $attempt->finished_at))->where('check_id', $check->id)->firstOrFail(['result'])->result
-            : null;
 
-        return new RunningCheckRunData($check->id, $site->id, $site->displayName(), $check->type, $this->checkRuns->state($check, $attempt),
-            $attempt->actor_user_id === $user->id, $result, $attempt->finished_at?->format('Y-m-d\TH:i:s.uP'));
+        // No queue position: counting it reads the whole queue, scheduled backlog included, on every page.
+        return new RunningCheckRunData($check->id, $site->id, $site->displayName(), $check->type, $this->checkRuns->state($check, $attempt, withQueuePosition: false),
+            $attempt->actor_user_id === $user->id, $results[$attempt->id] ?? null, $attempt->finished_at?->format('Y-m-d\TH:i:s.uP'));
     }
 }

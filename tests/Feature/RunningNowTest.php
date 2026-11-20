@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\MarkBackupRunning;
 use Heptapod\Checks\Execution\ClaimService;
 use Heptapod\Checks\Execution\RunOrigin;
 use Heptapod\Contracts\CheckRegistry;
@@ -17,9 +18,12 @@ use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Support\ImportTokenStore;
 use Heptapod\Testing\FakeOutboundHttp;
+use Illuminate\Support\Facades\Context;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event as FrameworkEvent;
 use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Backup\Events\BackupWasSuccessful;
 
 beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-11-20T12:00:00Z'));
@@ -84,8 +88,11 @@ it('shares Oh Dear imports with Owners and Admins only, and the starter\'s resul
     $run = ImportRun::query()->create(['user_id' => $admin->id, 'source' => 'ohdear', 'status' => 'planned', 'expected' => 1,
         'teams' => [], 'plan' => [['source_id' => '101', 'operation' => 'create', 'team_id' => 1]], 'results' => [], 'created_client_ids' => []]);
     ImportTokenStore::put($run->id, 'fixture-running-now-secret');
+    FrameworkEvent::fake([LiveSignal::class]);
     $this->actingAs($admin)->postJson('/settings/import/ohdear/runs/'.$run->id.'/start', ['expected' => 1, 'groups' => ['team:1' => ['new_client' => 'Imported']], 'overrides' => []])
         ->assertCreated();
+    // Other tabs learn of the queued import at once, not only when a worker picks it up.
+    FrameworkEvent::assertDispatched(LiveSignal::class, static fn (LiveSignal $signal): bool => $signal->topic === 'import.changed');
 
     $this->actingAs($admin)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page
         ->has('runningNow.imports', 1)->where('runningNow.imports.0.id', $run->id)->where('runningNow.imports.0.status', 'queued')
@@ -100,19 +107,28 @@ it('shares Oh Dear imports with Owners and Admins only, and the starter\'s resul
     $this->actingAs($admin)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->has('runningNow.imports', 0));
 });
 
-it('shares a requested backup with Owners only and signals its state changes', function (): void {
+it('shares a requested backup with Owners only and signals each state once it is readable', function (): void {
     $owner = runningNowUser('Owner');
     $other = runningNowUser('Owner');
     $admin = runningNowUser('Admin');
-    FrameworkEvent::fake([LiveSignal::class]);
+    // What a tab that re-reads the backup on each signal would see at that moment.
+    $seen = [];
+    FrameworkEvent::listen(LiveSignal::class, static function (LiveSignal $signal) use (&$seen): void {
+        if ($signal->topic === 'backup.changed') {
+            $seen[] = DB::table('backup_runs')->value('state');
+        }
+    });
 
-    $this->actingAs($owner)->postJson('/settings/backups')->assertSuccessful();
-    FrameworkEvent::assertDispatched(LiveSignal::class, static fn (LiveSignal $signal): bool => $signal->topic === 'backup.changed');
-
+    $id = $this->actingAs($owner)->postJson('/settings/backups')->assertSuccessful()->json('id');
     $this->actingAs($owner)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page
         ->where('runningNow.backup.state', 'queued')->where('runningNow.backup.mine', true));
     $this->actingAs($other)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->where('runningNow.backup.mine', false));
     $this->actingAs($admin)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->where('runningNow.backup', null));
+
+    app(MarkBackupRunning::class)($id);
+    Context::scope(static fn (): mixed => event(new BackupWasSuccessful('backups', 'Heptapod')), ['backup-run-id' => $id]);
+    expect($seen)->toBe(['queued', 'running', 'complete']);
+    $this->actingAs($owner)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->where('runningNow.backup.state', 'complete'));
 });
 
 it('keeps the viewer\'s own finished result for a minute and nobody else\'s', function (): void {

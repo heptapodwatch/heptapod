@@ -21,7 +21,7 @@ import {
     SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { useFormat } from '@/hooks/use-format';
-import { useRunningNow, useRunningWork } from '@/hooks/use-running-now';
+import { useRunningNow } from '@/hooks/use-running-now';
 import { checkTypes } from '@/lib/check-types';
 import { index as runsIndex } from '@/routes/runs';
 import {
@@ -101,47 +101,40 @@ export function useFooterRuns(): { rows: FooterRun[]; total: number } {
     const { t } = useTranslation();
     const format = useFormat();
     const detail = useRunDetail();
-    const { runs, activeCount } = useRunningNow();
-    const work = useRunningWork();
-    const checkRows = runs.map((run): FooterRun => ({
-        key: `check:${run.attemptId}`,
-        lifecycle: run.lifecycle,
-        outcome: run.outcome,
-        progress:
-            run.lifecycle === 'running' ? runProgress(run.state) : undefined,
-        label: `${t(checkTypes[run.check_type].label)} · ${run.site_name}`,
-        secondary:
-            run.lifecycle === 'finished'
-                ? t(runOutcomeWord[run.outcome!])
-                : detail(run.state, { narrow: true }),
-        mine: run.mine,
-        href: run.href,
-    }));
-    const workRows = work.map((item): FooterRun => ({
-        key: item.key,
-        lifecycle: item.lifecycle,
-        outcome: item.outcome,
-        progress: undefined,
-        label: t(item.kind === 'import' ? 'run.import' : 'run.backup'),
-        secondary:
-            item.lifecycle === 'finished'
-                ? t(runOutcomeWord[item.outcome!])
-                : item.lifecycle === 'running' && item.at
-                  ? t('run.since', { time: format.time(item.at) })
-                  : undefined,
-        mine: item.mine,
-        href: item.href,
-    }));
-    const rank = (row: FooterRun) =>
-        row.lifecycle === 'finished' ? 0 : row.mine ? 1 : 2;
-    const rows = [...checkRows, ...workRows].sort((a, b) => rank(a) - rank(b));
-    const shownChecks = checkRows.filter((row) => row.lifecycle !== 'finished');
-    // Check runs beyond the shared page of runs count too; imports and the backup are all in the data.
+    const { runs, activeChecks } = useRunningNow();
+    const rows = runs
+        .map((run): FooterRun => ({
+            key: run.key,
+            lifecycle: run.lifecycle,
+            outcome: run.outcome,
+            progress: run.state ? runProgress(run.state) : undefined,
+            label: run.check
+                ? `${t(checkTypes[run.check.check_type].label)} · ${run.check.site_name}`
+                : run.kind === 'import'
+                  ? t('run.import')
+                  : t('run.backup'),
+            secondary:
+                run.lifecycle === 'finished'
+                    ? t(runOutcomeWord[run.outcome!])
+                    : run.state
+                      ? detail(run.state, { narrow: true })
+                      : run.lifecycle === 'running' && run.at
+                        ? t('run.since', { time: format.time(run.at) })
+                        : undefined,
+            mine: run.mine,
+            href: run.href,
+        }))
+        .sort((a, b) => rank(a) - rank(b));
+    const shownChecks = runs.filter((run) => run.state).length;
+    // Check runs beyond the shared page of rows count too; imports and the backup are all in the data.
     return {
         rows,
-        total: rows.length + Math.max(0, activeCount - shownChecks.length),
+        total: rows.length + Math.max(0, activeChecks - shownChecks),
     };
 }
+
+const rank = (row: FooterRun) =>
+    row.lifecycle === 'finished' ? 0 : row.mine ? 1 : 2;
 
 function RunRows({ rows, total }: { rows: FooterRun[]; total: number }) {
     const { t } = useTranslation();
@@ -275,7 +268,6 @@ export function SidebarStatus() {
     const { notificationAttention: channels, auth } = usePage().props;
     const { rows, total } = useFooterRuns();
     const health = useHealthRow();
-    if (rows.length === 0 && !health && channels.length === 0) return null;
     // Only this summary is announced, never each progress tick.
     const count = (lifecycle: RunLifecycle) =>
         rows.filter((row) => row.lifecycle === lifecycle).length;
@@ -290,12 +282,17 @@ export function SidebarStatus() {
             ? [t('run.summary.queued', { count: count('queued') })]
             : []),
     ].join(' · ');
+    // The announcer stays mounted while idle, so the first run is announced; a region that mounts filled may not be.
+    const announcer = (
+        <p role="status" aria-live="polite" className="sr-only">
+            {summary}
+        </p>
+    );
+    if (rows.length === 0 && !health && channels.length === 0) return announcer;
     return (
         <>
+            {announcer}
             <div role="group" aria-label={t('run.statusGroup')}>
-                <p role="status" aria-live="polite" className="sr-only">
-                    {summary}
-                </p>
                 <SidebarMenu>
                     {rows.length > 0 && <RunRows rows={rows} total={total} />}
                     {health && (

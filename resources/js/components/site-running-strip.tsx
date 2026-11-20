@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { RunLine, runProgress, useRunDetail } from '@/components/run-family';
-import { useRunningNow } from '@/hooks/use-running-now';
-import { checkTypes } from '@/lib/check-types';
+import { RunLine, useRunDetail } from '@/components/run-family';
+import { useCheckRun, useCheckRunOf } from '@/components/check-run-status';
+import { useStreamState } from '@/lib/live-store';
+import { show as checkShow } from '@/routes/sites/checks';
 
 type RunAllResult = Heptapod.Data.Ui.SiteOverviewPageData['run_all_result'];
 
@@ -25,10 +26,13 @@ export function SiteRunningStrip({
 }) {
     const { t } = useTranslation();
     const detail = useRunDetail();
-    const runs = useRunningNow().runs.filter(
-        (run) =>
-            run.site_id === site.identity.id && run.lifecycle !== 'finished',
-    );
+    // Site-scoped: the page's own checks and the live store, never the capped shared rows.
+    const live = useStreamState('runs');
+    const runOf = useCheckRunOf();
+    const runs = site.checks.flatMap((check) => {
+        const run = runOf(live.get(check.id), check.run);
+        return run?.manual ? [{ check, run }] : [];
+    });
     const notStarted = (runAllResult?.results ?? []).filter(
         (item) => item.status === 'skipped',
     );
@@ -44,16 +48,19 @@ export function SiteRunningStrip({
             </p>
             {runs.length > 0 && (
                 <div className="grid gap-x-6 md:grid-cols-2">
-                    {runs.map((run) => (
+                    {runs.map(({ check, run }) => (
                         <RunLine
-                            key={run.attemptId}
+                            key={check.id}
                             phase={run.lifecycle}
-                            progress={runProgress(run.state)}
-                            label={t(checkTypes[run.check_type].label)}
+                            progress={run.progress}
+                            label={t(check.label_key)}
                             detail={detail(run.state)}
                             mine={run.mine}
                             bar
-                            href={run.href}
+                            href={checkShow.url({
+                                site: site.identity.id,
+                                check: check.id,
+                            })}
                         />
                     ))}
                 </div>
@@ -88,17 +95,19 @@ export function SiteRunningStrip({
 }
 
 /** The overview row's marker for a manual run of its check in flight: the state word, one detail, You. */
-export function CheckRowRunMarker({ checkId }: { checkId: number }) {
+export function CheckRowRunMarker({
+    check,
+}: {
+    check: Heptapod.Data.Ui.CheckStripData;
+}) {
     const { t } = useTranslation();
     const detail = useRunDetail();
-    const run = useRunningNow().runs.find(
-        (item) => item.check_id === checkId && item.lifecycle !== 'finished',
-    );
-    if (!run) return null;
+    const run = useCheckRun(check.id, check.run);
+    if (!run?.manual) return null;
     return (
         <RunLine
             phase={run.lifecycle}
-            progress={runProgress(run.state)}
+            progress={run.progress}
             label={t(run.lifecycle === 'running' ? 'Running' : 'Queued')}
             detail={detail(run.state)}
             mine={run.mine}

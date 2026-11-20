@@ -92,7 +92,12 @@ export default function ImportOhDearRun({
     const format = useFormat();
     const includesSites = importRun.sections.includes('sites');
     const active = ['queued', 'running'].includes(importRun.status);
-    useLiveReload(['import.progress'], ['importRun'], undefined, active);
+    useLiveReload(
+        ['import.progress', 'import.changed'],
+        ['importRun'],
+        undefined,
+        active,
+    );
     const retry = useHttpRequest<Record<string, never>, { url: string }>();
     const done = importRun.processed;
     const unread = Math.max(0, importRun.expected - done);

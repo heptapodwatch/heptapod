@@ -16,7 +16,7 @@ final readonly class LiveSignal
 {
     /**
      * @param  array<string, int>  $ids
-     * @param  array{check_id: int, phase: string, queue_position: ?int, progress_n: ?int, progress_total: ?int, started_at: ?string, actor: ?string, origin: string, phase_label?: string, outcome?: string, attempt_id?: int, check_run_id?: int, ended_at?: string, result?: string}|null  $run
+     * @param  array{check_id: int, phase: string, queue_position: ?int, progress_n: ?int, progress_total: ?int, started_at: ?string, actor: ?string, origin: string, phase_label?: string, outcome?: string, attempt_id: int, check_run_id?: int, ended_at?: string, result?: string}|null  $run
      * @param  list<int>  $clientIds  Private fan-out targets for a coalesced change; never serialized into the payload.
      */
     public function __construct(
@@ -38,6 +38,12 @@ final readonly class LiveSignal
     public static function forImport(): void
     {
         self::afterCommit(new self('import.progress', [], now()->toIso8601String(), null));
+    }
+
+    /** An import was queued, started or finished. Running now reloads only on these, never on each imported row. */
+    public static function forImportChange(): void
+    {
+        self::afterCommit(new self('import.changed', [], now()->toIso8601String(), null));
     }
 
     /** A backup changed state; like an import's progress, it carries no ids. Owners are always on the instance channel. */
@@ -89,10 +95,9 @@ final readonly class LiveSignal
         if ($outcome instanceof RunPhase) {
             $payload['outcome'] = $outcome->value;
         }
-        // The attempt id lets the tab that requested this run match the completion to its own request.
-        if ($attemptId !== null) {
-            $payload['attempt_id'] = $attemptId;
-        }
+        // Every run signal names its attempt: a tab merges live state into a run only for that exact attempt, so a scheduled
+        // run of the same check never takes over a manual one.
+        $payload['attempt_id'] = $attemptId ?? throw new \InvalidArgumentException('A run signal must name its attempt.');
         if ($recorded instanceof RecordedRunSignal) {
             if ($topic !== 'run.finished') {
                 throw new \InvalidArgumentException('Only a finished run carries its recorded result.');

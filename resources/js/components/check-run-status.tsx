@@ -6,40 +6,58 @@ import {
     runProgress,
     useRunDetail,
 } from '@/components/run-family';
+import { usePage } from '@inertiajs/react';
 import { useFormat } from '@/hooks/use-format';
-import { useRunningNow } from '@/hooks/use-running-now';
-import { currentRunState, useRunState } from '@/lib/live-store';
+import { currentRunState, useRunState, type RunState } from '@/lib/live-store';
+
+export type CheckRun = {
+    state: RunState;
+    lifecycle: ReturnType<typeof runLifecycle>;
+    progress: ReturnType<typeof runProgress>;
+    manual: boolean;
+    mine: boolean;
+};
 
 /**
- * The run of one check in flight (any origin: a scheduled run disables Run check too), with live progress merged in.
- * `mine` comes from Running now, which knows who started the manual run.
+ * The run in flight of one check from the page's own data and the live store (any origin: a scheduled run disables Run
+ * check too). Who started it comes from the attempt itself; the shared Running now rows only cover a run that started
+ * after the page loaded.
  */
-export function useCheckRun(
-    checkId: number,
-    persisted: Heptapod.Data.Ui.CheckRunStateData | null | undefined,
-) {
-    const state = currentRunState(useRunState(checkId), persisted);
-    const { runs } = useRunningNow();
-    if (!state || state.phase === 'finished') return null;
-    return {
-        state,
-        lifecycle: runLifecycle(state.phase),
-        progress: runProgress(state),
-        mine: runs.some(
-            (run) =>
-                run.check_id === checkId &&
-                run.mine &&
-                run.lifecycle !== 'finished',
-        ),
+export function useCheckRunOf() {
+    const { auth, runningNow } = usePage().props;
+    return (
+        live: RunState | undefined,
+        persisted: Heptapod.Data.Ui.CheckRunStateData | null | undefined,
+    ): CheckRun | null => {
+        const state = currentRunState(live, persisted);
+        if (!state || state.phase === 'finished') return null;
+        const mine =
+            persisted?.attempt_id != null &&
+            persisted.attempt_id === state.attempt_id
+                ? persisted.actor_id === auth.user?.id
+                : (runningNow?.check_runs ?? []).some(
+                      (run) =>
+                          run.run.attempt_id === state.attempt_id && run.mine,
+                  );
+        return {
+            state,
+            lifecycle: runLifecycle(state.phase),
+            progress: runProgress(state),
+            manual: state.origin === 'manual',
+            mine,
+        };
     };
 }
 
+export function useCheckRun(
+    checkId: number,
+    persisted: Heptapod.Data.Ui.CheckRunStateData | null | undefined,
+): CheckRun | null {
+    return useCheckRunOf()(useRunState(checkId), persisted);
+}
+
 /** Why Run check is disabled, directly below it: "Running since 14:02 · 3,214 of 5,000 URLs", "Queued · #2". */
-export function RunCheckReason({
-    run,
-}: {
-    run: NonNullable<ReturnType<typeof useCheckRun>>;
-}) {
+export function RunCheckReason({ run }: { run: CheckRun }) {
     const { t } = useTranslation();
     const format = useFormat();
     const detail = useRunDetail();
@@ -62,6 +80,7 @@ export function RunCheckReason({
                         : detail(run.state, { narrow: false })
                 }
                 mine={run.mine}
+                wrap
                 className="px-0 py-0.5"
             />
         </span>
@@ -73,7 +92,7 @@ export function CheckRunStatusRow({
     run,
     action,
 }: {
-    run: NonNullable<ReturnType<typeof useCheckRun>>;
+    run: CheckRun;
     action?: ReactNode;
 }) {
     const { t } = useTranslation();

@@ -20,15 +20,17 @@ final class RecordBackupOutcome
         $status = is_int($code) && $code >= 400 && $code <= 599 ? $code : null;
         $id = Context::get('backup-run-id');
         $data = ['state' => $state, 'disk' => $disk, 'http_status' => $status, 'completed_at' => now('UTC')];
-        LiveSignal::forBackup();
         if (is_int($id)) {
             $changed = DB::table('backup_runs')->where('id', $id)->where('state', 'running')->update($data);
             if ($changed !== 1) {
                 throw new \LogicException('The requested backup is not running.');
             }
+            // After the write: a listener that reads the run on this signal must see it finished.
+            LiveSignal::forBackup();
 
             return;
         }
         DB::table('backup_runs')->insert([...$data, 'requested_by' => null, 'requested_at' => now('UTC'), 'started_at' => null]);
+        LiveSignal::forBackup();
     }
 }

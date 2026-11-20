@@ -56,6 +56,6 @@ final class AttemptControl implements RunControl, RunProgress
         }
         $this->lastReport = $now;
         $attempt = CheckRunAttempt::query()->with('check.site', 'actor')->where('claim_token', $this->claimToken)->firstOrFail();
-        LiveSignal::forRun('run.progress', $attempt->check()->getQuery()->firstOrFail()->site()->getQuery()->firstOrFail(), $this->checkId, $attempt->origin, $attempt->started_at, $attempt->actor?->name, progressN: $done, progressTotal: $total, phaseLabel: $phase);
+        LiveSignal::forRun('run.progress', $attempt->check()->getQuery()->firstOrFail()->site()->getQuery()->firstOrFail(), $this->checkId, $attempt->origin, $attempt->started_at, $attempt->actor?->name, progressN: $done, progressTotal: $total, phaseLabel: $phase, attemptId: $attempt->id);
     }
 }

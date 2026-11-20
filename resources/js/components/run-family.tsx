@@ -234,6 +234,8 @@ export type RunLineProps = {
     href?: string;
     /** An action at the end of the line (Cancel, Open check). */
     trailing?: ReactNode;
+    /** Wrap instead of truncating the label, where the line sits in a narrow slot (the Run check reason). */
+    wrap?: boolean;
     className?: string;
 };
 
@@ -247,14 +249,22 @@ export function RunLine({
     bar = false,
     href,
     trailing,
+    wrap = false,
     className,
 }: RunLineProps) {
     const { t } = useTranslation();
     const body = (
         <>
-            <span className="flex min-w-0 items-center gap-2 text-sm">
+            <span
+                className={cn(
+                    'flex min-w-0 items-center gap-2 text-sm',
+                    wrap && 'flex-wrap gap-y-0.5',
+                )}
+            >
                 <RunGlyph phase={phase} progress={progress} outcome={outcome} />
-                <span className="min-w-0 truncate">{label}</span>
+                <span className={cn('min-w-0', !wrap && 'truncate')}>
+                    {label}
+                </span>
                 {detail !== undefined && (
                     <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                         {detail}

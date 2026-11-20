@@ -187,11 +187,11 @@ final readonly class RunsReader
         $since = $now->subDay()->format('Y-m-d H:i:s.uP');
         $until = $now->format('Y-m-d H:i:s.uP');
         $resultList = '{'.implode(',', array_map(static fn (RunResult $result): string => $result->value, $results)).'}';
-        /** @var list<\stdClass&object{id: int, check_id: int, ended_at: string, attempt_id: int|null}> $newest */
+        /** @var list<\stdClass&object{id: int, check_id: int, ended_at: string, attempt_id: int|null, actor_id: int|null}> $newest */
         $newest = $manualOnly
             // Manual runs only: newest manual attempts first (check_run_attempts_manual_finished), each with the run it recorded.
             ? DB::select(<<<'SQL'
-                SELECT run.id, run.check_id, run.ended_at, attempt.id AS attempt_id
+                SELECT run.id, run.check_id, run.ended_at, attempt.id AS attempt_id, attempt.actor_user_id AS actor_id
                 FROM check_run_attempts attempt
                 JOIN check_runs run ON run.check_id = attempt.check_id AND run.id = attempt.check_run_id AND run.ended_at = attempt.finished_at
                 WHERE attempt.origin = 'manual' AND attempt.check_id = ANY(?::bigint[]) AND attempt.finished_at >= ? AND attempt.finished_at <= ?
@@ -199,7 +199,7 @@ final readonly class RunsReader
                 ORDER BY run.ended_at DESC, run.id DESC LIMIT ?
                 SQL, ['{'.implode(',', $checkIds).'}', $since, $until, $resultList, self::BOARD_FINISHED])
             : DB::select(<<<'SQL'
-            SELECT newest.id, newest.check_id, newest.ended_at, attempt.id AS attempt_id
+            SELECT newest.id, newest.check_id, newest.ended_at, attempt.id AS attempt_id, attempt.actor_user_id AS actor_id
             FROM (
                 SELECT run.id, run.check_id, run.ended_at
                 FROM unnest(?::bigint[]) AS visible(check_id)
@@ -211,7 +211,7 @@ final readonly class RunsReader
                 ORDER BY run.ended_at DESC, run.id DESC LIMIT ?
             ) AS newest
             LEFT JOIN LATERAL (
-                SELECT id FROM check_run_attempts
+                SELECT id, actor_user_id FROM check_run_attempts
                 WHERE check_run_attempts.check_id = newest.check_id AND check_run_attempts.check_run_id = newest.id
                   AND check_run_attempts.finished_at = newest.ended_at
                 ORDER BY id DESC LIMIT 1
@@ -226,7 +226,7 @@ final readonly class RunsReader
         $bindings = [];
         foreach ($newest as $row) {
             $endedAt = CarbonImmutable::parse($row->ended_at);
-            $attempts[$this->physicalRunKey($row->check_id, $row->id, $endedAt)] = $row->attempt_id;
+            $attempts[$this->physicalRunKey($row->check_id, $row->id, $endedAt)] = ['id' => $row->attempt_id, 'actor_id' => $row->actor_id];
             $tuples[] = '(?, ?, ?)';
             $bindings[] = $row->check_id;
             $bindings[] = $row->id;
@@ -285,7 +285,7 @@ final readonly class RunsReader
     }
 
     /** @param Collection<int, CheckRun> $runs
-     * @param  array<string, int|null>  $attempts  the recording attempt per physical run key, where known
+     * @param  array<string, array{id: int|null, actor_id: int|null}>  $attempts  the recording attempt and its starter per physical run key, where known
      * @return list<FinishedRunData>
      */
     private function finishedRows(Collection $runs, array $attempts = []): array
@@ -296,10 +296,11 @@ final readonly class RunsReader
             $site = $check->site ?? throw new \LogicException('Finished run must have a site.');
             // Eager-loaded retained facts keep per-run presentation independent of newer results and row count.
             $summary = $this->summaries->project($check, $run);
+            $attempt = $attempts[$this->physicalRunKey($run->check_id, $run->id, $run->ended_at)] ?? ['id' => null, 'actor_id' => null];
             $rows[] = new FinishedRunData($run->id, $check->id, $site->id, $site->displayName(), $run->check_type,
                 $run->result, $run->ended_at->format('Y-m-d\TH:i:s.uP'),
                 $run->started_at === null ? null : (int) $run->started_at->diffInMilliseconds($run->ended_at),
-                $summary['key'], $summary['params'], $this->presentations->forRun($check, $run), $site->iconUrl(), $site->icon_backing, $attempts[$this->physicalRunKey($run->check_id, $run->id, $run->ended_at)] ?? null);
+                $summary['key'], $summary['params'], $this->presentations->forRun($check, $run), $site->iconUrl(), $site->icon_backing, $attempt['id'], $attempt['actor_id']);
         }
 
         return $rows;

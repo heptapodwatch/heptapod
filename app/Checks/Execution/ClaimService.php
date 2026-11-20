@@ -289,7 +289,8 @@ final readonly class ClaimService
             'due_at' => $actorUserId === null ? min($check->next_run_at, now()) : now()]);
         $site = $check->site()->getQuery()->firstOrFail();
         LiveSignal::forRun('run.queued', $site, $checkId, $origin, actor: $attempt->actor?->name,
-            queuePosition: CheckRunAttempt::query()->where('queue', $attempt->queue)->where('phase', RunPhase::Queued)->where('id', '<=', $attempt->id)->getQuery()->count());
+            queuePosition: CheckRunAttempt::query()->where('queue', $attempt->queue)->where('phase', RunPhase::Queued)->where('id', '<=', $attempt->id)->getQuery()->count(),
+            attemptId: $attempt->id);
 
         if (! $definition instanceof CheckDefinition) {
             $at = CarbonImmutable::now('UTC');

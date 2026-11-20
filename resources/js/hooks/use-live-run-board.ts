@@ -272,8 +272,9 @@ export function useLiveRunBoard(
         };
     }, []);
 
+    // Lifecycle only: progress cards read their attempt's live signals, so a tick never reloads the board.
     useLiveReload(
-        ['run.queued', 'run.started', 'run.progress', 'run.finished'],
+        ['run.queued', 'run.started', 'run.finished'],
         ['current', 'queued_more', 'finished'],
         undefined,
         true,
