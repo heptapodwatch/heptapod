@@ -99,6 +99,25 @@ export default function IncidentsIndex({
     ].filter(Boolean).length;
     const unfiltered = { status: 'all', period: 'all' };
     const exportScopes: ExportScope[] = [
+        ...(pagination.last_page > 1
+            ? [
+                  {
+                      key: 'page',
+                      label: t('export.scope.page', {
+                          count: incidents.length,
+                      }),
+                      count: incidents.length,
+                      url: (format: Heptapod.Enums.ExportFormat) =>
+                          exportIncidents.url(format, {
+                              query: {
+                                  filter: activeFilter,
+                                  page: pagination.current_page,
+                                  per_page: pagination.per_page,
+                              },
+                          }),
+                  },
+              ]
+            : []),
         {
             key: 'matching',
             label: t('export.scope.matching_incidents', {
@@ -441,19 +460,7 @@ export default function IncidentsIndex({
                         count: pagination.total,
                         formattedCount: format.number(pagination.total),
                     })}
-                    previous={
-                        pagination.previous_page_url
-                            ? { href: pagination.previous_page_url }
-                            : null
-                    }
-                    next={
-                        pagination.next_page_url
-                            ? { href: pagination.next_page_url }
-                            : null
-                    }
-                    page={pagination.current_page}
-                    lastPage={pagination.last_page}
-                    pageSize={pagination.per_page}
+                    pagination={pagination}
                 />
             )}
         </PageContainer>

@@ -33,7 +33,15 @@ function advisory(
 it('opens the most severe package first and toggles each package with a disclosure button', () => {
     render(
         <SecurityAdvisoryList
-            more={false}
+            pagination={{
+                current_page: 1,
+                per_page: 50,
+                total: 5,
+                last_page: 1,
+                next_page_url: null,
+                previous_page_url: null,
+                page_name: 'health_advisories_page',
+            }}
             advisories={[
                 // Server order is by package name; the list ranks packages by their most severe advisory.
                 advisory('aaa/medium', 'CVE-1', 'medium'),

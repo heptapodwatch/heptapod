@@ -75,6 +75,7 @@ export default function IncidentDetail(
             'opening_presentation',
             'current_presentation',
             'other_deliveries',
+            'other_deliveries_pagination',
             'opening_delivery_explanation',
             'maintenance',
             'current_evidence',

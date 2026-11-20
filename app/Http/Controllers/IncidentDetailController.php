@@ -12,8 +12,10 @@ use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\CheckRunPresentationData;
 use Heptapod\Contracts\Mail\MailDesign;
+use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\IncidentData;
+use Heptapod\Data\Ui\IncidentDeliveryData;
 use Heptapod\Data\Ui\IncidentDetailPageData;
 use Heptapod\Data\Ui\IncidentEvidenceData;
 use Heptapod\Data\Ui\IncidentNotificationPageData;
@@ -55,6 +57,12 @@ final class IncidentDetailController extends Controller
         $explicitExpansion = $request->header('X-Inertia-Partial-Component') === 'incidents/show'
             && in_array('expanded_notifications', explode(',', $request->header('X-Inertia-Partial-Data', '')), true);
 
+        $otherDeliveries = null;
+        /** @return array{rows: list<IncidentDeliveryData>, pagination: PaginationData} */
+        $getOtherDeliveries = static function () use ($reader, $user, $getIncident, &$otherDeliveries): array {
+            return $otherDeliveries ??= $reader->deliveries($user, $getIncident(), IncidentsReader::TimelineEventTypes);
+        };
+
         return Inertia::render('incidents/show', new IncidentDetailPageData(
             site: Lazy::closure(static fn (): SiteRowData => $details->site($user, $getIncident()->site_id)),
             header: Lazy::closure(static fn (): SiteIdentityData => $details->header($user, $getIncident()->site_id)),
@@ -64,7 +72,8 @@ final class IncidentDetailController extends Controller
             internal_note: Lazy::closure(static fn (): ?string => $getIncident()->notes),
             note_author: Lazy::closure(static fn (): ?string => $getIncident()->noteAuthor?->name),
             note_updated_at: Lazy::closure(static fn (): ?string => $getIncident()->note_updated_at?->toIso8601String()),
-            other_deliveries: Lazy::closure(static fn (): array => $reader->deliveries($user, $getIncident(), IncidentsReader::TimelineEventTypes)),
+            other_deliveries: Lazy::closure(static fn (): array => $getOtherDeliveries()['rows']),
+            other_deliveries_pagination: Lazy::closure(static fn (): PaginationData => $getOtherDeliveries()['pagination']),
             evidence: Lazy::closure(static fn (): IncidentEvidenceData => $reader->evidence($getIncident())),
             alert_preview_available: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin']) && app()->bound(AlertPreviewRenderer::class)),
             maintenance: Lazy::closure(static fn (): ?MaintenanceSiteHeaderData => $details->maintenance($user, $getIncident()->site_id)),

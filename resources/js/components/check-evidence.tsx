@@ -5,6 +5,7 @@ import { EvidenceFacts } from '@/components/evidence-facts';
 import { ScoreRing } from '@/components/foundation-primitives';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from 'react-i18next';
+import { ListFooter } from '@/components/list-footer';
 import {
     CrawlFindings,
     FindingsTable,
@@ -210,18 +211,10 @@ export function CheckEvidence({
                                     <FindingsExport
                                         context={exportContext}
                                         run={detail.export_run}
-                                        total={
-                                            detail.totalIssuesCount +
-                                            detail.not_verifiable.length
+                                        findings={detail.issues_pagination}
+                                        notVerifiable={
+                                            detail.not_verifiable_pagination
                                         }
-                                        shown={
-                                            detail.issues.length +
-                                            detail.not_verifiable.length
-                                        }
-                                        shownPerGroup={Math.max(
-                                            detail.issues.length,
-                                            detail.not_verifiable.length,
-                                        )}
                                     />
                                 )
                             }
@@ -264,7 +257,7 @@ export function CheckEvidence({
                         )}
                     <FindingsTable
                         empty={t('sitemap.no_issues')}
-                        total={detail.totalIssuesCount}
+                        pagination={detail.issues_pagination ?? undefined}
                         showSource={false}
                         showProblem
                         origin={origin}
@@ -289,6 +282,9 @@ export function CheckEvidence({
                         origin={origin}
                         checkType="sitemap"
                         rows={detail.not_verifiable}
+                        pagination={
+                            detail.not_verifiable_pagination ?? undefined
+                        }
                     />
                 </CardContent>
             </Card>
@@ -412,12 +408,8 @@ export function CheckEvidence({
     }
     if (type === 'uptime' && history?.check_type === 'uptime') {
         const run = history.runs[0];
-        const failures = history.recent_failures.filter(
-            (failure) =>
-                !since ||
-                new Date(failure.ended_at).getTime() >=
-                    new Date(since).getTime(),
-        );
+        // The server scopes failures to the open incident (else 90 days) and pages them.
+        const failures = history.recent_failures;
         const note = (row: (typeof history.runs)[number]) =>
             row.reasons.map((reason) => t(reason)).join(' · ');
         return (
@@ -541,6 +533,17 @@ export function CheckEvidence({
                                     </li>
                                 ))}
                             </ul>
+                            <ListFooter
+                                count={t('uptime.failures_count', {
+                                    count: history.recent_failures_pagination
+                                        .total,
+                                    formattedCount: format.number(
+                                        history.recent_failures_pagination
+                                            .total,
+                                    ),
+                                })}
+                                pagination={history.recent_failures_pagination}
+                            />
                             <p className="text-xs text-muted-foreground">
                                 {t(
                                     'Response headers and body excerpts were not retained',

@@ -30,12 +30,14 @@ use Heptapod\Contracts\Http\FetchFailureKind;
 use Heptapod\Contracts\Http\FetchRequest;
 use Heptapod\Contracts\Http\OutboundHttp;
 use Heptapod\Contracts\Http\RedirectPolicy;
+use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\Mail\Cell;
 use Heptapod\Contracts\Mail\FactsBlock;
 use Heptapod\Contracts\Mail\MailEventFacts;
 use Heptapod\Contracts\Mail\MailEvidenceProvider;
 use Heptapod\Contracts\Mail\MailTone;
 use Heptapod\Contracts\Mail\TableBlock;
+use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\ReclassifiedCheckError;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunResult;
@@ -54,7 +56,7 @@ use Illuminate\Support\Str;
 
 final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresenter, CheckSummaryPresenter, CheckType, MailEvidenceProvider
 {
-    public function __construct(private OutboundHttp $http, private ?CertificateFetcher $certificates = null) {}
+    public function __construct(private OutboundHttp $http, private ListPaging $paging, private ?CertificateFetcher $certificates = null) {}
 
     public function definition(): CheckDefinition
     {
@@ -114,9 +116,12 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
     {
         $query = DB::table('check_runs')->where('check_id', $checkId);
         $runs = (clone $query)->orderByDesc('ended_at')->orderByDesc('id')->limit(20)->get();
-        $failures = (clone $query)->where('ended_at', '>=', now()->subDays(90))
+        // While an incident is open, its own failed attempts; otherwise the last 90 days. Preserve microsecond UTC precision.
+        $openSince = DB::table('incidents')->where('check_id', $checkId)->whereNull('resolved_at')->min('first_failure_at');
+        $since = is_string($openSince) ? max(CarbonImmutable::parse($openSince)->utc(), now()->subDays(90)->toImmutable()->utc()) : now()->subDays(90)->toImmutable()->utc();
+        $failures = $this->paging->paginate((clone $query)->where('ended_at', '>=', $since->format('Y-m-d H:i:s.uP'))
             ->whereIn('result', [RunResult::Failed->value, RunResult::Errored->value])
-            ->orderByDesc('ended_at')->orderByDesc('id')->limit(50)->get();
+            ->orderByDesc('ended_at')->orderByDesc('id'), 'uptime_failures');
         $row = static function (\stdClass $run): array {
             /** @var \stdClass&object{id: int, ended_at: string, result: string, metrics: string|null, evidence: string} $run */
             /** @var array<string, mixed> $metrics */
@@ -147,11 +152,12 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
             $recent[] = $row($run);
         }
         $recentFailures = [];
-        foreach ($failures as $run) {
+        foreach ($failures->items() as $run) {
+            /** @var \stdClass $run */
             $recentFailures[] = $row($run);
         }
 
-        return new UptimeHistoryData($recent, $recentFailures);
+        return new UptimeHistoryData($recent, $recentFailures, PaginationData::fromPaginator($failures));
     }
 
     /**

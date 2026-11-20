@@ -15,6 +15,7 @@ use Heptapod\Contracts\Notifications\DeliveryResult;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Enums\ClientScope;
 use Heptapod\Enums\IncidentCause;
+use Heptapod\Http\ListPageSize;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\Client;
@@ -98,7 +99,7 @@ it('shows each recipient only the observed SMTP acceptance or rejection for an i
         ->where('expanded_notifications.deliveries.1.address', 'accepted@example.test')->where('expanded_notifications.deliveries.1.state', 'accepted'));
 });
 
-it('bounds the other incident mail deliveries to the latest fifty plus one truncation marker', function (): void {
+it('pages the other incident mail deliveries newest first and remembers the page size', function (): void {
     $this->withoutVite();
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
@@ -112,9 +113,17 @@ it('bounds the other incident mail deliveries to the latest fifty plus one trunc
     }
     $ids = Delivery::query()->orderBy('id')->pluck('id');
     $this->actingAs($owner)->get('/incidents/'.$incident->id)->assertInertia(fn (Assert $page): Assert => $page
-        ->has('other_deliveries', 51)->where('other_deliveries.0.id', $ids->last())
+        ->has('other_deliveries', 50)->where('other_deliveries.0.id', $ids->last())
         ->where('other_deliveries.0.event_type', 'check.result_changed')
-        ->where('other_deliveries.50.id', $ids[1]));
+        ->where('other_deliveries.49.id', $ids[2])
+        ->where('other_deliveries_pagination.total', 52)->where('other_deliveries_pagination.last_page', 2));
+    $this->get('/incidents/'.$incident->id.'?incident_notifications_page=2')->assertInertia(fn (Assert $page): Assert => $page
+        ->has('other_deliveries', 2)->where('other_deliveries.0.id', $ids[1])->where('other_deliveries.1.id', $ids[0]));
+
+    $this->get('/incidents/'.$incident->id.'?incident_notifications_per_page=20')
+        ->assertCookie(ListPageSize::Cookie, json_encode(['incident_notifications' => 20]), false)
+        ->assertInertia(fn (Assert $page): Assert => $page->has('other_deliveries', 20)->where('other_deliveries_pagination.last_page', 3));
+    $this->get('/incidents/'.$incident->id.'?incident_notifications_per_page=30')->assertSessionHasErrors('incident_notifications_per_page');
 });
 
 it('masks other recipients for Members and exposes suppressed deliveries honestly', function (): void {
@@ -382,7 +391,34 @@ it('exports only filtered and scoped incidents in every format and escapes sprea
         ->and($translated[1][1])->toBe('Offen')
         ->and(array_slice($translated[1], 4, 2))->toBe(['Erreichbarkeit', 'Fehlgeschlagen']);
     $this->get('/incidents/export.csv?filter[status]=invalid')->assertSessionHasErrors('filter.status');
+    $this->get('/incidents/export.csv?per_page=7')->assertSessionHasErrors('per_page');
     $this->get('/incidents/export.pdf')->assertNotFound();
+});
+
+it('exports only This page of incidents when page and per_page are given', function (): void {
+    $this->withoutVite();
+    $owner = User::factory()->owner()->create();
+    foreach (range(1, 12) as $minute) {
+        $check = Check::factory()->create();
+        Incident::factory()->for($check)->create([
+            'site_id' => $check->site_id,
+            'opened_at' => now()->subMinutes($minute),
+            'first_failure_at' => now()->subMinutes($minute),
+            'resolved_at' => null,
+        ]);
+    }
+    $page2Ids = array_map(
+        static fn (array $row): string => (string) $row['id'],
+        $this->actingAs($owner)->get('/incidents?filter[status]=open&per_page=10&page=2')->assertOk()->inertiaProps()['incidents'],
+    );
+    expect($page2Ids)->toHaveCount(2);
+
+    $csv = $this->get('/incidents/export.csv?filter[status]=open&per_page=10&page=2')->assertOk()->streamedContent();
+    $exportedIds = array_map(
+        static fn (string $line): string => str_getcsv($line, escape: '\\')[0] ?? '',
+        array_slice(explode("\r\n", rtrim(substr($csv, 3), "\r\n")), 1),
+    );
+    expect($exportedIds)->toBe($page2Ids);
 });
 
 it('exports the first rows up to the row cap in text and refuses a CSV that would drop rows', function (): void {

@@ -445,16 +445,14 @@ export default function MaintenanceIndex({
     const pageLink = (page: number | null) =>
         page === null
             ? null
-            : {
-                  href: maintenanceIndex.url({
-                      query: {
-                          page,
-                          client_id: client_id ?? undefined,
-                          site_id: site_id ?? undefined,
-                          state,
-                      },
-                  }),
-              };
+            : maintenanceIndex.url({
+                  query: {
+                      page,
+                      client_id: client_id ?? undefined,
+                      site_id: site_id ?? undefined,
+                      state,
+                  },
+              });
     return (
         <PageContainer>
             <Head title={t('Maintenance')} />
@@ -748,11 +746,16 @@ export default function MaintenanceIndex({
                         count: total,
                         formattedCount: format.number(total),
                     })}
-                    previous={pageLink(previous_page)}
-                    next={pageLink(next_page)}
-                    page={previous_page === null ? 1 : previous_page + 1}
-                    lastPage={Math.max(1, Math.ceil(total / per_page))}
-                    pageSize={per_page}
+                    pagination={{
+                        current_page:
+                            previous_page === null ? 1 : previous_page + 1,
+                        per_page,
+                        total,
+                        last_page: Math.max(1, Math.ceil(total / per_page)),
+                        previous_page_url: pageLink(previous_page),
+                        next_page_url: pageLink(next_page),
+                        page_name: 'page',
+                    }}
                 />
             )}
             <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>

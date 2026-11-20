@@ -613,7 +613,6 @@
     "Since you last looked": "Since you last looked",
     "Nothing scheduled in the next 90 days.": "Nothing scheduled in the next 90 days.",
     "Up to 12 months ahead.": "Up to 12 months ahead.",
-    "Showing the first 100 dates.": "Showing the first 100 dates.",
     "Nothing scheduled in this range.": "Nothing scheduled in this range.",
     "Tasks": "Tasks",
     "Last 7 days": "Last 7 days",
@@ -738,7 +737,6 @@
     "Next week": "Next week",
     "Show events": "Show events",
     "Hide events": "Hide events",
-    "Events {{from}}–{{to}} of {{total}}": "Events {{from}}–{{to}} of {{total}}",
     "All activity in the last {{days}} days": "All activity in the last {{days}} days",
     "api_tokens.list.count_one": "{{formattedCount}} token",
     "api_tokens.list.count_other": "{{formattedCount}} tokens",
@@ -781,7 +779,6 @@
     "freshness.suppressed.performance.uptime_error_latest": "No response-time data: the uptime check reported an error (latest at {{date}})",
     "freshness.suppressed.check.uptime_error_latest": "No current check data: the uptime check reported an error (latest at {{date}})",
     "(opens in a new tab)": "(opens in a new tab)",
-    "findings.showing": ":shown of :total findings",
     "Select date": "Select date",
     "Previous month": "Previous month",
     "Next month": "Next month",
@@ -813,5 +810,12 @@
     "Rows": "Rows",
     "Rows per page": "Rows per page",
     "Load older changes": "Load older changes",
-    "Loading older changes…": "Loading older changes…"
+    "Loading older changes…": "Loading older changes…",
+    "{{from}}–{{to}} of {{total}}": "{{from}}–{{to}} of {{total}}",
+    "{{count}} events_one": "{{formattedCount}} event",
+    "{{count}} events_other": "{{formattedCount}} events",
+    "findings.count_one": "{{formattedCount}} finding",
+    "findings.count_other": "{{formattedCount}} findings",
+    "upcoming.count_one": "{{formattedCount}} date on this page",
+    "upcoming.count_other": "{{formattedCount}} dates on this page"
 }

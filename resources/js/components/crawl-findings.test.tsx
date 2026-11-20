@@ -6,6 +6,7 @@ import {
     screen,
 } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
+import type { ReactNode } from 'react';
 import { FindingsTable } from './crawl-findings';
 
 vi.mock('react-i18next', () => ({
@@ -17,6 +18,10 @@ vi.mock('react-i18next', () => ({
 }));
 vi.mock('@inertiajs/react', () => ({
     usePage: () => ({ props: { timezone: 'UTC', locale: 'en' } }),
+    router: { on: () => () => {}, visit: () => {} },
+    Link: ({ children, href }: { children: ReactNode; href: string }) => (
+        <a href={href}>{children}</a>
+    ),
 }));
 
 // The findings card toolbar reads the viewport width (CardToolbarActions); jsdom has no matchMedia.
@@ -79,16 +84,28 @@ it('keeps URLs as text when linkUrls is off', () => {
     expect(screen.queryAllByRole('link')).toHaveLength(0);
 });
 
-it('shows the empty text instead of an empty table, and the showing footer for a bounded slice', () => {
+it('shows the empty text instead of an empty table, and the shared pager for one page of a longer list', () => {
     const { unmount } = render(<FindingsTable rows={[]} empty="No issues" />);
     expect(screen.getByText('No issues')).toBeTruthy();
     expect(screen.queryByRole('table')).toBeNull();
     unmount();
     render(
-        <FindingsTable stackWhenNarrow={false} rows={sitemapRows} total={40} />,
+        <FindingsTable
+            stackWhenNarrow={false}
+            rows={sitemapRows}
+            pagination={{
+                current_page: 2,
+                per_page: 10,
+                total: 40,
+                last_page: 4,
+                next_page_url: '/sites/1/checks/2?findings_page=3',
+                previous_page_url: '/sites/1/checks/2?findings_page=1',
+                page_name: 'findings_page',
+            }}
+        />,
     );
-    expect(screen.getByText(/findings\.showing/).textContent).toContain(
-        '"total":"40"',
+    expect(screen.getByText(/of \{\{total\}\}/).textContent).toContain(
+        '"from":"11","to":"20","total":"40"',
     );
 });
 

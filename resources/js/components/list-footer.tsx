@@ -1,4 +1,4 @@
-import { Link, router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { SegmentedControl } from '@/components/segmented-control';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,38 +15,151 @@ type PageLink = {
 /** The rows-per-page choices; the server accepts exactly these (ListPageSize). */
 const pageSizes = [10, 20, 50, 100] as const;
 
+/** Builds a PaginationData view for an in-memory list (an unsaved import plan) so it uses the same ListFooter. */
+export function clientPagination(
+    currentPage: number,
+    perPage: number,
+    total: number,
+): Heptapod.Contracts.PaginationData {
+    const lastPage = Math.max(1, Math.ceil(total / perPage));
+    const page = Math.min(Math.max(1, currentPage), lastPage);
+    return {
+        current_page: page,
+        per_page: perPage,
+        total,
+        last_page: lastPage,
+        next_page_url: null,
+        previous_page_url: null,
+        page_name: 'page',
+    };
+}
+
 /**
- * The one footer below a list: the plural-aware count on the left ("18 sites", "5 runs on this page"), the pager on the
- * right once there is more than one page. Page-number pagination passes previous and next (null = disabled) and shows
- * "Page 1 of 3"; cursor pagination passes only next. Callers render it only for a non-empty list (the EmptyState speaks).
- * A paged major list passes `pageSize`: the "Rows 10 · 20 · 50 · 100" choice, which reloads from the first page and
- * which the server remembers per list. Below 640 px the count and Rows share the first line, the pager the second.
+ * Rebuilds a server pager link from the live page URL, replacing only this list's page parameter so
+ * partial-reloading a sibling sub-list on the same page never snaps back to an older page parameter.
+ */
+function mergeLivePageParam(
+    serverHref: string,
+    pageName: string,
+    liveUrl: string | undefined,
+): string {
+    if (!liveUrl) return serverHref;
+    const origin = 'http://localhost';
+    const server = new URL(serverHref, origin);
+    const live = new URL(liveUrl, origin);
+    if (live.pathname !== server.pathname) return serverHref;
+    const merged = new URL(server.pathname + live.search, origin);
+    const targetPage = server.searchParams.get(pageName);
+    if (targetPage === null) {
+        merged.searchParams.delete(pageName);
+    } else {
+        merged.searchParams.set(pageName, targetPage);
+    }
+    return merged.pathname + merged.search;
+}
+
+/** Saves a page-size choice for a client-paged list into the same plain `list_page_sizes` cookie the server reads. */
+export function rememberListPageSize(list: string, size: number): void {
+    const raw = document.cookie
+        .split('; ')
+        .find((entry) => entry.startsWith('list_page_sizes='))
+        ?.slice('list_page_sizes='.length);
+    let parsed: Record<string, unknown> = {};
+    if (raw) {
+        try {
+            const decoded: unknown = JSON.parse(decodeURIComponent(raw));
+            if (
+                decoded &&
+                typeof decoded === 'object' &&
+                !Array.isArray(decoded)
+            ) {
+                parsed = decoded as Record<string, unknown>;
+            }
+        } catch {
+            // Malformed cookie falls back to a fresh map, matching ListPageSize::remembered.
+        }
+    }
+    parsed[list] = size;
+    document.cookie = `list_page_sizes=${encodeURIComponent(JSON.stringify(parsed))};path=/;max-age=31536000;SameSite=Lax`;
+}
+
+/**
+ * The one footer below a list: the plural-aware count on the left ("18 sites"), or "1–50 of 64" once the list has more than
+ * one page; the pager on the right. A page-number list passes its server `pagination` (Previous · Page 1 of 3 · Next and the
+ * "Rows 10 · 20 · 50 · 100" choice, which reloads from the first page and which the server remembers per list); a cursor list
+ * (Runs history) passes only `next` and its `pageSize`. A list that shares its page with others passes `only`, the props its
+ * pager reloads. Callers render it only for a non-empty list (the EmptyState speaks). Below 640 px the count and Rows share
+ * the first line, the pager the second.
  */
 export function ListFooter({
     count,
-    previous,
+    pagination,
+    only,
     next,
-    page,
-    lastPage,
+    previous,
     extra,
     pageSize,
+    onPageChange,
+    onPageSizeChange,
 }: {
+    /** The whole list's count, shown while it fits one page. */
     count: ReactNode;
-    /** Omitted: the list has no previous page concept (cursor pagination). */
-    previous?: PageLink;
+    pagination?: Heptapod.Contracts.PaginationData;
+    /** The props a page or size change reloads, for a list that shares its page with others. */
+    only?: string[];
+    /** Lists without a total (Runs history, Upcoming): the next page (null = disabled), and the previous one where it exists. */
     next?: PageLink;
-    page?: number;
-    lastPage?: number;
+    previous?: PageLink;
     /** A list action beside the pager (Runs: Show newest runs). */
     extra?: ReactNode;
-    /** The list's current rows per page; shows the Rows choice. */
+    /** Cursor lists only: the current rows per page; shows the Rows choice. */
     pageSize?: number;
+    /** In-memory lists (unsaved import plan): change page without leaving the unsaved state. */
+    onPageChange?: (page: number) => void;
+    /** In-memory lists: change page size without leaving the unsaved state. */
+    onPageSizeChange?: (size: number) => void;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
-    const link = (target: PageLink, label: string) =>
-        target === null ? (
-            <Button variant="outline" disabled>
+    const inertiaPage = usePage();
+    const liveUrl =
+        inertiaPage.url ??
+        (typeof window !== 'undefined'
+            ? window.location.pathname + window.location.search
+            : undefined);
+    const pageName = pagination?.page_name ?? 'page';
+    const pageLink = (href: string | null): PageLink =>
+        href === null
+            ? null
+            : {
+                  href: mergeLivePageParam(href, pageName, liveUrl),
+                  only,
+                  preserveState: only !== undefined || undefined,
+              };
+    const localPaging = Boolean(onPageChange && pagination);
+    const link = (
+        target: PageLink,
+        label: string,
+        targetPage?: number,
+        localEnabled?: boolean,
+    ) => {
+        if (localPaging && onPageChange && targetPage !== undefined) {
+            return localEnabled ? (
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => onPageChange(targetPage)}
+                >
+                    {t(label)}
+                </Button>
+            ) : (
+                <Button type="button" variant="outline" disabled>
+                    {t(label)}
+                </Button>
+            );
+        }
+        return target === null ? (
+            <Button type="button" variant="outline" disabled>
                 {t(label)}
             </Button>
         ) : (
@@ -62,14 +175,42 @@ export function ListFooter({
                 </Link>
             </Button>
         );
-    const paged = (previous ?? null) !== null || (next ?? null) !== null;
-    const changePageSize = (size: number) => {
+    };
+    const previousPage = pagination
+        ? pageLink(pagination.previous_page_url)
+        : previous;
+    const nextPage = pagination ? pageLink(pagination.next_page_url) : next;
+    const hasLocalPrevious = Boolean(pagination && pagination.current_page > 1);
+    const hasLocalNext = Boolean(
+        pagination && pagination.current_page < pagination.last_page,
+    );
+    const paged = localPaging
+        ? hasLocalPrevious || hasLocalNext
+        : (previousPage ?? null) !== null || (nextPage ?? null) !== null;
+    // Rows only where a size can change what is shown: a list of 10 or fewer rows shows them all at every size.
+    const size = pagination
+        ? pagination.total > pageSizes[0]
+            ? pagination.per_page
+            : undefined
+        : pageSize;
+    const changePageSize = (chosen: number) => {
+        if (onPageSizeChange) {
+            onPageSizeChange(chosen);
+            return;
+        }
         const url = new URL(window.location.href);
-        url.searchParams.set('per_page', String(size));
+        url.searchParams.set(
+            pageName.replace(/page$/, 'per_page'),
+            String(chosen),
+        );
         // A new size starts the list over: page numbers and cursors of the old size point elsewhere.
-        for (const cursor of ['page', 'before', 'after'])
+        for (const cursor of [pageName, 'before', 'after'])
             url.searchParams.delete(cursor);
-        router.visit(url.pathname + url.search, { preserveScroll: true });
+        router.visit(url.pathname + url.search, {
+            preserveScroll: true,
+            only,
+            preserveState: only !== undefined || undefined,
+        });
     };
     return (
         <div
@@ -77,19 +218,37 @@ export function ListFooter({
             className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-3"
         >
             <div className="flex items-center justify-between gap-3 sm:contents">
-                <span className="font-mono tabular-nums">{count}</span>
-                {pageSize !== undefined && (
+                <span className="font-mono tabular-nums">
+                    {pagination && pagination.last_page > 1
+                        ? t('{{from}}–{{to}} of {{total}}', {
+                              from: format.number(
+                                  (pagination.current_page - 1) *
+                                      pagination.per_page +
+                                      1,
+                              ),
+                              to: format.number(
+                                  Math.min(
+                                      pagination.current_page *
+                                          pagination.per_page,
+                                      pagination.total,
+                                  ),
+                              ),
+                              total: format.number(pagination.total),
+                          })
+                        : count}
+                </span>
+                {size !== undefined && (
                     <span className="flex items-center gap-2 sm:ml-auto">
                         <span>{t('Rows')}</span>
                         <SegmentedControl
                             label={t('Rows per page')}
-                            value={String(pageSize)}
+                            value={String(size)}
                             onValueChange={(value) =>
                                 changePageSize(Number(value))
                             }
-                            options={pageSizes.map((size) => ({
-                                value: String(size),
-                                label: format.number(size),
+                            options={pageSizes.map((choice) => ({
+                                value: String(choice),
+                                label: format.number(choice),
                             }))}
                         />
                     </span>
@@ -98,24 +257,40 @@ export function ListFooter({
             {(paged || extra) && (
                 <div
                     className={
-                        pageSize === undefined
+                        size === undefined
                             ? 'flex flex-wrap items-center justify-between gap-2 sm:ml-auto sm:justify-end'
                             : 'flex flex-wrap items-center justify-between gap-2 sm:justify-end'
                     }
                 >
                     {extra}
                     {paged &&
-                        previous !== undefined &&
-                        link(previous, 'Previous page')}
-                    {paged && page !== undefined && lastPage !== undefined && (
+                        (localPaging || previousPage !== undefined) &&
+                        link(
+                            previousPage ?? null,
+                            'Previous page',
+                            pagination
+                                ? pagination.current_page - 1
+                                : undefined,
+                            hasLocalPrevious,
+                        )}
+                    {paged && pagination && (
                         <span className="font-mono tabular-nums">
                             {t('Page {{page}} of {{lastPage}}', {
-                                page: format.number(page),
-                                lastPage: format.number(lastPage),
+                                page: format.number(pagination.current_page),
+                                lastPage: format.number(pagination.last_page),
                             })}
                         </span>
                     )}
-                    {paged && next !== undefined && link(next, 'Next page')}
+                    {paged &&
+                        (localPaging || nextPage !== undefined) &&
+                        link(
+                            nextPage ?? null,
+                            'Next page',
+                            pagination
+                                ? pagination.current_page + 1
+                                : undefined,
+                            hasLocalNext,
+                        )}
                 </div>
             )}
         </div>

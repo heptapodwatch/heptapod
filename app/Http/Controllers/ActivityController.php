@@ -34,7 +34,6 @@ final class ActivityController extends Controller
             'period' => ['sometimes', Rule::in(['24h', '7d', '30d', 'all'])],
             'before' => ['sometimes', 'integer', 'min:1'],
             'group' => ['sometimes', 'integer', 'min:1'],
-            'event_page' => ['sometimes', 'integer', 'min:1', 'max:10000'],
         ])->validate();
         $period = $request->string('period', '24h')->toString();
         $retentionDays = config()->integer('monitoring.raw_retention_days');
@@ -57,10 +56,9 @@ final class ActivityController extends Controller
             return $reader->activityBatch($reader->activityGroups($user, $since, $search, $client, $check?->value, cursor: $cursor, limit: self::BatchSize + 2), $cursor, self::BatchSize);
         };
         $groupId = $request->filled('group') ? $request->integer('group') : null;
-        $eventPage = $request->integer('event_page', 1);
-        $expanded = $groupId === null ? [] : $reader->activityDetails($user, $groupId, $eventPage, $since, $search, $client, $check?->value);
+        $expanded = $groupId === null ? null : $reader->activityDetails($user, $groupId, $since, $search, $client, $check?->value);
 
-        abort_if($groupId !== null && $expanded === [], 404);
+        abort_if($expanded !== null && $expanded['events'] === [], 404);
 
         return Inertia::render('activity/index', new ActivityPageData(
             // Older batches load by infinite scroll (`before` = the last group's latest event); the URL keeps no cursor.
@@ -75,8 +73,8 @@ final class ActivityController extends Controller
             clients: $sites->clients($user),
             filters: new ActivityFilterData($search ?? '', $client, $check, $period),
             expanded_id: $groupId,
-            expanded_events: $expanded,
-            event_page: $eventPage,
+            expanded_events: $expanded['events'] ?? [],
+            expanded_pagination: $expanded['pagination'] ?? null,
         ));
     }
 }

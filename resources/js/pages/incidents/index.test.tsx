@@ -99,6 +99,7 @@ function renderIncidents(
                         total: 2,
                         previous_page_url: null,
                         next_page_url: null,
+                        page_name: 'page',
                     }}
                     summary={{
                         count: 2,

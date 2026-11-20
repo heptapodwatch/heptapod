@@ -8,6 +8,7 @@ import { SiteAvatar } from '@/components/site-avatar';
 import { Head, router, usePage } from '@inertiajs/react';
 import { CalendarDays } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ListFooter } from '@/components/list-footer';
 import { EmptyState } from '@/components/empty-state';
 import {
     FilterBar,
@@ -38,6 +39,9 @@ type Item = Heptapod.Data.Ui.UpcomingItemData;
 
 export default function Upcoming({
     items,
+    next_page_url,
+    previous_page_url,
+    per_page,
     days,
     type,
     clients,
@@ -45,6 +49,9 @@ export default function Upcoming({
     calendar_now,
 }: {
     items: Item[];
+    next_page_url: string | null;
+    previous_page_url: string | null;
+    per_page: number;
     days: string;
     type: string;
     clients: Heptapod.Data.Ui.ClientData[];
@@ -54,7 +61,16 @@ export default function Upcoming({
     const { t, i18n } = useTranslation();
     const { timezone } = usePage().props;
     const format = useFormat();
-    useLiveReload(['state.changed'], ['items', 'clients', 'calendar_now']);
+    useLiveReload(
+        ['state.changed'],
+        [
+            'items',
+            'next_page_url',
+            'previous_page_url',
+            'clients',
+            'calendar_now',
+        ],
+    );
     const today = calendarDay(calendar_now, timezone);
     const groups = new Map<string, Map<number, Item[]>>();
     for (const item of items) {
@@ -314,10 +330,18 @@ export default function Upcoming({
                     </section>
                 ))
             )}
-            {items.length === 100 && (
-                <p className="text-xs text-muted-foreground">
-                    {t('Showing the first 100 dates.')}
-                </p>
+            {items.length > 0 && (
+                <ListFooter
+                    count={t('upcoming.count', {
+                        count: items.length,
+                        formattedCount: format.number(items.length),
+                    })}
+                    previous={
+                        previous_page_url ? { href: previous_page_url } : null
+                    }
+                    next={next_page_url ? { href: next_page_url } : null}
+                    pageSize={per_page}
+                />
             )}
         </PageContainer>
     );

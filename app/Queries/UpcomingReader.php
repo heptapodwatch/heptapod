@@ -50,9 +50,10 @@ final readonly class UpcomingReader
 
     /**
      * @param  list<string>|null  $types  null reads every type
+     * @param  int|null  $limit  the first dates only; null reads every date of the window (the agenda pages them)
      * @return list<UpcomingItemData>
      */
-    public function read(User $user, int $days = 90, ?array $types = null, ?int $clientId = null, ?int $siteId = null): array
+    public function read(User $user, int $days = 90, ?array $types = null, ?int $clientId = null, ?int $siteId = null, ?int $limit = 100): array
     {
         $now = CarbonImmutable::now('UTC');
         $through = $now->addDays($days);
@@ -75,7 +76,8 @@ final readonly class UpcomingReader
                 MaintenanceTargets::whereCoversSiteId($maintenanceQuery->getQuery(), $siteId);
             }
             $this->targets->withSiteCount($maintenanceQuery, $now);
-            $maintenanceQuery->getQuery()->orderBy('starts_at')->orderBy('id')->limit(100);
+            // Match the final merge's (date, key) string order so expanding limit for page 2 never reorders page 1.
+            $maintenanceQuery->getQuery()->orderBy('starts_at')->orderByRaw('(\'maintenance:\' || id::text) COLLATE "C"')->when($limit !== null, static fn (Builder $query): Builder => $query->limit($limit ?? 0));
             $windows = $maintenanceQuery->get();
             $recurringQuery = RecurringMaintenancePeriod::query();
             $this->maintenance->visibleTargets($recurringQuery, $user, $clientId);
@@ -89,12 +91,16 @@ final readonly class UpcomingReader
                 $items[] = $this->maintenanceItem($period, $period->starts_at, 'maintenance:'.$period->id, $labels, $icons);
             }
             foreach ($series as $period) {
+                $taken = 0;
                 foreach ($this->recurringDates($period, $now, $through) as [$start]) {
                     $items[] = $this->maintenanceItem($period, $start, 'recurring:'.$period->id.':'.$start->timestamp, $labels, $icons);
+                    if ($limit !== null && ++$taken >= $limit) {
+                        break;
+                    }
                 }
-                if (count($items) > 200) {
+                if ($limit !== null && count($items) > 2 * $limit) {
                     usort($items, static fn (UpcomingItemData $a, UpcomingItemData $b): int => [$a->date, $a->key] <=> [$b->date, $b->key]);
-                    $items = array_slice($items, 0, 100);
+                    $items = array_slice($items, 0, $limit);
                 }
             }
         }
@@ -108,7 +114,10 @@ final readonly class UpcomingReader
                 if (! $source instanceof UpcomingEventSource) {
                     throw new \LogicException('Upcoming source must implement its contract.');
                 }
-                foreach ($source->read($checkIds, $now, $through) as $occurrence) {
+                $occurrences = $limit === null
+                    ? $source->read($checkIds, $now, $through)
+                    : $source->page($checkIds, $now, $through, null, $limit)->occurrences;
+                foreach ($occurrences as $occurrence) {
                     if ($types !== null && ! in_array($occurrence->type, $types, true)) {
                         continue;
                     }
@@ -121,7 +130,7 @@ final readonly class UpcomingReader
         }
         usort($items, static fn (UpcomingItemData $a, UpcomingItemData $b): int => [$a->date, $a->key] <=> [$b->date, $b->key]);
 
-        return array_slice($items, 0, 100);
+        return $limit === null ? $items : array_slice($items, 0, $limit);
     }
 
     /**

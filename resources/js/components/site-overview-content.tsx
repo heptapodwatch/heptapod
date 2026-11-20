@@ -11,6 +11,7 @@ import {
     rowTargetClass,
 } from '@/components/entity-link';
 import { LighthouseScoreGrid } from '@/components/check-evidence';
+import { ListFooter } from '@/components/list-footer';
 import { EvidenceFacts } from '@/components/evidence-facts';
 import {
     ContentState,
@@ -84,6 +85,7 @@ function checkHref(siteId: number, check: Check): string {
 /** "Is this site OK, and what needs me?": attention first, then the 30-day record and what is coming, one row per other check, recent events. */
 export function SiteOverviewContent({ page }: { page: Page }) {
     const { t } = useTranslation();
+    const format = useFormat();
     const attentionId = useId();
     const checksId = useId();
     const { site } = page;
@@ -238,7 +240,19 @@ export function SiteOverviewContent({ page }: { page: Page }) {
                 </CardHeader>
                 <CardContent>
                     {page.events.length ? (
-                        <EventTimeline events={page.events} />
+                        <div className="space-y-3">
+                            <EventTimeline events={page.events} />
+                            <ListFooter
+                                count={t('{{count}} events', {
+                                    count: page.events_pagination.total,
+                                    formattedCount: format.number(
+                                        page.events_pagination.total,
+                                    ),
+                                })}
+                                pagination={page.events_pagination}
+                                only={['events', 'events_pagination']}
+                            />
+                        </div>
                     ) : (
                         <ContentState
                             bare

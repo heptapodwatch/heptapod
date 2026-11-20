@@ -19,7 +19,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ClientCreateSheet } from '@/components/client-create-sheet';
 import { ClientField } from '@/components/client-field';
+import {
+    clientPagination,
+    ListFooter,
+    rememberListPageSize,
+} from '@/components/list-footer';
 import { ListHeader, ListRow } from '@/components/ui/table';
+import { useFormat } from '@/hooks/use-format';
 import { HttpValidationError, useHttpRequest } from '@/hooks/use-http-request';
 import { checkTypes } from '@/lib/check-types';
 import { plan as planRoute } from '@/routes/settings/import/ohdear';
@@ -127,8 +133,10 @@ export default function ImportOhDear({
     clients: suppliedClients,
     timezones,
     sections,
+    plan_page_size,
 }: Heptapod.Data.Ui.ImportOhDearPageData) {
     const { t } = useTranslation();
+    const format = useFormat();
     // Clients created from a picker join the list, so every other picker offers them too.
     const [clients, setClients] = useState(suppliedClients);
     const internal = clients.find((client) => client.is_internal)!;
@@ -140,6 +148,8 @@ export default function ImportOhDear({
         sections,
     });
     const [plan, setPlan] = useState<Plan | null>(null);
+    const [planPage, setPlanPage] = useState(1);
+    const [planPageSize, setPlanPageSize] = useState(plan_page_size);
     const [failure, setFailure] = useState(false);
     // Group mappings are keyed `team:<id>` / `tag:<name>`; every site starts in Internal.
     const [groups, setGroups] = useState<Record<string, Target>>({});
@@ -216,6 +226,7 @@ export default function ImportOhDear({
         try {
             const result = await http.post(planRoute.url());
             setPlan(result);
+            setPlanPage(1);
             setOverrides({});
         } catch (error: unknown) {
             if (!(error instanceof HttpValidationError)) setFailure(true);
@@ -226,6 +237,20 @@ export default function ImportOhDear({
     };
 
     const rows = plan?.rows ?? [];
+    const planPagination = clientPagination(
+        planPage,
+        planPageSize,
+        rows.length,
+    );
+    const visibleRows = rows.slice(
+        (planPagination.current_page - 1) * planPagination.per_page,
+        planPagination.current_page * planPagination.per_page,
+    );
+    const changePlanPageSize = (size: number) => {
+        setPlanPageSize(size);
+        setPlanPage(1);
+        rememberListPageSize('import_plan_rows', size);
+    };
     const includesSites = plan?.sections.includes('sites') === true;
     const includesChannels = plan?.sections.includes('channels') === true;
     const channelClient = (tags: string[]): string | null => {
@@ -593,7 +618,7 @@ export default function ImportOhDear({
                                 <span>{t('Not imported')}</span>
                                 {includesSites && <span>{t('Client')}</span>}
                             </ListHeader>
-                            {rows.map((row) => {
+                            {visibleRows.map((row) => {
                                 const isSkipped = [
                                     'skipped',
                                     'failed',
@@ -813,6 +838,17 @@ export default function ImportOhDear({
                                 );
                             })}
                         </div>
+                        {rows.length > 0 && (
+                            <ListFooter
+                                count={t('import.result.count', {
+                                    count: rows.length,
+                                    formattedCount: format.number(rows.length),
+                                })}
+                                pagination={planPagination}
+                                onPageChange={setPlanPage}
+                                onPageSizeChange={changePlanPageSize}
+                            />
+                        )}
                         {includesChannels && (
                             <ImportChannelSection
                                 rows={plan.channels}

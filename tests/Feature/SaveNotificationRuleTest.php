@@ -356,7 +356,7 @@ it('shows the saved deadline in the incident delivery panel for a late rule', fu
     dispatchNotifications();
     $owner = User::factory()->owner()->create();
 
-    $rows = app(IncidentsReader::class)->deliveries($owner, $check->incidents()->sole());
+    $rows = app(IncidentsReader::class)->deliveries($owner, $check->incidents()->sole())['rows'];
     expect($rows)->toHaveCount(1);
     expect($rows[0]->toArray())->toMatchArray(['state' => 'pending', 'scheduled_at' => '2026-10-20T10:09:00+00:00']);
     Mail::assertNothingSent();
@@ -458,7 +458,7 @@ it('uses the eligible episode opening instead of a muted cause change', function
     $this->get(route('incidents.show', $incident->id))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->where('opening_delivery_explanation', null));
     if (! $late) {
-        expect(app(IncidentsReader::class)->deliveries($owner, $incident)[0]->state)->toBe(DeliveryOutcome::Pending);
+        expect(app(IncidentsReader::class)->deliveries($owner, $incident)['rows'][0]->state)->toBe(DeliveryOutcome::Pending);
     }
     $this->travelTo(CarbonImmutable::parse('2026-10-20T10:13:00Z'));
     if ($late) {
@@ -473,7 +473,7 @@ it('uses the eligible episode opening instead of a muted cause change', function
     expect(Delivery::query()->where('state', 'sent')->sole()->event->type)->not->toBe('incident.cause_changed');
     $this->get(route('incidents.show', $incident->id))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->where('opening_delivery_explanation', null));
-    expect(app(IncidentsReader::class)->deliveries($owner, $incident)[0]->state)->toBe(DeliveryOutcome::Accepted);
+    expect(app(IncidentsReader::class)->deliveries($owner, $incident)['rows'][0]->state)->toBe(DeliveryOutcome::Accepted);
     Mail::assertSentCount(1);
 })->with(['maintenance early' => [false, 'maintenance'], 'maintenance late' => [true, 'maintenance'],
     'snooze early' => [false, 'snooze'], 'snooze late' => [true, 'snooze']]);

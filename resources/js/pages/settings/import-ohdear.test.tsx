@@ -104,6 +104,7 @@ it('creates a client from a group picker, selects it there, offers it in every p
             clients={[internal, ...clients]}
             timezones={['UTC', 'Europe/Berlin']}
             sections={sections}
+            plan_page_size={50}
         />,
     );
     fireEvent.change(screen.getByLabelText('Oh Dear API token'), {
@@ -152,12 +153,13 @@ it('creates a client from a group picker, selects it there, offers it in every p
     });
 });
 
-const showPlan = async () => {
+const showPlan = async (planPageSize = 50) => {
     render(
         <ImportOhDear
             clients={[internal, ...clients]}
             timezones={['UTC', 'Europe/Berlin']}
             sections={sections}
+            plan_page_size={planPageSize}
         />,
     );
     fireEvent.change(screen.getByLabelText('Oh Dear API token'), {
@@ -249,4 +251,55 @@ it('locks every client picker and Start import while a new plan loads, and says 
             .getByRole('button', { name: 'Loading plan…' })
             .hasAttribute('disabled'),
     ).toBe(true);
+});
+
+it('pages large import plans with ListFooter, preserves overrides across pages and remembers page size', async () => {
+    const visit = vi.spyOn(router, 'visit').mockImplementation(() => {});
+    const largePlan = {
+        ...plan,
+        rows: Array.from({ length: 12 }, (_, index) =>
+            row(`site-${index + 1}`, []),
+        ),
+    };
+    const request = vi
+        .spyOn(http.getClient(), 'request')
+        .mockImplementation(async ({ url }) => {
+            if (url.endsWith('/plan')) return json(largePlan);
+            return json({ url: '/settings/import/ohdear/runs/run-1' });
+        });
+    await showPlan(10);
+
+    expect(screen.getByText('site-1')).not.toBeNull();
+    expect(screen.queryByText('site-11')).toBeNull();
+    choose('Client for site-1', clients[0]!.name);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(screen.queryByText('site-1')).toBeNull();
+    expect(screen.getByText('site-11')).not.toBeNull();
+    expect(screen.getByText('site-12')).not.toBeNull();
+
+    // Changing Rows remembers the choice in list_page_sizes and resets to page 1.
+    fireEvent.click(screen.getByRole('radio', { name: '20' }));
+    expect(screen.getByText('site-1')).not.toBeNull();
+    expect(screen.getByText('site-12')).not.toBeNull();
+    const cookieValue = document.cookie
+        .split('; ')
+        .find((entry) => entry.startsWith('list_page_sizes='))
+        ?.slice('list_page_sizes='.length);
+    expect(JSON.parse(decodeURIComponent(cookieValue ?? '{}'))).toMatchObject({
+        import_plan_rows: 20,
+    });
+
+    // Submitting sends every row count and preserves the override chosen on page 1.
+    fireEvent.click(screen.getByRole('button', { name: 'Start import' }));
+    await waitFor(() =>
+        expect(visit).toHaveBeenCalledWith(
+            '/settings/import/ohdear/runs/run-1',
+        ),
+    );
+    const start = request.mock.calls.at(-1)![0];
+    expect(JSON.parse(start.data as string)).toMatchObject({
+        expected: 12,
+        overrides: { 'site-1': { client_id: clients[0]!.id } },
+    });
 });

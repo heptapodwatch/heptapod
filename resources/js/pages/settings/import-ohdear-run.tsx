@@ -32,6 +32,9 @@ type ImportRun = {
     expected: number;
     attempts: number;
     rows: Row[];
+    rows_pagination: Heptapod.Contracts.PaginationData;
+    common_notices: string[];
+    alert_timing: { inherited: number; overridden: number };
     channels: Heptapod.Data.Import.ImportChannelRowData[];
     remote_error: string | null;
     error: string | null;
@@ -44,6 +47,7 @@ type ImportRun = {
         site_id: number;
         tasks: { name: string; ping_url: string }[];
     }[];
+    cron_pagination: Heptapod.Contracts.PaginationData;
 };
 
 /** A planned import has not started yet; from Queued on it is a run (UI rules, Runs). */
@@ -102,16 +106,7 @@ export default function ImportOhDearRun({
     const done = importRun.processed;
     const unread = Math.max(0, importRun.expected - done);
     const finished = !active;
-    const imported = importRun.rows.filter((row) =>
-        ['create', 'update', 'partial'].includes(row.operation),
-    );
-    // Same rule as the plan: reasons shared by every imported site are listed once.
-    const common =
-        imported.length > 1
-            ? imported[0]!.notices.filter((key) =>
-                  imported.every((row) => row.notices.includes(key)),
-              )
-            : [];
+    const common = importRun.common_notices;
     const rowNotices = (row: Row) => [
         ...row.notices
             .filter((key) => !common.includes(key))
@@ -319,7 +314,7 @@ export default function ImportOhDearRun({
                         </AlertDescription>
                     </Alert>
                 )}
-                <ImportAlertTimingSummary rows={importRun.rows} />
+                <ImportAlertTimingSummary counts={importRun.alert_timing} />
                 {importRun.rows.length > 0 && (
                     <div className="@container/table overflow-hidden rounded-[10px] border">
                         <ListHeader className="@3xl/table:grid @3xl/table:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
@@ -398,11 +393,13 @@ export default function ImportOhDearRun({
                 {importRun.rows.length > 0 && (
                     <ListFooter
                         count={t('import.result.count', {
-                            count: importRun.rows.length,
+                            count: importRun.rows_pagination.total,
                             formattedCount: format.number(
-                                importRun.rows.length,
+                                importRun.rows_pagination.total,
                             ),
                         })}
+                        pagination={importRun.rows_pagination}
+                        only={['importRun']}
                     />
                 )}
             </section>
@@ -432,32 +429,53 @@ export default function ImportOhDearRun({
                                         {t('No cron tasks were imported.')}
                                     </p>
                                 ) : (
-                                    importRun.cron.map((site) => (
-                                        <div
-                                            key={site.site_id}
-                                            className={cn(
-                                                'space-y-2 rounded-[10px] border',
-                                                listCardPadding,
+                                    <div className="space-y-3">
+                                        {importRun.cron.map((site) => (
+                                            <div
+                                                key={site.site_id}
+                                                className={cn(
+                                                    'space-y-2 rounded-[10px] border',
+                                                    listCardPadding,
+                                                )}
+                                            >
+                                                <p className="font-medium">
+                                                    {site.site}
+                                                </p>
+                                                {site.tasks.map((task) => (
+                                                    <div
+                                                        key={task.ping_url}
+                                                        className="grid gap-1 @md:grid-cols-[10rem_minmax(0,1fr)]"
+                                                    >
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {task.name}
+                                                        </span>
+                                                        <CopyUrl
+                                                            url={task.ping_url}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ))}
+                                        <ListFooter
+                                            count={t(
+                                                'import.cron_sites.count',
+                                                {
+                                                    count: importRun
+                                                        .cron_pagination.total,
+                                                    formattedCount:
+                                                        format.number(
+                                                            importRun
+                                                                .cron_pagination
+                                                                .total,
+                                                        ),
+                                                },
                                             )}
-                                        >
-                                            <p className="font-medium">
-                                                {site.site}
-                                            </p>
-                                            {site.tasks.map((task) => (
-                                                <div
-                                                    key={task.ping_url}
-                                                    className="grid gap-1 @md:grid-cols-[10rem_minmax(0,1fr)]"
-                                                >
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {task.name}
-                                                    </span>
-                                                    <CopyUrl
-                                                        url={task.ping_url}
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ))
+                                            pagination={
+                                                importRun.cron_pagination
+                                            }
+                                            only={['importRun']}
+                                        />
+                                    </div>
                                 )}
                             </li>
                         )}

@@ -5,6 +5,7 @@ import { router } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 import { ConfirmDialog, confirmVisit } from '@/components/confirm-dialog';
 import { useTranslation } from 'react-i18next';
+import { ListFooter } from '@/components/list-footer';
 import { CalendarClock } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { TasksApiNotice } from '@/components/tasks-api-notice';
@@ -33,6 +34,7 @@ function taskState(result: string) {
 export function CronTasksDetail({
     page,
     history,
+    only,
 }: {
     page: {
         can_run: boolean;
@@ -40,6 +42,7 @@ export function CronTasksDetail({
         check: Pick<Heptapod.Data.Ui.CheckStripData, 'id'>;
     };
     history: Heptapod.Addons.Cron.CronTasksDetailData;
+    only?: string[];
 }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -50,11 +53,6 @@ export function CronTasksDetail({
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
                 <TasksApiNotice canManage={page.can_run} />
-                {history.more_tasks && (
-                    <p role="status" className="text-muted-foreground">
-                        {t('Showing first 50 tasks')}
-                    </p>
-                )}
                 {history.history_truncated && (
                     <p role="status" className="text-muted-foreground">
                         {t('Task history is incomplete')}
@@ -160,7 +158,20 @@ export function CronTasksDetail({
                             </li>
                         ))}
                     </ul>
-                ) : (
+                ) : null}
+                {history.tasks.length > 0 && (
+                    <ListFooter
+                        count={t('cron.tasks_count', {
+                            count: history.tasks_pagination.total,
+                            formattedCount: format.number(
+                                history.tasks_pagination.total,
+                            ),
+                        })}
+                        pagination={history.tasks_pagination}
+                        only={only}
+                    />
+                )}
+                {history.tasks.length === 0 && (
                     <EmptyState
                         bare
                         icon={CalendarClock}

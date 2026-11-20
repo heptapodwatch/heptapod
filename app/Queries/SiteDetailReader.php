@@ -23,6 +23,7 @@ use Heptapod\Contracts\CheckRunPresentationData;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\LatestRunEvidence;
 use Heptapod\Contracts\Mail\MailDesign;
+use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\Schema\Schema;
 use Heptapod\Data\Ui\AlertSensitivityData;
@@ -33,6 +34,7 @@ use Heptapod\Data\Ui\CheckSettingsData;
 use Heptapod\Data\Ui\CheckStripData;
 use Heptapod\Data\Ui\CheckTabPageData;
 use Heptapod\Data\Ui\ClientData;
+use Heptapod\Data\Ui\EventData;
 use Heptapod\Data\Ui\MaintenanceSiteHeaderData;
 use Heptapod\Data\Ui\MetricSeriesData;
 use Heptapod\Data\Ui\PerformanceNoiseData;
@@ -194,6 +196,11 @@ final readonly class SiteDetailReader
         $getHistory = function () use ($user, $siteId, &$history): array {
             return $history ??= $this->history->read($user, $siteId);
         };
+        $events = null;
+        /** @return array{events: list<EventData>, pagination: PaginationData} */
+        $getEvents = function () use ($user, $siteId, &$events): array {
+            return $events ??= $this->events->sitePage($user, $siteId);
+        };
         $uptime = array_find($site->checks, static fn (CheckStripData $check): bool => $check->key === CheckKey::Uptime);
         $lighthouse = array_find($site->checks, static fn (CheckStripData $check): bool => $check->key === CheckKey::Lighthouse && $check->enabled);
 
@@ -201,7 +208,8 @@ final readonly class SiteDetailReader
             site: Lazy::closure(static fn (): SiteRowData => $site),
             header: Lazy::closure(fn (): SiteIdentityData => $this->header($user, $siteId)),
             history: Lazy::closure(static fn (): array => $getHistory()['uptime']),
-            events: Lazy::closure(fn (): array => $this->events->read($user, $siteId)),
+            events: Lazy::closure(static fn (): array => $getEvents()['events']),
+            events_pagination: Lazy::closure(static fn (): PaginationData => $getEvents()['pagination']),
             incidents: Lazy::closure(function () use ($siteId): array {
                 $query = Incident::query()->with(['site', 'check']);
                 $query->getQuery()->where('site_id', $siteId)->orderByDesc('opened_at')->orderByDesc('id')->limit(20);

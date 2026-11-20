@@ -6,6 +6,7 @@ namespace Heptapod\Addons\Crawl;
 
 use Heptapod\Contracts\CheckHistoryData;
 use Heptapod\Contracts\CheckKey;
+use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\RunReference;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
@@ -27,9 +28,9 @@ final class CrawlFindingsData extends CheckHistoryData
         public readonly array $findings,
         public readonly ?array $weekly_change,
         public readonly ?RunReference $snapshot_run = null,
-        public readonly int $total_findings = 0,
+        public readonly ?PaginationData $findings_pagination = null,
         public readonly array $not_verifiable = [],
-        public readonly int $total_not_verifiable = 0,
+        public readonly ?PaginationData $not_verifiable_pagination = null,
     ) {
         parent::__construct($check_type);
     }

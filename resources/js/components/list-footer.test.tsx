@@ -5,6 +5,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { ListFooter } from './list-footer';
 import i18n from '@/lib/i18n';
 
+let currentPageUrl = '/';
 vi.mock('@inertiajs/react', () => ({
     Link: ({
         href,
@@ -24,11 +25,14 @@ vi.mock('@inertiajs/react', () => ({
             {children}
         </a>
     ),
-    usePage: () => ({ props: { timezone: 'UTC' } }),
+    usePage: () => ({ url: currentPageUrl, props: { timezone: 'UTC' } }),
     router: { on: () => () => {} },
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+    currentPageUrl = '/';
+    cleanup();
+});
 
 function renderFooter(props: ComponentProps<typeof ListFooter>) {
     render(
@@ -38,49 +42,87 @@ function renderFooter(props: ComponentProps<typeof ListFooter>) {
     );
 }
 
+const pagination = (
+    overrides: Partial<Heptapod.Contracts.PaginationData> = {},
+): Heptapod.Contracts.PaginationData => ({
+    current_page: 1,
+    per_page: 50,
+    total: 18,
+    last_page: 1,
+    next_page_url: null,
+    previous_page_url: null,
+    page_name: 'page',
+    ...overrides,
+});
+
 it('shows only the count on a single page', async () => {
     await i18n.changeLanguage('en');
-    renderFooter({
-        count: '18 sites',
-        previous: null,
-        next: null,
-        page: 1,
-        lastPage: 1,
-    });
+    renderFooter({ count: '18 sites', pagination: pagination() });
 
     expect(screen.getByText('18 sites')).not.toBeNull();
-    expect(screen.queryByRole('button')).toBeNull();
     expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
 });
 
 it.each([
-    ['en', 'Page 1 of 3', 'Previous page', 'Next page'],
-    ['de', 'Seite 1 von 3', 'Vorherige Seite', 'Nächste Seite'],
+    ['en', '51–100 of 120', 'Page 2 of 3', 'Previous page', 'Next page'],
+    [
+        'de',
+        '51–100 von 120',
+        'Seite 2 von 3',
+        'Vorherige Seite',
+        'Nächste Seite',
+    ],
 ])(
-    'pages a numbered list with a disabled start and a linked next page in %s',
-    async (locale, position, previous, next) => {
+    'shows the range and pages a numbered list in %s',
+    async (locale, range, position, previous, next) => {
         await i18n.changeLanguage(locale);
         renderFooter({
-            count: '120',
-            previous: null,
-            next: { href: '/sites?page=2' },
-            page: 1,
-            lastPage: 3,
+            count: '120 sites',
+            pagination: pagination({
+                current_page: 2,
+                total: 120,
+                last_page: 3,
+                previous_page_url: '/sites?page=1',
+                next_page_url: '/sites?page=3',
+            }),
         });
 
+        expect(screen.getByText(range)).not.toBeNull();
+        expect(screen.queryByText('120 sites')).toBeNull();
         expect(screen.getByText(position)).not.toBeNull();
         expect(
-            (
-                screen.getByRole('button', {
-                    name: previous,
-                }) as HTMLButtonElement
-            ).disabled,
-        ).toBe(true);
+            screen.getByRole('link', { name: previous }).getAttribute('href'),
+        ).toBe('/sites?page=1');
         expect(
             screen.getByRole('link', { name: next }).getAttribute('href'),
-        ).toBe('/sites?page=2');
+        ).toBe('/sites?page=3');
     },
 );
+
+it('disables the pager at the last page and offers Rows only when a size changes what is shown', async () => {
+    await i18n.changeLanguage('en');
+    renderFooter({
+        count: '64 findings',
+        pagination: pagination({
+            current_page: 2,
+            per_page: 50,
+            total: 64,
+            last_page: 2,
+            previous_page_url: '/sites/1/checks/2?broken_links_page=1',
+            page_name: 'broken_links_page',
+        }),
+    });
+    expect(
+        (screen.getByRole('button', { name: 'Next page' }) as HTMLButtonElement)
+            .disabled,
+    ).toBe(true);
+    expect(screen.getByText('Rows')).not.toBeNull();
+
+    cleanup();
+    renderFooter({ count: '9 tasks', pagination: pagination({ total: 9 }) });
+    expect(screen.queryByText('Rows')).toBeNull();
+});
 
 it('offers only the next page for a cursor list', async () => {
     await i18n.changeLanguage('en');
@@ -91,4 +133,31 @@ it('offers only the next page for a cursor list', async () => {
 
     expect(screen.queryByText(/Previous page|Page \d/)).toBeNull();
     expect(screen.getByRole('link', { name: 'Next page' })).not.toBeNull();
+});
+
+it('preserves a sibling sub-list parameter from the live URL when paging', async () => {
+    await i18n.changeLanguage('en');
+    // Sibling list (incident_notifications_page) already moved to page 1 via partial reload,
+    // while cron_tasks_pagination still carries the older incident_notifications_page=2 from its earlier render.
+    currentPageUrl =
+        '/incidents/1?cron_tasks_page=2&incident_notifications_page=1';
+    renderFooter({
+        count: '14 tasks',
+        pagination: pagination({
+            current_page: 2,
+            per_page: 10,
+            total: 14,
+            last_page: 2,
+            previous_page_url:
+                '/incidents/1?cron_tasks_page=1&incident_notifications_page=2',
+            page_name: 'cron_tasks_page',
+        }),
+        only: ['current_findings'],
+    });
+
+    expect(
+        screen
+            .getByRole('link', { name: 'Previous page' })
+            .getAttribute('href'),
+    ).toBe('/incidents/1?cron_tasks_page=1&incident_notifications_page=1');
 });

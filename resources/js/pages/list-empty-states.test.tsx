@@ -84,13 +84,14 @@ afterEach(() => {
     vi.unstubAllGlobals();
 });
 
-const pagination: Heptapod.Data.Ui.PaginationData = {
+const pagination: Heptapod.Contracts.PaginationData = {
     current_page: 1,
     last_page: 1,
     per_page: 25,
     total: 0,
     previous_page_url: null,
     next_page_url: null,
+    page_name: 'page',
 };
 const tiles: Heptapod.Data.Ui.DashboardTilesData = {
     sites: 0,
@@ -268,6 +269,9 @@ function upcoming(changes: {
     render(
         <UpcomingIndex
             items={[]}
+            next_page_url={null}
+            previous_page_url={null}
+            per_page={50}
             days="90"
             type="all"
             clients={[]}
@@ -311,7 +315,7 @@ function activity(filters: Partial<Heptapod.Data.Ui.ActivityFilterData>) {
             filters={{ ...activityFilters, ...filters }}
             expanded_id={null}
             expanded_events={[]}
-            event_page={1}
+            expanded_pagination={null}
         />,
     );
 }

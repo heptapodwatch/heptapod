@@ -9,7 +9,9 @@ use Heptapod\Actions\CompleteNotificationDelivery;
 use Heptapod\Checks\CheckRunPresentations;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\EngineMessage;
+use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\Notifications\DeliveryState;
+use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\SecretRedactor;
 use Heptapod\Data\Ui\IncidentData;
 use Heptapod\Data\Ui\IncidentDeliveryData;
@@ -20,7 +22,6 @@ use Heptapod\Data\Ui\IncidentNotificationPageData;
 use Heptapod\Data\Ui\IncidentsIndexData;
 use Heptapod\Data\Ui\IncidentSummaryData;
 use Heptapod\Data\Ui\IncidentTimelineEntryData;
-use Heptapod\Data\Ui\PaginationData;
 use Heptapod\Enums\DeliveryGroupOutcome;
 use Heptapod\Enums\DeliveryOutcome;
 use Heptapod\Enums\IncidentCause;
@@ -56,7 +57,7 @@ final readonly class IncidentsReader
     /** The Incidents list and its export show open incidents unless the URL asks for resolved or all. */
     public const string DefaultStatus = 'open';
 
-    public function __construct(private SitePolicy $policy, private SitesReader $sites, private InstanceSettings $settings, private NotificationEventTypes $notificationTypes, private CheckRunPresentations $presentations, private EventPresenter $eventPresenter) {}
+    public function __construct(private SitePolicy $policy, private SitesReader $sites, private InstanceSettings $settings, private NotificationEventTypes $notificationTypes, private CheckRunPresentations $presentations, private EventPresenter $eventPresenter, private ListPaging $paging) {}
 
     /** @return Builder<Incident> */
     public function scoped(User $user, bool $includeArchived = false): Builder
@@ -195,7 +196,7 @@ final readonly class IncidentsReader
         $incidents = $page->getCollection();
 
         return new IncidentsIndexData($this->presentedRows($incidents),
-            new PaginationData($page->currentPage(), $page->perPage(), $page->total(), $page->lastPage(), $page->nextPageUrl(), $page->previousPageUrl()), $filters, $includeClients ? $this->sites->clients($user) : []);
+            PaginationData::fromPaginator($page), $filters, $includeClients ? $this->sites->clients($user) : []);
     }
 
     /** @param Collection<int, Incident> $incidents Already bounded, authorized rows.
@@ -511,10 +512,10 @@ final readonly class IncidentsReader
     }
 
     /**
-     * The latest 50 mail deliveries of the incident's events plus one truncation marker.
+     * One page of the mail deliveries of the incident's events, newest first (list `incident_notifications`).
      *
      * @param  list<string>  $exceptEventTypes
-     * @return list<IncidentDeliveryData>
+     * @return array{rows: list<IncidentDeliveryData>, pagination: PaginationData}
      */
     public function deliveries(User $user, Incident $incident, array $exceptEventTypes = []): array
     {
@@ -522,9 +523,12 @@ final readonly class IncidentsReader
             ->whereHas('event', static function (Builder $query) use ($incident, $exceptEventTypes): void {
                 $query->getQuery()->where('incident_id', $incident->id)->whereNotIn('type', $exceptEventTypes);
             });
-        $deliveryQuery->getQuery()->orderByDesc('id')->limit(51);
+        $deliveryQuery->getQuery()->orderByDesc('id');
+        $page = $this->paging->paginate($deliveryQuery, 'incident_notifications');
+        /** @var Collection<int, Delivery> $rows */
+        $rows = new Collection($page->items());
 
-        return $this->deliveryRows($user, $deliveryQuery->get());
+        return ['rows' => $this->deliveryRows($user, $rows), 'pagination' => PaginationData::fromPaginator($page)];
     }
 
     /** @param Collection<int, Delivery> $rows

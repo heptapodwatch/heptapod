@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { listCardPadding } from '@/components/ui/table';
 import { useTranslation } from 'react-i18next';
+import { ListFooter } from '@/components/list-footer';
 import { useFormat } from '@/hooks/use-format';
 import { MonitoringTime, StatusBadge } from '@/components/monitoring';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,8 +11,10 @@ import { SecurityAdvisoryList } from '@/components/security-advisory-list';
 
 export function ApplicationHealthDetail({
     history,
+    only,
 }: {
     history: Heptapod.Addons.ApplicationHealth.ApplicationHealthDetailData;
+    only?: string[];
 }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -37,14 +40,6 @@ export function ApplicationHealthDetail({
                             <MonitoringTime value={history.last_valid_at} />
                         </p>
                     )}
-                    {history.more_components && (
-                        <p
-                            role="status"
-                            className="text-sm text-muted-foreground"
-                        >
-                            {t('Showing first 50 components')}
-                        </p>
-                    )}
                     {history.components.length ? (
                         <ul className="divide-y rounded-lg border text-sm">
                             {history.components.map((component, index) => (
@@ -64,24 +59,28 @@ export function ApplicationHealthDetail({
                                     />
                                     <div className="min-w-0 flex-1 space-y-1">
                                         <strong className="block break-words">
-                                            {component.advisories
+                                            {component.name ===
+                                            'SecurityAdvisories'
                                                 ? t('Security advisories')
                                                 : component.label ||
                                                   component.name}
                                         </strong>
                                         <p className="break-words text-muted-foreground">
-                                            {component.advisories?.length
+                                            {component.name ===
+                                                'SecurityAdvisories' &&
+                                            history.advisories_pagination
+                                                .total > 0
                                                 ? t(
                                                       '{{count}} open advisories',
                                                       {
-                                                          count: component
-                                                              .advisories
-                                                              .length,
+                                                          count: history
+                                                              .advisories_pagination
+                                                              .total,
                                                           formattedCount:
                                                               format.number(
-                                                                  component
-                                                                      .advisories
-                                                                      .length,
+                                                                  history
+                                                                      .advisories_pagination
+                                                                      .total,
                                                               ),
                                                       },
                                                   )
@@ -89,26 +88,51 @@ export function ApplicationHealthDetail({
                                                   component.status}
                                         </p>
                                     </div>
-                                    {component.advisories?.length ? (
-                                        <div className="basis-full">
-                                            <SecurityAdvisoryList
-                                                advisories={
-                                                    component.advisories
-                                                }
-                                                more={history.more_advisories}
-                                            />
-                                        </div>
-                                    ) : null}
                                 </li>
                             ))}
                         </ul>
-                    ) : (
+                    ) : null}
+                    {history.components.length > 0 && (
+                        <ListFooter
+                            count={t('health.components_count', {
+                                count: history.components_pagination.total,
+                                formattedCount: format.number(
+                                    history.components_pagination.total,
+                                ),
+                            })}
+                            pagination={history.components_pagination}
+                            only={only}
+                        />
+                    )}
+                    {history.components.length === 0 && (
                         <p className="text-sm text-muted-foreground">
                             {t('No accepted components yet')}
                         </p>
                     )}
                 </CardContent>
             </Card>
+            {history.advisories.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>{t('Security advisories')}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                            {t('{{count}} open advisories', {
+                                count: history.advisories_pagination.total,
+                                formattedCount: format.number(
+                                    history.advisories_pagination.total,
+                                ),
+                            })}
+                        </p>
+                        <SecurityAdvisoryList
+                            advisories={history.advisories}
+                            pagination={history.advisories_pagination}
+                            only={only}
+                        />
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }

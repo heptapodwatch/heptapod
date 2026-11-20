@@ -23,6 +23,7 @@ use Heptapod\Contracts\RunResult;
 use Heptapod\Enums\ClientScope;
 use Heptapod\Enums\IncidentCause;
 use Heptapod\Enums\NotificationCategory;
+use Heptapod\Http\ListPageSize;
 use Heptapod\Jobs\RunCheck;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
@@ -214,12 +215,11 @@ it('holds site, check, and incident detail query budgets as related history grow
     // history, presentation and freshness reads. e04c03b5d presentations, f80f6d32a freshness, 78bd4a4b episode
     // pages, 36aca5a1a avatars and 25458fc44/0a385128 shell health are batched reads, not per-history-row queries.
     // Feed-visible events add their batched site, client, check and incident loads. The overview reads the site's repository links once.
-    // The sidebar's late runs count is read inline, not in a second deferred request (two reads), and so is Running now
-    // (visible sites, check runs, imports, backup).
+    // The sidebar's late runs count is read inline, not in a second deferred request (two reads), and so is Running now (visible sites, check runs, imports, backup). Paged sub-lists count their rows once (site feed, uptime failures + open incident window, incident notifications).
     [$path, $budget, $rendered] = match ($page) {
-        'site' => ['/sites/'.$site->id, 62, static fn (array $props): int => count($props['events'])],
-        'check' => ['/sites/'.$site->id.'/checks/'.$check->id, 65, static fn (array $props): int => count($props['runs'])],
-        'incident' => ['/incidents/'.$incident->id, 76, static fn (array $props): int => collect($props['timeline'])->where('event.type', 'incident.cause_changed')->count()],
+        'site' => ['/sites/'.$site->id, 63, static fn (array $props): int => count($props['events'])],
+        'check' => ['/sites/'.$site->id.'/checks/'.$check->id, 67, static fn (array $props): int => count($props['runs'])],
+        'incident' => ['/incidents/'.$incident->id, 77, static fn (array $props): int => collect($props['timeline'])->where('event.type', 'incident.cause_changed')->count()],
     };
     $measure = function () use ($path, $rendered): array {
         DB::enableQueryLog();
@@ -237,8 +237,10 @@ it('holds site, check, and incident detail query budgets as related history grow
     $addHistory($count);
     [$many, $manyRows] = $measure();
 
-    // The site feed and check runs show the newest 20; the incident timeline shows every cause change of the episode.
-    expect($fewRows)->toBe(2)->and($manyRows)->toBe($page === 'incident' ? 2 + $count : 20);
+    // The site feed shows its first page, the check runs preview the newest 20; the incident timeline shows every cause change of the episode.
+    expect($fewRows)->toBe(2)->and($manyRows)->toBe(match ($page) {
+        'site' => min(2 + $count, ListPageSize::Default), 'incident' => 2 + $count, 'check' => 20,
+    });
     expect($many)->toBeLessThanOrEqual($few, $path.' grew from '.$few.' to '.$many.' queries as rendered rows grew from '.$fewRows.' to '.$manyRows)
         ->and($few)->toBeLessThanOrEqual($budget, $path.' used '.$few.' queries, over its budget of '.$budget);
 })->with(['site', 'check', 'incident'])->with([30, 300]);

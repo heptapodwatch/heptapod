@@ -20,5 +20,6 @@ final class ImportOhDearPageData extends Data
         public readonly array $clients,
         public readonly array $timezones,
         public readonly array $sections,
+        public readonly int $plan_page_size,
     ) {}
 }

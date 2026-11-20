@@ -107,6 +107,15 @@ function resolvedPage(): Heptapod.Data.Ui.IncidentDetailPageData {
             good_results_capped: false,
         },
         other_deliveries: [delivery],
+        other_deliveries_pagination: {
+            current_page: 1,
+            per_page: 50,
+            total: 1,
+            last_page: 1,
+            next_page_url: null,
+            previous_page_url: null,
+            page_name: 'incident_notifications_page',
+        },
     };
 }
 

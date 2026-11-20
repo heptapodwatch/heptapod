@@ -1,5 +1,8 @@
 import { History } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
+import { ListFooter } from '@/components/list-footer';
+import { TextLink } from '@/components/text-link';
+import { index as runsIndex } from '@/routes/runs';
 import { Disclosure } from '@/components/ui/disclosure';
 import { PresentationChanges } from '@/components/presentation-changes';
 import { useTranslation } from 'react-i18next';
@@ -202,7 +205,31 @@ export function CheckHistory({
                         </li>
                     ))}
                 </ol>
-            ) : (
+            ) : null}
+            {historyRows.length > 0 && (
+                <div className="border-t px-4 py-3">
+                    <ListFooter
+                        count={t('preview.latest_runs', {
+                            count: runs.length,
+                            formattedCount: format.number(runs.length),
+                        })}
+                        extra={
+                            <TextLink
+                                href={runsIndex.url({
+                                    query: {
+                                        check: page.check.id,
+                                        period: '7d',
+                                        show_same_result: 1,
+                                    },
+                                })}
+                            >
+                                {t('preview.all_check_runs')}
+                            </TextLink>
+                        }
+                    />
+                </div>
+            )}
+            {historyRows.length === 0 && (
                 <CardContent>
                     <EmptyState
                         bare

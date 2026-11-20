@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Heptapod\Queries;
 
+use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\ClientRowData;
 use Heptapod\Data\Ui\ClientsIndexPageData;
 use Heptapod\Data\Ui\DashboardTilesData;
 use Heptapod\Data\Ui\IncidentData;
-use Heptapod\Data\Ui\PaginationData;
 use Heptapod\Data\Ui\SiteRowData;
 use Heptapod\Enums\SiteStatus;
 use Heptapod\Models\Client;
@@ -72,7 +72,7 @@ final readonly class ClientsReader
             $rows[] = new ClientRowData(ClientData::fromClient($client), $summaries[$client->id]);
         }
 
-        return new ClientsIndexPageData($rows, new PaginationData($page->currentPage(), $page->perPage(), $page->total(), $page->lastPage(), $page->nextPageUrl(), $page->previousPageUrl()),
+        return new ClientsIndexPageData($rows, PaginationData::fromPaginator($page),
             $request->filled('filter.search') ? $request->string('filter.search')->toString() : null, $request->string('filter.state', 'all')->toString(), $user->hasAnyRole(['Owner', 'Admin']));
     }
 
@@ -100,7 +100,7 @@ final readonly class ClientsReader
         $page = $sites->paginate($perPage)->withQueryString();
 
         return ['sites' => $this->sites->rows($page->getCollection()),
-            'pagination' => new PaginationData($page->currentPage(), $page->perPage(), $page->total(), $page->lastPage(), $page->nextPageUrl(), $page->previousPageUrl())];
+            'pagination' => PaginationData::fromPaginator($page)];
     }
 
     /** @return list<IncidentData> */

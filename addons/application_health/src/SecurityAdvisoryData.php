@@ -39,7 +39,7 @@ final class SecurityAdvisoryData extends Data
      * @param  array<int|string, mixed>  $meta
      * @return list<self>
      */
-    public static function fromSpatieMeta(array $meta): array
+    public static function parseSpatieMeta(array $meta): array
     {
         $advisories = [];
         foreach ($meta as $package => $entries) {

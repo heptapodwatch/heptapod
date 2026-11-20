@@ -18,6 +18,8 @@ use Heptapod\Contracts\FindingsExportProvider;
 use Heptapod\Contracts\FindingsQueryProvider;
 use Heptapod\Contracts\Http\AutomatedCheckBlockReason;
 use Heptapod\Contracts\Http\FetchFailureKind;
+use Heptapod\Contracts\ListPaging;
+use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
 use Illuminate\Support\Facades\DB;
@@ -30,7 +32,44 @@ final readonly class SitemapPersistence implements FindingsExportProvider, Findi
     /** Issues that describe how far the check got, not a broken URL. */
     private const array CoverageLimitTypes = ['sitemap.issue.time_limit', 'sitemap.issue.url_limit', 'sitemap.issue.recursion_limit'];
 
-    public function __construct(private SitemapFindingsQuery $findings) {}
+    public function __construct(private SitemapFindingsQuery $findings, private ListPaging $paging) {}
+
+    /**
+     * One page of the run's retained issues (list `findings`) and not-verifiable rows (list `not_verifiable`), in their
+     * recorded order; null for a run without a retained snapshot (older runs keep their bounded evidence).
+     *
+     * @return array{issues: list<array{url: string, type: string, kind?: string, status?: int|null, xml_reason?: string, xml_line?: int, xml_element?: string}>, issues_pagination: PaginationData, not_verifiable: list<array{url: string, reason: string, status: int|null}>, not_verifiable_pagination: PaginationData}|null
+     */
+    public function detailPages(int $checkId, RunReference $run): ?array
+    {
+        $snapshot = DB::table('sitemap_snapshots')->where('check_id', $checkId)->where('run_id', $run->id)
+            ->where('run_ended_at', $run->endedAt->format('Y-m-d H:i:s.uP'))->value('id');
+        if (! is_int($snapshot)) {
+            return null;
+        }
+        $issues = $this->paging->paginate(DB::table('sitemap_snapshots as snapshot')
+            ->crossJoin(DB::raw("LATERAL jsonb_array_elements(snapshot.snapshot->'issues') WITH ORDINALITY AS finding(issue, position)"))
+            ->where('snapshot.id', $snapshot)->orderBy('finding.position')->select('finding.issue'), 'findings');
+        $notVerifiable = $this->paging->paginate(DB::table('sitemap_findings')->where('snapshot_id', $snapshot)
+            ->where('status', 'not_verifiable')->orderBy('id')->select('identity'), 'not_verifiable');
+        $issueRows = [];
+        foreach ($issues->items() as $row) {
+            /** @var \stdClass&object{issue: string} $row */
+            /** @var array{url: string, type: string, kind?: string, status?: int|null, xml_reason?: string, xml_line?: int, xml_element?: string} $issue */
+            $issue = json_decode($row->issue, true, flags: JSON_THROW_ON_ERROR);
+            $issueRows[] = $issue;
+        }
+        $notVerifiableRows = [];
+        foreach ($notVerifiable->items() as $row) {
+            /** @var \stdClass&object{identity: string} $row */
+            /** @var array{url: string, reason: string, status?: int|null} $finding */
+            $finding = json_decode($row->identity, true, flags: JSON_THROW_ON_ERROR);
+            $notVerifiableRows[] = ['url' => $finding['url'], 'reason' => $finding['reason'], 'status' => $finding['status'] ?? null];
+        }
+
+        return ['issues' => $issueRows, 'issues_pagination' => PaginationData::fromPaginator($issues),
+            'not_verifiable' => $notVerifiableRows, 'not_verifiable_pagination' => PaginationData::fromPaginator($notVerifiable)];
+    }
 
     public function snapshot(CheckKey $type, int $checkId, RunReference $run): AvailableFindingsSnapshot|UnavailableFindingsSnapshot
     {
@@ -222,22 +261,16 @@ final readonly class SitemapPersistence implements FindingsExportProvider, Findi
         return (static function () use ($snapshot): \Generator {
             $offset = 0;
             do {
-                // PostgreSQL expands the retained JSON array; PHP holds only one 250-row page.
+                // Issues keep the snapshot's recorded order (with XML diagnostics), matching detailPages().
                 $rows = DB::select("SELECT finding.issue::text AS issue FROM sitemap_snapshots AS snapshot
-                    CROSS JOIN LATERAL jsonb_array_elements((snapshot.snapshot->'issues') || COALESCE(snapshot.snapshot->'not_verifiable', '[]'::jsonb)) WITH ORDINALITY AS finding(issue, position)
+                    CROSS JOIN LATERAL jsonb_array_elements(snapshot.snapshot->'issues') WITH ORDINALITY AS finding(issue, position)
                     WHERE snapshot.id = ? ORDER BY finding.position LIMIT 250 OFFSET ?", [$snapshot->id, $offset]);
                 foreach ($rows as $row) {
                     /** @var \stdClass&object{issue: string} $row */
-                    /** @var array{url: string, type?: string, kind?: string, status?: int|null, reason?: string} $issue */
+                    /** @var array{url: string, type?: string, kind?: string, status?: int|null} $issue */
                     $issue = json_decode($row->issue, true, flags: JSON_THROW_ON_ERROR);
-                    if (isset($issue['reason'])) {
-                        yield ['url' => $issue['url'], 'result' => __('sitemap.not_verifiable.'.$issue['reason']), 'status' => FindingStatus::NotVerifiable,
-                            'found_on' => null, 'link_text' => null, 'first_seen_at' => null, 'after_first_complete_crawl' => false];
-
-                        continue;
-                    }
                     if (! isset($issue['type'])) {
-                        throw new \LogicException('Sitemap finding requires a type or a not-verifiable reason.');
+                        throw new \LogicException('Sitemap finding requires a type.');
                     }
                     $status = isset($issue['kind']) && $issue['kind'] !== 'http_status'
                         ? __('sitemap.status.'.$issue['kind']) : ($issue['status'] ?? __($issue['type']));
@@ -256,6 +289,41 @@ final readonly class SitemapPersistence implements FindingsExportProvider, Findi
                 }
                 $offset += count($rows);
             } while (count($rows) === 250);
+
+            // Not-verifiable rows stream from sitemap_findings (uncapped, ordered by id), matching detailPages().
+            $lastId = 0;
+            $streamedNotVerifiable = false;
+            do {
+                $rows = DB::table('sitemap_findings')
+                    ->where('snapshot_id', $snapshot->id)
+                    ->where('status', 'not_verifiable')
+                    ->where('id', '>', $lastId)
+                    ->orderBy('id')
+                    ->limit(250)
+                    ->get(['id', 'identity']);
+                foreach ($rows as $row) {
+                    /** @var \stdClass&object{id: int, identity: string} $row */
+                    $lastId = $row->id;
+                    $streamedNotVerifiable = true;
+                    /** @var array{url: string, reason: string} $finding */
+                    $finding = json_decode($row->identity, true, flags: JSON_THROW_ON_ERROR);
+                    yield ['url' => $finding['url'], 'result' => (string) __('sitemap.not_verifiable.'.$finding['reason']), 'status' => FindingStatus::NotVerifiable,
+                        'found_on' => null, 'link_text' => null, 'first_seen_at' => null, 'after_first_complete_crawl' => false];
+                }
+            } while ($rows->count() === 250);
+            if (! $streamedNotVerifiable) {
+                // Legacy snapshot rows predating sitemap_findings retain up to 50 not-verifiable entries in snapshot JSON.
+                $legacyRows = DB::select("SELECT finding.row::text AS row FROM sitemap_snapshots AS snapshot
+                    CROSS JOIN LATERAL jsonb_array_elements(COALESCE(snapshot.snapshot->'not_verifiable', '[]'::jsonb)) WITH ORDINALITY AS finding(row, position)
+                    WHERE snapshot.id = ? ORDER BY finding.position", [$snapshot->id]);
+                foreach ($legacyRows as $row) {
+                    /** @var \stdClass&object{row: string} $row */
+                    /** @var array{url: string, reason: string} $finding */
+                    $finding = json_decode($row->row, true, flags: JSON_THROW_ON_ERROR);
+                    yield ['url' => $finding['url'], 'result' => (string) __('sitemap.not_verifiable.'.$finding['reason']), 'status' => FindingStatus::NotVerifiable,
+                        'found_on' => null, 'link_text' => null, 'first_seen_at' => null, 'after_first_complete_crawl' => false];
+                }
+            }
         })();
     }
 

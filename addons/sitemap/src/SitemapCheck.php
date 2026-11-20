@@ -141,7 +141,7 @@ final readonly class SitemapCheck implements CheckDetailProvider, CheckRunPresen
     public function detail(int $checkId, ?LatestRunEvidence $latestRun = null): ?SitemapSnapshot
     {
         return ! $latestRun instanceof LatestRunEvidence || $latestRun->observationEvidence() === []
-            ? null : SitemapSnapshot::from([...$latestRun->observationEvidence(), 'export_run' => $latestRun->run])->bounded();
+            ? null : SitemapSnapshot::from([...$latestRun->observationEvidence(), 'export_run' => $latestRun->run])->bounded($this->store->detailPages($checkId, $latestRun->run));
     }
 
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData

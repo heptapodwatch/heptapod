@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers;
 
+use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\ClientDetailPageData;
 use Heptapod\Data\Ui\DashboardTilesData;
-use Heptapod\Data\Ui\PaginationData;
 use Heptapod\Http\ListPageSize;
 use Heptapod\Models\User;
 use Heptapod\Queries\ClientsReader;

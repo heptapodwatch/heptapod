@@ -6,6 +6,7 @@ namespace Heptapod\Addons\Sitemap;
 
 use Heptapod\Contracts\CheckDetailData;
 use Heptapod\Contracts\CheckKey;
+use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\RunReference;
 use Spatie\LaravelData\Attributes\Computed;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
@@ -44,6 +45,9 @@ final class SitemapSnapshot extends CheckDetailData
         public readonly ?RunReference $export_run = null,
         /** Only older recorded runs legitimately lack this classification. */
         public readonly array $not_verifiable = [],
+        /** Set on the check tab: `issues` and `not_verifiable` are one page of the retained snapshot's lists. */
+        public readonly ?PaginationData $issues_pagination = null,
+        public readonly ?PaginationData $not_verifiable_pagination = null,
     ) {
         parent::__construct(CheckKey::Sitemap);
         if ($totalIssuesCount < count($issues) || $totalUrlCount < 0 || $hasIssues !== ($totalIssuesCount > 0)) {
@@ -62,7 +66,12 @@ final class SitemapSnapshot extends CheckDetailData
         [$this->issue_summary, $this->issue_summary_params] = SitemapIssueSummary::forSnapshot($this);
     }
 
-    public function bounded(): self
+    /**
+     * The display projection. Without pages, the first 50 issues and not-verifiable rows; with pages, exactly those rows.
+     *
+     * @param  array{issues: list<array{url: string, type: string, kind?: string, status?: int|null, xml_reason?: string, xml_line?: int, xml_element?: string}>, issues_pagination: PaginationData, not_verifiable: list<array{url: string, reason: string, status: int|null}>, not_verifiable_pagination: PaginationData}|null  $pages
+     */
+    public function bounded(?array $pages = null): self
     {
         $indexes = array_slice($this->sitemapIndexes, 0, 20);
         foreach ($indexes as &$index) {
@@ -78,7 +87,9 @@ final class SitemapSnapshot extends CheckDetailData
         unset($sitemap);
 
         return new self(mb_substr($this->checkUrl, 0, 2048), $this->totalIssuesCount, $this->totalUrlCount, $this->hasIssues,
-            $this->boundIssues($this->issues), $indexes, $sitemaps, $this->notes, $this->issue_counts, $this->export_run, array_map(static fn (array $finding): array => [...$finding, 'url' => mb_strcut($finding['url'], 0, 2048, 'UTF-8')], array_slice($this->not_verifiable, 0, 50)));
+            $this->boundIssues($pages['issues'] ?? array_slice($this->issues, 0, 50)), $indexes, $sitemaps, $this->notes, $this->issue_counts, $this->export_run,
+            array_map(static fn (array $finding): array => [...$finding, 'url' => mb_strcut($finding['url'], 0, 2048, 'UTF-8')], $pages['not_verifiable'] ?? array_slice($this->not_verifiable, 0, 50)),
+            $pages['issues_pagination'] ?? null, $pages['not_verifiable_pagination'] ?? null);
     }
 
     /**
@@ -87,7 +98,6 @@ final class SitemapSnapshot extends CheckDetailData
      */
     private function boundIssues(array $issues): array
     {
-        $issues = array_slice($issues, 0, 50);
         foreach ($issues as &$issue) {
             $issue['url'] = mb_strcut($issue['url'], 0, $issue['type'] === 'sitemap.issue.url_length' ? 2124 : 2048, 'UTF-8');
         }
