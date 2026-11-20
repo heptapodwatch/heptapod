@@ -4,6 +4,7 @@ import InputError from '@/components/input-error';
 import { PageContainer } from '@/components/page-container';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { SectionHeading } from '@/components/section-heading';
+import { CooldownReason, useCooldown } from '@/components/cooldown-reason';
 import { RunStatus } from '@/components/run-family';
 import { FormSection } from '@/components/form-section';
 import { PageHeader } from '@/components/page-header';
@@ -59,6 +60,9 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
     const [backupError, setBackupError] = useState<string | null>(null);
     const [toggleError, setToggleError] = useState<string | null>(null);
     const [acceptedId, setAcceptedId] = useState<number | null>(null);
+    const [cooldownOverrideUntil, setCooldownOverrideUntil] = useState<
+        string | null
+    >(null);
     const releases = useHttpRequest<Record<string, never>, Page['updates']>();
     const history = useHttpRequest<Record<string, never>, Backups>();
     const backup = useHttpRequest<Record<string, never>, { id: number }>();
@@ -91,6 +95,22 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
     const active =
         Boolean(backups?.has_active_run) ||
         (acceptedId !== null && acceptedRun === undefined);
+    const latestOwnRun = backups?.runs.find(
+        (run) => run.requested_by === auth.user?.id,
+    );
+    const derivedCooldownUntil = latestOwnRun
+        ? new Date(
+              Date.parse(latestOwnRun.requested_at) + 300_000,
+          ).toISOString()
+        : null;
+    const backupCooldownUntil =
+        cooldownOverrideUntil &&
+        (!derivedCooldownUntil ||
+            Date.parse(cooldownOverrideUntil) >
+                Date.parse(derivedCooldownUntil))
+            ? cooldownOverrideUntil
+            : derivedCooldownUntil;
+    const { active: backupInCooldown } = useCooldown(backupCooldownUntil);
     const timestamp = (value: string | null) =>
         value === null ? t('Unknown') : <AbsoluteTime value={value} />;
     const refresh = async () => {
@@ -137,6 +157,11 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
         } catch (error) {
             if (!(error instanceof HttpError)) throw error;
             const code = httpErrorStatus(error);
+            if (code === 429) {
+                setCooldownOverrideUntil(
+                    new Date(Date.now() + 300_000).toISOString(),
+                );
+            }
             setBackupError(httpErrorMessage(error, t, 'errors.backup.unknown'));
             if (code !== 429) setRefreshFailed(true);
         }
@@ -450,7 +475,12 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                disabled={busy || !!active || refreshFailed}
+                                disabled={
+                                    busy ||
+                                    !!active ||
+                                    backupInCooldown ||
+                                    refreshFailed
+                                }
                                 onClick={() => void backUpNow()}
                             >
                                 {t(
@@ -459,11 +489,18 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                                         : 'Back up now',
                                 )}
                             </Button>
-                            <span className="text-xs text-muted-foreground">
-                                {t(
-                                    'Queued or running is not complete. One request per five minutes.',
-                                )}
-                            </span>
+                            {backupInCooldown && !active ? (
+                                <CooldownReason
+                                    until={backupCooldownUntil}
+                                    messageKey="errors.backup.cooldown_reason"
+                                />
+                            ) : (
+                                <span className="text-xs text-muted-foreground">
+                                    {t(
+                                        'Queued or running is not complete. One request per five minutes.',
+                                    )}
+                                </span>
+                            )}
                         </div>
                         {acceptedId !== null && (
                             <p role="status" className="text-cell">

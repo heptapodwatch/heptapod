@@ -34,6 +34,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonImmutable|null $dispatched_at
  * @property CarbonImmutable|null $lease_expires_at
  * @property CarbonImmutable|null $run_started_at
+ * @property CarbonImmutable|null $last_manual_requested_at
  * @property int|null $active_run_id
  * @property CheckResult $latest_run_result
  * @property int|null $latest_run_id
@@ -79,7 +80,8 @@ final class Check extends Model
             'awaiting_result_since' => 'immutable_datetime', 'lost_attempts' => 'integer', 'last_loss_started_at' => 'immutable_datetime',
             'consecutive_failures' => 'integer', 'next_run_at' => 'immutable_datetime',
             'dispatched_at' => 'immutable_datetime', 'lease_expires_at' => 'immutable_datetime',
-            'run_started_at' => 'immutable_datetime', 'latest_run_started_at' => 'immutable_datetime',
+            'run_started_at' => 'immutable_datetime', 'last_manual_requested_at' => 'immutable_datetime',
+            'latest_run_started_at' => 'immutable_datetime',
             'latest_run_ended_at' => 'immutable_datetime', 'failing_since' => 'immutable_datetime',
             'first_result_at' => 'immutable_datetime',
             'policy_reclassification_pending' => 'array',

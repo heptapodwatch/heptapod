@@ -42,6 +42,21 @@ final readonly class ClaimService
 
     public function __construct(private CheckRegistry $registry, private ResultRecorder $recorder, private DatabaseClock $clock) {}
 
+    /** UTC instant when this check's manual cooldown expires, or null if it can run now. */
+    public function cooldownUntil(Check $check): ?CarbonImmutable
+    {
+        if ($check->last_manual_requested_at === null) {
+            return null;
+        }
+        $queue = in_array($check->type, $this->registry->keys(), true)
+            ? $this->registry->get($check->type)->definition()->queue
+            : 'checks-fast';
+        $cooldown = $queue === 'checks-fast' ? self::FastCooldownSeconds : self::HeavyCooldownSeconds;
+        $until = $check->last_manual_requested_at->addSeconds($cooldown);
+
+        return $until->isAfter($this->clock->now()) ? $until : null;
+    }
+
     public function dispatchDue(int $limit = 100): int
     {
         if ($limit < 1 || $limit > 1000) {

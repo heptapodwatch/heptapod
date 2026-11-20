@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Heptapod\Checks\CauseSummary;
 use Heptapod\Checks\CheckRunPresentations;
 use Heptapod\Checks\CheckSettingsProjection;
+use Heptapod\Checks\Execution\ClaimService;
 use Heptapod\Checks\FreshnessSuppressionState;
 use Heptapod\Checks\History\RollupReader;
 use Heptapod\Checks\NoResultFreshness;
@@ -70,7 +71,7 @@ use Spatie\LaravelData\Lazy;
 
 final readonly class SiteDetailReader
 {
-    public function __construct(private SitesReader $sites, private HistoryReader $history, private EventsReader $events, private IncidentsReader $incidents, private RollupReader $rollupReader, private CheckRegistry $registry, private CauseSummary $summaries, private CheckRunPresentations $presentations, private SitePolicy $policy, private CheckRunsReader $checkRuns, private UptimeReader $uptime, private MaintenanceReader $maintenanceReader, private NoResultFreshness $freshness, private PerformanceAvailability $performanceAvailability, private InstanceSettings $instanceSettings, private UpcomingReader $upcoming, private NotificationExplanationReader $explanations) {}
+    public function __construct(private SitesReader $sites, private HistoryReader $history, private EventsReader $events, private IncidentsReader $incidents, private RollupReader $rollupReader, private CheckRegistry $registry, private CauseSummary $summaries, private CheckRunPresentations $presentations, private SitePolicy $policy, private CheckRunsReader $checkRuns, private UptimeReader $uptime, private MaintenanceReader $maintenanceReader, private NoResultFreshness $freshness, private PerformanceAvailability $performanceAvailability, private InstanceSettings $instanceSettings, private UpcomingReader $upcoming, private NotificationExplanationReader $explanations, private ClaimService $claims) {}
 
     public function site(User $user, int $siteId): SiteRowData
     {
@@ -396,6 +397,7 @@ final readonly class SiteDetailReader
             alert_channels: Lazy::inertiaDeferred(fn (): ?int => $check->enabled
                 ? $this->alertChannels($user, $checkId, $check->type === CheckKey::Uptime ? NotificationCategory::Outage : NotificationCategory::Failure) : null),
             can_move: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
+            cooldown_until: Lazy::closure(fn (): ?string => $this->claims->cooldownUntil($check)?->toIso8601String()),
         );
     }
 

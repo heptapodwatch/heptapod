@@ -30,6 +30,7 @@ import { PageHeader } from '@/components/page-header';
 import { SectionHeading } from '@/components/section-heading';
 import { PageHeaderAction } from '@/components/page-header-actions';
 import { PendingChanges } from '@/components/pending-changes';
+import { CooldownReason, useCooldown } from '@/components/cooldown-reason';
 import {
     CheckRunStatusRow,
     RunCheckReason,
@@ -137,6 +138,8 @@ export function IncidentEpisode({
         check.unavailable_reason === null &&
         page.header.state !== 'paused';
     const activeRun = useCheckRun(check?.id ?? 0, check?.run);
+    const cooldownUntil = page.cooldown_until ?? null;
+    const { active: inCooldown } = useCooldown(cooldownUntil);
     const [runPending, setRunPending] = useState(false);
     const [now, setNow] = useState(Date.now());
     const [actionsOpen, setActionsOpen] = useState(false);
@@ -446,6 +449,7 @@ export function IncidentEpisode({
                                 disabled={
                                     runPending ||
                                     activeRun !== null ||
+                                    inCooldown ||
                                     check.unavailable_reason !== null
                                 }
                                 onClick={() => {
@@ -473,6 +477,9 @@ export function IncidentEpisode({
                                 {t(runPending ? 'Running check…' : 'Run check')}
                             </Button>
                             {activeRun && <RunCheckReason run={activeRun} />}
+                            {!activeRun && inCooldown && (
+                                <CooldownReason until={cooldownUntil} />
+                            )}
                             <InputError message={errors.check} />
                         </div>
                     ) : undefined

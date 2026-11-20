@@ -16,10 +16,11 @@ final readonly class RequestSiteChecks
 {
     public function __construct(private RequestCheckRun $request, private CheckRegistry $registry) {}
 
-    /** @return array{queued: int, unavailable: int, results: list<array{check_id: int, status: string, reason: ?string}>} */
+    /** @return array{queued: int, cooldown: int, unavailable: int, results: list<array{check_id: int, status: string, reason: ?string}>} */
     public function __invoke(Site $site, User $actor, bool $fastOnly = false): array
     {
         $queued = 0;
+        $cooldown = 0;
         $unavailable = 0;
         $results = [];
         $checks = Check::query()->where('site_id', $site->id)->where('enabled', true);
@@ -48,12 +49,14 @@ final readonly class RequestSiteChecks
                     $reason = 'rate_limited';
                 }
             }
-            if ($reason !== 'fast_only') {
+            if ($reason === 'rate_limited') {
+                $cooldown++;
+            } elseif ($reason !== 'fast_only') {
                 $unavailable++;
             }
             $results[] = ['check_id' => $check->id, 'status' => 'skipped', 'reason' => $reason];
         }
 
-        return ['queued' => $queued, 'unavailable' => $unavailable, 'results' => $results];
+        return ['queued' => $queued, 'cooldown' => $cooldown, 'unavailable' => $unavailable, 'results' => $results];
     }
 }

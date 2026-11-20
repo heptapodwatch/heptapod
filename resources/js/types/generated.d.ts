@@ -1132,6 +1132,7 @@ readonly freshness_suppression: Heptapod.Contracts.CheckRunPresentationPartData 
 readonly mail_design: Heptapod.Contracts.Mail.MailDesign,
 readonly alert_channels?: number | null,
 readonly can_move: boolean,
+readonly cooldown_until: string | null,
 };
 export type ClientAvatarData = {
 readonly url: string | null,
@@ -1410,6 +1411,7 @@ readonly can_snooze: boolean,
 readonly can_unsnooze: boolean,
 readonly opening_delivery_explanation: string | null,
 readonly mail_design: Heptapod.Contracts.Mail.MailDesign,
+readonly cooldown_until: string | null,
 };
 export type IncidentEvidenceData = {
 readonly facts: Record<string, any>,
@@ -1948,6 +1950,7 @@ days90: number | null,
 },
 readonly run_all_result: {
 queued: number,
+cooldown?: number,
 unavailable: number,
 results: {
 check_id: number,

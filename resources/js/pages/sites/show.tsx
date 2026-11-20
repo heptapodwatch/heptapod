@@ -12,6 +12,7 @@ import { SiteRunningStrip } from '@/components/site-running-strip';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 import { IncidentBanner } from '@/components/incident-banner';
+import { CooldownReason, useCooldown } from '@/components/cooldown-reason';
 import {
     CheckRunStatusRow,
     RunCheckReason,
@@ -153,6 +154,8 @@ export default function SiteShow(page: SitePage) {
                   ),
           );
     const uptimeCheck = site.checks.find((check) => check.key === 'uptime');
+    const cooldownUntil = isCheck ? (page.cooldown_until ?? null) : null;
+    const { active: inCooldown } = useCooldown(cooldownUntil);
     const runAction =
         isCheck &&
         page.can_run &&
@@ -165,6 +168,7 @@ export default function SiteShow(page: SitePage) {
                         pending ||
                         enablePending ||
                         (page.check.enabled && activeRun !== null) ||
+                        (page.check.enabled && inCooldown) ||
                         (page.check.enabled &&
                             page.check.unavailable_reason !== null)
                     }
@@ -213,6 +217,9 @@ export default function SiteShow(page: SitePage) {
                 ))}
                 {page.check.enabled && activeRun && (
                     <RunCheckReason run={activeRun} />
+                )}
+                {page.check.enabled && !activeRun && inCooldown && (
+                    <CooldownReason until={cooldownUntil} />
                 )}
             </div>
         ) : null;

@@ -460,7 +460,7 @@ function EditMemberSheet({
                     </>
                 }
             >
-                <fieldset disabled={busy || saved}>
+                <fieldset disabled={busy || saved || member.is_last_owner}>
                     <AccessFields
                         prefix="access"
                         clients={roster.clients}
