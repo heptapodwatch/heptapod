@@ -119,7 +119,7 @@ it('bounds provider text without splitting UTF8 and preserves its link', functio
     expect(strlen($text))->toBeLessThanOrEqual($bodyLimit);
     expect(mb_check_encoding($title.$text, 'UTF-8'))->toBeTrue();
     expect($text)->toContain('shortened');
-    expect($link)->toBe('https://heptapod.example/incidents/42');
+    expect($link)->toBe($key === 'slack' ? '<https://heptapod.example/incidents/42|Open incident>' : 'https://heptapod.example/incidents/42');
     if ($key === 'telegram') {
         expect($text)->toEndWith('https://heptapod.example/incidents/42');
     }
@@ -278,7 +278,7 @@ it('delivers localized payloads through each real transport', function (string $
     $expectedLabel = $hostile && in_array($key, ['discord', 'microsoftTeams'], true) ? '\\[L\\]\\(https://evil.test\\) @everyone' : $label;
     $title = str_replace('example.com', $expectedLabel, $title);
     Http::assertSentCount(1);
-    Http::assertSent(function (Request $request) use ($key, $title, $state, $url, $hostile, $summary, $since, $checkLabel, $destination): bool {
+    Http::assertSent(function (Request $request) use ($key, $locale, $title, $state, $url, $hostile, $summary, $since, $checkLabel, $destination): bool {
         expect($request->url())->toBe($url);
         expect($request->method())->toBe('POST');
         if ($key === 'telegram') {
@@ -307,8 +307,11 @@ it('delivers localized payloads through each real transport', function (string $
         if ($hostile) {
             if ($key === 'slack') {
                 expect($body['blocks'][0]['text']['type'])->toBe('plain_text');
-                expect($body['blocks'][1]['text']['type'])->toBe('plain_text');
-                expect($body['mrkdwn'])->toBeFalse();
+                expect($body['blocks'][1]['text']['type'])->toBe('mrkdwn');
+                expect($body['blocks'][1]['text']['verbatim'])->toBeTrue();
+                expect($body['mrkdwn'] ?? true)->toBeTrue();
+                expect($body['parse'])->toBe('none');
+                expect($body['blocks'][1]['text']['text'])->not->toContain('<https://evil.test|T>');
                 expect($body['text'])->not->toContain('<https://evil.test|T>');
             }
             if ($state !== 'errored' && in_array($key, ['discord', 'microsoftTeams'], true)) {
@@ -326,7 +329,8 @@ it('delivers localized payloads through each real transport', function (string $
             expect($text)->not->toContain(' is down', 'ist ausgefallen');
         }
         if ($state === 'recovered') {
-            expect($text)->toContain('90');
+            $expectedDuration = $key === 'webhook' ? '90' : ($locale === 'de' ? '1 Min. 30 Sek.' : '1 min 30 s');
+            expect($text)->toContain($expectedDuration);
         }
 
         return true;
@@ -472,7 +476,8 @@ it('localizes component summary timestamps for people but preserves webhook ISO 
     expect(transportSend($channel, $message, $config, '42:9')->status)->toBe(DeliveryState::Sent);
     $request = Http::recorded()->sole()[0];
     $text = $key === 'webhook' ? $request['summary'] : $request['text'];
-    expect($text)->toContain('Backup', $at, '300');
+    $expectedDuration = $key === 'webhook' ? '300' : ($locale === 'de' ? '5 Min.' : '5 min');
+    expect($text)->toContain('Backup', $at, $expectedDuration);
     Http::assertSentCount(1);
 })->with([
     'telegram EN' => ['telegram', 'en', 'Oct 2, 2026 6:39 AM CEST'],

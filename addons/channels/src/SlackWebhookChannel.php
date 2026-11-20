@@ -18,8 +18,12 @@ final class SlackWebhookChannel extends IncomingWebhookChannel
 
     protected function payload(RenderedAlert $alert): array
     {
-        // Mattermost also accepts the text envelope; Slack's Block Kit is not portable.
-        return ['text' => strtr($alert->text(RenderedAlert::SLACK_LIMITS['body']), ['&' => '&amp;', '<' => '&lt;', '>' => '&gt;']),
-            'mrkdwn' => false, 'unfurl_links' => false, 'unfurl_media' => false];
+        // Slack incoming webhooks render Block Kit `blocks`; Mattermost ignores `blocks` and renders `text`
+        // (translating `<url|label>` links per Mattermost's Slack compatibility docs).
+        /** @var array<string, mixed> $payload */
+        $payload = $alert->toSlack()->toArray();
+        unset($payload['channel']);
+
+        return $payload;
     }
 }
