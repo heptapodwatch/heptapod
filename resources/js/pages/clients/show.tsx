@@ -366,6 +366,7 @@ export default function ClientDetail({
                                             query: {
                                                 'filter[client_id]': client.id,
                                                 'filter[status]': 'all',
+                                                'filter[period]': 'all',
                                             },
                                         })}
                                     >

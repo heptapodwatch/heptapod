@@ -432,7 +432,7 @@
     "run.started.manual": "Manuell gestartet",
     "preview.latest_runs_one": "Letzter Lauf",
     "preview.latest_runs_other": "Letzte {{formattedCount}} Läufe",
-    "preview.all_check_runs": "Alle Läufe dieser Prüfung",
+    "preview.all_check_runs": "Aktuelle Läufe dieser Prüfung (7 Tage)",
     "health.components_count_one": "{{formattedCount}} Komponente",
     "health.components_count_other": "{{formattedCount}} Komponenten",
     "cron.tasks_count_one": "{{formattedCount}} Aufgabe",

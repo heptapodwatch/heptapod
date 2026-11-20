@@ -216,7 +216,11 @@ export function CheckHistory({
                         extra={
                             <TextLink
                                 href={runsIndex.url({
-                                    query: { check: page.check.id },
+                                    query: {
+                                        check: page.check.id,
+                                        period: '7d',
+                                        show_same_result: 1,
+                                    },
                                 })}
                             >
                                 {t('preview.all_check_runs')}

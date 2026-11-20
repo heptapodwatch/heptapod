@@ -1045,6 +1045,7 @@ export function IncidentEpisode({
                                             'filter[client_id]':
                                                 page.header.client_id,
                                             'filter[status]': 'open',
+                                            'filter[period]': 'all',
                                         },
                                     })}
                                     className="text-xs"
@@ -1290,7 +1291,11 @@ function EpisodeEvidence({
                         {checkId !== undefined && (
                             <TextLink
                                 href={runsIndex.url({
-                                    query: { check: checkId },
+                                    query: {
+                                        check: checkId,
+                                        period: '7d',
+                                        show_same_result: 1,
+                                    },
                                 })}
                                 className="text-xs"
                             >
