@@ -94,7 +94,6 @@ return [
         'external_ping_cache_key' => 'heptapod:heartbeat:last-ping',
         'browser_urls' => [
             'lighthouse' => $browserEnabled ? rtrim((string) env('LIGHTHOUSE_URL', 'http://lighthouse:3000'), '/').'/health' : null,
-            'gotenberg' => $browserEnabled ? rtrim((string) env('GOTENBERG_URL', 'http://gotenberg:3000'), '/').'/health' : null,
         ],
     ],
     'outbound' => [

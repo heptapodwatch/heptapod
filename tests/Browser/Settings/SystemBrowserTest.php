@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Vite;
 
 beforeEach(function (): void {
     Vite::useHotFile(storage_path('framework/testing.hot'));
-    config(['broadcasting.default' => 'null', 'heptapod.health.browser_urls' => ['lighthouse' => null, 'gotenberg' => null]]);
+    config(['broadcasting.default' => 'null', 'heptapod.health.browser_urls' => ['lighthouse' => null]]);
 });
 
 it('lets Admins navigate to read-only system health and refresh real observations without advertising General', function (): void {

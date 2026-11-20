@@ -286,7 +286,6 @@
     "system.queue.icons": "Site icons",
     "system.queue.broadcasts": "Live updates",
     "system.service.lighthouse": "Lighthouse browser",
-    "system.service.gotenberg": "PDF renderer",
     "{{count}} check errors_one": "{{formattedCount}} check error",
     "{{count}} check errors_other": "{{formattedCount}} check errors",
     "{{count}} total retained failures_one": "{{formattedCount}} retained failure in total",

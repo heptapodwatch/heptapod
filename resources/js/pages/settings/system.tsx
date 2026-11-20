@@ -46,7 +46,6 @@ const queueLabels: Record<string, string> = {
 };
 const serviceLabels: Record<string, string> = {
     lighthouse: 'system.service.lighthouse',
-    gotenberg: 'system.service.gotenberg',
 };
 function technicalLabel(labels: Record<string, string>, name: string): string {
     const label = labels[name];

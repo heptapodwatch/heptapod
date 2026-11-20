@@ -139,5 +139,4 @@ The installer never runs these commands itself. On an installation that is runni
 
 - Set up [backups](https://heptapod.watch/docs/running-it/backups/) and read [updating](https://heptapod.watch/docs/running-it/updating/) before the first upgrade.
 - Restore, key rotation, worker sizing and password recovery are in the [operations reference](https://github.com/heptapodwatch/heptapod/blob/main/docs/deploy/operations.md).
-- Gotenberg has no internet access. Its URL filter allows only inline data and uploaded temporary files, with JavaScript off.
 - To capture test mail on a disposable install, use the [Mailpit recipe](operations.md#capture-mail-locally-with-mailpit).

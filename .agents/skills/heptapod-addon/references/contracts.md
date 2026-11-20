@@ -13,7 +13,7 @@ Import core only through `Heptapod\Contracts`; framework and installed package i
 - `RunReference` contains both integer ID and immutable ended_at. Shared sequence allocation is not a global database uniqueness constraint.
 - Addons that execute system binaries declare their binary names in `addons/<name>/composer.json` under `extra.heptapod.system-requirements` (for example, `["dig"]` for DNS). Install the providing OS packages in both app Dockerfiles; an omitted declaration means the addon needs no system binaries. Test-only tools are not production requirements.
 
-`ChromiumRenderer::lighthouse(url, context, options)` returns the raw LHR payload in `LighthouseReport` and serves only Lighthouse. Broken-links, mixed-content and sitemap checks use plain HTTP with spatie/crawler; there is no JavaScript-rendered crawl. PDF reports use spatie/laravel-pdf with Gotenberg outside this seam. Browserless is not part of the product.
+`ChromiumRenderer::lighthouse(url, context, options)` returns the raw LHR payload in `LighthouseReport` and serves only Lighthouse. Broken-links, mixed-content and sitemap checks use plain HTTP with spatie/crawler; there is no JavaScript-rendered crawl. PDF reports, once built, stay outside this seam. Browserless is not part of the product.
 
 Addon-internal coordination (for example, crawl freshness) may read another enabled check's settings through `SiteCheckSettingsReader::read(siteId, CheckKey)`. The readonly result exposes `enabled` and execution-only decrypted `config`; JSON/debug output omits config. Do not use it to read another addon's results or query core tables.
 

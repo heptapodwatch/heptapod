@@ -158,7 +158,7 @@ done
 : > docker-operations.log
 PATH="$fresh/no-jq:$fresh/bin" env -u COMPOSE_FILE ./scripts/upgrade.sh > missing-jq.log 2>&1
 [ "$(grep -c 'optional host jq missing; worker stderr and container exit/OOM diagnostics are NOT captured' missing-jq.log)" = 2 ]
-grep -q '^compose.prod.yaml | --env-file .env.prod up -d --remove-orphans --wait --wait-timeout 300 app reverb postgres redis gotenberg lighthouse lighthouse-proxy$' docker-operations.log
+grep -q '^compose.prod.yaml | --env-file .env.prod up -d --remove-orphans --wait --wait-timeout 300 app reverb postgres redis lighthouse lighthouse-proxy$' docker-operations.log
 cmp before.env .env.prod
 printf 'PASS: missing optional jq warns at both capture points; upgrade completes without configuration changes\n'
 # An RC installation lacks every Reverb setting; upgrade must supply the
@@ -692,7 +692,7 @@ rm "$fresh/bin/mv" "$fresh/bin/stat" "$fresh/bin/flock" "$fresh/bin/readlink"
 : > all-operations.log
 STUB_DIRTY=true env -u COMPOSE_FILE ./scripts/upgrade.sh --build
 awk '
-    /pull postgres redis gotenberg/ { if (down) exit 1; official=1 }
+    / pull postgres redis [|]/ { if (down) exit 1; official=1 }
     /build --pull app lighthouse/ { if (down) exit 1; built=1 }
     /php artisan down/ { if (!official || !built) exit 1; down=1 }
     /builder prune -f --keep-storage 5GB/ { pruned=1 }

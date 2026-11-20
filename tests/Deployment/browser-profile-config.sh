@@ -113,5 +113,5 @@ done
 # Verify why '*' cannot represent a disabled browser deployment, using real Compose.
 printf 'APP_URL=https://monitor.example.com\nSERVER_NAME=monitor.example.com\nDB_PASSWORD=original-password\nHEPTAPOD_BROWSER_ENABLED=false\nCOMPOSE_PROFILES="*"\n' > .env.prod
 "$REAL_DOCKER" compose --env-file .env.prod config --services > services.log
-for service in gotenberg lighthouse lighthouse-proxy; do grep -qx "$service" services.log; done
+for service in lighthouse lighthouse-proxy; do grep -qx "$service" services.log; done
 printf 'PASS: real Compose wildcard activates all browser services despite disabled dispatch\n'

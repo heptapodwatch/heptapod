@@ -36,7 +36,7 @@ cleanup() {
     cleanup_status=0
     if [ -f .env.prod ]; then
         if [ "$status" -ne 0 ]; then
-            dc logs app gotenberg >&2 || cleanup_status=$?
+            dc logs app >&2 || cleanup_status=$?
         fi
         dc down -v || cleanup_status=$?
     fi
@@ -74,15 +74,8 @@ key=$(sed -n 's/^APP_KEY=base64://p' .env.prod)
 count=$(dc exec -T postgres sh -ec 'psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT count(*) FROM migrations"')
 [ "$count" -gt 0 ]
 curl -fsS "http://localhost:${INSTALL_TEST_PORT:-8382}/up" >/dev/null
-
-# A successful PDF response alone does not prove resource filtering: check renderer warnings.
-printf '<html><body><img src="https://example.com/policy-probe.png"><iframe src="file:///etc/passwd"></iframe></body></html>' |
-    dc exec -T app sh -ec 'cat > /tmp/index.html; curl -fsS -F files=@/tmp/index.html http://gotenberg:3000/forms/chromium/convert/html -o /tmp/policy.pdf'
-dc logs gotenberg > renderer.log
-grep -qF '"url":"https://example.com/policy-probe.png","rule":"deny-list"' renderer.log
-grep -qF '"url":"file:///etc/passwd","rule":"deny-list"' renderer.log
-printf '<html><body><h1>Embedded report</h1><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCIvPjwvc3ZnPg=="></body></html>' |
-    dc exec -T app sh -ec 'cat > /tmp/index.html; curl -fsS -F files=@/tmp/index.html http://gotenberg:3000/forms/chromium/convert/html -o /tmp/embedded.pdf; test "$(head -c 5 /tmp/embedded.pdf)" = "%PDF-"'
+# The browser install probes only Lighthouse, and reaches it.
+dc exec -T app php artisan heptapod:system-health --no-interaction | jq -e '.browserServices | keys == ["lighthouse"] and .lighthouse.status == "ok"' >/dev/null
 
 # A concurrent app startup must wait for the PostgreSQL advisory lock.
 dc exec -T postgres sh -ec 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT pg_advisory_lock(7646001); SELECT pg_sleep(5)"' > lock-holder.log &
@@ -118,6 +111,7 @@ cmp proxy.env .env.prod
 grep -q '^APP_URL=https://proxy.example.com:8443$' .env.prod
 grep -q '^HEPTAPOD_BROWSER_ENABLED=false$' .env.prod
 grep -q '^COMPOSE_PROFILES=disabled$' .env.prod
+dc exec -T app php artisan heptapod:system-health --no-interaction | jq -e '.browserServices | keys == ["lighthouse"] and .lighthouse.status == "not-configured"' >/dev/null
 dc config --format json > proxy-model.json
 jq -e --arg port "${INSTALL_TEST_PORT:-8382}" '.services.app.ports | length == 1 and .[0].host_ip == "127.0.0.1" and .[0].published == $port and .[0].target == 8080' proxy-model.json >/dev/null
 [ "$(curl -sS -o /dev/null -w '%{http_code}' -H 'Host: proxy.example.com:8443' "http://localhost:${INSTALL_TEST_PORT:-8382}/login")" = 200 ]
@@ -172,4 +166,4 @@ sed 's/^Password (shown once): .*/Password (shown once): [redacted]/' export-rec
 [ "$(dc exec -T postgres sh -ec 'psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT count(*) FROM users WHERE email = '\''recovery@example.com'\'' AND email_verified_at IS NOT NULL"')" = 1 ]
 [ "$(curl -sS -o /dev/null -w '%{http_code}' -H 'Host: proxy.example.com' "http://localhost:${INSTALL_TEST_PORT:-8382}/login")" = 200 ]
 printf 'PASS: missing export revision fails loudly; complete printed recovery installs without Git after filling the SHA\n'
-printf 'PASS: fresh install creates one verified Owner and prints password once; rerun preserves Owner and byte-identical env, configured domain, automatic migrations, advisory lock, migration failure and PDF policies\n'
+printf 'PASS: fresh install creates one verified Owner and prints password once; rerun preserves Owner and byte-identical env, configured domain, automatic migrations, advisory lock and migration failure\n'

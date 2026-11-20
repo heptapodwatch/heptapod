@@ -286,7 +286,6 @@
     "system.queue.icons": "Website-Symbole",
     "system.queue.broadcasts": "Live-Aktualisierungen",
     "system.service.lighthouse": "Lighthouse-Browser",
-    "system.service.gotenberg": "PDF-Renderer",
     "{{count}} check errors_one": "{{formattedCount}} Prüffehler",
     "{{count}} check errors_other": "{{formattedCount}} Prüffehler",
     "{{count}} total retained failures_one": "{{formattedCount}} gespeicherter Fehler insgesamt",

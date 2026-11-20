@@ -342,12 +342,6 @@ jobs:
         options: >-
           --health-cmd="redis-cli ping"
           --health-interval=5s --health-timeout=5s --health-retries=20
-      gotenberg:
-        image: gotenberg/gotenberg:9.5.0@sha256:ac61457a1e889ef1ca256a9afc117cff8caf517f19e66ea23cede3feb22f69a5
-        options: >-
-          --shm-size=1g --cap-drop=ALL --security-opt=no-new-privileges
-          --health-cmd="curl -fsS http://localhost:3000/health"
-          --health-interval=5s --health-timeout=5s --health-retries=20
     env:
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
@@ -428,12 +422,6 @@ jobs:
         ports: ['6379:6379']
         options: >-
           --health-cmd="redis-cli ping"
-          --health-interval=5s --health-timeout=5s --health-retries=20
-      gotenberg:
-        image: gotenberg/gotenberg:9.5.0@sha256:ac61457a1e889ef1ca256a9afc117cff8caf517f19e66ea23cede3feb22f69a5
-        options: >-
-          --shm-size=1g --cap-drop=ALL --security-opt=no-new-privileges
-          --health-cmd="curl -fsS http://localhost:3000/health"
           --health-interval=5s --health-timeout=5s --health-retries=20
     env:
       DB_CONNECTION: pgsql
