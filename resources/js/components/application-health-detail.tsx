@@ -11,8 +11,10 @@ import { SecurityAdvisoryList } from '@/components/security-advisory-list';
 
 export function ApplicationHealthDetail({
     history,
+    only,
 }: {
     history: Heptapod.Addons.ApplicationHealth.ApplicationHealthDetailData;
+    only?: string[];
 }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -99,6 +101,7 @@ export function ApplicationHealthDetail({
                                 ),
                             })}
                             pagination={history.components_pagination}
+                            only={only}
                         />
                     )}
                     {history.components.length === 0 && (
@@ -125,6 +128,7 @@ export function ApplicationHealthDetail({
                         <SecurityAdvisoryList
                             advisories={history.advisories}
                             pagination={history.advisories_pagination}
+                            only={only}
                         />
                     </CardContent>
                 </Card>

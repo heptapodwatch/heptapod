@@ -29,5 +29,5 @@ interface ListPaging
      * @param  list<TItem>  $items
      * @return LengthAwarePaginator<int, TItem>
      */
-    public function paginateList(array $items, string $list): LengthAwarePaginator;
+    public function paginateList(array $items, string $list, ?string $pageName = null): LengthAwarePaginator;
 }

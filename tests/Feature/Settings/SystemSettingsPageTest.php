@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Http\ListPageSize;
 use Heptapod\Models\DispatcherHeartbeat;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\Cache;
@@ -75,4 +76,36 @@ it('refreshes heartbeat observations without writing monitoring state or exposin
     $this->postJson('/settings/system/data', ['command' => 'restart'])->assertNotFound();
     $this->postJson('/settings/system', ['command' => 'restart'])->assertNotFound();
     expect($heartbeat->fresh()->last_seen_at->toIso8601String())->toBe('2026-10-06T12:00:00+00:00');
+});
+
+it('pages open system issues with remembered size and keeps refresh pager URLs on the system page', function (): void {
+    $owner = User::factory()->owner()->create();
+    foreach (range(1, 12) as $i) {
+        DB::table('system_issues')->insert([
+            'kind' => 'check_not_fresh',
+            'scope' => (string) $i,
+            'details' => json_encode(['site_id' => 1, 'check_id' => $i, 'site_name' => 'Site '.$i, 'check_type' => 'uptime'], JSON_THROW_ON_ERROR),
+            'opened_at' => now()->subMinutes($i),
+        ]);
+    }
+
+    $this->actingAs($owner)->get('/settings/system?system_issues_per_page=10')
+        ->assertOk()
+        ->assertCookie(ListPageSize::Cookie, json_encode(['system_issues' => 10]), false)
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('systemPage.health.systemIssues', 10)
+            ->where('systemPage.system_issues_pagination.total', 12)
+            ->where('systemPage.system_issues_pagination.last_page', 2)
+            ->where('systemPage.system_issues_pagination.page_name', 'system_issues_page'));
+
+    $this->withUnencryptedCookie(ListPageSize::Cookie, json_encode(['system_issues' => 10]));
+    $this->get('/settings/system?system_issues_page=2')->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page->has('systemPage.health.systemIssues', 2));
+
+    $refresh = $this->withCredentials()
+        ->withUnencryptedCookie(ListPageSize::Cookie, json_encode(['system_issues' => 10]))
+        ->getJson('/settings/system/data?system_issues_page=2')
+        ->assertOk()
+        ->assertJsonCount(2, 'health.systemIssues');
+    expect((string) $refresh->json('system_issues_pagination.previous_page_url'))->toContain('/settings/system?');
 });

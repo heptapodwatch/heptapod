@@ -20,18 +20,19 @@ final readonly class RequestListPaging implements ListPaging
         return $query->paginate($perPage, ['*'], $list.'_page')->withQueryString();
     }
 
-    public function paginateList(array $items, string $list): LengthAwarePaginator
+    public function paginateList(array $items, string $list, ?string $pageName = null): LengthAwarePaginator
     {
         $request = request();
-        $perPage = ListPageSize::resolve($request, $list, $list.'_per_page');
-        $pageName = $list.'_page';
-        $page = LengthAwarePaginator::resolveCurrentPage($pageName);
+        $resolvedPageName = $pageName ?? $list.'_page';
+        $sizeParam = $resolvedPageName === 'page' ? 'per_page' : $list.'_per_page';
+        $perPage = ListPageSize::resolve($request, $list, $sizeParam);
+        $page = LengthAwarePaginator::resolveCurrentPage($resolvedPageName);
         $paginator = new LengthAwarePaginator(
             array_slice($items, ($page - 1) * $perPage, $perPage),
             count($items),
             $perPage,
             $page,
-            ['path' => $request->url(), 'pageName' => $pageName],
+            ['path' => $request->url(), 'pageName' => $resolvedPageName],
         );
 
         return $paginator->withQueryString();

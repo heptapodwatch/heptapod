@@ -174,10 +174,12 @@ function PackageSummary({
 export function SecurityAdvisoryList({
     advisories,
     pagination,
+    only,
 }: {
     advisories: Advisory[];
     /** The advisories are one page of the check's retained advisories. */
     pagination: Heptapod.Contracts.PaginationData;
+    only?: string[];
 }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -333,6 +335,7 @@ export function SecurityAdvisoryList({
                     formattedCount: format.number(pagination.total),
                 })}
                 pagination={pagination}
+                only={only}
             />
         </div>
     );

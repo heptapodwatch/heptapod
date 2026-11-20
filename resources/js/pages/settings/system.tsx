@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/empty-state';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InfoTooltip } from '@/components/info-tooltip';
+import { ListFooter } from '@/components/list-footer';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
     ListHeader,
@@ -123,7 +124,9 @@ export default function System({ systemPage }: { systemPage: Page }) {
     }, []);
     const refresh = async () => {
         try {
-            const canonical = await query.get(readData.url());
+            const canonical = await query.get(
+                `${readData.url()}${window.location.search}`,
+            );
             setPage(canonical);
             setFailed(false);
         } catch {
@@ -330,6 +333,18 @@ export default function System({ systemPage }: { systemPage: Page }) {
                             </AlertDescription>
                         </Alert>
                     ))}
+                    {health.systemIssues.length > 0 && (
+                        <ListFooter
+                            count={t('system.issues.count', {
+                                count: page.system_issues_pagination.total,
+                                formattedCount: number(
+                                    page.system_issues_pagination.total,
+                                ),
+                            })}
+                            pagination={page.system_issues_pagination}
+                            only={['systemPage']}
+                        />
+                    )}
                 </section>
             )}
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

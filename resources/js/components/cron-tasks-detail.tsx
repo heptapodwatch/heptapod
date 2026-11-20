@@ -34,6 +34,7 @@ function taskState(result: string) {
 export function CronTasksDetail({
     page,
     history,
+    only,
 }: {
     page: {
         can_run: boolean;
@@ -41,6 +42,7 @@ export function CronTasksDetail({
         check: Pick<Heptapod.Data.Ui.CheckStripData, 'id'>;
     };
     history: Heptapod.Addons.Cron.CronTasksDetailData;
+    only?: string[];
 }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -166,6 +168,7 @@ export function CronTasksDetail({
                             ),
                         })}
                         pagination={history.tasks_pagination}
+                        only={only}
                     />
                 )}
                 {history.tasks.length === 0 && (

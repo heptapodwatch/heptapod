@@ -596,6 +596,7 @@ export function IncidentEpisode({
                                 check,
                             }}
                             history={shown.current_findings}
+                            only={['current_findings']}
                         />
                     ) : shown.current_findings?.check_type === 'dns' &&
                       check ? (
@@ -613,6 +614,7 @@ export function IncidentEpisode({
                       'application_health' ? (
                         <ApplicationHealthDetail
                             history={shown.current_findings}
+                            only={['current_findings']}
                         />
                     ) : incident.check === 'performance' ? (
                         // The response-time chart needs the check page's metric series: link to it.

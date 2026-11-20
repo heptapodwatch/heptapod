@@ -1,4 +1,4 @@
-import { Link, router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { SegmentedControl } from '@/components/segmented-control';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -28,10 +28,34 @@ export function clientPagination(
         per_page: perPage,
         total,
         last_page: lastPage,
-        next_page_url: page < lastPage ? '#next' : null,
-        previous_page_url: page > 1 ? '#previous' : null,
+        next_page_url: null,
+        previous_page_url: null,
         page_name: 'page',
     };
+}
+
+/**
+ * Rebuilds a server pager link from the live page URL, replacing only this list's page parameter so
+ * partial-reloading a sibling sub-list on the same page never snaps back to an older page parameter.
+ */
+function mergeLivePageParam(
+    serverHref: string,
+    pageName: string,
+    liveUrl: string | undefined,
+): string {
+    if (!liveUrl) return serverHref;
+    const origin = 'http://localhost';
+    const server = new URL(serverHref, origin);
+    const live = new URL(liveUrl, origin);
+    if (live.pathname !== server.pathname) return serverHref;
+    const merged = new URL(server.pathname + live.search, origin);
+    const targetPage = server.searchParams.get(pageName);
+    if (targetPage === null) {
+        merged.searchParams.delete(pageName);
+    } else {
+        merged.searchParams.set(pageName, targetPage);
+    }
+    return merged.pathname + merged.search;
 }
 
 /** Saves a page-size choice for a client-paged list into the same plain `list_page_sizes` cookie the server reads. */
@@ -97,21 +121,45 @@ export function ListFooter({
 }) {
     const { t } = useTranslation();
     const format = useFormat();
+    const inertiaPage = usePage();
+    const liveUrl =
+        inertiaPage.url ??
+        (typeof window !== 'undefined'
+            ? window.location.pathname + window.location.search
+            : undefined);
+    const pageName = pagination?.page_name ?? 'page';
     const pageLink = (href: string | null): PageLink =>
         href === null
             ? null
-            : { href, only, preserveState: only !== undefined || undefined };
-    const link = (target: PageLink, label: string, targetPage?: number) =>
-        target === null ? (
+            : {
+                  href: mergeLivePageParam(href, pageName, liveUrl),
+                  only,
+                  preserveState: only !== undefined || undefined,
+              };
+    const localPaging = Boolean(onPageChange && pagination);
+    const link = (
+        target: PageLink,
+        label: string,
+        targetPage?: number,
+        localEnabled?: boolean,
+    ) => {
+        if (localPaging && onPageChange && targetPage !== undefined) {
+            return localEnabled ? (
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => onPageChange(targetPage)}
+                >
+                    {t(label)}
+                </Button>
+            ) : (
+                <Button type="button" variant="outline" disabled>
+                    {t(label)}
+                </Button>
+            );
+        }
+        return target === null ? (
             <Button type="button" variant="outline" disabled>
-                {t(label)}
-            </Button>
-        ) : onPageChange && targetPage !== undefined ? (
-            <Button
-                type="button"
-                variant="outline"
-                onClick={() => onPageChange(targetPage)}
-            >
                 {t(label)}
             </Button>
         ) : (
@@ -127,19 +175,24 @@ export function ListFooter({
                 </Link>
             </Button>
         );
+    };
     const previousPage = pagination
         ? pageLink(pagination.previous_page_url)
         : previous;
     const nextPage = pagination ? pageLink(pagination.next_page_url) : next;
-    const paged =
-        (previousPage ?? null) !== null || (nextPage ?? null) !== null;
+    const hasLocalPrevious = Boolean(pagination && pagination.current_page > 1);
+    const hasLocalNext = Boolean(
+        pagination && pagination.current_page < pagination.last_page,
+    );
+    const paged = localPaging
+        ? hasLocalPrevious || hasLocalNext
+        : (previousPage ?? null) !== null || (nextPage ?? null) !== null;
     // Rows only where a size can change what is shown: a list of 10 or fewer rows shows them all at every size.
     const size = pagination
         ? pagination.total > pageSizes[0]
             ? pagination.per_page
             : undefined
         : pageSize;
-    const pageName = pagination?.page_name ?? 'page';
     const changePageSize = (chosen: number) => {
         if (onPageSizeChange) {
             onPageSizeChange(chosen);
@@ -211,13 +264,14 @@ export function ListFooter({
                 >
                     {extra}
                     {paged &&
-                        previousPage !== undefined &&
+                        (localPaging || previousPage !== undefined) &&
                         link(
-                            previousPage,
+                            previousPage ?? null,
                             'Previous page',
                             pagination
                                 ? pagination.current_page - 1
                                 : undefined,
+                            hasLocalPrevious,
                         )}
                     {paged && pagination && (
                         <span className="font-mono tabular-nums">
@@ -228,13 +282,14 @@ export function ListFooter({
                         </span>
                     )}
                     {paged &&
-                        nextPage !== undefined &&
+                        (localPaging || nextPage !== undefined) &&
                         link(
-                            nextPage,
+                            nextPage ?? null,
                             'Next page',
                             pagination
                                 ? pagination.current_page + 1
                                 : undefined,
+                            hasLocalNext,
                         )}
                 </div>
             )}

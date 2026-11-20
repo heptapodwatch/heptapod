@@ -157,5 +157,7 @@
     "It is used for this import only: it is kept encrypted for at most 15 minutes between the plan and the import, then it expires. It is never shown or logged.": "It is used for this import only: it is kept encrypted for at most 15 minutes between the plan and the import, then it expires. It is never shown or logged.",
     "A tag assignment wins over the team assignment; a choice per site wins over both.": "A tag assignment wins over the team assignment; a choice per site wins over both.",
     "Sites without an assigned client go to No client.": "Sites without an assigned client go to No client.",
-    "Loading plan…": "Loading plan…"
+    "Loading plan…": "Loading plan…",
+    "import.cron_sites.count_one": "{{formattedCount}} site with scheduled tasks",
+    "import.cron_sites.count_other": "{{formattedCount}} sites with scheduled tasks"
 }

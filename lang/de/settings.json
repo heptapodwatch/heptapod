@@ -424,5 +424,7 @@
     "backups.runs.count_one": "{{formattedCount}} Sicherungslauf",
     "backups.runs.count_other": "{{formattedCount}} Sicherungsläufe",
     "backups.archives.count_one": "{{formattedCount}} Archiv",
-    "backups.archives.count_other": "{{formattedCount}} Archive"
+    "backups.archives.count_other": "{{formattedCount}} Archive",
+    "system.issues.count_one": "{{formattedCount}} offenes Problem",
+    "system.issues.count_other": "{{formattedCount}} offene Probleme"
 }

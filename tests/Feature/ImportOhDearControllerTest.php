@@ -135,6 +135,15 @@ it('renders imported cron tasks in stable order with constant lookup queries', f
     DB::disableQueryLog();
 
     $response->assertOk()->assertJsonPath('component', 'settings/import-ohdear-run')->assertJsonPath('props.importRun.cron', $expected);
+    if ($count === 12) {
+        $this->get('/settings/import/ohdear/runs/'.$run->id.'?import_run_cron_per_page=10&import_run_cron_page=2')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+                ->has('importRun.cron', 2)
+                ->where('importRun.cron_pagination.total', 12)
+                ->where('importRun.cron_pagination.last_page', 2)
+                ->where('importRun.cron.0.site_id', $expected[10]['site_id']));
+    }
     foreach (['sites', 'checks', 'cron_checks'] as $table) {
         $lookups = array_filter($queries, static fn (array $query): bool => str_starts_with($query['query'], 'select * from "'.$table.'"'));
         expect(count($lookups))->toBe(1, $table.' must be fetched once for '.$count.' imported checks');

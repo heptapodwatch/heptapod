@@ -5,6 +5,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { ListFooter } from './list-footer';
 import i18n from '@/lib/i18n';
 
+let currentPageUrl = '/';
 vi.mock('@inertiajs/react', () => ({
     Link: ({
         href,
@@ -24,11 +25,14 @@ vi.mock('@inertiajs/react', () => ({
             {children}
         </a>
     ),
-    usePage: () => ({ props: { timezone: 'UTC' } }),
+    usePage: () => ({ url: currentPageUrl, props: { timezone: 'UTC' } }),
     router: { on: () => () => {} },
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+    currentPageUrl = '/';
+    cleanup();
+});
 
 function renderFooter(props: ComponentProps<typeof ListFooter>) {
     render(
@@ -129,4 +133,31 @@ it('offers only the next page for a cursor list', async () => {
 
     expect(screen.queryByText(/Previous page|Page \d/)).toBeNull();
     expect(screen.getByRole('link', { name: 'Next page' })).not.toBeNull();
+});
+
+it('preserves a sibling sub-list parameter from the live URL when paging', async () => {
+    await i18n.changeLanguage('en');
+    // Sibling list (incident_notifications_page) already moved to page 1 via partial reload,
+    // while cron_tasks_pagination still carries the older incident_notifications_page=2 from its earlier render.
+    currentPageUrl =
+        '/incidents/1?cron_tasks_page=2&incident_notifications_page=1';
+    renderFooter({
+        count: '14 tasks',
+        pagination: pagination({
+            current_page: 2,
+            per_page: 10,
+            total: 14,
+            last_page: 2,
+            previous_page_url:
+                '/incidents/1?cron_tasks_page=1&incident_notifications_page=2',
+            page_name: 'cron_tasks_page',
+        }),
+        only: ['current_findings'],
+    });
+
+    expect(
+        screen
+            .getByRole('link', { name: 'Previous page' })
+            .getAttribute('href'),
+    ).toBe('/incidents/1?cron_tasks_page=1&incident_notifications_page=1');
 });

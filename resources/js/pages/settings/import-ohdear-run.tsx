@@ -47,6 +47,7 @@ type ImportRun = {
         site_id: number;
         tasks: { name: string; ping_url: string }[];
     }[];
+    cron_pagination: Heptapod.Contracts.PaginationData;
 };
 
 /** A planned import has not started yet; from Queued on it is a run (UI rules, Runs). */
@@ -428,32 +429,53 @@ export default function ImportOhDearRun({
                                         {t('No cron tasks were imported.')}
                                     </p>
                                 ) : (
-                                    importRun.cron.map((site) => (
-                                        <div
-                                            key={site.site_id}
-                                            className={cn(
-                                                'space-y-2 rounded-[10px] border',
-                                                listCardPadding,
+                                    <div className="space-y-3">
+                                        {importRun.cron.map((site) => (
+                                            <div
+                                                key={site.site_id}
+                                                className={cn(
+                                                    'space-y-2 rounded-[10px] border',
+                                                    listCardPadding,
+                                                )}
+                                            >
+                                                <p className="font-medium">
+                                                    {site.site}
+                                                </p>
+                                                {site.tasks.map((task) => (
+                                                    <div
+                                                        key={task.ping_url}
+                                                        className="grid gap-1 @md:grid-cols-[10rem_minmax(0,1fr)]"
+                                                    >
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {task.name}
+                                                        </span>
+                                                        <CopyUrl
+                                                            url={task.ping_url}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ))}
+                                        <ListFooter
+                                            count={t(
+                                                'import.cron_sites.count',
+                                                {
+                                                    count: importRun
+                                                        .cron_pagination.total,
+                                                    formattedCount:
+                                                        format.number(
+                                                            importRun
+                                                                .cron_pagination
+                                                                .total,
+                                                        ),
+                                                },
                                             )}
-                                        >
-                                            <p className="font-medium">
-                                                {site.site}
-                                            </p>
-                                            {site.tasks.map((task) => (
-                                                <div
-                                                    key={task.ping_url}
-                                                    className="grid gap-1 @md:grid-cols-[10rem_minmax(0,1fr)]"
-                                                >
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {task.name}
-                                                    </span>
-                                                    <CopyUrl
-                                                        url={task.ping_url}
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ))
+                                            pagination={
+                                                importRun.cron_pagination
+                                            }
+                                            only={['importRun']}
+                                        />
+                                    </div>
                                 )}
                             </li>
                         )}

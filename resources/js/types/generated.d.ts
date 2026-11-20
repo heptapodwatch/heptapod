@@ -1328,6 +1328,7 @@ name: string,
 ping_url: string,
 }[],
 }[],
+cron_pagination: Heptapod.Contracts.PaginationData,
 channels: Record<string, any>[],
 },
 };
@@ -2055,6 +2056,7 @@ readonly health: Heptapod.SystemHealth.SystemHealthData,
 readonly observed_at: string,
 readonly last_result_at: string | null,
 readonly check_errors: number,
+readonly system_issues_pagination: Heptapod.Contracts.PaginationData,
 };
 export type SystemPageData = {
 readonly systemPage: Heptapod.Data.Ui.SystemHealthPageData,

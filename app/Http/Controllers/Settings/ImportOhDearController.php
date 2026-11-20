@@ -8,6 +8,7 @@ use Heptapod\Concerns\AuthorizesSettingsOperator;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CronPingUrl;
 use Heptapod\Contracts\CronTaskStore;
+use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\ImportOhDearPageData;
@@ -21,7 +22,6 @@ use Heptapod\Models\Client;
 use Heptapod\Models\ImportRun;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -43,7 +43,7 @@ final class ImportOhDearController extends Controller
         ))->with('instanceTimezone', app(InstanceSettings::class)->timezone);
     }
 
-    public function show(Request $request, string $run, CronTaskStore $tasks, CronPingUrl $pingUrl): Response
+    public function show(Request $request, string $run, CronTaskStore $tasks, CronPingUrl $pingUrl, ListPaging $paging): Response
     {
         $user = $this->operator($request);
         $importRun = ImportRun::query()->findOrFail($run);
@@ -98,16 +98,8 @@ final class ImportOhDearController extends Controller
             'inherited' => count(array_filter($rows, static fn (array $row): bool => ($row['inherits_alert_timing'] ?? null) === true)),
             'overridden' => count(array_filter($rows, static fn (array $row): bool => ($row['inherits_alert_timing'] ?? null) === false)),
         ];
-        $perPage = ListPageSize::resolve($request, 'import_run_rows');
-        $page = LengthAwarePaginator::resolveCurrentPage();
-        $rowsPaginator = new LengthAwarePaginator(
-            array_slice($rows, ($page - 1) * $perPage, $perPage),
-            count($rows),
-            $perPage,
-            $page,
-            ['path' => $request->url(), 'pageName' => 'page'],
-        );
-        $rowsPaginator->withQueryString();
+        $rowsPaginator = $paging->paginateList($rows, 'import_run_rows', 'page');
+        $cronPaginator = $paging->paginateList($cron, 'import_run_cron');
 
         return Inertia::render('settings/import-ohdear-run', new ImportOhDearRunPageData(
             importRun: [
@@ -121,7 +113,7 @@ final class ImportOhDearController extends Controller
                 'failed_earlier' => count(array_filter($rows, static fn (array $row): bool => ($row['operation'] ?? null) === 'failed' && ($row['attempt'] ?? null) !== $attempt)),
                 'started_at' => $importRun->started_at?->toIso8601String(), 'finished_at' => $importRun->finished_at?->toIso8601String(),
                 'can_retry' => in_array($importRun->status, [ImportRunStatus::Incomplete, ImportRunStatus::Failed], true) && $importRun->user_id === $user->id,
-                'sections' => $sections, 'cron' => $cron, 'channels' => $importRun->channel_results,
+                'sections' => $sections, 'cron' => array_values($cronPaginator->items()), 'cron_pagination' => PaginationData::fromPaginator($cronPaginator), 'channels' => $importRun->channel_results,
             ],
         ));
     }
