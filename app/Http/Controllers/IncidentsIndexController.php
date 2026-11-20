@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers;
 
+use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\IncidentFilterData;
 use Heptapod\Data\Ui\IncidentsIndexData;
 use Heptapod\Data\Ui\IncidentsIndexPageData;
 use Heptapod\Data\Ui\IncidentSummaryData;
-use Heptapod\Data\Ui\PaginationData;
 use Heptapod\Http\ListPageSize;
 use Heptapod\Http\Requests\IncidentsFilterRequest;
 use Heptapod\Models\User;

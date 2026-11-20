@@ -56,7 +56,6 @@
     "All time": "Gesamter Zeitraum",
     "30 days: {{count}} incidents · {{duration}} total · median {{median}}_one": "30 Tage: {{formattedCount}} Störung · {{duration}} gesamt · Median {{median}}",
     "30 days: {{count}} incidents · {{duration}} total · median {{median}}_other": "30 Tage: {{formattedCount}} Störungen · {{duration}} gesamt · Median {{median}}",
-    "More earlier deliveries not shown": "Weitere frühere Zustellungen werden nicht angezeigt",
     "incident.opened": "Eröffnet",
     "incident.still_down": "Weiterhin ausgefallen",
     "incident.still_failing": "Weiterhin fehlgeschlagen",
@@ -136,5 +135,11 @@
     "An incident opens here when a site is down or a check fails.": "Eine Störung erscheint hier, wenn eine Website ausgefallen ist oder eine Prüfung fehlschlägt.",
     "No matching incidents": "Keine passenden Störungen",
     "Clear filters to see open incidents.": "Filter entfernen, um offene Störungen zu sehen.",
-    "Check snoozed until": "Prüfung stummgeschaltet bis"
+    "Check snoozed until": "Prüfung stummgeschaltet bis",
+    "{{count}} notifications_one": "{{formattedCount}} Benachrichtigung",
+    "{{count}} notifications_other": "{{formattedCount}} Benachrichtigungen",
+    "preview.latest_incidents_one": "Letzte Störung",
+    "preview.latest_incidents_other": "Letzte {{formattedCount}} Störungen",
+    "preview.all_client_incidents": "Alle Störungen dieses Kunden",
+    "preview.all_open_client_incidents": "Alle offenen Störungen dieses Kunden"
 }

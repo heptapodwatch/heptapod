@@ -56,7 +56,6 @@
     "All time": "All time",
     "30 days: {{count}} incidents · {{duration}} total · median {{median}}_one": "30 days: {{formattedCount}} incident · {{duration}} total · median {{median}}",
     "30 days: {{count}} incidents · {{duration}} total · median {{median}}_other": "30 days: {{formattedCount}} incidents · {{duration}} total · median {{median}}",
-    "More earlier deliveries not shown": "More earlier deliveries not shown",
     "incident.opened": "Opened",
     "incident.still_down": "Still down",
     "incident.still_failing": "Still failing",
@@ -136,5 +135,11 @@
     "An incident opens here when a site is down or a check fails.": "An incident opens here when a site is down or a check fails.",
     "No matching incidents": "No matching incidents",
     "Clear filters to see open incidents.": "Clear filters to see open incidents.",
-    "Check snoozed until": "Check snoozed until"
+    "Check snoozed until": "Check snoozed until",
+    "{{count}} notifications_one": "{{formattedCount}} notification",
+    "{{count}} notifications_other": "{{formattedCount}} notifications",
+    "preview.latest_incidents_one": "Latest incident",
+    "preview.latest_incidents_other": "Latest {{formattedCount}} incidents",
+    "preview.all_client_incidents": "All incidents of this client",
+    "preview.all_open_client_incidents": "All open incidents of this client"
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Data\Ui;
 
+use Heptapod\Contracts\PaginationData;
 use Inertia\OptionalProp;
 use Inertia\ScrollProp;
 use Spatie\LaravelData\Data;
@@ -29,6 +30,6 @@ final class ActivityPageData extends Data
         public readonly ActivityFilterData $filters,
         public readonly ?int $expanded_id,
         public readonly array $expanded_events,
-        public readonly int $event_page,
+        public readonly ?PaginationData $expanded_pagination,
     ) {}
 }

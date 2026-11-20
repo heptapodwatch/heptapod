@@ -738,7 +738,6 @@
     "Next week": "Next week",
     "Show events": "Show events",
     "Hide events": "Hide events",
-    "Events {{from}}–{{to}} of {{total}}": "Events {{from}}–{{to}} of {{total}}",
     "All activity in the last {{days}} days": "All activity in the last {{days}} days",
     "api_tokens.list.count_one": "{{formattedCount}} token",
     "api_tokens.list.count_other": "{{formattedCount}} tokens",
@@ -813,5 +812,8 @@
     "Rows": "Rows",
     "Rows per page": "Rows per page",
     "Load older changes": "Load older changes",
-    "Loading older changes…": "Loading older changes…"
+    "Loading older changes…": "Loading older changes…",
+    "{{from}}–{{to}} of {{total}}": "{{from}}–{{to}} of {{total}}",
+    "{{count}} events_one": "{{formattedCount}} event",
+    "{{count}} events_other": "{{formattedCount}} events"
 }

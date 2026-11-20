@@ -23,7 +23,7 @@ import type { EventDto } from '@/types/monitoring';
 type Group = Heptapod.Data.Ui.ActivityGroupData;
 
 /** The partial reload of a flapping group's own events; the timeline and its loaded batches stay as they are. */
-const detailProps = ['expanded_id', 'expanded_events', 'event_page'];
+const detailProps = ['expanded_id', 'expanded_events', 'expanded_pagination'];
 
 /**
  * Activity as the site overview's event timeline, grouped by calendar day (relative day + date header, the event
@@ -36,13 +36,13 @@ export function ActivityTimeline({
     filters,
     expandedId,
     expandedEvents,
-    eventPage,
+    expandedPagination,
 }: {
     groups: Group[];
     filters: Heptapod.Data.Ui.ActivityFilterData;
     expandedId: number | null;
     expandedEvents: EventDto[];
-    eventPage: number;
+    expandedPagination: Heptapod.Contracts.PaginationData | null;
 }) {
     const { t, i18n } = useTranslation();
     const format = useFormat();
@@ -87,13 +87,12 @@ export function ActivityTimeline({
         }
         return null;
     };
-    const detailHref = (groupId: number | null, page: number) =>
+    const detailHref = (groupId: number | null) =>
         activityIndex.url({
             query: {
                 ...filters,
                 q: filters.q === '' ? undefined : filters.q,
                 group: groupId ?? undefined,
-                event_page: groupId === null ? undefined : page,
             },
         });
     const below = (event: EventDto) => {
@@ -104,7 +103,7 @@ export function ActivityTimeline({
             <div className="space-y-2 pt-1">
                 <Button asChild variant="ghost" size="xs">
                     <Link
-                        href={detailHref(expanded ? null : group.id, 1)}
+                        href={detailHref(expanded ? null : group.id)}
                         only={detailProps}
                         preserveScroll
                         preserveState
@@ -146,45 +145,14 @@ export function ActivityTimeline({
                         ))}
                         <div className="border-t px-4 py-3">
                             <ListFooter
-                                count={t(
-                                    'Events {{from}}–{{to}} of {{total}}',
-                                    {
-                                        from: format.number(
-                                            (eventPage - 1) * 20 + 1,
-                                        ),
-                                        to: format.number(
-                                            Math.min(
-                                                eventPage * 20,
-                                                group.event_count,
-                                            ),
-                                        ),
-                                        total: format.number(group.event_count),
-                                    },
-                                )}
-                                previous={
-                                    eventPage > 1
-                                        ? {
-                                              href: detailHref(
-                                                  group.id,
-                                                  eventPage - 1,
-                                              ),
-                                              only: detailProps,
-                                              preserveState: true,
-                                          }
-                                        : null
-                                }
-                                next={
-                                    eventPage * 20 < group.event_count
-                                        ? {
-                                              href: detailHref(
-                                                  group.id,
-                                                  eventPage + 1,
-                                              ),
-                                              only: detailProps,
-                                              preserveState: true,
-                                          }
-                                        : null
-                                }
+                                count={t('{{count}} events', {
+                                    count: group.event_count,
+                                    formattedCount: format.number(
+                                        group.event_count,
+                                    ),
+                                })}
+                                pagination={expandedPagination ?? undefined}
+                                only={detailProps}
                             />
                         </div>
                     </div>

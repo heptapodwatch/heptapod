@@ -441,19 +441,7 @@ export default function IncidentsIndex({
                         count: pagination.total,
                         formattedCount: format.number(pagination.total),
                     })}
-                    previous={
-                        pagination.previous_page_url
-                            ? { href: pagination.previous_page_url }
-                            : null
-                    }
-                    next={
-                        pagination.next_page_url
-                            ? { href: pagination.next_page_url }
-                            : null
-                    }
-                    page={pagination.current_page}
-                    lastPage={pagination.last_page}
-                    pageSize={pagination.per_page}
+                    pagination={pagination}
                 />
             )}
         </PageContainer>

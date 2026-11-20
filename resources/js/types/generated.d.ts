@@ -612,6 +612,15 @@ readonly label_key: string,
 readonly score: number,
 };
 export type NoResultReason = 'performance_no_samples' | 'performance_uptime_interval_too_long' | 'mixed_content_start_page_not_scanned' | 'cron_tasks_pending';
+export type PaginationData = {
+readonly current_page: number,
+readonly per_page: number,
+readonly total: number,
+readonly last_page: number,
+readonly next_page_url: string | null,
+readonly previous_page_url: string | null,
+readonly page_name: string,
+};
 export type PreviousResult = {
 readonly run: Heptapod.Contracts.RunReference,
 readonly result: Heptapod.Contracts.RunResult,
@@ -934,7 +943,7 @@ readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly filters: Heptapod.Data.Ui.ActivityFilterData,
 readonly expanded_id: number | null,
 readonly expanded_events: Heptapod.Data.Ui.EventData[],
-readonly event_page: number,
+readonly expanded_pagination: Heptapod.Contracts.PaginationData | null,
 };
 export type AddSitePageData = {
 readonly clients: Heptapod.Data.Ui.ClientData[],
@@ -1150,7 +1159,7 @@ export type ClientDetailPageData = {
 readonly client: Heptapod.Data.Ui.ClientData,
 readonly summary: Heptapod.Data.Ui.DashboardTilesData,
 readonly sites: Heptapod.Data.Ui.SiteRowData[],
-readonly pagination: Heptapod.Data.Ui.PaginationData,
+readonly pagination: Heptapod.Contracts.PaginationData,
 readonly incidents: Heptapod.Data.Ui.IncidentData[],
 readonly can_manage: boolean,
 };
@@ -1192,7 +1201,7 @@ readonly archive_paused_site_count: number,
 };
 export type ClientsIndexPageData = {
 readonly clients: Heptapod.Data.Ui.ClientRowData[],
-readonly pagination: Heptapod.Data.Ui.PaginationData,
+readonly pagination: Heptapod.Contracts.PaginationData,
 readonly search: string | null,
 readonly state: string,
 readonly can_manage: boolean,
@@ -1361,6 +1370,7 @@ readonly internal_note: string | null,
 readonly note_author: string | null,
 readonly note_updated_at: string | null,
 readonly other_deliveries: Heptapod.Data.Ui.IncidentDeliveryData[],
+readonly other_deliveries_pagination: Heptapod.Contracts.PaginationData,
 readonly evidence: Heptapod.Data.Ui.IncidentEvidenceData | null,
 readonly alert_preview_available: boolean,
 readonly maintenance: Heptapod.Data.Ui.MaintenanceSiteHeaderData | null,
@@ -1440,13 +1450,13 @@ readonly notification_group: Heptapod.Data.Ui.IncidentNotificationGroupData | nu
 };
 export type IncidentsIndexData = {
 readonly incidents: Heptapod.Data.Ui.IncidentData[],
-readonly pagination: Heptapod.Data.Ui.PaginationData,
+readonly pagination: Heptapod.Contracts.PaginationData,
 readonly filters: Heptapod.Data.Ui.IncidentFilterData,
 readonly clients: Heptapod.Data.Ui.ClientData[],
 };
 export type IncidentsIndexPageData = {
 readonly incidents: Heptapod.Data.Ui.IncidentData[],
-readonly pagination: Heptapod.Data.Ui.PaginationData,
+readonly pagination: Heptapod.Contracts.PaginationData,
 readonly filters: Heptapod.Data.Ui.IncidentFilterData,
 readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly summary: Heptapod.Data.Ui.IncidentSummaryData,
@@ -1704,14 +1714,6 @@ readonly migration_report: string[] | null,
 export type OwnNotificationsPageData = {
 readonly settings: Heptapod.Data.Ui.NotificationSettingsPageData,
 };
-export type PaginationData = {
-readonly current_page: number,
-readonly per_page: number,
-readonly total: number,
-readonly last_page: number,
-readonly next_page_url: string | null,
-readonly previous_page_url: string | null,
-};
 export type PerformanceNoiseData = {
 readonly minimum_increase_ms: number,
 readonly points: {
@@ -1910,6 +1912,7 @@ readonly site: Heptapod.Data.Ui.SiteRowData,
 readonly header: Heptapod.Data.Ui.SiteIdentityData,
 readonly history: Heptapod.Data.Ui.UptimeBucketData[],
 readonly events: Heptapod.Data.Ui.EventData[],
+readonly events_pagination: Heptapod.Contracts.PaginationData,
 readonly incidents: Heptapod.Data.Ui.IncidentData[],
 readonly client: Heptapod.Data.Ui.ClientData,
 readonly run_all_checks: Heptapod.Data.Ui.RunAllCheckData[],
@@ -2024,7 +2027,7 @@ readonly advisory: string | null,
 export type SitesIndexPageData = {
 readonly sites?: Heptapod.Data.Ui.SiteRowData[],
 readonly sites_history?: Heptapod.Data.Ui.SiteHistoryData[],
-readonly pagination: Heptapod.Data.Ui.PaginationData,
+readonly pagination: Heptapod.Contracts.PaginationData,
 readonly filters: Heptapod.Data.Ui.SitesFilterData,
 readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly tags: Heptapod.Data.Ui.TagData[],

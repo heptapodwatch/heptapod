@@ -1060,13 +1060,14 @@ function certificateSnapshot(
         certificate_chain_issuers: ["Let's Encrypt R11"],
     };
 }
-const pagination = (total: number): Heptapod.Data.Ui.PaginationData => ({
+const pagination = (total: number): Heptapod.Contracts.PaginationData => ({
     current_page: 1,
     per_page: 50,
     total,
     last_page: Math.max(1, Math.ceil(total / 50)),
     next_page_url: null,
     previous_page_url: null,
+    page_name: 'page',
 });
 export function sitesPageFixture(
     state: DesignPageProps['state'],
@@ -1268,6 +1269,7 @@ export function incidentPageFixture(
         note_author: null,
         note_updated_at: null,
         other_deliveries: [],
+        other_deliveries_pagination: pagination(0),
         evidence: null,
         opening_presentation: null,
         opening_delivery_explanation: null,

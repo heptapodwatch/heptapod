@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Data\Ui;
 
 use Heptapod\Contracts\CheckHistoryData;
+use Heptapod\Contracts\PaginationData;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\Lazy\ClosureLazy;
 use Spatie\LaravelData\Support\Lazy\InertiaDeferred;
@@ -30,6 +31,7 @@ final class SiteOverviewPageData extends Data
         public readonly ClosureLazy|SiteIdentityData $header,
         public readonly ClosureLazy|array $history,
         public readonly ClosureLazy|array $events,
+        public readonly ClosureLazy|PaginationData $events_pagination,
         public readonly ClosureLazy|array $incidents,
         public readonly ClosureLazy|ClientData $client,
         public readonly ClosureLazy|array $run_all_checks,

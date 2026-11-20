@@ -74,6 +74,7 @@ export default function SiteShow(page: SitePage) {
                   'maintenance',
                   'history',
                   'events',
+                  'events_pagination',
                   'incidents',
                   'uptime_ranges',
                   'record',

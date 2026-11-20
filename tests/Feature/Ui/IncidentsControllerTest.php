@@ -15,6 +15,7 @@ use Heptapod\Contracts\Notifications\DeliveryResult;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Enums\ClientScope;
 use Heptapod\Enums\IncidentCause;
+use Heptapod\Http\ListPageSize;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\Client;
@@ -98,7 +99,7 @@ it('shows each recipient only the observed SMTP acceptance or rejection for an i
         ->where('expanded_notifications.deliveries.1.address', 'accepted@example.test')->where('expanded_notifications.deliveries.1.state', 'accepted'));
 });
 
-it('bounds the other incident mail deliveries to the latest fifty plus one truncation marker', function (): void {
+it('pages the other incident mail deliveries newest first and remembers the page size', function (): void {
     $this->withoutVite();
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
@@ -112,9 +113,17 @@ it('bounds the other incident mail deliveries to the latest fifty plus one trunc
     }
     $ids = Delivery::query()->orderBy('id')->pluck('id');
     $this->actingAs($owner)->get('/incidents/'.$incident->id)->assertInertia(fn (Assert $page): Assert => $page
-        ->has('other_deliveries', 51)->where('other_deliveries.0.id', $ids->last())
+        ->has('other_deliveries', 50)->where('other_deliveries.0.id', $ids->last())
         ->where('other_deliveries.0.event_type', 'check.result_changed')
-        ->where('other_deliveries.50.id', $ids[1]));
+        ->where('other_deliveries.49.id', $ids[2])
+        ->where('other_deliveries_pagination.total', 52)->where('other_deliveries_pagination.last_page', 2));
+    $this->get('/incidents/'.$incident->id.'?incident_notifications_page=2')->assertInertia(fn (Assert $page): Assert => $page
+        ->has('other_deliveries', 2)->where('other_deliveries.0.id', $ids[1])->where('other_deliveries.1.id', $ids[0]));
+
+    $this->get('/incidents/'.$incident->id.'?incident_notifications_per_page=20')
+        ->assertCookie(ListPageSize::Cookie, json_encode(['incident_notifications' => 20]), false)
+        ->assertInertia(fn (Assert $page): Assert => $page->has('other_deliveries', 20)->where('other_deliveries_pagination.last_page', 3));
+    $this->get('/incidents/'.$incident->id.'?incident_notifications_per_page=30')->assertSessionHasErrors('incident_notifications_per_page');
 });
 
 it('masks other recipients for Members and exposes suppressed deliveries honestly', function (): void {

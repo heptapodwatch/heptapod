@@ -48,7 +48,7 @@ export default function Activity({
     filters,
     expanded_id,
     expanded_events,
-    event_page,
+    expanded_pagination,
 }: Heptapod.Data.Ui.ActivityPageData) {
     // Live changes reload only the newest batch (`head`); the shown timeline never changes underneath the reader.
     useLiveReload(['state.changed'], ['head'], undefined, true, {
@@ -418,7 +418,7 @@ export default function Activity({
                             filters={filters}
                             expandedId={expanded_id}
                             expandedEvents={expanded_events}
-                            eventPage={event_page}
+                            expandedPagination={expanded_pagination}
                         />
                     </InfiniteScroll>
                 </div>

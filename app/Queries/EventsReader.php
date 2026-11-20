@@ -6,7 +6,9 @@ namespace Heptapod\Queries;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckResult;
+use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\Notifications\AlertSeverity;
+use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\ActivityGroupData;
 use Heptapod\Data\Ui\EventData;
 use Heptapod\Events\EventPresenter;
@@ -23,7 +25,7 @@ use Illuminate\Support\Facades\DB;
 /** @phpstan-type ActivityGroupRow \stdClass&object{id: int, latest_id: int, check_id: int|null, event_count: int, started_at: string, ended_at: string, first_state: string|null, second_state: string|null, current_state: string|null} */
 final readonly class EventsReader
 {
-    public function __construct(private SitePolicy $policy, private EventPresenter $presenter) {}
+    public function __construct(private SitePolicy $policy, private EventPresenter $presenter, private ListPaging $paging) {}
 
     /** @return list<EventData> */
     public function read(User $user, ?int $siteId = null, ?int $checkId = null, ?int $incidentId = null, ?CarbonImmutable $since = null, int $limit = 20, int $offset = 0, ?string $search = null, ?int $clientId = null, ?string $type = null): array
@@ -32,6 +34,19 @@ final readonly class EventsReader
         $query->getQuery()->orderByDesc('occurred_at')->orderByDesc('id')->limit($limit)->offset($offset);
 
         return $this->present($query->get(), $incidentId !== null);
+    }
+
+    /** @return array{events: list<EventData>, pagination: PaginationData} One page of a site's events, newest first (list `site_events`). */
+    public function sitePage(User $user, int $siteId): array
+    {
+        $query = $this->filtered($user, $siteId, null, null, null, null, null, null);
+        $query->getQuery()->orderByDesc('occurred_at')->orderByDesc('id');
+        $page = $this->paging->paginate($query, 'site_events');
+        /** @var list<Event> $items */
+        $items = $page->items();
+        $events = new EloquentCollection($items);
+
+        return ['events' => $this->present($events), 'pagination' => PaginationData::fromPaginator($page)];
     }
 
     /** @param EloquentCollection<int, Event> $events
@@ -228,8 +243,8 @@ final readonly class EventsReader
             && $recovery->from_result === $failure->to_result && $recovery->to_result === CheckResult::Succeeded;
     }
 
-    /** @return list<EventData> */
-    public function activityDetails(User $user, int $id, int $page, CarbonImmutable $since, ?string $search, ?int $clientId, ?string $type): array
+    /** @return array{events: list<EventData>, pagination: PaginationData} One page of a flapping group's own events (list `activity_events`). */
+    public function activityDetails(User $user, int $id, CarbonImmutable $since, ?string $search, ?int $clientId, ?string $type): array
     {
         /** @var ActivityGroupRow|null $group */
         $group = $this->activityGroups($user, $since, $search, $clientId, $type, $id)
@@ -238,9 +253,13 @@ final readonly class EventsReader
         $query = $this->filtered($user, null, $group->check_id, null, $since, $search, $clientId, $type);
         $query->getQuery()->where(static function (QueryBuilder $members) use ($id): void {
             $members->where('flap_group_id', $id)->orWhere('id', $id);
-        })->orderByDesc('occurred_at')->orderByDesc('id')->limit(20)->offset(($page - 1) * 20);
+        })->orderByDesc('occurred_at')->orderByDesc('id');
+        $page = $this->paging->paginate($query, 'activity_events');
+        /** @var list<Event> $items */
+        $items = $page->items();
+        $events = new EloquentCollection($items);
 
-        return $this->present($query->get());
+        return ['events' => $this->present($events), 'pagination' => PaginationData::fromPaginator($page)];
     }
 
     public function count(User $user, ?CarbonImmutable $since = null, ?string $search = null, ?int $clientId = null, ?string $type = null): int

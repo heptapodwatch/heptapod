@@ -66,6 +66,7 @@ function page(
             total: 1,
             previous_page_url: null,
             next_page_url: null,
+            page_name: 'page',
         },
         search: null,
         state: 'all',

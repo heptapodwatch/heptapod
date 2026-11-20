@@ -6,6 +6,7 @@ import {
     within,
 } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
+import type { ReactNode } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { CheckHistory } from './check-history';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -15,6 +16,9 @@ import i18n from '@/lib/i18n';
 vi.mock('@inertiajs/react', () => ({
     usePage: () => ({ props: { timezone: 'UTC' } }),
     router: { on: () => () => {} },
+    Link: ({ children, href }: { children: ReactNode; href: string }) => (
+        <a href={href}>{children}</a>
+    ),
 }));
 
 type Run = Heptapod.Data.Ui.CheckRunData;

@@ -54,6 +54,7 @@ import {
     DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import { useBufferedChanges } from '@/hooks/use-buffered-changes';
+import { ListFooter } from '@/components/list-footer';
 import { useFormat } from '@/hooks/use-format';
 import {
     type OwnRunResult,
@@ -68,12 +69,14 @@ import {
 } from '@/lib/status';
 import { findings as findingsExport } from '@/routes/sites/checks';
 import {
+    index as incidentsIndex,
     note as saveNote,
     show as incidentShow,
     unsnooze,
     snooze,
 } from '@/routes/incidents';
 import { show as checkShow, run as checkRun } from '@/routes/sites/checks';
+import { index as runsIndex } from '@/routes/runs';
 import { show as siteShow } from '@/routes/sites';
 import { show as clientShow } from '@/routes/clients';
 import { index as maintenanceIndex } from '@/routes/maintenance';
@@ -983,6 +986,7 @@ export function IncidentEpisode({
                     {otherDeliveries.rows.length > 0 && (
                         <OtherNotifications
                             deliveries={otherDeliveries.rows}
+                            pagination={page.other_deliveries_pagination}
                             previewAvailable={page.alert_preview_available}
                             onPreview={onPreview}
                         />
@@ -1031,6 +1035,20 @@ export function IncidentEpisode({
                                         'No other open incidents for this client.',
                                     )}
                                 </p>
+                            )}
+                            {shown.related_incidents.length > 0 && (
+                                <TextLink
+                                    href={incidentsIndex.url({
+                                        query: {
+                                            'filter[client_id]':
+                                                page.header.client_id,
+                                            'filter[status]': 'open',
+                                        },
+                                    })}
+                                    className="text-xs"
+                                >
+                                    {t('preview.all_open_client_incidents')}
+                                </TextLink>
                             )}
                         </CardContent>
                     </Card>
@@ -1147,6 +1165,9 @@ function EpisodeEvidence({
           ? format.summary(evidence.summary, evidence.summary_params)
           : null;
     const goodResults = evidence?.retained_good_results_since_recovery ?? null;
+    const checkId = page.site.checks.find(
+        (item) => item.key === page.incident.check,
+    )?.id;
     const rows = [
         ...(opening
             ? [{ label: t('Observed at opening'), value: opening }]
@@ -1264,6 +1285,16 @@ function EpisodeEvidence({
                                 );
                             })}
                         </ul>
+                        {checkId !== undefined && (
+                            <TextLink
+                                href={runsIndex.url({
+                                    query: { check: checkId },
+                                })}
+                                className="text-xs"
+                            >
+                                {t('preview.all_check_runs')}
+                            </TextLink>
+                        )}
                     </div>
                 )}
             </CardContent>
@@ -1274,14 +1305,17 @@ function EpisodeEvidence({
 /** Mail of incident events outside the timeline (e.g. missed scheduled tasks), newest first. */
 function OtherNotifications({
     deliveries,
+    pagination,
     previewAvailable,
     onPreview,
 }: {
     deliveries: Heptapod.Data.Ui.IncidentDeliveryData[];
+    pagination: Heptapod.Contracts.PaginationData;
     previewAvailable: boolean;
     onPreview: (eventId: number) => void;
 }) {
     const { t } = useTranslation();
+    const format = useFormat();
     return (
         <Card>
             <CardHeader>
@@ -1289,7 +1323,7 @@ function OtherNotifications({
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
                 <ol className="space-y-4">
-                    {deliveries.slice(0, 50).map((delivery) => (
+                    {deliveries.map((delivery) => (
                         <li key={delivery.id}>
                             <IncidentDeliveryRow
                                 delivery={delivery}
@@ -1299,11 +1333,14 @@ function OtherNotifications({
                         </li>
                     ))}
                 </ol>
-                {deliveries.length > 50 && (
-                    <p className="text-xs text-muted-foreground">
-                        {t('More earlier deliveries not shown')}
-                    </p>
-                )}
+                <ListFooter
+                    count={t('{{count}} notifications', {
+                        count: pagination.total,
+                        formattedCount: format.number(pagination.total),
+                    })}
+                    pagination={pagination}
+                    only={['other_deliveries', 'other_deliveries_pagination']}
+                />
             </CardContent>
         </Card>
     );

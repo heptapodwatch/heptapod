@@ -34,7 +34,10 @@ import { checkTypes } from '@/lib/check-types';
 import { incidentCauseState } from '@/lib/status';
 import { useFormat } from '@/hooks/use-format';
 import { create as siteCreate, show as siteShow } from '@/routes/sites';
-import { show as incidentShow } from '@/routes/incidents';
+import {
+    index as incidentsIndex,
+    show as incidentShow,
+} from '@/routes/incidents';
 
 export default function ClientDetail({
     client,
@@ -180,19 +183,7 @@ export default function ClientDetail({
                                         pagination.total,
                                     ),
                                 })}
-                                previous={
-                                    pagination.previous_page_url
-                                        ? { href: pagination.previous_page_url }
-                                        : null
-                                }
-                                next={
-                                    pagination.next_page_url
-                                        ? { href: pagination.next_page_url }
-                                        : null
-                                }
-                                page={pagination.current_page}
-                                lastPage={pagination.last_page}
-                                pageSize={pagination.per_page}
+                                pagination={pagination}
                             />
                         )}
                     </div>
@@ -360,7 +351,30 @@ export default function ClientDetail({
                                     ))}
                                 </ul>
                             </div>
-                        ) : (
+                        ) : null}
+                        {bufferedIncidents.rows.length > 0 && (
+                            <ListFooter
+                                count={t('preview.latest_incidents', {
+                                    count: bufferedIncidents.rows.length,
+                                    formattedCount: format.number(
+                                        bufferedIncidents.rows.length,
+                                    ),
+                                })}
+                                extra={
+                                    <TextLink
+                                        href={incidentsIndex.url({
+                                            query: {
+                                                'filter[client_id]': client.id,
+                                                'filter[status]': 'all',
+                                            },
+                                        })}
+                                    >
+                                        {t('preview.all_client_incidents')}
+                                    </TextLink>
+                                }
+                            />
+                        )}
+                        {bufferedIncidents.rows.length === 0 && (
                             <ContentState
                                 state="empty"
                                 title="No incidents for this client."

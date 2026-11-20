@@ -8,6 +8,7 @@ use Heptapod\Contracts\CheckDetailData;
 use Heptapod\Contracts\CheckHistoryData;
 use Heptapod\Contracts\CheckRunPresentationData;
 use Heptapod\Contracts\Mail\MailDesign;
+use Heptapod\Contracts\PaginationData;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\Lazy\ClosureLazy;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
@@ -32,6 +33,7 @@ final class IncidentDetailPageData extends Data
         public readonly ClosureLazy|string|null $note_author,
         public readonly ClosureLazy|string|null $note_updated_at,
         public readonly ClosureLazy|array $other_deliveries,
+        public readonly ClosureLazy|PaginationData $other_deliveries_pagination,
         public readonly ClosureLazy|IncidentEvidenceData|null $evidence,
         public readonly ClosureLazy|bool $alert_preview_available,
         /** The site's current or next maintenance window. */

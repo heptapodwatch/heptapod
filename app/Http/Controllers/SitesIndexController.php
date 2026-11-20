@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers;
 
 use Heptapod\Contracts\CheckKey;
+use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\DashboardTilesData;
-use Heptapod\Data\Ui\PaginationData;
 use Heptapod\Data\Ui\SiteListSummaryData;
 use Heptapod\Data\Ui\SitesFilterData;
 use Heptapod\Data\Ui\SitesIndexPageData;
@@ -75,7 +75,7 @@ final class SitesIndexController extends Controller
             pagination: Lazy::closure(static function () use ($read): PaginationData {
                 $page = $read();
 
-                return new PaginationData($page->currentPage(), $page->perPage(), $page->total(), $page->lastPage(), $page->nextPageUrl(), $page->previousPageUrl());
+                return PaginationData::fromPaginator($page);
             }),
             filters: Lazy::closure(static fn (): SitesFilterData => $reader->filters($request)),
             clients: Lazy::closure(static fn (): array => $reader->clients($user)),

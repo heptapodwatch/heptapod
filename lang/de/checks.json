@@ -432,5 +432,8 @@
     "run.startedBy": "Gestartet von {{actor}}",
     "run.started": "Gestartet",
     "run.started.all": "Alle Läufe",
-    "run.started.manual": "Manuell gestartet"
+    "run.started.manual": "Manuell gestartet",
+    "preview.latest_runs_one": "Letzter Lauf",
+    "preview.latest_runs_other": "Letzte {{formattedCount}} Läufe",
+    "preview.all_check_runs": "Alle Läufe dieser Prüfung"
 }
