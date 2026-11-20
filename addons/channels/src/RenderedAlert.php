@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Heptapod\Addons\Channels;
 
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
+use Carbon\CarbonInterval;
 use Heptapod\Contracts\CheckHeadline;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRunPresentationData;
@@ -12,6 +14,7 @@ use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\Notifications\AlertMessage;
 use Heptapod\Contracts\SummaryParameters;
 use Illuminate\Notifications\Notification;
+use Illuminate\Notifications\Slack\BlockKit\Blocks\ContextBlock;
 use Illuminate\Notifications\Slack\BlockKit\Blocks\SectionBlock;
 use Illuminate\Notifications\Slack\SlackMessage;
 use NotificationChannels\Telegram\TelegramMessage;
@@ -29,7 +32,7 @@ final class RenderedAlert extends Notification
 
     // https://docs.slack.dev/reference/block-kit/blocks/header-block/
     // https://docs.slack.dev/reference/block-kit/blocks/section-block/
-    public const array SLACK_LIMITS = ['title' => 150, 'body' => 3000];
+    public const array SLACK_LIMITS = ['title' => 150, 'body' => 3000, 'field' => 2000];
 
     // https://pushover.net/api#messages
     public const array PUSHOVER_LIMITS = ['title' => 250, 'body' => 1024];
@@ -116,6 +119,26 @@ final class RenderedAlert extends Notification
         if ($this->message->systemFacts !== null) {
             return $markdown ? array_map($this->escapeMarkdown(...), $this->message->systemFacts) : $this->message->systemFacts;
         }
+        $lines = $this->narrativeLines($markdown);
+        if ($this->message->checkType !== null) {
+            $lines[] = $this->translate('notifications.check', ['check' => $this->checkName()], $markdown);
+        }
+        if ($this->message->siteId === null) {
+            $lines[] = $markdown ? $this->escapeMarkdown($this->siteLabel()) : $this->siteLabel();
+        } else {
+            $lines[] = $this->translate('notifications.site_url', ['url' => $this->siteUrl()], $markdown);
+        }
+        $lines[] = $this->translate('notifications.since', ['since' => $this->machineReadable ? $this->message->since->toIso8601String() : $this->dateTime($this->message->since)]);
+        if ($this->message->downtimeSeconds !== null) {
+            $lines[] = $this->durationLine();
+        }
+
+        return $lines;
+    }
+
+    /** @return list<string> */
+    private function narrativeLines(bool $markdown): array
+    {
         $params = $this->machineReadable
             ? $this->message->summaryParams
             : SummaryParameters::localized($this->message->summaryParams, $this->destinationLocale);
@@ -144,22 +167,31 @@ final class RenderedAlert extends Notification
                 $this->message->recheckingChecks,
             ))], $markdown);
         }
-        if ($this->message->checkType !== null) {
-            $lines[] = $this->translate('notifications.check', ['check' => $this->checkName()], $markdown);
-        }
-        if ($this->message->siteId === null) {
-            $lines[] = $markdown ? $this->escapeMarkdown($this->siteLabel()) : $this->siteLabel();
-        } else {
-            $lines[] = $this->translate('notifications.site_url', ['url' => $this->siteUrl()], $markdown);
-        }
-        $lines[] = $this->translate('notifications.since', ['since' => $this->machineReadable ? $this->message->since->toIso8601String() : $this->dateTime($this->message->since)]);
-        if ($this->message->downtimeSeconds !== null) {
-            $durationKey = ! $this->machineReadable && $this->isNonUptimeCheck()
-                ? 'notifications.duration' : 'notifications.downtime';
-            $lines[] = $this->translate($durationKey, ['seconds' => $this->message->downtimeSeconds]);
-        }
 
         return $lines;
+    }
+
+    private function durationLine(): string
+    {
+        $seconds = $this->message->downtimeSeconds ?? throw new \LogicException('Duration line requires downtime seconds.');
+        if ($this->machineReadable) {
+            return $this->translate('notifications.downtime_seconds', ['seconds' => $seconds]);
+        }
+
+        return $this->translate(
+            $this->isNonUptimeCheck() ? 'notifications.duration' : 'notifications.downtime',
+            ['duration' => $this->duration($seconds)],
+        );
+    }
+
+    private function duration(int $seconds): string
+    {
+        return CarbonInterval::seconds($seconds)->cascade()->locale($this->destinationLocale)->forHumans([
+            'short' => true,
+            'parts' => 2,
+            'join' => ' ',
+            'syntax' => CarbonInterface::DIFF_ABSOLUTE,
+        ]);
     }
 
     private function isNonUptimeCheck(): bool
@@ -258,20 +290,165 @@ final class RenderedAlert extends Notification
 
     public function toSlack(): SlackMessage
     {
-        $fallback = strtr($this->text(self::SLACK_LIMITS['body']), ['&' => '&amp;', '<' => '&lt;', '>' => '&gt;']);
+        $narrative = $this->message->systemFacts ?? $this->narrativeLines(false);
+        $sectionText = $this->boundedEscapedSlack(
+            implode("\n", array_map($this->slackEscape(...), $narrative)),
+            self::SLACK_LIMITS['body'],
+            $this->slackEscape($this->translate('notifications.truncated')),
+        );
+        $fields = $this->slackFields();
 
-        $message = (new SlackMessage)->text($fallback)->disableMarkdownParsing()->unfurlLinks(false)->unfurlMedia(false)->headerBlock($this->title(limit: self::SLACK_LIMITS['title']))
-            ->sectionBlock(function (SectionBlock $block): void {
-                $block->text($this->details(limit: self::SLACK_LIMITS['body']));
+        // Keep mrkdwn enabled so explicit `<url|label>` links work in Slack and Mattermost; `verbatim`
+        // (in blocks) and `parse: none` (in SlackChannel) stop auto-linking untrusted text or mentions.
+        $message = (new SlackMessage)
+            ->text($this->slackFallbackText())
+            ->unfurlLinks(false)
+            ->unfurlMedia(false)
+            ->headerBlock($this->title(limit: self::SLACK_LIMITS['title']))
+            ->sectionBlock(function (SectionBlock $block) use ($sectionText, $fields): void {
+                $block->text($sectionText)->markdown()->verbatim();
+                foreach ($fields as $field) {
+                    $block->field($field)->markdown()->verbatim();
+                }
             });
         $link = $this->message->link;
         if ($link !== null) {
-            $message->sectionBlock(function (SectionBlock $block) use ($link): void {
-                $block->text($link);
+            $linkText = $this->slackLink($link, $this->slackLinkLabel($link));
+            $message->sectionBlock(function (SectionBlock $block) use ($linkText): void {
+                $block->text($linkText)->markdown()->verbatim();
+            });
+        }
+        if (trim($this->instanceName) !== '') {
+            $message->contextBlock(function (ContextBlock $block): void {
+                $block->text($this->bounded($this->instanceName, self::SLACK_LIMITS['body'], '…'));
             });
         }
 
         return $message;
+    }
+
+    /** @return list<string> */
+    private function slackFields(): array
+    {
+        if ($this->message->systemFacts !== null) {
+            return [];
+        }
+        $fields = [];
+        if ($this->message->checkType !== null) {
+            $fields[] = $this->slackField('notifications.field.check', $this->slackEscape($this->checkName()));
+        }
+        $sitePrefix = '*'.$this->slackEscape($this->translate('notifications.field.site'))."*\n";
+        $fields[] = $sitePrefix.$this->slackSiteValue(self::SLACK_LIMITS['field'] - strlen($sitePrefix));
+        $fields[] = $this->slackField('notifications.field.since', $this->slackEscape($this->dateTime($this->message->since)));
+        if ($this->message->downtimeSeconds !== null) {
+            $labelKey = $this->isNonUptimeCheck() ? 'notifications.field.duration' : 'notifications.field.downtime';
+            $fields[] = $this->slackField($labelKey, $this->slackEscape($this->duration($this->message->downtimeSeconds)));
+        }
+
+        return $fields;
+    }
+
+    private function slackField(string $labelKey, string $escapedValue): string
+    {
+        $prefix = '*'.$this->slackEscape($this->translate($labelKey))."*\n";
+
+        return $prefix.$this->boundedEscapedSlack($escapedValue, self::SLACK_LIMITS['field'] - strlen($prefix), '…');
+    }
+
+    private function slackFallbackText(int $limit = self::SLACK_LIMITS['body']): string
+    {
+        $link = $this->message->link === null ? '' : "\n".$this->slackLink($this->message->link, $this->slackLinkLabel($this->message->link));
+        $bodyLimit = $limit - strlen($link);
+        $truncated = $this->slackEscape($this->translate('notifications.truncated'));
+        if ($bodyLimit < strlen($truncated)) {
+            throw new \LengthException('Notification link leaves no room for bounded content.');
+        }
+        $title = $this->slackEscape($this->title(limit: self::SLACK_LIMITS['title']));
+        if ($this->message->systemFacts !== null) {
+            $body = implode("\n", [$title, ...array_map($this->slackEscape(...), $this->message->systemFacts)]);
+
+            return $this->boundedEscapedSlack($body, $bodyLimit, $truncated).$link;
+        }
+        $metaLines = [];
+        if ($this->message->checkType !== null) {
+            $metaLines[] = $this->slackEscape($this->translate('notifications.check', ['check' => $this->checkName()]));
+        }
+        if ($this->message->siteId === null) {
+            $metaLines[] = $this->slackEscape($this->siteLabel());
+        } else {
+            $sitePrefix = $this->slackEscape($this->translate('notifications.field.site')).': ';
+            $metaLines[] = $sitePrefix.$this->slackSiteValue(self::SLACK_LIMITS['field']);
+        }
+        $metaLines[] = $this->slackEscape($this->translate('notifications.since', ['since' => $this->dateTime($this->message->since)]));
+        if ($this->message->downtimeSeconds !== null) {
+            $metaLines[] = $this->slackEscape($this->durationLine());
+        }
+        $meta = "\n".implode("\n", $metaLines);
+        $narrative = implode("\n", array_map($this->slackEscape(...), $this->narrativeLines(false)));
+        $narrativeBudget = $bodyLimit - strlen($title) - 1 - strlen($meta);
+        if ($narrativeBudget >= strlen($truncated)) {
+            return $title."\n".$this->boundedEscapedSlack($narrative, $narrativeBudget, $truncated).$meta.$link;
+        }
+
+        return $this->boundedEscapedSlack($title."\n".$narrative.$meta, $bodyLimit, $truncated).$link;
+    }
+
+    private function slackSiteValue(int $maxBytes): string
+    {
+        if ($this->message->siteId === null) {
+            return $this->boundedEscapedSlack($this->slackEscape($this->siteLabel()), $maxBytes, '…');
+        }
+        $url = $this->siteUrl();
+        if (preg_match('#\Ahttps?://\S+\z#i', $url) !== 1) {
+            return $this->boundedEscapedSlack($this->slackEscape($url), $maxBytes, '…');
+        }
+        $display = preg_replace('#\Ahttps?://#i', '', rtrim($url, '/')) ?? $url;
+        $linked = $this->slackLink($url, $this->bounded($display, 120, '…'));
+        if (strlen($linked) <= $maxBytes) {
+            return $linked;
+        }
+
+        return $this->boundedEscapedSlack($this->slackEscape($url), $maxBytes, '…');
+    }
+
+    private function slackLinkLabel(string $url): string
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+
+        return is_string($path) && str_contains($path, '/incidents/')
+            ? $this->translate('notifications.open_incident')
+            : $this->translate('notifications.view');
+    }
+
+    private function slackLink(string $url, string $label): string
+    {
+        $safeUrl = strtr($url, ['&' => '&amp;', '<' => '%3C', '>' => '%3E', '|' => '%7C', ' ' => '%20']);
+
+        return '<'.$safeUrl.'|'.$this->slackEscape($label).'>';
+    }
+
+    private function slackEscape(string $text): string
+    {
+        return strtr($text, ['&' => '&amp;', '<' => '&lt;', '>' => '&gt;']);
+    }
+
+    private function boundedEscapedSlack(string $escaped, int $limit, string $suffix): string
+    {
+        if ($limit < strlen($suffix)) {
+            throw new \LengthException('Notification link leaves no room for bounded content.');
+        }
+        if (strlen($escaped) <= $limit) {
+            return $escaped;
+        }
+        $cut = mb_strcut($escaped, 0, $limit - strlen($suffix), 'UTF-8');
+        $lastOpen = strrpos($cut, '<');
+        $lastClose = strrpos($cut, '>');
+        if ($lastOpen !== false && ($lastClose === false || $lastOpen > $lastClose)) {
+            $cut = substr($cut, 0, $lastOpen);
+        }
+        $cut = preg_replace('/&[^;]{0,4}$/', '', $cut) ?? $cut;
+
+        return $cut.$suffix;
     }
 
     public function toTelegram(): TelegramMessage
