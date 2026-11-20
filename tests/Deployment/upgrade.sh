@@ -33,11 +33,13 @@ services:
     redis:
         labels:
             deployment-recreation-test: before
-    # Releases up to v0.11.1 ran Gotenberg in the browser profile; the upgrade must remove its container.
+    # Releases up to v0.11.1 ran a gotenberg service in the browser profile; the upgrade must remove its container.
+    # Only the Compose service name matters for the orphan, so an inert Redis without a volume stands in for it.
     gotenberg:
-        image: gotenberg/gotenberg:9.5.0@sha256:ac61457a1e889ef1ca256a9afc117cff8caf517f19e66ea23cede3feb22f69a5
+        extends: { file: compose.prod.yaml, service: redis }
         profiles: [browser]
-        networks: [browser]
+        networks: !override [browser]
+        volumes: !reset []
 YAML
 cd "$fresh"
 dc() { docker compose --env-file .env.prod "$@"; }
@@ -198,7 +200,7 @@ after_reverb=$(dc ps -q reverb)
 dc exec -T reverb sh /app/docker/prod/healthcheck.sh
 [ -z "$(docker ps -aq --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" --filter label=com.docker.compose.service=gotenberg)" ]
 if docker inspect "$before_gotenberg" >/dev/null 2>&1; then echo "Retired Gotenberg container $before_gotenberg survived the upgrade" >&2; exit 1; fi
-dc ps --format json | jq -s -e 'length > 0 and all(.[]; .Health == "healthy")' >/dev/null
+dc ps --format json | jq -s -e '(map(.Service) | sort) == ["app", "dispatcher", "horizon", "lighthouse", "lighthouse-proxy", "postgres", "redis", "reverb", "scheduler"] and all(.[]; .Health == "healthy")' >/dev/null
 dc exec -T app test ! -f /app/storage/framework/down
 curl -fsS http://localhost:8384/up >/dev/null
 dc exec -T app sh -ec 'find /backups -name "*.zip" | grep -q .'
