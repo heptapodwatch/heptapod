@@ -79,12 +79,12 @@ it('reports the private Reverb endpoint as healthy, down, or not configured', fu
     expect(app(ReadSystemHealth::class)()->reverb->status)->toBe(HealthStatus::NotConfigured);
 });
 
-/** @param array{lighthouse: string|null, gotenberg: string|null} $expectedUrls */
-it('derives browser health URLs for boolean environment spellings and unset service URLs', function (string $enabled, bool $expected, ?string $lighthouseUrl, ?string $gotenbergUrl, array $expectedUrls): void {
+/** @param array{lighthouse: string|null} $expectedUrls */
+it('derives browser health URLs for boolean environment spellings and unset service URLs', function (string $enabled, bool $expected, ?string $lighthouseUrl, array $expectedUrls): void {
     $previousServer = $_SERVER;
     $previousEnvironment = $_ENV;
     $previousProcess = [];
-    foreach (['HEPTAPOD_BROWSER_ENABLED' => $enabled, 'LIGHTHOUSE_URL' => $lighthouseUrl, 'GOTENBERG_URL' => $gotenbergUrl] as $name => $value) {
+    foreach (['HEPTAPOD_BROWSER_ENABLED' => $enabled, 'LIGHTHOUSE_URL' => $lighthouseUrl] as $name => $value) {
         $previousProcess[$name] = getenv($name);
         if ($value === null) {
             unset($_SERVER[$name], $_ENV[$name]);
@@ -106,11 +106,11 @@ it('derives browser health URLs for boolean environment spellings and unset serv
         }
     }
 })->with([
-    'enabled true' => ['true', true, 'http://lighthouse.test:3000/', 'http://gotenberg.test:3000/', ['lighthouse' => 'http://lighthouse.test:3000/health', 'gotenberg' => 'http://gotenberg.test:3000/health']],
-    'enabled 1' => ['1', true, 'http://lighthouse.test:3000/', 'http://gotenberg.test:3000/', ['lighthouse' => 'http://lighthouse.test:3000/health', 'gotenberg' => 'http://gotenberg.test:3000/health']],
-    'disabled false' => ['false', false, 'http://lighthouse.test:3000/', 'http://gotenberg.test:3000/', ['lighthouse' => null, 'gotenberg' => null]],
-    'disabled 0' => ['0', false, 'http://lighthouse.test:3000/', 'http://gotenberg.test:3000/', ['lighthouse' => null, 'gotenberg' => null]],
-    'default service URLs' => ['true', true, null, null, ['lighthouse' => 'http://lighthouse:3000/health', 'gotenberg' => 'http://gotenberg:3000/health']],
+    'enabled true' => ['true', true, 'http://lighthouse.test:3000/', ['lighthouse' => 'http://lighthouse.test:3000/health']],
+    'enabled 1' => ['1', true, 'http://lighthouse.test:3000/', ['lighthouse' => 'http://lighthouse.test:3000/health']],
+    'disabled false' => ['false', false, 'http://lighthouse.test:3000/', ['lighthouse' => null]],
+    'disabled 0' => ['0', false, 'http://lighthouse.test:3000/', ['lighthouse' => null]],
+    'default service URL' => ['true', true, null, ['lighthouse' => 'http://lighthouse:3000/health']],
 ]);
 
 it('reads real Redis queue and Horizon state with operational thresholds and optional browser health', function (): void {
@@ -122,8 +122,8 @@ it('reads real Redis queue and Horizon state with operational thresholds and opt
     Redis::purge('horizon');
     config(['horizon.env' => 'workers', 'horizon.defaults' => ['worker-1' => ['connection' => 'redis', 'queue' => ['ignored-default']]], 'horizon.environments' => ['workers' => ['worker-1' => ['queue' => ['checks-fast']], 'worker-2' => ['connection' => 'redis', 'queue' => ['checks-fast']]], 'testing' => ['worker-1' => ['queue' => ['testing-only']]], 'production' => ['worker-1' => ['queue' => ['production-only']]]]]);
     Http::preventStrayRequests();
-    Http::fake(['http://lighthouse.test/health' => Http::response('', 200), 'http://gotenberg.test/health' => Http::response('', 503)]);
-    config(['heptapod.health.browser_urls' => ['lighthouse' => 'http://lighthouse.test/health', 'gotenberg' => 'http://gotenberg.test/health']]);
+    Http::fake(['http://lighthouse.test/health' => Http::response('', 200)]);
+    config(['heptapod.health.browser_urls' => ['lighthouse' => 'http://lighthouse.test/health']]);
     $redis = Redis::connection('horizon');
     try {
         $redis->zadd('masters', now()->timestamp, 'test-master');
@@ -142,7 +142,7 @@ it('reads real Redis queue and Horizon state with operational thresholds and opt
         expect($data->queues['redis:checks-fast']->status)->toBe(HealthStatus::Warn)->and($data->queues['redis:checks-fast']->value)->toBe(100)
             ->and($data->horizon->status)->toBe(HealthStatus::Ok)->and($data->horizon->value)->toBe(2)
             ->and($data->dispatcher->status)->toBe(HealthStatus::Warn)->and($data->scheduler->status)->toBe(HealthStatus::Ok)
-            ->and($data->browserServices['lighthouse']->status)->toBe(HealthStatus::Ok)->and($data->browserServices['gotenberg']->status)->toBe(HealthStatus::Down)
+            ->and($data->browserServices['lighthouse']->status)->toBe(HealthStatus::Ok)
             ->and($data->databaseBytes)->toBeGreaterThan(0)->and($data->failedJobsTotal)->toBe(1)->and($data->recentFailedJobs->status)->toBe(HealthStatus::Ok)
             ->and($data->lastExternalPing)->toBe('2026-10-01T11:59:00+00:00');
         for ($i = 0; $i < 900; $i++) {

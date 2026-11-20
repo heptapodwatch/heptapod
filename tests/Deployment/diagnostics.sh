@@ -56,8 +56,6 @@ services:
         pull_policy: never
     redis:
         pull_policy: never
-    gotenberg:
-        pull_policy: never
 YAML
 # Enforcing SELinux hosts require the generated bind/build files to be readable.
 if command -v selinuxenabled >/dev/null && selinuxenabled; then chcon -R -t container_file_t "$fresh"; fi

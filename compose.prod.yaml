@@ -206,37 +206,6 @@ services:
             timeout: 3s
             retries: 10
 
-    gotenberg:
-        <<: *runtime
-        profiles: [browser]
-        mem_limit: 768m
-        memswap_limit: 768m
-        image: gotenberg/gotenberg:9.5.0@sha256:ac61457a1e889ef1ca256a9afc117cff8caf517f19e66ea23cede3feb22f69a5
-        command:
-            [
-                'gotenberg',
-                '--chromium-max-concurrency=1',
-                '--chromium-max-queue-size=2',
-                '--chromium-start-timeout=60s',
-                '--api-timeout=120s',
-                '--chromium-deny-list=^(?!data:|file:///tmp/).*',
-                '--chromium-disable-javascript',
-                '--api-disable-download-from',
-                '--webhook-disable',
-                '--libreoffice-disable-routes',
-            ]
-        init: true
-        shm_size: 1gb
-        cap_drop: [ALL]
-        security_opt: [no-new-privileges:true]
-        networks: [browser]
-        healthcheck:
-            test: ['CMD', 'curl', '-fsS', 'http://localhost:3000/health']
-            interval: 30s
-            timeout: 5s
-            retries: 3
-            start_period: 30s
-
 networks:
     backend:
     browser:

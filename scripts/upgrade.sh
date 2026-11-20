@@ -411,7 +411,7 @@ if [ "$resume" = false ]; then
         export APP_IMAGE
         APT_SNAPSHOT_DATE=$(date -u +%F)
         export APT_SNAPSHOT_DATE
-        dc pull postgres redis gotenberg
+        dc pull postgres redis
         if [ "$browser" = true ]; then
             candidate_lighthouse="$local_repository/lighthouse:$release_sha"
             [ -z "$release_dirty" ] || candidate_lighthouse="$candidate_lighthouse-dirty"
@@ -424,7 +424,7 @@ if [ "$resume" = false ]; then
         unset APP_IMAGE LIGHTHOUSE_IMAGE
     else
         resolve_release_images "$browser"
-        dc pull postgres redis gotenberg
+        dc pull postgres redis
     fi
     # Fully obtained candidates also need retirement if they fail and a later generation succeeds.
     docker image inspect --format '{{.Id}}' "$candidate_app" >> "$state/obsolete-images"
@@ -477,7 +477,7 @@ fi
 capture_diagnostics
 export HEPTAPOD_APP_RUN_MIGRATIONS=0
 if [ "$browser" = true ]; then
-    dc up -d --remove-orphans --wait --wait-timeout 300 app reverb postgres redis gotenberg lighthouse lighthouse-proxy
+    dc up -d --remove-orphans --wait --wait-timeout 300 app reverb postgres redis lighthouse lighthouse-proxy
 else
     dc up -d --remove-orphans --wait --wait-timeout 300 app reverb postgres redis
 fi

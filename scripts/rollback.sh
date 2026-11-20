@@ -320,7 +320,7 @@ mv .env.prod.recovery .env.prod
 sync .env.prod
 sync .
 if [ "$browser" = true ]; then
-    dc up -d --remove-orphans --wait --wait-timeout 300 --pull never app reverb postgres redis gotenberg lighthouse lighthouse-proxy
+    dc up -d --remove-orphans --wait --wait-timeout 300 --pull never app reverb postgres redis lighthouse lighthouse-proxy
 else
     dc up -d --remove-orphans --wait --wait-timeout 300 --pull never app reverb postgres redis
 fi

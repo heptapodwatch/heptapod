@@ -22,7 +22,7 @@ it('projects measured health and a sample timestamp to the page and refresh endp
     $user->assignRole($role);
     DispatcherHeartbeat::factory()->create(['last_seen_at' => now()->subSeconds(200)]);
     DB::table('failed_jobs')->insert(['uuid' => Str::uuid(), 'connection' => 'redis', 'queue' => 'checks-fast', 'payload' => '{}', 'exception' => 'private-exception', 'failed_at' => now()]);
-    config(['heptapod.health.browser_urls' => ['lighthouse' => 'http://private-probe.test/health', 'gotenberg' => null]]);
+    config(['heptapod.health.browser_urls' => ['lighthouse' => 'http://private-probe.test/health']]);
     Http::preventStrayRequests();
     $probes = 0;
     // Pooled requests that fail to connect are not recorded, so the fake counts the probes itself.
@@ -39,8 +39,7 @@ it('projects measured health and a sample timestamp to the page and refresh endp
         ->where('systemPage.health.scheduler.value', null)->where('systemPage.health.dispatcher.value', 200)
         ->where('systemPage.health.dispatcher.status', 'down')->where('systemPage.health.recentFailedJobs.value', 1)
         ->where('systemPage.health.failedJobsTotal', 1)->where('systemPage.health.databaseBytes', fn (int $size): bool => $size > 0)
-        ->where('systemPage.health.browserServices.lighthouse.status', 'down')
-        ->where('systemPage.health.browserServices.gotenberg.status', 'not-configured'));
+        ->where('systemPage.health.browserServices.lighthouse.status', 'down'));
     expect($response->getContent())->not->toContain('private-probe', 'private-exception');
     $json = $this->getJson('/settings/system/data')->assertOk()
         ->assertJsonPath('observed_at', '2026-10-06T12:00:00+00:00')

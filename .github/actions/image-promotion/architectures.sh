@@ -20,7 +20,7 @@ jq -en --arg value "$value" '
    acceptance_matrix: {include: [ $arches[] as $arch | $suites[] | {
      suite: ., architecture: $arch, runner: ($arch | runner)
    }]},
-   runtime_matrix: {include: [ ["postgres", "redis", "gotenberg"][] as $service | $arches[] | {
+   runtime_matrix: {include: [ ["postgres", "redis"][] as $service | $arches[] | {
      service: $service, architecture: ., runner: runner
    }]},
    hard_jobs: ([ ["app", "lighthouse"][] as $image | $arches[] | "image-validate (\($image), \(.))" ] +

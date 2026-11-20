@@ -1,7 +1,7 @@
 #!/bin/sh
 # PHP fragments expand in the container.
 # shellcheck disable=SC2016
-# Recreate the real Gotenberg service through the production upgrade entry point.
+# Recreate the real Redis service and remove the retired Gotenberg container through the production upgrade entry point.
 set -eu
 root=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 : "${APP_IMAGE:?Set APP_IMAGE to the app image under test}"
@@ -30,9 +30,16 @@ services:
     lighthouse:
         build:
             context: $root
-    gotenberg:
+    redis:
         labels:
             deployment-recreation-test: before
+    # Releases up to v0.11.1 ran a gotenberg service in the browser profile; the upgrade must remove its container.
+    # Only the Compose service name matters for the orphan, so an inert Redis without a volume stands in for it.
+    gotenberg:
+        extends: { file: compose.prod.yaml, service: redis }
+        profiles: [browser]
+        networks: !override [browser]
+        volumes: !reset []
 YAML
 cd "$fresh"
 dc() { docker compose --env-file .env.prod "$@"; }
@@ -80,14 +87,15 @@ fi
 sed '/^REVERB_/d; /^BROADCAST_CONNECTION=/d' .env.prod > legacy.env
 mv legacy.env .env.prod
 cp .env.prod before.env
-before=$(dc ps -q gotenberg)
+before=$(dc ps -q redis)
 before_reverb=$(dc ps -q reverb)
-[ -n "$before" ] && [ -n "$before_reverb" ]
+before_gotenberg=$(dc ps -q gotenberg)
+[ -n "$before" ] && [ -n "$before_reverb" ] && [ -n "$before_gotenberg" ]
 # Record live: the daemon keeps only a small global history shared with other stacks.
 docker events --filter type=container --filter "container=$before" --format '{{json .}}' > events.jsonl &
 events=$!
 sleep 1
-sed 's/deployment-recreation-test: before/deployment-recreation-test: after/' test.yaml > changed.yaml
+sed 's/deployment-recreation-test: before/deployment-recreation-test: after/; /# Releases up to v0.11.1/,$d' test.yaml > changed.yaml
 mv changed.yaml test.yaml
 # Snapshot the phase and schema around the notification preflight's one-shot preview container.
 REAL_DOCKER=$(command -v docker)
@@ -183,13 +191,16 @@ fclose($socket);
 if (! str_contains($status, "101 Switching Protocols")) { throw new RuntimeException("Legacy upgrade did not restore the live WebSocket: $status"); }
 '
 echo 'PASS: legacy upgrade generated Reverb credentials and restored the live WebSocket'
-after=$(dc ps -q gotenberg)
+after=$(dc ps -q redis)
 [ -n "$after" ] && [ "$after" != "$before" ]
 [ "$(docker inspect --format '{{index .Config.Labels "deployment-recreation-test"}}' "$after")" = after ]
 [ "$(docker inspect --format '{{.State.Health.Status}}' "$after")" = healthy ]
 after_reverb=$(dc ps -q reverb)
 [ -n "$after_reverb" ] && [ "$after_reverb" != "$before_reverb" ]
 dc exec -T reverb sh /app/docker/prod/healthcheck.sh
+[ -z "$(docker ps -aq --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" --filter label=com.docker.compose.service=gotenberg)" ]
+if docker inspect "$before_gotenberg" >/dev/null 2>&1; then echo "Retired Gotenberg container $before_gotenberg survived the upgrade" >&2; exit 1; fi
+dc ps --format json | jq -s -e '(map(.Service) | sort) == ["app", "dispatcher", "horizon", "lighthouse", "lighthouse-proxy", "postgres", "redis", "reverb", "scheduler"] and all(.[]; .Health == "healthy")' >/dev/null
 dc exec -T app test ! -f /app/storage/framework/down
 curl -fsS http://localhost:8384/up >/dev/null
 dc exec -T app sh -ec 'find /backups -name "*.zip" | grep -q .'
@@ -199,4 +210,4 @@ wait "$events" || [ "$?" = 143 ]
 events=
 cat events.jsonl
 jq -s -e 'any(.[]; .Action == "die" and .Actor.Attributes.exitCode == "0")' events.jsonl
-printf 'PASS: Gotenberg recreated %s -> %s; Reverb recreated %s -> %s; old process exited 0; replacement healthy; backup exists; maintenance disabled; environment including Reverb credentials unchanged\n' "$before" "$after" "$before_reverb" "$after_reverb"
+printf 'PASS: retired Gotenberg container %s removed; all services healthy; Redis recreated %s -> %s; Reverb recreated %s -> %s; old process exited 0; replacement healthy; backup exists; maintenance disabled; environment including Reverb credentials unchanged\n' "$before_gotenberg" "$before" "$after" "$before_reverb" "$after_reverb"
