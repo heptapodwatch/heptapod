@@ -193,8 +193,8 @@ it('paginates incidents within a fixed query budget', function (int $count): voi
         ->and(count(array_filter($queries, static fn (array $query): bool => str_contains($query['query'], 'percentile_cont(0.5)'))))->toBe(1);
     // Upper budget: page shell and shell health (25458fc44/0a385128), one incident page with batched
     // current/opening presentations (83aee8842), one duration-median read, the sidebar's inline late runs count and
-    // Running now (visible sites plus one read).
-    expect($fewQueries)->toBeLessThanOrEqual(26, 'the incident list used '.$fewQueries.' queries, over its budget of 26');
+    // Running now (visible sites, check runs, imports, backup).
+    expect($fewQueries)->toBeLessThanOrEqual(28, 'the incident list used '.$fewQueries.' queries, over its budget of 28');
     DB::enableQueryLog();
     DB::flushQueryLog();
     $this->withHeaders(['X-Inertia' => 'true', 'X-Inertia-Version' => $response->inertiaPage()['version'],

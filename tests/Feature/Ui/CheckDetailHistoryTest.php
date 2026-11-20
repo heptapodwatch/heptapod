@@ -144,8 +144,9 @@ it('bounds cron task list scans and detail queries as unrelated tasks grow', fun
     $taskQuery = collect($queries)->first(static fn (array $query): bool => str_contains($query['query'], 'from "cron_checks"') && str_contains($query['query'], 'limit 51'));
     expect($props['history']['tasks'])->toHaveCount(1)
         // Upper budget: page shell and shell health (25458fc44/0a385128), the check with its presentations (e04c03b5d),
-        // bounded charts (341b9a74a) and the visible task page. Growth with unrelated tasks is bounded by the plan scan below.
-        ->and(count($queries))->toBeLessThanOrEqual(59, 'the cron check detail used '.count($queries).' queries, over its budget of 59')
+        // bounded charts (341b9a74a), the visible task page and Running now (visible sites, check runs, imports, backup). Growth with unrelated
+        // tasks is bounded by the plan scan below.
+        ->and(count($queries))->toBeLessThanOrEqual(61, 'the cron check detail used '.count($queries).' queries, over its budget of 61')
         ->and($taskQuery)->not->toBeNull();
     expect(QueryPlanWork::scannedRows($taskQuery['query'], $taskQuery['bindings']))->toBeLessThan(100);
 })->with([500, 5000]);

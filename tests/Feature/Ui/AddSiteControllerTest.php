@@ -189,8 +189,9 @@ it('loads add-site client options without N+1 queries or removed tag options eve
     $response->assertOk()->assertInertia(fn (Assert $page): Assert => $page->has('clients', $count)->missing('tags'));
     expect(collect($queries)->filter(static fn (array $query): bool => str_contains($query['query'], 'from "tags"') || str_contains($query['query'], 'from "taggables"')))->toBeEmpty();
     // Client avatars add two batched relation reads to the cold page load, the sidebar's inline late runs count two more.
-    // +1 since 2026-11-19: the instance zone, the default of the inline client form's zone field. +2: Running now (visible sites plus one read).
-    expect(count($queries))->toBeLessThanOrEqual(19);
+    // +1 since 2026-11-19: the instance zone, the default of the inline client form's zone field.
+    // +4: Running now (visible sites, check runs, imports, backup).
+    expect(count($queries))->toBeLessThanOrEqual(21);
     if ($count === 300) {
         $clientQuery = collect($queries)->first(fn (array $query): bool => str_starts_with($query['query'], 'select "clients".* from "clients"'));
         expect($clientQuery)->not->toBeNull();

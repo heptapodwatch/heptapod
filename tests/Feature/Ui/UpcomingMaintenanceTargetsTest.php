@@ -99,6 +99,6 @@ it('bounds target presentation queries', function (int $count): void {
     $queries = DB::getQueryLog();
     DB::disableQueryLog();
     expect($response->inertiaProps()['items'])->toHaveCount(min($count, 100));
-    // The page shell includes Running now (visible sites plus one read).
-    expect(count($queries))->toBeLessThanOrEqual(22);
+    // The page shell includes Running now (visible sites, check runs, imports, backup).
+    expect(count($queries))->toBeLessThanOrEqual(24);
 })->with([1, 150]);

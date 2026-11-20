@@ -83,8 +83,8 @@ it('keeps client summaries batched as the client count grows', function (int $co
     expect($many)->toBeLessThanOrEqual($few, 'the client list grew from '.$few.' to '.$many.' queries as clients grew from 2 to '.$count);
     // Upper budget: page shell and shell health (25458fc44/0a385128), the client page with batched summaries
     // and avatars (36aca5a1a), the viewer's own channels needing repair (N4a), the sidebar's inline late runs count and
-    // Running now (visible sites plus one read).
-    expect($few)->toBeLessThanOrEqual(26, 'the client list used '.$few.' queries, over its budget of 26');
+    // Running now (visible sites, check runs, imports, backup).
+    expect($few)->toBeLessThanOrEqual(28, 'the client list used '.$few.' queries, over its budget of 28');
 })->with([30, 300]);
 
 it('counts each site state explicitly without treating inactive or failed sites as healthy', function (int $clientCount): void {
@@ -136,7 +136,7 @@ it('counts each site state explicitly without treating inactive or failed sites 
         }
     }
     // The same upper budget as the client list above; growth with the client count is owned by that test.
-    expect(count($queries))->toBeLessThanOrEqual(26, 'the client list used '.count($queries).' queries, over its budget of 26');
+    expect(count($queries))->toBeLessThanOrEqual(28, 'the client list used '.count($queries).' queries, over its budget of 28');
 })->with([1, 50]);
 
 it('sorts clients with failures first and filters attention across all pages', function (): void {
@@ -203,6 +203,6 @@ it('paginates client sites with a fixed detail query budget', function (int $cou
     expect($many)->toBeLessThanOrEqual($few, 'the client detail grew from '.$few.' to '.$many.' queries as sites grew from 2 to '.$count);
     // Upper budget: page shell and shell health (25458fc44/0a385128), the client with batched avatars (36aca5a1a),
     // one page of sites with batched checks, states and dependency holds (bef4f4911), the sidebar's inline late runs count
-    // and Running now (visible sites plus one read).
-    expect($few)->toBeLessThanOrEqual(41, 'the client detail used '.$few.' queries, over its budget of 41');
+    // and Running now (visible sites, check runs, imports, backup).
+    expect($few)->toBeLessThanOrEqual(43, 'the client detail used '.$few.' queries, over its budget of 43');
 })->with([30, 300]);
