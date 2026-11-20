@@ -82,7 +82,9 @@ final readonly class RunningNowReader
         $bindings = [];
         foreach ($finished as $attempt) {
             $tuples[] = '(?, ?, ?)';
-            array_push($bindings, $attempt->check_id, $attempt->check_run_id, $attempt->finished_at?->format('Y-m-d H:i:s.uP'));
+            $bindings[] = $attempt->check_id;
+            $bindings[] = $attempt->check_run_id;
+            $bindings[] = $attempt->finished_at?->format('Y-m-d H:i:s.uP');
         }
         $runs = CheckRun::query()->where('ended_at', '>=', $since);
         $runs->getQuery()->whereRaw('(check_id, id, ended_at) IN ('.implode(', ', $tuples).')', $bindings);
