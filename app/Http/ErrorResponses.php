@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Heptapod\Http;
 
-use Carbon\CarbonImmutable;
 use Heptapod\Data\Ui\ErrorPageData;
 use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Models\User;
@@ -200,30 +199,6 @@ final class ErrorResponses
         $response->headers->set('Content-Type', 'text/html; charset=UTF-8');
 
         return $response;
-    }
-
-    /**
-     * Format a human-friendly retry time in the viewer's timezone ("14:07 · in 4 min" / "in 25 sec").
-     *
-     * @return array{time: string, wait: string}
-     */
-    public static function cooldownParts(int $retryAfterSeconds, ?User $user = null): array
-    {
-        $seconds = max(1, $retryAfterSeconds);
-        $timezone = $user instanceof User ? $user->resolvedTimezone() : 'UTC';
-        $at = CarbonImmutable::now('UTC')->addSeconds($seconds)->setTimezone($timezone);
-
-        if ($seconds < 60) {
-            $wait = trans_choice('errors.wait_seconds', $seconds, ['count' => $seconds]);
-        } else {
-            $minutes = (int) ceil($seconds / 60);
-            $wait = trans_choice('errors.wait_minutes', $minutes, ['count' => $minutes]);
-        }
-
-        return [
-            'time' => $at->format('H:i'),
-            'wait' => $wait,
-        ];
     }
 
     /** @param 'info'|'warning'|'error' $type */

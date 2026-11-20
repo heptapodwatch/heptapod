@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Heptapod\Exceptions;
 
+use Carbon\CarbonImmutable;
+use Heptapod\Models\User;
 use Illuminate\Contracts\Debug\ShouldntReport;
 use RuntimeException;
 
@@ -46,5 +48,29 @@ final class ExpectedRefusal extends RuntimeException implements ShouldntReport
         return $this->retryAfterSeconds !== null
             ? ['Retry-After' => (string) max(1, $this->retryAfterSeconds)]
             : [];
+    }
+
+    /**
+     * Format a human-friendly retry time in the viewer's timezone ("14:07" + "in 4 min" / "in 25 sec").
+     *
+     * @return array{time: string, wait: string}
+     */
+    public static function cooldownParts(int $retryAfterSeconds, ?User $user = null): array
+    {
+        $seconds = max(1, $retryAfterSeconds);
+        $timezone = $user instanceof User ? $user->resolvedTimezone() : 'UTC';
+        $at = CarbonImmutable::now('UTC')->addSeconds($seconds)->setTimezone($timezone);
+
+        if ($seconds < 60) {
+            $wait = trans_choice('errors.wait_seconds', $seconds, ['count' => $seconds]);
+        } else {
+            $minutes = (int) ceil($seconds / 60);
+            $wait = trans_choice('errors.wait_minutes', $minutes, ['count' => $minutes]);
+        }
+
+        return [
+            'time' => $at->format('H:i'),
+            'wait' => $wait,
+        ];
     }
 }

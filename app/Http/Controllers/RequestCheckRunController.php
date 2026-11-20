@@ -8,7 +8,6 @@ use Heptapod\Actions\RequestCheckRun;
 use Heptapod\Checks\Execution\ManualRunRefused;
 use Heptapod\Checks\Execution\RunOrigin;
 use Heptapod\Exceptions\ExpectedRefusal;
-use Heptapod\Http\ErrorResponses;
 use Heptapod\Http\Requests\RequestCheckRunRequest;
 use Heptapod\Models\Check;
 use Heptapod\Models\User;
@@ -29,7 +28,7 @@ final class RequestCheckRunController extends Controller
         try {
             $attempt = $run($target, RunOrigin::Manual, actor: $user);
         } catch (ManualRunRefused $refused) {
-            $parts = ErrorResponses::cooldownParts($refused->retryAfterSeconds, $user);
+            $parts = ExpectedRefusal::cooldownParts($refused->retryAfterSeconds, $user);
 
             throw $refused->reason === 'queue_admission_limited'
                 ? new ExpectedRefusal(

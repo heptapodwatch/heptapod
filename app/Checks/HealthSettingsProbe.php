@@ -9,7 +9,6 @@ use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\HealthProbeEvaluator;
 use Heptapod\Contracts\Http\FetchFailure;
 use Heptapod\Exceptions\ExpectedRefusal;
-use Heptapod\Http\ErrorResponses;
 use Heptapod\Models\Check;
 use Heptapod\Models\User;
 use Heptapod\Support\SecretMerge;
@@ -72,7 +71,7 @@ final readonly class HealthSettingsProbe
             throw new ExpectedRefusal(
                 status: 429,
                 messageKey: 'errors.429.retry_in',
-                params: ['wait' => ErrorResponses::cooldownParts($retryAfter, $actor)['wait']],
+                params: ['wait' => ExpectedRefusal::cooldownParts($retryAfter, $actor)['wait']],
                 errorCode: 'health_probe_rate_limited',
                 retryAfterSeconds: $retryAfter,
             );
