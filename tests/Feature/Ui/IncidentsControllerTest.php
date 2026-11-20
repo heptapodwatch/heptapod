@@ -415,7 +415,7 @@ it('exports only This page of incidents when page and per_page are given', funct
 
     $csv = $this->get('/incidents/export.csv?filter[status]=open&per_page=10&page=2')->assertOk()->streamedContent();
     $exportedIds = array_map(
-        static fn (string $line): string => (string) (str_getcsv($line)[0] ?? ''),
+        static fn (string $line): string => str_getcsv($line, escape: '\\')[0] ?? '',
         array_slice(explode("\r\n", rtrim(substr($csv, 3), "\r\n")), 1),
     );
     expect($exportedIds)->toBe($page2Ids);

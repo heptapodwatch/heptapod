@@ -1323,7 +1323,7 @@ it('exports every sitemap not-verifiable row from sitemap_findings past the 50-r
         'run' => $detail['export_run']['id'], 'observed_at' => $detail['export_run']['endedAt'], ...$query,
     ]);
     $csvUrls = static fn (string $csv): array => array_map(
-        static fn (string $line): string => (string) (str_getcsv($line)[0] ?? ''),
+        static fn (string $line): string => str_getcsv($line, escape: '\\')[0] ?? '',
         array_slice(explode("\r\n", rtrim(substr($csv, 3), "\r\n")), 1),
     );
     $allExported = $csvUrls($this->get($exportUrl())->assertOk()->streamedContent());
