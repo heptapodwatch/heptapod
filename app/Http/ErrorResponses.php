@@ -156,11 +156,15 @@ final class ErrorResponses
         );
 
         // Signed-in healthy GET dead ends stay inside AppLayout so sidebar navigation and ⌘K remain reachable.
+        // Roleless or disabled accounts have no valid shell (ShellHealthReader requires a role), so they keep zero-DB Blade.
+        $user = $signedIn ? $request->user() : null;
         if (
             $signedIn
             && $request->isMethod('GET')
             && in_array($status, self::InShellStatuses, true)
-            && $request->user() instanceof User
+            && $user instanceof User
+            && $user->disabled_at === null
+            && $user->hasAnyRole(['Owner', 'Admin', 'Member'])
         ) {
             $pageData = new ErrorPageData(
                 status: $status,
