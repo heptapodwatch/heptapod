@@ -89,15 +89,18 @@ final readonly class RunningNowReader
     {
         // A running backup past the retry window is stale; RequestBackup fails it on the next request, so it is not shown.
         $stale = CarbonImmutable::now('UTC')->subSeconds(ExecutionBudget::RetryAfter)->format('Y-m-d H:i:s.uP');
-        /** @var (\stdClass&object{id: int, requested_by: int|null, state: string, requested_at: string, started_at: string|null, completed_at: string|null})|null $row */
-        $row = DB::table('backup_runs')->where(static fn (QueryBuilder $query): QueryBuilder => $query->where('state', 'queued')
-            ->orWhere(static fn (QueryBuilder $running): QueryBuilder => $running->where('state', 'running')->where('started_at', '>', $stale))
-            ->orWhere(static fn (QueryBuilder $own): QueryBuilder => $own->where('requested_by', $user->id)->where('completed_at', '>=', $since)))
-            ->orderByRaw('completed_at IS NULL DESC')->orderByDesc('id')->first(['id', 'requested_by', 'state', 'requested_at', 'started_at', 'completed_at']);
         $iso = static fn (?string $at): ?string => $at === null ? null : CarbonImmutable::parse($at)->toIso8601String();
 
-        return $row === null ? null : new RunningBackupData($row->id, $row->state, $row->requested_by === $user->id,
-            CarbonImmutable::parse($row->requested_at)->toIso8601String(), $iso($row->started_at), $iso($row->completed_at));
+        return DB::table('backup_runs')->where(static fn (QueryBuilder $query): QueryBuilder => $query->where('state', 'queued')
+            ->orWhere(static fn (QueryBuilder $running): QueryBuilder => $running->where('state', 'running')->where('started_at', '>', $stale))
+            ->orWhere(static fn (QueryBuilder $own): QueryBuilder => $own->where('requested_by', $user->id)->where('completed_at', '>=', $since)))
+            ->orderByRaw('completed_at IS NULL DESC')->orderByDesc('id')->limit(1)
+            ->get(['id', 'requested_by', 'state', 'requested_at', 'started_at', 'completed_at'])
+            ->map(static function (\stdClass $row) use ($user, $iso): RunningBackupData {
+                /** @var \stdClass&object{id: int, requested_by: int|null, state: string, requested_at: string, started_at: string|null, completed_at: string|null} $row */
+                return new RunningBackupData($row->id, $row->state, $row->requested_by === $user->id,
+                    CarbonImmutable::parse($row->requested_at)->toIso8601String(), $iso($row->started_at), $iso($row->completed_at));
+            })->first();
     }
 
     private function row(CheckRunAttempt $attempt, User $user): RunningCheckRunData
