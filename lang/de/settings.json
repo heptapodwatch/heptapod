@@ -420,5 +420,9 @@
     "timezone.default": "Standard: {{zone}} ({{source}})",
     "timezone.source.instance": "Instanz",
     "timezone.source.client": "Kunde {{name}}",
-    "timezone.source.profile": "Ihr Profil"
+    "timezone.source.profile": "Ihr Profil",
+    "backups.runs.count_one": "{{formattedCount}} Sicherungslauf",
+    "backups.runs.count_other": "{{formattedCount}} Sicherungsläufe",
+    "backups.archives.count_one": "{{formattedCount}} Archiv",
+    "backups.archives.count_other": "{{formattedCount}} Archive"
 }

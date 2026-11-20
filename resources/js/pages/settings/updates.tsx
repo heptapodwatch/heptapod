@@ -16,6 +16,7 @@ import { EmptyState } from '@/components/empty-state';
 import { useEffect, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InfoTooltip } from '@/components/info-tooltip';
+import { ListFooter } from '@/components/list-footer';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -66,7 +67,10 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
     }, [updatesPage]);
     const updates = page.updates;
     const backups = page.backups;
-    const acceptedRun = backups?.runs.find((run) => run.id === acceptedId);
+    const acceptedRun =
+        backups?.latest_run?.id === acceptedId
+            ? backups.latest_run
+            : backups?.runs.find((run) => run.id === acceptedId);
     useEffect(() => {
         if (
             acceptedRun?.state === 'complete' ||
@@ -81,19 +85,18 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
         backup.processing ||
         toggle.processing;
     const active =
-        backups?.runs.some(
-            (run) => run.state === 'queued' || run.state === 'running',
-        ) ||
+        Boolean(backups?.has_active_run) ||
         (acceptedId !== null && acceptedRun === undefined);
     const timestamp = (value: string | null) =>
         value === null ? t('Unknown') : <AbsoluteTime value={value} />;
     const refresh = async () => {
         try {
+            const query = window.location.search;
             const [nextUpdates, nextBackups] = await Promise.all([
                 releases.get(status.url()),
                 backups === null
                     ? Promise.resolve(null)
-                    : history.get(backupData.url()),
+                    : history.get(`${backupData.url()}${query}`),
             ]);
             setPage({ updates: nextUpdates, backups: nextBackups });
             setRefreshFailed(false);
@@ -154,7 +157,7 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
             setToggleFailed(true);
         }
     };
-    const latestRun = backups?.runs[0];
+    const latestRun = backups?.latest_run ?? null;
     const runStates: Record<string, ComponentProps<typeof RunStatus>> = {
         complete: { phase: 'finished', outcome: 'ok' },
         failed: { phase: 'finished', outcome: 'failed' },
@@ -436,6 +439,18 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                                 />
                             )}
                         </section>
+                        {backups.runs.length > 0 && (
+                            <ListFooter
+                                count={t('backups.runs.count', {
+                                    count: backups.runs_pagination.total,
+                                    formattedCount: number(
+                                        backups.runs_pagination.total,
+                                    ),
+                                })}
+                                pagination={backups.runs_pagination}
+                                only={['updatesPage']}
+                            />
+                        )}
                         <div className="flex flex-wrap items-center gap-3">
                             <Button
                                 variant="outline"
@@ -517,6 +532,21 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                                         )}
                                     </ul>
                                 ))}
+                            {backups.reachable &&
+                                backups.archives.length > 0 && (
+                                    <ListFooter
+                                        count={t('backups.archives.count', {
+                                            count: backups.archives_pagination
+                                                .total,
+                                            formattedCount: number(
+                                                backups.archives_pagination
+                                                    .total,
+                                            ),
+                                        })}
+                                        pagination={backups.archives_pagination}
+                                        only={['updatesPage']}
+                                    />
+                                )}
                         </section>
                         <Disclosure
                             className="text-xs"

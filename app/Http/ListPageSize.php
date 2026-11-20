@@ -31,6 +31,7 @@ final class ListPageSize
             $size = $request->integer($parameter);
             if (($remembered[$list] ?? null) !== $size) {
                 $remembered[$list] = $size;
+                $request->attributes->set(self::Cookie, $remembered);
                 Cookie::queue(self::Cookie, json_encode($remembered, JSON_THROW_ON_ERROR), 60 * 24 * 365, httpOnly: false);
             }
 
@@ -43,6 +44,11 @@ final class ListPageSize
     /** @return array<string, int> Valid entries only; a tampered or stale cookie falls back to the default. */
     private static function remembered(Request $request): array
     {
+        $updated = $request->attributes->get(self::Cookie);
+        if (is_array($updated)) {
+            /** @var array<string, int> $updated */
+            return $updated;
+        }
         $raw = $request->cookie(self::Cookie);
         $decoded = is_string($raw) ? json_decode($raw, true) : null;
         if (! is_array($decoded)) {
