@@ -1250,6 +1250,17 @@ readonly sender_name_max: number,
 readonly footer_max: number,
 readonly logo_max_kilobytes: number,
 };
+export type ErrorPageData = {
+readonly status: number,
+readonly title: string,
+readonly description: string,
+readonly recovery_url: string,
+readonly recovery_label: string,
+readonly secondary_url: string | null,
+readonly secondary_label: string | null,
+readonly code: string | null,
+readonly retry_after: number | null,
+};
 export type EventData = {
 readonly id: number,
 readonly severity: Heptapod.Contracts.Notifications.AlertSeverity,

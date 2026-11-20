@@ -1,4 +1,8 @@
-import { HttpError } from '@inertiajs/core';
+import {
+    HttpError,
+    HttpNetworkError,
+    HttpResponseError,
+} from '@inertiajs/core';
 import type {
     Errors,
     FormDataType,
@@ -7,6 +11,7 @@ import type {
     UseHttpSubmitOptions,
 } from '@inertiajs/core';
 import { router, useHttp } from '@inertiajs/react';
+import type { TFunction } from 'i18next';
 import { useMemo } from 'react';
 
 /** The server refused the request with a 422; `errors` are its field messages, already set on the form. */
@@ -17,6 +22,71 @@ export class HttpValidationError extends HttpError {
     ) {
         super(`Validation failed: ${url}`, 'validation', url);
     }
+}
+
+export function httpErrorStatus(error: unknown): number | null {
+    return error instanceof HttpResponseError ? error.response.status : null;
+}
+
+export function isSessionExpiredError(error: unknown): boolean {
+    const status = httpErrorStatus(error);
+    return status === 401 || status === 419;
+}
+
+function serverPayloadMessage(error: HttpResponseError): string | null {
+    const raw = error.response.data;
+    if (typeof raw === 'string' && raw.trim().startsWith('{')) {
+        try {
+            const parsed: unknown = JSON.parse(raw);
+            if (
+                parsed !== null &&
+                typeof parsed === 'object' &&
+                'message' in parsed &&
+                typeof parsed.message === 'string' &&
+                parsed.message.trim() !== ''
+            ) {
+                return parsed.message;
+            }
+        } catch {
+            return null;
+        }
+    }
+    return null;
+}
+
+/**
+ * Turn a non-validation `useHttpRequest` error into a user-facing translated message.
+ * Prefers the server's localized ExpectedRefusal JSON message for 4xx refusals, then maps common status and network errors.
+ */
+export function httpErrorMessage(
+    error: unknown,
+    t: TFunction,
+    fallbackKey?: string,
+): string {
+    if (error instanceof HttpNetworkError) {
+        return t('errors.network');
+    }
+    if (error instanceof HttpResponseError) {
+        const status = error.response.status;
+        if (status === 401) return t('errors.401.session');
+        if (status === 419) return t('errors.419.refreshed');
+        const serverMessage = serverPayloadMessage(error);
+        if (serverMessage !== null && status >= 400 && status < 500) {
+            return serverMessage;
+        }
+        if (status === 403) return t('errors.403.action');
+        if (status === 404) return t('errors.404.action');
+        if (status === 409) return t('errors.409.description');
+        if (status === 410) return t('errors.410.description');
+        if (status === 413) return t('errors.413.upload');
+        if (status === 422) return t('errors.422.description');
+        if (status === 429) return t('errors.429.description');
+        if (status === 502 || status === 503 || status === 504) {
+            return t('errors.503.action');
+        }
+        if (status >= 500) return t('errors.500.action');
+    }
+    return fallbackKey ? t(fallbackKey) : t('errors.500.action');
 }
 
 type Options<TForm, TResponse> = UseHttpSubmitOptions<TResponse, TForm>;
