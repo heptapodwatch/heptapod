@@ -143,6 +143,9 @@ export function useSavedLogo(url: string | null): File | null {
                         }),
                     );
                 }
+            })
+            .catch((error: unknown) => {
+                if (active) console.error(error);
             });
         return () => {
             active = false;

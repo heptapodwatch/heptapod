@@ -439,7 +439,10 @@ it('exports the first rows up to the row cap in text and refuses a CSV that woul
     expect(substr_count($text, "\nID "))->toBe(10000)
         ->and($text)->toEndWith("\nEnthält die ersten 10.000 von 10.001 Zeilen.\n");
     $this->get('/incidents/export.csv?filter[status]=all')->assertStatus(413)
-        ->assertSee('Ein CSV-Export enthält höchstens 10.000 Zeilen. Grenzen Sie die Filter ein.');
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('errors/show')
+            ->where('status', 413)
+            ->where('description', 'Ein CSV-Export enthält höchstens 10.000 Zeilen. Grenzen Sie die Filter ein.'));
 });
 
 it('renders only actual incident mail for operators using the mail renderer', function (): void {

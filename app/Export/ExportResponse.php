@@ -8,6 +8,7 @@ use Heptapod\Contracts\Export\Column;
 use Heptapod\Contracts\Export\ColumnType;
 use Heptapod\Contracts\Export\Table;
 use Heptapod\Enums\ExportFormat;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Number;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -20,23 +21,49 @@ final class ExportResponse
      * table without a known total (a retained findings snapshot) streams every row. Markdown and plain text stop reading
      * after the limit and say so at the end.
      */
-    public static function make(Table $table, ExportFormat $format): StreamedResponse
-    {
-        abort_if($format === ExportFormat::Csv && $table->total !== null && $table->total > Table::RowLimit, 413,
-            __('export.csv_too_large', ['max' => Number::format(Table::RowLimit, locale: app()->getLocale())]));
+    public static function make(
+        Table $table,
+        ExportFormat $format,
+        ?string $recoveryRoute = null,
+        ?string $recoveryLabelKey = null,
+    ): StreamedResponse {
+        if ($format === ExportFormat::Csv && $table->total !== null && $table->total > Table::RowLimit) {
+            throw new ExpectedRefusal(
+                status: 413,
+                messageKey: 'export.csv_too_large',
+                params: ['max' => (string) Number::format(Table::RowLimit, locale: app()->getLocale())],
+                errorCode: 'export_csv_too_large',
+                titleKey: 'errors.incidents.export_too_large_title',
+                recoveryRoute: $recoveryRoute,
+                recoveryLabelKey: $recoveryLabelKey,
+            );
+        }
 
-        return response()->streamDownload(static function () use ($table, $format): void {
-            // Findings providers share-lock their accepted snapshot until paging finishes, so retention cannot delete it mid-export.
-            DB::transaction(static function () use ($table, $format): void {
-                $output = fopen('php://output', 'w');
-                if ($output === false) {
-                    throw new \RuntimeException('Cannot open the export stream.');
-                }
-                self::write($table, $format, $output);
-                if (! fclose($output)) {
-                    throw new \RuntimeException('Cannot close the export stream.');
-                }
-            });
+        // Single share-locked transaction into a bounded temp stream (spills to disk above 2 MB): findings retention
+        // cannot delete an accepted snapshot between an existence check and stream start, so an expired snapshot throws
+        // ExpectedRefusal(410) cleanly before HTTP 200 headers are sent.
+        $buffer = DB::transaction(static function () use ($table, $format) {
+            $stream = fopen('php://temp', 'r+b');
+            if ($stream === false) {
+                throw new \RuntimeException('Cannot open the export stream.');
+            }
+            try {
+                self::write($table, $format, $stream);
+            } catch (\Throwable $exception) {
+                fclose($stream);
+                throw $exception;
+            }
+            rewind($stream);
+
+            return $stream;
+        });
+
+        return response()->streamDownload(static function () use ($buffer): void {
+            try {
+                fpassthru($buffer);
+            } finally {
+                fclose($buffer);
+            }
         }, $table->filename.'.'.$format->value, ['Content-Type' => $format->contentType(), 'Cache-Control' => 'private, no-store', 'X-Accel-Buffering' => 'no']);
     }
 

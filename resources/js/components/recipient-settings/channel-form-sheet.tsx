@@ -19,7 +19,11 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Sheet } from '@/components/ui/sheet';
 import { emptySelectValue } from '@/components/ui/select';
-import { HttpValidationError, useHttpRequest } from '@/hooks/use-http-request';
+import {
+    HttpValidationError,
+    httpErrorMessage,
+    useHttpRequest,
+} from '@/hooks/use-http-request';
 import { store, update } from '@/routes/notification-channels';
 import type { FieldValue } from '@/types/monitoring';
 
@@ -160,7 +164,13 @@ export function ChannelFormSheet({
                         })
                         .catch((error: unknown) => {
                             if (!(error instanceof HttpValidationError))
-                                setFailure(t('recipient_settings.save_failed'));
+                                setFailure(
+                                    httpErrorMessage(
+                                        error,
+                                        t,
+                                        'recipient_settings.save_failed',
+                                    ),
+                                );
                         });
                 }}
                 footer={

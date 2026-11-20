@@ -63,11 +63,7 @@ export function useSiteUrlProbe(url: string, auto: boolean, siteId?: number) {
                     const payload: {
                         message?: string;
                         errors?: Record<string, string[]>;
-                    } | null = response.headers
-                        .get('content-type')
-                        ?.includes('application/json')
-                        ? await response.json().catch(() => null)
-                        : null;
+                    } | null = await response.json().catch(() => null);
                     if (!controller.signal.aborted) {
                         setProbeError(
                             payload?.errors?.url?.[0] ??

@@ -9,7 +9,7 @@ import { RecipientSettings } from '@/components/recipient-settings/recipient-set
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Disclosure } from '@/components/ui/disclosure';
-import { useHttpRequest } from '@/hooks/use-http-request';
+import { httpErrorMessage, useHttpRequest } from '@/hooks/use-http-request';
 import { dismiss as dismissMigrationReport } from '@/routes/settings/notifications/team/migration-report';
 
 /** The team's notification channels: Owners and Admins (design §7.1). */
@@ -28,8 +28,14 @@ export default function TeamNotifications({
         try {
             await dismissal.delete(dismissMigrationReport.url());
             setDismissed(true);
-        } catch {
-            toast.error(t('recipient_settings.migration.dismiss_failed'));
+        } catch (error: unknown) {
+            toast.error(
+                httpErrorMessage(
+                    error,
+                    t,
+                    'recipient_settings.migration.dismiss_failed',
+                ),
+            );
         }
     };
     return (

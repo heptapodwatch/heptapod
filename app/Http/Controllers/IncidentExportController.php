@@ -67,6 +67,6 @@ final class IncidentExportController extends Controller
             $rows,
             Str::slug(__('Incidents').' '.now($user->resolvedTimezone())->format('Y-m-d'), language: app()->getLocale()),
             $total,
-        ), $format);
+        ), $format, recoveryRoute: 'incidents.index', recoveryLabelKey: 'Back to Incidents');
     }
 }

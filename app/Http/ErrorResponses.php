@@ -251,7 +251,7 @@ final class ErrorResponses
         }
         $guard = Auth::guard('web');
 
-        return $request->hasSession() && $request->session()->has($guard->getName());
+        return $guard->hasUser() || ($request->hasSession() && $request->session()->has($guard->getName()));
     }
 
     /**
