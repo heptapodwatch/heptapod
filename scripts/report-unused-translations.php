@@ -9,6 +9,7 @@ $root = realpath($argv[1] ?? dirname(__DIR__)) ?: throw new RuntimeException('Tr
 
 /** Keys built at runtime or stored as data, which no source literal can name. Each reason names a construction site. */
 $dynamicPrefixes = [
+    'run.progress.' => 'useRunDetail builds run.progress.${phase_label} from the progress unit a check reports',
     'causes.' => 'stored run/incident summaries render through __($summary); FetchFailure and TlsFailureReason build causes.outbound.*/causes.tls.*',
     'checks.' => 'check-type keys: t(`checks.${key}.label`), __(\'checks.\'.$type->value.\'.label\') in commands and mail',
     'errors.' => 'errors/error.blade.php renders __(\'errors.\'.$status.\'.title|description\') per HTTP status',

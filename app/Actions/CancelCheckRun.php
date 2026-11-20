@@ -35,7 +35,7 @@ final readonly class CancelCheckRun
                     'run_started_at' => null, 'active_run_id' => null, 'run_headers' => null]);
                 $cleared = CheckPending::clear($current);
                 $site = $current->site()->getQuery()->firstOrFail();
-                LiveSignal::forRun('run.finished', $site, $current->id, actor: $attempt->actor?->name, outcome: RunPhase::Cancelled, attemptId: $attempt->id);
+                LiveSignal::forRun('run.finished', $site, $current->id, $attempt->origin, actor: $attempt->actor?->name, outcome: RunPhase::Cancelled, attemptId: $attempt->id);
                 // A queued cancel stores no result; a cleared mark still moves the site off pending.
                 if ($cleared) {
                     LiveSignal::forSite($site, ['check' => $current->id]);

@@ -30,7 +30,11 @@ import { PageHeader } from '@/components/page-header';
 import { SectionHeading } from '@/components/section-heading';
 import { PageHeaderAction } from '@/components/page-header-actions';
 import { PendingChanges } from '@/components/pending-changes';
-import { RunBar } from '@/components/foundation-primitives';
+import {
+    CheckRunStatusRow,
+    RunCheckReason,
+    useCheckRun,
+} from '@/components/check-run-status';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -55,8 +59,6 @@ import {
     type OwnRunResult,
     type RequestedRun,
 } from '@/hooks/use-requested-run';
-import { useRunState } from '@/hooks/use-live';
-import { currentRunState } from '@/lib/live-store';
 import { checkTypes } from '@/lib/check-types';
 import {
     incidentCauseState,
@@ -131,14 +133,7 @@ export function IncidentEpisode({
         check.enabled &&
         check.unavailable_reason === null &&
         page.header.state !== 'paused';
-    const liveRun = currentRunState(useRunState(check?.id ?? 0), check?.run);
-    const runPhase =
-        liveRun?.phase === 'queued'
-            ? 'queued'
-            : liveRun &&
-                (liveRun.phase === 'started' || liveRun.phase === 'progress')
-              ? 'running'
-              : null;
+    const activeRun = useCheckRun(check?.id ?? 0, check?.run);
     const [runPending, setRunPending] = useState(false);
     const [now, setNow] = useState(Date.now());
     const [actionsOpen, setActionsOpen] = useState(false);
@@ -443,35 +438,39 @@ export function IncidentEpisode({
                 }
                 primaryAction={
                     canShowRun ? (
-                        <Button
-                            disabled={
-                                runPending ||
-                                runPhase !== null ||
-                                check.unavailable_reason !== null
-                            }
-                            onClick={() => {
-                                setRunPending(true);
-                                requestedRun.request();
-                                router.post(
-                                    checkRun.url({
-                                        site: page.site.id,
-                                        check: check.id,
-                                    }),
-                                    { incident: incident.id },
-                                    {
-                                        preserveScroll: true,
-                                        onSuccess: requestedRun.accept,
-                                        onError: requestedRun.abandon,
-                                        onHttpException: () => {
-                                            requestedRun.abandon();
+                        <div className="space-y-1">
+                            <Button
+                                disabled={
+                                    runPending ||
+                                    activeRun !== null ||
+                                    check.unavailable_reason !== null
+                                }
+                                onClick={() => {
+                                    setRunPending(true);
+                                    requestedRun.request();
+                                    router.post(
+                                        checkRun.url({
+                                            site: page.site.id,
+                                            check: check.id,
+                                        }),
+                                        { incident: incident.id },
+                                        {
+                                            preserveScroll: true,
+                                            onSuccess: requestedRun.accept,
+                                            onError: requestedRun.abandon,
+                                            onHttpException: () => {
+                                                requestedRun.abandon();
+                                            },
+                                            onFinish: () =>
+                                                setRunPending(false),
                                         },
-                                        onFinish: () => setRunPending(false),
-                                    },
-                                );
-                            }}
-                        >
-                            {t(runPending ? 'Running check…' : 'Run check')}
-                        </Button>
+                                    );
+                                }}
+                            >
+                                {t(runPending ? 'Running check…' : 'Run check')}
+                            </Button>
+                            {activeRun && <RunCheckReason run={activeRun} />}
+                        </div>
                     ) : undefined
                 }
                 secondaryActions={
@@ -848,25 +847,8 @@ export function IncidentEpisode({
                                     );
                                 })}
                             </ol>
-                            {!resolved && liveRun && runPhase && (
-                                <RunBar
-                                    state={runPhase}
-                                    description={
-                                        <>
-                                            {t('Re-checking now')}
-                                            {liveRun.actor &&
-                                                ` · ${liveRun.actor}`}
-                                        </>
-                                    }
-                                    progress={
-                                        liveRun.progress_total !== null &&
-                                        liveRun.progress_total > 0 &&
-                                        liveRun.progress_n !== null
-                                            ? (100 * liveRun.progress_n) /
-                                              liveRun.progress_total
-                                            : undefined
-                                    }
-                                />
+                            {!resolved && activeRun && (
+                                <CheckRunStatusRow run={activeRun} />
                             )}
                             {!resolved && (
                                 <div className="flex items-center gap-3 border-t pt-3 text-xs text-muted-foreground">

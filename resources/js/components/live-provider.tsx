@@ -63,8 +63,8 @@ export function LiveProvider({ children }: { children: ReactNode }) {
             echo()
                 .join(name)
                 .listen('.LiveSignal', (signal: LiveSignal) => {
-                    // A prefetched page may predate the change; the next visit reads it fresh.
-                    router.flushAll();
+                    // A prefetched page may predate the change; the next visit reads it fresh. Progress changes no page.
+                    if (signal.topic !== 'run.progress') router.flushAll();
                     receiveLiveSignal(signal);
                 })
                 .subscribed(() => {

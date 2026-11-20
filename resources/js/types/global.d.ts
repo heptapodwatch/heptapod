@@ -24,6 +24,7 @@ declare module '@inertiajs/core' {
             liveChannels: string[];
             overallHealth: Heptapod.Data.Ui.ShellHealthData | null;
             lateRunsCount?: number;
+            runningNow?: Heptapod.Data.Ui.RunningNowData | null;
             notificationAttention: {
                 id: number;
                 label: string;

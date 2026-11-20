@@ -4,6 +4,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { AppMobileHeader } from '@/components/app-mobile-header';
 import { FormActionsDock } from '@/components/form-section';
 import { LiveProvider } from '@/components/live-provider';
+import { RunningNowShell } from '@/components/running-now-shell';
 import { KeyboardShortcutsDialog } from '@/components/keyboard-shortcuts-dialog';
 import { RealCommandPalette } from '@/components/real-command-palette';
 import { StreamLostStrip } from '@/components/stream-lost-strip';
@@ -63,6 +64,7 @@ export default function AppSidebarLayout({
     return (
         <LiveProvider>
             <ShellHealthLive />
+            {props.runningNow !== undefined && <RunningNowShell />}
             <AppShell variant="sidebar">
                 <AppSidebar
                     onOpenSearch={openSearch}

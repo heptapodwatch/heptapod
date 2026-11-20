@@ -4,10 +4,12 @@ namespace Heptapod\Http\Middleware;
 
 use Heptapod\Contracts\Export\Table;
 use Heptapod\Contracts\Mail\MailDeliveryMode;
+use Heptapod\Data\Ui\RunningNowData;
 use Heptapod\Enums\RecipientKind;
 use Heptapod\Live\LiveChannels;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\User;
+use Heptapod\Queries\RunningNowReader;
 use Heptapod\Queries\RunsReader;
 use Heptapod\Queries\ShellHealthReader;
 use Heptapod\Settings\InstanceSettings;
@@ -77,7 +79,9 @@ class HandleInertiaRequests extends Middleware
             'overallHealth' => fn (): ?array => $user instanceof User ? app(ShellHealthReader::class)->read($user)->toArray() : null,
             ...($user instanceof User && $user->hasAnyRole(['Owner', 'Admin', 'Member'])
                 // Inline, not deferred: a deferred group costs every visit a second request that reruns the page controller.
-                ? ['lateRunsCount' => static fn (): int => $user->disabled_at === null ? app(RunsReader::class)->lateCount($user) : 0]
+                ? ['lateRunsCount' => static fn (): int => $user->disabled_at === null ? app(RunsReader::class)->lateCount($user) : 0,
+                    // Inline for the same reason: a hard reload shows the viewer's runs at once.
+                    'runningNow' => static fn (): ?RunningNowData => $user->disabled_at === null ? app(RunningNowReader::class)->forUser($user) : null]
                 : []),
             // Channels the viewer can repair: the team's and clients' for Owners and Admins, and always their own.
             'notificationAttention' => fn (): array => $user instanceof User && $user->disabled_at === null

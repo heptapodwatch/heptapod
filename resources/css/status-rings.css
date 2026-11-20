@@ -158,6 +158,11 @@
     }
 }
 
+/* RunGlyph: a running run without reported progress spins its arc (UI rules, Runs). */
+.run-glyph[data-spinning] {
+    animation: status-ring-sweep 1.1s linear infinite;
+}
+
 @keyframes status-ring-sweep {
     to {
         transform: rotate(360deg);
@@ -166,7 +171,8 @@
 
 @media (prefers-reduced-motion: reduce) {
     .status-ring[data-state='down']:not([data-strip])::after,
-    .status-ring[data-state='running']::after {
+    .status-ring[data-state='running']::after,
+    .run-glyph[data-spinning] {
         animation: none;
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Events;
 
 use Carbon\CarbonImmutable;
+use Heptapod\Checks\Execution\RunOrigin;
 use Heptapod\Contracts\RunPhase;
 use Heptapod\Models\Client;
 use Heptapod\Models\Site;
@@ -15,7 +16,7 @@ final readonly class LiveSignal
 {
     /**
      * @param  array<string, int>  $ids
-     * @param  array{check_id: int, phase: string, queue_position: ?int, progress_n: ?int, progress_total: ?int, started_at: ?string, actor: ?string, outcome?: string, attempt_id?: int, check_run_id?: int, ended_at?: string, result?: string}|null  $run
+     * @param  array{check_id: int, phase: string, queue_position: ?int, progress_n: ?int, progress_total: ?int, started_at: ?string, actor: ?string, origin: string, phase_label?: string, outcome?: string, attempt_id?: int, check_run_id?: int, ended_at?: string, result?: string}|null  $run
      * @param  list<int>  $clientIds  Private fan-out targets for a coalesced change; never serialized into the payload.
      */
     public function __construct(
@@ -63,7 +64,7 @@ final readonly class LiveSignal
         }
     }
 
-    public static function forRun(string $topic, Site $site, int $checkId, ?CarbonImmutable $startedAt = null, ?string $actor = null, ?int $queuePosition = null, ?int $progressN = null, ?int $progressTotal = null, ?RunPhase $outcome = null, ?int $attemptId = null, ?RecordedRunSignal $recorded = null): void
+    public static function forRun(string $topic, Site $site, int $checkId, RunOrigin $origin, ?CarbonImmutable $startedAt = null, ?string $actor = null, ?int $queuePosition = null, ?int $progressN = null, ?int $progressTotal = null, ?string $phaseLabel = null, ?RunPhase $outcome = null, ?int $attemptId = null, ?RecordedRunSignal $recorded = null): void
     {
         if (! in_array($topic, ['run.queued', 'run.started', 'run.progress', 'run.finished'], true)) {
             throw new \InvalidArgumentException('Unknown run signal topic.');
@@ -72,7 +73,13 @@ final readonly class LiveSignal
             throw new \InvalidArgumentException('Only finished runs carry a terminal outcome.');
         }
         $payload = ['check_id' => $checkId, 'phase' => substr($topic, 4), 'queue_position' => $queuePosition,
-            'progress_n' => $progressN, 'progress_total' => $progressTotal, 'started_at' => $startedAt?->toIso8601String(), 'actor' => $actor];
+            'progress_n' => $progressN, 'progress_total' => $progressTotal, 'started_at' => $startedAt?->toIso8601String(), 'actor' => $actor,
+            // The shell refreshes its Running now data only for manual runs; scheduled ones never reload it.
+            'origin' => $origin->value];
+        // The unit of the progress ("sitemap" counts URLs); only progress signals carry it.
+        if ($phaseLabel !== null) {
+            $payload['phase_label'] = $phaseLabel;
+        }
         if ($outcome instanceof RunPhase) {
             $payload['outcome'] = $outcome->value;
         }

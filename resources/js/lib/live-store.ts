@@ -8,6 +8,10 @@ export type RunState = {
     progress_total: number | null;
     started_at: string | null;
     actor: string | null;
+    /** Only on signals: who started the run. The shell reloads Running now for manual runs only. */
+    origin?: 'scheduled' | 'manual' | 'system';
+    /** The progress unit key (run.progress.<phase_label>); on progress signals and hydrated runs. */
+    phase_label?: string | null;
     at?: string;
     outcome?: Extract<
         Heptapod.Contracts.RunPhase,
@@ -169,6 +173,7 @@ export function currentRunState(
         progress_total: persisted.progress_total,
         started_at: persisted.started_at,
         actor: persisted.actor,
+        phase_label: persisted.phase_label,
         at: persisted.requested_at ?? undefined,
     };
 }

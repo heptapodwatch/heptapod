@@ -92,7 +92,6 @@
     "All accepted notifications: :count": "Alle angenommen · {{count}}",
     "Sent :delay after notification": "{{delay}} nach der Benachrichtigung gesendet",
     "What we see now": "Was wir jetzt sehen",
-    "Re-checking now": "Wird erneut geprüft",
     "Alert delivery": "Alarmzustellung",
     "No email recipients recorded": "Keine E-Mail-Adressen gespeichert",
     "Team only. Never sent to the client.": "Nur für das Team. Wird nie an den Kunden gesendet.",

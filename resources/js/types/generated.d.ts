@@ -1773,6 +1773,20 @@ readonly icon_url: string | null,
 readonly icon_backing: Heptapod.Enums.SiteIconBacking,
 readonly presentation: Heptapod.Contracts.CheckRunPresentationData | null,
 };
+export type RunningCheckRunData = {
+readonly check_id: number,
+readonly site_id: number,
+readonly site_name: string,
+readonly check_type: Heptapod.Contracts.CheckKey,
+readonly run: Heptapod.Data.Ui.CheckRunStateData,
+readonly mine: boolean,
+readonly result: Heptapod.Contracts.RunResult | null,
+readonly finished_at: string | null,
+};
+export type RunningNowData = {
+readonly check_runs: Heptapod.Data.Ui.RunningCheckRunData[],
+readonly active_check_runs: number,
+};
 export type RunsBoardData = {
 readonly current: Heptapod.Data.Ui.CurrentRunData[],
 readonly queued_more: number,

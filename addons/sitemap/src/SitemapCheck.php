@@ -482,6 +482,9 @@ final readonly class SitemapCheck implements CheckDetailProvider, CheckRunPresen
             $window = array_slice($probeOrder, $rotationStart, $urlsPerRun === 'max' ? null : $limits['max_reachability_urls']);
             // As many as fit: paced batches of 100 continue only while twice the last batch's duration plus a reserve remains.
             $batchMilliseconds = 100 * (110 + $delay);
+            // An empty window still runs one empty batch; progress needs at least one URL to count.
+            $progress = $window === [] ? null : $context->runProgress;
+            $progress?->report(0, count($window), 'sitemap');
             foreach ($urlsPerRun === 'max' ? array_chunk($window, 100) : [$window] as $batch) {
                 if ($urlsPerRun === 'max' && $this->remainingMilliseconds($context) < 2 * $batchMilliseconds + 10000) {
                     break;
@@ -519,6 +522,7 @@ final readonly class SitemapCheck implements CheckDetailProvider, CheckRunPresen
                     }
                 }
                 $probed += count($batch);
+                $progress?->report($probed, count($window), 'sitemap');
                 $batchMilliseconds = (int) $batchStarted->diffInMilliseconds(CarbonImmutable::now());
                 if ($exhausted) {
                     break;
