@@ -106,8 +106,8 @@ test('status glyphs outside shared primitives cannot replace a visible status', 
             expect($source)->not->toBeFalse();
             expect(preg_match('/<\s*(?:Check(?:Circle(?:2|Big)?|Icon)?|CircleCheck(?:Big)?|BadgeCheck|SquareCheck)\b/', $source))->toBe(0, $file->getPathname())
                 ->and(preg_match('/[✓✔☑✅]/u', $source))->toBe(0, $file->getPathname());
-            // These two icons confirm a completed run or a copied secret, not site health.
-            if (in_array($file->getFilename(), ['foundation-primitives.tsx', 'two-factor-setup-modal.tsx'], true)) {
+            // These two icons confirm a finished run's OK result (the run family) or a copied secret, not site health.
+            if (in_array($file->getFilename(), ['run-family.tsx', 'two-factor-setup-modal.tsx'], true)) {
                 continue;
             }
             expect(preg_match('/import\s*\{[^}]*\b(?:Check\w*|CircleCheck\w*|BadgeCheck|SquareCheck)\b[^}]*\}\s*from\s*[\'\"]lucide-react[\'\"]/s', $source))->toBe(0, $file->getPathname());
