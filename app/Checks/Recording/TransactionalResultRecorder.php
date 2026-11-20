@@ -80,7 +80,7 @@ final readonly class TransactionalResultRecorder implements ResultRecorder
                 }
                 $attempt->update(['phase' => RunPhase::Cancelled, 'finished_at' => $run->endedAt, 'note' => 'cancelled']);
                 $cleared = $this->clearSlot($check);
-                LiveSignal::forRun('run.finished', $check->site()->getQuery()->firstOrFail(), $check->id, $run->startedAt, $attempt->actor?->name, outcome: RunPhase::Cancelled, attemptId: $attempt->id);
+                LiveSignal::forRun('run.finished', $check->site()->getQuery()->firstOrFail(), $check->id, $attempt->origin, $run->startedAt, $attempt->actor?->name, outcome: RunPhase::Cancelled, attemptId: $attempt->id);
                 $this->announceCleared($cleared, $check);
 
                 return new RecordedRun(true, null);
@@ -93,7 +93,7 @@ final readonly class TransactionalResultRecorder implements ResultRecorder
                 $type->serializeNext($check->id, true);
                 $cleared = $this->clearSlot($check);
                 $attempt->update(['phase' => RunPhase::Skipped, 'finished_at' => $run->endedAt, 'note' => 'definition_changed']);
-                LiveSignal::forRun('run.finished', $check->site()->getQuery()->firstOrFail(), $check->id, $run->startedAt, $attempt->actor?->name, outcome: RunPhase::Skipped, attemptId: $attempt->id);
+                LiveSignal::forRun('run.finished', $check->site()->getQuery()->firstOrFail(), $check->id, $attempt->origin, $run->startedAt, $attempt->actor?->name, outcome: RunPhase::Skipped, attemptId: $attempt->id);
                 $this->announceCleared($cleared, $check);
                 // Definition churn waits at least one interval, never retrying in an immediate hot loop.
                 $check->update(['next_run_at' => CheckSchedule::nextSlot($check->id, $check->interval_seconds,
@@ -109,7 +109,7 @@ final readonly class TransactionalResultRecorder implements ResultRecorder
                 }
                 $cleared = $this->clearSlot($check);
                 $attempt->update(['phase' => RunPhase::Skipped, 'finished_at' => $run->endedAt, 'note' => 'check_unavailable']);
-                LiveSignal::forRun('run.finished', $site, $check->id, $run->startedAt, $attempt->actor?->name, outcome: RunPhase::Skipped, attemptId: $attempt->id);
+                LiveSignal::forRun('run.finished', $site, $check->id, $attempt->origin, $run->startedAt, $attempt->actor?->name, outcome: RunPhase::Skipped, attemptId: $attempt->id);
                 $this->announceCleared($cleared, $check, $site);
                 Log::notice('Discarded inactive check result.', ['check_id' => $run->checkId]);
 
@@ -131,7 +131,7 @@ final readonly class TransactionalResultRecorder implements ResultRecorder
                 $classification = app(NoResultFreshness::class)->classify($outcome, $check, $run->endedAt);
                 $cleared = $this->clearSlot($check, $run->endedAt, $classification['action'] === 'resets');
                 $attempt->update(['phase' => RunPhase::Skipped, 'finished_at' => $run->endedAt, 'note' => 'no_result:'.$outcome->value]);
-                LiveSignal::forRun('run.finished', $site, $check->id, $run->startedAt, $attempt->actor?->name, outcome: RunPhase::Skipped, attemptId: $attempt->id);
+                LiveSignal::forRun('run.finished', $site, $check->id, $attempt->origin, $run->startedAt, $attempt->actor?->name, outcome: RunPhase::Skipped, attemptId: $attempt->id);
                 $this->announceCleared($cleared, $check, $site);
 
                 return new RecordedRun(true, null);
@@ -242,7 +242,7 @@ final readonly class TransactionalResultRecorder implements ResultRecorder
             }
             $runOutcome = in_array($outcome->result, [RunResult::Failed, RunResult::Errored], true) ? RunPhase::Failed : RunPhase::Done;
             $attempt->update(['phase' => $runOutcome, 'finished_at' => $run->endedAt, 'check_run_id' => $stored->id]);
-            LiveSignal::forRun('run.finished', $site, $check->id, $run->startedAt, $attempt->actor?->name, outcome: $runOutcome,
+            LiveSignal::forRun('run.finished', $site, $check->id, $attempt->origin, $run->startedAt, $attempt->actor?->name, outcome: $runOutcome,
                 attemptId: $attempt->id, recorded: new RecordedRunSignal($stored->id, $run->endedAt, CheckResult::from($stored->result->value)));
             LiveSignal::forSite($site, ['check' => $check->id]);
             if ($check->type === CheckKey::Uptime) {

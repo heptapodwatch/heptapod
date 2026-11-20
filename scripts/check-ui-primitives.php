@@ -42,7 +42,6 @@ $sectionHeadingExceptionCounts = [];
 /** Identity controls, not page actions: each file has exactly one large sidebar control. */
 $largeSidebarButtonExceptions = [
     'resources/js/components/app-sidebar.tsx' => 'Brand lockup: the logo needs its identity row, not a compact action button.',
-    'resources/js/components/nav-user.tsx' => 'User menu: avatar and two identity lines need their identity row, not a compact action button.',
 ];
 $largeSidebarButtonExceptionCounts = [];
 /** Per file: the one call with a purpose-specific clock, keyed by a snippet of its whitespace-collapsed arguments; not a standalone display timestamp. */

@@ -92,7 +92,6 @@
     "All accepted notifications: :count": "All accepted · {{count}}",
     "Sent :delay after notification": "Sent {{delay}} after notification",
     "What we see now": "What we see now",
-    "Re-checking now": "Re-checking now",
     "Alert delivery": "Alert delivery",
     "No email recipients recorded": "No email recipients recorded",
     "Team only. Never sent to the client.": "Team only. Never sent to the client.",

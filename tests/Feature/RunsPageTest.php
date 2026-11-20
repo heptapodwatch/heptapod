@@ -150,6 +150,32 @@ it('applies result filtering before pagination and preserves filters across curs
         ->has('runs', 5)->where('runs.0.id', $ids[4])->where('next_cursor', null));
 });
 
+it('shows exactly the manually started runs on the board and in the history under Started manually', function (): void {
+    $this->freezeTime();
+    app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static fn (): FetchResult => new FetchResult(200, 'ok')));
+    $user = User::factory()->create();
+    $user->assignRole('Owner');
+    [$manualDone, $manualQueued, $scheduledDone, $scheduledQueued] = Check::factory()->count(4)->create(['next_run_at' => now()->addHour()]);
+    $finish = static function (Check $check): void {
+        $definition = app(CheckRegistry::class)->get($check->type)->definition();
+        app()->call(new RunCheck($check->id, $check->refresh()->claim_token, $definition->timeout, $definition->queue)->handle(...));
+    };
+    $this->actingAs($user)->post("/sites/{$manualDone->site_id}/checks/{$manualDone->id}/run")->assertRedirect();
+    $finish($manualDone);
+    $this->post("/sites/{$manualQueued->site_id}/checks/{$manualQueued->id}/run")->assertRedirect();
+    expect(app(ClaimService::class)->runNow($scheduledDone->id, RunOrigin::Scheduled))->not->toBeNull();
+    $finish($scheduledDone);
+    expect(app(ClaimService::class)->runNow($scheduledQueued->id, RunOrigin::Scheduled))->not->toBeNull();
+
+    $this->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->has('current', 2)->has('finished', 2)->has('runs', 4));
+    $this->get('/runs?started=manual')->assertInertia(fn (Assert $page): Assert => $page
+        ->where('filters.started_manually', true)
+        ->has('current', 1)->where('current.0.check_id', $manualQueued->id)->where('current.0.run.actor_id', $user->id)
+        ->has('finished', 1)->where('finished.0.check_id', $manualDone->id)
+        ->has('runs', 2)->where('runs.0.check_id', $manualQueued->id)->where('runs.1.check_id', $manualDone->id));
+    $this->get('/runs?started=scheduled')->assertSessionHasErrors('started');
+});
+
 it('roundtrips the accepted attempt identity with microseconds through the real recorder', function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-07T02:00:00.123456+00:00'));
     $check = Check::factory()->create();

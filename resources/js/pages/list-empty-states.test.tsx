@@ -342,6 +342,7 @@ const runFilters: Heptapod.Data.Ui.RunsFilterData = {
     show_same_result: false,
     per_page: 50,
     period: '24h',
+    started_manually: false,
 };
 function runs(filters: Partial<Heptapod.Data.Ui.RunsFilterData>) {
     render(

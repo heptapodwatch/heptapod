@@ -1041,6 +1041,8 @@ readonly actor: string | null,
 readonly due_at: string | null,
 readonly can_cancel: boolean,
 readonly requested_at: string | null,
+readonly actor_id: number | null,
+readonly origin: 'scheduled' | 'manual' | 'system' | null,
 };
 export type CheckScheduleData = {
 readonly interval_seconds: number,
@@ -1271,6 +1273,7 @@ readonly presentation: Heptapod.Contracts.CheckRunPresentationData | null,
 readonly icon_url: string | null,
 readonly icon_backing: Heptapod.Enums.SiteIconBacking,
 readonly attempt_id: number | null,
+readonly actor_id: number | null,
 };
 export type IconRefreshResultData = {
 readonly key: string,
@@ -1773,6 +1776,39 @@ readonly icon_url: string | null,
 readonly icon_backing: Heptapod.Enums.SiteIconBacking,
 readonly presentation: Heptapod.Contracts.CheckRunPresentationData | null,
 };
+export type RunningBackupData = {
+readonly id: number,
+readonly state: 'queued' | 'running' | 'complete' | 'failed',
+readonly mine: boolean,
+readonly requested_at: string,
+readonly started_at: string | null,
+readonly completed_at: string | null,
+};
+export type RunningCheckRunData = {
+readonly check_id: number,
+readonly site_id: number,
+readonly site_name: string,
+readonly check_type: Heptapod.Contracts.CheckKey,
+readonly run: Heptapod.Data.Ui.CheckRunStateData,
+readonly mine: boolean,
+readonly result: Heptapod.Contracts.RunResult | null,
+readonly finished_at: string | null,
+};
+export type RunningImportData = {
+readonly id: string,
+readonly attempts: number,
+readonly status: Heptapod.Enums.ImportRunStatus,
+readonly mine: boolean,
+readonly requested_at: string,
+readonly started_at: string | null,
+readonly finished_at: string | null,
+};
+export type RunningNowData = {
+readonly check_runs: Heptapod.Data.Ui.RunningCheckRunData[],
+readonly active_check_runs: number,
+readonly imports: Heptapod.Data.Ui.RunningImportData[],
+readonly backup: Heptapod.Data.Ui.RunningBackupData | null,
+};
 export type RunsBoardData = {
 readonly current: Heptapod.Data.Ui.CurrentRunData[],
 readonly queued_more: number,
@@ -1787,6 +1823,7 @@ readonly before: number | null,
 readonly show_same_result: boolean,
 readonly period: '24h' | '7d',
 readonly per_page: number,
+readonly started_manually: boolean,
 };
 export type RunsHistoryPageData = {
 readonly runs: Heptapod.Data.Ui.RunRowData[],

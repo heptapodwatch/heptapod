@@ -166,7 +166,7 @@ final readonly class CheckExecutor
                 $attempt = CheckRunAttempt::query()->with('actor')->where('claim_token', $claimToken)->firstOrFail();
                 $attempt->update(['phase' => RunPhase::Skipped, 'finished_at' => $at, 'note' => 'check_unavailable']);
                 if ($site !== null) {
-                    LiveSignal::forRun('run.finished', $site, $check->id, actor: $attempt->actor?->name, outcome: RunPhase::Skipped, attemptId: $attempt->id);
+                    LiveSignal::forRun('run.finished', $site, $check->id, $attempt->origin, actor: $attempt->actor?->name, outcome: RunPhase::Skipped, attemptId: $attempt->id);
                 }
                 $check->forceFill(['awaiting_result_since' => null, 'lost_attempts' => 0, 'last_loss_started_at' => null, 'claim_token' => null, 'dispatched_at' => null, 'lease_expires_at' => null, 'run_started_at' => null, 'active_run_id' => null, 'manual_run' => false])->save();
                 // The skip stores no result, so it sends no state.changed; a cleared mark still moves the site off pending.
@@ -185,7 +185,7 @@ final readonly class CheckExecutor
                 'lease_expires_at' => $this->clock->now()->addSeconds(ExecutionBudget::runningLease($timeout))])->save();
             $attempt = CheckRunAttempt::query()->with('actor')->where('claim_token', $claimToken)->firstOrFail();
             $attempt->update(['phase' => RunPhase::Running, 'started_at' => $at]);
-            LiveSignal::forRun('run.started', $site, $check->id, $at, $attempt->actor?->name);
+            LiveSignal::forRun('run.started', $site, $check->id, $attempt->origin, $at, $attempt->actor?->name, attemptId: $attempt->id);
 
             $config = $check->executionConfig();
             if ($check->run_headers !== null) {

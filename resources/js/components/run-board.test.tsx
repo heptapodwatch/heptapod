@@ -8,7 +8,10 @@ vi.mock('@inertiajs/react', () => ({
         prefetch: _prefetch,
         ...props
     }: ComponentProps<'a'> & { prefetch?: boolean }) => <a {...props} />,
-    usePage: () => ({ url: '/runs', props: { timezone: 'UTC' } }),
+    usePage: () => ({
+        url: '/runs',
+        props: { timezone: 'UTC', auth: { user: { id: 7 } } },
+    }),
     router: { on: () => () => {}, reload: vi.fn() },
 }));
 vi.mock('react-i18next', () => {
@@ -48,6 +51,7 @@ const filters: Heptapod.Data.Ui.RunsFilterData = {
     show_same_result: false,
     per_page: 50,
     period: '24h',
+    started_manually: false,
 };
 
 function active(
@@ -76,6 +80,8 @@ function active(
             due_at: null,
             can_cancel: false,
             requested_at: null,
+            actor_id: null,
+            origin: null,
         },
     };
 }
@@ -96,6 +102,7 @@ function done(attempt: number): Heptapod.Data.Ui.FinishedRunData {
         icon_url: null,
         icon_backing: 'none',
         attempt_id: attempt,
+        actor_id: null,
     };
 }
 
@@ -179,13 +186,18 @@ it('shows a run that was never on the board in its real column at once', () => {
     expect(columnOf(container, 'Site 3')).toBe('finished');
 });
 
-it('names a failed uptime run Down and a failed run of another check Failed', () => {
+it("shows every finished result as a visible chip, uptime failures as Failed, and You on the viewer's own run", () => {
     const { container } = render(
         <RunBoard
             data={board(
                 [],
                 [
-                    { ...done(1), result: 'failed' },
+                    {
+                        ...done(1),
+                        result: 'failed',
+                        summary: 'causes.error',
+                        actor_id: 7,
+                    },
                     { ...done(2), result: 'failed', check_type: 'cron' },
                 ],
             )}
@@ -196,12 +208,11 @@ it('names a failed uptime run Down and a failed run of another check Failed', ()
         '[data-run-column="finished"]',
     )!;
     const [uptime, cron] = within(finished).getAllByRole('listitem');
-    expect(within(uptime!).getByRole('img').getAttribute('data-state')).toBe(
-        'down',
-    );
-    expect(within(cron!).getByRole('img').getAttribute('data-state')).toBe(
-        'failed',
-    );
+    // The headline does not replace the result word.
+    expect(within(uptime!).getByText('Failed')).toBeTruthy();
+    expect(within(uptime!).getByText('You')).toBeTruthy();
+    expect(within(cron!).getByText('Failed')).toBeTruthy();
+    expect(within(cron!).queryByText('You')).toBeNull();
 });
 
 it('moves cards without delay under reduced motion', () => {

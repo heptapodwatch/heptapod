@@ -17,8 +17,11 @@ final readonly class CheckRunsReader
 {
     public function __construct(private CheckRegistry $registry, private CheckFreshness $freshness) {}
 
-    /** @param array<int, int> $positions */
-    public function state(Check $check, ?CheckRunAttempt $attempt = null, array $positions = []): CheckRunStateData
+    /**
+     * @param  array<int, int>  $positions  known queue positions by attempt id; a missing one is counted
+     * @param  bool  $withQueuePosition  false where a count per queued run would read the whole queue (shared page data)
+     */
+    public function state(Check $check, ?CheckRunAttempt $attempt = null, array $positions = [], bool $withQueuePosition = true): CheckRunStateData
     {
         $attempt ??= $check->claim_token === null ? null : CheckRunAttempt::query()->with('actor')->where('claim_token', $check->claim_token)->first();
         $now = CarbonImmutable::now('UTC');
@@ -29,7 +32,7 @@ final readonly class CheckRunsReader
             && $attempt === null
             && $due !== null && $due->addSeconds(max(60, (int) ceil($check->interval_seconds * 0.1)))->lessThan($now);
         $phase = $late ? RunPhase::Late : ($attempt->phase ?? RunPhase::Scheduled);
-        $position = $attempt?->phase === RunPhase::Queued ? ($positions[$attempt->id] ?? CheckRunAttempt::query()
+        $position = $withQueuePosition && $attempt?->phase === RunPhase::Queued ? ($positions[$attempt->id] ?? CheckRunAttempt::query()
             ->where('queue', $attempt->queue)->where('phase', RunPhase::Queued)->where('id', '<=', $attempt->id)->getQuery()->count()) : null;
 
         return new CheckRunStateData($check->id, $phase, $attempt?->id, $attempt?->queue, $position,
@@ -37,7 +40,7 @@ final readonly class CheckRunsReader
             $attempt?->started_at?->toIso8601String(), $attempt?->actor?->name, $due?->toIso8601String(),
             $attempt !== null && in_array($attempt->phase, [RunPhase::Queued, RunPhase::Running], true)
                 && $check->type->canCancelRun() && $attempt->cancel_requested_at === null,
-            $attempt?->requested_at->format('Y-m-d\TH:i:s.uP'));
+            $attempt?->requested_at->format('Y-m-d\TH:i:s.uP'), $attempt?->actor_user_id, $attempt?->origin->value);
     }
 
     public function schedule(Check $check): CheckScheduleData

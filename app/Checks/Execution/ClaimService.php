@@ -185,7 +185,7 @@ final readonly class ClaimService
             $attempt = CheckRunAttempt::query()->with('actor')->where('claim_token', $current->claim_token)->first();
             if ($attempt instanceof CheckRunAttempt && in_array($attempt->phase, [RunPhase::Queued, RunPhase::Running], true)) {
                 $attempt->update(['phase' => RunPhase::Skipped, 'finished_at' => now(), 'note' => 'revoked']);
-                LiveSignal::forRun('run.finished', $current->site()->getQuery()->firstOrFail(), $current->id,
+                LiveSignal::forRun('run.finished', $current->site()->getQuery()->firstOrFail(), $current->id, $attempt->origin,
                     $attempt->started_at, $attempt->actor?->name, outcome: RunPhase::Skipped, attemptId: $attempt->id);
             }
             $current->update(['awaiting_result_since' => null, 'lost_attempts' => 0, 'last_loss_started_at' => null, 'claim_token' => null, 'dispatched_at' => null, 'lease_expires_at' => null,
@@ -260,7 +260,7 @@ final readonly class ClaimService
                 $lost = 1;
                 $lastLossStartedAt = $replaced->started_at;
                 $replaced->update(['phase' => RunPhase::Skipped, 'finished_at' => now(), 'note' => 'lease_replaced']);
-                LiveSignal::forRun('run.finished', $check->site()->getQuery()->firstOrFail(), $check->id,
+                LiveSignal::forRun('run.finished', $check->site()->getQuery()->firstOrFail(), $check->id, $replaced->origin,
                     $replaced->started_at, $replaced->actor?->name, outcome: RunPhase::Skipped, attemptId: $replaced->id);
             }
         }
@@ -288,8 +288,9 @@ final readonly class ClaimService
             'queue' => $definition->queue ?? 'checks-fast', 'actor_user_id' => $actorUserId, 'actor_token_id' => $actorTokenId, 'origin' => $origin->value, 'requested_at' => now(),
             'due_at' => $actorUserId === null ? min($check->next_run_at, now()) : now()]);
         $site = $check->site()->getQuery()->firstOrFail();
-        LiveSignal::forRun('run.queued', $site, $checkId, actor: $attempt->actor?->name,
-            queuePosition: CheckRunAttempt::query()->where('queue', $attempt->queue)->where('phase', RunPhase::Queued)->where('id', '<=', $attempt->id)->getQuery()->count());
+        LiveSignal::forRun('run.queued', $site, $checkId, $origin, actor: $attempt->actor?->name,
+            queuePosition: CheckRunAttempt::query()->where('queue', $attempt->queue)->where('phase', RunPhase::Queued)->where('id', '<=', $attempt->id)->getQuery()->count(),
+            attemptId: $attempt->id);
 
         if (! $definition instanceof CheckDefinition) {
             $at = CarbonImmutable::now('UTC');

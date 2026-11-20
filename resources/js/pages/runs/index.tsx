@@ -18,8 +18,13 @@ import { SegmentedControl } from '@/components/segmented-control';
 import { ListHeader, ListRow } from '@/components/ui/table';
 import { PageHeader } from '@/components/page-header';
 import { PageContainer } from '@/components/page-container';
-import { RunBoard, RunResultChip } from '@/components/run-board';
-import { RunBar } from '@/components/foundation-primitives';
+import { RunBoard } from '@/components/run-board';
+import {
+    RunResultChip,
+    RunStatus,
+    runLifecycleWord,
+    runOutcome,
+} from '@/components/run-family';
 import { ResultSummary } from '@/components/result-summary';
 import { Button } from '@/components/ui/button';
 import {
@@ -50,6 +55,13 @@ function isCheckType(value: string): value is Heptapod.Contracts.CheckKey {
 }
 function isPhase(value: string): value is Phase {
     return Object.hasOwn(phases, value);
+}
+/** The URL names "Started manually" as `started=manual`. */
+function urlFilters({
+    started_manually,
+    ...rest
+}: Heptapod.Data.Ui.RunsFilterData) {
+    return { ...rest, started: started_manually ? 'manual' : undefined };
 }
 
 export default function Runs({
@@ -86,7 +98,7 @@ export default function Runs({
             runsIndex.url(),
             Object.fromEntries(
                 Object.entries({
-                    ...next,
+                    ...urlFilters(next),
                     show_same_result: next.show_same_result ? 1 : undefined,
                     // The server remembers the page size; the URL names it only when it was just chosen.
                     per_page: undefined,
@@ -108,6 +120,7 @@ export default function Runs({
         filters.check,
         filters.type,
         filters.state,
+        filters.started_manually,
     ].filter(Boolean).length;
     const filtersActive = runFilterCount > 0 || filters.period !== '24h';
     const clearRunFilters = () =>
@@ -116,6 +129,7 @@ export default function Runs({
             check: null,
             type: null,
             state: null,
+            started_manually: false,
             period: '24h',
         });
     return (
@@ -213,6 +227,36 @@ export default function Runs({
                             ))}
                         </SelectContent>
                     </Select>
+                    <Select
+                        value={filters.started_manually ? 'manual' : 'all'}
+                        onValueChange={(value) =>
+                            visitFilters({
+                                started_manually: value === 'manual',
+                            })
+                        }
+                    >
+                        <FilterSelectTrigger
+                            aria-label={t('run.started')}
+                            onClear={
+                                filters.started_manually
+                                    ? () =>
+                                          visitFilters({
+                                              started_manually: false,
+                                          })
+                                    : null
+                            }
+                        >
+                            <SelectValue />
+                        </FilterSelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">
+                                {t('run.started.all')}
+                            </SelectItem>
+                            <SelectItem value="manual">
+                                {t('run.started.manual')}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                 </FilterBar>
             </div>
             <RunBoard
@@ -302,15 +346,16 @@ export default function Runs({
                             <div>
                                 {row.result !== null ? (
                                     <RunResultChip
-                                        check={row.check_type}
-                                        result={row.result}
+                                        outcome={runOutcome(row.result)}
                                     />
+                                ) : row.run.phase === 'queued' ||
+                                  row.run.phase === 'running' ? (
+                                    <RunStatus phase={row.run.phase} />
                                 ) : (
-                                    <RunBar
-                                        state={row.run.phase}
-                                        description={null}
-                                        compact
-                                    />
+                                    // Ended without a result: the Note column says why.
+                                    <span className="text-xs text-muted-foreground">
+                                        {t(runLifecycleWord.finished)}
+                                    </span>
                                 )}
                             </div>
                             <span className="min-w-0">
@@ -375,7 +420,7 @@ export default function Runs({
                                     ? {
                                           href: runsIndex.url({
                                               query: {
-                                                  ...filters,
+                                                  ...urlFilters(filters),
                                                   show_same_result:
                                                       filters.show_same_result
                                                           ? 1

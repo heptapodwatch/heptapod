@@ -2,14 +2,20 @@ import { EASE_OUT } from '@/lib/motion';
 import { listCardPadding } from '@/components/ui/table';
 import { SectionHeading } from '@/components/section-heading';
 import { SiteAvatar } from '@/components/site-avatar';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { useConnectionStatus } from '@laravel/echo-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RunBar } from '@/components/foundation-primitives';
-import { StatusBadge, StatusDot } from '@/components/monitoring';
-import { runState } from '@/lib/status';
+import { StatusDot } from '@/components/monitoring';
 import { ResultSummary } from '@/components/result-summary';
+import {
+    RunLine,
+    RunResultChip,
+    YouMarker,
+    runOutcome,
+    runProgress,
+    useRunDetail,
+} from '@/components/run-family';
 import { SegmentedControl } from '@/components/segmented-control';
 import { Button } from '@/components/ui/button';
 import { TextLink } from '@/components/text-link';
@@ -19,7 +25,7 @@ import {
     useLiveRunBoard,
     type LiveRunBoardData,
 } from '@/hooks/use-live-run-board';
-import { useStreamState } from '@/lib/live-store';
+import { useRunState, useStreamState } from '@/lib/live-store';
 import { checkTypes } from '@/lib/check-types';
 import { cn } from '@/lib/utils';
 import { show as checkShow } from '@/routes/sites/checks';
@@ -34,16 +40,6 @@ type Identity = Pick<
     | 'icon_url'
     | 'icon_backing'
 >;
-export function RunResultChip({
-    check,
-    result,
-}: {
-    check: Heptapod.Contracts.CheckKey;
-    result: Heptapod.Contracts.RunResult;
-}) {
-    return <StatusBadge state={runState(check, result)} />;
-}
-
 function RunBoardLiveStatus() {
     const { t } = useTranslation();
     const connection = useConnectionStatus();
@@ -136,101 +132,100 @@ function RunCard({
     );
 }
 
+/**
+ * "Started by …" for a person's run, "Scheduled" for the engine's (UI rules, Runs: only RunCard names the person). The
+ * viewer's own run carries the You marker instead.
+ */
+function StartedBy({ run }: { run: Heptapod.Data.Ui.CheckRunStateData }) {
+    const { t } = useTranslation();
+    const mine = useMine();
+    if (mine(run)) return null;
+    return (
+        <span className="block ps-5.5 text-xs text-muted-foreground">
+            {run.actor !== null
+                ? t('run.startedBy', { actor: run.actor })
+                : t('Scheduled')}
+        </span>
+    );
+}
+
+function useMine() {
+    const userId = usePage().props.auth.user?.id;
+    return (run: { actor_id: number | null }) =>
+        userId !== undefined && run.actor_id === userId;
+}
+
 function QueuedDetail({ run }: { run: Heptapod.Data.Ui.CheckRunStateData }) {
     const { t } = useTranslation();
+    const detail = useRunDetail();
+    const mine = useMine();
     return (
-        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            {run.queue_position !== null && (
-                <span className="font-mono tabular-nums">
-                    {t('runs.board.position', {
-                        position: run.queue_position,
-                    })}
-                </span>
-            )}
-            {run.actor !== null && (
-                <span>{t('Requested by {{actor}}', { actor: run.actor })}</span>
-            )}
+        <span className="block space-y-0.5">
+            <RunLine
+                phase="queued"
+                label={t('Queued')}
+                detail={detail({ ...run, phase: 'queued' })}
+                mine={mine(run)}
+                className="px-0 py-0"
+            />
+            <StartedBy run={run} />
         </span>
     );
 }
 
 function RunningDetail({ row }: { row: Heptapod.Data.Ui.CurrentRunData }) {
     const { t } = useTranslation();
-    const format = useFormat();
-    const { progress_n: done, progress_total: total } = row.run;
-    const measured = done !== null && total !== null && total > 0;
+    const detail = useRunDetail();
+    const mine = useMine();
+    // Progress comes from this attempt's own live signals; a progress tick never reloads the board.
+    const signal = useRunState(row.check_id);
+    const live =
+        signal?.attempt_id === row.run.attempt_id && signal.phase === 'progress'
+            ? signal
+            : row.run;
     return (
-        <span className="block space-y-1.5">
-            <span className="flex flex-wrap items-center justify-between gap-2">
-                <RunBar state="running" description={null} compact />
-                {measured && (
-                    <span className="font-mono text-xs text-muted-foreground tabular-nums">
-                        {format.number(done)}/{format.number(total)}
-                    </span>
-                )}
-            </span>
-            <span
-                role="progressbar"
-                aria-label={t('runs.board.progress', {
-                    check: t(checkTypes[row.check_type].label),
-                    site: row.site_name,
+        <span className="block space-y-0.5">
+            <RunLine
+                phase="running"
+                label={t('Running')}
+                detail={detail({
+                    ...row.run,
+                    phase: 'started',
+                    progress_n: live.progress_n,
+                    progress_total: live.progress_total,
                 })}
-                aria-valuemin={0}
-                aria-valuemax={measured ? total : undefined}
-                aria-valuenow={measured ? Math.min(done, total) : undefined}
-                aria-valuetext={
-                    measured ? undefined : t('runs.board.progressUnknown')
-                }
-                className="block h-1 overflow-hidden rounded-full bg-muted"
-            >
-                <span
-                    className={cn(
-                        'block h-full',
-                        measured && 'bg-[var(--status-info)]',
-                    )}
-                    style={
-                        measured
-                            ? {
-                                  width: `${Math.min(100, (done / total) * 100)}%`,
-                              }
-                            : {
-                                  width: '100%',
-                                  backgroundImage:
-                                      'repeating-linear-gradient(135deg, var(--status-info), var(--status-info) 2px, transparent 2px, transparent 4px)',
-                              }
-                    }
-                />
-            </span>
-            {row.run.actor !== null && (
-                <span className="block text-xs text-muted-foreground">
-                    {t('Requested by {{actor}}', { actor: row.run.actor })}
-                </span>
-            )}
+                progress={runProgress(live)}
+                mine={mine(row.run)}
+                bar
+                className="px-0 py-0"
+            />
+            <StartedBy run={row.run} />
         </span>
     );
 }
 
+/** The result as a chip (with You for the viewer's own run), then the stored headline and the duration. */
 function FinishedDetail({ row }: { row: Heptapod.Data.Ui.FinishedRunData }) {
     const format = useFormat();
+    const mine = useMine();
     return (
-        <span className="flex min-w-0 items-start gap-2 text-xs">
-            <span className="mt-0.5 shrink-0">
-                <StatusDot state={runState(row.check_type, row.result)} />
+        <span className="block space-y-1 text-xs">
+            <span className="flex items-center gap-2">
+                <RunResultChip outcome={runOutcome(row.result)} />
+                {mine(row) && <YouMarker />}
+                {row.duration_ms !== null && (
+                    <span className="ms-auto shrink-0 font-mono text-muted-foreground tabular-nums">
+                        {format.number(row.duration_ms)} ms
+                    </span>
+                )}
             </span>
-            <span className="min-w-0 flex-1 text-muted-foreground">
-                {row.summary !== null ? (
+            {row.summary !== null && (
+                <span className="block min-w-0 text-muted-foreground">
                     <ResultSummary
                         message={row.summary}
                         params={row.summary_params}
                         presentation={row.presentation}
                     />
-                ) : (
-                    <RunResultChip check={row.check_type} result={row.result} />
-                )}
-            </span>
-            {row.duration_ms !== null && (
-                <span className="shrink-0 font-mono text-muted-foreground tabular-nums">
-                    {format.number(row.duration_ms)} ms
                 </span>
             )}
         </span>
@@ -345,6 +340,7 @@ export function RunBoard({
         filters.check,
         filters.type,
         filters.state,
+        filters.started_manually,
     ].join(':');
     const board = useLiveRunBoard(data, scope, flip);
 

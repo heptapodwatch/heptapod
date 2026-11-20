@@ -93,7 +93,7 @@ function SidebarWithShortcuts() {
     );
 }
 
-it('opens the keyboard shortcuts dialog from the footer help button', () => {
+it('opens the keyboard shortcuts dialog from the help button in the logo row', () => {
     render(<SidebarWithShortcuts />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }));

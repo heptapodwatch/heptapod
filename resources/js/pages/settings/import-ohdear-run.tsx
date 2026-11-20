@@ -4,12 +4,13 @@ import { ImportChannelSection } from '@/components/import-channel-section';
 import { ImportOperationBadge } from '@/components/import-operation-badge';
 import { ImportAlertTimingSummary } from '@/components/import-alert-timing-summary';
 import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormSection } from '@/components/form-section';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/monitoring';
+import { RunStatus } from '@/components/run-family';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { listCardPadding, ListHeader, ListRow } from '@/components/ui/table';
@@ -45,25 +46,16 @@ type ImportRun = {
     }[];
 };
 
-const statusLabels: Record<ImportRun['status'], string> = {
-    planned: 'Plan',
-    queued: 'Queued',
-    running: 'Running',
-    completed: 'Completed',
-    incomplete: 'Incomplete',
-    failed: 'Failed',
-};
-
-const statusStates = {
-    planned: 'pending',
-    queued: 'pending',
-    running: 'running',
-    completed: 'ok',
-    incomplete: 'warning',
-    failed: 'failed',
+/** A planned import has not started yet; from Queued on it is a run (UI rules, Runs). */
+const statusRuns = {
+    queued: { phase: 'queued' },
+    running: { phase: 'running' },
+    completed: { phase: 'finished', outcome: 'ok' },
+    incomplete: { phase: 'finished', outcome: 'warning' },
+    failed: { phase: 'finished', outcome: 'failed' },
 } as const satisfies Record<
-    ImportRun['status'],
-    React.ComponentProps<typeof StatusBadge>['state']
+    Exclude<ImportRun['status'], 'planned'>,
+    ComponentProps<typeof RunStatus>
 >;
 
 function CopyUrl({ url }: { url: string }) {
@@ -100,7 +92,12 @@ export default function ImportOhDearRun({
     const format = useFormat();
     const includesSites = importRun.sections.includes('sites');
     const active = ['queued', 'running'].includes(importRun.status);
-    useLiveReload(['import.progress'], ['importRun'], undefined, active);
+    useLiveReload(
+        ['import.progress', 'import.changed'],
+        ['importRun'],
+        undefined,
+        active,
+    );
     const retry = useHttpRequest<Record<string, never>, { url: string }>();
     const done = importRun.processed;
     const unread = Math.max(0, importRun.expected - done);
@@ -131,10 +128,11 @@ export default function ImportOhDearRun({
                 title={t(finished ? 'Import result' : 'Import progress')}
                 description={t('pages.import_run.description')}
                 badge={
-                    <StatusBadge
-                        state={statusStates[importRun.status]}
-                        label={statusLabels[importRun.status]}
-                    />
+                    importRun.status === 'planned' ? (
+                        <StatusBadge state="pending" label={t('Plan')} />
+                    ) : (
+                        <RunStatus {...statusRuns[importRun.status]} />
+                    )
                 }
                 notices={
                     (importRun.status === 'incomplete' ||

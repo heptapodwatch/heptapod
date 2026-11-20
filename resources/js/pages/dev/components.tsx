@@ -28,7 +28,6 @@ import {
     DiffBlock,
     ExpiryRow,
     ScoreRing,
-    RunBar,
     ScheduleCard,
     RuleRow,
     EmptyState,
@@ -36,7 +35,6 @@ import {
     FoundationSkeleton,
     Freshness,
     HealthIndicator,
-    type RunState,
 } from '@/components/foundation-primitives';
 import { MetricTile, Sparkline } from '@/components/sparkline';
 import {
@@ -59,16 +57,8 @@ import InputError from '@/components/input-error';
 import { MultiStepFormSheet } from '@/components/multi-step-sheet';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { RunLine, RunResultChip } from '@/components/run-family';
 
-const runStates: RunState[] = [
-    'scheduled',
-    'queued',
-    'running',
-    'done',
-    'failed',
-    'late',
-    'skipped',
-];
 const sampleSite: Heptapod.Data.Ui.SiteRowData = gallerySites[0]!;
 const sampleChecks: Heptapod.Data.Ui.CheckStripData[] = galleryChecks;
 const sampleClient: Heptapod.Data.Ui.ClientData = clients[0]!;
@@ -318,30 +308,25 @@ export default function Components() {
             </section>
             <section className="space-y-4">
                 <SectionHeading>{t('Check runs')}</SectionHeading>
-                {runStates.map((state) => (
-                    <RunBar
-                        key={state}
-                        state={state}
-                        description={
-                            state === 'running'
-                                ? t('Crawl running · page 612 of 1 204')
-                                : t('Next run tomorrow 05:00')
-                        }
-                        progress={state === 'running' ? 51 : undefined}
-                        action={
-                            state === 'running' ? (
-                                <Button variant="ghost" size="sm">
-                                    {t('Cancel')}
-                                </Button>
-                            ) : undefined
-                        }
-                    />
-                ))}
+                <RunLine phase="queued" label={t('Queued')} detail="#2" />
+                <RunLine
+                    phase="running"
+                    label={t('Running')}
+                    detail="612 / 1,204"
+                    progress={{ done: 612, total: 1204 }}
+                    bar
+                    mine
+                />
+                <RunLine phase="running" label={t('Running')} />
+                {(['ok', 'warning', 'failed', 'check-error'] as const).map(
+                    (outcome) => (
+                        <RunResultChip key={outcome} outcome={outcome} />
+                    ),
+                )}
                 <ScheduleCard
                     next="09:27:01"
                     last="09:26:01"
                     duration="180–420 ms"
-                    state="queued"
                 />
             </section>
             <section className="grid gap-5 md:grid-cols-2">

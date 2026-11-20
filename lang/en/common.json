@@ -658,8 +658,6 @@
     "Browser queue": "Browser queue",
     "Fast queue": "Fast queue",
     "Not ready to run": "Not ready to run",
-    "Request result: {{queued}} queued · {{unavailable}} unavailable": "Request result: {{queued}} queued · {{unavailable}} unavailable",
-    "Requested by {{actor}}": "Requested by {{actor}}",
     "Requested recently": "Requested recently",
     "Last result": "Last result",
     "Not configured": "Not configured",

@@ -51,7 +51,7 @@ final class RunOhDearImport implements ShouldQueue
         }
         $run = ImportRun::query()->findOrFail($this->runId);
         Context::add('import_run_id', $run->id);
-        LiveSignal::forImport();
+        LiveSignal::forImportChange();
         // Setup, client creation and the import share one boundary: a local fault keeps the sites already written and
         // the token, so "Run again" can continue once it is fixed.
         // The fault may be the rejected save of this model's results: reload it so the terminal state does not retry that payload.
@@ -220,6 +220,6 @@ final class RunOhDearImport implements ShouldQueue
         $run->error = $error;
         $run->finished_at = now()->toImmutable();
         $run->save();
-        LiveSignal::forImport();
+        LiveSignal::forImportChange();
     }
 }

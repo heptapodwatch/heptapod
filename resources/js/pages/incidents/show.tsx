@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/dialog';
 import { useFormat } from '@/hooks/use-format';
 import { useRequestedRun } from '@/hooks/use-requested-run';
-import { toast } from 'sonner';
 import { isCoalescedStateChange, useLiveReload } from '@/hooks/use-live';
 import { checkTypes } from '@/lib/check-types';
 import { alertPreview, index as incidentsIndex } from '@/routes/incidents';
@@ -192,46 +191,9 @@ export default function IncidentDetail(
                       : '{{site}} has a failing check.',
             { site: header.name, check: t(checkTypes[incident.check].label) },
         );
-    // Every outcome of this tab's own run replaces the "still running" toast shown while it ran.
+    // The own result is toasted by the shell from server state (RunningNowShell); the page only applies its rows.
     useEffect(() => {
-        if (requestedRun.state.phase === 'running') {
-            toast.loading(
-                t(
-                    'Still running: the result appears here when the check finishes.',
-                ),
-                { id: `own-run-${requestedRun.state.attemptId}` },
-            );
-        }
-    }, [requestedRun.state]);
-    useEffect(() => {
-        if (!ownRun) return;
-        const id = `own-run-${ownRun.attemptId}`;
-        if (ownRun.result === null) {
-            toast.warning(t('The check did not run.'), { id });
-        } else if (ownRun.result === 'errored-or-timed-out') {
-            if (!check?.summary) {
-                throw new Error('A check error result has no summary.');
-            }
-            toast.error(t('Check error'), {
-                id,
-                description: format.summary(
-                    check.summary,
-                    check.summary_params,
-                ),
-            });
-        } else if (ownRun.result === 'succeeded') {
-            toast.success(
-                isOpen
-                    ? t('Check passed: {{headline}}', { headline })
-                    : t('Check passed: incident resolved'),
-                { id },
-            );
-        } else {
-            toast.warning(t('Still failing: {{headline}}', { headline }), {
-                id,
-            });
-        }
-        requestedRun.consume();
+        if (ownRun) requestedRun.consume();
     }, [ownRun]);
     return (
         <>

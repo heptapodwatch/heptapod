@@ -16,5 +16,19 @@
     "Lists": "Listen",
     "Create on this page": "Auf dieser Seite anlegen",
     "Next site": "Nächste Website",
-    "Previous site": "Vorherige Website"
+    "Previous site": "Vorherige Website",
+    "Running now": "Läuft gerade",
+    "run.more_one": "{{count}} weiterer",
+    "run.more_other": "{{count}} weitere",
+    "run.summary.running_one": "{{count}} läuft",
+    "run.summary.running_other": "{{count}} laufen",
+    "run.summary.queued_one": "{{count}} in Warteschlange",
+    "run.summary.queued_other": "{{count}} in Warteschlange",
+    "run.statusGroup": "Läuft gerade und Status",
+    "run.onThisSite": "Läuft auf dieser Website",
+    "run.notStarted": "Nicht gestartet: {{checks}}",
+    "run.import": "Oh-Dear-Import",
+    "run.backup": "Sicherung",
+    "run.openImport": "Import öffnen",
+    "run.openBackups": "Sicherungen öffnen"
 }

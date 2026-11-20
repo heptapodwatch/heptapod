@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Models;
 
 use Carbon\CarbonImmutable;
+use Heptapod\Checks\Execution\RunOrigin;
 use Heptapod\Contracts\RunPhase;
 use Illuminate\Database\Eloquent\Attributes\DateFormat;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
@@ -29,6 +30,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $phase_label
  * @property int|null $check_run_id
  * @property string|null $note
+ * @property RunOrigin $origin
  */
 #[DateFormat('Y-m-d H:i:s.uP')]
 #[Guarded(['id'])]
@@ -39,7 +41,7 @@ final class CheckRunAttempt extends Model
     {
         return ['phase' => RunPhase::class, 'requested_at' => 'immutable_datetime', 'due_at' => 'immutable_datetime', 'started_at' => 'immutable_datetime',
             'finished_at' => 'immutable_datetime', 'cancel_requested_at' => 'immutable_datetime',
-            'progress_done' => 'integer', 'progress_total' => 'integer'];
+            'progress_done' => 'integer', 'progress_total' => 'integer', 'origin' => RunOrigin::class];
     }
 
     /** @return BelongsTo<Check, $this> */

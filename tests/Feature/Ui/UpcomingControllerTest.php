@@ -176,7 +176,7 @@ it('bounds All to twelve months and a hundred chronological dates with a stable 
     expect(count($queries))->toBeLessThanOrEqual($fewQueries, 'upcoming grew from '.$fewQueries.' to '.count($queries).' queries as maintenance sites grew from 1 to '.$count);
     // Upper budget: page shell and shell health (25458fc44/0a385128), the bounded maintenance, domain and
     // certificate reads, batched client avatars (36aca5a1a), and the sidebar's late runs count, which every page
-    // now reads inline instead of in a second, deferred request.
-    expect($fewQueries)->toBeLessThanOrEqual(24, 'upcoming used '.$fewQueries.' queries, over its budget of 24');
+    // now reads inline instead of in a second, deferred request, as it does Running now (visible sites, check runs, imports, backup).
+    expect($fewQueries)->toBeLessThanOrEqual(28, 'upcoming used '.$fewQueries.' queries, over its budget of 28');
     expect(collect($response->inertiaProps()['items'])->max('date'))->toBeLessThanOrEqual('2027-10-04T00:30:00+00:00');
 })->with([2, 20]);

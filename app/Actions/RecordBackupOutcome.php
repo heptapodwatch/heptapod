@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Actions;
 
+use Heptapod\Events\LiveSignal;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\DB;
 use Spatie\Backup\Events\BackupHasFailed;
@@ -24,9 +25,12 @@ final class RecordBackupOutcome
             if ($changed !== 1) {
                 throw new \LogicException('The requested backup is not running.');
             }
+            // After the write: a listener that reads the run on this signal must see it finished.
+            LiveSignal::forBackup();
 
             return;
         }
         DB::table('backup_runs')->insert([...$data, 'requested_by' => null, 'requested_at' => now('UTC'), 'started_at' => null]);
+        LiveSignal::forBackup();
     }
 }

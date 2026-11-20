@@ -36,6 +36,7 @@ final class RunsController extends Controller
             'before' => ['sometimes', 'integer', 'min:1'],
             'show_same_result' => ['sometimes', 'boolean'],
             'period' => ['sometimes', Rule::in(['24h', '7d'])],
+            'started' => ['sometimes', Rule::in(['manual'])],
         ])->validate();
         $period = $request->string('period', '24h')->toString();
         $since = CarbonImmutable::now('UTC')->subHours(match ($period) {
@@ -50,6 +51,7 @@ final class RunsController extends Controller
             $request->boolean('show_same_result'),
             $period,
             ListPageSize::resolve($request, 'runs'),
+            $request->input('started') === 'manual',
         );
 
         $board = null;
@@ -58,7 +60,7 @@ final class RunsController extends Controller
             return $board ??= $reader->board($user, $filters);
         };
         $readHistory = function () use (&$history, $reader, $user, $filters, $since): RunsHistoryPageData {
-            return $history ??= $reader->history($user, $filters->per_page, $filters->check, $filters->before, $filters->client, $filters->type?->value, $filters->state, $filters->show_same_result, since: $since);
+            return $history ??= $reader->history($user, $filters->per_page, $filters->check, $filters->before, $filters->client, $filters->type?->value, $filters->state, $filters->show_same_result, since: $since, manualOnly: $filters->started_manually);
         };
 
         return Inertia::render('runs/index', new RunsIndexPageData(

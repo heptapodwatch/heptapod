@@ -31,5 +31,7 @@ final class FinishedRunData extends Data
         public readonly SiteIconBacking $icon_backing = SiteIconBacking::None,
         /** The attempt that recorded this run; set where the reader links it (the Runs board). */
         public readonly ?int $attempt_id = null,
+        /** Who started it (null for a scheduled run), so the viewer's own card carries "You". */
+        public readonly ?int $actor_id = null,
     ) {}
 }

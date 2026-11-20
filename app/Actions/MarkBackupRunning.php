@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Actions;
 
+use Heptapod\Events\LiveSignal;
 use Illuminate\Support\Facades\DB;
 
 final class MarkBackupRunning
@@ -15,5 +16,6 @@ final class MarkBackupRunning
         if ($changed !== 1) {
             throw new \LogicException('Only queued backups may start.');
         }
+        LiveSignal::forBackup();
     }
 }

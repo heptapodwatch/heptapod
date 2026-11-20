@@ -47,6 +47,8 @@ const page = {
             due_at: null,
             can_cancel: false,
             requested_at: null,
+            actor_id: null,
+            origin: null,
         },
     },
 } satisfies Parameters<typeof DnsComparison>[0]['page'];

@@ -414,9 +414,9 @@ it('bounds Runs list query work and SQL count as attempt history grows', functio
     $list = collect($queries)->first(static fn (array $query): bool => str_contains($query['query'], '"check_run_attempts"') && str_contains($query['query'], 'order by "requested_at" desc, "id" desc'));
     expect($list)->not->toBeNull()
         ->and(count($queries))->toBeLessThanOrEqual($fewQueries, 'the Runs list grew from '.$fewQueries.' to '.count($queries).' queries as attempts grew from 2 to '.$count)
-        // Upper budget: page shell and shell health, the sidebar's inline late runs count, the bounded current/queued/finished
-        // attempt pages and their batched presentations.
-        ->and($fewQueries)->toBeLessThanOrEqual(30, 'the Runs list used '.$fewQueries.' queries, over its budget of 30')
+        // Upper budget: page shell and shell health, the sidebar's inline late runs count and Running now (visible sites, check runs,
+        // imports, backup), the bounded current/queued/finished attempt pages and their batched presentations.
+        ->and($fewQueries)->toBeLessThanOrEqual(34, 'the Runs list used '.$fewQueries.' queries, over its budget of 34')
         ->and(QueryPlanWork::forQuery($list['query'], $list['bindings']))->toBeLessThan($count * 20);
     expect(collect($queries)->filter(static fn (array $query): bool => str_contains($query['query'], 'select count(*)') && str_contains($query['query'], '"queue" = ?')))->toBeEmpty();
     $response->assertInertia(fn (Assert $page): Assert => $page->component('runs/index')->where('runs.0.run.queue_position', $count));

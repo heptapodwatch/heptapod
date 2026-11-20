@@ -2,16 +2,7 @@ import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import type { ReactNode } from 'react';
 import { Link } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
-import {
-    AlertCircle,
-    Clock3,
-    LoaderCircle,
-    Check,
-    X,
-    List,
-    Minus,
-    ChevronRight,
-} from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import {
     StatusDot,
     StatusBadge,
@@ -319,102 +310,17 @@ export function ScoreRing({ score, label }: { score: number; label: string }) {
     );
 }
 
-export type RunState = Heptapod.Data.Ui.CheckRunStateData['phase'];
-const runIcons = {
-    scheduled: Clock3,
-    queued: List,
-    running: LoaderCircle,
-    done: Check,
-    failed: X,
-    late: AlertCircle,
-    skipped: Minus,
-    cancelled: Minus,
-};
-export function RunBar({
-    state,
-    description,
-    progress,
-    action,
-    compact = false,
-}: {
-    state: RunState;
-    description: ReactNode;
-    progress?: number;
-    action?: ReactNode;
-    compact?: boolean;
-}) {
-    const { t } = useTranslation();
-    const Icon = compact && state === 'late' ? Clock3 : runIcons[state];
-    const color = cn(
-        state === 'late' && 'text-[var(--status-warn)]',
-        state === 'failed' && 'text-[var(--status-down)]',
-        state === 'done' && 'text-[var(--status-ok)]',
-    );
-    const icon =
-        state === 'running' ? (
-            <StatusDot state="running" />
-        ) : (
-            <Icon
-                className={cn(
-                    compact ? 'size-3.5 shrink-0' : 'size-4 shrink-0',
-                    color,
-                )}
-            />
-        );
-    if (compact) {
-        return (
-            <span
-                className={cn(
-                    'inline-flex items-center gap-1.5 text-xs font-medium',
-                    !['running', 'late', 'failed', 'done'].includes(state) &&
-                        'text-muted-foreground',
-                    color,
-                )}
-            >
-                {icon}
-                {t(state[0]!.toUpperCase() + state.slice(1))}
-            </span>
-        );
-    }
-    return (
-        <div className="flex min-h-10 items-center gap-3 rounded-full border bg-card px-3 py-2 text-sm">
-            {icon}
-            <span className="min-w-0 flex-1 text-[var(--foreground-secondary)]">
-                {state === 'late' ? (
-                    description
-                ) : (
-                    <>
-                        {t(state[0]!.toUpperCase() + state.slice(1))} ·{' '}
-                        {description}
-                    </>
-                )}
-            </span>
-            {progress !== undefined && (
-                <progress
-                    className="h-1.5 w-28 overflow-hidden rounded-full sm:w-48 [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-primary"
-                    value={progress}
-                    max={100}
-                    aria-label={t('Run progress')}
-                />
-            )}
-            {action}
-        </div>
-    );
-}
-
 export function ScheduleCard({
     next,
     last,
     duration,
     interval,
-    state,
     showRunsLink = true,
 }: {
     next: ReactNode;
     last: ReactNode;
     duration: string;
     interval?: string;
-    state?: RunState;
     showRunsLink?: boolean;
 }) {
     const { t } = useTranslation();
@@ -451,7 +357,6 @@ export function ScheduleCard({
                     </dt>
                     <dd className="font-mono tabular-nums">{duration}</dd>
                 </dl>
-                {state && <RunBar state={state} description={t('Run check')} />}
                 {showRunsLink && (
                     <p className="text-xs text-[var(--foreground-faint)]">
                         {t('Every run is listed in Runs')}

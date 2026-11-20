@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Actions;
 
 use Heptapod\Enums\ImportRunStatus;
+use Heptapod\Events\LiveSignal;
 use Heptapod\Jobs\RunOhDearImport;
 use Heptapod\Models\ImportRun;
 use Heptapod\Support\ImportTokenStore;
@@ -23,5 +24,6 @@ final readonly class StartOhDearImport
             ->update(['status' => ImportRunStatus::Queued->value, 'assignments' => json_encode($assignments, JSON_THROW_ON_ERROR), 'attempts' => 1, 'started_at' => now(), 'updated_at' => now()]);
         abort_if($claimed !== 1, 409);
         RunOhDearImport::dispatch($importRun->id);
+        LiveSignal::forImportChange();
     }
 }

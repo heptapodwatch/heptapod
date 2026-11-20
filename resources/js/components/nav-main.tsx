@@ -27,11 +27,13 @@ export function NavMain({
     items,
     title,
     label,
+    className,
 }: {
     items: (NavigationEntry & { disabled?: boolean; count?: number })[];
     title?: string;
     /** Accessible name for an untitled group; defaults to Settings. */
     label?: string;
+    className?: string;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -41,7 +43,7 @@ export function NavMain({
     const { setOpenMobile } = useSidebar();
     const labelId = useId();
     return (
-        <SidebarGroup>
+        <SidebarGroup className={className}>
             {title && (
                 <SidebarGroupLabel id={labelId}>{title}</SidebarGroupLabel>
             )}

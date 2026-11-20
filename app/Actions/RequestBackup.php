@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Actions;
 
 use Heptapod\Checks\Execution\ExecutionBudget;
+use Heptapod\Events\LiveSignal;
 use Heptapod\Jobs\RunBackupNow;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +33,7 @@ final readonly class RequestBackup
             $id = DB::table('backup_runs')->insertGetId(['requested_by' => $actor->id,
                 'state' => 'queued', 'requested_at' => now('UTC')]);
             RunBackupNow::dispatch($id)->afterCommit();
+            LiveSignal::forBackup();
 
             return $id;
         });

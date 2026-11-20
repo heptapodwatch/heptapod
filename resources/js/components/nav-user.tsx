@@ -12,12 +12,14 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from '@/components/ui/sidebar';
-import { UserInfo } from '@/components/user-info';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useInitials } from '@/hooks/use-initials';
 import { UserMenuContent } from '@/components/user-menu-content';
 export function NavUser() {
     const { t } = useTranslation();
     const { auth } = usePage().props;
     const { isMobile } = useSidebar();
+    const getInitials = useInitials();
     const user = auth.user;
     if (!user) return null;
     return (
@@ -25,18 +27,27 @@ export function NavUser() {
             <SidebarMenuItem>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
+                        {/* One footer row (UI rules, Sidebar footer): avatar, name, role as secondary, chevron. */}
                         <SidebarMenuButton
-                            size="lg"
+                            tooltip={user.name}
                             className="data-[state=open]:bg-sidebar-accent"
                             data-test="sidebar-menu-button"
                         >
-                            <UserInfo
-                                user={user}
-                                secondaryText={user.roles
+                            <Avatar className="size-4 shrink-0 overflow-hidden rounded-full">
+                                <AvatarImage src={user.avatar} alt="" />
+                                <AvatarFallback className="bg-neutral-200 text-micro text-black dark:bg-neutral-700 dark:text-white">
+                                    {getInitials(user.name).slice(0, 1)}
+                                </AvatarFallback>
+                            </Avatar>
+                            <span className="min-w-0 flex-1 truncate">
+                                {user.name}
+                            </span>
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                                {user.roles
                                     .map((role) => t(role.name))
                                     .join(', ')}
-                            />
-                            <ChevronsUpDown className="ml-auto size-4" />
+                            </span>
+                            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
                         </SidebarMenuButton>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent

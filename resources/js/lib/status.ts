@@ -8,8 +8,7 @@ import type { CheckKey, SiteState } from '@/types/monitoring';
 type CheckResult = Heptapod.Contracts.CheckResult;
 
 /** The glossary word of each state (translation keys); the select order of the Sites status filter. */
-export const statusLabels: Record<SiteState | 'running', string> = {
-    running: 'Running',
+export const statusLabels: Record<SiteState, string> = {
     ok: 'OK',
     warning: 'Warning',
     down: 'Down',
@@ -213,7 +212,8 @@ export type CheckMark =
     | { kind: 'unset'; label: 'Not configured' }
     | { kind: 'off'; label: 'Turned off' }
     | { kind: 'snoozed'; state: SiteState; until: string }
-    | { kind: 'status'; state: SiteState | 'running'; label: string };
+    | { kind: 'running'; label: 'Running' }
+    | { kind: 'status'; state: SiteState; label: string };
 
 export function checkMark(
     check:
@@ -226,7 +226,7 @@ export function checkMark(
 ): CheckMark {
     if (check === undefined) return { kind: 'unset', label: 'Not configured' };
     if (check.state === 'disabled') return { kind: 'off', label: 'Turned off' };
-    if (running) return { kind: 'status', state: 'running', label: 'Running' };
+    if (running) return { kind: 'running', label: 'Running' };
     if (isSnoozed(check, now))
         return {
             kind: 'snoozed',

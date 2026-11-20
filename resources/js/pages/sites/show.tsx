@@ -1,24 +1,22 @@
-import { AbsoluteTime } from '@/components/absolute-time';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { PageContainer } from '@/components/page-container';
 import { Head, router, usePage } from '@inertiajs/react';
-import {
-    isCoalescedStateChange,
-    useLiveReload,
-    useRunState,
-} from '@/hooks/use-live';
+import { isCoalescedStateChange, useLiveReload } from '@/hooks/use-live';
 import { useBufferedChanges } from '@/hooks/use-buffered-changes';
 import { useRequestedRun } from '@/hooks/use-requested-run';
-import { currentRunState } from '@/lib/live-store';
 import { PendingChanges } from '@/components/pending-changes';
 import { useEffect, useState } from 'react';
 import InputError from '@/components/input-error';
 import { SiteHeader } from '@/components/site-header';
-import { SiteRunAllResult } from '@/components/site-run-all';
+import { SiteRunningStrip } from '@/components/site-running-strip';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 import { IncidentBanner } from '@/components/incident-banner';
-import { RunBar } from '@/components/foundation-primitives';
+import {
+    CheckRunStatusRow,
+    RunCheckReason,
+    useCheckRun,
+} from '@/components/check-run-status';
 import { ProductCheckDetail } from '@/components/product-check-detail';
 import { AlertChannelsLine } from '@/components/alert-channels-line';
 import { SiteOverviewContent } from '@/components/site-overview-content';
@@ -47,28 +45,8 @@ export default function SiteShow(page: SitePage) {
     const [pending, setPending] = useState(false);
     const [cancelPending, setCancelPending] = useState(false);
     const [enablePending, setEnablePending] = useState(false);
-    const live = useRunState(isCheck ? page.check.id : 0);
     const run = isCheck ? page.schedule.run : null;
-    const liveRun = currentRunState(live, run);
-    const runPhase =
-        liveRun?.phase === 'queued'
-            ? 'queued'
-            : liveRun?.phase === 'started' || liveRun?.phase === 'progress'
-              ? 'running'
-              : liveRun?.phase === 'finished' &&
-                  run &&
-                  ['queued', 'running'].includes(run.phase)
-                ? (liveRun.outcome ?? 'done')
-                : run?.phase;
-    const progressDone = liveRun?.progress_n ?? run?.progress_n;
-    const progressTotal = liveRun?.progress_total ?? run?.progress_total;
-    const progress =
-        progressDone !== null &&
-        progressDone !== undefined &&
-        progressTotal &&
-        progressTotal > 0
-            ? Math.min(100, Math.max(0, (progressDone / progressTotal) * 100))
-            : undefined;
+    const activeRun = useCheckRun(isCheck ? page.check.id : 0, run);
     const { errors } = usePage().props;
     useLiveReload(
         ['state.changed'],
@@ -185,6 +163,7 @@ export default function SiteShow(page: SitePage) {
                     disabled={
                         pending ||
                         enablePending ||
+                        (page.check.enabled && activeRun !== null) ||
                         (page.check.enabled &&
                             page.check.unavailable_reason !== null)
                     }
@@ -231,6 +210,9 @@ export default function SiteShow(page: SitePage) {
                 {Object.values(errors).map((message, index) => (
                     <InputError key={index} message={message} />
                 ))}
+                {page.check.enabled && activeRun && (
+                    <RunCheckReason run={activeRun} />
+                )}
             </div>
         ) : null;
     return (
@@ -290,104 +272,53 @@ export default function SiteShow(page: SitePage) {
                     value={isCheck ? String(page.check.id) : 'overview'}
                     canManage={canManage || page.can_move}
                 />
+                {isCheck && page.check.enabled && activeRun && (
+                    <CheckRunStatusRow
+                        run={activeRun}
+                        action={
+                            page.can_run &&
+                            run?.can_cancel &&
+                            !cancelPending ? (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        setCancelPending(true);
+                                        router.post(
+                                            cancelRun.url({
+                                                site: site.id,
+                                                check: page.check.id,
+                                            }),
+                                            {},
+                                            {
+                                                preserveScroll: true,
+                                                onFinish: () =>
+                                                    setCancelPending(false),
+                                            },
+                                        );
+                                    }}
+                                >
+                                    {t('Cancel')}
+                                </Button>
+                            ) : undefined
+                        }
+                    />
+                )}
                 {isCheck &&
                     page.check.enabled &&
-                    run &&
-                    runPhase &&
-                    ['queued', 'running', 'late'].includes(runPhase) && (
-                        <RunBar
-                            state={runPhase}
-                            description={
-                                runPhase === 'scheduled' ? (
-                                    <>
-                                        {page.schedule.next_due_at ? (
-                                            <>
-                                                {t('Next run')}{' '}
-                                                <AbsoluteTime
-                                                    value={
-                                                        page.schedule
-                                                            .next_due_at
-                                                    }
-                                                />
-                                            </>
-                                        ) : (
-                                            t('No next run scheduled')
-                                        )}
-                                        {' · '}
-                                        {format.intervalPhrase(
-                                            page.schedule.interval_seconds,
-                                        )}
-                                        {page.schedule.last_finished_at && (
-                                            <>
-                                                {' · '}
-                                                {t('Last run')}{' '}
-                                                <MonitoringTime
-                                                    value={
-                                                        page.schedule
-                                                            .last_finished_at
-                                                    }
-                                                    mode="since"
-                                                />
-                                                {page.schedule
-                                                    .last_duration_ms !==
-                                                    null &&
-                                                    ` ${t('took')} ${format.number(page.schedule.last_duration_ms)} ${t('ms')}`}
-                                            </>
-                                        )}
-                                    </>
-                                ) : runPhase === 'queued' &&
-                                  (liveRun?.queue_position ??
-                                      run.queue_position) ? (
-                                    t('Queue position {{count}}', {
-                                        count:
-                                            liveRun?.queue_position ??
-                                            run.queue_position,
-                                    })
-                                ) : runPhase === 'late' && run.due_at ? (
-                                    t('Late by {{duration}}', {
-                                        duration: format.duration(
-                                            Math.max(
-                                                0,
-                                                (Date.now() -
-                                                    Date.parse(run.due_at)) /
-                                                    1000,
-                                            ),
-                                        ),
-                                    })
-                                ) : (
-                                    (run.phase_label ?? t('Check is running'))
-                                )
-                            }
-                            progress={progress}
-                            action={
-                                page.can_run &&
-                                run.can_cancel &&
-                                runPhase !== 'late' &&
-                                !cancelPending ? (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => {
-                                            setCancelPending(true);
-                                            router.post(
-                                                cancelRun.url({
-                                                    site: site.id,
-                                                    check: page.check.id,
-                                                }),
-                                                {},
-                                                {
-                                                    preserveScroll: true,
-                                                    onFinish: () =>
-                                                        setCancelPending(false),
-                                                },
-                                            );
-                                        }}
-                                    >
-                                        {t('Cancel')}
-                                    </Button>
-                                ) : undefined
-                            }
-                        />
+                    run?.phase === 'late' &&
+                    run.due_at && (
+                        <p className="text-xs text-[var(--status-warn)]">
+                            {t('Late by {{duration}}', {
+                                duration: format.duration(
+                                    Math.max(
+                                        0,
+                                        (Date.now() - Date.parse(run.due_at)) /
+                                            1000,
+                                    ),
+                                ),
+                            })}
+                        </p>
                     )}
                 {isCheck ? (
                     <>
@@ -416,9 +347,9 @@ export default function SiteShow(page: SitePage) {
                     </>
                 ) : (
                     <>
-                        <SiteRunAllResult
+                        <SiteRunningStrip
                             site={site}
-                            result={page.run_all_result}
+                            runAllResult={page.run_all_result}
                         />
                         {site.checks.some(
                             (check) =>

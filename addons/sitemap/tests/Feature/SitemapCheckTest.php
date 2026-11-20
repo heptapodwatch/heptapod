@@ -31,6 +31,7 @@ use Heptapod\Contracts\RunResult;
 use Heptapod\Jobs\RunCheck;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
+use Heptapod\Models\CheckRunAttempt;
 use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
 use Heptapod\Models\Site;
@@ -464,6 +465,18 @@ it('rotates the probe window through the discovered list and wraps around', func
         expect(runSitemap($context)->result)->toBe(RunResult::Succeeded);
         expect(probedSitemapPages($fake))->toBe(array_slice(sitemapPages(250), $first - 1, $last - $first + 1));
     }
+});
+
+it('reports probed URLs of its window as run progress', function (): void {
+    $fake = (new FakeOutboundHttp)->respondUsing(static fn (FetchRequest $request): FetchResult => $request->url === 'http://fixtures.test/sitemap.xml'
+        ? new FetchResult(200, sitemapXml(sitemapPages(250))) : new FetchResult(200));
+    app()->instance(OutboundHttp::class, $fake);
+    $context = sitemapContext(['speed' => 'fastest', 'urls_per_run' => '100']);
+
+    runSitemap($context);
+
+    expect(CheckRunAttempt::query()->where('check_id', $context->checkId)->sole()->only(['progress_total', 'phase_label']))
+        ->toBe(['progress_total' => 100, 'phase_label' => 'sitemap']);
 });
 
 it('keeps a broken URL open while other windows are probed and recovers only when it is re-probed OK', function (): void {
