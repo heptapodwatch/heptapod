@@ -11,6 +11,7 @@ use Heptapod\Actions\ResolveClientAvatar;
 use Heptapod\Actions\UpdateMaintenancePeriod;
 use Heptapod\Data\Ui\MaintenanceIndexPageData;
 use Heptapod\Data\Ui\MaintenanceTargetOptionData;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Http\ListPageSize;
 use Heptapod\Http\MaintenanceReturnContext;
 use Heptapod\Maintenance\LocalMaintenanceTime;
@@ -109,7 +110,14 @@ final class MaintenanceController extends Controller
         LocalMaintenanceTime $localTime): RedirectResponse
     {
         $this->writable($request);
-        abort_unless($window->ends_at > CarbonImmutable::now('UTC'), 409);
+        if (! ($window->ends_at > CarbonImmutable::now('UTC'))) {
+            throw new ExpectedRefusal(
+                status: 409,
+                messageKey: 'errors.maintenance.already_ended',
+                errorCode: 'maintenance_already_ended',
+                tone: 'info',
+            );
+        }
         $returnContext = MaintenanceReturnContext::parameters($request);
         $data = Validator::make($request->all(), [
             'name' => 'nullable|string|max:255', 'reason' => 'nullable|string|max:255',
@@ -131,7 +139,13 @@ final class MaintenanceController extends Controller
     public function destroy(Request $request, MaintenancePeriod $window, DeleteMaintenancePeriod $delete): RedirectResponse
     {
         $this->writable($request);
-        abort_unless($window->starts_at > CarbonImmutable::now('UTC'), 409);
+        if (! ($window->starts_at > CarbonImmutable::now('UTC'))) {
+            throw new ExpectedRefusal(
+                status: 409,
+                messageKey: 'errors.maintenance.already_started',
+                errorCode: 'maintenance_already_started',
+            );
+        }
         $returnContext = MaintenanceReturnContext::parameters($request);
         $delete($window);
 

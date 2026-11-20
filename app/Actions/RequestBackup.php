@@ -6,6 +6,7 @@ namespace Heptapod\Actions;
 
 use Heptapod\Checks\Execution\ExecutionBudget;
 use Heptapod\Events\LiveSignal;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Jobs\RunBackupNow;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +30,13 @@ final readonly class RequestBackup
                 }
                 ($this->fail)($backupId);
             }
-            abort_if(DB::table('backup_runs')->whereIn('state', ['queued', 'running'])->exists(), 409);
+            if (DB::table('backup_runs')->whereIn('state', ['queued', 'running'])->exists()) {
+                throw new ExpectedRefusal(
+                    status: 409,
+                    messageKey: 'errors.backup.already_running',
+                    errorCode: 'backup_already_running',
+                );
+            }
             $id = DB::table('backup_runs')->insertGetId(['requested_by' => $actor->id,
                 'state' => 'queued', 'requested_at' => now('UTC')]);
             RunBackupNow::dispatch($id)->afterCommit();

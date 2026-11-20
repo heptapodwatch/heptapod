@@ -26,7 +26,11 @@ import { Label } from '@/components/ui/label';
 import { RadioCards } from '@/components/ui/radio-cards';
 import { MultiCombobox } from '@/components/ui/combobox';
 import { clientComboboxOptions } from '@/components/entity-combobox';
-import { HttpValidationError, useHttpRequest } from '@/hooks/use-http-request';
+import {
+    HttpValidationError,
+    httpErrorMessage,
+    useHttpRequest,
+} from '@/hooks/use-http-request';
 import { useInitials } from '@/hooks/use-initials';
 import { formatMonitorTime } from '@/lib/monitor-time';
 import {
@@ -234,7 +238,9 @@ function InviteDialog({
                     ? t(
                           'Invitation created, but the roster could not refresh. Close and refresh the roster before retrying.',
                       )
-                    : t(
+                    : httpErrorMessage(
+                          failure,
+                          t,
                           'Invitation failed. Check your connection and permissions, then try again.',
                       ),
             );
@@ -396,7 +402,9 @@ function EditMemberSheet({
                     ? t(
                           'Change saved, but the roster could not refresh. Close and refresh the roster.',
                       )
-                    : t(
+                    : httpErrorMessage(
+                          failure,
+                          t,
                           'Change failed. Check your connection and permissions, then try again.',
                       ),
             );
@@ -592,13 +600,15 @@ export default function Members({ roster: initialRoster }: { roster: Roster }) {
                         : 'Invitation resent.'
                     : 'Invitation revoked.',
             );
-        } catch {
+        } catch (failure: unknown) {
             setError(
                 saved
                     ? t(
                           'Invitation changed, but the roster could not refresh. Refresh before retrying.',
                       )
-                    : t(
+                    : httpErrorMessage(
+                          failure,
+                          t,
                           'Invitation action failed. Check your connection and permissions, then try again.',
                       ),
             );

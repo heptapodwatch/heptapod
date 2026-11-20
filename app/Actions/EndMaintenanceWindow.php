@@ -7,6 +7,7 @@ namespace Heptapod\Actions;
 use Carbon\CarbonImmutable;
 use Heptapod\Events\LiveSignal;
 use Heptapod\Events\Notifications\NotificationLocks;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Maintenance\MaintenanceTargets;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\User;
@@ -24,7 +25,14 @@ final readonly class EndMaintenanceWindow
             NotificationLocks::maintenanceWindows([$window->id], exclusive: true);
             $window = MaintenancePeriod::query()->findOrFail($window->id);
             $now = CarbonImmutable::now('UTC');
-            abort_unless($window->starts_at <= $now && $window->ends_at > $now, 409);
+            if (! ($window->starts_at <= $now && $window->ends_at > $now)) {
+                throw new ExpectedRefusal(
+                    status: 409,
+                    messageKey: 'errors.maintenance.already_ended',
+                    errorCode: 'maintenance_already_ended',
+                    tone: 'info',
+                );
+            }
             $window->update(['ends_at' => $now]);
             LiveSignal::forClients($this->targets->clientIdsForWindow($window));
 

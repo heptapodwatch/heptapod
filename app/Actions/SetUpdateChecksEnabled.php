@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Actions;
 
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Settings\InstanceSettings;
 
 final readonly class SetUpdateChecksEnabled
@@ -12,7 +13,13 @@ final readonly class SetUpdateChecksEnabled
 
     public function __invoke(bool $enabled): void
     {
-        abort_unless(config()->boolean('heptapod.updates.enabled_by_server'), 422);
+        if (! config()->boolean('heptapod.updates.enabled_by_server')) {
+            throw new ExpectedRefusal(
+                status: 422,
+                messageKey: 'errors.updates.disabled_by_server',
+                errorCode: 'updates_disabled_by_server',
+            );
+        }
         $this->settings->updates_enabled = $enabled;
         $this->settings->save();
     }

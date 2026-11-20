@@ -26,7 +26,12 @@ import {
 } from '@/components/list-footer';
 import { ListHeader, ListRow } from '@/components/ui/table';
 import { useFormat } from '@/hooks/use-format';
-import { HttpValidationError, useHttpRequest } from '@/hooks/use-http-request';
+import {
+    HttpValidationError,
+    httpErrorMessage,
+    useHttpRequest,
+} from '@/hooks/use-http-request';
+import { toast } from 'sonner';
 import { checkTypes } from '@/lib/check-types';
 import { plan as planRoute } from '@/routes/settings/import/ohdear';
 import { start as startRoute } from '@/routes/settings/import/ohdear/runs';
@@ -150,7 +155,7 @@ export default function ImportOhDear({
     const [plan, setPlan] = useState<Plan | null>(null);
     const [planPage, setPlanPage] = useState(1);
     const [planPageSize, setPlanPageSize] = useState(plan_page_size);
-    const [failure, setFailure] = useState(false);
+    const [failureMessage, setFailureMessage] = useState<string | null>(null);
     // Group mappings are keyed `team:<id>` / `tag:<name>`; every site starts in Internal.
     const [groups, setGroups] = useState<Record<string, Target>>({});
     const [overrides, setOverrides] = useState<Record<string, Target>>({});
@@ -222,14 +227,22 @@ export default function ImportOhDear({
 
     const submit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        setFailure(false);
+        setFailureMessage(null);
         try {
             const result = await http.post(planRoute.url());
             setPlan(result);
             setPlanPage(1);
             setOverrides({});
         } catch (error: unknown) {
-            if (!(error instanceof HttpValidationError)) setFailure(true);
+            if (!(error instanceof HttpValidationError)) {
+                setFailureMessage(
+                    httpErrorMessage(
+                        error,
+                        t,
+                        'The plan could not be loaded. Try again.',
+                    ),
+                );
+            }
         } finally {
             // The token stays server-side only; never keep it in page state after the request.
             http.setData('ohdear_token', '');
@@ -333,8 +346,11 @@ export default function ImportOhDear({
             }));
             const result = await importHttp.post(startRoute.url(plan.plan_id));
             router.visit(result.url);
-        } catch {
+        } catch (error: unknown) {
             setStarting(false);
+            if (!(error instanceof HttpValidationError)) {
+                toast.warning(httpErrorMessage(error, t));
+            }
         }
     };
     const checkLabel = (key: string) =>
@@ -359,7 +375,7 @@ export default function ImportOhDear({
                             disabled={http.processing || starting}
                             onCheckedChange={(checked) => {
                                 setPlan(null);
-                                setFailure(false);
+                                setFailureMessage(null);
                                 http.setData(
                                     'sections',
                                     sections.filter((value) =>
@@ -439,11 +455,10 @@ export default function ImportOhDear({
                     />
                     <InputError
                         message={
-                            failure ||
-                            (plan?.remote_error && plan.rows.length === 0)
-                                ? (plan?.remote_error ??
-                                  'The plan could not be loaded. Try again.')
-                                : null
+                            failureMessage ??
+                            (plan?.remote_error && plan.rows.length === 0
+                                ? plan.remote_error
+                                : null)
                         }
                     />
                     <p className="text-xs text-muted-foreground">

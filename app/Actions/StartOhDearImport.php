@@ -6,6 +6,7 @@ namespace Heptapod\Actions;
 
 use Heptapod\Enums\ImportRunStatus;
 use Heptapod\Events\LiveSignal;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Jobs\RunOhDearImport;
 use Heptapod\Models\ImportRun;
 use Heptapod\Support\ImportTokenStore;
@@ -22,7 +23,13 @@ final readonly class StartOhDearImport
         // Only a planned run can start; a concurrent second start finds nothing to claim.
         $claimed = ImportRun::query()->getQuery()->where('id', $importRun->id)->where('status', ImportRunStatus::Planned->value)
             ->update(['status' => ImportRunStatus::Queued->value, 'assignments' => json_encode($assignments, JSON_THROW_ON_ERROR), 'attempts' => 1, 'started_at' => now(), 'updated_at' => now()]);
-        abort_if($claimed !== 1, 409);
+        if ($claimed !== 1) {
+            throw new ExpectedRefusal(
+                status: 409,
+                messageKey: 'errors.import.already_started',
+                errorCode: 'import_already_started',
+            );
+        }
         RunOhDearImport::dispatch($importRun->id);
         LiveSignal::forImportChange();
     }

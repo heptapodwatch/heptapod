@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Auth;
 
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -27,7 +28,13 @@ final class MemberAccessGuard
 
     public function protectLastOwner(): void
     {
-        abort_if($this->activeOwnerCount() <= 1, 422, __('members.last_owner'));
+        if ($this->activeOwnerCount() <= 1) {
+            throw new ExpectedRefusal(
+                status: 422,
+                messageKey: 'members.last_owner',
+                errorCode: 'last_owner',
+            );
+        }
     }
 
     public function activeOwnerCount(): int

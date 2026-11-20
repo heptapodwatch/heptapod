@@ -7,9 +7,13 @@ import { SectionHeading } from '@/components/section-heading';
 import { RunStatus } from '@/components/run-family';
 import { FormSection } from '@/components/form-section';
 import { PageHeader } from '@/components/page-header';
-import { HttpError, HttpResponseError } from '@inertiajs/core';
+import { HttpError } from '@inertiajs/core';
 import { Head, usePage } from '@inertiajs/react';
-import { useHttpRequest } from '@/hooks/use-http-request';
+import {
+    httpErrorMessage,
+    httpErrorStatus,
+    useHttpRequest,
+} from '@/hooks/use-http-request';
 import { onLiveSignal } from '@/lib/live-store';
 import { Archive, ExternalLink } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
@@ -53,7 +57,7 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
     const [page, setPage] = useState(updatesPage);
     const [refreshFailed, setRefreshFailed] = useState(false);
     const [backupError, setBackupError] = useState<string | null>(null);
-    const [toggleFailed, setToggleFailed] = useState(false);
+    const [toggleError, setToggleError] = useState<string | null>(null);
     const [acceptedId, setAcceptedId] = useState<number | null>(null);
     const releases = useHttpRequest<Record<string, never>, Page['updates']>();
     const history = useHttpRequest<Record<string, never>, Backups>();
@@ -132,29 +136,26 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
             await refresh();
         } catch (error) {
             if (!(error instanceof HttpError)) throw error;
-            const code =
-                error instanceof HttpResponseError
-                    ? error.response.status
-                    : null;
-            setBackupError(
-                code === 429
-                    ? 'Backup request rate-limited. Wait five minutes between requests.'
-                    : code === 409
-                      ? 'A backup is already queued or running. Refresh to read its state.'
-                      : 'Backup request outcome unknown. Refresh before trying again.',
-            );
+            const code = httpErrorStatus(error);
+            setBackupError(httpErrorMessage(error, t, 'errors.backup.unknown'));
             if (code !== 429) setRefreshFailed(true);
         }
     };
     const toggleChecks = async () => {
-        setToggleFailed(false);
+        setToggleError(null);
         toggle.transform(() => ({ enabled: !updates.enabled }));
         try {
             const next = await toggle.patch(update.url());
             setPage((current) => ({ ...current, updates: next }));
         } catch (error) {
             if (!(error instanceof HttpError)) throw error;
-            setToggleFailed(true);
+            setToggleError(
+                httpErrorMessage(
+                    error,
+                    t,
+                    'Could not change release checks. Refresh to verify the current setting.',
+                ),
+            );
         }
     };
     const latestRun = backups?.latest_run ?? null;
@@ -315,13 +316,7 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                         </Button>
                     )}
                 </div>
-                <InputError
-                    message={
-                        toggleFailed
-                            ? 'Could not change release checks. Refresh to verify the current setting.'
-                            : null
-                    }
-                />
+                <InputError message={toggleError} />
             </FormSection>
             <FormSection
                 title={t('Backups')}
