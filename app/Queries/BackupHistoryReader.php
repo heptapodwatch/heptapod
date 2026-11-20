@@ -40,13 +40,13 @@ final readonly class BackupHistoryReader
             DB::table('backup_runs')->orderByDesc('id')->select($columns),
             'backup_runs',
         )->withPath($path);
-        $runs = collect($runsPaginator->items())->map(self::formatRun(...))->values()->all();
+        $runs = collect($runsPaginator->items())->map($this->formatRun(...))->values()->all();
         $latestRow = $runsPaginator->currentPage() === 1
             ? null
             : DB::table('backup_runs')->orderByDesc('id')->first($columns);
         $latestRun = $runsPaginator->currentPage() === 1
             ? ($runs[0] ?? null)
-            : ($latestRow === null ? null : self::formatRun($latestRow));
+            : ($latestRow === null ? null : $this->formatRun($latestRow));
         $hasActiveRun = DB::table('backup_runs')->whereIn('state', ['queued', 'running'])->exists();
 
         return [
@@ -68,7 +68,7 @@ final readonly class BackupHistoryReader
     /**
      * @return array{id: int, requested_by: int|null, state: string, disk: string|null, http_status: int|null, requested_at: string, started_at: string|null, completed_at: string|null}
      */
-    private static function formatRun(mixed $run): array
+    private function formatRun(mixed $run): array
     {
         /** @var \stdClass&object{id: int, requested_by: int|null, state: string, disk: string|null, http_status: int|null, requested_at: string, started_at: string|null, completed_at: string|null} $run */
         return [

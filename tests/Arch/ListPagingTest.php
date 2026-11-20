@@ -43,7 +43,7 @@ function addonDetailClasses(): array
     foreach (glob(dirname(__DIR__, 2).'/addons/*/src/*.php') ?: [] as $file) {
         preg_match('/^namespace\s+([^;]+);/m', (string) file_get_contents($file), $namespace);
         $class = ($namespace[1] ?? '').'\\'.pathinfo($file, PATHINFO_FILENAME);
-        if (class_exists($class) && is_subclass_of($class, CheckDetailData::class) && ! (new ReflectionClass($class))->isAbstract()) {
+        if (class_exists($class) && is_subclass_of($class, CheckDetailData::class) && ! new ReflectionClass($class)->isAbstract()) {
             $classes[] = $class;
         }
     }
@@ -63,7 +63,7 @@ test('every addon detail list is paged or bounded by nature', function (): void 
     $violations = [];
     $seen = [];
     foreach ($classes as $class) {
-        $constructor = (new ReflectionClass($class))->getConstructor();
+        $constructor = new ReflectionClass($class)->getConstructor();
         $doc = (string) $constructor?->getDocComment();
         foreach ($constructor?->getParameters() ?? [] as $parameter) {
             $name = $parameter->getName();
@@ -75,7 +75,7 @@ test('every addon detail list is paged or bounded by nature', function (): void 
             if (array_key_exists($key, BoundedDetailLists)) {
                 continue;
             }
-            $page = (new ReflectionClass($class))->hasProperty($name.'_pagination') ? (new ReflectionClass($class))->getProperty($name.'_pagination')->getType() : null;
+            $page = new ReflectionClass($class)->hasProperty($name.'_pagination') ? new ReflectionClass($class)->getProperty($name.'_pagination')->getType() : null;
             if (! $page instanceof ReflectionNamedType || $page->getName() !== PaginationData::class) {
                 $violations[] = "{$key} is a list without {$name}_pagination: page it through ListPaging, or name its bound in BoundedDetailLists.";
             } elseif (! str_contains($frontend, '.'.$name.'_pagination')) {

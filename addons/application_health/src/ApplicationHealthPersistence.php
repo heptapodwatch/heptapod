@@ -16,7 +16,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
-final class ApplicationHealthPersistence implements RunPersistence, SecurityAdvisoryIndex
+final readonly class ApplicationHealthPersistence implements RunPersistence, SecurityAdvisoryIndex
 {
     private const array SeverityRanks = ['critical' => 4, 'high' => 3, 'medium' => 2, 'low' => 1];
 

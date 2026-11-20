@@ -39,7 +39,7 @@ final readonly class EventsReader
     /** @return array{events: list<EventData>, pagination: PaginationData} One page of a site's events, newest first (list `site_events`). */
     public function sitePage(User $user, int $siteId): array
     {
-        $query = $this->filtered($user, $siteId, null, null, null, null, null, null);
+        $query = $this->filtered($user, $siteId, null, null, null);
         $query->getQuery()->orderByDesc('occurred_at')->orderByDesc('id');
         $page = $this->paging->paginate($query, 'site_events');
         /** @var list<Event> $items */
