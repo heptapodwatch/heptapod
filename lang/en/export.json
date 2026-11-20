@@ -10,6 +10,8 @@
     "export.download": "Download",
     "export.failed": "The export failed. Try again.",
     "export.capped": "Holds the first :shown of :total rows.",
+    "export.capped_unknown": "Holds the first :shown rows. Download the CSV for all of them.",
+    "export.csv_too_large": "A CSV export holds at most :max rows. Narrow the filters.",
     "export.manual_title": "Copy export",
     "export.scope.all_findings_one": "The :count finding",
     "export.scope.all_findings_other": "All :count findings",

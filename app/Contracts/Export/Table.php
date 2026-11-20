@@ -10,7 +10,7 @@ namespace Heptapod\Contracts\Export;
  */
 final readonly class Table
 {
-    /** Rows written per export; Markdown and plain text then say "first N of M". */
+    /** Rows one Markdown or plain-text export holds (it then says "first N of M"); CSV refuses a known total above it. */
     public const int RowLimit = 10000;
 
     /**
@@ -18,7 +18,7 @@ final readonly class Table
      * @param  list<Column>  $columns
      * @param  iterable<list<string>>  $rows  lazy, one cell per column; read inside the export's transaction
      * @param  string  $filename  stem without extension
-     * @param  int|null  $total  the row count when it is known up front; null lets the writer count rows beyond the limit
+     * @param  int|null  $total  the row count when it is known up front; null for a retained snapshot, which CSV exports in full
      */
     public function __construct(
         public string $title,

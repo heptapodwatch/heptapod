@@ -77,8 +77,9 @@ it('opens the message as sent and exports its stored attachment from the row', a
     );
 
     // Copy fetches the server's Markdown of the same attachment, not text built in the browser.
+    let copiedText: string | undefined;
     const write = vi.fn(async (items: ClipboardItem[]) => {
-        await items[0]?.getType('text/plain');
+        copiedText = await (await items[0]?.getType('text/plain'))?.text();
     });
     vi.stubGlobal('navigator', { clipboard: { write } });
     vi.stubGlobal(
@@ -108,6 +109,7 @@ it('opens the message as sent and exports its stored attachment from the row', a
         expect.anything(),
     );
     expect(write).toHaveBeenCalledOnce();
+    expect(copiedText).toBe('| URL |');
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
     fireEvent.click(

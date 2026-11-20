@@ -15,8 +15,16 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 /** Streams any Table in any ExportFormat. Controllers authorize and build the Table; this only encodes it. */
 final class ExportResponse
 {
+    /**
+     * CSV never drops rows: a table whose known total passes the row limit is refused before anything streams, and a
+     * table without a known total (a retained findings snapshot) streams every row. Markdown and plain text stop reading
+     * after the limit and say so at the end.
+     */
     public static function make(Table $table, ExportFormat $format): StreamedResponse
     {
+        abort_if($format === ExportFormat::Csv && $table->total !== null && $table->total > Table::RowLimit, 413,
+            __('export.csv_too_large', ['max' => Number::format(Table::RowLimit, locale: app()->getLocale())]));
+
         return response()->streamDownload(static function () use ($table, $format): void {
             // Findings providers share-lock their accepted snapshot until paging finishes, so retention cannot delete it mid-export.
             DB::transaction(static function () use ($table, $format): void {
@@ -51,15 +59,13 @@ final class ExportResponse
             ExportFormat::Text => implode("\n", [$table->title, ...$facts])."\n",
         });
         $written = 0;
-        $seen = 0;
         foreach ($table->rows as $row) {
-            $seen++;
-            if ($written >= Table::RowLimit) {
-                if ($table->total !== null) {
-                    break;
-                }
+            if ($format !== ExportFormat::Csv && $written === Table::RowLimit) {
+                $number = static fn (int $value): string => (string) Number::format($value, locale: app()->getLocale());
+                $put("\n".($table->total === null ? __('export.capped_unknown', ['shown' => $number($written)])
+                    : __('export.capped', ['shown' => $number($written), 'total' => $number($table->total)]))."\n");
 
-                continue;
+                return;
             }
             $put(match ($format) {
                 ExportFormat::Csv => Csv::line($row),
@@ -67,10 +73,6 @@ final class ExportResponse
                 ExportFormat::Text => "\n".self::textBlock($table->columns, $row),
             });
             $written++;
-        }
-        $total = $table->total ?? $seen;
-        if ($total > $written && $format !== ExportFormat::Csv) {
-            $put("\n".__('export.capped', ['shown' => Number::format($written, locale: app()->getLocale()), 'total' => Number::format($total, locale: app()->getLocale())])."\n");
         }
     }
 

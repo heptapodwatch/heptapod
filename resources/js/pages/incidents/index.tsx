@@ -105,6 +105,7 @@ export default function IncidentsIndex({
                 count: pagination.total,
             }),
             count: pagination.total,
+            csvLimited: true,
             url: (format) =>
                 exportIncidents.url(format, {
                     query: { filter: activeFilter },

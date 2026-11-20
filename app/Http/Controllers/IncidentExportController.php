@@ -8,6 +8,7 @@ use Heptapod\Contracts\Export\Column;
 use Heptapod\Contracts\Export\ColumnType;
 use Heptapod\Contracts\Export\Table;
 use Heptapod\Enums\ExportFormat;
+use Heptapod\Enums\IncidentCause;
 use Heptapod\Export\ExportResponse;
 use Heptapod\Http\Requests\IncidentsFilterRequest;
 use Heptapod\Models\User;
@@ -32,7 +33,8 @@ final class IncidentExportController extends Controller
                     $site = $incidents[$index]->site ?? throw new \LogicException('Incident site missing.');
                     $client = $site->client ?? throw new \LogicException('Incident site has no client.');
                     yield [(string) $row->id, (string) __($row->resolved_at === null ? 'incidents.state.open' : 'Resolved'), $row->site_name,
-                        $client->displayName(), $row->check->value, $row->cause->value,
+                        $client->displayName(), (string) __('checks.'.$row->check->value.'.label'),
+                        (string) __($row->cause === IncidentCause::Errored ? 'Check error' : 'Failed'),
                         $row->summary === null ? '' : (string) __($row->summary, $row->summary_params),
                         $row->started_at, $row->resolved_at ?? '', (string) $row->duration_seconds];
                 }

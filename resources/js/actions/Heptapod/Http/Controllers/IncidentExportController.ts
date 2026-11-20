@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\IncidentExportController::__invoke
-* @see app/Http/Controllers/IncidentExportController.php:21
+* @see app/Http/Controllers/IncidentExportController.php:22
 * @route '/incidents/export.{format}'
 */
 const IncidentExportController = (args: { format: string | number } | [format: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ IncidentExportController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentExportController::__invoke
-* @see app/Http/Controllers/IncidentExportController.php:21
+* @see app/Http/Controllers/IncidentExportController.php:22
 * @route '/incidents/export.{format}'
 */
 IncidentExportController.url = (args: { format: string | number } | [format: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -43,7 +43,7 @@ IncidentExportController.url = (args: { format: string | number } | [format: str
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentExportController::__invoke
-* @see app/Http/Controllers/IncidentExportController.php:21
+* @see app/Http/Controllers/IncidentExportController.php:22
 * @route '/incidents/export.{format}'
 */
 IncidentExportController.get = (args: { format: string | number } | [format: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -53,7 +53,7 @@ IncidentExportController.get = (args: { format: string | number } | [format: str
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentExportController::__invoke
-* @see app/Http/Controllers/IncidentExportController.php:21
+* @see app/Http/Controllers/IncidentExportController.php:22
 * @route '/incidents/export.{format}'
 */
 IncidentExportController.head = (args: { format: string | number } | [format: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -63,7 +63,7 @@ IncidentExportController.head = (args: { format: string | number } | [format: st
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentExportController::__invoke
-* @see app/Http/Controllers/IncidentExportController.php:21
+* @see app/Http/Controllers/IncidentExportController.php:22
 * @route '/incidents/export.{format}'
 */
 const IncidentExportControllerForm = (args: { format: string | number } | [format: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -73,7 +73,7 @@ const IncidentExportControllerForm = (args: { format: string | number } | [forma
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentExportController::__invoke
-* @see app/Http/Controllers/IncidentExportController.php:21
+* @see app/Http/Controllers/IncidentExportController.php:22
 * @route '/incidents/export.{format}'
 */
 IncidentExportControllerForm.get = (args: { format: string | number } | [format: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -83,7 +83,7 @@ IncidentExportControllerForm.get = (args: { format: string | number } | [format:
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentExportController::__invoke
-* @see app/Http/Controllers/IncidentExportController.php:21
+* @see app/Http/Controllers/IncidentExportController.php:22
 * @route '/incidents/export.{format}'
 */
 IncidentExportControllerForm.head = (args: { format: string | number } | [format: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

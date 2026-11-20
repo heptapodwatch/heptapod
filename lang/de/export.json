@@ -10,6 +10,8 @@
     "export.download": "Herunterladen",
     "export.failed": "Der Export ist fehlgeschlagen. Versuchen Sie es erneut.",
     "export.capped": "Enthält die ersten :shown von :total Zeilen.",
+    "export.capped_unknown": "Enthält die ersten :shown Zeilen. Laden Sie die CSV-Datei für alle herunter.",
+    "export.csv_too_large": "Ein CSV-Export enthält höchstens :max Zeilen. Grenzen Sie die Filter ein.",
     "export.manual_title": "Export kopieren",
     "export.scope.all_findings_one": "Die :count Fundstelle",
     "export.scope.all_findings_other": "Alle :count Fundstellen",

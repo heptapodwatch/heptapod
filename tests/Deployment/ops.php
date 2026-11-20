@@ -85,6 +85,12 @@ verify($devLoginPage->getStatusCode() === 404 && $devLoginPage->getHeader('Locat
 $loginLink = $request('POST', '/laravel-login-link-login', ['form_params' => ['email' => $user->email]]);
 verify(in_array($loginLink->getStatusCode(), [404, 405], true) && $loginLink->getHeader('Location') === [], 'Production must not serve the login-link route: '.$loginLink->getStatusCode().' '.$loginLink->getHeaderLine('Location'));
 $findingsGuest = $request('GET', '/sites/1/checks/1/findings.csv?run=1&observed_at=2026-10-14T00%3A00%3A00Z');
+// Every export route takes a {format}; guests get the canonical login redirect and no export body for each one.
+$exportGuests = [
+    'findings Markdown' => $request('GET', '/sites/1/checks/1/findings.md?run=1&observed_at=2026-10-14T00%3A00%3A00Z'),
+    'incidents CSV' => $request('GET', '/incidents/export.csv'),
+    'client message attachment' => $request('GET', '/clients/1/client-messages/1/attachment.txt'),
+];
 $request('GET', '/login');
 $guestXsrf = urldecode(substr($cookies['XSRF-TOKEN'], strlen('XSRF-TOKEN=')));
 $restoreGuest = $request('POST', '/clients/1/restore', ['headers' => ['X-XSRF-TOKEN' => $guestXsrf]]);
@@ -95,6 +101,10 @@ verify($moveBlockersGuest->getStatusCode() === 302 && $moveBlockersGuest->getHea
 $cookies = $loginCookies;
 verify($findingsGuest->getStatusCode() === 302 && $findingsGuest->getHeaderLine('Location') === 'https://monitor.example.com:8443/login', 'Findings export guest redirect must use the canonical HTTPS login origin');
 verify(! str_starts_with($findingsGuest->getHeaderLine('Content-Type'), 'text/csv'), 'Unauthenticated findings export must not disclose CSV');
+foreach ($exportGuests as $name => $exportGuest) {
+    verify($exportGuest->getStatusCode() === 302 && $exportGuest->getHeader('Location') === ['https://monitor.example.com:8443/login'], ucfirst($name).' guest redirect must use the canonical HTTPS login origin');
+    verify(preg_match('#^text/(csv|markdown|plain)#', $exportGuest->getHeaderLine('Content-Type')) !== 1, 'Unauthenticated '.$name.' export must not disclose an export body');
+}
 $findingsApiGuest = $request('GET', '/api/findings?incident_id=1', ['headers' => ['Accept' => 'application/json']]);
 verify($findingsApiGuest->getStatusCode() === 401, 'Findings API must require a persistent bearer token');
 verify($findingsApiGuest->getHeader('Location') === [] && $findingsApiGuest->getHeader('Content-Type') === ['application/json'], 'Findings API guest response must be raw JSON, not a redirect to an internal HTTP origin');
@@ -125,6 +135,14 @@ $legacyAppearance = $request('GET', '/settings/appearance');
 verify($legacyAppearance->getStatusCode() === 301 && $legacyAppearance->getHeaderLine('Location') === 'https://monitor.example.com:8443/settings/profile', 'Appearance alias origin wrong: '.$legacyAppearance->getStatusCode().' '.$legacyAppearance->getHeaderLine('Location'));
 $legacyDashboard = $request('GET', '/dashboard');
 verify($legacyDashboard->getStatusCode() === 301 && $legacyDashboard->getHeaderLine('Location') === '/sites', 'Dashboard alias wrong: '.$legacyDashboard->getStatusCode().' '.$legacyDashboard->getHeaderLine('Location'));
+foreach (['csv' => 'text/csv; charset=UTF-8', 'md' => 'text/markdown; charset=UTF-8'] as $format => $contentType) {
+    $export = $request('GET', '/incidents/export.'.$format.'?filter%5Bstatus%5D=all');
+    verify($export->getStatusCode() === 200 && $export->getHeader('Location') === [], 'Owner incidents '.$format.' export must be served without redirect: '.$export->getStatusCode());
+    verify($export->getHeader('Content-Type') === [$contentType], 'Incidents '.$format.' export Content-Type wrong: '.$export->getHeaderLine('Content-Type'));
+    verify(str_contains($export->getHeaderLine('Cache-Control'), 'no-store') && str_contains($export->getHeaderLine('Cache-Control'), 'private'), 'Incidents '.$format.' export must not be cached: '.$export->getHeaderLine('Cache-Control'));
+    verify(preg_match('#^attachment; filename=incidents-\d{4}-\d{2}-\d{2}\.'.$format.'$#', $export->getHeaderLine('Content-Disposition')) === 1, 'Incidents '.$format.' export must download as a dated file: '.$export->getHeaderLine('Content-Disposition'));
+    verify($format !== 'csv' || str_starts_with((string) $export->getBody(), "\xEF\xBB\xBFID,"), 'Incidents CSV must start with the byte order mark and its header row');
+}
 $xsrf = urldecode(substr($cookies['XSRF-TOKEN'], strlen('XSRF-TOKEN=')));
 if (in_array('--public-probe-only', $argv, true)) {
     $before = [Site::query()->count(), Check::query()->count(), CheckRun::query()->count(), Incident::query()->count()];

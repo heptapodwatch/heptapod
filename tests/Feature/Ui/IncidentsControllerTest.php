@@ -378,12 +378,13 @@ it('exports only filtered and scoped incidents in every format and escapes sprea
     $german = $this->get('/incidents/export.csv?filter[status]=open')->assertDownload('stoerungen-2026-10-05.csv');
     $translated = array_map(str_getcsv(...), explode("\r\n", trim(substr($german->streamedContent(), 3))));
     expect($translated[0])->toBe(['ID', 'Zustand', 'Website', 'Kunde', 'Prüfung', 'Ursache', 'Zusammenfassung', 'Beginn', 'Behoben', 'Dauer (Sekunden)'])
-        ->and($translated[1][1])->toBe('Offen');
+        ->and($translated[1][1])->toBe('Offen')
+        ->and(array_slice($translated[1], 4, 2))->toBe(['Erreichbarkeit', 'Fehlgeschlagen']);
     $this->get('/incidents/export.csv?filter[status]=invalid')->assertSessionHasErrors('filter.status');
     $this->get('/incidents/export.pdf')->assertNotFound();
 });
 
-it('exports the first rows up to the row cap and says so', function (): void {
+it('exports the first rows up to the row cap in text and refuses a CSV that would drop rows', function (): void {
     $this->withoutVite();
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
@@ -400,6 +401,8 @@ it('exports the first rows up to the row cap and says so', function (): void {
     $text = $this->actingAs($owner)->get('/incidents/export.txt?filter[status]=all')->assertOk()->streamedContent();
     expect(substr_count($text, "\nID "))->toBe(10000)
         ->and($text)->toEndWith("\nEnthält die ersten 10.000 von 10.001 Zeilen.\n");
+    $this->get('/incidents/export.csv?filter[status]=all')->assertStatus(413)
+        ->assertSee('Ein CSV-Export enthält höchstens 10.000 Zeilen. Grenzen Sie die Filter ein.');
 });
 
 it('renders only actual incident mail for operators using the mail renderer', function (): void {

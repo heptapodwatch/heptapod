@@ -66,7 +66,8 @@ final class FindingsExportController extends Controller
             : CheckRun::forRun(new RunReference($checkRow->latest_run_id, $checkRow->latest_run_ended_at))->where('check_id', $check)->first();
         $presentation = $presentations->forRun($checkRow, $latest);
         $checkLabel = (string) __('checks.'.$checkRow->type->value.'.label');
-        $facts = [['label' => __('Site'), 'value' => $siteRow->displayName().' ('.$siteRow->url.')'], ['label' => __('Check'), 'value' => $checkLabel],
+        // The monitored URL can carry a credential query parameter; the redactor masks it like every other exported URL.
+        $facts = [['label' => __('Site'), 'value' => $redact($siteRow->displayName().' ('.$siteRow->url.')')], ['label' => __('Check'), 'value' => $checkLabel],
             ...($presentation instanceof CheckRunPresentationData ? [['label' => __('Status'), 'value' => $redact(CheckHeadline::format($presentation, app()->getLocale(), $checkRow->type))]] : []),
             ...($scoped instanceof Incident ? [['label' => __('Incident'), 'value' => '#'.$scoped->id]] : []),
             ...($latest instanceof CheckRun ? [['label' => __('Checked at'), 'value' => $time($latest->ended_at)]] : []),
@@ -74,7 +75,8 @@ final class FindingsExportController extends Controller
         $rows = (static function () use ($provider, $checkRow, $run, $redact, $time, $since, $shown): \Generator {
             $rows = $provider->exportFindings($checkRow->type, $checkRow->id, $run)
                 ?? throw new \RuntimeException('Findings snapshot expired before the export started.');
-            // The page lists the first rows of each group (findings, not verifiable) in this order.
+            // The page lists the first rows of each group (findings, not verifiable) in this order; once both groups are
+            // full, the provider's remaining pages are not read.
             $counts = ['finding' => 0, 'not_verifiable' => 0];
             foreach ($rows as $row) {
                 $group = $row['status'] === FindingStatus::NotVerifiable ? 'not_verifiable' : 'finding';
@@ -87,11 +89,14 @@ final class FindingsExportController extends Controller
                 $new = $row['after_first_complete_crawl'] && $firstSeen instanceof CarbonImmutable && $since !== null && $firstSeen->startOfSecond()->greaterThan($since->startOfSecond());
                 yield array_map($redact, [$row['url'], $row['result'], $row['found_on'] ?? '', $row['link_text'] ?? '',
                     $firstSeen instanceof CarbonImmutable ? $time($firstSeen) : (string) __('Not retained'), (string) __($new ? 'Yes' : 'No')]);
+                if ($shown !== null && min($counts) >= $shown) {
+                    return;
+                }
             }
         })();
 
         return ExportResponse::make(new Table(
-            (string) __('export.findings.title', ['check' => $checkLabel, 'site' => $siteRow->displayName()]),
+            $redact((string) __('export.findings.title', ['check' => $checkLabel, 'site' => $siteRow->displayName()])),
             $facts,
             array_map(static fn (string $label): Column => new Column((string) __($label)), ['URL', 'Result', 'Found on', 'Link text', 'Since', 'New']),
             $rows,

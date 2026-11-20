@@ -35,6 +35,8 @@ export type ExportScope = {
     label: string;
     /** Rows in this scope, for the "first N of M" note; unknown for a stored file. */
     count?: number;
+    /** A list scope with a known count: CSV refuses it past the row limit. A retained findings snapshot downloads in full. */
+    csvLimited?: boolean;
     url: (format: ExportFormat) => string;
 };
 
@@ -80,6 +82,8 @@ export function ExportButton({
         return () => window.clearTimeout(timer);
     }, [copied]);
     if (scope === undefined) return null;
+    const overLimit = scope.count !== undefined && scope.count > rowLimit;
+    const csvRefused = format === 'csv' && overLimit && scope.csvLimited;
     const openSheet = () => {
         const last = remembered(kind);
         if (last !== null) {
@@ -167,7 +171,7 @@ export function ExportButton({
                                     t('Copy')
                                 )}
                             </FormSecondaryAction>
-                            <Button type="submit">
+                            <Button type="submit" disabled={csvRefused}>
                                 {t('export.download')}
                             </Button>
                         </>
@@ -223,15 +227,20 @@ export function ExportButton({
                                 </RadioGroup>
                             </div>
                         )}
-                        {scope.count !== undefined &&
-                            scope.count > rowLimit && (
-                                <p className="text-xs text-muted-foreground">
-                                    {t('export.capped', {
-                                        shown: formatter.number(rowLimit),
-                                        total: formatter.number(scope.count),
-                                    })}
-                                </p>
-                            )}
+                        {overLimit && (format !== 'csv' || csvRefused) && (
+                            <p className="text-xs text-muted-foreground">
+                                {csvRefused
+                                    ? t('export.csv_too_large', {
+                                          max: formatter.number(rowLimit),
+                                      })
+                                    : t('export.capped', {
+                                          shown: formatter.number(rowLimit),
+                                          total: formatter.number(
+                                              scope.count ?? 0,
+                                          ),
+                                      })}
+                            </p>
+                        )}
                     </div>
                 </SheetForm>
             </Sheet>
