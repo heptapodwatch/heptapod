@@ -1455,6 +1455,7 @@ export function checkTabPageFixture(
                 due_at: check.checked_at,
                 can_cancel: false,
                 requested_at: null,
+                actor_id: null,
             },
         },
         runs: presentation.history.map((row, index) => ({

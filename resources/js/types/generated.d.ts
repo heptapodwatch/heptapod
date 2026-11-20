@@ -1041,6 +1041,7 @@ readonly actor: string | null,
 readonly due_at: string | null,
 readonly can_cancel: boolean,
 readonly requested_at: string | null,
+readonly actor_id: number | null,
 };
 export type CheckScheduleData = {
 readonly interval_seconds: number,
@@ -1801,6 +1802,7 @@ readonly before: number | null,
 readonly show_same_result: boolean,
 readonly period: '24h' | '7d',
 readonly per_page: number,
+readonly started_manually: boolean,
 };
 export type RunsHistoryPageData = {
 readonly runs: Heptapod.Data.Ui.RunRowData[],

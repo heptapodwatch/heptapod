@@ -7,6 +7,7 @@ namespace Heptapod\Queries;
 use Carbon\CarbonImmutable;
 use Heptapod\Checks\CauseSummary;
 use Heptapod\Checks\CheckRunPresentations;
+use Heptapod\Checks\Execution\RunOrigin;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\RunPhase;
@@ -39,7 +40,7 @@ final readonly class RunsReader
 
     public function __construct(private SitePolicy $policy, private CheckRunsReader $checkRuns, private CauseSummary $summaries, private CheckRunPresentations $presentations, private CheckRegistry $registry) {}
 
-    public function history(User $user, int $perPage, ?int $checkId = null, ?int $before = null, ?int $clientId = null, ?string $type = null, ?RunPhase $phase = null, bool $showSameResult = true, ?CarbonImmutable $since = null): RunsHistoryPageData
+    public function history(User $user, int $perPage, ?int $checkId = null, ?int $before = null, ?int $clientId = null, ?string $type = null, ?RunPhase $phase = null, bool $showSameResult = true, ?CarbonImmutable $since = null, bool $manualOnly = false): RunsHistoryPageData
     {
         /** @var list<int> $historyIds */
         $historyIds = $this->visibleChecks($user, $checkId, $clientId, $type)->toBase()->pluck('checks.id')->all();
@@ -63,6 +64,10 @@ final readonly class RunsReader
         }
         if ($phase instanceof RunPhase) {
             $rowsQuery->where('phase', $phase);
+        }
+        if ($manualOnly) {
+            // check_run_attempts_manual_history keeps this filter off the scheduled history.
+            $rowsQuery->where('origin', RunOrigin::Manual);
         }
         if (! $showSameResult) {
             $rowsQuery->getQuery()->whereRaw('history_result_repeated IS NOT TRUE');
@@ -126,6 +131,9 @@ final readonly class RunsReader
         })->toBase()->pluck('checks.id')->all();
         $activeQuery = CheckRunAttempt::query()->with('actor');
         $activeQuery->getQuery()->whereIn('check_id', $runnableIds)->whereIn('phase', ['queued', 'running'])->orderBy('requested_at')->orderBy('id');
+        if ($filters->started_manually) {
+            $activeQuery->where('origin', RunOrigin::Manual);
+        }
         $matchingActive = $activeQuery->get()->filter(static fn (CheckRunAttempt $attempt): bool => ! $filters->state instanceof RunPhase || $filters->state === $attempt->phase)->values();
         $checks = Check::query()->with('site')->findMany($matchingActive->pluck('check_id')->unique()->values()->all())->keyBy('id');
         // A check or site deleted after the attempts were read leaves its attempts behind; drop them before the cutoff and count.
@@ -138,7 +146,7 @@ final readonly class RunsReader
             ->values();
         // One item more than the limit is shown as a card instead of "and 1 more queued".
         $shownQueued = $queued->count() === self::BOARD_QUEUED + 1 ? $queued : $queued->take(self::BOARD_QUEUED);
-        $finished = $this->boardFinished($historyIds, $filters->state, $now);
+        $finished = $this->boardFinished($historyIds, $filters->state, $now, $filters->started_manually);
         // Active and finished rows are separate reads; an attempt that finished in between is shown as finished only.
         $finishedAttempts = array_flip(array_filter(array_map(static fn (FinishedRunData $row): ?int => $row->attempt_id, $finished), static fn (?int $id): bool => $id !== null));
         $activeRows = [];
@@ -165,7 +173,7 @@ final readonly class RunsReader
      * @param  list<int>  $checkIds
      * @return list<FinishedRunData>
      */
-    private function boardFinished(array $checkIds, ?RunPhase $phase, CarbonImmutable $now): array
+    private function boardFinished(array $checkIds, ?RunPhase $phase, CarbonImmutable $now, bool $manualOnly): array
     {
         $results = match ($phase) {
             null => [RunResult::Succeeded, RunResult::Warning, RunResult::Failed, RunResult::Errored],
@@ -178,8 +186,19 @@ final readonly class RunsReader
         }
         $since = $now->subDay()->format('Y-m-d H:i:s.uP');
         $until = $now->format('Y-m-d H:i:s.uP');
+        $resultList = '{'.implode(',', array_map(static fn (RunResult $result): string => $result->value, $results)).'}';
         /** @var list<\stdClass&object{id: int, check_id: int, ended_at: string, attempt_id: int|null}> $newest */
-        $newest = DB::select(<<<'SQL'
+        $newest = $manualOnly
+            // Manual runs only: newest manual attempts first (check_run_attempts_manual_finished), each with the run it recorded.
+            ? DB::select(<<<'SQL'
+                SELECT run.id, run.check_id, run.ended_at, attempt.id AS attempt_id
+                FROM check_run_attempts attempt
+                JOIN check_runs run ON run.check_id = attempt.check_id AND run.id = attempt.check_run_id AND run.ended_at = attempt.finished_at
+                WHERE attempt.origin = 'manual' AND attempt.check_id = ANY(?::bigint[]) AND attempt.finished_at >= ? AND attempt.finished_at <= ?
+                  AND run.result = ANY(?::text[])
+                ORDER BY run.ended_at DESC, run.id DESC LIMIT ?
+                SQL, ['{'.implode(',', $checkIds).'}', $since, $until, $resultList, self::BOARD_FINISHED])
+            : DB::select(<<<'SQL'
             SELECT newest.id, newest.check_id, newest.ended_at, attempt.id AS attempt_id
             FROM (
                 SELECT run.id, run.check_id, run.ended_at
@@ -198,7 +217,7 @@ final readonly class RunsReader
                 ORDER BY id DESC LIMIT 1
             ) AS attempt ON true
             ORDER BY newest.ended_at DESC, newest.id DESC
-            SQL, ['{'.implode(',', $checkIds).'}', $since, $until, '{'.implode(',', array_map(static fn (RunResult $result): string => $result->value, $results)).'}', self::BOARD_FINISHED, self::BOARD_FINISHED]);
+            SQL, ['{'.implode(',', $checkIds).'}', $since, $until, $resultList, self::BOARD_FINISHED, self::BOARD_FINISHED]);
         if ($newest === []) {
             return [];
         }

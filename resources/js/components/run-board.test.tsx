@@ -8,7 +8,10 @@ vi.mock('@inertiajs/react', () => ({
         prefetch: _prefetch,
         ...props
     }: ComponentProps<'a'> & { prefetch?: boolean }) => <a {...props} />,
-    usePage: () => ({ url: '/runs', props: { timezone: 'UTC' } }),
+    usePage: () => ({
+        url: '/runs',
+        props: { timezone: 'UTC', auth: { user: null } },
+    }),
     router: { on: () => () => {}, reload: vi.fn() },
 }));
 vi.mock('react-i18next', () => {
@@ -48,6 +51,7 @@ const filters: Heptapod.Data.Ui.RunsFilterData = {
     show_same_result: false,
     per_page: 50,
     period: '24h',
+    started_manually: false,
 };
 
 function active(
@@ -76,6 +80,7 @@ function active(
             due_at: null,
             can_cancel: false,
             requested_at: null,
+            actor_id: null,
         },
     };
 }
@@ -179,7 +184,7 @@ it('shows a run that was never on the board in its real column at once', () => {
     expect(columnOf(container, 'Site 3')).toBe('finished');
 });
 
-it('names a failed uptime run Down and a failed run of another check Failed', () => {
+it('names every failed run Failed, uptime included: run results are OK, Warning, Failed or Check error', () => {
     const { container } = render(
         <RunBoard
             data={board(
@@ -196,12 +201,12 @@ it('names a failed uptime run Down and a failed run of another check Failed', ()
         '[data-run-column="finished"]',
     )!;
     const [uptime, cron] = within(finished).getAllByRole('listitem');
-    expect(within(uptime!).getByRole('img').getAttribute('data-state')).toBe(
-        'down',
-    );
-    expect(within(cron!).getByRole('img').getAttribute('data-state')).toBe(
-        'failed',
-    );
+    expect(
+        within(uptime!).getByRole('img', { name: 'Finished · Failed' }),
+    ).toBeTruthy();
+    expect(
+        within(cron!).getByRole('img', { name: 'Finished · Failed' }),
+    ).toBeTruthy();
 });
 
 it('moves cards without delay under reduced motion', () => {

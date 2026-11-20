@@ -16,5 +16,15 @@
     "Lists": "Lists",
     "Create on this page": "Create on this page",
     "Next site": "Next site",
-    "Previous site": "Previous site"
+    "Previous site": "Previous site",
+    "Running now": "Running now",
+    "run.more_one": "{{count}} more",
+    "run.more_other": "{{count}} more",
+    "run.summary.running_one": "{{count}} running",
+    "run.summary.running_other": "{{count}} running",
+    "run.summary.queued_one": "{{count}} queued",
+    "run.summary.queued_other": "{{count}} queued",
+    "run.statusGroup": "Running now and status",
+    "run.onThisSite": "Running on this site",
+    "run.notStarted": "Not started: {{checks}}"
 }

@@ -290,3 +290,24 @@ export function RunLine({
         <span className={cn('block px-2 py-1.5', className)}>{body}</span>
     );
 }
+
+/** A run's state where a table cell or header holds one value: the lifecycle word in flight, the result chip after. */
+export function RunStatus({
+    phase,
+    outcome,
+}: {
+    phase: RunLifecycle;
+    outcome?: RunOutcome;
+}) {
+    const { t } = useTranslation();
+    if (phase === 'finished') {
+        if (!outcome) throw new Error('A finished run needs its result.');
+        return <RunResultChip outcome={outcome} />;
+    }
+    return (
+        <span className="inline-flex items-center gap-1.5 text-xs">
+            <RunGlyph phase={phase} />
+            {t(runLifecycleWord[phase])}
+        </span>
+    );
+}

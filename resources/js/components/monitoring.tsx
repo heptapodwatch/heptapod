@@ -38,6 +38,7 @@ import {
     statusLabels,
 } from '@/lib/status';
 import { useFormat } from '@/hooks/use-format';
+import { RunGlyph } from '@/components/run-family';
 import { useCheckHeadline } from '@/hooks/use-check-headline';
 import type { MonitoringTimeMode } from '@/lib/monitor-time';
 import { cn } from '@/lib/utils';
@@ -52,8 +53,7 @@ import type {
 } from '@/types/monitoring';
 import { TextLink } from '@/components/text-link';
 
-export const statusColor: Record<SiteState | 'running', string> = {
-    running: 'var(--muted-foreground)',
+export const statusColor: Record<SiteState, string> = {
     ok: 'var(--status-ok)',
     warning: 'var(--status-warn)',
     down: 'var(--status-down)',
@@ -88,7 +88,7 @@ export function StatusDot({
     strip = false,
     snoozed = false,
 }: {
-    state: SiteState | 'running';
+    state: SiteState;
     label?: string;
     color?: string;
     strip?: boolean;
@@ -115,7 +115,7 @@ export function StatusBadge({
     label,
     snoozed = false,
 }: {
-    state: SiteState | 'running';
+    state: SiteState;
     label?: string;
     snoozed?: boolean;
 }) {
@@ -423,6 +423,9 @@ function CheckMarkGlyph({ mark }: { mark: CheckMark }) {
             return <StatusDot state="disabled" label={mark.label} strip />;
         case 'snoozed':
             return <StatusDot state={mark.state} snoozed strip />;
+        case 'running':
+            // A run in a check slot is drawn by the run family, never as a check state.
+            return <RunGlyph phase="running" className="size-2.75" />;
         case 'status':
             return <StatusDot state={mark.state} label={mark.label} strip />;
     }
@@ -571,7 +574,9 @@ export function CheckStrip({
                                         mark.kind === 'unset' ||
                                         mark.kind === 'off'
                                             ? 'disabled'
-                                            : mark.state,
+                                            : mark.kind === 'running'
+                                              ? checkState(check!)
+                                              : mark.state,
                                     label: statusLine,
                                 }}
                                 hint={t('tooltip.check_navigation')}

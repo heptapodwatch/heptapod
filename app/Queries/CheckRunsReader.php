@@ -37,7 +37,7 @@ final readonly class CheckRunsReader
             $attempt?->started_at?->toIso8601String(), $attempt?->actor?->name, $due?->toIso8601String(),
             $attempt !== null && in_array($attempt->phase, [RunPhase::Queued, RunPhase::Running], true)
                 && $check->type->canCancelRun() && $attempt->cancel_requested_at === null,
-            $attempt?->requested_at->format('Y-m-d\TH:i:s.uP'));
+            $attempt?->requested_at->format('Y-m-d\TH:i:s.uP'), $attempt?->actor_user_id);
     }
 
     public function schedule(Check $check): CheckScheduleData

@@ -9,19 +9,27 @@ return new class extends Migration
 {
     public $withinTransaction = false;
 
+    /** Manual attempts are a small share of all attempts; partial indexes keep their reads off the scheduled backlog. */
+    private const array INDEXES = [
+        // Running now (the viewer's results of the last minute) and the Runs board's Finished column filtered to manual runs.
+        'check_run_attempts_manual_finished' => '(finished_at DESC) INCLUDE (check_id, check_run_id, actor_user_id)',
+        // The Runs history filtered to manual runs.
+        'check_run_attempts_manual_history' => '(requested_at DESC, id DESC) INCLUDE (check_id)',
+    ];
+
     public function up(): void
     {
-        // A failed concurrent build leaves an invalid index. Rebuild it when the migration retries.
-        DB::statement('DROP INDEX CONCURRENTLY IF EXISTS check_run_attempts_manual_actor_finished');
-        // Running now: the viewer's own manual runs that finished in the last minute.
-        DB::statement(<<<'SQL'
-            CREATE INDEX CONCURRENTLY check_run_attempts_manual_actor_finished
-                ON check_run_attempts (actor_user_id, finished_at DESC) WHERE origin = 'manual'
-            SQL);
+        foreach (self::INDEXES as $name => $columns) {
+            // A failed concurrent build leaves an invalid index. Rebuild it when the migration retries.
+            DB::statement("DROP INDEX CONCURRENTLY IF EXISTS {$name}");
+            DB::statement("CREATE INDEX CONCURRENTLY {$name} ON check_run_attempts {$columns} WHERE origin = 'manual'");
+        }
     }
 
     public function down(): void
     {
-        DB::statement('DROP INDEX CONCURRENTLY IF EXISTS check_run_attempts_manual_actor_finished');
+        foreach (array_keys(self::INDEXES) as $name) {
+            DB::statement("DROP INDEX CONCURRENTLY IF EXISTS {$name}");
+        }
     }
 };

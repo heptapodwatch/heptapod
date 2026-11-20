@@ -428,5 +428,9 @@
     "run.progress.sitemap": "{{done}} von {{total}} URLs",
     "run.progress.other": "{{done}} von {{total}}",
     "run.since": "seit {{time}}",
-    "run.runningSince": "Läuft seit {{time}}"
+    "run.runningSince": "Läuft seit {{time}}",
+    "run.startedBy": "Gestartet von {{actor}}",
+    "run.started": "Gestartet",
+    "run.started.all": "Alle Läufe",
+    "run.started.manual": "Manuell gestartet"
 }

@@ -1,5 +1,6 @@
 import { Deferred, Link } from '@inertiajs/react';
 import { ArrowRight } from 'lucide-react';
+import { CheckRowRunMarker } from '@/components/site-running-strip';
 import { useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AbsoluteTime } from '@/components/absolute-time';
@@ -449,6 +450,9 @@ export function SiteCheckList({
                         <p className="text-xs break-words text-muted-foreground">
                             {row.detail}
                         </p>
+                        {row.checkId !== undefined && (
+                            <CheckRowRunMarker checkId={row.checkId} />
+                        )}
                     </div>
                     <span className="font-mono text-xs text-muted-foreground">
                         {row.when}

@@ -17,7 +17,7 @@ use Heptapod\Policies\SitePolicy;
 /**
  * Manual work in flight that the viewer may see. Scheduled runs never appear: they are the engine's heartbeat and live on Runs.
  * The read is bounded and backed by partial indexes over manual attempts only (check_run_attempts_manual_active,
- * check_run_attempts_manual_actor_finished), so a backlog of scheduled runs adds no work.
+ * check_run_attempts_manual_finished), so a backlog of scheduled runs adds no work.
  */
 final readonly class RunningNowReader
 {

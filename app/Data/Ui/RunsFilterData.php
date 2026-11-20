@@ -23,5 +23,7 @@ final class RunsFilterData extends Data
         #[LiteralTypeScriptType("'24h' | '7d'")]
         public readonly string $period,
         public readonly int $per_page = 50,
+        /** Only runs a person started (Runs "Started manually", `?started=manual`). */
+        public readonly bool $started_manually = false,
     ) {}
 }

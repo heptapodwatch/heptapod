@@ -8,7 +8,7 @@ import { PendingChanges } from '@/components/pending-changes';
 import { useEffect, useState } from 'react';
 import InputError from '@/components/input-error';
 import { SiteHeader } from '@/components/site-header';
-import { SiteRunAllResult } from '@/components/site-run-all';
+import { SiteRunningStrip } from '@/components/site-running-strip';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 import { IncidentBanner } from '@/components/incident-banner';
@@ -347,9 +347,9 @@ export default function SiteShow(page: SitePage) {
                     </>
                 ) : (
                     <>
-                        <SiteRunAllResult
+                        <SiteRunningStrip
                             site={site}
-                            result={page.run_all_result}
+                            runAllResult={page.run_all_result}
                         />
                         {site.checks.some(
                             (check) =>

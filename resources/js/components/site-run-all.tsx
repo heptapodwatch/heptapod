@@ -1,5 +1,4 @@
 import { cn } from '@/lib/utils';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { listRowPadding } from '@/components/ui/table';
 import { router } from '@inertiajs/react';
 import { useState } from 'react';
@@ -12,7 +11,6 @@ import { runAll } from '@/routes/sites';
 
 type SiteRow = Heptapod.Data.Ui.SiteRowData;
 type RunPlan = Heptapod.Data.Ui.RunAllCheckData;
-type RunResult = Heptapod.Data.Ui.SiteOverviewPageData['run_all_result'];
 
 function queueLabel(queue: string): string {
     switch (queue) {
@@ -24,24 +22,6 @@ function queueLabel(queue: string): string {
             return 'Browser queue';
         default:
             throw new Error(`Unknown run queue: ${queue}`);
-    }
-}
-
-function resultLabel(status: string, reason: string | null): string {
-    if (status === 'queued' && reason === null) return 'Queued';
-    if (status !== 'skipped')
-        throw new Error(`Unknown run-all status: ${status}`);
-    switch (reason) {
-        case 'fast_only':
-            return 'Skipped: fast checks only';
-        case 'unavailable':
-            return 'Unavailable';
-        case 'busy':
-            return 'Not ready to run';
-        case 'rate_limited':
-            return 'Requested recently';
-        default:
-            throw new Error(`Unknown run-all skip reason: ${reason}`);
     }
 }
 
@@ -141,49 +121,5 @@ export function SiteRunAll({
                 </label>
             </ConfirmDialog>
         </>
-    );
-}
-
-export function SiteRunAllResult({
-    site,
-    result,
-}: {
-    site: SiteRow;
-    result: RunResult;
-}) {
-    const { t } = useTranslation();
-    const format = useFormat();
-    if (!result) return null;
-    return (
-        <Alert tone="info">
-            <AlertTitle>
-                {t(
-                    'Request result: {{queued}} queued · {{unavailable}} unavailable',
-                    {
-                        queued: format.number(result.queued),
-                        unavailable: format.number(result.unavailable),
-                    },
-                )}
-            </AlertTitle>
-            <AlertDescription>
-                <ul className="space-y-1">
-                    {result.results.map((item) => {
-                        const check = site.checks.find(
-                            (row) => row.id === item.check_id,
-                        );
-                        if (!check)
-                            throw new Error(
-                                `Run-all result references missing check ${item.check_id}`,
-                            );
-                        return (
-                            <li key={item.check_id}>
-                                {t(check.label_key)} ·{' '}
-                                {t(resultLabel(item.status, item.reason))}
-                            </li>
-                        );
-                    })}
-                </ul>
-            </AlertDescription>
-        </Alert>
     );
 }

@@ -4,7 +4,7 @@ import InputError from '@/components/input-error';
 import { PageContainer } from '@/components/page-container';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { SectionHeading } from '@/components/section-heading';
-import { StatusBadge } from '@/components/monitoring';
+import { RunStatus } from '@/components/run-family';
 import { FormSection } from '@/components/form-section';
 import { PageHeader } from '@/components/page-header';
 import { HttpError, HttpResponseError } from '@inertiajs/core';
@@ -12,7 +12,7 @@ import { Head, usePage } from '@inertiajs/react';
 import { useHttpRequest } from '@/hooks/use-http-request';
 import { Archive, ExternalLink } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InfoTooltip } from '@/components/info-tooltip';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -41,12 +41,6 @@ const releaseLabels: Record<string, string> = {
     development: 'Installed version cannot be compared',
     available: 'Update available',
     current: 'No newer release at last successful check',
-};
-const runLabels: Record<string, string> = {
-    queued: 'Queued',
-    running: 'Running',
-    complete: 'Complete',
-    failed: 'Failed',
 };
 
 export default function Updates({ updatesPage }: { updatesPage: Page }) {
@@ -142,14 +136,11 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
         }
     };
     const latestRun = backups?.runs[0];
-    const runStates: Record<
-        string,
-        React.ComponentProps<typeof StatusBadge>['state']
-    > = {
-        complete: 'ok',
-        failed: 'failed',
-        queued: 'pending',
-        running: 'running',
+    const runStates: Record<string, ComponentProps<typeof RunStatus>> = {
+        complete: { phase: 'finished', outcome: 'ok' },
+        failed: { phase: 'finished', outcome: 'failed' },
+        queued: { phase: 'queued' },
+        running: { phase: 'running' },
     };
     const runState = (state: string) => {
         const result = runStates[state];
@@ -408,9 +399,8 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                                             {run.disk ?? t('Unknown')}
                                         </span>
                                         <span className="col-span-2 sm:col-span-1">
-                                            <StatusBadge
-                                                state={runState(run.state)}
-                                                label={runLabels[run.state]}
+                                            <RunStatus
+                                                {...runState(run.state)}
                                             />
                                         </span>
                                     </li>

@@ -658,8 +658,6 @@
     "Browser queue": "Browser-Warteschlange",
     "Fast queue": "Schnelle Warteschlange",
     "Not ready to run": "Derzeit nicht startbereit",
-    "Request result: {{queued}} queued · {{unavailable}} unavailable": "Anfrageergebnis: {{queued}} eingereiht · {{unavailable}} nicht verfügbar",
-    "Requested by {{actor}}": "Angefordert von {{actor}}",
     "Requested recently": "Kürzlich angefordert",
     "Last result": "Letztes Ergebnis",
     "Not configured": "Nicht eingerichtet",

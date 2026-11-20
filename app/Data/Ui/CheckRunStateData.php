@@ -25,5 +25,7 @@ final class CheckRunStateData extends Data
         public readonly ?string $due_at,
         public readonly bool $can_cancel,
         public readonly ?string $requested_at = null,
+        /** Who started the run, so the viewer's own run carries the one "You" marker. */
+        public readonly ?int $actor_id = null,
     ) {}
 }
