@@ -215,12 +215,11 @@ it('holds site, check, and incident detail query budgets as related history grow
     // history, presentation and freshness reads. e04c03b5d presentations, f80f6d32a freshness, 78bd4a4b episode
     // pages, 36aca5a1a avatars and 25458fc44/0a385128 shell health are batched reads, not per-history-row queries.
     // Feed-visible events add their batched site, client, check and incident loads. The overview reads the site's repository links once.
-    // The sidebar's late runs count is read inline, not in a second deferred request (two reads), and so is Running now
-    // (visible sites, check runs, imports, backup). The paged site feed counts its events once.
+    // The sidebar's late runs count is read inline, not in a second deferred request (two reads), and so is Running now (visible sites, check runs, imports, backup). Paged sub-lists count their rows once (site feed, uptime failures + open incident window, incident notifications).
     [$path, $budget, $rendered] = match ($page) {
         'site' => ['/sites/'.$site->id, 63, static fn (array $props): int => count($props['events'])],
-        'check' => ['/sites/'.$site->id.'/checks/'.$check->id, 65, static fn (array $props): int => count($props['runs'])],
-        'incident' => ['/incidents/'.$incident->id, 76, static fn (array $props): int => collect($props['timeline'])->where('event.type', 'incident.cause_changed')->count()],
+        'check' => ['/sites/'.$site->id.'/checks/'.$check->id, 67, static fn (array $props): int => count($props['runs'])],
+        'incident' => ['/incidents/'.$incident->id, 77, static fn (array $props): int => collect($props['timeline'])->where('event.type', 'incident.cause_changed')->count()],
     };
     $measure = function () use ($path, $rendered): array {
         DB::enableQueryLog();
