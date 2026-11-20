@@ -204,18 +204,25 @@ it('renders signed-in navigation dead ends inside AppLayout, resets Inertia sing
             ->where('status', 403)
             ->where('title', __('errors.403.title')));
 
-    // Signed-in 410 expired findings snapshot → in-shell Inertia error page pointing back to check
+    // Signed-in 410 expired findings snapshot → in-shell Inertia error page on direct GET and structured JSON for Export sheet
+    $expiredFindingsUrl = route('sites.checks.findings', [
+        'site' => $site->id, 'check' => $crawl->id, 'format' => 'csv',
+        'run' => 999999, 'observed_at' => now()->toIso8601String(),
+    ]);
     $this->actingAs($owner)
-        ->get(route('sites.checks.findings', [
-            'site' => $site->id, 'check' => $crawl->id,
-            'run' => 999999, 'observed_at' => now()->toIso8601String(),
-        ]))
+        ->get($expiredFindingsUrl)
         ->assertStatus(410)
         ->assertInertia(fn (Assert $page): Assert => $page
             ->component('errors/show')
             ->where('status', 410)
             ->where('title', __('errors.findings.expired_title'))
             ->where('recovery_url', route('sites.checks.show', ['site' => $site->id, 'check' => $crawl->id])));
+
+    $this->actingAs($owner)
+        ->getJson($expiredFindingsUrl)
+        ->assertStatus(410)
+        ->assertJsonPath('code', 'findings_snapshot_expired')
+        ->assertJsonPath('message', __('errors.findings.expired'));
 
     // Stale partial reload (Activity pruned group) keeps the feed instead of replacing the page with errors/show.
     $version = $this->actingAs($owner)->get('/activity')->assertOk()->inertiaPage()['version'];
