@@ -12,7 +12,6 @@
     "Summary": "Summary",
     "Started": "Started",
     "Duration (seconds)": "Duration (seconds)",
-    "Incident export exceeds :count rows. Narrow the filters.": "Incident export exceeds :count rows. Narrow the filters.",
     "Resolved after": "Resolved after",
     "3 incidents · 41 min": "3 incidents · 41 min",
     "Open incident": "Open incident",

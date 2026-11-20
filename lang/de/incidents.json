@@ -12,7 +12,6 @@
     "Summary": "Zusammenfassung",
     "Started": "Beginn",
     "Duration (seconds)": "Dauer (Sekunden)",
-    "Incident export exceeds :count rows. Narrow the filters.": "Der Störungsexport überschreitet :count Zeilen. Grenzen Sie die Filter ein.",
     "Resolved after": "Behoben nach",
     "3 incidents · 41 min": "3 Störungen · 41 Min.",
     "Open incident": "Störung öffnen",

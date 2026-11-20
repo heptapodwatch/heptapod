@@ -206,29 +206,30 @@ show.form = showForm
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessageAttachmentController::__invoke
-* @see app/Http/Controllers/ClientMessageAttachmentController.php:19
-* @route '/clients/{client}/client-messages/{message}/attachment'
+* @see app/Http/Controllers/ClientMessageAttachmentController.php:27
+* @route '/clients/{client}/client-messages/{message}/attachment.{format}'
 */
-export const attachment = (args: { client: number | { id: number }, message: string | number } | [client: number | { id: number }, message: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+export const attachment = (args: { client: number | { id: number }, message: string | number, format: string | number } | [client: number | { id: number }, message: string | number, format: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: attachment.url(args, options),
     method: 'get',
 })
 
 attachment.definition = {
     methods: ["get","head"],
-    url: '/clients/{client}/client-messages/{message}/attachment',
+    url: '/clients/{client}/client-messages/{message}/attachment.{format}',
 } satisfies RouteDefinition<["get","head"]>
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessageAttachmentController::__invoke
-* @see app/Http/Controllers/ClientMessageAttachmentController.php:19
-* @route '/clients/{client}/client-messages/{message}/attachment'
+* @see app/Http/Controllers/ClientMessageAttachmentController.php:27
+* @route '/clients/{client}/client-messages/{message}/attachment.{format}'
 */
-attachment.url = (args: { client: number | { id: number }, message: string | number } | [client: number | { id: number }, message: string | number ], options?: RouteQueryOptions) => {
+attachment.url = (args: { client: number | { id: number }, message: string | number, format: string | number } | [client: number | { id: number }, message: string | number, format: string | number ], options?: RouteQueryOptions) => {
     if (Array.isArray(args)) {
         args = {
             client: args[0],
             message: args[1],
+            format: args[2],
         }
     }
 
@@ -239,60 +240,62 @@ attachment.url = (args: { client: number | { id: number }, message: string | num
         ? args.client.id
         : args.client,
         message: args.message,
+        format: args.format,
     }
 
     return attachment.definition.url
             .replace('{client}', parsedArgs.client.toString())
             .replace('{message}', parsedArgs.message.toString())
+            .replace('{format}', parsedArgs.format.toString())
             .replace(/\/+$/, '') + queryParams(options)
 }
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessageAttachmentController::__invoke
-* @see app/Http/Controllers/ClientMessageAttachmentController.php:19
-* @route '/clients/{client}/client-messages/{message}/attachment'
+* @see app/Http/Controllers/ClientMessageAttachmentController.php:27
+* @route '/clients/{client}/client-messages/{message}/attachment.{format}'
 */
-attachment.get = (args: { client: number | { id: number }, message: string | number } | [client: number | { id: number }, message: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+attachment.get = (args: { client: number | { id: number }, message: string | number, format: string | number } | [client: number | { id: number }, message: string | number, format: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: attachment.url(args, options),
     method: 'get',
 })
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessageAttachmentController::__invoke
-* @see app/Http/Controllers/ClientMessageAttachmentController.php:19
-* @route '/clients/{client}/client-messages/{message}/attachment'
+* @see app/Http/Controllers/ClientMessageAttachmentController.php:27
+* @route '/clients/{client}/client-messages/{message}/attachment.{format}'
 */
-attachment.head = (args: { client: number | { id: number }, message: string | number } | [client: number | { id: number }, message: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+attachment.head = (args: { client: number | { id: number }, message: string | number, format: string | number } | [client: number | { id: number }, message: string | number, format: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: attachment.url(args, options),
     method: 'head',
 })
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessageAttachmentController::__invoke
-* @see app/Http/Controllers/ClientMessageAttachmentController.php:19
-* @route '/clients/{client}/client-messages/{message}/attachment'
+* @see app/Http/Controllers/ClientMessageAttachmentController.php:27
+* @route '/clients/{client}/client-messages/{message}/attachment.{format}'
 */
-const attachmentForm = (args: { client: number | { id: number }, message: string | number } | [client: number | { id: number }, message: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+const attachmentForm = (args: { client: number | { id: number }, message: string | number, format: string | number } | [client: number | { id: number }, message: string | number, format: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
     action: attachment.url(args, options),
     method: 'get',
 })
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessageAttachmentController::__invoke
-* @see app/Http/Controllers/ClientMessageAttachmentController.php:19
-* @route '/clients/{client}/client-messages/{message}/attachment'
+* @see app/Http/Controllers/ClientMessageAttachmentController.php:27
+* @route '/clients/{client}/client-messages/{message}/attachment.{format}'
 */
-attachmentForm.get = (args: { client: number | { id: number }, message: string | number } | [client: number | { id: number }, message: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+attachmentForm.get = (args: { client: number | { id: number }, message: string | number, format: string | number } | [client: number | { id: number }, message: string | number, format: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
     action: attachment.url(args, options),
     method: 'get',
 })
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessageAttachmentController::__invoke
-* @see app/Http/Controllers/ClientMessageAttachmentController.php:19
-* @route '/clients/{client}/client-messages/{message}/attachment'
+* @see app/Http/Controllers/ClientMessageAttachmentController.php:27
+* @route '/clients/{client}/client-messages/{message}/attachment.{format}'
 */
-attachmentForm.head = (args: { client: number | { id: number }, message: string | number } | [client: number | { id: number }, message: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+attachmentForm.head = (args: { client: number | { id: number }, message: string | number, format: string | number } | [client: number | { id: number }, message: string | number, format: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
     action: attachment.url(args, {
         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
             _method: 'HEAD',

@@ -32,7 +32,7 @@ it('lists only open incidents when the URL names no status, and resolved or all 
         ->where('filters.status', 'all')->has('incidents', 2));
 
     // The export follows the same default as the list.
-    $exported = static fn (string $query): array => array_slice(array_map(str_getcsv(...), explode("\n", trim(test()->get('/incidents/export'.$query)->streamedContent()))), 1);
+    $exported = static fn (string $query): array => array_slice(array_map(str_getcsv(...), explode("\n", trim(test()->get('/incidents/export.csv'.$query)->streamedContent()))), 1);
     expect(array_column($exported(''), 0))->toBe([(string) $open->id])
         ->and(array_column($exported('?filter[status]=all'), 0))->toBe([(string) $open->id, (string) $resolved->id]);
 });

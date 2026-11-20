@@ -82,75 +82,93 @@ index.form = indexForm
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentExportController::__invoke
-* @see app/Http/Controllers/IncidentExportController.php:16
-* @route '/incidents/export'
+* @see app/Http/Controllers/IncidentExportController.php:22
+* @route '/incidents/export.{format}'
 */
-export const exportMethod = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
-    url: exportMethod.url(options),
+export const exportMethod = (args: { format: string | number } | [format: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: exportMethod.url(args, options),
     method: 'get',
 })
 
 exportMethod.definition = {
     methods: ["get","head"],
-    url: '/incidents/export',
+    url: '/incidents/export.{format}',
 } satisfies RouteDefinition<["get","head"]>
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentExportController::__invoke
-* @see app/Http/Controllers/IncidentExportController.php:16
-* @route '/incidents/export'
+* @see app/Http/Controllers/IncidentExportController.php:22
+* @route '/incidents/export.{format}'
 */
-exportMethod.url = (options?: RouteQueryOptions) => {
-    return exportMethod.definition.url + queryParams(options)
+exportMethod.url = (args: { format: string | number } | [format: string | number ] | string | number, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { format: args }
+    }
+
+    if (Array.isArray(args)) {
+        args = {
+            format: args[0],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        format: args.format,
+    }
+
+    return exportMethod.definition.url
+            .replace('{format}', parsedArgs.format.toString())
+            .replace(/\/+$/, '') + queryParams(options)
 }
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentExportController::__invoke
-* @see app/Http/Controllers/IncidentExportController.php:16
-* @route '/incidents/export'
+* @see app/Http/Controllers/IncidentExportController.php:22
+* @route '/incidents/export.{format}'
 */
-exportMethod.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
-    url: exportMethod.url(options),
+exportMethod.get = (args: { format: string | number } | [format: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: exportMethod.url(args, options),
     method: 'get',
 })
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentExportController::__invoke
-* @see app/Http/Controllers/IncidentExportController.php:16
-* @route '/incidents/export'
+* @see app/Http/Controllers/IncidentExportController.php:22
+* @route '/incidents/export.{format}'
 */
-exportMethod.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
-    url: exportMethod.url(options),
+exportMethod.head = (args: { format: string | number } | [format: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: exportMethod.url(args, options),
     method: 'head',
 })
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentExportController::__invoke
-* @see app/Http/Controllers/IncidentExportController.php:16
-* @route '/incidents/export'
+* @see app/Http/Controllers/IncidentExportController.php:22
+* @route '/incidents/export.{format}'
 */
-const exportMethodForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: exportMethod.url(options),
+const exportMethodForm = (args: { format: string | number } | [format: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: exportMethod.url(args, options),
     method: 'get',
 })
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentExportController::__invoke
-* @see app/Http/Controllers/IncidentExportController.php:16
-* @route '/incidents/export'
+* @see app/Http/Controllers/IncidentExportController.php:22
+* @route '/incidents/export.{format}'
 */
-exportMethodForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: exportMethod.url(options),
+exportMethodForm.get = (args: { format: string | number } | [format: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: exportMethod.url(args, options),
     method: 'get',
 })
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentExportController::__invoke
-* @see app/Http/Controllers/IncidentExportController.php:16
-* @route '/incidents/export'
+* @see app/Http/Controllers/IncidentExportController.php:22
+* @route '/incidents/export.{format}'
 */
-exportMethodForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: exportMethod.url({
+exportMethodForm.head = (args: { format: string | number } | [format: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: exportMethod.url(args, {
         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
             _method: 'HEAD',
             ...(options?.query ?? options?.mergeQuery ?? {}),

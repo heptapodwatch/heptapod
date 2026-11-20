@@ -29,11 +29,11 @@ import {
 import { PageHeader } from '@/components/page-header';
 import { SegmentedControl } from '@/components/segmented-control';
 import { PageContainer } from '@/components/page-container';
+import { ExportButton, type ExportScope } from '@/components/export-sheet';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import { StatusBadge } from '@/components/monitoring';
 import { PendingChanges } from '@/components/pending-changes';
-import { Button } from '@/components/ui/button';
 import {
     Select,
     SelectContent,
@@ -97,7 +97,37 @@ export default function IncidentsIndex({
         filters.started_before,
         filters.period !== '30d',
     ].filter(Boolean).length;
-    const csvUrl = exportIncidents.url({ query: { filter: activeFilter } });
+    const unfiltered = { status: 'all', period: 'all' };
+    const exportScopes: ExportScope[] = [
+        {
+            key: 'matching',
+            label: t('export.scope.matching_incidents', {
+                count: pagination.total,
+            }),
+            count: pagination.total,
+            csvLimited: true,
+            url: (format) =>
+                exportIncidents.url(format, {
+                    query: { filter: activeFilter },
+                }),
+        },
+        // Every filter at its widest value already exports every incident.
+        ...(Object.entries(activeFilter).some(
+            ([key, value]) =>
+                value !== unfiltered[key as keyof typeof unfiltered],
+        )
+            ? [
+                  {
+                      key: 'unfiltered',
+                      label: t('export.scope.every_incident'),
+                      url: (format: Heptapod.Enums.ExportFormat) =>
+                          exportIncidents.url(format, {
+                              query: { filter: unfiltered },
+                          }),
+                  },
+              ]
+            : []),
+    ];
     const clientName = (incident: Incident) =>
         clients.find((client) => client.id === incident.client_id)?.name ??
         t('Client');
@@ -202,13 +232,12 @@ export default function IncidentsIndex({
                 // The 30-day record is the header's one line, like the Sites meta line.
                 description={stats}
                 actions={
-                    <>
-                        <Button variant="outline" asChild>
-                            <a href={csvUrl} download>
-                                {t('Export')}
-                            </a>
-                        </Button>
-                    </>
+                    <ExportButton
+                        kind="incidents"
+                        variant="default"
+                        size="default"
+                        scopes={exportScopes}
+                    />
                 }
             />
             <FilterBar

@@ -102,29 +102,30 @@ show.form = showForm
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:25
-* @route '/sites/{site}/checks/{check}/findings.csv'
+* @see app/Http/Controllers/FindingsExportController.php:35
+* @route '/sites/{site}/checks/{check}/findings.{format}'
 */
-export const findings = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+export const findings = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: findings.url(args, options),
     method: 'get',
 })
 
 findings.definition = {
     methods: ["get","head"],
-    url: '/sites/{site}/checks/{check}/findings.csv',
+    url: '/sites/{site}/checks/{check}/findings.{format}',
 } satisfies RouteDefinition<["get","head"]>
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:25
-* @route '/sites/{site}/checks/{check}/findings.csv'
+* @see app/Http/Controllers/FindingsExportController.php:35
+* @route '/sites/{site}/checks/{check}/findings.{format}'
 */
-findings.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
+findings.url = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions) => {
     if (Array.isArray(args)) {
         args = {
             site: args[0],
             check: args[1],
+            format: args[2],
         }
     }
 
@@ -133,60 +134,62 @@ findings.url = (args: { site: string | number, check: string | number } | [site:
     const parsedArgs = {
         site: args.site,
         check: args.check,
+        format: args.format,
     }
 
     return findings.definition.url
             .replace('{site}', parsedArgs.site.toString())
             .replace('{check}', parsedArgs.check.toString())
+            .replace('{format}', parsedArgs.format.toString())
             .replace(/\/+$/, '') + queryParams(options)
 }
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:25
-* @route '/sites/{site}/checks/{check}/findings.csv'
+* @see app/Http/Controllers/FindingsExportController.php:35
+* @route '/sites/{site}/checks/{check}/findings.{format}'
 */
-findings.get = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+findings.get = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: findings.url(args, options),
     method: 'get',
 })
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:25
-* @route '/sites/{site}/checks/{check}/findings.csv'
+* @see app/Http/Controllers/FindingsExportController.php:35
+* @route '/sites/{site}/checks/{check}/findings.{format}'
 */
-findings.head = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+findings.head = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: findings.url(args, options),
     method: 'head',
 })
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:25
-* @route '/sites/{site}/checks/{check}/findings.csv'
+* @see app/Http/Controllers/FindingsExportController.php:35
+* @route '/sites/{site}/checks/{check}/findings.{format}'
 */
-const findingsForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+const findingsForm = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
     action: findings.url(args, options),
     method: 'get',
 })
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:25
-* @route '/sites/{site}/checks/{check}/findings.csv'
+* @see app/Http/Controllers/FindingsExportController.php:35
+* @route '/sites/{site}/checks/{check}/findings.{format}'
 */
-findingsForm.get = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+findingsForm.get = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
     action: findings.url(args, options),
     method: 'get',
 })
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:25
-* @route '/sites/{site}/checks/{check}/findings.csv'
+* @see app/Http/Controllers/FindingsExportController.php:35
+* @route '/sites/{site}/checks/{check}/findings.{format}'
 */
-findingsForm.head = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+findingsForm.head = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
     action: findings.url(args, {
         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
             _method: 'HEAD',

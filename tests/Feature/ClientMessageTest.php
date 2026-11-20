@@ -512,19 +512,26 @@ it('shows the frozen message and its CSV from the history, only for the client i
     expect($message['subject'])->toBe('Defekte Links auf shop.example.test: 2 gefunden')
         ->and($message['html'])->toContain('Wie besprochen.', 'missing-1')->not->toContain('changed')
         ->and($message['attachment'])->toBe(['filename' => 'defekte-links-shop-example-test-2026-10-28.csv', 'rows' => 2]);
-    $download = $this->get(route('clients.messages.attachment', [$client, $sent['event_id']]))->assertOk()
+    $download = $this->get(route('clients.messages.attachment', [$client, $sent['event_id'], 'csv']))->assertOk()
         ->assertHeader('Content-Type', 'text/csv; charset=UTF-8')->assertDownload('defekte-links-shop-example-test-2026-10-28.csv');
     expect($download->streamedContent())->toBe($csv);
+    // Markdown and plain text show the same sent rows, read back from the stored file without the spreadsheet guard.
+    $markdown = $this->get(route('clients.messages.attachment', [$client, $sent['event_id'], 'md']))->assertOk()
+        ->assertDownload('defekte-links-shop-example-test-2026-10-28.md')->streamedContent();
+    expect($markdown)->toContain('| Adresse | Ergebnis |', '| https://shop.example.test/missing-2 | 404 |', '| =Part 2 |')->not->toContain("'=Part", 'changed');
+    $text = $this->get(route('clients.messages.attachment', [$client, $sent['event_id'], 'txt']))->assertOk()->streamedContent();
+    expect($text)->toContain("\n\nhttps://shop.example.test/missing-1\nErgebnis: 404\n");
 
     // Members read the history; another client's page never reaches this message.
     $this->actingAs(clientMessageUser('Member'))->getJson(route('clients.messages.show', [$client, $sent['event_id']]))->assertOk();
     $other = Client::factory()->create();
     $this->actingAs($owner)->getJson(route('clients.messages.show', [$other, $sent['event_id']]))->assertNotFound();
-    $this->get(route('clients.messages.attachment', [$other, $sent['event_id']]))->assertNotFound();
+    $this->get(route('clients.messages.attachment', [$other, $sent['event_id'], 'csv']))->assertNotFound();
     $restricted = clientMessageUser('Member', ['client_scope' => ClientScope::Restricted]);
     $restricted->clients()->attach($other->id);
     $this->actingAs($restricted)->getJson(route('clients.messages.show', [$client, $sent['event_id']]))->assertNotFound();
-    $this->get(route('clients.messages.attachment', [$client, $sent['event_id']]))->assertNotFound();
+    $this->get(route('clients.messages.attachment', [$client, $sent['event_id'], 'csv']))->assertNotFound();
+    $this->get(route('clients.messages.attachment', [$client, $sent['event_id'], 'md']))->assertNotFound();
 });
 
 it('keys a one-off address by exactly the address it sends to', function (): void {

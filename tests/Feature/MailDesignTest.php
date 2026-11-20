@@ -190,7 +190,7 @@ it('localizes XML line numbers in mail evidence and exported result sentences', 
     expect($mail->getTextBody())->toContain($sentence)->not->toContain($rawSentence);
     expect($mail->getHtmlBody())->toContain($sentence)->not->toContain($rawSentence);
     $owner = User::factory()->owner()->create(['locale' => $locale]);
-    $export = $this->actingAs($owner)->get(route('sites.checks.findings', ['site' => $check->site_id, 'check' => $check->id,
+    $export = $this->actingAs($owner)->get(route('sites.checks.findings', ['site' => $check->site_id, 'check' => $check->id, 'format' => 'csv',
         'run' => $run->id, 'observed_at' => $run->ended_at->toIso8601String()]))->assertOk()->streamedContent();
     $row = str_getcsv(explode("\r\n", $export)[1], ',', '"', '');
     expect($row[1])->toBe($sentence);

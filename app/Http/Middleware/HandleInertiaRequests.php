@@ -2,6 +2,7 @@
 
 namespace Heptapod\Http\Middleware;
 
+use Heptapod\Contracts\Export\Table;
 use Heptapod\Contracts\Mail\MailDeliveryMode;
 use Heptapod\Enums\RecipientKind;
 use Heptapod\Live\LiveChannels;
@@ -60,6 +61,7 @@ class HandleInertiaRequests extends Middleware
             'locale' => app()->getLocale(),
             // The viewer's zone: their own, else the instance's (guests too).
             'timezone' => $user instanceof User ? $user->resolvedTimezone() : app(InstanceSettings::class)->timezone,
+            'exportRowLimit' => Table::RowLimit,
             'mailLogOnly' => MailDeliveryMode::logOnly(),
             'mailConfigurationAction' => SystemIssueKind::MailLogOnly->navigationAction($user instanceof User ? $user : null),
             'mailMayOnlyBeLogged' => MailDeliveryMode::includesLocalTransport(),

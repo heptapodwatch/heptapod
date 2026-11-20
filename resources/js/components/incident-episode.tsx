@@ -64,8 +64,7 @@ import {
     runState,
     statusLabels,
 } from '@/lib/status';
-import { findingsTimestamp } from '@/lib/findings-export';
-import { findings as findingsCsv } from '@/routes/sites/checks';
+import { findings as findingsExport } from '@/routes/sites/checks';
 import {
     note as saveNote,
     show as incidentShow,
@@ -103,7 +102,7 @@ export function IncidentEpisode({
     const { t } = useTranslation();
     const format = useFormat();
     const {
-        props: { errors, timezone },
+        props: { errors },
     } = usePage();
     const [noteOpen, setNoteOpen] = useState(false);
     // The incident and its current snapshot are single records: after the own run they show the refetched state.
@@ -254,7 +253,7 @@ export function IncidentEpisode({
         ),
     );
     const day = (time: string) => format.date(time, { dateStyle: 'full' });
-    // CardAction holds buttons only (heptapod-ui-rules Cards): Open check is a ghost button beside Copy / Download CSV.
+    // CardAction holds buttons only (heptapod-ui-rules Cards): Open check is a ghost button beside Export.
     const openCheck = check && (
         <Button asChild size="sm" variant="ghost">
             <Link
@@ -642,41 +641,16 @@ export function IncidentEpisode({
                                     'sitemap',
                                 ].includes(incident.check)
                                     ? {
-                                          site: `${page.header.name} (${page.header.url})`,
-                                          check: t(
-                                              checkTypes[incident.check].label,
-                                          ),
-                                          headline: shown.current_presentation
-                                              ? format.presentation(
-                                                    shown.current_presentation,
-                                                )
-                                              : shown.latest_run?.summary
-                                                ? format.summary(
-                                                      shown.latest_run.summary,
-                                                      shown.latest_run
-                                                          .summary_params,
-                                                  )
-                                                : shown.headline,
-                                          checkedRunId:
-                                              shown.latest_run?.id ?? null,
-                                          checkedAt: shown.current_checked_at
-                                              ? findingsTimestamp(
-                                                    shown.current_checked_at,
-                                                    timezone,
-                                                )
-                                              : null,
-                                          incidentId: incident.id,
-                                          downloadUrl: (run, observedAt) =>
-                                              findingsCsv.url(
+                                          url: (format, query) =>
+                                              findingsExport.url(
                                                   {
                                                       site: page.header.id,
                                                       check: check.id,
+                                                      format,
                                                   },
                                                   {
                                                       query: {
-                                                          run,
-                                                          observed_at:
-                                                              observedAt,
+                                                          ...query,
                                                           incident: incident.id,
                                                       },
                                                   },
