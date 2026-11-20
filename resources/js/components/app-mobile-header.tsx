@@ -14,10 +14,11 @@ export function AppMobileHeader({
 }) {
     const { props } = usePage();
     return (
-        <header className="flex h-13 shrink-0 items-center justify-between gap-2 border-b px-4 md:hidden">
+        // Three columns keep the wordmark centred whether or not the runs glyph is shown.
+        <header className="grid h-13 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-b px-4 md:hidden">
             <SidebarTrigger />
             <BrandLink className="[--brand-mark-h:19px]" />
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 justify-self-end">
                 <MobileRunsTrigger />
                 {props.auth.user && (
                     <CommandPaletteTrigger compact onClick={onOpenSearch} />
