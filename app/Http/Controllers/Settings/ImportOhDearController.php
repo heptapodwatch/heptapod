@@ -8,17 +8,20 @@ use Heptapod\Concerns\AuthorizesSettingsOperator;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CronPingUrl;
 use Heptapod\Contracts\CronTaskStore;
+use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\ImportOhDearPageData;
 use Heptapod\Data\Ui\ImportOhDearRunPageData;
 use Heptapod\Enums\ImportRunStatus;
 use Heptapod\Enums\ImportSection;
 use Heptapod\Http\Controllers\Controller;
+use Heptapod\Http\ListPageSize;
 use Heptapod\Models\Check;
 use Heptapod\Models\Client;
 use Heptapod\Models\ImportRun;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -36,6 +39,7 @@ final class ImportOhDearController extends Controller
             clients: array_values($clients->get()->map(static fn (Client $client): ClientData => ClientData::fromClient($client))->all()),
             timezones: \DateTimeZone::listIdentifiers(),
             sections: ImportSection::cases(),
+            plan_page_size: ListPageSize::resolve($request, 'import_plan_rows'),
         ))->with('instanceTimezone', app(InstanceSettings::class)->timezone);
     }
 
@@ -79,12 +83,39 @@ final class ImportOhDearController extends Controller
             }
         }
         $attempt = $importRun->attempts;
+        $imported = array_values(array_filter($rows, static fn (array $row): bool => in_array($row['operation'] ?? null, ['create', 'update', 'partial'], true)));
+        $commonNotices = [];
+        if (count($imported) > 1) {
+            /** @var list<string> $firstNotices */
+            $firstNotices = array_values(array_filter((array) ($imported[0]['notices'] ?? []), is_string(...)));
+            foreach ($firstNotices as $notice) {
+                if (array_all($imported, static fn (array $row): bool => in_array($notice, (array) ($row['notices'] ?? []), true))) {
+                    $commonNotices[] = $notice;
+                }
+            }
+        }
+        $alertTiming = [
+            'inherited' => count(array_filter($rows, static fn (array $row): bool => ($row['inherits_alert_timing'] ?? null) === true)),
+            'overridden' => count(array_filter($rows, static fn (array $row): bool => ($row['inherits_alert_timing'] ?? null) === false)),
+        ];
+        $perPage = ListPageSize::resolve($request, 'import_run_rows');
+        $page = LengthAwarePaginator::resolveCurrentPage();
+        $rowsPaginator = new LengthAwarePaginator(
+            array_slice($rows, ($page - 1) * $perPage, $perPage),
+            count($rows),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'pageName' => 'page'],
+        );
+        $rowsPaginator->withQueryString();
 
         return Inertia::render('settings/import-ohdear-run', new ImportOhDearRunPageData(
             importRun: [
                 'id' => $importRun->id, 'status' => $importRun->status, 'expected' => $importRun->expected, 'attempts' => $attempt,
                 'processed' => count(array_filter($rows, static fn (array $row): bool => ($row['attempt'] ?? null) === $attempt)),
-                'rows' => $rows, 'remote_error' => $importRun->remote_error, 'error' => $importRun->error,
+                'rows' => array_values($rowsPaginator->items()), 'rows_pagination' => PaginationData::fromPaginator($rowsPaginator),
+                'common_notices' => $commonNotices, 'alert_timing' => $alertTiming,
+                'remote_error' => $importRun->remote_error, 'error' => $importRun->error,
                 'failed' => count(array_filter($rows, static fn (array $row): bool => ($row['operation'] ?? null) === 'failed' && ($row['attempt'] ?? null) === $attempt)),
                 'failed_remote' => count(array_filter($rows, static fn (array $row): bool => ($row['operation'] ?? null) === 'failed' && ($row['attempt'] ?? null) === $attempt && in_array('import.notice.failed_remote', (array) ($row['notices'] ?? []), true))),
                 'failed_earlier' => count(array_filter($rows, static fn (array $row): bool => ($row['operation'] ?? null) === 'failed' && ($row['attempt'] ?? null) !== $attempt)),

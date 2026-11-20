@@ -1295,6 +1295,7 @@ export type ImportOhDearPageData = {
 readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly timezones: string[],
 readonly sections: Heptapod.Enums.ImportSection[],
+readonly plan_page_size: number,
 };
 export type ImportOhDearRunPageData = {
 readonly importRun: {
@@ -1304,6 +1305,12 @@ expected: number,
 attempts: number,
 processed: number,
 rows: Record<string, any>[],
+rows_pagination: Heptapod.Contracts.PaginationData,
+common_notices: string[],
+alert_timing: {
+inherited: number,
+overridden: number,
+},
 remote_error: string | null,
 error: string | null,
 failed: number,
@@ -1321,6 +1328,7 @@ name: string,
 ping_url: string,
 }[],
 }[],
+channels: Record<string, any>[],
 },
 };
 export type IncidentData = {

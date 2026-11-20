@@ -32,6 +32,9 @@ type ImportRun = {
     expected: number;
     attempts: number;
     rows: Row[];
+    rows_pagination: Heptapod.Contracts.PaginationData;
+    common_notices: string[];
+    alert_timing: { inherited: number; overridden: number };
     channels: Heptapod.Data.Import.ImportChannelRowData[];
     remote_error: string | null;
     error: string | null;
@@ -102,16 +105,7 @@ export default function ImportOhDearRun({
     const done = importRun.processed;
     const unread = Math.max(0, importRun.expected - done);
     const finished = !active;
-    const imported = importRun.rows.filter((row) =>
-        ['create', 'update', 'partial'].includes(row.operation),
-    );
-    // Same rule as the plan: reasons shared by every imported site are listed once.
-    const common =
-        imported.length > 1
-            ? imported[0]!.notices.filter((key) =>
-                  imported.every((row) => row.notices.includes(key)),
-              )
-            : [];
+    const common = importRun.common_notices;
     const rowNotices = (row: Row) => [
         ...row.notices
             .filter((key) => !common.includes(key))
@@ -319,7 +313,7 @@ export default function ImportOhDearRun({
                         </AlertDescription>
                     </Alert>
                 )}
-                <ImportAlertTimingSummary rows={importRun.rows} />
+                <ImportAlertTimingSummary counts={importRun.alert_timing} />
                 {importRun.rows.length > 0 && (
                     <div className="@container/table overflow-hidden rounded-[10px] border">
                         <ListHeader className="@3xl/table:grid @3xl/table:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
@@ -398,11 +392,13 @@ export default function ImportOhDearRun({
                 {importRun.rows.length > 0 && (
                     <ListFooter
                         count={t('import.result.count', {
-                            count: importRun.rows.length,
+                            count: importRun.rows_pagination.total,
                             formattedCount: format.number(
-                                importRun.rows.length,
+                                importRun.rows_pagination.total,
                             ),
                         })}
+                        pagination={importRun.rows_pagination}
+                        only={['importRun']}
                     />
                 )}
             </section>

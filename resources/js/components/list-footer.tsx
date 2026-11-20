@@ -15,6 +15,50 @@ type PageLink = {
 /** The rows-per-page choices; the server accepts exactly these (ListPageSize). */
 const pageSizes = [10, 20, 50, 100] as const;
 
+/** Builds a PaginationData view for an in-memory list (an unsaved import plan) so it uses the same ListFooter. */
+export function clientPagination(
+    currentPage: number,
+    perPage: number,
+    total: number,
+): Heptapod.Contracts.PaginationData {
+    const lastPage = Math.max(1, Math.ceil(total / perPage));
+    const page = Math.min(Math.max(1, currentPage), lastPage);
+    return {
+        current_page: page,
+        per_page: perPage,
+        total,
+        last_page: lastPage,
+        next_page_url: page < lastPage ? '#next' : null,
+        previous_page_url: page > 1 ? '#previous' : null,
+        page_name: 'page',
+    };
+}
+
+/** Saves a page-size choice for a client-paged list into the same plain `list_page_sizes` cookie the server reads. */
+export function rememberListPageSize(list: string, size: number): void {
+    const raw = document.cookie
+        .split('; ')
+        .find((entry) => entry.startsWith('list_page_sizes='))
+        ?.slice('list_page_sizes='.length);
+    let parsed: Record<string, unknown> = {};
+    if (raw) {
+        try {
+            const decoded: unknown = JSON.parse(decodeURIComponent(raw));
+            if (
+                decoded &&
+                typeof decoded === 'object' &&
+                !Array.isArray(decoded)
+            ) {
+                parsed = decoded as Record<string, unknown>;
+            }
+        } catch {
+            // Malformed cookie falls back to a fresh map, matching ListPageSize::remembered.
+        }
+    }
+    parsed[list] = size;
+    document.cookie = `list_page_sizes=${encodeURIComponent(JSON.stringify(parsed))};path=/;max-age=31536000;SameSite=Lax`;
+}
+
 /**
  * The one footer below a list: the plural-aware count on the left ("18 sites"), or "1–50 of 64" once the list has more than
  * one page; the pager on the right. A page-number list passes its server `pagination` (Previous · Page 1 of 3 · Next and the
@@ -31,6 +75,8 @@ export function ListFooter({
     previous,
     extra,
     pageSize,
+    onPageChange,
+    onPageSizeChange,
 }: {
     /** The whole list's count, shown while it fits one page. */
     count: ReactNode;
@@ -44,6 +90,10 @@ export function ListFooter({
     extra?: ReactNode;
     /** Cursor lists only: the current rows per page; shows the Rows choice. */
     pageSize?: number;
+    /** In-memory lists (unsaved import plan): change page without leaving the unsaved state. */
+    onPageChange?: (page: number) => void;
+    /** In-memory lists: change page size without leaving the unsaved state. */
+    onPageSizeChange?: (size: number) => void;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -51,9 +101,17 @@ export function ListFooter({
         href === null
             ? null
             : { href, only, preserveState: only !== undefined || undefined };
-    const link = (target: PageLink, label: string) =>
+    const link = (target: PageLink, label: string, targetPage?: number) =>
         target === null ? (
-            <Button variant="outline" disabled>
+            <Button type="button" variant="outline" disabled>
+                {t(label)}
+            </Button>
+        ) : onPageChange && targetPage !== undefined ? (
+            <Button
+                type="button"
+                variant="outline"
+                onClick={() => onPageChange(targetPage)}
+            >
                 {t(label)}
             </Button>
         ) : (
@@ -83,6 +141,10 @@ export function ListFooter({
         : pageSize;
     const pageName = pagination?.page_name ?? 'page';
     const changePageSize = (chosen: number) => {
+        if (onPageSizeChange) {
+            onPageSizeChange(chosen);
+            return;
+        }
         const url = new URL(window.location.href);
         url.searchParams.set(
             pageName.replace(/page$/, 'per_page'),
@@ -150,7 +212,13 @@ export function ListFooter({
                     {extra}
                     {paged &&
                         previousPage !== undefined &&
-                        link(previousPage, 'Previous page')}
+                        link(
+                            previousPage,
+                            'Previous page',
+                            pagination
+                                ? pagination.current_page - 1
+                                : undefined,
+                        )}
                     {paged && pagination && (
                         <span className="font-mono tabular-nums">
                             {t('Page {{page}} of {{lastPage}}', {
@@ -161,7 +229,13 @@ export function ListFooter({
                     )}
                     {paged &&
                         nextPage !== undefined &&
-                        link(nextPage, 'Next page')}
+                        link(
+                            nextPage,
+                            'Next page',
+                            pagination
+                                ? pagination.current_page + 1
+                                : undefined,
+                        )}
                 </div>
             )}
         </div>

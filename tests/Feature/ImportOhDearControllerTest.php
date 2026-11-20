@@ -6,6 +6,7 @@ use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CronTaskStore;
 use Heptapod\Enums\ImportRunStatus;
+use Heptapod\Http\ListPageSize;
 use Heptapod\Jobs\RunOhDearImport;
 use Heptapod\Models\Check;
 use Heptapod\Models\ImportRun;
@@ -15,6 +16,7 @@ use Heptapod\Support\ImportTokenStore;
 use Heptapod\Testing\OhDearAccountTransport;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Inertia\Testing\AssertableInertia;
 use Saloon\Http\Faking\MockClient;
 
 beforeEach(function (): void {
@@ -155,4 +157,69 @@ it('renders an empty cron list without task queries when imported sites have no 
     $response->assertOk()->assertJsonPath('props.importRun.cron', []);
     $taskQueries = array_filter($queries, static fn (array $query): bool => str_contains($query['query'], '"cron_checks"'));
     expect($taskQueries)->toBe([]);
+});
+
+it('pages import run rows in plan order, keeps whole-run summaries and respects the remembered size', function (): void {
+    $owner = User::factory()->owner()->create();
+    $member = User::factory()->create();
+    $plan = [];
+    $results = [];
+    foreach (range(1, 12) as $i) {
+        $id = 'src-'.$i;
+        $plan[] = ['source_id' => $id];
+        $results[$id] = [
+            'source_id' => $id,
+            'url' => "https://site-{$i}.example.test",
+            'label' => "Site {$i}",
+            'operation' => 'create',
+            'notices' => ['import.notice.shared'],
+            'attempt' => 1,
+            'inherits_alert_timing' => $i <= 8,
+        ];
+    }
+    $run = ImportRun::query()->create([
+        'user_id' => $owner->id,
+        'source' => 'ohdear',
+        'status' => 'completed',
+        'expected' => 12,
+        'attempts' => 1,
+        'teams' => [],
+        'plan' => $plan,
+        'results' => $results,
+        'created_client_ids' => [],
+    ]);
+
+    $this->actingAs($owner)->get('/settings/import/ohdear/runs/'.$run->id.'?per_page=10')
+        ->assertOk()
+        ->assertCookie(ListPageSize::Cookie, json_encode(['import_run_rows' => 10]), false)
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->has('importRun.rows', 10)
+            ->where('importRun.rows.0.source_id', 'src-1')
+            ->where('importRun.rows_pagination.total', 12)
+            ->where('importRun.rows_pagination.last_page', 2)
+            ->where('importRun.common_notices', ['import.notice.shared'])
+            ->where('importRun.alert_timing', ['inherited' => 8, 'overridden' => 4]));
+
+    $this->withUnencryptedCookie(ListPageSize::Cookie, json_encode(['import_run_rows' => 10, 'import_plan_rows' => 20]));
+    $this->get('/settings/import/ohdear/runs/'.$run->id.'?page=2')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->has('importRun.rows', 2)
+            ->where('importRun.rows.0.source_id', 'src-11')
+            ->where('importRun.rows.1.source_id', 'src-12')
+            ->where('importRun.processed', 12)
+            ->where('importRun.common_notices', ['import.notice.shared'])
+            ->where('importRun.alert_timing', ['inherited' => 8, 'overridden' => 4]));
+
+    // Plan page reads its remembered page size from the same cookie.
+    $this->get('/settings/import/ohdear')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('plan_page_size', 20));
+
+    $this->get('/settings/import/ohdear/runs/'.$run->id.'?per_page=7')->assertSessionHasErrors('per_page');
+
+    // Permissions unchanged: Members cannot view import runs or the plan page.
+    $this->actingAs($member)->get('/settings/import/ohdear/runs/'.$run->id.'?page=2')->assertForbidden();
+    $this->actingAs($member)->get('/settings/import/ohdear')->assertForbidden();
 });
