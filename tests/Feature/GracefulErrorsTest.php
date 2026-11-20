@@ -232,7 +232,7 @@ it('renders standalone Blade 401 for disabled accounts and refreshes CSRF 419 on
 
     // Inertia 419 CSRF expiry redirects back with refreshed notice (keeping form state via preserveState);
     // raw non-Inertia POST keeps standalone Blade 419.
-    Route::middleware('web')->post('/_test/graceful-errors/csrf', static fn () => throw new TokenMismatchException('CSRF token mismatch.'));
+    Route::middleware('web')->post('/_test/graceful-errors/csrf', static fn (): never => throw new TokenMismatchException('CSRF token mismatch.'));
     $owner = User::factory()->create(['locale' => 'en']);
     $owner->assignRole('Owner');
     $site = Site::factory()->create();

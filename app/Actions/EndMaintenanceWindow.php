@@ -25,7 +25,7 @@ final readonly class EndMaintenanceWindow
             NotificationLocks::maintenanceWindows([$window->id], exclusive: true);
             $window = MaintenancePeriod::query()->findOrFail($window->id);
             $now = CarbonImmutable::now('UTC');
-            if (! ($window->starts_at <= $now && $window->ends_at > $now)) {
+            if ($window->starts_at > $now || $window->ends_at <= $now) {
                 throw new ExpectedRefusal(
                     status: 409,
                     messageKey: 'errors.maintenance.already_ended',

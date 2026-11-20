@@ -110,7 +110,7 @@ final class MaintenanceController extends Controller
         LocalMaintenanceTime $localTime): RedirectResponse
     {
         $this->writable($request);
-        if (! ($window->ends_at > CarbonImmutable::now('UTC'))) {
+        if ($window->ends_at <= CarbonImmutable::now('UTC')) {
             throw new ExpectedRefusal(
                 status: 409,
                 messageKey: 'errors.maintenance.already_ended',
@@ -139,7 +139,7 @@ final class MaintenanceController extends Controller
     public function destroy(Request $request, MaintenancePeriod $window, DeleteMaintenancePeriod $delete): RedirectResponse
     {
         $this->writable($request);
-        if (! ($window->starts_at > CarbonImmutable::now('UTC'))) {
+        if ($window->starts_at <= CarbonImmutable::now('UTC')) {
             throw new ExpectedRefusal(
                 status: 409,
                 messageKey: 'errors.maintenance.already_started',
