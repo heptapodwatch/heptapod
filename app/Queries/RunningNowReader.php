@@ -39,8 +39,8 @@ final readonly class RunningNowReader
     public function forUser(User $user): RunningNowData
     {
         $since = CarbonImmutable::now('UTC')->subSeconds(self::OWN_RESULT_SECONDS)->format('Y-m-d H:i:s.uP');
-        // The candidates come from the manual-only partial indexes first (materialized, so the planner never starts from
-        // the visible checks); visibility and the current claim are then checked per candidate through checks' primary key.
+        // The candidates come from the manual-only indexes first; visibility and the current claim are then checked per
+        // candidate through checks' primary key, so the work follows manual runs, never the visible checks or the backlog.
         // A leftover of a replaced lease is not the check's current run (the cast matches RunsReader::lateCount).
         /** @var list<\stdClass&object{id: int, active_total: int}> $picked */
         $picked = DB::select(<<<'SQL'
@@ -50,9 +50,11 @@ final readonly class RunningNowReader
                     OR (actor_user_id = ? AND finished_at >= ?::timestamptz AND check_run_id IS NOT NULL))
             )
             SELECT candidate.id, count(*) FILTER (WHERE candidate.phase IN ('queued', 'running')) OVER () AS active_total
-            FROM candidate JOIN checks ON checks.id = candidate.check_id
-            WHERE checks.site_id = ANY(?::bigint[])
-                AND (candidate.phase NOT IN ('queued', 'running') OR candidate.claim_token = checks.claim_token::text)
+            FROM candidate
+            -- LIMIT keeps the lateral lookup a primary-key probe per candidate instead of a scan of every visible check.
+            CROSS JOIN LATERAL (SELECT site_id, claim_token FROM checks WHERE checks.id = candidate.check_id LIMIT 1) AS checked
+            WHERE checked.site_id = ANY(?::bigint[])
+                AND (candidate.phase NOT IN ('queued', 'running') OR candidate.claim_token = checked.claim_token::text)
             ORDER BY candidate.finished_at IS NULL, coalesce(candidate.actor_user_id = ?, false) DESC, candidate.requested_at, candidate.id
             LIMIT ?
             SQL, [$user->id, $since, '{'.implode(',', $this->policy->visibleSiteIds($user)).'}', $user->id, self::LIMIT]);
