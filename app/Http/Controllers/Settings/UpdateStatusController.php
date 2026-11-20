@@ -27,7 +27,7 @@ final class UpdateStatusController extends Controller
         return Inertia::render('settings/updates', new UpdatesPageData(
             updatesPage: UpdatesSettingsPageData::from([
                 'updates' => $reader->read(),
-                'backups' => $user->hasRole('Owner') ? $backups->read() : null,
+                'backups' => $user->hasRole('Owner') ? $backups->read($user) : null,
             ]),
         ));
     }

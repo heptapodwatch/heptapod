@@ -38,7 +38,11 @@ import { Label } from '@/components/ui/label';
 import { useClipboard } from '@/hooks/use-clipboard';
 import { useFormat } from '@/hooks/use-format';
 import { ListFooter } from '@/components/list-footer';
-import { HttpValidationError, useHttpRequest } from '@/hooks/use-http-request';
+import {
+    HttpValidationError,
+    httpErrorMessage,
+    useHttpRequest,
+} from '@/hooks/use-http-request';
 import { zonedInstant } from '@/lib/date-time';
 import { TokenAbilities, abilityLabel } from '@/components/token-abilities';
 import { data as readData, destroy, store } from '@/routes/settings/api-tokens';
@@ -410,7 +414,7 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
     const [creating, setCreating] = useState(false);
     const [secret, setSecret] = useState<Disclosure | null>(null);
     const [revoking, setRevoking] = useState<Token | null>(null);
-    const [failure, setFailure] = useState(false);
+    const [failureMessage, setFailureMessage] = useState<string | null>(null);
     const [revoked, setRevoked] = useState(false);
     const query = useHttpRequest<Record<string, never>, TokenPage>();
     const revoke = useHttpRequest<Record<string, never>, null>();
@@ -439,8 +443,15 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
             .then((canonical) => {
                 if (active) setPage(canonical);
             })
-            .catch(() => {
-                if (active) setFailure(true);
+            .catch((error: unknown) => {
+                if (active)
+                    setFailureMessage(
+                        httpErrorMessage(
+                            error,
+                            t,
+                            'Token metadata request failed. Reload to check the current state.',
+                        ),
+                    );
             });
         return () => {
             active = false;
@@ -456,9 +467,15 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
     const refresh = async () => {
         try {
             setPage(await query.get(readData.url()));
-            setFailure(false);
-        } catch {
-            setFailure(true);
+            setFailureMessage(null);
+        } catch (error: unknown) {
+            setFailureMessage(
+                httpErrorMessage(
+                    error,
+                    t,
+                    'Token metadata request failed. Reload to check the current state.',
+                ),
+            );
         }
     };
     const closeCreate = () => {
@@ -469,8 +486,14 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
         if (!revoking) throw new Error('No token selected for revocation.');
         try {
             await revoke.delete(destroy.url(revoking.id));
-        } catch {
-            setFailure(true);
+        } catch (error: unknown) {
+            setFailureMessage(
+                httpErrorMessage(
+                    error,
+                    t,
+                    'Token metadata request failed. Reload to check the current state.',
+                ),
+            );
             return false;
         }
         setPage((current) => ({
@@ -478,7 +501,7 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
             tokens: current.tokens.filter((token) => token.id !== revoking.id),
         }));
         setRevoked(true);
-        setFailure(false);
+        setFailureMessage(null);
         return true;
     };
     return (
@@ -508,14 +531,7 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
                     timezone: page.timezone,
                 })}
             </p>
-            <InputError
-                className="mb-3"
-                message={
-                    failure
-                        ? 'Token metadata request failed. Reload to check the current state.'
-                        : null
-                }
-            />
+            <InputError className="mb-3" message={failureMessage} />
             {revoked && (
                 <p role="status" className="mb-3 text-sm">
                     {t('Token revoked.')}
@@ -640,7 +656,7 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
                             className="justify-self-end"
                             onClick={() => {
                                 setRevoking(token);
-                                setFailure(false);
+                                setFailureMessage(null);
                             }}
                         >
                             {t('Revoke')}
@@ -691,13 +707,7 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
                 confirmTestId="confirm-revoke-token"
                 onConfirm={revokeToken}
             >
-                <InputError
-                    message={
-                        failure
-                            ? 'Revocation request failed. Reload to check whether the token still exists.'
-                            : null
-                    }
-                />
+                <InputError message={failureMessage} />
             </ConfirmDialog>
         </>
     );

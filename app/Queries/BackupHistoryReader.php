@@ -7,7 +7,9 @@ namespace Heptapod\Queries;
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\PaginationData;
+use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Spatie\Backup\BackupDestination\Backup;
 use Spatie\Backup\BackupDestination\BackupCollection;
 use Spatie\Backup\BackupDestination\BackupDestination;
@@ -18,7 +20,7 @@ final readonly class BackupHistoryReader
     public function __construct(private ListPaging $paging) {}
 
     /** @return array<string, mixed> */
-    public function read(): array
+    public function read(?User $actor = null): array
     {
         $disk = config()->string('backup.backup.destination.disks.0');
         $name = config()->string('backup.backup.name');
@@ -48,6 +50,8 @@ final readonly class BackupHistoryReader
             ? ($runs[0] ?? null)
             : ($latestRow === null ? null : $this->formatRun($latestRow));
         $hasActiveRun = DB::table('backup_runs')->whereIn('state', ['queued', 'running'])->exists();
+        // Matches ThrottleRequests's default hashed limiter key for the named `backup-now` limiter.
+        $cooldownSeconds = $actor instanceof User ? RateLimiter::availableIn(hash('md5', 'backup-now'.$actor->id)) : 0;
 
         return [
             'disk' => $disk,
@@ -61,6 +65,7 @@ final readonly class BackupHistoryReader
             'schedule_utc' => '02:30',
             'retention' => config()->array('backup.cleanup.default_strategy'),
             'uses_default_retention' => config('backup.cleanup.strategy') === DefaultStrategy::class,
+            'cooldown_until' => $cooldownSeconds > 0 ? now('UTC')->addSeconds($cooldownSeconds)->toIso8601String() : null,
             'observed_at' => now()->toIso8601String(),
         ];
     }

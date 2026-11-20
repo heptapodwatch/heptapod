@@ -386,11 +386,14 @@ function AddSiteForm({
     };
     // The server validates each tag as `tags.N`; the Tags field shows and clears them as its own.
     const errors = form.errors as Record<string, string>;
-    const tagErrorKeys = Object.keys(errors).filter(
+    const fieldErrorKeys = Object.keys(errors).filter(
+        (key) => key !== '_refusal',
+    );
+    const tagErrorKeys = fieldErrorKeys.filter(
         (key) => key === 'tags' || key.startsWith('tags.'),
     );
     const errorCount = new Set(
-        Object.keys(errors).map((key) =>
+        fieldErrorKeys.map((key) =>
             tagErrorKeys.includes(key) ? 'tags' : key,
         ),
     ).size;
@@ -697,6 +700,7 @@ function AddSiteForm({
                             </FormSection>
                         </div>
                     )}
+                    <InputError message={errors._refusal} />
                     <FormActions
                         status={
                             form.processing

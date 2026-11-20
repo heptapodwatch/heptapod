@@ -41,21 +41,25 @@ export function useCooldown(until: string | null): {
     return { active, remainingSeconds };
 }
 
-/** One-line cooldown explanation rendered directly below a disabled control ("Can run again at 14:07 · in 4 min"). */
+/**
+ * One-line cooldown explanation rendered directly below a disabled control ("Can run again at 14:07 · in 4 min").
+ * Takes `remainingSeconds` from the caller's `useCooldown(until)` so each deadline owns only one timer.
+ */
 export function CooldownReason({
     until,
+    remainingSeconds,
     messageKey = 'errors.check_cooldown_reason',
 }: {
     until: string | null;
+    remainingSeconds: number;
     messageKey?:
         | 'errors.check_cooldown_reason'
         | 'errors.backup.cooldown_reason';
 }) {
     const { t } = useTranslation();
     const format = useFormat();
-    const { active, remainingSeconds } = useCooldown(until);
 
-    if (!active || !until) return null;
+    if (!until || remainingSeconds <= 0) return null;
 
     const wait =
         remainingSeconds < 60

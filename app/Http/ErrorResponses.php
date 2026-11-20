@@ -20,8 +20,9 @@ use Throwable;
 /**
  * Centralized web and Inertia error rendering policy.
  *
- * Expected refusals keep users in place (Inertia flash + back, JSON envelope for useHttpRequest, or in-shell
- * Inertia page for direct signed-in GETs). Unexpected 500/503 faults, disabled-account 401s, and guest error
+ * Expected refusals keep users in place (Inertia failure redirect + flash toast + `_refusal` error so onSuccess
+ * callbacks never discard drafts or close sheets; JSON envelope for useHttpRequest; in-shell Inertia page for
+ * direct signed-in GETs). Unexpected 500/503 faults, disabled-account 401s, accounts without a role, and guest error
  * responses stay on the zero-DB, zero-JS standalone Blade template.
  */
 final class ErrorResponses
@@ -32,6 +33,9 @@ final class ErrorResponses
     /** @var list<int> */
     private const array InShellStatuses = [403, 404, 410, 413, 429];
 
+    /** Query parameters owned by partial-reload group expansions that should be stripped when a group is pruned. */
+    private const array StalePartialQueryKeys = ['group', 'event_page', 'notification_group', 'notification_before', 'notification_before_id'];
+
     public static function renderExpectedRefusal(ExpectedRefusal $refusal, Request $request): ?Response
     {
         if ($request->is('api/*')) {
@@ -41,13 +45,28 @@ final class ErrorResponses
         self::resolveLocale($request, $refusal->status);
         $message = $refusal->translatedMessage();
         $headers = $refusal->headers();
+        if ($refusal->status === 401 && $refusal->errorCode === 'account_disabled') {
+            $headers['X-Heptapod-Auth-Error'] = 'account_disabled';
+        }
 
         if ($request->expectsJson() && ! self::isInertia($request)) {
             return response()->json([
                 'message' => $message,
                 ...($refusal->errorCode !== null ? ['code' => $refusal->errorCode] : []),
                 ...($refusal->retryAfterSeconds !== null ? ['retry_after' => max(1, $refusal->retryAfterSeconds)] : []),
+                // Inertia's useHttp consumes every 422 as validation and drops top-level message; carry `_refusal` so
+                // useHttpRequest unwraps it into HttpRefusalError without losing the server's localized reason.
+                ...($refusal->status === 422 ? ['errors' => ['_refusal' => [$message]]] : []),
             ], $refusal->status, $headers);
+        }
+
+        // Disabled-account 401 already invalidated the session; never redirect/flash, let respond() render standalone Blade 401.
+        if ($refusal->status === 401) {
+            return response('', 401, $headers);
+        }
+
+        if (self::isPartialReload($request)) {
+            return self::redirectCleanPartial($request, $refusal->tone, $message);
         }
 
         if (self::isInertia($request) && ! $request->isMethod('GET') && ! $request->isMethod('HEAD')) {
@@ -95,8 +114,10 @@ final class ErrorResponses
             return response()->json(['message' => $message, 'code' => 'payload_too_large'], 413);
         }
 
-        if (self::isInertia($request) && ! $request->isMethod('GET') && ! $request->isMethod('HEAD')) {
-            return self::flashBack($request, 'warning', $message);
+        // ValidatePostSize runs before StartSession, so a session flash redirect would drop the warning.
+        // Returning a real 413 lets app.tsx's httpException handler show the warning toast and keep the form open.
+        if (self::isInertia($request)) {
+            return response('', 413);
         }
 
         return null;
@@ -118,11 +139,23 @@ final class ErrorResponses
             return $response;
         }
 
-        // Inertia 419 CSRF expiry: bounce back so HandleInertiaRequests supplies a fresh token while preserveState keeps form inputs.
+        // Inertia 419 CSRF expiry: bounce back on Inertia's failure path (non-empty errors bag) so onSuccess never
+        // discards drafts or resets forms, while HandleInertiaRequests supplies a fresh CSRF token.
         if ($status === 419 && self::isInertia($request)) {
             self::resolveLocale($request, 419);
 
             return self::flashBack($request, 'warning', self::text('errors.419.refreshed'));
+        }
+
+        // Stale partial reload (e.g. expanding a pruned Activity or Incident delivery group): keep the feed and refresh.
+        if (in_array($status, [403, 404, 410], true) && self::isPartialReload($request)) {
+            self::resolveLocale($request, $status);
+
+            return self::redirectCleanPartial(
+                $request,
+                $status === 403 ? 'error' : 'warning',
+                self::text($status === 403 ? 'errors.403.action' : 'errors.404.action'),
+            );
         }
 
         // Stale-tab Inertia mutation hitting 403 or 404: keep user in place and refresh props instead of opening an error modal.
@@ -156,7 +189,7 @@ final class ErrorResponses
         );
 
         // Signed-in healthy GET dead ends stay inside AppLayout so sidebar navigation and ⌘K remain reachable.
-        // Roleless or disabled accounts have no valid shell (ShellHealthReader requires a role), so they keep zero-DB Blade.
+        // Accounts without a role or disabled accounts have no valid shell (ShellHealthReader requires a role), so they keep zero-DB Blade.
         $user = $signedIn ? $request->user() : null;
         if (
             $signedIn
@@ -179,10 +212,18 @@ final class ErrorResponses
             );
             /** @var array<string, mixed> $props */
             $props = $pageData->toArray();
-            $rendered = $exceptionResponse
-                ->render('errors/show', $props)
-                ->withSharedData()
-                ->toResponse($request);
+            // ExceptionResponse::toResponse() sets a version closure capturing $request on Inertia's singleton factory;
+            // Octane's PrepareInertiaForNextOperation only flushes shared props, so reset all request-derived state here.
+            try {
+                $rendered = $exceptionResponse
+                    ->render('errors/show', $props)
+                    ->withSharedData()
+                    ->toResponse($request);
+            } finally {
+                Inertia::flushShared();
+                Inertia::version(null);
+                Inertia::setRootView('app');
+            }
 
             foreach (['Retry-After', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'] as $header) {
                 if ($response->headers->has($header)) {
@@ -211,7 +252,21 @@ final class ErrorResponses
         Inertia::flash('toast', ['type' => $type, 'message' => $message]);
         $status = in_array($request->method(), ['PUT', 'PATCH', 'DELETE'], true) ? 303 : 302;
 
-        return redirect()->back(status: $status, fallback: route('sites.index'));
+        // Attach `_refusal` to the Inertia error bag so refused writes always follow Inertia's failure path (onError),
+        // never onSuccess (which would clear unsaved drafts, reset forms, or close open sheets).
+        return redirect()
+            ->back(status: $status, fallback: route('sites.index'))
+            ->withErrors(['_refusal' => $message]);
+    }
+
+    /** @param 'info'|'warning'|'error' $type */
+    private static function redirectCleanPartial(Request $request, string $type, string $message): RedirectResponse
+    {
+        Inertia::flash('toast', ['type' => $type, 'message' => $message]);
+        $query = array_diff_key($request->query(), array_flip(self::StalePartialQueryKeys));
+        $target = $request->url().($query === [] ? '' : '?'.http_build_query($query));
+
+        return redirect()->to($target, status: 302);
     }
 
     private static function resolveLocale(Request $request, int $status): void
@@ -297,6 +352,11 @@ final class ErrorResponses
     private static function isInertia(Request $request): bool
     {
         return $request->headers->has('X-Inertia');
+    }
+
+    private static function isPartialReload(Request $request): bool
+    {
+        return self::isInertia($request) && $request->headers->has('X-Inertia-Partial-Component');
     }
 
     /** @param array<mixed, mixed> $headers */

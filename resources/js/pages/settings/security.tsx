@@ -47,13 +47,14 @@ export default function Security(props: Props) {
                         options={{
                             preserveScroll: true,
                         }}
-                        resetOnError={[
-                            'password',
-                            'password_confirmation',
-                            'current_password',
-                        ]}
                         resetOnSuccess
                         onError={(errors) => {
+                            if (errors.password || errors.current_password) {
+                                if (passwordInput.current)
+                                    passwordInput.current.value = '';
+                                if (currentPasswordInput.current)
+                                    currentPasswordInput.current.value = '';
+                            }
                             if (errors.password) {
                                 passwordInput.current?.focus();
                             }
@@ -151,6 +152,7 @@ export default function Security(props: Props) {
                                             }
                                         />
                                     </div>
+                                    <InputError message={errors._refusal} />
                                 </FormSection>
                                 <FormActions
                                     status={

@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Psr\Http\Client\NetworkExceptionInterface;
 use Pusher\ApiErrorException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -58,6 +60,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         // Validation redirects flash input into the session; third-party secrets must never be flashed.
         $exceptions->dontFlash(['ohdear_token']);
+        // Report 5xx HttpExceptions (including abort(500)/abort(503) and maintenance outages) while keeping 4xx silent.
+        $exceptions->stopIgnoring(HttpException::class);
+        $exceptions->dontReportWhen(static fn (Throwable $exception): bool => $exception instanceof HttpExceptionInterface && $exception->getStatusCode() < 500);
         $exceptions->throttle(fn (ApiErrorException $exception): ?Limit => $exception->getCode() === 0 && $exception->getPrevious() instanceof NetworkExceptionInterface
             ? Limit::perMinute(1)->by('live:reverb:transport') : null);
         $exceptions->render(fn (AuthenticationException $exception, Request $request): ?\Illuminate\Http\JsonResponse => $request->is('api/*') ? response()->json(['error' => __('Unauthenticated.')], 401) : null);

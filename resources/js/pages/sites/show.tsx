@@ -155,7 +155,11 @@ export default function SiteShow(page: SitePage) {
           );
     const uptimeCheck = site.checks.find((check) => check.key === 'uptime');
     const cooldownUntil = isCheck ? (page.cooldown_until ?? null) : null;
-    const { active: inCooldown } = useCooldown(cooldownUntil);
+    const { active: inCooldown, remainingSeconds: cooldownSeconds } =
+        useCooldown(cooldownUntil);
+    const checkActionErrors = Object.entries(errors)
+        .filter(([key]) => key !== '_refusal')
+        .map(([, message]) => message);
     const runAction =
         isCheck &&
         page.can_run &&
@@ -212,15 +216,24 @@ export default function SiteShow(page: SitePage) {
                               : 'Turn on',
                     )}
                 </Button>
-                {Object.values(errors).map((message, index) => (
+                {checkActionErrors.map((message, index) => (
                     <InputError key={index} message={message} />
                 ))}
                 {page.check.enabled && activeRun && (
                     <RunCheckReason run={activeRun} />
                 )}
                 {page.check.enabled && !activeRun && inCooldown && (
-                    <CooldownReason until={cooldownUntil} />
+                    <CooldownReason
+                        until={cooldownUntil}
+                        remainingSeconds={cooldownSeconds}
+                    />
                 )}
+            </div>
+        ) : checkActionErrors.length > 0 ? (
+            <div className="space-y-1">
+                {checkActionErrors.map((message, index) => (
+                    <InputError key={index} message={message} />
+                ))}
             </div>
         ) : null;
     return (

@@ -28,8 +28,8 @@ async function catchUpSinceRender() {
             throw new Error(`Live change check failed: ${response.status}`);
         }
         ({ changed } = (await response.json()) as { changed: boolean });
-    } catch (error: unknown) {
-        console.error(error);
+    } catch {
+        setStreamStatus('lost');
     } finally {
         if (changed) {
             router.flushAll();

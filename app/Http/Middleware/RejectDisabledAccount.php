@@ -6,6 +6,7 @@ namespace Heptapod\Http\Middleware;
 
 use Closure;
 use Heptapod\Actions\RecordUserActivity;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,7 +24,16 @@ final readonly class RejectDisabledAccount
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
-            abort(401);
+
+            throw new ExpectedRefusal(
+                status: 401,
+                messageKey: 'errors.401.description',
+                errorCode: 'account_disabled',
+                tone: 'error',
+                titleKey: 'errors.401.title',
+                recoveryRoute: 'login',
+                recoveryLabelKey: 'Sign in',
+            );
         }
 
         if ($user instanceof User) {

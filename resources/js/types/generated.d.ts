@@ -1782,6 +1782,7 @@ readonly check_type: Heptapod.Contracts.CheckKey,
 readonly queue: string,
 readonly maximum_seconds: number,
 readonly available: boolean,
+readonly cooldown_until: string | null,
 };
 export type RunRowData = {
 readonly id: number,
@@ -2159,6 +2160,7 @@ has_active_run: boolean,
 schedule_utc: string,
 retention: Record<string, number | null>,
 uses_default_retention: boolean,
+cooldown_until: string | null,
 observed_at: string,
 } | null,
 };

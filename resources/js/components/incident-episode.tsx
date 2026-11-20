@@ -139,7 +139,8 @@ export function IncidentEpisode({
         page.header.state !== 'paused';
     const activeRun = useCheckRun(check?.id ?? 0, check?.run);
     const cooldownUntil = page.cooldown_until ?? null;
-    const { active: inCooldown } = useCooldown(cooldownUntil);
+    const { active: inCooldown, remainingSeconds: cooldownSeconds } =
+        useCooldown(cooldownUntil);
     const [runPending, setRunPending] = useState(false);
     const [now, setNow] = useState(Date.now());
     const [actionsOpen, setActionsOpen] = useState(false);
@@ -478,10 +479,15 @@ export function IncidentEpisode({
                             </Button>
                             {activeRun && <RunCheckReason run={activeRun} />}
                             {!activeRun && inCooldown && (
-                                <CooldownReason until={cooldownUntil} />
+                                <CooldownReason
+                                    until={cooldownUntil}
+                                    remainingSeconds={cooldownSeconds}
+                                />
                             )}
                             <InputError message={errors.check} />
                         </div>
+                    ) : errors.check ? (
+                        <InputError message={errors.check} />
                     ) : undefined
                 }
                 secondaryActions={

@@ -38,7 +38,7 @@
     "errors.429.retry_in": "Zu viele Anfragen. Bitte versuchen Sie es :wait erneut.",
     "errors.500.title": "Ein Fehler ist aufgetreten",
     "errors.500.description": "Heptapod konnte diese Anfrage nicht abschließen. Bitte versuchen Sie es später erneut.",
-    "errors.500.action": "Auf dem Server ist ein Fehler aufgetreten. Ihre Änderung wurde nicht gespeichert — bitte versuchen Sie es später erneut.",
+    "errors.500.action": "Auf dem Server ist ein Fehler aufgetreten. Prüfen Sie vor einem erneuten Versuch, ob Ihre Änderung übernommen wurde.",
     "errors.503.title": "Vorübergehend nicht verfügbar",
     "errors.503.description": "Heptapod ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut.",
     "errors.503.action": "Heptapod ist vorübergehend nicht verfügbar. Warten Sie einen Moment und versuchen Sie es erneut.",
@@ -69,5 +69,9 @@
     "errors.two_factor.qr_failed": "Der QR-Code konnte nicht geladen werden. Versuchen Sie es erneut.",
     "errors.two_factor.key_failed": "Der Einrichtungsschlüssel konnte nicht geladen werden. Versuchen Sie es erneut.",
     "errors.two_factor.recovery_failed": "Die Wiederherstellungscodes konnten nicht geladen werden. Versuchen Sie es erneut.",
-    "errors.clipboard_unavailable": "Konnte nicht automatisch kopiert werden. Markieren und kopieren Sie den Wert manuell."
+    "errors.clipboard_unavailable": "Konnte nicht automatisch kopiert werden. Markieren und kopieren Sie den Wert manuell.",
+    "errors.activity.group_pruned": "Diese zusammengefasste Gruppe ist nicht mehr gespeichert. Die Ansicht wurde aktualisiert.",
+    "errors.logo_load_failed": "Die Vorschau des gespeicherten Logos konnte nicht geladen werden. Aktualisieren Sie die Seite und versuchen Sie es erneut.",
+    "errors.run_poll_failed": "Der Status des Prüflaufs konnte nach der Wiederverbindung nicht geprüft werden. Aktualisieren Sie die Seite.",
+    "errors.run_all_cooldown": "Abkühlzeit bis :time"
 }

@@ -12,6 +12,7 @@ import { HttpError } from '@inertiajs/core';
 import { Head, usePage } from '@inertiajs/react';
 import {
     httpErrorMessage,
+    httpErrorRetryAfter,
     httpErrorStatus,
     useHttpRequest,
 } from '@/hooks/use-http-request';
@@ -95,22 +96,17 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
     const active =
         Boolean(backups?.has_active_run) ||
         (acceptedId !== null && acceptedRun === undefined);
-    const latestOwnRun = backups?.runs.find(
-        (run) => run.requested_by === auth.user?.id,
-    );
-    const derivedCooldownUntil = latestOwnRun
-        ? new Date(
-              Date.parse(latestOwnRun.requested_at) + 300_000,
-          ).toISOString()
-        : null;
+    const serverCooldownUntil = backups?.cooldown_until ?? null;
     const backupCooldownUntil =
         cooldownOverrideUntil &&
-        (!derivedCooldownUntil ||
-            Date.parse(cooldownOverrideUntil) >
-                Date.parse(derivedCooldownUntil))
+        (!serverCooldownUntil ||
+            Date.parse(cooldownOverrideUntil) > Date.parse(serverCooldownUntil))
             ? cooldownOverrideUntil
-            : derivedCooldownUntil;
-    const { active: backupInCooldown } = useCooldown(backupCooldownUntil);
+            : serverCooldownUntil;
+    const {
+        active: backupInCooldown,
+        remainingSeconds: backupCooldownSeconds,
+    } = useCooldown(backupCooldownUntil);
     const timestamp = (value: string | null) =>
         value === null ? t('Unknown') : <AbsoluteTime value={value} />;
     const refresh = async () => {
@@ -158,9 +154,12 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
             if (!(error instanceof HttpError)) throw error;
             const code = httpErrorStatus(error);
             if (code === 429) {
-                setCooldownOverrideUntil(
-                    new Date(Date.now() + 300_000).toISOString(),
-                );
+                const retryAfter = httpErrorRetryAfter(error);
+                if (retryAfter !== null) {
+                    setCooldownOverrideUntil(
+                        new Date(Date.now() + retryAfter * 1000).toISOString(),
+                    );
+                }
             }
             setBackupError(httpErrorMessage(error, t, 'errors.backup.unknown'));
             if (code !== 429) setRefreshFailed(true);
@@ -492,6 +491,7 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                             {backupInCooldown && !active ? (
                                 <CooldownReason
                                     until={backupCooldownUntil}
+                                    remainingSeconds={backupCooldownSeconds}
                                     messageKey="errors.backup.cooldown_reason"
                                 />
                             ) : (

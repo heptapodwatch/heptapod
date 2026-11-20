@@ -6,7 +6,7 @@ import { StatusBadge } from '@/components/monitoring';
 import { PageHeader } from '@/components/page-header';
 import { show as checkShow } from '@/routes/sites/checks';
 import { Head, usePage } from '@inertiajs/react';
-import { useHttpRequest } from '@/hooks/use-http-request';
+import { httpErrorMessage, useHttpRequest } from '@/hooks/use-http-request';
 import { Layers } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { useEffect, useState } from 'react';
@@ -111,12 +111,12 @@ export default function System({ systemPage }: { systemPage: Page }) {
     const { t } = useTranslation();
     const { number, timestamp, exact, duration } = useFormat();
     const [page, setPage] = useState(systemPage);
-    const [failed, setFailed] = useState(false);
+    const [refreshError, setRefreshError] = useState<string | null>(null);
     const [now, setNow] = useState(() => Date.now());
     const query = useHttpRequest<Record<string, never>, Page>();
     useEffect(() => {
         setPage(systemPage);
-        setFailed(false);
+        setRefreshError(null);
     }, [systemPage]);
     useEffect(() => {
         const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -128,10 +128,16 @@ export default function System({ systemPage }: { systemPage: Page }) {
                 `${readData.url()}${window.location.search}`,
             );
             setPage(canonical);
-            setFailed(false);
-        } catch {
+            setRefreshError(null);
+        } catch (error: unknown) {
             // A failed read preserves the last observation and explicitly marks it unverified.
-            setFailed(true);
+            setRefreshError(
+                httpErrorMessage(
+                    error,
+                    t,
+                    'The previous snapshot is shown; try Refresh again.',
+                ),
+            );
         }
     };
     const health = page.health;
@@ -173,15 +179,13 @@ export default function System({ systemPage }: { systemPage: Page }) {
                 description={t('pages.system.description')}
                 notices={
                     <>
-                        {failed && (
+                        {refreshError !== null && (
                             <Alert tone="warning">
                                 <AlertTitle>
                                     {t('Could not refresh system health.')}
                                 </AlertTitle>
                                 <AlertDescription>
-                                    {t(
-                                        'The previous snapshot is shown; try Refresh again.',
-                                    )}
+                                    {refreshError}
                                 </AlertDescription>
                             </Alert>
                         )}

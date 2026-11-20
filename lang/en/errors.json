@@ -38,7 +38,7 @@
     "errors.429.retry_in": "Too many requests. Please try again :wait.",
     "errors.500.title": "Something went wrong",
     "errors.500.description": "Heptapod could not complete this request. Please try again later.",
-    "errors.500.action": "Something went wrong on the server. Your change was not saved — please try again later.",
+    "errors.500.action": "Something went wrong on the server. Check whether your change was applied before trying again.",
     "errors.503.title": "Temporarily unavailable",
     "errors.503.description": "Heptapod is temporarily unavailable. Please try again later.",
     "errors.503.action": "Heptapod is temporarily unavailable. Wait a moment and try again.",
@@ -69,5 +69,9 @@
     "errors.two_factor.qr_failed": "Could not load the QR code. Try again.",
     "errors.two_factor.key_failed": "Could not load the setup key. Try again.",
     "errors.two_factor.recovery_failed": "Could not load recovery codes. Try again.",
-    "errors.clipboard_unavailable": "Could not copy automatically. Select and copy the value manually."
+    "errors.clipboard_unavailable": "Could not copy automatically. Select and copy the value manually.",
+    "errors.activity.group_pruned": "This collapsed group is no longer retained. The view has been refreshed.",
+    "errors.logo_load_failed": "Could not load the saved logo preview. Refresh the page and try again.",
+    "errors.run_poll_failed": "Could not verify the run status after reconnecting. Refresh the page to check.",
+    "errors.run_all_cooldown": "In cooldown until :time"
 }

@@ -85,6 +85,8 @@ $rawButtonOwners = [
 $actionErrorKeys = [
     'resources/js/components/incident-episode.tsx' => 'check', // Run check refused (api.run_unavailable): the header action's result.
     'resources/js/pages/sites/settings.tsx' => 'icon', // Refresh icon refused (unavailable / throttled): the Refresh button's result.
+    'resources/js/pages/sites/create.tsx' => '_refusal', // Shared non-field Inertia refusal message from ErrorResponses::flashBack.
+    'resources/js/pages/settings/security.tsx' => '_refusal', // Shared non-field Inertia refusal message from ErrorResponses::flashBack.
 ];
 /** Per file: the one destructive-coloured paragraph (keyed by a snippet of its className) that is not an inline error. Every other text-destructive <p> must be InputError. */
 $destructiveTextExceptions = [];

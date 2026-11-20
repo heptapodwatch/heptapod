@@ -75,11 +75,15 @@ final readonly class SiteDetailReader
 
     public function site(User $user, int $siteId): SiteRowData
     {
+        return $this->sites->rows(collect([$this->storedSite($user, $siteId)]))[0];
+    }
+
+    private function storedSite(User $user, int $siteId): Site
+    {
         $query = $this->sites->projected($user, includeArchived: true);
         $query->getQuery()->where('sites.id', $siteId);
-        $site = $query->firstOrFail();
 
-        return $this->sites->rows(collect([$site]))[0];
+        return $query->firstOrFail();
     }
 
     public function header(User $user, int $siteId): SiteIdentityData
@@ -119,15 +123,16 @@ final readonly class SiteDetailReader
 
         $checksQuery = Check::query();
         $checksQuery->getQuery()->where('site_id', $siteId)->orderBy('id');
+        $checks = array_values($checksQuery->get()->all());
 
         return new SiteSettingsPageData($site, $this->client($user, $site),
             $stored->resume_at?->toIso8601String(), DB::table('checks')->where('site_id', $siteId)->count(),
             DB::table('incidents')->where('site_id', $siteId)->count(),
             AlertSensitivityData::fromEffective(EffectiveAlertSensitivity::for($stored, $this->instanceSettings)),
             AlertSensitivityData::fromEffective(EffectiveAlertSensitivity::team($this->instanceSettings)),
-            AlertSensitivityData::presets(), AlertSensitivity::bounds(), Lazy::inertia(fn (): int => $this->resultCount($user, $siteId)), $this->runAllChecks($site),
+            AlertSensitivityData::presets(), AlertSensitivity::bounds(), Lazy::inertia(fn (): int => $this->resultCount($user, $siteId)), $this->runAllChecks($site, $checks),
             $this->maintenance($user, $siteId), $stored->icon_fetched_at?->toIso8601String(), $stored->icon_manual_result, $redirectTarget, $redirectSummary, $this->sites->clientChoices($user), \DateTimeZone::listIdentifiers(),
-            $this->checkSettings($site, array_values($checksQuery->get()->all()), static fn (Check $check): bool => Gate::forUser($user)->allows('update', $check)),
+            $this->checkSettings($site, $checks, static fn (Check $check): bool => Gate::forUser($user)->allows('update', $check)),
             array_map(fn (CheckKey $key): CheckOptionData => CheckOptionData::fromType($this->registry->get($key)), $this->registry->keys()),
             SiteRepositoryData::forSite($siteId));
     }
@@ -218,7 +223,7 @@ final readonly class SiteDetailReader
                 return $this->incidents->presentedRows($query->get());
             }),
             client: Lazy::closure(static fn (): ClientData => $getClient()),
-            run_all_checks: Lazy::closure(fn (): array => $this->runAllChecks($site)),
+            run_all_checks: Lazy::closure(fn (): array => $this->runAllChecks($site, $storedSite->checks)),
             can_manage: Lazy::closure(static fn (): bool => $getClient()->archived_at === null && $user->hasAnyRole(['Owner', 'Admin'])),
             uptime_ranges: Lazy::closure(fn (): array => $this->uptimeRanges($site, $getHistory()['uptime_percentage'])),
             run_all_result: Lazy::closure(static function (): ?array {
@@ -296,16 +301,26 @@ final readonly class SiteDetailReader
     }
 
     /** @return list<RunAllCheckData> */
-    private function runAllChecks(SiteRowData $site): array
+    /**
+     * @param  iterable<int, Check>  $storedChecks
+     * @return list<RunAllCheckData>
+     */
+    private function runAllChecks(SiteRowData $site, iterable $storedChecks = []): array
     {
+        $byId = [];
+        foreach ($storedChecks as $model) {
+            $byId[$model->id] = $model;
+        }
         $checks = [];
         foreach ($site->checks as $check) {
             if (! $check->enabled || ! in_array($check->key, $this->registry->keys(), true)) {
                 continue;
             }
             $definition = $this->registry->get($check->key)->definition();
+            $model = $byId[$check->id] ?? null;
+            $cooldownUntil = $model instanceof Check ? $this->claims->cooldownUntil($model)?->toIso8601String() : null;
             $checks[] = new RunAllCheckData($check->id, $check->key, $definition->queue, $definition->timeout,
-                $this->registry->availability($check->key)->reason === null);
+                $this->registry->availability($check->key)->reason === null, $cooldownUntil);
         }
 
         return $checks;
@@ -324,7 +339,8 @@ final readonly class SiteDetailReader
 
     public function checkPage(User $user, int $siteId, int $checkId): CheckTabPageData
     {
-        $site = $this->site($user, $siteId);
+        $storedSite = $this->storedSite($user, $siteId);
+        $site = $this->sites->rows(collect([$storedSite]))[0];
         $checkQuery = Check::query();
         $checkQuery->getQuery()->where('site_id', $siteId)->where('id', $checkId);
         $check = $checkQuery->firstOrFail();
@@ -383,7 +399,7 @@ final readonly class SiteDetailReader
             response_p95_hourly: Lazy::closure(static fn (): ?MetricSeriesData => $getHourly()['p95'] ?? null),
             client: Lazy::closure(fn (): ClientData => $this->client($user, $site)),
             history: Lazy::closure(fn (): ?CheckHistoryData => $this->checkHistory($user, $check)),
-            run_all_checks: Lazy::closure(fn (): array => $this->runAllChecks($site)),
+            run_all_checks: Lazy::closure(fn (): array => $this->runAllChecks($site, $storedSite->checks)),
             maintenance: Lazy::closure(fn (): ?MaintenanceSiteHeaderData => $this->maintenance($user, $siteId)),
             performance_noise: Lazy::closure(fn (): ?PerformanceNoiseData => $check->type === CheckKey::Performance ? $this->performanceNoise($check, $getRuns()) : null),
             performance_unavailable: Lazy::closure(fn (): ?CheckRunPresentationPartData => $this->performanceAvailability->forCheck($check, $suppression)),

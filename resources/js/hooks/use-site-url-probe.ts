@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { httpResponseMessage } from '@/hooks/use-http-request';
 import { probe as sitesProbe } from '@/routes/sites';
 
 export function useSiteUrlProbe(url: string, auto: boolean, siteId?: number) {
@@ -62,20 +63,18 @@ export function useSiteUrlProbe(url: string, auto: boolean, siteId?: number) {
                 if (!response.ok) {
                     const payload: {
                         message?: string;
+                        code?: string;
                         errors?: Record<string, string[]>;
                     } | null = await response.json().catch(() => null);
                     if (!controller.signal.aborted) {
                         setProbeError(
                             payload?.errors?.url?.[0] ??
-                                (response.status === 401
-                                    ? t('errors.401.session')
-                                    : response.status === 419
-                                      ? t('errors.419.refreshed')
-                                      : response.status >= 400 &&
-                                          response.status < 500 &&
-                                          payload?.message
-                                        ? payload.message
-                                        : t('sites.url_probe_failed')),
+                                httpResponseMessage(
+                                    response.status,
+                                    payload,
+                                    t,
+                                    'sites.url_probe_failed',
+                                ),
                         );
                         setAddressInvalid(response.status === 422);
                         setProbeState('error');

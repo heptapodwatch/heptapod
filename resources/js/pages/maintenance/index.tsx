@@ -228,6 +228,24 @@ export default function MaintenanceIndex({
     const [startsInvalid, setStartsInvalid] = useState(false);
     const [endsInvalid, setEndsInvalid] = useState(false);
     const [processing, setProcessing] = useState(false);
+    const [now, setNow] = useState(() => Date.now());
+    useEffect(() => {
+        const timer = window.setInterval(() => setNow(Date.now()), 15_000);
+        return () => window.clearInterval(timer);
+    }, []);
+    const liveActionAllowed = (
+        window: Window,
+        action: 'update' | 'end_now' | 'cancel_occurrence' | 'cancel_series',
+    ) => {
+        if (!window.actions.includes(action)) return false;
+        if (action === 'update' || action === 'end_now') {
+            return Date.parse(window.endsAt) > now;
+        }
+        if (action === 'cancel_occurrence') {
+            return Date.parse(window.startsAt) > now;
+        }
+        return true;
+    };
     const [confirmation, setConfirmation] = useState<{
         window: Window;
         action: 'end_now' | 'cancel_occurrence' | 'cancel_series';
@@ -699,7 +717,7 @@ export default function MaintenanceIndex({
                                         t('Maintenance window')
                                     }
                                     actions={[
-                                        ...(window.actions.includes('update')
+                                        ...(liveActionAllowed(window, 'update')
                                             ? [
                                                   {
                                                       label: t('Edit'),
@@ -716,7 +734,10 @@ export default function MaintenanceIndex({
                                             ] as const
                                         )
                                             .filter((action) =>
-                                                window.actions.includes(action),
+                                                liveActionAllowed(
+                                                    window,
+                                                    action,
+                                                ),
                                             )
                                             .map((action) => ({
                                                 label: t(
@@ -1304,9 +1325,10 @@ export default function MaintenanceIndex({
                     </div>
                     <InputError
                         message={
-                            Object.keys(errors).length > 0
+                            errors._refusal ??
+                            (Object.keys(errors).length > 0
                                 ? 'Check the highlighted fields and try again.'
-                                : null
+                                : null)
                         }
                     />
                 </SheetForm>

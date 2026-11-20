@@ -1,5 +1,7 @@
 import type { Page } from '@inertiajs/core';
+import i18n from 'i18next';
 import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { onLiveSignal, useStreamState, type RunState } from '@/lib/live-store';
 import { show as attemptShow } from '@/routes/sites/checks/attempts';
 
@@ -127,9 +129,9 @@ export function useRequestedRun(siteId: number, checkId: number | null) {
                 endedAt: attempt.ended_at,
                 result: attempt.result,
             });
-        })().catch((error: unknown) => {
+        })().catch(() => {
             if (!controller.signal.aborted) {
-                console.error(error);
+                toast.warning(i18n.t('errors.run_poll_failed'));
             }
         });
         return () => controller.abort();

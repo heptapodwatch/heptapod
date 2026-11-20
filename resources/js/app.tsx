@@ -86,7 +86,17 @@ router.on('httpException', (event) => {
     event.preventDefault();
     const status = response.status;
     if (status === 401) {
-        toast.error(i18n.t('errors.401.description'), {
+        if (
+            response.headers['x-heptapod-auth-error'] === 'account_disabled' &&
+            typeof response.data === 'string' &&
+            response.data.includes('hp-brand')
+        ) {
+            document.open();
+            document.write(response.data);
+            document.close();
+            return;
+        }
+        toast.error(i18n.t('errors.401.session'), {
             action: {
                 label: i18n.t('Sign in'),
                 onClick: () => window.location.assign('/login'),
