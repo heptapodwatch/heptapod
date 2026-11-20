@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{{ $title ?? __('errors.'.$status.'.title') }} · Heptapod</title>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-        @vite('resources/css/app.css')
+        @vite(['resources/css/app.css', 'resources/js/error-mark.ts'])
         <style>
             @media (prefers-color-scheme: dark) {
                 html:not([data-appearance="light"]):not(.dark) {
@@ -23,16 +23,17 @@
     <body class="bg-background font-sans text-foreground antialiased">
         <main class="flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
             <div class="flex w-full max-w-sm flex-col items-center gap-6 text-center">
-                {{-- The static AppLogo lockup uses the same mark geometry and wordmark CSS without booting React. --}}
-                <span class="hp-brand [--brand-mark-h:28px]" role="img" aria-label="Heptapod">
+                {{-- The static AppLogo lockup uses the same mark geometry and wordmark CSS without booting React;
+                     the tiny Vite-bundled error-mark script progressively plays the curated error deck on load/hover. --}}
+                <span class="hp-brand rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring [--brand-mark-h:28px]" tabindex="0" role="img" aria-label="Heptapod" data-error-mark="{{ $status }}">
                     <svg class="hp-mark" data-state="still" viewBox="33.5 19.5 53 81" aria-hidden="true" focusable="false">
-                        <rect class="hp-seg hp-a" rx="6.5" x="49" y="19.5" width="22" height="13" />
-                        <rect class="hp-seg hp-b" data-lit rx="6.5" x="73.5" y="28.5" width="13" height="29" />
-                        <rect class="hp-seg hp-c" data-lit rx="6.5" x="73.5" y="62.5" width="13" height="29" />
-                        <rect class="hp-seg hp-d" rx="6.5" x="49" y="87.5" width="22" height="13" />
-                        <rect class="hp-seg hp-e" data-lit rx="6.5" x="33.5" y="62.5" width="13" height="29" />
-                        <rect class="hp-seg hp-f" data-lit rx="6.5" x="33.5" y="28.5" width="13" height="29" />
-                        <rect class="hp-seg hp-g" data-lit rx="6.5" x="49" y="53.5" width="22" height="13" />
+                        <rect data-seg="a" class="hp-seg hp-a" rx="6.5" x="49" y="19.5" width="22" height="13" />
+                        <rect data-seg="b" class="hp-seg hp-b" data-lit rx="6.5" x="73.5" y="28.5" width="13" height="29" />
+                        <rect data-seg="c" class="hp-seg hp-c" data-lit rx="6.5" x="73.5" y="62.5" width="13" height="29" />
+                        <rect data-seg="d" class="hp-seg hp-d" rx="6.5" x="49" y="87.5" width="22" height="13" />
+                        <rect data-seg="e" class="hp-seg hp-e" data-lit rx="6.5" x="33.5" y="62.5" width="13" height="29" />
+                        <rect data-seg="f" class="hp-seg hp-f" data-lit rx="6.5" x="33.5" y="28.5" width="13" height="29" />
+                        <rect data-seg="g" class="hp-seg hp-g" data-lit rx="6.5" x="49" y="53.5" width="22" height="13" />
                     </svg>
                     <span class="hp-word" aria-hidden="true"></span>
                 </span>

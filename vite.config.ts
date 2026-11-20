@@ -12,7 +12,11 @@ export default defineConfig(({ command }) => ({
     base: command === 'serve' ? '/vite/' : '/build/',
     plugins: lazyPlugins(() => [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.tsx'],
+            input: [
+                'resources/css/app.css',
+                'resources/js/app.tsx',
+                'resources/js/error-mark.ts',
+            ],
             refresh: true,
         }),
         inertia(),
@@ -74,6 +78,8 @@ export default defineConfig(({ command }) => ({
             // Generated laravel-data types are checked by regeneration, not lint.
             'resources/js/types/generated*',
             'resources/js/lib/cn-tables.ts',
+            // Synced verbatim from heptapod.studio/mark by scripts/sync-mark-errors.mjs.
+            'resources/js/lib/mark-errors/**',
         ],
         options: {
             denyWarnings: true,
@@ -109,6 +115,7 @@ export default defineConfig(({ command }) => ({
             'resources/js/wayfinder/**',
             'resources/js/types/generated*',
             'resources/js/lib/cn-tables.ts',
+            'resources/js/lib/mark-errors/**',
             'resources/js/components/ui/*',
             'resources/views/mail/*',
         ],

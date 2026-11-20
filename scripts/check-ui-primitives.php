@@ -199,7 +199,10 @@ foreach (['resources/js', 'addons'] as $base) {
             continue;
         }
         // Generated route helpers and class-merge tables contain no UI.
-        if (preg_match('~^resources/js/(actions|routes|wayfinder)/~', $path) === 1 || $path === 'resources/js/lib/cn-tables.ts') {
+        if (
+            preg_match('~^resources/js/(actions|routes|wayfinder|lib/mark-errors)/~', $path) === 1
+            || $path === 'resources/js/lib/cn-tables.ts'
+        ) {
             continue;
         }
         $files[] = $path;
