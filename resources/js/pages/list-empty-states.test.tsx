@@ -269,6 +269,9 @@ function upcoming(changes: {
     render(
         <UpcomingIndex
             items={[]}
+            next_page_url={null}
+            previous_page_url={null}
+            per_page={50}
             days="90"
             type="all"
             clients={[]}

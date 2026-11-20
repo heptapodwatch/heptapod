@@ -613,7 +613,6 @@
     "Since you last looked": "Seit Ihrem letzten Besuch",
     "Nothing scheduled in the next 90 days.": "Keine Termine in den nächsten 90 Tagen.",
     "Up to 12 months ahead.": "Bis zu 12 Monate im Voraus.",
-    "Showing the first 100 dates.": "Die ersten 100 Termine werden angezeigt.",
     "Nothing scheduled in this range.": "Keine Termine in diesem Zeitraum.",
     "Tasks": "Aufgaben",
     "Last 7 days": "Letzte 7 Tage",
@@ -816,5 +815,7 @@
     "{{count}} events_one": "{{formattedCount}} Ereignis",
     "{{count}} events_other": "{{formattedCount}} Ereignisse",
     "findings.count_one": "{{formattedCount}} Fundstelle",
-    "findings.count_other": "{{formattedCount}} Fundstellen"
+    "findings.count_other": "{{formattedCount}} Fundstellen",
+    "upcoming.count_one": "{{formattedCount}} Termin auf dieser Seite",
+    "upcoming.count_other": "{{formattedCount}} Termine auf dieser Seite"
 }

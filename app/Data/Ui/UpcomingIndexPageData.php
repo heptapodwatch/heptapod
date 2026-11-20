@@ -16,6 +16,9 @@ final class UpcomingIndexPageData extends Data
      */
     public function __construct(
         public readonly array $items,
+        public readonly ?string $next_page_url,
+        public readonly ?string $previous_page_url,
+        public readonly int $per_page,
         public readonly string $days,
         public readonly string $type,
         public readonly ?int $client_id,

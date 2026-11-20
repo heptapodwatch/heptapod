@@ -613,7 +613,6 @@
     "Since you last looked": "Since you last looked",
     "Nothing scheduled in the next 90 days.": "Nothing scheduled in the next 90 days.",
     "Up to 12 months ahead.": "Up to 12 months ahead.",
-    "Showing the first 100 dates.": "Showing the first 100 dates.",
     "Nothing scheduled in this range.": "Nothing scheduled in this range.",
     "Tasks": "Tasks",
     "Last 7 days": "Last 7 days",
@@ -816,5 +815,7 @@
     "{{count}} events_one": "{{formattedCount}} event",
     "{{count}} events_other": "{{formattedCount}} events",
     "findings.count_one": "{{formattedCount}} finding",
-    "findings.count_other": "{{formattedCount}} findings"
+    "findings.count_other": "{{formattedCount}} findings",
+    "upcoming.count_one": "{{formattedCount}} date on this page",
+    "upcoming.count_other": "{{formattedCount}} dates on this page"
 }

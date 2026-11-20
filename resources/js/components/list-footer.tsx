@@ -28,6 +28,7 @@ export function ListFooter({
     pagination,
     only,
     next,
+    previous,
     extra,
     pageSize,
 }: {
@@ -36,8 +37,9 @@ export function ListFooter({
     pagination?: Heptapod.Contracts.PaginationData;
     /** The props a page or size change reloads, for a list that shares its page with others. */
     only?: string[];
-    /** Cursor lists only: the next page (null = disabled). */
+    /** Lists without a total (Runs history, Upcoming): the next page (null = disabled), and the previous one where it exists. */
     next?: PageLink;
+    previous?: PageLink;
     /** A list action beside the pager (Runs: Show newest runs). */
     extra?: ReactNode;
     /** Cursor lists only: the current rows per page; shows the Rows choice. */
@@ -69,7 +71,7 @@ export function ListFooter({
         );
     const previousPage = pagination
         ? pageLink(pagination.previous_page_url)
-        : undefined;
+        : previous;
     const nextPage = pagination ? pageLink(pagination.next_page_url) : next;
     const paged =
         (previousPage ?? null) !== null || (nextPage ?? null) !== null;

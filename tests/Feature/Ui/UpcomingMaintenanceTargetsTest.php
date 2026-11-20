@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Carbon\CarbonImmutable;
 use Heptapod\Actions\GenerateMaintenancePeriods;
 use Heptapod\Enums\ClientScope;
+use Heptapod\Http\ListPageSize;
 use Heptapod\Models\Client;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\RecurringMaintenancePeriod;
@@ -98,7 +99,7 @@ it('bounds target presentation queries', function (int $count): void {
     $response = $this->get('/upcoming?days=14&type=maintenance')->assertOk();
     $queries = DB::getQueryLog();
     DB::disableQueryLog();
-    expect($response->inertiaProps()['items'])->toHaveCount(min($count, 100));
+    expect($response->inertiaProps()['items'])->toHaveCount(min($count, ListPageSize::Default));
     // The page shell includes Running now (visible sites, check runs, imports, backup).
     expect(count($queries))->toBeLessThanOrEqual(24);
 })->with([1, 150]);

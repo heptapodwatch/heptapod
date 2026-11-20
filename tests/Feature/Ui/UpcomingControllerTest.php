@@ -6,6 +6,7 @@ use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CronTaskStore;
 use Heptapod\Enums\ClientScope;
+use Heptapod\Http\ListPageSize;
 use Heptapod\Models\Check;
 use Heptapod\Models\Client;
 use Heptapod\Models\Event;
@@ -147,7 +148,7 @@ it('includes a recurring maintenance window on the next local day within the UTC
         ->assertInertia(fn ($page) => $page->has('items', 30)->where('items.29.date', '2026-11-03T13:00:00+00:00'));
 });
 
-it('bounds All to twelve months and a hundred chronological dates with a stable query budget', function (int $count): void {
+it('bounds All to twelve months and pages its chronological dates with a stable query budget', function (int $count): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-04T00:30:00Z'));
     $user = User::factory()->create();
     $user->assignRole('Owner');
@@ -162,7 +163,7 @@ it('bounds All to twelve months and a hundred chronological dates with a stable 
     $addSites(1);
     DB::enableQueryLog();
     DB::flushQueryLog();
-    $this->get('/upcoming?days=all')->assertOk()->assertInertia(fn ($page) => $page->has('items', 100));
+    $this->get('/upcoming?days=all')->assertOk()->assertInertia(fn ($page) => $page->has('items', 50)->where('per_page', 50));
     $fewQueries = count(DB::getQueryLog());
     DB::disableQueryLog();
     $addSites($count - 1);
@@ -172,7 +173,13 @@ it('bounds All to twelve months and a hundred chronological dates with a stable 
     $queries = DB::getQueryLog();
     DB::disableQueryLog();
 
-    $response->assertOk()->assertInertia(fn ($page) => $page->component('upcoming/index')->has('items', 100)->where('days', 'all'));
+    $response->assertOk()->assertInertia(fn ($page) => $page->component('upcoming/index')->has('items', 50)->where('days', 'all')->where('previous_page_url', null));
+    // The agenda pages in date order: the second page of 100 continues where the first ended, and the size is remembered.
+    $first = $this->get('/upcoming?days=all&per_page=100')->assertCookie(ListPageSize::Cookie, json_encode(['upcoming' => 100]), false)->inertiaProps();
+    $second = $this->get('/upcoming?days=all&per_page=100&page=2')->inertiaProps();
+    expect($first['items'])->toHaveCount(100)->and($second['items'])->toHaveCount(100)
+        ->and($first['next_page_url'])->not->toBeNull()->and($second['previous_page_url'])->not->toBeNull()
+        ->and([$first['items'][99]['date'], $first['items'][99]['key']] <=> [$second['items'][0]['date'], $second['items'][0]['key']])->toBe(-1);
     expect(count($queries))->toBeLessThanOrEqual($fewQueries, 'upcoming grew from '.$fewQueries.' to '.count($queries).' queries as maintenance sites grew from 1 to '.$count);
     // Upper budget: page shell and shell health (25458fc44/0a385128), the bounded maintenance, domain and
     // certificate reads, batched client avatars (36aca5a1a), and the sidebar's late runs count, which every page

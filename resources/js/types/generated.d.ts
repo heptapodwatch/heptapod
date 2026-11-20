@@ -2060,6 +2060,9 @@ readonly settings: Heptapod.Data.Ui.NotificationSettingsPageData,
 };
 export type UpcomingIndexPageData = {
 readonly items: Heptapod.Data.Ui.UpcomingItemData[],
+readonly next_page_url: string | null,
+readonly previous_page_url: string | null,
+readonly per_page: number,
 readonly days: string,
 readonly type: string,
 readonly client_id: number | null,
