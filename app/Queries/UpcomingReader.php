@@ -76,7 +76,8 @@ final readonly class UpcomingReader
                 MaintenanceTargets::whereCoversSiteId($maintenanceQuery->getQuery(), $siteId);
             }
             $this->targets->withSiteCount($maintenanceQuery, $now);
-            $maintenanceQuery->getQuery()->orderBy('starts_at')->orderBy('id')->when($limit !== null, static fn (Builder $query): Builder => $query->limit($limit ?? 0));
+            // Match the final merge's (date, key) string order so expanding limit for page 2 never reorders page 1.
+            $maintenanceQuery->getQuery()->orderBy('starts_at')->orderByRaw('(\'maintenance:\' || id::text) COLLATE "C"')->when($limit !== null, static fn (Builder $query): Builder => $query->limit($limit ?? 0));
             $windows = $maintenanceQuery->get();
             $recurringQuery = RecurringMaintenancePeriod::query();
             $this->maintenance->visibleTargets($recurringQuery, $user, $clientId);
@@ -90,8 +91,12 @@ final readonly class UpcomingReader
                 $items[] = $this->maintenanceItem($period, $period->starts_at, 'maintenance:'.$period->id, $labels, $icons);
             }
             foreach ($series as $period) {
+                $taken = 0;
                 foreach ($this->recurringDates($period, $now, $through) as [$start]) {
                     $items[] = $this->maintenanceItem($period, $start, 'recurring:'.$period->id.':'.$start->timestamp, $labels, $icons);
+                    if ($limit !== null && ++$taken >= $limit) {
+                        break;
+                    }
                 }
                 if ($limit !== null && count($items) > 2 * $limit) {
                     usort($items, static fn (UpcomingItemData $a, UpcomingItemData $b): int => [$a->date, $a->key] <=> [$b->date, $b->key]);
@@ -109,7 +114,10 @@ final readonly class UpcomingReader
                 if (! $source instanceof UpcomingEventSource) {
                     throw new \LogicException('Upcoming source must implement its contract.');
                 }
-                foreach ($source->read($checkIds, $now, $through) as $occurrence) {
+                $occurrences = $limit === null
+                    ? $source->read($checkIds, $now, $through)
+                    : $source->page($checkIds, $now, $through, null, $limit)->occurrences;
+                foreach ($occurrences as $occurrence) {
                     if ($types !== null && ! in_array($occurrence->type, $types, true)) {
                         continue;
                     }

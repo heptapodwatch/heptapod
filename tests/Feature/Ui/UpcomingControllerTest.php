@@ -187,3 +187,23 @@ it('bounds All to twelve months and pages its chronological dates with a stable 
     expect($fewQueries)->toBeLessThanOrEqual(28, 'upcoming used '.$fewQueries.' queries, over its budget of 28');
     expect(collect($response->inertiaProps()['items'])->max('date'))->toBeLessThanOrEqual('2027-10-04T00:30:00+00:00');
 })->with([2, 20]);
+
+it('keeps standalone maintenance pages disjoint when equal start times cross digit boundaries', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-04T00:30:00Z'));
+    $owner = User::factory()->owner()->create();
+    $site = Site::factory()->create();
+    $startsAt = CarbonImmutable::parse('2026-10-10T02:00:00Z');
+    // 15 standalone windows with identical starts_at (IDs crossing 9 -> 10): SQL and merge must use the same key order.
+    foreach (range(1, 15) as $index) {
+        MaintenancePeriod::factory()->create([
+            'site_id' => $site->id, 'target_type' => 'site', 'target_id' => $site->id,
+            'name' => 'Window '.$index, 'starts_at' => $startsAt, 'ends_at' => $startsAt->addHour(),
+        ]);
+    }
+    $page1 = array_column($this->actingAs($owner)->get('/upcoming?type=maintenance&per_page=10&page=1')->assertOk()->inertiaProps()['items'], 'key');
+    $page2 = array_column($this->get('/upcoming?type=maintenance&per_page=10&page=2')->assertOk()->inertiaProps()['items'], 'key');
+
+    expect($page1)->toHaveCount(10)->and($page2)->toHaveCount(5)
+        ->and(array_intersect($page1, $page2))->toBe([])
+        ->and(array_unique([...$page1, ...$page2]))->toHaveCount(15);
+});

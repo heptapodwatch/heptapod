@@ -12,6 +12,7 @@ use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\Client;
 use Heptapod\Models\Event;
+use Heptapod\Models\Incident;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -226,4 +227,44 @@ it('pages uptime recent failures newest first, respects the cookie and keeps per
             ->where('history.recent_failures.1.run_id', $runs[11]->id));
     $this->get($path.'?uptime_failures_per_page=7')->assertSessionHasErrors('uptime_failures_per_page');
     $this->actingAs(User::factory()->create())->get($path.'?uptime_failures_page=2')->assertForbidden();
+});
+
+it('preserves microsecond precision for open uptime incident failure paging', function (): void {
+    $owner = User::factory()->owner()->create();
+    $site = Site::factory()->for(Client::factory())->create();
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::Uptime, 'latest_run_result' => CheckResult::Failed]);
+    $cutoff = CarbonImmutable::parse('2026-10-04T11:55:00.500000Z');
+    // Failure 400ms before the incident cutoff in the exact same second must never enter the incident failure list.
+    $beforeCutoff = CheckRun::factory()->for($check)->create([
+        'result' => RunResult::Failed,
+        'started_at' => $cutoff->subMicroseconds(500000),
+        'ended_at' => $cutoff->subMicroseconds(400000),
+        'evidence' => ['status_code' => 502],
+    ]);
+    $inIncident = collect(range(0, 11))->map(fn (int $step): CheckRun => CheckRun::factory()->for($check)->create([
+        'result' => RunResult::Failed,
+        'started_at' => $cutoff->addSeconds($step)->subMicroseconds(100000),
+        'ended_at' => $cutoff->addSeconds($step),
+        'evidence' => ['status_code' => 503],
+    ]));
+    $incident = Incident::factory()->for($check)->create([
+        'site_id' => $site->id,
+        'first_failure_at' => $cutoff,
+        'opened_at' => $cutoff->addSecond(),
+        'resolved_at' => null,
+    ]);
+
+    $this->actingAs($owner)->get('/incidents/'.$incident->id.'?uptime_failures_per_page=10&uptime_failures_page=2')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('current_findings.recent_failures_pagination.total', 12)
+            ->has('current_findings.recent_failures', 2)
+            ->where('current_findings.recent_failures.0.run_id', $inIncident[1]->id)
+            ->where('current_findings.recent_failures.1.run_id', $inIncident[0]->id));
+
+    $allIds = [
+        ...array_column($this->get('/incidents/'.$incident->id.'?uptime_failures_per_page=10&uptime_failures_page=1')->inertiaProps()['current_findings']['recent_failures'], 'run_id'),
+        ...array_column($this->get('/incidents/'.$incident->id.'?uptime_failures_per_page=10&uptime_failures_page=2')->inertiaProps()['current_findings']['recent_failures'], 'run_id'),
+    ];
+    expect($allIds)->not->toContain($beforeCutoff->id)->toHaveCount(12);
 });

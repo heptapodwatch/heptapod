@@ -116,10 +116,10 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
     {
         $query = DB::table('check_runs')->where('check_id', $checkId);
         $runs = (clone $query)->orderByDesc('ended_at')->orderByDesc('id')->limit(20)->get();
-        // While an incident is open, its own failed attempts; otherwise the last 90 days.
+        // While an incident is open, its own failed attempts; otherwise the last 90 days. Preserve microsecond UTC precision.
         $openSince = DB::table('incidents')->where('check_id', $checkId)->whereNull('resolved_at')->min('first_failure_at');
-        $since = is_string($openSince) ? max(CarbonImmutable::parse($openSince), now()->subDays(90)->toImmutable()) : now()->subDays(90);
-        $failures = $this->paging->paginate((clone $query)->where('ended_at', '>=', $since)
+        $since = is_string($openSince) ? max(CarbonImmutable::parse($openSince)->utc(), now()->subDays(90)->toImmutable()->utc()) : now()->subDays(90)->toImmutable()->utc();
+        $failures = $this->paging->paginate((clone $query)->where('ended_at', '>=', $since->format('Y-m-d H:i:s.uP'))
             ->whereIn('result', [RunResult::Failed->value, RunResult::Errored->value])
             ->orderByDesc('ended_at')->orderByDesc('id'), 'uptime_failures');
         $row = static function (\stdClass $run): array {
