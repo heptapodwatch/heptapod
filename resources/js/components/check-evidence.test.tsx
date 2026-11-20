@@ -50,6 +50,8 @@ it.each([
             notes: [],
             export_run: null,
             not_verifiable: [],
+            issues_pagination: null,
+            not_verifiable_pagination: null,
         };
 
         render(

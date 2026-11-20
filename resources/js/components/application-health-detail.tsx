@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { listCardPadding } from '@/components/ui/table';
 import { useTranslation } from 'react-i18next';
+import { ListFooter } from '@/components/list-footer';
 import { useFormat } from '@/hooks/use-format';
 import { MonitoringTime, StatusBadge } from '@/components/monitoring';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,14 +36,6 @@ export function ApplicationHealthDetail({
                         <p className="text-sm text-muted-foreground">
                             {t('Last accepted health result')} ·{' '}
                             <MonitoringTime value={history.last_valid_at} />
-                        </p>
-                    )}
-                    {history.more_components && (
-                        <p
-                            role="status"
-                            className="text-sm text-muted-foreground"
-                        >
-                            {t('Showing first 50 components')}
                         </p>
                     )}
                     {history.components.length ? (
@@ -95,14 +88,28 @@ export function ApplicationHealthDetail({
                                                 advisories={
                                                     component.advisories
                                                 }
-                                                more={history.more_advisories}
+                                                pagination={
+                                                    history.advisories_pagination
+                                                }
                                             />
                                         </div>
                                     ) : null}
                                 </li>
                             ))}
                         </ul>
-                    ) : (
+                    ) : null}
+                    {history.components.length > 0 && (
+                        <ListFooter
+                            count={t('health.components_count', {
+                                count: history.components_pagination.total,
+                                formattedCount: format.number(
+                                    history.components_pagination.total,
+                                ),
+                            })}
+                            pagination={history.components_pagination}
+                        />
+                    )}
+                    {history.components.length === 0 && (
                         <p className="text-sm text-muted-foreground">
                             {t('No accepted components yet')}
                         </p>

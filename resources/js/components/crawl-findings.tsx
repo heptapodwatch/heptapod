@@ -113,7 +113,7 @@ export function FindingsTable({
     muted = false,
     origin,
     empty,
-    total,
+    pagination,
 }: {
     rows: FindingRow[];
     showSource?: boolean;
@@ -128,8 +128,8 @@ export function FindingsTable({
     origin?: string;
     /** Shown instead of the table when there are no rows. */
     empty?: string;
-    /** Retained row count when rows are a bounded slice; adds the "showing N of M" footer. */
-    total?: number;
+    /** The rows are one page of a longer list: adds the shared pager. */
+    pagination?: Heptapod.Contracts.PaginationData;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -310,12 +310,13 @@ export function FindingsTable({
                     </Table>
                 </div>
             </div>
-            {total !== undefined && total > rows.length && (
+            {pagination && (
                 <ListFooter
-                    count={t('findings.showing', {
-                        shown: format.number(rows.length),
-                        total: format.number(total),
+                    count={t('findings.count', {
+                        count: pagination.total,
+                        formattedCount: format.number(pagination.total),
                     })}
+                    pagination={pagination}
                 />
             )}
         </div>
@@ -324,6 +325,7 @@ export function FindingsTable({
 
 export function NotVerifiableFindings({
     rows,
+    pagination,
     origin,
     checkType,
 }: {
@@ -333,6 +335,7 @@ export function NotVerifiableFindings({
         status: number | null;
         source?: string | null;
     }[];
+    pagination?: Heptapod.Contracts.PaginationData;
     /** The site origin; same-origin URLs show as path. */
     origin?: string;
     checkType: 'broken_links' | 'mixed_content' | 'sitemap';
@@ -348,7 +351,7 @@ export function NotVerifiableFindings({
         >
             <SectionHeading level={3}>
                 {t(`${translationPrefix}.not_verifiable.group`)} ·{' '}
-                {format.number(rows.length)}
+                {format.number(pagination?.total ?? rows.length)}
             </SectionHeading>
             <p className="text-xs">
                 {t(
@@ -360,6 +363,7 @@ export function NotVerifiableFindings({
             <FindingsTable
                 muted
                 origin={origin}
+                pagination={pagination}
                 showSource={translationPrefix === 'crawl'}
                 problemLabel="Result"
                 rows={rows.map((finding) => ({
@@ -441,17 +445,10 @@ export function CrawlFindings({
                                 <FindingsExport
                                     context={exportContext}
                                     run={history.snapshot_run}
-                                    total={
-                                        history.total_findings +
-                                        history.total_not_verifiable
+                                    findings={history.findings_pagination}
+                                    notVerifiable={
+                                        history.not_verifiable_pagination
                                     }
-                                    shown={
-                                        findings.length + notVerifiable.length
-                                    }
-                                    shownPerGroup={Math.max(
-                                        findings.length,
-                                        notVerifiable.length,
-                                    )}
                                 />
                             )
                         }
@@ -522,6 +519,7 @@ export function CrawlFindings({
                         showFindingDetails={
                             history.check_type === 'broken_links'
                         }
+                        pagination={history.findings_pagination ?? undefined}
                         rows={findings.map((finding) => ({
                             url: finding.url,
                             status: [
@@ -602,6 +600,7 @@ export function CrawlFindings({
                             : 'broken_links'
                     }
                     rows={notVerifiable}
+                    pagination={history.not_verifiable_pagination ?? undefined}
                 />
             </CardContent>
         </Card>

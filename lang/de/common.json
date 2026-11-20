@@ -780,7 +780,6 @@
     "freshness.suppressed.performance.uptime_error_latest": "Keine Antwortzeiten: Die Erreichbarkeitsprüfung meldete einen Prüffehler (zuletzt um {{date}})",
     "freshness.suppressed.check.uptime_error_latest": "Keine aktuellen Prüfdaten: Die Erreichbarkeitsprüfung meldete einen Prüffehler (zuletzt um {{date}})",
     "(opens in a new tab)": "(öffnet in neuem Tab)",
-    "findings.showing": ":shown von :total Befunden",
     "Select date": "Datum auswählen",
     "Previous month": "Vorheriger Monat",
     "Next month": "Nächster Monat",
@@ -815,5 +814,7 @@
     "Loading older changes…": "Ältere Änderungen werden geladen…",
     "{{from}}–{{to}} of {{total}}": "{{from}}–{{to}} von {{total}}",
     "{{count}} events_one": "{{formattedCount}} Ereignis",
-    "{{count}} events_other": "{{formattedCount}} Ereignisse"
+    "{{count}} events_other": "{{formattedCount}} Ereignisse",
+    "findings.count_one": "{{formattedCount}} Fundstelle",
+    "findings.count_other": "{{formattedCount}} Fundstellen"
 }

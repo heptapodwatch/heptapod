@@ -780,7 +780,6 @@
     "freshness.suppressed.performance.uptime_error_latest": "No response-time data: the uptime check reported an error (latest at {{date}})",
     "freshness.suppressed.check.uptime_error_latest": "No current check data: the uptime check reported an error (latest at {{date}})",
     "(opens in a new tab)": "(opens in a new tab)",
-    "findings.showing": ":shown of :total findings",
     "Select date": "Select date",
     "Previous month": "Previous month",
     "Next month": "Next month",
@@ -815,5 +814,7 @@
     "Loading older changes…": "Loading older changes…",
     "{{from}}–{{to}} of {{total}}": "{{from}}–{{to}} of {{total}}",
     "{{count}} events_one": "{{formattedCount}} event",
-    "{{count}} events_other": "{{formattedCount}} events"
+    "{{count}} events_other": "{{formattedCount}} events",
+    "findings.count_one": "{{formattedCount}} finding",
+    "findings.count_other": "{{formattedCount}} findings"
 }

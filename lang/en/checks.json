@@ -129,7 +129,6 @@
     "Performance, 90 days": "Performance, 90 days",
     "Last completed run": "Last completed run",
     "Scores from last successful run": "Scores from last successful run",
-    "Showing first 50 tasks": "Showing first 50 tasks",
     "Task history is incomplete": "Task history is incomplete",
     "Next due": "Next due",
     "Ping URL": "Ping URL",
@@ -144,7 +143,6 @@
     "Application components": "Application components",
     "Component results are stale after a failed attempt": "Component results are stale after a failed attempt",
     "Last accepted health result": "Last accepted health result",
-    "Showing first 50 components": "Showing first 50 components",
     "No accepted components yet": "No accepted components yet",
     "Health attempts": "Health attempts",
     "health.reason.unreachable": "Endpoint unreachable",
@@ -394,7 +392,6 @@
     "Low": "Low",
     "Medium": "Medium",
     "High": "High",
-    "Showing first 100 advisories": "Showing first 100 advisories",
     "With advisories": "With advisories",
     "All advisories": "All advisories",
     "Showing the 100 most severe packages": "Showing the 100 most severe packages",
@@ -435,5 +432,13 @@
     "run.started.manual": "Started manually",
     "preview.latest_runs_one": "Latest run",
     "preview.latest_runs_other": "Latest {{formattedCount}} runs",
-    "preview.all_check_runs": "All runs of this check"
+    "preview.all_check_runs": "All runs of this check",
+    "health.components_count_one": "{{formattedCount}} component",
+    "health.components_count_other": "{{formattedCount}} components",
+    "cron.tasks_count_one": "{{formattedCount}} task",
+    "cron.tasks_count_other": "{{formattedCount}} tasks",
+    "uptime.failures_count_one": "{{formattedCount}} failed attempt",
+    "uptime.failures_count_other": "{{formattedCount}} failed attempts",
+    "health.advisories_count_one": "{{formattedCount}} advisory",
+    "health.advisories_count_other": "{{formattedCount}} advisories"
 }

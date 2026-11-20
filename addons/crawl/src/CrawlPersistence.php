@@ -15,6 +15,8 @@ use Heptapod\Contracts\Findings\FindingStatus;
 use Heptapod\Contracts\Findings\UnavailableFindingsSnapshot;
 use Heptapod\Contracts\FindingsExportProvider;
 use Heptapod\Contracts\FindingsQueryProvider;
+use Heptapod\Contracts\ListPaging;
+use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
 use Illuminate\Database\Query\Builder;
@@ -26,7 +28,7 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
 {
     public const int COMPARISON_LIMIT = 25000;
 
-    public function __construct(private CrawlFindingsQuery $findingsQuery) {}
+    public function __construct(private CrawlFindingsQuery $findingsQuery, private ListPaging $paging) {}
 
     public function snapshot(CheckKey $type, int $checkId, RunReference $run): AvailableFindingsSnapshot|UnavailableFindingsSnapshot
     {
@@ -251,16 +253,16 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
                     $query->where('status_code', '>=', 400)->orWhereNull('status_code');
                 })->whereRaw(LinkClassificationPolicy::verifiableSql($legacy));
         }
-        $totalFindings = (clone $findingQuery)->count();
-        $rows = $findingQuery->orderBy('id')->limit(50)->get();
-        $notVerifiable = [];
+        $findingsPage = $this->paging->paginate($findingQuery->orderBy('id'), 'findings');
+        $rows = collect($findingsPage->items());
         $notVerifiableQuery = DB::table('crawl_findings')->where('snapshot_id', $latest->id)
             ->whereRaw(LinkClassificationPolicy::notVerifiableSql('', $legacy));
         if ($mixed) {
             $notVerifiableQuery->where('internal', true)->where('type', 'link');
         }
-        $totalNotVerifiable = (clone $notVerifiableQuery)->count();
-        foreach ($notVerifiableQuery->orderBy('id')->limit(50)->select(['crawled_url', 'status_code', 'found_on_url'])->addSelect(LinkClassificationPolicy::labelSql($legacy))->get() as $row) {
+        $notVerifiablePage = $this->paging->paginate($notVerifiableQuery->orderBy('id')->select(['crawled_url', 'status_code', 'found_on_url'])->addSelect(LinkClassificationPolicy::labelSql($legacy)), 'not_verifiable');
+        $notVerifiable = [];
+        foreach ($notVerifiablePage->items() as $row) {
             /** @var \stdClass&object{crawled_url: string, error_message: string, status_code: int|null, found_on_url: string|null} $row */
             $notVerifiable[] = ['url' => $row->crawled_url, 'reason' => $row->error_message, 'status' => $row->status_code, 'source' => $row->found_on_url];
         }
@@ -331,7 +333,7 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
         $settings = json_decode($latest->settings, true, flags: JSON_THROW_ON_ERROR);
 
         return new CrawlFindingsData($mixed ? CheckKey::MixedContent : CheckKey::BrokenLinks,
-            CarbonImmutable::parse($latest->run_ended_at)->utc()->toIso8601String(), $latest->time_limit_reached, $latest->page_cap_reached, $latest->resource_cap_reached, $settings['max_pages'] ?? 0, $findings, $weekly, new RunReference($latest->run_id, CarbonImmutable::parse($latest->run_ended_at)), $totalFindings, $notVerifiable, $totalNotVerifiable);
+            CarbonImmutable::parse($latest->run_ended_at)->utc()->toIso8601String(), $latest->time_limit_reached, $latest->page_cap_reached, $latest->resource_cap_reached, $settings['max_pages'] ?? 0, $findings, $weekly, new RunReference($latest->run_id, CarbonImmutable::parse($latest->run_ended_at)), PaginationData::fromPaginator($findingsPage), $notVerifiable, PaginationData::fromPaginator($notVerifiablePage));
     }
 
     public function exportFindings(CheckKey $type, int $checkId, RunReference $run): ?iterable

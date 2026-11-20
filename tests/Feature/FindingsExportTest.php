@@ -47,7 +47,7 @@ function findingsExportUrl(Check $check, string $format, array $query = []): str
         'run' => $check->latest_run_id, 'observed_at' => $ended->utc()->format('Y-m-d\TH:i:s.uP'), ...$query]);
 }
 
-it('exports a findings snapshot as CSV, Markdown and plain text, limits it to the shown rows and keeps other clients out', function (): void {
+it('exports a findings snapshot as CSV, Markdown and plain text, limits it to the listed page and keeps other clients out', function (): void {
     $client = Client::factory()->create();
     $check = findingsExportCheck($client);
     $owner = User::factory()->create(['timezone' => 'Europe/Berlin']);
@@ -78,9 +78,10 @@ it('exports a findings snapshot as CSV, Markdown and plain text, limits it to th
     $text = $this->get(findingsExportUrl($check, 'txt'))->assertOk()->streamedContent();
     expect($text)->toContain("\n\nhttps://shop.example.test/missing-2\nResult: 404\nFound on: https://shop.example.test/catalog\nLink text: Part 2 | spare parts\nSince: 2026-10-28 22:40 Europe/Berlin\nNew: No\n\n");
 
-    // The card lists the first row of each group: one broken link and the blocked one.
-    $shown = $this->get(findingsExportUrl($check, 'md', ['shown' => 1]))->assertOk()->streamedContent();
-    expect($shown)->toContain('/missing-1 ', '/blocked ')->not->toContain('/missing-2', '/missing-3');
+    // This page sends each listed group's page; a group the card does not page has no rows on it.
+    $page = $this->get(findingsExportUrl($check, 'md', ['findings_page' => 1, 'findings_per_page' => 10]))->assertOk()->streamedContent();
+    expect($page)->toContain('/missing-1 ', '/missing-2 ', '/missing-3 ')->not->toContain('/blocked');
+    $this->get(findingsExportUrl($check, 'md', ['findings_per_page' => 30]))->assertSessionHasErrors('findings_per_page');
 
     $other = Client::factory()->create();
     $restricted = User::factory()->create(['client_scope' => ClientScope::Restricted]);
@@ -107,4 +108,9 @@ it('exports every row of a large snapshot as CSV and the first rows as Markdown 
     $markdown = $this->get(findingsExportUrl($check, 'md'))->assertOk()->streamedContent();
     expect(substr_count($markdown, "\n| https://"))->toBe(10000)
         ->and($markdown)->toEndWith("\nHolds the first 10,000 rows. Download the CSV for all of them.\n");
+
+    // This page of the third 100-row findings page holds findings 201–300 (after the three missing links) plus the one not-verifiable row.
+    $page = $this->get(findingsExportUrl($check, 'csv', ['findings_page' => 3, 'findings_per_page' => 100, 'not_verifiable_page' => 1, 'not_verifiable_per_page' => 100]))->assertOk()->streamedContent();
+    expect(substr_count($page, "\r\n"))->toBe(102)
+        ->and($page)->toContain('/gone-198,', '/gone-297,', '/blocked')->not->toContain('/gone-197,', '/gone-298,');
 });

@@ -7,6 +7,8 @@ namespace Heptapod\Addons\Cron;
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\CronPingUrl;
+use Heptapod\Contracts\ListPaging;
+use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\StaleEvaluation;
@@ -15,15 +17,16 @@ use Illuminate\Support\Facades\Validator;
 
 final readonly class CronPersistence implements RunPersistence
 {
-    public function __construct(private CronDefinitionRevision $revision, private CronPingUrl $pingUrl) {}
+    public function __construct(private CronDefinitionRevision $revision, private CronPingUrl $pingUrl, private ListPaging $paging) {}
 
     public function tasksDetail(int $checkId, bool $canViewCapabilities): CronTasksDetailData
     {
         $query = CronCheck::query()->where('check_id', $checkId);
-        $query->getQuery()->orderBy('id')->limit(51);
-        $tasks = $query->get();
-        $visible = $tasks->take(50);
-        $ids = $visible->pluck('id')->all();
+        $query->getQuery()->orderBy('id');
+        $page = $this->paging->paginate($query, 'cron_tasks');
+        /** @var list<CronCheck> $visible */
+        $visible = $page->items();
+        $ids = array_map(static fn (CronCheck $task): int => $task->id, $visible);
         $results = DB::table('cron_run_tasks')->where('check_id', $checkId)->whereIn('cron_check_id', $ids)
             ->where('run_ended_at', '>=', CarbonImmutable::now('UTC')->subDays(30)->format('Y-m-d H:i:s.uP'))
             ->orderByDesc('run_ended_at')->orderByDesc('run_id')->orderByDesc('cron_check_id')->limit(1001)->get(['cron_check_id', 'result', 'run_ended_at']);
@@ -48,7 +51,7 @@ final readonly class CronPersistence implements RunPersistence
             ];
         }
 
-        return new CronTasksDetailData($rows, $tasks->count() > 50, $results->count() > 1000);
+        return new CronTasksDetailData($rows, PaginationData::fromPaginator($page), $results->count() > 1000);
     }
 
     /** @param list<array<string, mixed>> $rows */

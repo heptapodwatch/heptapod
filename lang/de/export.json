@@ -15,11 +15,11 @@
     "export.manual_title": "Export kopieren",
     "export.scope.all_findings_one": "Die :count Fundstelle",
     "export.scope.all_findings_other": "Alle :count Fundstellen",
-    "export.scope.shown_one": "Nur die :count angezeigte",
-    "export.scope.shown_other": "Nur die :count angezeigten",
     "export.scope.matching_incidents_one": "Die :count passende Störung",
     "export.scope.matching_incidents_other": "Alle :count passenden Störungen",
     "export.scope.every_incident": "Alle Störungen, ohne Filter",
     "export.scope.attachment": "Der versendete Anhang",
-    "export.findings.title": "Fundstellen (:check) · :site"
+    "export.findings.title": "Fundstellen (:check) · :site",
+    "export.scope.page_one": "Diese Seite: :count Zeile",
+    "export.scope.page_other": "Diese Seite: :count Zeilen"
 }

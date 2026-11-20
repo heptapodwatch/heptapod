@@ -6,6 +6,7 @@ namespace Heptapod\Addons\ApplicationHealth;
 
 use Heptapod\Contracts\CheckHistoryData;
 use Heptapod\Contracts\CheckKey;
+use Heptapod\Contracts\PaginationData;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
@@ -20,9 +21,10 @@ final class ApplicationHealthDetailData extends CheckHistoryData
         public readonly ?string $last_valid_at,
         public readonly bool $stale,
         public readonly array $components,
-        public readonly bool $more_components,
+        public readonly PaginationData $components_pagination,
         public readonly array $attempts,
-        public readonly bool $more_advisories,
+        /** The security advisories component's `advisories` are one page of this list. */
+        public readonly PaginationData $advisories_pagination,
     ) {
         parent::__construct(CheckKey::ApplicationHealth);
     }

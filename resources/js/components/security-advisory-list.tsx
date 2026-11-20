@@ -1,6 +1,7 @@
 import { ChevronRight } from 'lucide-react';
 import { useId, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ListFooter } from '@/components/list-footer';
 import { TextLink } from '@/components/text-link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -172,10 +173,11 @@ function PackageSummary({
  */
 export function SecurityAdvisoryList({
     advisories,
-    more,
+    pagination,
 }: {
     advisories: Advisory[];
-    more: boolean;
+    /** The advisories are one page of the check's retained advisories. */
+    pagination: Heptapod.Contracts.PaginationData;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -325,11 +327,13 @@ export function SecurityAdvisoryList({
                     );
                 })}
             </ul>
-            {more && (
-                <p role="status" className="text-sm text-muted-foreground">
-                    {t('Showing first 100 advisories')}
-                </p>
-            )}
+            <ListFooter
+                count={t('health.advisories_count', {
+                    count: pagination.total,
+                    formattedCount: format.number(pagination.total),
+                })}
+                pagination={pagination}
+            />
         </div>
     );
 }

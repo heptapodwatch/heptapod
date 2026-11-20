@@ -18,6 +18,8 @@ use Heptapod\Contracts\FindingsExportProvider;
 use Heptapod\Contracts\FindingsQueryProvider;
 use Heptapod\Contracts\Http\AutomatedCheckBlockReason;
 use Heptapod\Contracts\Http\FetchFailureKind;
+use Heptapod\Contracts\ListPaging;
+use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
 use Illuminate\Support\Facades\DB;
@@ -30,7 +32,44 @@ final readonly class SitemapPersistence implements FindingsExportProvider, Findi
     /** Issues that describe how far the check got, not a broken URL. */
     private const array CoverageLimitTypes = ['sitemap.issue.time_limit', 'sitemap.issue.url_limit', 'sitemap.issue.recursion_limit'];
 
-    public function __construct(private SitemapFindingsQuery $findings) {}
+    public function __construct(private SitemapFindingsQuery $findings, private ListPaging $paging) {}
+
+    /**
+     * One page of the run's retained issues (list `findings`) and not-verifiable rows (list `not_verifiable`), in their
+     * recorded order; null for a run without a retained snapshot (older runs keep their bounded evidence).
+     *
+     * @return array{issues: list<array{url: string, type: string, kind?: string, status?: int|null, xml_reason?: string, xml_line?: int, xml_element?: string}>, issues_pagination: PaginationData, not_verifiable: list<array{url: string, reason: string, status: int|null}>, not_verifiable_pagination: PaginationData}|null
+     */
+    public function detailPages(int $checkId, RunReference $run): ?array
+    {
+        $snapshot = DB::table('sitemap_snapshots')->where('check_id', $checkId)->where('run_id', $run->id)
+            ->where('run_ended_at', $run->endedAt->format('Y-m-d H:i:s.uP'))->value('id');
+        if (! is_int($snapshot)) {
+            return null;
+        }
+        $issues = $this->paging->paginate(DB::table('sitemap_snapshots as snapshot')
+            ->crossJoin(DB::raw("LATERAL jsonb_array_elements(snapshot.snapshot->'issues') WITH ORDINALITY AS finding(issue, position)"))
+            ->where('snapshot.id', $snapshot)->orderBy('finding.position')->select('finding.issue'), 'findings');
+        $notVerifiable = $this->paging->paginate(DB::table('sitemap_findings')->where('snapshot_id', $snapshot)
+            ->where('status', 'not_verifiable')->orderBy('id')->select('identity'), 'not_verifiable');
+        $issueRows = [];
+        foreach ($issues->items() as $row) {
+            /** @var \stdClass&object{issue: string} $row */
+            /** @var array{url: string, type: string, kind?: string, status?: int|null, xml_reason?: string, xml_line?: int, xml_element?: string} $issue */
+            $issue = json_decode($row->issue, true, flags: JSON_THROW_ON_ERROR);
+            $issueRows[] = $issue;
+        }
+        $notVerifiableRows = [];
+        foreach ($notVerifiable->items() as $row) {
+            /** @var \stdClass&object{identity: string} $row */
+            /** @var array{url: string, reason: string, status?: int|null} $finding */
+            $finding = json_decode($row->identity, true, flags: JSON_THROW_ON_ERROR);
+            $notVerifiableRows[] = ['url' => $finding['url'], 'reason' => $finding['reason'], 'status' => $finding['status'] ?? null];
+        }
+
+        return ['issues' => $issueRows, 'issues_pagination' => PaginationData::fromPaginator($issues),
+            'not_verifiable' => $notVerifiableRows, 'not_verifiable_pagination' => PaginationData::fromPaginator($notVerifiable)];
+    }
 
     public function snapshot(CheckKey $type, int $checkId, RunReference $run): AvailableFindingsSnapshot|UnavailableFindingsSnapshot
     {

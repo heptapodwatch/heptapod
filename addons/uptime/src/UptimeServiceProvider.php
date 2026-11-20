@@ -7,6 +7,7 @@ namespace Heptapod\Addons\Uptime;
 use Heptapod\Contracts\CertificateFetcher;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\Http\OutboundHttp;
+use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\OhDearImportMapping;
 use Illuminate\Support\ServiceProvider;
 
@@ -16,6 +17,7 @@ final class UptimeServiceProvider extends ServiceProvider
     {
         $this->app->bind(UptimeCheck::class, fn (): UptimeCheck => new UptimeCheck(
             $this->app->make(OutboundHttp::class),
+            $this->app->make(ListPaging::class),
             $this->app->bound(CertificateFetcher::class) ? $this->app->make(CertificateFetcher::class) : null,
         ));
     }
