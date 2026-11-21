@@ -106,3 +106,48 @@ it('reports exact summer and winter offsets under a frozen clock', () => {
     expect(timezoneOffset('Europe/London')).toBe('UTC');
     expect(timezoneOffset('America/New_York')).toBe('UTC-05:00');
 });
+
+it('renders reason badges on pinned options and merges identical pinned zones into one option', () => {
+    const { rerender } = render(
+        <TimezoneCombobox
+            id="tz"
+            timezones={['Europe/Berlin', 'America/New_York', 'UTC']}
+            pinned={[
+                { zone: 'America/New_York', label: "Acme's zone" },
+                { zone: 'Europe/Berlin', label: 'Your zone' },
+            ]}
+            value="America/New_York"
+            onValueChange={vi.fn()}
+        />,
+    );
+    fireEvent.click(screen.getByRole('combobox'));
+    let options = screen.getAllByRole('option');
+    expect(options).toHaveLength(3);
+    expect(options[0]?.textContent).toContain('America/New_York');
+    expect(options[0]?.textContent).toContain("Acme's zone");
+    expect(options[1]?.textContent).toContain('Europe/Berlin');
+    expect(options[1]?.textContent).toContain('Your zone');
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+        key: 'Escape',
+    });
+
+    // When both pinned reasons resolve to the same zone, one option carries both badges.
+    rerender(
+        <TimezoneCombobox
+            id="tz"
+            timezones={['Europe/Berlin', 'America/New_York', 'UTC']}
+            pinned={[
+                { zone: 'Europe/Berlin', label: "Acme's zone" },
+                { zone: 'Europe/Berlin', label: 'Your zone' },
+            ]}
+            value="Europe/Berlin"
+            onValueChange={vi.fn()}
+        />,
+    );
+    fireEvent.click(screen.getByRole('combobox'));
+    options = screen.getAllByRole('option');
+    expect(options).toHaveLength(3);
+    expect(options[0]?.textContent).toContain('Europe/Berlin');
+    expect(options[0]?.textContent).toContain("Acme's zone");
+    expect(options[0]?.textContent).toContain('Your zone');
+});

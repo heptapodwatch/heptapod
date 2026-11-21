@@ -21,10 +21,27 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
     usePage: () => ({ props: { timezone: pageContext.timezone } }),
 }));
 vi.mock('react-i18next', () => {
-    const t = (key: string, params?: Record<string, unknown>) =>
-        key === 'timezone.wall_time' && params
-            ? `(${String(params.time)} ${String(params.zone)})`
-            : key;
+    const catalog: Record<string, string> = {
+        'timezone.wall_time': '({{time}} {{zone}})',
+        'timezone.pinned.client': 'Client zone',
+        'timezone.pinned.client_named': "{{name}}'s zone",
+        'timezone.pinned.viewer': 'Your zone',
+        'maintenance.timezone_hint.client_named':
+            'From the client {{name}}. Pick another zone to override.',
+        'maintenance.timezone_hint.client':
+            'From the client zone. Pick another zone to override.',
+        'maintenance.timezone_hint.viewer':
+            'Your zone. Pick another zone to override.',
+    };
+    const t = (key: string, params?: Record<string, unknown>) => {
+        let text = catalog[key] ?? key;
+        if (params) {
+            for (const [name, value] of Object.entries(params)) {
+                text = text.replaceAll(`{{${name}}}`, String(value));
+            }
+        }
+        return text;
+    };
     return { useTranslation: () => ({ t, i18n: { language: 'en', t } }) };
 });
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }));
@@ -51,7 +68,12 @@ afterEach(() => {
     window.history.replaceState(null, '', '/');
 });
 
-const target = (id: number, name: string, timezone: string | null = null) => ({
+const target = (
+    id: number,
+    name: string,
+    timezone: string | null = null,
+    extra: Partial<Heptapod.Data.Ui.MaintenanceTargetOptionData> = {},
+) => ({
     id,
     name,
     avatar: null,
@@ -63,6 +85,7 @@ const target = (id: number, name: string, timezone: string | null = null) => ({
     icon_url: null,
     icon_backing: 'none' as const,
     timezone,
+    ...extra,
 });
 
 const planned: Heptapod.Data.Ui.MaintenanceWindowData = {
@@ -116,8 +139,10 @@ function page(
                 'Europe/London',
             ]}
             sites={[
-                target(7, 'Website', 'Europe/Berlin'),
-                target(8, 'API', 'America/New_York'),
+                target(7, 'Website', 'Europe/Berlin', {
+                    client_name: 'Berlin Co',
+                }),
+                target(8, 'API', 'America/New_York', { client_name: 'Acme' }),
             ]}
             clients={[
                 target(1, 'NY Client', 'America/New_York'),
@@ -316,4 +341,105 @@ it('keeps untouched default times strictly ordered when following a target into 
     } finally {
         vi.useRealTimers();
     }
+});
+
+it('labels pinned timezone options and shows a following hint until the user overrides the zone', () => {
+    pageContext.timezone = 'Europe/Berlin';
+    window.history.replaceState(null, '', '/maintenance?site_id=8&new=1');
+    render(
+        page(true, [], {
+            sites: [
+                target(7, 'Website', 'Europe/Berlin', {
+                    client_name: 'Berlin Co',
+                }),
+                target(8, 'API', 'America/New_York', { client_name: 'Acme' }),
+                target(9, 'Enterprise', 'Asia/Tokyo', {
+                    client_name: 'Very Long Agency Client Name GmbH',
+                }),
+            ],
+        }),
+    );
+
+    const sheet = screen.getByRole('dialog', {
+        name: 'New maintenance window',
+    });
+    const zoneTrigger = () =>
+        within(sheet).getByRole('combobox', { name: 'Timezone' });
+
+    // 1) Preselected NY site (client Acme): client hint visible and wired to aria-describedby.
+    expect(
+        within(sheet).getByText(
+            'From the client Acme. Pick another zone to override.',
+        ),
+    ).toBeTruthy();
+    expect(zoneTrigger().getAttribute('aria-describedby')).toContain(
+        'maintenance-timezone-hint',
+    );
+
+    // Picker shows "Acme's zone" on America/New_York and "Your zone" on Europe/Berlin.
+    fireEvent.click(zoneTrigger());
+    let options = screen
+        .getAllByRole('option')
+        .map((option) => option.textContent ?? '');
+    expect(options[0]).toContain('America/New_York');
+    expect(options[0]).toContain("Acme's zone");
+    expect(options[1]).toContain('Europe/Berlin');
+    expect(options[1]).toContain('Your zone');
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+        key: 'Escape',
+    });
+
+    // 2) Site whose client shares the viewer's zone: one pinned option carries both badges.
+    fireEvent.click(within(sheet).getByRole('combobox', { name: 'Sites' }));
+    fireEvent.click(screen.getByRole('option', { name: /Website/ }));
+    expect(
+        within(sheet).getByText(
+            'From the client Berlin Co. Pick another zone to override.',
+        ),
+    ).toBeTruthy();
+    fireEvent.click(zoneTrigger());
+    options = screen
+        .getAllByRole('option')
+        .map((option) => option.textContent ?? '');
+    expect(options[0]).toContain('Europe/Berlin');
+    expect(options[0]).toContain("Berlin Co's zone");
+    expect(options[0]).toContain('Your zone');
+    expect(
+        options.filter((text) => text.includes('Europe/Berlin')),
+    ).toHaveLength(1);
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+        key: 'Escape',
+    });
+
+    // 3) Long client name falls back to generic "Client zone" badge while keeping the name in the hint.
+    fireEvent.click(within(sheet).getByRole('combobox', { name: 'Sites' }));
+    fireEvent.click(screen.getByRole('option', { name: /Enterprise/ }));
+    expect(
+        within(sheet).getByText(
+            'From the client Very Long Agency Client Name GmbH. Pick another zone to override.',
+        ),
+    ).toBeTruthy();
+    fireEvent.click(zoneTrigger());
+    options = screen
+        .getAllByRole('option')
+        .map((option) => option.textContent ?? '');
+    expect(options[0]).toContain('Asia/Tokyo');
+    expect(options[0]).toContain('Client zone');
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+        key: 'Escape',
+    });
+
+    // 4) Tag window shows "Your zone" hint and only pins viewer zone.
+    fireEvent.click(within(sheet).getByRole('radio', { name: 'Tag' }));
+    expect(
+        within(sheet).getByText('Your zone. Pick another zone to override.'),
+    ).toBeTruthy();
+
+    // 5) Explicitly picking a zone hides the hint and clears aria-describedby.
+    fireEvent.click(zoneTrigger());
+    fireEvent.click(screen.getByRole('option', { name: /Europe\/London/ }));
+    expect(
+        within(sheet).queryByText(/Pick another zone to override/),
+    ).toBeNull();
+    expect(zoneTrigger().getAttribute('aria-describedby')).toBeNull();
 });

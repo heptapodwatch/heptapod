@@ -54,7 +54,7 @@ final class MaintenanceController extends Controller
         $siteOptions = Site::query();
         $siteOptions->getQuery()->orderBy('id');
         $sites = $canManage ? $siteOptions->with('client:id,name,is_internal,timezone')->get(['id', 'url', 'friendly_name', 'client_id', 'icon_hash', 'icon_backing'])
-            ->map(static fn (Site $site): MaintenanceTargetOptionData => new MaintenanceTargetOptionData($site->id, $site->displayName(), client_name: $site->client?->displayName(), host: is_string(parse_url($site->url, PHP_URL_HOST)) ? parse_url($site->url, PHP_URL_HOST) : $site->url, icon_url: $site->iconUrl(), icon_backing: $site->icon_backing, timezone: $site->client?->resolvedTimezone()))->all() : [];
+            ->map(static fn (Site $site): MaintenanceTargetOptionData => new MaintenanceTargetOptionData($site->id, $site->displayName(), is_internal: $site->client !== null && $site->client->is_internal, client_name: $site->client?->displayName(), host: is_string(parse_url($site->url, PHP_URL_HOST)) ? parse_url($site->url, PHP_URL_HOST) : $site->url, icon_url: $site->iconUrl(), icon_backing: $site->icon_backing, timezone: $site->client?->resolvedTimezone()))->all() : [];
         $clientOptions = ($canManage ? Client::query() : $policy->visibleClients($user, includeArchived: true))->with(Client::AvatarRelations);
         $clientOptions->getQuery()->orderBy('name');
         $loadedClients = $clientOptions->get(['id', 'name', 'short_name', 'accent_color', 'avatar_site_id', 'is_internal', 'timezone']);

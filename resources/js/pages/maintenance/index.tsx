@@ -12,7 +12,10 @@ import {
     clientComboboxOptions,
     siteComboboxOptions,
 } from '@/components/entity-combobox';
-import { TimezoneCombobox } from '@/components/timezone-combobox';
+import {
+    TimezoneCombobox,
+    type PinnedTimezone,
+} from '@/components/timezone-combobox';
 import { ListHeader, ListRow } from '@/components/ui/table';
 import { FormSecondaryAction } from '@/components/form-section';
 import { SheetForm } from '@/components/sheet-form';
@@ -399,17 +402,38 @@ export default function MaintenanceIndex({
         setEndsInvalid(false);
         setSheetOpen(true);
     };
-    const selectedTargetTimezone = targetTimezoneOf(
-        draft.target_type,
-        draft.target_id,
-    );
-    const pinnedTimezones = [
-        ...new Set(
-            [selectedTargetTimezone, viewerTimezone].filter(
-                (zone): zone is string => zone !== null,
-            ),
-        ),
+    const selectedTarget =
+        draft.target_id && draft.target_type !== 'tag'
+            ? ((draft.target_type === 'site' ? sites : clients).find(
+                  (item) => String(item.id) === draft.target_id,
+              ) ?? null)
+            : null;
+    const selectedTargetTimezone = selectedTarget?.timezone ?? null;
+    const selectedClientName =
+        selectedTarget && !selectedTarget.is_internal
+            ? draft.target_type === 'site'
+                ? selectedTarget.client_name
+                : selectedTarget.name
+            : null;
+    const clientPinnedLabel =
+        selectedClientName && selectedClientName.length <= 20
+            ? t('timezone.pinned.client_named', { name: selectedClientName })
+            : t('timezone.pinned.client');
+    const pinnedTimezones: PinnedTimezone[] = [
+        ...(selectedTargetTimezone
+            ? [{ zone: selectedTargetTimezone, label: clientPinnedLabel }]
+            : []),
+        { zone: viewerTimezone, label: t('timezone.pinned.viewer') },
     ];
+    const timezoneHint = timezonePicked
+        ? null
+        : selectedTargetTimezone
+          ? selectedClientName
+              ? t('maintenance.timezone_hint.client_named', {
+                    name: selectedClientName,
+                })
+              : t('maintenance.timezone_hint.client')
+          : t('maintenance.timezone_hint.viewer');
     const returnOptions = {
         query: {
             return_context: {
@@ -1113,13 +1137,23 @@ export default function MaintenanceIndex({
                             }}
                             invalid={!!errors.timezone}
                             describedBy={
-                                errors.timezone
-                                    ? 'maintenance-timezone-error'
-                                    : undefined
+                                fieldErrorProps(
+                                    'maintenance-timezone',
+                                    errors.timezone,
+                                    timezoneHint && 'maintenance-timezone-hint',
+                                )['aria-describedby']
                             }
                         />
+                        {timezoneHint && (
+                            <p
+                                id="maintenance-timezone-hint"
+                                className="text-xs text-muted-foreground"
+                            >
+                                {timezoneHint}
+                            </p>
+                        )}
                         <InputError
-                            id="maintenance-timezone-error"
+                            field="maintenance-timezone"
                             message={errors.timezone}
                         />
                     </div>

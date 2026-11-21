@@ -818,5 +818,11 @@
     "findings.count_other": "{{formattedCount}} Fundstellen",
     "upcoming.count_one": "{{formattedCount}} Termin auf dieser Seite",
     "upcoming.count_other": "{{formattedCount}} Termine auf dieser Seite",
-    "timezone.wall_time": "({{time}} {{zone}})"
+    "timezone.wall_time": "({{time}} {{zone}})",
+    "timezone.pinned.client": "Kunden-Zeitzone",
+    "timezone.pinned.client_named": "Zeitzone von {{name}}",
+    "timezone.pinned.viewer": "Ihre Zeitzone",
+    "maintenance.timezone_hint.client_named": "Vom Kunden {{name}}. Wählen Sie zum Überschreiben eine andere Zeitzone.",
+    "maintenance.timezone_hint.client": "Aus der Kunden-Zeitzone. Wählen Sie zum Überschreiben eine andere Zeitzone.",
+    "maintenance.timezone_hint.viewer": "Ihre Zeitzone. Wählen Sie zum Überschreiben eine andere Zeitzone."
 }
