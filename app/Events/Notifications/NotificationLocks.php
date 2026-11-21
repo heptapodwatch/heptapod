@@ -107,7 +107,9 @@ use Illuminate\Support\Facades\DB;
  *     recorder holds those attempts, so a recorder only waits on it;
  *   - triggers: the check_runs and check_run_attempts history triggers write leaf rows under the writer's check lock;
  *     check_runs_history_deleted locks the check FOR UPDATE on a run row delete, which happens only through DeleteSite's
- *     check cascade, which already holds those checks (a partition drop fires no row trigger).
+ *     check cascade, which already holds those checks (a partition drop fires no row trigger); sites_detach_events and
+ *     checks_detach_events detach retained events in one BEFORE DELETE pass under the caller's site/check lock, replacing
+ *     the three ON DELETE SET NULL updates that the cascade otherwise ran.
  *
  * Known limit of the drift guard (tests/Arch/NotificationLockDrift.php): it sees explicit lock clauses only. A plain
  * UPDATE, DELETE or INSERT also locks rows (and an insert takes its foreign keys) without one, so bulk writes need review

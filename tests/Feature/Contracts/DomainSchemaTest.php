@@ -1,6 +1,7 @@
 <?php
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\DeleteSite;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\NotificationSuppression;
 use Heptapod\Contracts\RunReference;
@@ -181,4 +182,55 @@ it('persists exactly the eleven supported check identities', function (): void {
 
 it('cannot persist a successful run without metric observations', function (): void {
     expect(fn () => CheckRun::factory()->create(['result' => RunResult::Succeeded, 'metrics' => null]))->toThrow(QueryException::class);
+});
+
+it('detaches retained events when deleting a site or check regardless of foreign key trigger order', function (): void {
+    $riDeleteTriggerName = static fn (string $constraint): string => (string) DB::scalar(
+        "SELECT t.tgname FROM pg_trigger t JOIN pg_constraint c ON c.oid = t.tgconstraint JOIN pg_proc p ON p.oid = t.tgfoid
+         WHERE c.conname = ? AND p.proname IN ('RI_FKey_cascade_del', 'RI_FKey_setnull_del')",
+        [$constraint],
+    );
+
+    // Force Postgres to fire events' SET NULL RI triggers before the cascading checks/incidents RI triggers,
+    // reproducing the lexicographical RI_ConstraintTrigger_a_<oid> ordering across an OID digit boundary.
+    for ($attempt = 0; $attempt < 2 && (strcmp($riDeleteTriggerName('events_site_id_foreign'), $riDeleteTriggerName('checks_site_id_foreign')) >= 0
+        || strcmp($riDeleteTriggerName('events_site_id_foreign'), $riDeleteTriggerName('incidents_site_id_foreign')) >= 0); $attempt++) {
+        DB::statement('ALTER TABLE events DROP CONSTRAINT events_site_id_foreign, ADD CONSTRAINT events_site_id_foreign FOREIGN KEY (site_id) REFERENCES sites(id) ON DELETE SET NULL');
+        DB::statement('ALTER TABLE checks DROP CONSTRAINT checks_site_id_foreign, ADD CONSTRAINT checks_site_id_foreign FOREIGN KEY (site_id) REFERENCES sites(id) ON DELETE CASCADE');
+        DB::statement('ALTER TABLE incidents DROP CONSTRAINT incidents_site_id_foreign, ADD CONSTRAINT incidents_site_id_foreign FOREIGN KEY (site_id) REFERENCES sites(id) ON DELETE CASCADE');
+    }
+    expect(strcmp($riDeleteTriggerName('events_site_id_foreign'), $riDeleteTriggerName('checks_site_id_foreign')))->toBeLessThan(0)
+        ->and(strcmp($riDeleteTriggerName('events_site_id_foreign'), $riDeleteTriggerName('incidents_site_id_foreign')))->toBeLessThan(0);
+
+    $site = Site::factory()->create();
+    $check = Check::factory()->for($site)->create();
+    $incident = Incident::factory()->for($check)->create(['resolved_at' => now()]);
+    $incidentEvent = Event::factory()->for($check)->create(['type' => 'incident.resolved', 'incident_id' => $incident->id, 'notification_routed_at' => now()]);
+    $checkOnlyEvent = Event::factory()->for($check)->create(['incident_id' => null, 'notification_routed_at' => now()]);
+
+    app(DeleteSite::class)($site);
+
+    expect($incidentEvent->fresh()->site_id)->toBeNull()
+        ->and($incidentEvent->fresh()->check_id)->toBeNull()
+        ->and($incidentEvent->fresh()->incident_id)->toBeNull()
+        ->and($checkOnlyEvent->fresh()->site_id)->toBeNull()
+        ->and($checkOnlyEvent->fresh()->check_id)->toBeNull()
+        ->and($checkOnlyEvent->fresh()->incident_id)->toBeNull();
+
+    for ($attempt = 0; $attempt < 2 && strcmp($riDeleteTriggerName('events_check_id_foreign'), $riDeleteTriggerName('incidents_check_id_foreign')) >= 0; $attempt++) {
+        DB::statement('ALTER TABLE events DROP CONSTRAINT events_check_id_foreign, ADD CONSTRAINT events_check_id_foreign FOREIGN KEY (check_id) REFERENCES checks(id) ON DELETE SET NULL');
+        DB::statement('ALTER TABLE incidents DROP CONSTRAINT incidents_check_id_foreign, ADD CONSTRAINT incidents_check_id_foreign FOREIGN KEY (check_id) REFERENCES checks(id) ON DELETE CASCADE');
+    }
+    expect(strcmp($riDeleteTriggerName('events_check_id_foreign'), $riDeleteTriggerName('incidents_check_id_foreign')))->toBeLessThan(0);
+
+    $keptSite = Site::factory()->create();
+    $removedCheck = Check::factory()->for($keptSite)->create();
+    $removedIncident = Incident::factory()->for($removedCheck)->create(['resolved_at' => now()]);
+    $checkEvent = Event::factory()->for($removedCheck)->create(['type' => 'incident.resolved', 'incident_id' => $removedIncident->id, 'notification_routed_at' => now()]);
+
+    $removedCheck->delete();
+
+    expect($checkEvent->fresh()->site_id)->toBe($keptSite->id)
+        ->and($checkEvent->fresh()->check_id)->toBeNull()
+        ->and($checkEvent->fresh()->incident_id)->toBeNull();
 });
