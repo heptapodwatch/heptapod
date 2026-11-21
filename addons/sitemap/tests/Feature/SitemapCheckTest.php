@@ -1416,7 +1416,7 @@ it('refuses query strings in sitemap paths while keeping legacy paths running, m
         ->and($cleanProps['check_settings']['attention_reason'])->toBeNull();
 });
 
-it('strips even short unrecognized legacy sitemap queries from new runs, retained detail and findings exports without changing the request', function (): void {
+it('strips legacy sitemap queries on complete URLs at write time and via migration so retained detail, Findings API and export stay clean after path cleanup', function (): void {
     $owner = User::factory()->owner()->create();
     $site = Site::factory()->create(['url' => 'http://fixtures.test']);
     $schema = app(CheckRegistry::class)->get(CheckKey::Sitemap)->definition()->configSchema;
@@ -1429,10 +1429,14 @@ it('strips even short unrecognized legacy sitemap queries from new runs, retaine
     ]);
     $check->refresh();
 
-    // New run: request keeps ?k=1, stored evidence and snapshot strip the entire query.
+    // New run: request keeps ?k=1; complete legacy URL strips its query, while an unrelated nested URL with the same suffix stays intact.
     $fetched = [];
-    app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static function (FetchRequest $request) use (&$fetched): FetchResult {
+    $nestedUrl = 'http://fixtures.test/nested/sitemap.xml?k=1';
+    app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static function (FetchRequest $request) use (&$fetched, $nestedUrl): FetchResult {
         $fetched[] = $request->url;
+        if ($request->url === 'http://fixtures.test/sitemap.xml?k=1') {
+            return new FetchResult(200, sitemapXml([$nestedUrl]));
+        }
 
         return new FetchResult(404, failure: new FetchFailure(FetchFailureKind::HttpStatus, 404));
     }));
@@ -1441,31 +1445,86 @@ it('strips even short unrecognized legacy sitemap queries from new runs, retaine
         'http://fixtures.test', CarbonImmutable::now(), CarbonImmutable::now()->addSeconds(30),
         $check->executionConfig(), [], null,
     ));
-    expect($fetched)->toBe(['http://fixtures.test/sitemap.xml?k=1'])
+    expect($fetched)->toContain('http://fixtures.test/sitemap.xml?k=1')
         ->and($run->evidence['checkUrl'])->toBe('http://fixtures.test/sitemap.xml')
-        ->and($run->evidence['issues'][0]['url'])->toBe('http://fixtures.test/sitemap.xml')
-        ->and(json_encode($run->evidence, JSON_THROW_ON_ERROR))->not->toContain('k=1')
-        ->and((string) DB::table('sitemap_snapshots')->where('run_id', $run->id)->value('snapshot'))->not->toContain('k=1')
-        ->and(json_encode(DB::table('sitemap_findings')->pluck('url')->all(), JSON_THROW_ON_ERROR))->not->toContain('k=1');
+        ->and($run->evidence['sitemaps'][0]['url'])->toBe('http://fixtures.test/sitemap.xml')
+        ->and($run->evidence['issues'][0]['url'])->toBe($nestedUrl);
 
-    // Retained pre-upgrade findings/snapshot containing the raw legacy query are still stripped on detail and export.
+    // Seed retained pre-upgrade rows containing the raw legacy URL alongside the unrelated nested URL.
     $snapshotId = DB::table('sitemap_snapshots')->where('run_id', $run->id)->value('id');
     $legacyUrl = 'http://fixtures.test/sitemap.xml?k=1';
     $legacySnapshot = json_decode((string) DB::table('sitemap_snapshots')->where('id', $snapshotId)->value('snapshot'), true, flags: JSON_THROW_ON_ERROR);
     $legacySnapshot['checkUrl'] = $legacyUrl;
-    $legacySnapshot['issues'][0]['url'] = $legacyUrl;
-    DB::table('sitemap_snapshots')->where('id', $snapshotId)->update(['snapshot' => json_encode($legacySnapshot, JSON_THROW_ON_ERROR)]);
-    DB::table('sitemap_findings')->where('snapshot_id', $snapshotId)->update(['url' => $legacyUrl]);
-    DB::table('check_runs')->where('id', $run->id)->where('ended_at', $run->ended_at)->update(['evidence' => json_encode($legacySnapshot, JSON_THROW_ON_ERROR)]);
+    $legacySnapshot['sitemaps'][0]['url'] = $legacyUrl;
+    $legacySnapshot['issues'] = [
+        ['url' => $legacyUrl, 'type' => 'sitemap.issue.unreachable', 'status' => 404],
+        ['url' => $nestedUrl, 'type' => 'sitemap.issue.unreachable', 'status' => 404],
+    ];
+    $legacySnapshot['totalIssuesCount'] = 2;
+    $legacySnapshot['issue_counts'] = ['http_404' => 2];
+    DB::table('sitemap_snapshots')->where('id', $snapshotId)->update([
+        'snapshot' => json_encode($legacySnapshot, JSON_THROW_ON_ERROR),
+        'comparison_issues' => json_encode($legacySnapshot['issues'], JSON_THROW_ON_ERROR),
+    ]);
+    DB::table('sitemap_findings')->where('snapshot_id', $snapshotId)->delete();
+    $legacyIdentity = ['status' => 404, 'type' => 'sitemap.issue.unreachable', 'url' => $legacyUrl];
+    $nestedIdentity = ['status' => 404, 'type' => 'sitemap.issue.unreachable', 'url' => $nestedUrl];
+    DB::table('sitemap_findings')->insert([
+        [
+            'snapshot_id' => $snapshotId, 'position' => 1,
+            'identity' => json_encode($legacyIdentity, JSON_THROW_ON_ERROR),
+            'identity_hash' => hash('sha256', json_encode($legacyIdentity, JSON_THROW_ON_ERROR)),
+            'status' => 'broken', 'issue_code' => 'sitemap.issue.unreachable', 'http_status' => 404,
+            'kind' => null, 'url' => $legacyUrl, 'reason' => null, 'carried_forward' => false,
+        ],
+        [
+            'snapshot_id' => $snapshotId, 'position' => 2,
+            'identity' => json_encode($nestedIdentity, JSON_THROW_ON_ERROR),
+            'identity_hash' => hash('sha256', json_encode($nestedIdentity, JSON_THROW_ON_ERROR)),
+            'status' => 'broken', 'issue_code' => 'sitemap.issue.unreachable', 'http_status' => 404,
+            'kind' => null, 'url' => $nestedUrl, 'reason' => null, 'carried_forward' => false,
+        ],
+    ]);
+    DB::table('check_runs')->where('id', $run->id)->where('ended_at', $run->ended_at->format('Y-m-d H:i:s.uP'))->update([
+        'evidence' => json_encode($legacySnapshot, JSON_THROW_ON_ERROR),
+        'summary_params' => json_encode(['path' => '/sitemap.xml?k=1'], JSON_THROW_ON_ERROR),
+    ]);
+    DB::table('checks')->where('id', $check->id)->update([
+        'summary_params' => json_encode(['path' => '/sitemap.xml?k=1'], JSON_THROW_ON_ERROR),
+    ]);
 
-    $detailResponse = $this->actingAs($owner)->get('/sites/'.$site->id.'/checks/'.$check->id)->assertOk();
-    $detailResponse->assertDontSee('k=1');
-    expect($detailResponse->inertiaProps()['detail']['checkUrl'])->toBe('http://fixtures.test/sitemap.xml')
-        ->and($detailResponse->inertiaProps()['detail']['issues'][0]['url'])->toBe('http://fixtures.test/sitemap.xml');
+    // Run the one-time data migration (idempotently), then clean up the check path to /sitemap.xml.
+    $migrationPath = database_path('migrations/2026_11_21_140000_strip_legacy_sitemap_query_strings.php');
+    if (file_exists($migrationPath)) {
+        $migration = require $migrationPath;
+        $migration->up();
+        $migration->up();
+    }
 
+    $this->actingAs($owner)->patchJson('/sites/'.$site->id.'/checks/'.$check->id, ['path' => '/sitemap.xml'])->assertRedirect();
+
+    // After saving a query-free path, retained detail, Findings API and export show no query on the legacy root URL while keeping the unrelated nested URL intact.
+    $detail = $this->actingAs($owner)->get('/sites/'.$site->id.'/checks/'.$check->id)->assertOk()->inertiaProps()['detail'];
+    expect($detail['checkUrl'])->toBe('http://fixtures.test/sitemap.xml')
+        ->and($detail['issues'][0]['url'])->toBe('http://fixtures.test/sitemap.xml')
+        ->and($detail['issues'][1]['url'])->toBe($nestedUrl);
+
+    $readToken = $owner->createToken('findings-read', ['checks:read'])->plainTextToken;
+    $this->app['auth']->forgetGuards();
+    $api = $this->withToken($readToken)->getJson('/api/findings?'.http_build_query([
+        'check_id' => $check->id,
+        'run_ref' => ['id' => $run->id, 'endedAt' => $run->ended_at->utc()->format('Y-m-d\TH:i:s.u\Z')],
+    ]))->assertOk();
+    expect(array_column($api->json('rows'), 'url'))->toBe(['http://fixtures.test/sitemap.xml', $nestedUrl]);
+
+    expect(json_decode((string) DB::table('checks')->where('id', $check->id)->value('summary_params'), true, flags: JSON_THROW_ON_ERROR)['path'])->toBe('/sitemap.xml')
+        ->and(json_decode((string) DB::table('check_runs')->where('id', $run->id)->where('ended_at', $run->ended_at->format('Y-m-d H:i:s.uP'))->value('summary_params'), true, flags: JSON_THROW_ON_ERROR)['path'])->toBe('/sitemap.xml');
+
+    $this->app['auth']->forgetGuards();
     $csv = $this->actingAs($owner)->get(route('sites.checks.findings', [
         'site' => $site->id, 'check' => $check->id, 'format' => 'csv',
-        'run' => $run->id, 'observed_at' => $run->ended_at->toIso8601String(),
+        'run' => $run->id, 'observed_at' => $detail['export_run']['endedAt'],
     ]))->assertOk()->streamedContent();
-    expect($csv)->toContain('http://fixtures.test/sitemap.xml')->not->toContain('k=1');
+    expect($csv)->toContain('http://fixtures.test/sitemap.xml', $nestedUrl)
+        ->not->toContain('"http://fixtures.test/sitemap.xml?k=1"', 'http://fixtures.test/sitemap.xml?k=1,');
 });

@@ -77,21 +77,7 @@ final class SecretRedactor
      */
     public static function redact(string $text, #[\SensitiveParameter] array $secrets, #[\SensitiveParameter] array $urls = []): string
     {
-        $stripped = self::stripQueryTargets($text, $urls);
-
-        return self::maskCredentialParameters(self::redactSecrets($stripped, $secrets, $urls));
-    }
-
-    /** @param array<array-key, mixed> $urls */
-    private static function stripQueryTargets(string $text, #[\SensitiveParameter] array $urls): string
-    {
-        foreach (Arr::flatten($urls) as $item) {
-            if ($item instanceof RedactedQueryTarget && $item->target !== '') {
-                $text = str_ireplace($item->target, $item->withoutQuery, $text);
-            }
-        }
-
-        return $text;
+        return self::maskCredentialParameters(self::redactSecrets($text, $secrets, $urls));
     }
 
     /**
@@ -159,9 +145,6 @@ final class SecretRedactor
     {
         $values = self::secretValues($secrets);
         foreach (Arr::flatten($urls) as $url) {
-            if ($url instanceof RedactedQueryTarget) {
-                $url = $url->target;
-            }
             if (! is_string($url) || ! str_starts_with($url, 'http')) {
                 continue;
             }
