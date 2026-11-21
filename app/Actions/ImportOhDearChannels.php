@@ -30,9 +30,10 @@ final readonly class ImportOhDearChannels
      * @param  list<int>  $monitors
      * @param  array<int, array<string, mixed>>|null  $approved
      * @param  array<int, int>  $clientIds  Explicit client assignments per channel; the CLI has none.
+     * @param  (\Closure(): void)|null  $beforeWrite  Called before each channel is written; throws to stop the import.
      * @return list<ImportChannelRowData>
      */
-    public function __invoke(#[\SensitiveParameter] OhDear $sdk, array $monitors, bool $dryRun, ?array $approved, array $clientIds): array
+    public function __invoke(#[\SensitiveParameter] OhDear $sdk, array $monitors, bool $dryRun, ?array $approved, array $clientIds, ?\Closure $beforeWrite = null): array
     {
         $destinations = [];
         $collect = function (Request $request, string $level, array $groupTags = []) use ($sdk, &$destinations): void {
@@ -92,6 +93,9 @@ final readonly class ImportOhDearChannels
             $row->operation = $before === null ? ImportOperation::Create : ImportOperation::Update;
             $row->client_name = $client?->displayName();
             if (! $dryRun) {
+                if ($beforeWrite instanceof \Closure) {
+                    $beforeWrite();
+                }
                 try {
                     $channel = $this->save->syncOhDear($id, $client?->id, $kind, __($row->kind_label).' · Oh Dear #'.$id, $row->enabled,
                         array_column($row->check_types, 'value'), $row->categories, $config);

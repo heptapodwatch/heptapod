@@ -2,9 +2,13 @@
 
 declare(strict_types=1);
 
+use Heptapod\Actions\DeactivateMember;
 use Heptapod\Contracts\OhDear\OhDearClientFactory;
+use Heptapod\Enums\ImportRunStatus;
 use Heptapod\Jobs\RunOhDearImport;
+use Heptapod\Jobs\TerminateLiveConnections;
 use Heptapod\Models\Client;
+use Heptapod\Models\ImportRun;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\User;
 use Heptapod\Testing\RecordedOhDearClientFactory;
@@ -106,4 +110,30 @@ it('updates the same Oh Dear channels on CLI rerun without printing secrets or s
     expect($channel->label)->not->toBe('Locally edited');
     expect($channel->destinationConfig()->string('secret'))->toBe($secret);
     expect(NotificationDestination::query()->whereNotNull('oh_dear_id')->count())->toBe(9);
+});
+
+it('writes no further channel once the starter of a channels-only import loses access', function (): void {
+    $starter = User::factory()->owner()->create(['locale' => 'en']);
+    $otherOwner = User::factory()->owner()->create();
+    $client = Client::factory()->create();
+    Queue::fake([RunOhDearImport::class, TerminateLiveConnections::class]);
+    $plan = $this->actingAs($starter)->postJson('/settings/import/ohdear/plan', ['ohdear_token' => 'fixture-secret-token', 'sections' => ['channels']])->assertOk();
+    $runId = $plan->json('plan_id');
+    $this->postJson('/settings/import/ohdear/runs/'.$runId.'/start', ['expected' => 0, 'groups' => [
+        'tag:production' => ['client_id' => $client->id], 'tag:stores' => ['client_id' => $client->id],
+    ], 'overrides' => []])->assertCreated();
+    // Removed from the team as soon as the first channel is written.
+    $remove = static fn () => app(DeactivateMember::class)($otherOwner, $starter);
+    NotificationDestination::created(static function (NotificationDestination $channel) use (&$remove): void {
+        if ($channel->oh_dear_id !== null && $remove !== null) {
+            [$removeNow, $remove] = [$remove, null];
+            $removeNow();
+        }
+    });
+
+    app()->call([new RunOhDearImport($runId), 'handle']);
+
+    $run = ImportRun::query()->findOrFail($runId);
+    expect($run->status)->toBe(ImportRunStatus::Failed)->and($run->error)->toBe('access_revoked')
+        ->and(NotificationDestination::query()->whereNotNull('oh_dear_id')->count())->toBe(1);
 });
