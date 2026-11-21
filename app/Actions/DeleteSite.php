@@ -16,55 +16,65 @@ final readonly class DeleteSite
 {
     public function __construct(private ResolveInactiveCheckIncidents $resolve) {}
 
+    /** Takes the site's client FOR UPDATE first: writes authorized under its key wait for the deletion and find the site gone. */
     public function __invoke(Site $site): void
     {
-        NotificationLocks::siteClients([$site->id], exclusive: true, callback: function () use ($site): void {
-            // NotificationLocks: the site's client (exclusive: writes authorized under its key, AuthorizeSiteWrite, wait for the
-            // deletion and then find the site gone), the site's maintenance recurrences (exclusive: the cascade deletes them,
-            // and generation holds one while it inserts a window that takes this site's key), the checks (deleted by the cascade), the site, then
-            // every incident the cascade deletes, open and closed (a profile deletion holds a closed incident its user noted
-            // while it takes that user's actor deliveries), and in one ascending pass every delivery this deletion writes: the
-            // queued alerts it suppresses and the history it redacts. The site's own maintenance windows are left to the
-            // cascade at the end (the residual risk named in NotificationLocks).
-            NotificationLocks::maintenanceRecurrences(DB::table('recurring_maintenance_periods')->where('site_id', $site->id)->pluck('id'), exclusive: true);
-            /** @var list<int> $checkIds */
-            $checkIds = DB::table('checks')->where('site_id', $site->id)->orderBy('id')->pluck('id')->all();
-            NotificationLocks::checks([], exclusive: $checkIds);
-            NotificationLocks::sites([$site->id], exclusive: true);
-            $lockedSite = Site::query()->findOrFail($site->id);
-            $lockedChecks = Check::query()->whereKey($checkIds)->get()->sortBy('id')->values();
-            NotificationLocks::incidents(DB::table('incidents')->where('site_id', $site->id)->orWhereIn('check_id', $checkIds)->pluck('id'));
-            ResolveInactiveCheckIncidents::lockWork($checkIds, DB::table('deliveries')->select('id')
-                ->whereIn('event_id', DB::table('events')->select('id')->where('site_id', $site->id)));
-            $ids = [];
-            foreach ($lockedChecks as $check) {
-                $ids = [...$ids, ...($this->resolve)($check, IncidentResolutionReason::SiteDeleted)];
+        NotificationLocks::siteClients([$site->id], exclusive: true, callback: fn () => $this->underClientLock($site));
+    }
+
+    /**
+     * The deletion inside the transaction that already holds the site's client FOR UPDATE: __invoke, or an API deletion that
+     * authorized under that same lock (AuthorizeSiteWrite::exclusively).
+     */
+    public function underClientLock(Site $site): void
+    {
+        if (DB::transactionLevel() === 0) {
+            throw new \LogicException('A site deletion runs inside the transaction that holds its client.');
+        }
+        // NotificationLocks: after the site's client, the site's maintenance recurrences (exclusive: the cascade deletes them,
+        // and generation holds one while it inserts a window that takes this site's key), the checks (deleted by the
+        // cascade), the site, then every incident the cascade deletes, open and closed (a profile deletion holds a closed
+        // incident its user noted while it takes that user's actor deliveries), and in one ascending pass every delivery
+        // this deletion writes: the queued alerts it suppresses and the history it redacts. The site's own maintenance windows are left to the
+        // cascade at the end (the residual risk named in NotificationLocks).
+        NotificationLocks::maintenanceRecurrences(DB::table('recurring_maintenance_periods')->where('site_id', $site->id)->pluck('id'), exclusive: true);
+        /** @var list<int> $checkIds */
+        $checkIds = DB::table('checks')->where('site_id', $site->id)->orderBy('id')->pluck('id')->all();
+        NotificationLocks::checks([], exclusive: $checkIds);
+        NotificationLocks::sites([$site->id], exclusive: true);
+        $lockedSite = Site::query()->findOrFail($site->id);
+        $lockedChecks = Check::query()->whereKey($checkIds)->get()->sortBy('id')->values();
+        NotificationLocks::incidents(DB::table('incidents')->where('site_id', $site->id)->orWhereIn('check_id', $checkIds)->pluck('id'));
+        ResolveInactiveCheckIncidents::lockWork($checkIds, DB::table('deliveries')->select('id')
+            ->whereIn('event_id', DB::table('events')->select('id')->where('site_id', $site->id)));
+        $ids = [];
+        foreach ($lockedChecks as $check) {
+            $ids = [...$ids, ...($this->resolve)($check, IncidentResolutionReason::SiteDeleted)];
+        }
+        $eventIds = DB::table('events')->where('site_id', $lockedSite->id)->select('id');
+        $siteUrls = DB::table('events')->where('site_id', $lockedSite->id)->select('site_url')
+            ->union(DB::table('deliveries')->whereIn('event_id', $eventIds)->select('site_url'))->pluck('site_url');
+        foreach ($siteUrls as $siteUrl) {
+            if (! is_string($siteUrl)) {
+                throw new \LogicException('A site history URL must be text.');
             }
-            $eventIds = DB::table('events')->where('site_id', $lockedSite->id)->select('id');
-            $siteUrls = DB::table('events')->where('site_id', $lockedSite->id)->select('site_url')
-                ->union(DB::table('deliveries')->whereIn('event_id', $eventIds)->select('site_url'))->pluck('site_url');
-            foreach ($siteUrls as $siteUrl) {
-                if (! is_string($siteUrl)) {
-                    throw new \LogicException('A site history URL must be text.');
-                }
-                $redactedUrl = SecretRedactor::redact($siteUrl, [], [$siteUrl]);
-                if ($redactedUrl !== $siteUrl) {
-                    DB::statement('WITH redacted_events AS (UPDATE events SET site_url = ? WHERE site_id = ? AND site_url = ? RETURNING id)
-                        UPDATE deliveries SET site_url = ? WHERE site_url = ? AND event_id IN (SELECT id FROM events WHERE site_id = ?)',
-                        [$redactedUrl, $lockedSite->id, $siteUrl, $redactedUrl, $siteUrl, $lockedSite->id]);
-                }
+            $redactedUrl = SecretRedactor::redact($siteUrl, [], [$siteUrl]);
+            if ($redactedUrl !== $siteUrl) {
+                DB::statement('WITH redacted_events AS (UPDATE events SET site_url = ? WHERE site_id = ? AND site_url = ? RETURNING id)
+                    UPDATE deliveries SET site_url = ? WHERE site_url = ? AND event_id IN (SELECT id FROM events WHERE site_id = ?)',
+                    [$redactedUrl, $lockedSite->id, $siteUrl, $redactedUrl, $siteUrl, $lockedSite->id]);
             }
-            // Older addon events relied on presentation-time redaction. Scrub them before their secrets disappear.
-            $events = Event::query()->with('check')->where('site_id', $lockedSite->id);
-            foreach ($events->lazyById(100) as $event) {
-                $event->redactPayload($lockedSite);
-                if ($event->isDirty('payload')) {
-                    $event->save();
-                }
+        }
+        // Older addon events relied on presentation-time redaction. Scrub them before their secrets disappear.
+        $events = Event::query()->with('check')->where('site_id', $lockedSite->id);
+        foreach ($events->lazyById(100) as $event) {
+            $event->redactPayload($lockedSite);
+            if ($event->isDirty('payload')) {
+                $event->save();
             }
-            $lockedSite->incidentResolutionAudit = ['origin' => ResolveInactiveCheckIncidents::auditOrigin(), 'reason' => IncidentResolutionReason::SiteDeleted->value,
-                'resolved_incident_ids' => $ids, 'resolved_incident_count' => count($ids)];
-            $lockedSite->delete();
-        });
+        }
+        $lockedSite->incidentResolutionAudit = ['origin' => ResolveInactiveCheckIncidents::auditOrigin(), 'reason' => IncidentResolutionReason::SiteDeleted->value,
+            'resolved_incident_ids' => $ids, 'resolved_incident_count' => count($ids)];
+        $lockedSite->delete();
     }
 }

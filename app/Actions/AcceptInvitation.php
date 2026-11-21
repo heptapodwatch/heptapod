@@ -32,6 +32,8 @@ final readonly class AcceptInvitation
             NotificationLocks::forUpdate($query->getQuery());
             $invitation = $query->firstOrFail();
             abort_if($invitation->expires_at->isPast(), 410);
+            // NotificationLocks: the client keys the memberships take, before the account (FOR UPDATE).
+            NotificationLocks::clientKeys($invitation->client_ids);
             $userQuery = User::query()->where('email', $invitation->email);
             NotificationLocks::forUpdate($userQuery->getQuery());
             // A re-activated user keeps their zone; a new one starts in the browser's.

@@ -44,8 +44,8 @@ final readonly class AuthorizeSiteWrite
     }
 
     /**
-     * As __invoke, with the clients FOR UPDATE: for a site deletion, which takes its client that way itself (DeleteSite), so
-     * the transaction never upgrades a key it holds.
+     * As __invoke, with the clients FOR UPDATE: for a site deletion, authorized and run under that one fence
+     * (DeleteSite::underClientLock), so the transaction never upgrades a key it holds.
      *
      * @template TReturn
      *
@@ -68,14 +68,18 @@ final readonly class AuthorizeSiteWrite
     {
         $siteIds = array_values(array_unique(array_map(static fn (Site|Check|Incident $subject): int => $subject instanceof Site ? $subject->id : $subject->site_id, $subjects)));
 
-        return NotificationLocks::siteClients($siteIds, $exclusive, function (Collection $sites) use ($actor, $ability, $write, $subjects): mixed {
-            $this->lockActor($actor);
+        $authorize = static function (Collection $sites) use ($actor, $ability, $subjects): void {
             foreach ($subjects as $subject) {
                 Gate::forUser($actor)->authorize($ability, $subject instanceof Check ? $subject : $sites->get($subject instanceof Site ? $subject->id : $subject->site_id));
             }
+        };
+
+        return NotificationLocks::siteClients($siteIds, $exclusive, function (Collection $sites) use ($actor, $write, $authorize): mixed {
+            $this->lockActor($actor);
+            $authorize($sites);
 
             return $write();
-        });
+        }, $authorize);
     }
 
     /**

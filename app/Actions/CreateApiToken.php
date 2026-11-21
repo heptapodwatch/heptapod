@@ -44,7 +44,9 @@ final class CreateApiToken
         return DB::transaction(function () use ($authenticated, $name, $abilities, $clientId, $expiresAt): string {
             // Removal, access changes and password resets hold the user FOR UPDATE while they delete its tokens: a token is
             // issued only under the access the account has once they committed, and only to a caller whose sign-in still
-            // holds (a changed password means the caller authenticated before the reset).
+            // holds (a changed password means the caller authenticated before the reset). NotificationLocks: a scoped token's
+            // client key first, which its insert takes.
+            NotificationLocks::clientKeys([$clientId]);
             NotificationLocks::users([$authenticated->id]);
             $user = User::query()->findOrFail($authenticated->id);
             abort_if($user->disabled_at !== null || $user->getAuthPassword() !== $authenticated->getAuthPassword(), 403);

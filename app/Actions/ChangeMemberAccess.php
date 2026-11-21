@@ -31,6 +31,8 @@ final readonly class ChangeMemberAccess
         ])->validate();
         DB::transaction(function () use ($actor, $member, $data): void {
             $this->guard->lockOwners();
+            // NotificationLocks: the client keys the new memberships take, before the member (FOR UPDATE).
+            NotificationLocks::clientKeys($data['client_ids'] ?? []);
             $currentActor = User::query()->findOrFail($actor->id);
             $query = User::query()->whereKey($member->id);
             NotificationLocks::forUpdate($query->getQuery());

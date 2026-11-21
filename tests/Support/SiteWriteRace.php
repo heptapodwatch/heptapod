@@ -47,6 +47,58 @@ function siteWriteRaceMove(array $fixture): Closure
 }
 
 /**
+ * The request as its own process (site-write-request.php), not started. With $pauseAfter it waits after its first query
+ * containing that SQL fragment for SiteWriteRacePause.
+ *
+ * @param  array<string, mixed>  $body
+ */
+function siteWriteRaceRequest(string $method, string $uri, array $body = [], string $token = '', ?User $webUser = null, string $pauseAfter = ''): Process
+{
+    return new Process([PHP_BINARY, __DIR__.'/site-write-request.php', $method, $uri, json_encode($body === [] ? new stdClass : $body, JSON_THROW_ON_ERROR),
+        $token, $webUser instanceof User ? (string) $webUser->id : '', $pauseAfter], base_path(), siteWriteRaceEnvironment(), timeout: 30);
+}
+
+/** @return array<string, string> the environment of a process booted against this test database */
+function siteWriteRaceEnvironment(): array
+{
+    return ['APP_ENV' => 'testing', 'DB_DATABASE' => (string) config('database.connections.pgsql.database'), 'DB_URL' => '',
+        'CACHE_STORE' => 'array', 'SESSION_DRIVER' => 'array', 'QUEUE_CONNECTION' => 'database', 'BROADCAST_CONNECTION' => 'null'];
+}
+
+/**
+ * Waits until the session named $application is blocked by the backend $blocker (by any session when null) and returns the
+ * statement it waits in; fails the test when the process ends first or after 20 s.
+ */
+function siteWriteRaceBlocked(Process $process, string $application, ?int $blocker = null): string
+{
+    $deadline = hrtime(true) + 20_000_000_000;
+    do {
+        DB::select('SELECT pg_stat_clear_snapshot()');
+        $waiting = DB::table('pg_stat_activity')->where('application_name', $application);
+        $waiting = $blocker === null ? $waiting->whereRaw('cardinality(pg_blocking_pids(pid)) > 0') : $waiting->whereRaw('? = ANY(pg_blocking_pids(pid))', [$blocker]);
+        $statement = $waiting->value('query');
+        if (is_string($statement)) {
+            return $statement;
+        }
+        usleep(10000);
+    } while (hrtime(true) < $deadline && $process->isRunning());
+    expect(false)->toBeTrue($application.' never waited: '.$process->getOutput().$process->getErrorOutput());
+
+    return '';
+}
+
+/** @return array{status: int, body: mixed} the answer of a finished site-write-request.php process */
+function siteWriteRaceResponse(Process $request): array
+{
+    $request->wait();
+    expect($request->isSuccessful())->toBeTrue($request->getErrorOutput())
+        ->and(json_validate($request->getOutput()))->toBeTrue($request->getOutput());
+
+    /** @var array{status: int, body: mixed} */
+    return json_decode($request->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+}
+
+/**
  * Commits the fixtures, then sends $method $uri (with a bearer token or as a signed-in web user) while $change is open.
  * With $pauseAfter the request waits after its first query containing that SQL fragment until $change commits. `waited`
  * says whether the request was blocked by this connection (the change) before it committed; a request that neither waits
@@ -58,11 +110,7 @@ function siteWriteRaceMove(array $fixture): Closure
 function siteWriteRace(Closure $change, string $method, string $uri, array $body = [], string $token = '', ?User $webUser = null, string $pauseAfter = ''): array
 {
     DB::commit();
-    $request = new Process([PHP_BINARY, __DIR__.'/site-write-request.php', $method, $uri, json_encode($body === [] ? new stdClass : $body, JSON_THROW_ON_ERROR),
-        $token, $webUser instanceof User ? (string) $webUser->id : '', $pauseAfter], base_path(), [
-            'APP_ENV' => 'testing', 'DB_DATABASE' => config('database.connections.pgsql.database'), 'DB_URL' => '',
-            'CACHE_STORE' => 'array', 'SESSION_DRIVER' => 'array', 'QUEUE_CONNECTION' => 'database', 'BROADCAST_CONNECTION' => 'null',
-        ], timeout: 30);
+    $request = siteWriteRaceRequest($method, $uri, $body, $token, $webUser, $pauseAfter);
     try {
         DB::beginTransaction();
         $change();
@@ -81,14 +129,8 @@ function siteWriteRace(Closure $change, string $method, string $uri, array $body
         } while (hrtime(true) < $deadline);
         expect($waited || ! $request->isRunning())->toBeTrue('The request neither waited on the change nor answered: '.$request->getErrorOutput());
         DB::commit();
-        $request->wait();
-        expect($request->isSuccessful())->toBeTrue($request->getErrorOutput())
-            ->and(json_validate($request->getOutput()))->toBeTrue($request->getOutput());
 
-        /** @var array{status: int, body: mixed} $response */
-        $response = json_decode($request->getOutput(), true, flags: JSON_THROW_ON_ERROR);
-
-        return [...$response, 'waited' => $waited, 'blocked_on' => $blocked];
+        return [...siteWriteRaceResponse($request), 'waited' => $waited, 'blocked_on' => $blocked];
     } finally {
         $request->stop(1);
         if (DB::transactionLevel() > 0) {

@@ -94,7 +94,7 @@ final class MonitorController extends Controller
 
     public function destroy(Request $request, Site $monitor, DeleteSite $delete, AuthorizeSiteWrite $authorize): Response
     {
-        $authorize->exclusively($this->principal($request), 'delete', static fn () => $delete($monitor), $monitor);
+        $authorize->exclusively($this->principal($request), 'delete', static fn () => $delete->underClientLock($monitor), $monitor);
 
         return response()->noContent();
     }

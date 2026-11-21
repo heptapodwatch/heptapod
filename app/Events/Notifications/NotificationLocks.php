@@ -6,6 +6,7 @@ namespace Heptapod\Events\Notifications;
 
 use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\ResolveInactiveCheckIncidents;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Incidents\UptimeDependencies;
 use Heptapod\Models\Check;
 use Heptapod\Models\Site;
@@ -28,10 +29,16 @@ use Illuminate\Support\Facades\DB;
  *   8. channels             (notification_destinations; archive, pause and resume FOR UPDATE, everyone else FOR NO KEY UPDATE)
  *   9. deliveries           (deliveries, FOR UPDATE)
  *
- * The Owner role row (MemberAccessGuard::lockOwners), a client and its sender quota (SendClientMessage) come before
- * level 1; a site write takes its sites' client keys there ({@see self::siteClients()}, DeleteSite takes its client FOR UPDATE
- * the same way), then its actor's key and the actor's API token key ({@see AuthorizeSiteWrite}), before it authorizes. Events are locked only by the planner, between its incident and its channels, and written by a digest's claim
- * and completion under the digest's channel; an event created in a transaction is a new row nobody else holds.
+ * Before level 1, in this order: the Owner role row (MemberAccessGuard::lockOwners) and an invitation, then clients (a
+ * client before its sender quota, SendClientMessage). A site write takes its sites' client keys there
+ * ({@see self::siteClients()}; DeleteSite takes its client FOR UPDATE the same way), then its actor's key and the actor's
+ * API token key ({@see AuthorizeSiteWrite}), before it authorizes. A user-first path that inserts a row naming a client
+ * (a membership: ChangeMemberAccess, AcceptInvitation; a client-scoped token: CreateApiToken) takes those client keys
+ * before the user, since the foreign key would take them after it: a site deletion holds its client FOR UPDATE and then
+ * waits for its actor's key. Removing memberships or tokens (DeactivateMember, RevokeMemberAccess) deletes referencing rows
+ * and takes no client lock. Events are locked only by the planner, between its incident and its channels, and written by
+ * a digest's claim and completion under the digest's channel; an event created in a transaction is a new row nobody else
+ * holds.
  *
  * Foreign keys are locks too. Inserting or re-pointing a referencing row takes FOR KEY SHARE on the referenced row; a
  * delete runs its ON DELETE action on every referencing row: CASCADE deletes it, SET NULL updates it, and RESTRICT or
@@ -41,6 +48,9 @@ use Illuminate\Support\Facades\DB;
  * RESTRICT checks never run. The list below is derived from the schema (every pg_constraint foreign key mapped to these
  * levels):
  *
+ *   clients:      client_user.client_id and personal_access_tokens.client_id (KEY SHARE on insert; the membership and token
+ *                 writers take those keys before the user), sites.client_id (CreateSite holds the client FOR SHARE, a move
+ *                 FOR UPDATE)
  *   users:        incidents.note_author_user_id (SaveIncidentNote), deliveries.actor_id (SendClientMessage),
  *                 notification_site_mutes.actor_id, check_snoozes.snoozed_by_/unsnoozed_by_user_id (the snooze actions):
  *                 each writer takes the user's key first. Deleting a user (DeleteProfile, the only path) SETs NULL on those
@@ -233,7 +243,20 @@ final class NotificationLocks
         }
     }
 
-    /** Attempts of {@see self::siteClients()} before a site that keeps moving fails the request. */
+    /**
+     * FOR KEY SHARE on clients, before level 1 and before any user: what inserting a row that names the client takes (a
+     * membership, a client-scoped token, {@see self::siteClients()}). It waits only for moving, archiving and deleting.
+     *
+     * @param  iterable<mixed>  $ids  integer ids; null entries are skipped
+     */
+    public static function clientKeys(iterable $ids): void
+    {
+        foreach (self::ascending($ids) as $id) {
+            DB::table('clients')->where('id', $id)->lock('FOR KEY SHARE')->first(['id']);
+        }
+    }
+
+    /** Attempts of {@see self::siteClients()} before a site that keeps moving is refused as a conflict. */
     private const int SiteClientAttempts = 3;
 
     /**
@@ -242,15 +265,18 @@ final class NotificationLocks
      * with $exclusive FOR UPDATE (deleting a site, which so waits for every key holder). The clients are read unlocked
      * first; when a site belongs to another client once the locks are held, the transaction ends without a write and starts
      * over with the new set. Callers run it as their outermost transaction: an enclosing one would keep the locks of the
-     * attempt it starts over. A site that is gone answers 404.
+     * attempt it starts over. A site that is gone answers 404. When the set has not held still after the last attempt, the
+     * sites are read once more without locks: gone answers 404, $refuseUnstable may refuse them (a target out of the actor's
+     * scope, 404), and otherwise the write is refused as a retryable conflict (409).
      *
      * @template TReturn
      *
      * @param  list<int>  $siteIds
      * @param  \Closure(Collection<int, Site>): TReturn  $callback  receives the sites read under the locks, keyed by id
+     * @param  (\Closure(Collection<int, Site>): void)|null  $refuseUnstable
      * @return TReturn
      */
-    public static function siteClients(array $siteIds, bool $exclusive, \Closure $callback): mixed
+    public static function siteClients(array $siteIds, bool $exclusive, \Closure $callback, ?\Closure $refuseUnstable = null): mixed
     {
         for ($attempt = 1; $attempt <= self::SiteClientAttempts; $attempt++) {
             /** @var list<int> $clientIds */
@@ -276,7 +302,12 @@ final class NotificationLocks
             }
         }
 
-        throw new \RuntimeException('A site kept moving between clients while a write waited for it.');
+        $sites = Site::query()->findOrFail($siteIds)->keyBy('id');
+        if ($refuseUnstable instanceof \Closure) {
+            $refuseUnstable($sites);
+        }
+
+        throw new ExpectedRefusal(status: 409, messageKey: 'errors.site_changed', errorCode: 'site_changed', retryAfterSeconds: 1, tone: 'info');
     }
 
     /** FOR KEY SHARE on the actor's API token, right after the actor's key: revoking a token deletes its row. False when gone. */
