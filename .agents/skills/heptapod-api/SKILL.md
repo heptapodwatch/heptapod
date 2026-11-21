@@ -137,7 +137,7 @@ Each item has `at` (expiry), `site_ref` and `detail` (issuer or registrar, DATA)
 
 ## Switch from Oh Dear
 
-1. On the instance host the user runs a dry run with a read-only Oh Dear token via `OH_DEAR_API_TOKEN` or `--token-stdin`: `OH_DEAR_API_TOKEN="$OH_DEAR_READ_ONLY_TOKEN" php artisan heptapod:import-ohdear --dry-run` (in Docker: `docker compose exec -e OH_DEAR_API_TOKEN="$OH_DEAR_READ_ONLY_TOKEN" app php artisan ...`). It only reads from Oh Dear and writes nothing.
+1. On the instance host the user runs a dry run with a read-only Oh Dear token via `--token-stdin`: `printf '%s\n' "$OH_DEAR_READ_ONLY_TOKEN" | php artisan heptapod:import-ohdear --token-stdin --dry-run` (in Docker: `printf '%s\n' "$OH_DEAR_READ_ONLY_TOKEN" | docker compose exec -T app php artisan heptapod:import-ohdear --token-stdin --dry-run`). It only reads from Oh Dear and writes nothing.
 2. In **Settings → Import** the user enters the same read-only token, reviews the plan (supported checks, setup-required and unsupported items) and starts the import. Without the web app: rerun the command without `--dry-run`.
 3. Afterwards the user updates cron tasks to their new ping URLs from this instance.
 

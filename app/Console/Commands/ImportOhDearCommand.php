@@ -116,7 +116,7 @@ final class ImportOhDearCommand extends Command
             return trim($env);
         }
         if ($this->input->isInteractive() && stream_isatty($stream)) {
-            $entered = $this->secret(__('import.token_prompt'));
+            $entered = $this->secret(__('import.token_prompt'), false);
 
             return is_string($entered) && trim($entered) !== '' ? trim($entered) : null;
         }
