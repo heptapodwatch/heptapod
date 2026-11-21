@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Events\Notifications;
 
+use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\ResolveInactiveCheckIncidents;
 use Heptapod\Incidents\UptimeDependencies;
 use Heptapod\Models\Check;
@@ -26,7 +27,8 @@ use Illuminate\Support\Facades\DB;
  *   9. deliveries           (deliveries, FOR UPDATE)
  *
  * The Owner role row (MemberAccessGuard::lockOwners), a client and its sender quota (SendClientMessage) come before
- * level 1. Events are locked only by the planner, between its incident and its channels, and written by a digest's claim
+ * level 1; a site write takes its sites' client keys there and then its actor's key ({@see AuthorizeSiteWrite}), before it
+ * authorizes. Events are locked only by the planner, between its incident and its channels, and written by a digest's claim
  * and completion under the digest's channel; an event created in a transaction is a new row nobody else holds.
  *
  * Foreign keys are locks too. Inserting or re-pointing a referencing row takes FOR KEY SHARE on the referenced row; a
@@ -226,6 +228,19 @@ final class NotificationLocks
     {
         foreach (self::ascending($ids) as $id) {
             DB::table('clients')->where('id', $id)->lockForUpdate()->first(['id']);
+        }
+    }
+
+    /**
+     * FOR KEY SHARE on clients, before level 1: what a site write authorized against its client takes
+     * ({@see AuthorizeSiteWrite}). It waits only for moving sites between clients and archiving (FOR UPDATE).
+     *
+     * @param  iterable<mixed>  $ids  integer ids; null entries are skipped
+     */
+    public static function clientKeys(iterable $ids): void
+    {
+        foreach (self::ascending($ids) as $id) {
+            DB::table('clients')->where('id', $id)->lock('FOR KEY SHARE')->first(['id']);
         }
     }
 
