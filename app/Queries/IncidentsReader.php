@@ -579,6 +579,7 @@ final readonly class IncidentsReader
                 'episode_continued' => __('notifications.suppression.episode_continued'),
                 'superseded_by_maintenance_catch_up' => __('notifications.suppression.superseded_by_maintenance_catch_up'),
                 'reopened_before_recovery_confirmed' => __('notifications.suppression.reopened_before_recovery_confirmed'),
+                UptimeAlertEpisode::FoldedSuppressionReason => __('notifications.suppression.folded_into_late_opener'),
                 CompleteNotificationDelivery::GivenUpReason => __('notifications.given_up', ['diagnosis' => $transportDiagnosis ?? '—']),
                 default => $transportDiagnosis,
             };

@@ -63,6 +63,7 @@ declare namespace Heptapod {
             readonly confirmedIncompleteFailure: boolean;
             readonly availabilityFailure: Heptapod.Contracts.AvailabilityFailure | null;
             readonly verifiedNothing: boolean;
+            readonly monitorOutage: boolean;
         };
         export type CheckResult =
             | 'pending'
@@ -298,7 +299,8 @@ declare namespace Heptapod {
                 | 'warning'
                 | 'changed'
                 | 'check-error'
-                | 'incident.cause_changed';
+                | 'incident.cause_changed'
+                | 'incident.late_fold';
             export type MailDesign = 'branded' | 'plain';
             export type MailTone =
                 | 'down'

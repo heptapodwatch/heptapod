@@ -13,4 +13,5 @@ enum AlertMailEvent: string
     case Changed = 'changed';
     case CheckError = 'check-error';
     case CauseChanged = 'incident.cause_changed';
+    case LateFold = 'incident.late_fold';
 }

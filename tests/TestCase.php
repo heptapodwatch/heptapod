@@ -6,12 +6,14 @@ namespace Tests;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Checks\DatabaseClock;
+use Heptapod\Contracts\ControlProbe;
 use Heptapod\Contracts\DiskSpaceReader;
 use Heptapod\Contracts\DnsResolver;
 use Heptapod\Contracts\Http\PrivateTargetGuard;
 use Heptapod\Contracts\Http\TargetResolver;
 use Heptapod\Contracts\LiveConnectionTerminator;
 use Heptapod\Jobs\RefreshSiteIcon;
+use Heptapod\Testing\FakeControlProbe;
 use Heptapod\Testing\FakeDiskSpaceReader;
 use Heptapod\Testing\FakeLiveConnectionTerminator;
 use Heptapod\Testing\FixtureOnlyDnsResolver;
@@ -90,6 +92,7 @@ abstract class TestCase extends BaseTestCase
         // The evaluator would otherwise read the host disk: a tight CI runner or an unreadable /backups opens a
         // disk_space_low issue that exists only there. Tests about disk space bind their own samples.
         $this->app->instance(DiskSpaceReader::class, FakeDiskSpaceReader::healthy());
+        $this->app->instance(ControlProbe::class, FakeControlProbe::healthy());
         $this->app->instance(LiveConnectionTerminator::class, new FakeLiveConnectionTerminator);
     }
 

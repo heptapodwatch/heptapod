@@ -56,6 +56,7 @@ Webhook channels require HTTPS. Set `allow_insecure_http` to `true` only for a t
 - Read the event type, check type and result to tell a Down site from a Failed check. Never label every `down` severity as an outage.
 - Dates use ISO 8601, also inside `summary`.
 - `summary` labels durations as "Total downtime" for every check type.
+- If a **Down** alert goes out only after recovery is confirmed, the webhook receives one combined delivery with `severity: "recovered"`, `since`, `downtime_seconds` and a "was down …, up again" `title`.
 
 ## System alerts
 

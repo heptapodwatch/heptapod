@@ -62,6 +62,11 @@ final class RenderedAlert extends Notification
             $params['site'] = $this->siteLabel();
         }
         $key = $this->message->titleKey;
+        if ($this->message->recoveredAt instanceof CarbonImmutable && $this->message->downtimeSeconds !== null) {
+            $params['since'] = $this->message->since->setTimezone($this->destinationTimezone)->format('H:i');
+            $params['until'] = $this->message->recoveredAt->setTimezone($this->destinationTimezone)->format('H:i');
+            $params['duration'] = $this->duration($this->message->downtimeSeconds);
+        }
         if ($this->message->cause === 'errored' && ! isset($params['component'])) {
             $key = 'notifications.errored_title';
             $params = ['site' => $this->siteLabel(), 'check' => $this->checkName()];
@@ -150,6 +155,9 @@ final class RenderedAlert extends Notification
         $lines = [$this->message->cause === 'errored' && str_starts_with($this->message->summaryKey, 'notifications.')
             ? $this->translate('notifications.check_error')
             : $this->translate($this->message->summaryKey, $params, $markdown)];
+        if ($this->message->recoveredAt instanceof CarbonImmutable) {
+            $lines[] = $this->translate('notifications.late_fold_context', [], $markdown);
+        }
         if ($this->message->maintenanceEnded) {
             $lines[] = $this->translate('notifications.maintenance_ended_context', [], $markdown);
         }

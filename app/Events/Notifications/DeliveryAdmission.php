@@ -65,6 +65,9 @@ final readonly class DeliveryAdmission
         if ($event->type === 'incident.resolved') {
             $incident = $event->incident ?? throw new \LogicException('A recovery event must have an incident.');
             $opened = $episode === null ? Delivery::alertedIncident($incident->id, $channelId) : UptimeAlertEpisode::sentOpening($episode, $channelId);
+            if ($opened instanceof Delivery && $opened->folded_with_recovery) {
+                return UptimeAlertEpisode::FoldedSuppressionReason;
+            }
             if (! $opened instanceof Delivery) {
                 $pending = Delivery::latestIncidentOpening($incident, $channelId);
                 if ($episode instanceof Incident && $pending instanceof Delivery) {

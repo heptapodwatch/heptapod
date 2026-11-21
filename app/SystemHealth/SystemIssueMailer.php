@@ -282,7 +282,7 @@ final readonly class SystemIssueMailer
             }
         }
         $message = new AlertMessage($event->id, $recovered ? AlertSeverity::Recovered : ($issue->severity() === HealthStatus::Down ? AlertSeverity::Down : AlertSeverity::Warning),
-            'system_mail.subject_'.($recovered ? 'recovered' : 'open'), ['title' => __('system_mail.'.$issue->kind->value.'.title', locale: $locale)], 'system_mail.facts', [],
+            'system_mail.subject_'.($recovered ? 'recovered' : 'open'), ['title' => $this->issueTitle($issue, $locale)], 'system_mail.facts', [],
             null, $this->settings->name, config()->string('app.url'), null, $issue->opened_at->utc(), null, null,
             route('settings.system.edit'), systemFacts: [$mail->lead ?? $mail->preheader, ...$facts]);
 
@@ -292,7 +292,7 @@ final readonly class SystemIssueMailer
     /** Times show in the receiving channel's zone. */
     public function model(SystemIssue $issue, bool $recovered, string $locale, bool $owner, bool $team, string $timezone): MailModel
     {
-        $title = __('system_mail.'.$issue->kind->value.'.title', locale: $locale);
+        $title = $this->issueTitle($issue, $locale);
         $time = fn (?string $at): string => $at === null ? __('system_mail.never', locale: $locale)
             : CarbonImmutable::parse($at)->setTimezone($timezone)->format('Y-m-d H:i T');
         $rows = [['label' => __('system_mail.since', locale: $locale), 'value' => new Cell($time($issue->opened_at->toIso8601String()), true)]];
@@ -312,10 +312,15 @@ final readonly class SystemIssueMailer
                     throw new \RuntimeException('Cannot format filesystem free-space percentage.');
                 }
             }
-            if (in_array($key, ['loss_cause', 'resolution', 'check_type', 'no_result_cause', 'reason'], true) && is_string($value)) {
+            if (in_array($key, ['loss_cause', 'resolution', 'check_type', 'no_result_cause', 'reason', 'mode'], true) && is_string($value)) {
+                if ($key === 'mode' && $issue->kind !== SystemIssueKind::MonitorOutage) {
+                    $rows[] = ['label' => __('system_mail.detail.'.$key, locale: $locale), 'value' => new Cell($value, true)];
+
+                    continue;
+                }
                 $translated = __(match ($key) {
                     'no_result_cause' => $value, 'loss_cause' => 'freshness.loss.'.$value, 'check_type' => 'checks.'.$value.'.label',
-                    'reason' => 'disk.read_failure.'.$value, default => 'system_mail.resolution.'.$value,
+                    'reason' => 'disk.read_failure.'.$value, 'mode' => 'system_mail.monitor_outage.mode.'.$value, default => 'system_mail.resolution.'.$value,
                 }, $key === 'reason' ? ['path' => $issue->scope] : [], $locale);
                 if (! is_string($translated)) {
                     throw new \LogicException('System issue detail translation must be a string.');
@@ -331,7 +336,7 @@ final readonly class SystemIssueMailer
             'result_accepted' => 'recovered', 'monitoring_stopped' => 'stopped', 'check_deleted' => 'deleted', 'check_reset' => 'reset',
             default => throw new \LogicException('A freshness recovery must retain its resolution reason.'),
         } : 'recovered';
-        $lead = $recovered ? __('system_mail.'.$issue->kind->value.'.'.$recoveryKey, locale: $locale) : __('system_mail.'.$issue->kind->value.'.action', locale: $locale);
+        $lead = $recovered ? __('system_mail.'.$issue->kind->value.'.'.$recoveryKey, locale: $locale) : $this->issueAction($issue, $locale);
 
         $headline = $recovered ? __('system_mail.headline_recovered', ['title' => $title], $locale) : $title;
 
@@ -340,5 +345,23 @@ final readonly class SystemIssueMailer
             instance: $this->settings->name.' · '.parse_url(config()->string('app.url'), PHP_URL_HOST), tone: $tone, lead: $lead,
             blocks: [new FactsBlock(__('system_mail.facts', locale: $locale), $rows)],
             primary: ['label' => __('system_mail.open_system_health', locale: $locale), 'url' => route('settings.system.edit')], design: $this->settings->mail_design);
+    }
+
+    private function issueTitle(SystemIssue $issue, string $locale): string
+    {
+        $key = $issue->kind === SystemIssueKind::MonitorOutage && ($issue->details['mode'] ?? null) === 'dns'
+            ? 'system_mail.monitor_outage.dns.title'
+            : 'system_mail.'.$issue->kind->value.'.title';
+
+        return __($key, locale: $locale);
+    }
+
+    private function issueAction(SystemIssue $issue, string $locale): string
+    {
+        $key = $issue->kind === SystemIssueKind::MonitorOutage && ($issue->details['mode'] ?? null) === 'dns'
+            ? 'system_mail.monitor_outage.dns.action'
+            : 'system_mail.'.$issue->kind->value.'.action';
+
+        return __($key, locale: $locale);
     }
 }

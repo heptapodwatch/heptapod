@@ -586,6 +586,7 @@ readonly incomplete: boolean,
 readonly confirmedIncompleteFailure: boolean,
 readonly availabilityFailure: Heptapod.Contracts.AvailabilityFailure | null,
 readonly verifiedNothing: boolean,
+readonly monitorOutage: boolean,
 };
 export type CheckResult = 'pending' | 'succeeded' | 'warning' | 'failed' | 'errored-or-timed-out';
 export type CheckRunPresentationData = {
@@ -740,7 +741,7 @@ export type FetchFailureKind = 'timeout' | 'too_large' | 'tls' | 'dns' | 'connec
 export type RedirectPolicy = 'off' | 'operator' | 'untrusted';
 }
 namespace Mail {
-export type AlertMailEvent = 'incident.opened' | 'incident.still_down' | 'incident.resolved' | 'warning' | 'changed' | 'check-error' | 'incident.cause_changed';
+export type AlertMailEvent = 'incident.opened' | 'incident.still_down' | 'incident.resolved' | 'warning' | 'changed' | 'check-error' | 'incident.cause_changed' | 'incident.late_fold';
 export type MailDesign = 'branded' | 'plain';
 export type MailTone = 'down' | 'failed' | 'warn' | 'ok' | 'error' | 'info' | 'neutral';
 }
@@ -2312,7 +2313,7 @@ readonly severity: Heptapod.Enums.HealthStatus,
 readonly openedAt: string,
 readonly details: Record<string, number | string | null>,
 };
-export type SystemIssueKind = 'check_not_fresh' | 'disk_space_low' | 'maintenance_failed' | 'backup_failed' | 'backup_stale' | 'scheduler_stale' | 'checks_not_running' | 'mail_log_only' | 'mail_transport_dead' | 'notifications_stalled' | 'channel_failing';
+export type SystemIssueKind = 'check_not_fresh' | 'disk_space_low' | 'maintenance_failed' | 'backup_failed' | 'backup_stale' | 'scheduler_stale' | 'checks_not_running' | 'mail_log_only' | 'mail_transport_dead' | 'notifications_stalled' | 'channel_failing' | 'monitor_outage';
 }
 }
 declare namespace Illuminate {

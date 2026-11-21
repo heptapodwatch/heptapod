@@ -20,7 +20,8 @@ final class WakeUptimeRecoveries
     {
         $query = Delivery::query()->where('state', DeliveryState::Pending->value)->where('suppressed', false);
         $query->getQuery()->whereIn('last_reason', [UptimeAlertEpisode::WaitingReason, UptimeAlertEpisode::ReadyReason])
-            ->whereIn('event_id', DB::table('events')->select('id')->where('check_id', $checkId)->where('type', 'incident.resolved'));
+            ->whereIn('event_id', DB::table('events')->select('id')->where('check_id', $checkId)
+                ->whereIn('type', ['incident.resolved', 'incident.opened', 'incident.cause_changed', 'maintenance.catch_up', 'incident.still_down']));
 
         return $query;
     }
@@ -30,12 +31,15 @@ final class WakeUptimeRecoveries
     {
         $query = self::pending($checkId)->where('last_reason', UptimeAlertEpisode::WaitingReason);
         $query->getQuery()->orderBy('id')->limit(100);
-        $rows = $query->get(['id', 'event_id']);
+        $rows = $query->get(['id', 'event_id', 'next_attempt_at']);
         if ($rows->count() === 100) {
             Log::warning('Uptime recovery wake reached its cap.', ['check_id' => $checkId, 'limit' => 100]);
         }
+        $now = CarbonImmutable::now('UTC');
         foreach ($rows as $delivery) {
-            $changed = self::pending($checkId)->where('last_reason', UptimeAlertEpisode::WaitingReason)->whereKey($delivery->id)->update(['last_reason' => UptimeAlertEpisode::ReadyReason, 'next_attempt_at' => CarbonImmutable::now('UTC')]);
+            // Preserve an earlier due time on late openers so openerRetiredBy() still sees the original deadline.
+            $changed = self::pending($checkId)->where('last_reason', UptimeAlertEpisode::WaitingReason)->whereKey($delivery->id)
+                ->update(['last_reason' => UptimeAlertEpisode::ReadyReason, 'next_attempt_at' => min($delivery->next_attempt_at, $now)]);
             if ($changed === 1) {
                 Delivery::announceEvents([$delivery->event_id]);
                 SendNotification::dispatch($delivery->id);

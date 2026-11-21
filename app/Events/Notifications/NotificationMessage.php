@@ -62,7 +62,7 @@ final readonly class NotificationMessage
     }
 
     /** $category is the delivery's retained category; it outlives an uninstalled add-on, whose routing keys are gone. */
-    public function build(Event $event, ?NotificationDestination $destination = null, ?NotificationCategory $category = null): AlertMessage
+    public function build(Event $event, ?NotificationDestination $destination = null, ?NotificationCategory $category = null, bool $foldedRecovery = false): AlertMessage
     {
         if ($event->type === 'notification.digest') {
             $count = $event->payload['count'] ?? null;
@@ -100,7 +100,7 @@ final readonly class NotificationMessage
             $opening->payload = [...$event->payload, 'summary' => $incident->evidence['summary'] ?? null,
                 'summary_params' => $incident->evidence['summary_params'] ?? []];
 
-            return $this->build($opening, $destination, $category);
+            return $this->build($opening, $destination, $category, $foldedRecovery);
         }
         if ($event->type === 'maintenance.catch_up') {
             $count = $event->payload['count'] ?? null;
@@ -122,8 +122,9 @@ final readonly class NotificationMessage
                 mail: $destination?->channel === 'mail' ? $this->catchUps->build($event, $destination) : null,
                 repositories: $this->repositories($site, $deletedSite, $destination));
         }
-        $severity = $this->types->severity($event);
-        $title = match ($severity) {
+        $lateFold = $foldedRecovery && $event->incident?->resolved_at !== null;
+        $severity = $lateFold ? AlertSeverity::Recovered : $this->types->severity($event);
+        $title = $lateFold ? 'notifications.late_fold_title' : match ($severity) {
             AlertSeverity::Down => $this->types->key($event) === 'site.down' ? 'notifications.down_title' : 'notifications.failing_title',
             AlertSeverity::Recovered => 'notifications.recovered_title',
             AlertSeverity::Warning => 'notifications.warning_title',
@@ -133,13 +134,15 @@ final readonly class NotificationMessage
         $facts = EventFacts::fromEvent($event);
         $component = $event->component_type !== null;
         $since = $facts->failureStartedAt ?? $event->occurred_at;
-        $recovered = $facts->recoveredAt;
+        $recovered = $lateFold ? $event->incident->resolved_at : $facts->recoveredAt;
         $downtime = $severity === AlertSeverity::Recovered ? $facts->durationSeconds : null;
         if (UptimeAlertEpisode::appliesTo($event->incident)) {
             $since = UptimeAlertEpisode::start($event->incident ?? throw new \LogicException('An episode requires its incident.'));
             if ($severity === AlertSeverity::Recovered && $recovered instanceof CarbonImmutable) {
                 $downtime = (int) $since->diffInSeconds($recovered);
             }
+        } elseif ($lateFold && $recovered instanceof CarbonImmutable) {
+            $downtime = (int) $since->diffInSeconds($recovered);
         }
         $label = $site->displayName();
         $client = $site->client ?? throw new \LogicException('Alert site must have a client.');
@@ -177,11 +180,11 @@ final readonly class NotificationMessage
         $context = RedactionContext::forSite($site, $event->check);
         $summaryParams = SecretRedactor::redactStringValues($summaryParams, $context);
 
-        $affectedChecks = $event->check?->type === CheckKey::Uptime && $event->incident !== null
+        $affectedChecks = ! $lateFold && $event->check?->type === CheckKey::Uptime && $event->incident !== null
             && in_array($event->type, ['incident.opened', 'incident.cause_changed', 'incident.still_down'], true)
             ? $this->dependencies->affected($event->incident) : [];
 
-        $recheckingChecks = $event->check?->type === CheckKey::Uptime && $event->incident !== null && $event->type === 'incident.resolved'
+        $recheckingChecks = $event->check?->type === CheckKey::Uptime && $event->incident !== null && ($event->type === 'incident.resolved' || $lateFold)
             ? $this->dependencies->rechecking($event->incident) : [];
 
         $mailContext = null;
@@ -189,7 +192,7 @@ final readonly class NotificationMessage
         if ($destination?->channel === 'mail') {
             $retained = $this->retainedAlert($event, $severity, $deletedSite);
             if (! $retained instanceof RetainedAlert) {
-                $mailContext = ($this->mailContexts)($event, $severity, $affectedChecks, $recheckingChecks, $destination);
+                $mailContext = ($this->mailContexts)($event, $severity, $affectedChecks, $recheckingChecks, $destination, foldedRecovery: $lateFold);
                 $retained = $mailContext instanceof AlertMailContext ? null : RetainedAlert::ComponentDetailsPruned;
             }
             $mail = $retained instanceof RetainedAlert ? $this->retainedMails->build($event, $severity, $retained, $destination, $category ?? NotificationCategory::of($event)) : null;
@@ -206,6 +209,8 @@ final readonly class NotificationMessage
             mailContext: $mailContext,
             mail: $mail,
             presentation: $this->presentations->forEvent($event),
-            maintenanceEnded: ($event->payload['uptime_episode'] ?? false) === true || ($event->payload['maintenance_first_alert'] ?? false) === true, repositories: $this->repositories($site, $deletedSite, $destination));
+            maintenanceEnded: ($event->payload['uptime_episode'] ?? false) === true || ($event->payload['maintenance_first_alert'] ?? false) === true,
+            repositories: $this->repositories($site, $deletedSite, $destination),
+            recoveredAt: $lateFold && $recovered instanceof CarbonImmutable ? $recovered->utc() : null);
     }
 }

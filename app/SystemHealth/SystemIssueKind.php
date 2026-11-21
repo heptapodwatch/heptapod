@@ -23,6 +23,7 @@ enum SystemIssueKind: string
     case MailTransportDead = 'mail_transport_dead';
     case NotificationsStalled = 'notifications_stalled';
     case ChannelFailing = 'channel_failing';
+    case MonitorOutage = 'monitor_outage';
 
     /** @param array<string, int|string|null> $details */
     public function titleKey(array $details = []): string
@@ -39,6 +40,9 @@ enum SystemIssueKind: string
             self::MailTransportDead => 'Email delivery is failing',
             self::NotificationsStalled => 'Notifications are not being sent',
             self::ChannelFailing => 'A notification channel has failed for 24 hours',
+            self::MonitorOutage => ($details['mode'] ?? null) === 'dns'
+                ? 'system_issue.monitor_outage.dns.title'
+                : 'system_issue.monitor_outage.network.title',
         };
     }
 
@@ -57,6 +61,9 @@ enum SystemIssueKind: string
             self::MailTransportDead => 'No email reaches anyone. Check the SMTP host, port and credentials. A recovery email follows when sending works again.',
             self::NotificationsStalled => 'Alerts have waited more than ten minutes to be sent. Check that the Horizon worker service is running and read its log for errors.',
             self::ChannelFailing => 'Every send to this channel has failed for a day. Check its settings and use Send test. Alerts that fail for 24 hours are given up.',
+            self::MonitorOutage => ($details['mode'] ?? null) === 'dns'
+                ? 'system_issue.monitor_outage.dns.action'
+                : 'system_issue.monitor_outage.network.action',
         };
     }
 
@@ -78,7 +85,7 @@ enum SystemIssueKind: string
     public function severity(): HealthStatus
     {
         return match ($this) {
-            self::SchedulerStale, self::ChecksNotRunning, self::MailTransportDead, self::NotificationsStalled => HealthStatus::Down,
+            self::SchedulerStale, self::ChecksNotRunning, self::MailTransportDead, self::NotificationsStalled, self::MonitorOutage => HealthStatus::Down,
             default => HealthStatus::Warn,
         };
     }

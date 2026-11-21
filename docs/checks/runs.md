@@ -27,6 +27,20 @@ Each check runs at its next due time on the fast, crawl or browser queue. **Runs
 
 A late check shows **Late by** the time since its due time. Read the check type, result and recorded cause together. See [notifications](../notifications.md) for how results become alerts.
 
+## Monitor outage guard
+
+When at least three uptime checks fail with network errors inside two minutes, Heptapod checks two outside DNS names and two direct-IP targets on independent providers.
+
+- If both DNS control probes fail, DNS-resolution uptime failures are recorded as **Check error** instead of **Down**.
+- If both direct-IP control probes fail, connection, timeout and DNS uptime failures are recorded as **Check error** instead of **Down**.
+- Affected runs open no site incidents, send no per-site alerts and count as no site downtime.
+- One System alert reports the monitor outage and its recovery.
+- HTTP errors (such as 5xx), TLS failures and content failures stay **Down**.
+- If the control probes succeed, normal **Down** handling stands. This covers a partial monitor fault.
+- If the control probes fail during a real wide outage, runs show **Check error** and the System issue explains why.
+
+Control probes send no telemetry or instance data. Operators can configure or turn them off through server environment variables.
+
 ## Run checks by hand
 
 - **Run check** on a check page queues one run. A fast check accepts one manual request every 30 seconds, a crawl or browser check one every five minutes.

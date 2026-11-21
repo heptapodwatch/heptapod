@@ -31,12 +31,17 @@ final class CheckOutcome extends Data
         public readonly ?AvailabilityFailure $availabilityFailure = null,
         /** No site observation was verified; incomplete success cannot recover an incident. */
         public readonly bool $verifiedNothing = false,
+        /** Monitor-side outage confirmed by control probes: record as Check error without opening or changing a site incident. */
+        public readonly bool $monitorOutage = false,
     ) {
         if (! $metrics instanceof Data && $result !== RunResult::Errored) {
             throw new \InvalidArgumentException('Only an errored run may have no metrics.');
         }
         if (($result === RunResult::Errored) !== ($error instanceof CheckError)) {
             throw new \InvalidArgumentException('Only errored runs must carry engine diagnostics.');
+        }
+        if ($monitorOutage && $result !== RunResult::Errored) {
+            throw new \InvalidArgumentException('Only errored runs may be marked as a monitor outage.');
         }
         if ($availabilityFailure instanceof AvailabilityFailure && ! in_array($result, [RunResult::Failed, RunResult::Errored], true)) {
             throw new \InvalidArgumentException('Only failed or errored observations may report an availability failure.');

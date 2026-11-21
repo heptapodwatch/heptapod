@@ -49,6 +49,7 @@ use Illuminate\Support\Facades\DB;
  * @property int|null $blocking_maintenance_period_id
  * @property int|null $deferred_maintenance_period_id
  * @property int|null $digest_event_id
+ * @property bool $folded_with_recovery
  */
 #[DateFormat('Y-m-d H:i:s.uP')]
 #[Guarded(['id'])]
@@ -70,7 +71,7 @@ final class Delivery extends Model
 
     protected function casts(): array
     {
-        return ['deferred_maintenance_period_id' => 'integer', 'blocking_maintenance_period_id' => 'integer', 'attempts' => 'integer', 'probe_round' => 'integer', 'state' => DeliveryState::class, 'suppressed' => 'boolean', 'digest' => 'boolean', 'category' => NotificationCategory::class, 'recipient_snapshot' => 'array',
+        return ['deferred_maintenance_period_id' => 'integer', 'blocking_maintenance_period_id' => 'integer', 'attempts' => 'integer', 'probe_round' => 'integer', 'state' => DeliveryState::class, 'suppressed' => 'boolean', 'digest' => 'boolean', 'folded_with_recovery' => 'boolean', 'category' => NotificationCategory::class, 'recipient_snapshot' => 'array',
             'next_attempt_at' => 'immutable_datetime', 'lease_until' => 'immutable_datetime',
             'sent_at' => 'immutable_datetime', 'first_failed_at' => 'immutable_datetime', 'digest_recurrence_ended_at' => 'immutable_datetime', 'suppression_evaluated_at' => 'immutable_datetime'];
     }

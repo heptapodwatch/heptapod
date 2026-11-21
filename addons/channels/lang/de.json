@@ -182,5 +182,11 @@
     "emails.retained_subject.closed_by_check": "[Geschlossen] :site — :check",
     "emails.retained_headline.closed_by_check": "Die Störung bei :check auf :site wurde geschlossen, weil die Prüfung keine Aufgaben mehr hat.",
     "emails.retained_chip.closed_by_check": "Geschlossen",
-    "emails.closed_by_check_note": "Die Prüfung hat keine Aufgaben mehr, daher wurde die Störung geschlossen. Keine Prüfung hat bestätigt, dass das Problem behoben ist."
+    "emails.closed_by_check_note": "Die Prüfung hat keine Aufgaben mehr, daher wurde die Störung geschlossen. Keine Prüfung hat bestätigt, dass das Problem behoben ist.",
+    "notifications.late_fold_title": ":site war ausgefallen :since–:until (:duration), wieder erreichbar",
+    "notifications.late_fold_context": "Der Ausfallalarm konnte erst gesendet werden, nachdem die Website wieder erreichbar war.",
+    "emails.late_fold_subject": "[Entwarnung] :site war ausgefallen :since_clock–:until_clock (:duration)",
+    "emails.late_fold_headline": ":site war von :since_clock bis :until_clock (:duration) ausgefallen und ist wieder erreichbar.",
+    "emails.late_fold_preheader": "Der Ausfall endete, bevor der Ausfallalarm gesendet werden konnte. Die Website ist wieder erreichbar.",
+    "emails.late_fold_note": "Der Ausfallalarm konnte erst nach Ende des Ausfalls gesendet werden. Eröffnung und Entwarnung wurden daher in dieser Nachricht zusammengefasst."
 }

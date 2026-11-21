@@ -70,6 +70,25 @@ For a disappearing worker, retain root-readable Docker and containerd journals a
 
 Operators can evaluate [Docker live restore](https://docs.docker.com/engine/daemon/live-restore/) for supported patch upgrades; it requires compatible daemon options and does not cover every upgrade. See [restart-policy semantics](https://docs.docker.com/engine/containers/start-containers-automatically/) and [daemon shutdown configuration](https://docs.docker.com/reference/cli/dockerd/). Rootless Podman is daemonless: restarting a disposable Podman container can verify its stop/restart behavior, but cannot reproduce Docker/containerd's package-upgrade shutdown path.
 
+## Monitor outage guard
+
+When at least three distinct active uptime checks fail with network-level errors (DNS resolution, connection failure or timeout) within 120 seconds, Heptapod runs outside control probes (cached for 60 seconds) before attributing the burst to the monitored sites.
+
+| Variable                                 | Default                      | Meaning                                                                                                                                                                             |
+| ---------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HEPTAPOD_CONTROL_PROBE_DNS_HOSTS`       | `one.one.one.one,dns.google` | Comma-separated domain names (at least two on independent providers) resolved through the host's DNS resolver. Empty disables DNS control probing.                                  |
+| `HEPTAPOD_CONTROL_PROBE_IP_TARGETS`      | `1.1.1.1:443,8.8.8.8:443`    | Comma-separated `ip:port` or `[ipv6]:port` targets (at least two on independent providers) checked with a plain TCP connect and immediate close. Empty disables IP control probing. |
+| `HEPTAPOD_CONTROL_PROBE_TIMEOUT_SECONDS` | `3`                          | Per-target timeout in seconds (`1`–`15`).                                                                                                                                           |
+
+Setting both `HEPTAPOD_CONTROL_PROBE_DNS_HOSTS=` and `HEPTAPOD_CONTROL_PROBE_IP_TARGETS=` to empty strings turns the guard off. Control probes send no HTTP request, no TLS SNI, no telemetry and no instance identifiers.
+
+- If all configured DNS probes fail, uptime runs failing with DNS resolution errors are recorded as **Check error** (`ReclassifiedCheckError`) without opening site incidents, sending per-site alerts or counting site downtime.
+- If all configured direct-IP probes fail, uptime runs failing with connection, timeout or DNS errors are reclassified the same way.
+- HTTP status failures (such as 5xx), TLS failures, keyword failures and redirects always stay **Down**.
+- One `monitor_outage` system issue opens on the next system evaluation (alerting Owners, opted-in Admins and team System channels) and resolves once a fresh control probe passes again.
+- **False negative (partial monitor breakage):** if any control probe for that layer succeeds, the guard stays out and normal **Down** handling stands.
+- **False positive (control targets unreachable during a real wide outage):** affected runs are recorded as **Check error**, and the `monitor_outage` system issue explains that the control probes failed.
+
 ## Notifications stall or a channel keeps failing
 
 `notifications_stalled` opens when the oldest event that no dispatcher run has routed, or the oldest delivery that is due but has not completed, is more than ten minutes old. Age counts from the delivery's `next_attempt_at`, which a claim keeps, so a send that throws after every claim is caught even though each reclaim renews its lease. A delivery waiting in backoff is not due, so a dead channel alone does not open it. `DispatchNotifications` routes and sends each item on its own: an event or step that throws is reported and the job fails after the other items ran, so one bad row cannot stop all alerts but keeps this issue open until it is fixed. A run that fills a batch of 100 queues the next run at once.

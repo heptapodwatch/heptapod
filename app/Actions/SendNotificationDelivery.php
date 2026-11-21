@@ -32,7 +32,7 @@ final readonly class SendNotificationDelivery
         $notification = match (true) {
             $event->system_issue_id !== null => $this->systemIssues->notification($event, $destination),
             str_starts_with($event->type, 'client_message.') => $this->clientMessages->notification($event),
-            default => new AlertNotification($this->messages->build($event, $destination, $delivery->category), $delivery->event_id.':'.$destination->id),
+            default => new AlertNotification($this->messages->build($event, $destination, $delivery->category, foldedRecovery: $delivery->folded_with_recovery), $delivery->event_id.':'.$destination->id),
         };
         // Never hold a transaction during provider I/O. A crash leaves a reclaimable lease.
         // At-least-once duplicate window: provider acceptance before the fenced ack

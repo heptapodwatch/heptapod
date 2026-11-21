@@ -58,7 +58,7 @@ final readonly class EvaluateSystemIssues
      */
     public const int EvaluationStaleAfterSeconds = 900;
 
-    public function __construct(private CheckDataMaintenanceRecord $maintenance, private MailTransportRecord $transport, private SystemIssueMailer $mailer, private SystemTransportProbe $probe, private SendNotificationDelivery $send, private FinishedCheckAge $finishedChecks, private DiskSpaceIssues $diskSpace, private CheckFreshnessIssues $freshness) {}
+    public function __construct(private CheckDataMaintenanceRecord $maintenance, private MailTransportRecord $transport, private SystemIssueMailer $mailer, private SystemTransportProbe $probe, private SendNotificationDelivery $send, private FinishedCheckAge $finishedChecks, private DiskSpaceIssues $diskSpace, private CheckFreshnessIssues $freshness, private MonitorOutageDetector $monitorOutage) {}
 
     public function __invoke(CarbonImmutable $now): void
     {
@@ -213,7 +213,7 @@ final readonly class EvaluateSystemIssues
                 }
             });
             Log::warning('System issue opened.', ['kind' => $kind->value, 'details' => $details]);
-        } elseif (in_array($kind, [SystemIssueKind::DiskSpaceLow, SystemIssueKind::MailLogOnly], true) && $details !== null && $previousDetails !== $details) {
+        } elseif (in_array($kind, [SystemIssueKind::DiskSpaceLow, SystemIssueKind::MailLogOnly, SystemIssueKind::MonitorOutage], true) && $details !== null && $previousDetails !== $details) {
             $open->update(['details' => $details]);
             Log::warning('System issue updated.', ['kind' => $kind->value, 'issue_id' => $open->id, 'details' => $details]);
         } elseif ($details === null && $open instanceof SystemIssue) {
@@ -247,6 +247,7 @@ final readonly class EvaluateSystemIssues
             SystemIssueKind::MailLogOnly => MailDeliveryMode::includesLocalTransport() ? ['mailer' => config()->string('mail.default'), 'mode' => MailDeliveryMode::logOnly() ? 'local' : 'mixed'] : null,
             SystemIssueKind::MailTransportDead => $this->mailTransportDead($now, $isOpen),
             SystemIssueKind::NotificationsStalled => $this->notificationsStalled($now),
+            SystemIssueKind::MonitorOutage => $this->monitorOutage->evaluateSystemIssue($now, $isOpen),
         };
     }
 

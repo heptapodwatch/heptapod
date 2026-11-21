@@ -38,5 +38,8 @@
     "uptime.mail_event.check.warning": "warnings",
     "uptime.mail_event.check.recovered": "recoveries",
     "uptime.reason.required_string": "Expected text not found",
-    "uptime.reason.absent_string": "Unwanted text found"
+    "uptime.reason.absent_string": "Unwanted text found",
+    "uptime.monitor_dns_outage": "Monitor could not look up domain names",
+    "uptime.monitor_network_outage": "Monitor could not reach the network",
+    "uptime.monitor_outage_reason": "Monitor connectivity failed"
 }

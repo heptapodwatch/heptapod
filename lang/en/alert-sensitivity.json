@@ -40,6 +40,7 @@
     "notifications.suppression.episode_already_alerted": "An opening alert was already sent for this interruption.",
     "notifications.suppression.episode_continued": "The interruption continued; its next incident carries the opening alert.",
     "notifications.suppression.reopened_before_recovery_confirmed": "The interruption returned before recovery was confirmed. No recovery alert was sent.",
+    "notifications.suppression.folded_into_late_opener": "Combined into the late outage alert sent after recovery.",
     "notifications.recovery_checks_pending": "Waiting for consecutive good checks before sending recovery.",
     "notifications.alert_delay_due": "Alert due at :time (after :minutes failed minutes).",
     "notifications.maintenance_ended_context": "Maintenance has ended. This interruption is still ongoing.",

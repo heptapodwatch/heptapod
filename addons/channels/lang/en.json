@@ -182,5 +182,11 @@
     "emails.retained_subject.closed_by_check": "[Closed] :site — :check",
     "emails.retained_headline.closed_by_check": "The :check incident on :site was closed because the check has no tasks any more.",
     "emails.retained_chip.closed_by_check": "Closed",
-    "emails.closed_by_check_note": "The check has no tasks any more, so it closed the incident. No check confirmed that the problem is fixed."
+    "emails.closed_by_check_note": "The check has no tasks any more, so it closed the incident. No check confirmed that the problem is fixed.",
+    "notifications.late_fold_title": ":site was down :since–:until (:duration), up again",
+    "notifications.late_fold_context": "The Down alert could only be sent after the site had recovered.",
+    "emails.late_fold_subject": "[Recovered] :site was down :since_clock–:until_clock (:duration)",
+    "emails.late_fold_headline": ":site was down :since_clock–:until_clock (:duration) and is up again.",
+    "emails.late_fold_preheader": "Outage ended before the Down alert could be sent. The site is up again.",
+    "emails.late_fold_note": "The Down alert could only be sent after the outage had ended, so opening and recovery were combined into this message."
 }

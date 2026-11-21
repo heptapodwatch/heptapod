@@ -51,7 +51,7 @@ final readonly class BuildAlertMailContext
      * @param  list<string>  $affectedChecks
      * @param  list<string>  $recheckingChecks
      */
-    public function __invoke(Event $event, AlertSeverity $severity, array $affectedChecks, array $recheckingChecks, NotificationDestination $destination): ?AlertMailContext
+    public function __invoke(Event $event, AlertSeverity $severity, array $affectedChecks, array $recheckingChecks, NotificationDestination $destination, bool $foldedRecovery = false): ?AlertMailContext
     {
         $outage = $event->check?->type === CheckKey::Uptime && $event->cause !== IncidentCause::Errored
             && in_array($event->type, ['incident.opened', 'incident.cause_changed', 'incident.still_down', 'incident.resolved'], true)
@@ -61,7 +61,7 @@ final readonly class BuildAlertMailContext
         }
         $check = $event->check ?? throw new \LogicException('Mail context requires a check.');
         $incident = $event->incident ?? throw new \LogicException('Mail context requires an incident.');
-        $variant = AlertMailEvent::from($event->type);
+        $variant = $foldedRecovery ? AlertMailEvent::LateFold : AlertMailEvent::from($event->type);
         $openingIncident = $incident;
         if ($variant === AlertMailEvent::Recovered && UptimeAlertEpisode::appliesTo($incident)) {
             $sent = UptimeAlertEpisode::sentOpening($incident, $destination->id)
@@ -96,12 +96,19 @@ final readonly class BuildAlertMailContext
             ?? throw new \LogicException('Structured alert email requires its shared opening presentation.');
         $openingId = $snapshot['run_id'] ?? null;
         $facts = new MailEventFacts($event->type, $event->payload, $check->id, $event->component_type, $event->component_id, is_int($openingId) ? new RunReference($openingId, CarbonImmutable::parse($observedAt)->utc()) : null);
+        $resolvedAt = $variant === AlertMailEvent::LateFold
+            ? ($incident->resolved_at ?? throw new \LogicException('A late-folded outage requires its resolution time.'))
+            : $event->occurred_at;
         $blocks = match ($variant) {
             AlertMailEvent::Opened => $provider->mailEvidence($input, CarbonImmutable::parse($observedAt)->utc(), $locale, $timezone, $facts),
             // The opening snapshot is the check error; the cause change itself retains the failed observation.
             AlertMailEvent::CauseChanged => $this->causeChangeEvidence($event, $provider, $locale, $timezone, $facts),
             AlertMailEvent::Reminder => [new NoteBlock(__('emails.reminder_note', ['id' => $incident->id], $locale))],
             AlertMailEvent::Recovered => $provider->mailRecoveryEvidence($input, CarbonImmutable::parse($observedAt)->utc(), $this->recoveryRun($event), $event->occurred_at, $locale, $timezone, $facts),
+            AlertMailEvent::LateFold => [
+                new NoteBlock(__('emails.late_fold_note', locale: $locale)),
+                ...$provider->mailRecoveryEvidence($input, CarbonImmutable::parse($observedAt)->utc(), $this->resolvedIncidentRecoveryRun($incident), $resolvedAt, $locale, $timezone, $facts),
+            ],
         };
         if (($event->payload['uptime_episode'] ?? false) === true || ($event->payload['maintenance_first_alert'] ?? false) === true) {
             $blocks[] = new NoteBlock(__('notifications.maintenance_ended_context', locale: $locale));
@@ -111,24 +118,24 @@ final readonly class BuildAlertMailContext
                 'text' => __('checks.'.$key.'.label', locale: $locale), 'meta' => __('emails.held_check', locale: $locale),
             ], $affectedChecks));
         }
-        if ($variant === AlertMailEvent::Recovered && $recheckingChecks !== []) {
+        if (in_array($variant, [AlertMailEvent::Recovered, AlertMailEvent::LateFold], true) && $recheckingChecks !== []) {
             $blocks[] = new ListBlock(__('emails.rechecking', locale: $locale), array_map(static fn (string $key): array => [
                 'text' => __('checks.'.$key.'.label', locale: $locale), 'meta' => '',
             ], $recheckingChecks));
             $blocks[] = new NoteBlock(__('emails.rechecking_note', locale: $locale));
         }
 
-        return $this->context($event, $destination, $presentation, $blocks, $variant, MailTone::Down, $facts, $openingIncident);
+        return $this->context($event, $destination, $presentation, $blocks, $variant, MailTone::Down, $facts, $openingIncident, $resolvedAt);
     }
 
     /** @param list<EvidenceBlock> $blocks */
-    private function context(Event $event, NotificationDestination $destination, CheckRunPresentationData $presentation, array $blocks, AlertMailEvent $variant, MailTone $tone, MailEventFacts $facts, ?Incident $openingIncident = null): AlertMailContext
+    private function context(Event $event, NotificationDestination $destination, CheckRunPresentationData $presentation, array $blocks, AlertMailEvent $variant, MailTone $tone, MailEventFacts $facts, ?Incident $openingIncident = null, ?CarbonImmutable $eventAt = null): AlertMailContext
     {
         $site = $event->site ?? throw new \LogicException('Mail context requires a site.');
         $client = $site->client ?? throw new \LogicException('Mail context requires a client.');
         $check = $event->check ?? throw new \LogicException('Mail context requires a check.');
         $timezone = $destination->resolvedTimezone();
-        if ($variant === AlertMailEvent::Recovered && $event->incident !== null) {
+        if (in_array($variant, [AlertMailEvent::Recovered, AlertMailEvent::LateFold], true) && $event->incident !== null) {
             // Uptime episodes use this recipient's sent opener, not a later incident in the same episode.
             $openingIncident ??= $event->incident;
             $opening = $this->presentations->atOpening($openingIncident);
@@ -149,7 +156,7 @@ final readonly class BuildAlertMailContext
         $avatar = $this->avatars->for($client, $site);
         $routing = $this->routingWhy($event, $destination);
 
-        return new AlertMailContext($event->incident_id, $variant, $event->occurred_at, $facts, $timezone, $this->registry->get($check->type)->definition()->labelKey, $reason, $blocks, $avatar['png'], $avatar['cid'],
+        return new AlertMailContext($event->incident_id, $variant, $eventAt ?? $event->occurred_at, $facts, $timezone, $this->registry->get($check->type)->definition()->labelKey, $reason, $blocks, $avatar['png'], $avatar['cid'],
             route('sites.checks.show', ['site' => $site->id, 'check' => $check->id]),
             $routing['why'], $routing['url'], $avatar['tile'], $routing['labelKey'], $presentation->explanation, $tone, array_slice($presentation->parts, 1), $this->settings->mail_design);
     }
@@ -302,6 +309,16 @@ final readonly class BuildAlertMailContext
         }
 
         return new CheckRunPresentationInput($run->result, $run->evidence, $run->metrics, $run->summary, $run->summary_params ?? []);
+    }
+
+    private function resolvedIncidentRecoveryRun(Incident $incident): ?CheckRunPresentationInput
+    {
+        $resolvedEvent = Event::query()->where('incident_id', $incident->id)->where('type', 'incident.resolved')->latest('id')->first();
+        if (! $resolvedEvent instanceof Event || ! is_int($resolvedEvent->payload['run_id'] ?? null) || ! is_string($resolvedEvent->payload['run_ended_at'] ?? null)) {
+            return null;
+        }
+
+        return $this->recoveryRun($resolvedEvent);
     }
 
     /** @return array{why: string, url: string, labelKey: string} */

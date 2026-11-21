@@ -7,6 +7,7 @@ namespace Heptapod\Actions;
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\Notifications\AlertSeverity;
 use Heptapod\Contracts\Notifications\DeliveryState;
+use Heptapod\Enums\IncidentCause;
 use Heptapod\Enums\IncidentResolutionReason;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\RecipientKind;
@@ -176,6 +177,28 @@ final readonly class ClaimNotificationDelivery
                     $delivery->announceChanges();
 
                     return null;
+                }
+                if ($event->cause !== IncidentCause::Errored && $episode->resolved_at !== null) {
+                    $check = $episode->check ?? throw new \LogicException('An episode opener requires its check.');
+                    $site = $event->site ?? throw new \LogicException('An episode opener requires its site.');
+                    if (IncidentResolutionReason::forCheck($check, $site) instanceof IncidentResolutionReason) {
+                        $delivery->update(['suppressed' => true, 'suppression_reason' => 'monitoring_stopped',
+                            'suppression_evaluated_at' => $at, 'last_reason' => null, 'claim_token' => null, 'lease_until' => null]);
+                        $delivery->announceChanges();
+
+                        return null;
+                    }
+                    if (! UptimeAlertEpisode::recoveryConfirmed($episode, $at)) {
+                        $delivery->update(['state' => DeliveryState::Pending, 'last_reason' => UptimeAlertEpisode::WaitingReason,
+                            'claim_token' => null, 'lease_until' => null]);
+                        $delivery->announceChanges();
+
+                        return null;
+                    }
+                    $delivery->folded_with_recovery = true;
+                    if ($delivery->last_reason === UptimeAlertEpisode::ReadyReason) {
+                        $delivery->last_reason = null;
+                    }
                 }
             }
             $confirmation = AlertConfirmation::appliesTo($event) ? AlertConfirmation::state($event) : AlertConfirmation::Confirmed;
@@ -379,6 +402,13 @@ final readonly class ClaimNotificationDelivery
                 }
                 if ($opened->state === DeliveryState::Logged) {
                     $delivery->update(['suppressed' => true, 'suppression_reason' => 'opening_not_delivered', 'suppression_evaluated_at' => $at]);
+                    $delivery->announceChanges();
+
+                    return null;
+                }
+                if ($opened->state === DeliveryState::Sent && $opened->folded_with_recovery) {
+                    $delivery->update(['suppressed' => true, 'suppression_reason' => UptimeAlertEpisode::FoldedSuppressionReason,
+                        'suppression_evaluated_at' => $at, 'last_reason' => null, 'claim_token' => null, 'lease_until' => null]);
                     $delivery->announceChanges();
 
                     return null;

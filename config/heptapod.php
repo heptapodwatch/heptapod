@@ -53,6 +53,58 @@ if ($crawlPhpLimitMiB === false) {
     throw new InvalidArgumentException('HEPTAPOD_CRAWL_MEMORY_LIMIT_MB must be an integer number of MiB from 256 to 4096.');
 }
 
+$controlProbeDnsHosts = [];
+$controlProbeDnsValue = env('HEPTAPOD_CONTROL_PROBE_DNS_HOSTS', 'one.one.one.one,dns.google');
+if (! is_string($controlProbeDnsValue)) {
+    throw new InvalidArgumentException('HEPTAPOD_CONTROL_PROBE_DNS_HOSTS must be a comma-separated list of host names or empty.');
+}
+if (trim($controlProbeDnsValue) !== '') {
+    foreach (explode(',', $controlProbeDnsValue) as $entry) {
+        $host = TargetHost::normalize(trim($entry));
+        if ($host === '' || filter_var($host, FILTER_VALIDATE_IP) !== false || strlen($host) > 253
+            || preg_match('/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/D', $host) !== 1) {
+            throw new InvalidArgumentException('HEPTAPOD_CONTROL_PROBE_DNS_HOSTS accepts valid domain names only, not URLs or IPs.');
+        }
+        $controlProbeDnsHosts[] = $host;
+    }
+    $controlProbeDnsHosts = array_values(array_unique($controlProbeDnsHosts));
+    if (count($controlProbeDnsHosts) < 2) {
+        throw new InvalidArgumentException('HEPTAPOD_CONTROL_PROBE_DNS_HOSTS must list at least two distinct hosts, or be empty to turn off.');
+    }
+}
+
+$controlProbeIpTargets = [];
+$controlProbeIpValue = env('HEPTAPOD_CONTROL_PROBE_IP_TARGETS', '1.1.1.1:443,8.8.8.8:443');
+if (! is_string($controlProbeIpValue)) {
+    throw new InvalidArgumentException('HEPTAPOD_CONTROL_PROBE_IP_TARGETS must be a comma-separated list of ip:port targets or empty.');
+}
+if (trim($controlProbeIpValue) !== '') {
+    foreach (explode(',', $controlProbeIpValue) as $entry) {
+        $target = trim($entry);
+        $valid = false;
+        if (preg_match('/^\[([^\]]+)\]:([0-9]{1,5})$/D', $target, $matches) === 1) {
+            $port = (int) $matches[2];
+            $valid = filter_var($matches[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false && $port >= 1 && $port <= 65535;
+        } elseif (preg_match('/^([^:]+):([0-9]{1,5})$/D', $target, $matches) === 1) {
+            $port = (int) $matches[2];
+            $valid = filter_var($matches[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false && $port >= 1 && $port <= 65535;
+        }
+        if (! $valid) {
+            throw new InvalidArgumentException('HEPTAPOD_CONTROL_PROBE_IP_TARGETS accepts ip:port or [ipv6]:port targets only.');
+        }
+        $controlProbeIpTargets[] = $target;
+    }
+    $controlProbeIpTargets = array_values(array_unique($controlProbeIpTargets));
+    if (count($controlProbeIpTargets) < 2) {
+        throw new InvalidArgumentException('HEPTAPOD_CONTROL_PROBE_IP_TARGETS must list at least two distinct targets, or be empty to turn off.');
+    }
+}
+
+$controlProbeTimeoutSeconds = filter_var(env('HEPTAPOD_CONTROL_PROBE_TIMEOUT_SECONDS', 3), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 15]]);
+if ($controlProbeTimeoutSeconds === false) {
+    throw new InvalidArgumentException('HEPTAPOD_CONTROL_PROBE_TIMEOUT_SECONDS must be an integer from 1 to 15.');
+}
+
 return [
     'freshness' => [
         'interval_multiplier' => (int) env('HEPTAPOD_FRESHNESS_INTERVAL_MULTIPLIER', 3),
@@ -75,6 +127,11 @@ return [
     'maintenance' => ['horizon_days' => 30],
     'uptime' => [
         'max_response_bytes' => filter_var(env('UPTIME_MAX_RESPONSE_BYTES', 10485760), FILTER_VALIDATE_INT),
+    ],
+    'control_probe' => [
+        'dns_hosts' => $controlProbeDnsHosts,
+        'ip_targets' => $controlProbeIpTargets,
+        'timeout_seconds' => $controlProbeTimeoutSeconds,
     ],
     'system_issues' => [
         // Optional mount visible to the app. An explicitly configured but unreadable path is an alert.
