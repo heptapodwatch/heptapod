@@ -1536,9 +1536,9 @@ it('treats a capped fallback GET that ends as TooLarge as unverified through rea
     $this->travelBack();
     $realHttp = app(OutboundHttp::class);
     // Serve a synthetic sitemap listing real oversized 503 and 200 endpoints, while forwarding all probes through real Guzzle/cURL transport.
-    app()->instance(OutboundHttp::class, new class($realHttp) implements OutboundHttp
+    app()->instance(OutboundHttp::class, new readonly class($realHttp) implements OutboundHttp
     {
-        public function __construct(private readonly OutboundHttp $real) {}
+        public function __construct(private OutboundHttp $real) {}
 
         public function fetch(FetchRequest $request, CheckContext $context): FetchResult
         {
@@ -1549,9 +1549,9 @@ it('treats a capped fallback GET that ends as TooLarge as unverified through rea
         {
             $realClient = $this->real->pacedClient($context, $additionalDelayMilliseconds);
 
-            return new class($realClient) implements PacedHttpClient
+            return new readonly class($realClient) implements PacedHttpClient
             {
-                public function __construct(private readonly PacedHttpClient $realClient) {}
+                public function __construct(private PacedHttpClient $realClient) {}
 
                 public function fetch(FetchRequest $request): ?FetchResult
                 {
