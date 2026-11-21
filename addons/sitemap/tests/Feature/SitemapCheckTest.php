@@ -120,7 +120,8 @@ function sitemapLibraryRequest(FetchRequest $request): FetchRequest
     }
 
     return new FetchRequest($request->url, $request->method, $headers, (string) $message->getBody(), $request->maxWireBytes, $request->maxDecodedBytes,
-        $request->redirects, $request->maxRedirects, $request->siteHost, $request->timeoutSeconds, $request->acceptedStatuses, $request->strictRedirects, $request->withCertificateInfo, $request->publicTargetsOnly);
+        $request->redirects, $request->maxRedirects, $request->siteHost, $request->timeoutSeconds, $request->acceptedStatuses, $request->strictRedirects, $request->withCertificateInfo, $request->publicTargetsOnly,
+        truncateAtLimit: $request->truncateAtLimit);
 }
 
 /** @return array<string, list<string>> */
