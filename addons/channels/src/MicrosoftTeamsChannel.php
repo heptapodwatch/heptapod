@@ -34,7 +34,7 @@ final class MicrosoftTeamsChannel extends TransportChannel
 
     public function configSchema(): Schema
     {
-        return new Schema(['url' => $this->textField('channels.field.url', true, ['url:http,https'])]);
+        return new Schema(['url' => $this->textField('channels.field.url', true, ['bail', 'url:http,https', 'delivery_https'])]);
     }
 
     protected function deliver(RenderedAlert $alert, DestinationConfig $destination, string $idempotencyKey): DeliveryResult

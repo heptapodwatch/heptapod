@@ -47,7 +47,7 @@ export default function InputError({
             role="alert"
             id={field ? fieldErrorId(field) : undefined}
             {...props}
-            className={cn('text-xs text-destructive', className)}
+            className={cn('text-xs wrap-anywhere text-destructive', className)}
         >
             {t(message)}
         </p>

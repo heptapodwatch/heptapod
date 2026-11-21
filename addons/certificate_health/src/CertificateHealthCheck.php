@@ -208,7 +208,8 @@ final readonly class CertificateHealthCheck implements CheckDetailProvider, Chec
             throw new \UnexpectedValueException('TLS response endpoint differs from request.');
         }
         $chain = [];
-        foreach (array_slice($fetched->pemChain, 0, 20) as $pem) {
+        // A chain from the explaining connection only shapes the failure summary below; it is never the checked certificate.
+        foreach (array_slice($fetched->chainExplainsOnly ? [] : $fetched->pemChain, 0, 20) as $pem) {
             // Unreadable display PEM stops detail parsing; it cannot override native verification.
             if (strlen($pem) > 65536 || @openssl_x509_read($pem) === false) {
                 break;

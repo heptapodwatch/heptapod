@@ -9,6 +9,7 @@ use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\SystemHealth\MailTransportRecord;
+use Heptapod\Testing\FakeSmtpTransport;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia;
 use Monolog\Handler\TestHandler;
+use Symfony\Component\Mailer\Transport\FailoverTransport;
 
 require_once __DIR__.'/../Support/NotificationChannels.php';
 
@@ -51,6 +53,10 @@ it('records local mail as logged without accepting the incident or retrying it',
     config(['mail.default' => $mailer]);
     Mail::purge();
     Log::channel('stderr')->getLogger()->pushHandler(new TestHandler(bubble: false));
+    if ($mailer === 'failover') {
+        // The SMTP member rejects, so the failover falls back to the app's log transport.
+        Mail::mailer()->setSymfonyTransport(new FailoverTransport([new FakeSmtpTransport('MAIL FROM:<sender@example.test>', 421), Mail::mailer('log')->getSymfonyTransport()]));
+    }
     $destination = NotificationDestination::factory()->create();
     notificationRule($destination);
     $event = notificationIncidentEvent();
@@ -62,6 +68,7 @@ it('records local mail as logged without accepting the incident or retrying it',
     expect($delivery->state)->toBe(DeliveryState::Logged);
     expect($delivery->sent_at)->toBeNull();
     expect($destination->fresh()->last_outcome)->toBe('logged');
+    expect(app(MailTransportRecord::class)->read()->lastSuccessAt)->toBeNull();
     expect($event->incident->fresh()->evidence['notification_opening_accepted'] ?? false)->toBeFalse();
     $owner = User::factory()->owner()->create();
     $page = $this->actingAs($owner)->get(route('incidents.show', $event->incident_id))
@@ -74,7 +81,7 @@ it('records local mail as logged without accepting the incident or retrying it',
     $this->travel(2)->hours();
     dispatchNotifications();
     expect($delivery->fresh()->attempts)->toBe(1);
-})->with(['log', 'array']);
+})->with(['log', 'array', 'failover']);
 
 it('tells an inviter that a local transport did not deliver the invitation', function (): void {
     config(['mail.default' => 'array']);

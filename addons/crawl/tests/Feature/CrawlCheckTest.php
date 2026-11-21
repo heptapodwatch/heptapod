@@ -140,9 +140,9 @@ function crawlDispatchedUrls(Closure $operation): array
 
         public function __construct(private readonly PrivateTargetGuard $guard) {}
 
-        public function clientConfig(?string $siteHost, bool $publicTargetsOnly = false, ?float $deadline = null, ?float $selectTimeoutSeconds = null, ?TargetAddressScope $scope = null): array
+        public function clientConfig(?string $siteHost, bool $publicTargetsOnly = false, ?float $deadline = null, ?float $selectTimeoutSeconds = null, ?TargetAddressScope $scope = null, bool $plainHttpPrivateOnly = false): array
         {
-            $config = $this->guard->clientConfig($siteHost, $publicTargetsOnly, $deadline, $selectTimeoutSeconds, $scope);
+            $config = $this->guard->clientConfig($siteHost, $publicTargetsOnly, $deadline, $selectTimeoutSeconds, $scope, $plainHttpPrivateOnly);
             $config['handler']->push(Middleware::history($this->history));
 
             return $config;

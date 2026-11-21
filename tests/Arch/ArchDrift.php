@@ -24,6 +24,7 @@ use Heptapod\Contracts\ReclassifiedCheckError;
 use Heptapod\Contracts\TargetAvailabilityException;
 use Heptapod\Contracts\TlsFailureReason;
 use Heptapod\Mail\CapabilityRedactingMailLogger;
+use Heptapod\Mail\MarkedLogTransport;
 use Heptapod\Notifications\AccountMailFactory;
 use Heptapod\Support\Api\ApiProblem;
 use Heptapod\SystemHealth\DiskReadException;
@@ -83,7 +84,7 @@ final class ArchDrift
     public const array CommandsWithoutSuffix = [BackfillAvatarBacking::class, RefreshSiteIcons::class];
 
     /** Classes in Heptapod\Mail that are not queued Mailables. @var list<class-string> */
-    public const array MailNonMailables = [CapabilityRedactingMailLogger::class];
+    public const array MailNonMailables = [CapabilityRedactingMailLogger::class, MarkedLogTransport::class];
 
     /** Classes in Heptapod\Notifications that are not Notifications. @var list<class-string> */
     public const array NotificationsNonNotifications = [AccountMailFactory::class];

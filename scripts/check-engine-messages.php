@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Heptapod\Addons\Crawl\CrawlStartRedirectOffSite;
 use Heptapod\Addons\Crawl\CrawlStartRedirectOriginChanged;
 use Heptapod\Addons\Crawl\CrawlTargetUnavailable;
+use Heptapod\Addons\Dns\DnsNameserverRefusedException;
 use Heptapod\Addons\Dns\DnsResolverStatusException;
 use Heptapod\Addons\Lighthouse\LighthouseAuditFailed;
 use Heptapod\Addons\Lighthouse\LighthouseBusyException;
@@ -125,6 +126,7 @@ $samples = [
         new TargetAvailabilityException(new FetchFailure(FetchFailureKind::HttpStatus, 503))],
     // CheckedDig clamps the status to these values.
     DnsResolverStatusException::class => array_map(static fn (string $status): DnsResolverStatusException => new DnsResolverStatusException($status), ['SERVFAIL', 'REFUSED', 'FORMERR', 'NOTIMP', 'an error status']),
+    DnsNameserverRefusedException::class => [new DnsNameserverRefusedException(new FetchException(new FetchFailure(FetchFailureKind::PrivateTarget)))],
     LighthouseBusyException::class => [new LighthouseBusyException],
     CrawlTargetUnavailable::class => array_map(static fn (FetchFailureKind $kind): CrawlTargetUnavailable => new CrawlTargetUnavailable(new FetchException(new FetchFailure($kind))), FetchFailureKind::cases()),
 ];

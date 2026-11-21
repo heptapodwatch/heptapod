@@ -66,7 +66,7 @@ function recipientGrid(int $channelId): array
 
 function recipientWebhook(): array
 {
-    return ['channel' => 'webhook', 'label' => 'Ops hook', 'config' => ['url' => 'https://receiver.test/alerts', 'secret' => 'private-webhook-secret']];
+    return ['channel' => 'webhook', 'label' => 'Ops hook', 'config' => ['url' => 'https://receiver.test/alerts', 'secret' => 'private-webhook-secret-32-characters']];
 }
 
 it('refuses to list an addon channel without its own description in both languages', function (string $missingLocale, string $providedLocale): void {
@@ -238,14 +238,14 @@ it('edits a channel without echoing secrets and asks for the secret again before
     $id = $this->actingAs($owner)->postJson(route('notification-channels.store'), ['recipient_kind' => 'team', 'locale' => 'en', ...recipientWebhook()])->json('id');
 
     $this->patchJson(route('notification-channels.update', $id), ['label' => 'Renamed', 'config' => ['url' => 'https://receiver.test/alerts', 'secret' => '********']])->assertOk();
-    expect(NotificationDestination::query()->findOrFail($id)->destinationConfig()->string('secret'))->toBe('private-webhook-secret');
+    expect(NotificationDestination::query()->findOrFail($id)->destinationConfig()->string('secret'))->toBe('private-webhook-secret-32-characters');
     $this->patchJson(route('notification-channels.update', $id), ['config' => ['url' => 'https://elsewhere.test/hook', 'secret' => '********']])
         ->assertUnprocessable()->assertJsonValidationErrors('config.secret');
-    $this->patchJson(route('notification-channels.update', $id), ['config' => ['url' => 'https://elsewhere.test/hook', 'secret' => 'fresh-secret']])->assertOk();
+    $this->patchJson(route('notification-channels.update', $id), ['config' => ['url' => 'https://elsewhere.test/hook', 'secret' => 'fresh-secret-of-thirty-two-characters']])->assertOk();
     $channel = NotificationDestination::query()->findOrFail($id);
-    expect($channel->label)->toBe('Renamed')->and($channel->destinationConfig()->values())->toBe(['url' => 'https://elsewhere.test/hook', 'secret' => 'fresh-secret']);
+    expect($channel->label)->toBe('Renamed')->and($channel->destinationConfig()->values())->toBe(['url' => 'https://elsewhere.test/hook', 'secret' => 'fresh-secret-of-thirty-two-characters']);
     $page = $this->getJson(route('settings.notifications.team.data'))->assertOk();
-    expect($page->getContent())->not->toContain('fresh-secret', 'private-webhook-secret');
+    expect($page->getContent())->not->toContain('fresh-secret-of-thirty-two-characters', 'private-webhook-secret-32-characters');
     $account = app(EnsureAccountChannel::class)($owner);
     $this->patchJson(route('notification-channels.update', $account), ['config' => ['email' => 'other@example.test']])->assertUnprocessable();
 });
@@ -255,7 +255,7 @@ it('names an invalid channel setting by its translated label, never by its reque
     $this->actingAs($owner)->postJson(route('notification-channels.store'), ['recipient_kind' => 'team', 'channel' => 'mail', 'label' => 'Ops',
         'locale' => 'en', 'config' => ['email' => 'not an email']])->assertUnprocessable()->assertJsonValidationErrors(['values.email' => $email]);
     $this->postJson(route('notification-channels.store'), ['recipient_kind' => 'team', 'locale' => 'en', 'channel' => 'webhook', 'label' => 'Hook',
-        'config' => ['url' => 'http://receiver.test/alerts', 'secret' => 'private-webhook-secret']])->assertUnprocessable()->assertJsonValidationErrors(['values.url' => $url]);
+        'config' => ['url' => 'http://receiver.test/alerts', 'secret' => 'private-webhook-secret-32-characters']])->assertUnprocessable()->assertJsonValidationErrors(['values.url' => $url]);
 })->with([
     'en' => ['en', 'The Email address field must be a valid email address.', 'The URL field must be a valid URL.'],
     'de' => ['de', 'E-Mail-Adresse muss eine gültige E-Mail-Adresse sein.', 'URL muss eine URL sein.'],
@@ -273,7 +273,7 @@ it('reconciles open outages when repaired settings resume a channel that needed 
 
     $this->patchJson(route('notification-channels.update', $id), ['label' => 'Renamed only'])->assertOk();
     expect($incident->fresh()->routing_reconcile_requested_at)->toBeNull();
-    $this->patchJson(route('notification-channels.update', $id), ['config' => ['url' => 'https://receiver.test/alerts', 'secret' => 'renewed-secret']])->assertOk();
+    $this->patchJson(route('notification-channels.update', $id), ['config' => ['url' => 'https://receiver.test/alerts', 'secret' => 'renewed-secret-of-thirty-two-chars']])->assertOk();
 
     $channel = NotificationDestination::query()->findOrFail($id);
     expect($channel->enabled)->toBeTrue()->and($channel->needs_attention)->toBeFalse();

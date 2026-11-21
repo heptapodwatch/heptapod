@@ -35,7 +35,7 @@ final class NtfyChannel extends TransportChannel
     public function configSchema(): Schema
     {
         return new Schema([
-            'server' => $this->textField('channels.field.server', rules: ['url:http,https']),
+            'server' => $this->textField('channels.field.server', rules: ['bail', 'url:http,https', 'delivery_https']),
             'topic' => $this->textField('channels.field.topic', true, ['regex:/^[a-zA-Z0-9_-]{1,64}$/']),
             'token' => $this->headerSecretField('channels.field.token', false),
         ]);
@@ -56,11 +56,13 @@ final class NtfyChannel extends TransportChannel
             'message' => $alert->details(limit: RenderedAlert::NTFY_LIMIT),
             ...($alert->message->link === null ? [] : ['click' => $alert->message->link]),
         ])->throw();
-        if (! $response->successful()) {
+        $id = $response->json('id');
+        // Only ntfy's published-message JSON for this topic proves delivery; a proxy or captive portal also answers 2xx.
+        if (! $response->successful() || ! is_string($id) || $id === '' || $response->json('event') !== 'message'
+            || $response->json('topic') !== $destination->string('topic')) {
             return $this->failure($destination, $response);
         }
-        $id = $response->json('id');
 
-        return new DeliveryResult(DeliveryState::Sent, providerMessageId: is_string($id) ? $id : null);
+        return new DeliveryResult(DeliveryState::Sent, providerMessageId: $id);
     }
 }

@@ -8,6 +8,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\RequestException as GuzzleRequestException;
 use Heptapod\Contracts\Http\DeliveryHttp;
+use Heptapod\Contracts\Http\DeliveryPrivateHosts;
 use Heptapod\Contracts\Http\FetchException;
 use Heptapod\Contracts\Http\FetchFailure;
 use Heptapod\Contracts\Http\FetchFailureKind;
@@ -55,6 +56,13 @@ abstract class TransportChannel implements ChannelType
         if (array_any(Arr::flatten($secrets), SecretMinimum::tooShort(...))) {
             return new DeliveryResult(DeliveryState::Failed, 'notifications.secret_too_short', diagnosis: __('notifications.secret_too_short', locale: $destination->locale));
         }
+        foreach ($schema->fields as $name => $field) {
+            $url = $destination->values()[$name] ?? null;
+            // A stored plain-HTTP URL whose host the Owner no longer lists is refused here instead of failing validation.
+            if (in_array('delivery_https', $field->rules, true) && is_string($url) && ! DeliveryPrivateHosts::allowsScheme($url)) {
+                return new DeliveryResult(DeliveryState::Failed, 'notifications.needs_https', diagnosis: __('notifications.needs_https', locale: $destination->locale));
+            }
+        }
         $schema->validateConfig($destination->values());
         try {
             return $this->deliver(new RenderedAlert($message, $destination->locale, $destination->timezone, $destination->instanceName, $destination->instanceUrl, $this->key() === 'webhook'), $destination, $idempotencyKey);
@@ -67,6 +75,10 @@ abstract class TransportChannel implements ChannelType
                         'destination_id' => $destination->destinationId, 'channel' => $this->key(),
                         'target_class' => $failure->targetClass, 'target_address' => $failure->targetAddress,
                     ]);
+                    if ($failure->targetClass === 'unsupported_scheme') {
+                        // Plain HTTP to a listed host that resolved to a public address.
+                        return new DeliveryResult(DeliveryState::Failed, 'notifications.needs_https', diagnosis: __('notifications.needs_https', locale: $destination->locale));
+                    }
 
                     return new DeliveryResult(DeliveryState::Failed, 'notifications.destination_refused', diagnosis: __(
                         $failure->targetAddress === null ? 'notifications.destination_refused' : 'notifications.destination_refused_address',
@@ -98,17 +110,25 @@ abstract class TransportChannel implements ChannelType
     /** Every channel HTTP request starts with a fresh guarded, bounded delivery attempt. */
     protected function http(string $destinationUrl): PendingRequest
     {
-        return Http::setHandler($this->deliveryHttp->handler($destinationUrl))
+        return Http::setHandler($this->deliveryHandler($destinationUrl))
             ->withoutRedirecting()->timeout(20)->connectTimeout(5);
     }
 
     protected function httpClient(string $destinationUrl): Client
     {
         // Telegram accepts Guzzle; Laravel's handler keeps Http::fake as the single external seam.
-        $handler = Http::setHandler($this->deliveryHttp->handler($destinationUrl))->buildHandlerStack();
+        $handler = Http::setHandler($this->deliveryHandler($destinationUrl))->buildHandlerStack();
 
         // Inspect rejection responses outside Telegram's sender, which otherwise owns retries and loses causes.
         return new Client(['handler' => $handler, 'http_errors' => false, 'allow_redirects' => false, 'timeout' => 20, 'connect_timeout' => 5]);
+    }
+
+    /** Channels with a delivery_https URL (ntfy, Teams) may send plain HTTP only to private addresses; a webhook keeps allow_insecure_http. */
+    private function deliveryHandler(string $destinationUrl): callable
+    {
+        $plainHttpPrivateOnly = array_any($this->configSchema()->fields, static fn (Field $field): bool => in_array('delivery_https', $field->rules, true));
+
+        return $this->deliveryHttp->handler($destinationUrl, plainHttpPrivateOnly: $plainHttpPrivateOnly);
     }
 
     protected function failure(DestinationConfig $destination, ?Response $response = null, ?Throwable $exception = null): DeliveryResult

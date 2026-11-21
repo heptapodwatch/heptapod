@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use GuzzleHttp\Promise\Create;
+use GuzzleHttp\Promise\PromiseInterface;
+use GuzzleHttp\Psr7\Response as Psr7Response;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\Notifications\AlertMessage;
 use Heptapod\Contracts\Notifications\AlertNotification;
@@ -25,6 +28,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
+use Tests\Support\ClosedGuardedHttp;
 
 require_once __DIR__.'/../Support/NotificationChannels.php';
 
@@ -43,7 +47,7 @@ function notificationTransports(): array
         'microsoftTeams' => [['url' => 'https://teams.example/private-token'], 'https://teams.example/private-token', ''],
         'telegram' => [['chat_id' => '123', 'token' => 'private-token'], 'https://api.telegram.org/botprivate-token/sendMessage', ['ok' => true, 'result' => ['message_id' => 456]]],
         'pushover' => [['user_key' => str_repeat('u', 30), 'token' => 'private-token'], 'https://api.pushover.net/1/messages.json', ['status' => 1, 'request' => '789']],
-        'ntfy' => [['server' => 'https://ntfy.example', 'topic' => 'private-token', 'token' => 'private-token'], 'https://ntfy.example', ['id' => 'abc']],
+        'ntfy' => [['server' => 'https://ntfy.example', 'topic' => 'private-token', 'token' => 'private-token'], 'https://ntfy.example', ['id' => 'abc', 'time' => 1700000000, 'event' => 'message', 'topic' => 'private-token']],
         'webhook' => [['url' => 'https://hooks.example/private-token', 'secret' => 'private-token'], 'https://hooks.example/private-token', []],
     ];
 }
@@ -369,7 +373,7 @@ it('returns secret-free failure results for HTTP and network rejections', functi
     expect($result->toJson())->not->toContain('private-token');
 })->with(array_map(fn (string $key): array => [$key], array_values(array_diff(array_keys(notificationTransports()), ['mail']))))->with([false, true]);
 
-it('rejects HTTP-200 provider failures rather than claiming delivery', function (string $key, array $reply): void {
+it('rejects HTTP-200 provider failures rather than claiming delivery', function (string $key, array|string $reply): void {
     [$values, $url] = notificationTransports()[$key];
     Http::fake([$url => Http::response($reply)]);
     $channel = app(ChannelRegistry::class)->get($key);
@@ -381,7 +385,82 @@ it('rejects HTTP-200 provider failures rather than claiming delivery', function 
     'Telegram' => ['telegram', ['ok' => false, 'description' => 'private-token']],
     'Pushover' => ['pushover', ['status' => 0, 'errors' => ['private-token']]],
     'Discord' => ['discord', ['code' => 50001, 'message' => 'private-token']],
+    'ntfy captive portal' => ['ntfy', '<html>Sign in to continue</html>'],
+    'ntfy JSON without a message' => ['ntfy', ['status' => 'ok']],
+    'ntfy message for another topic' => ['ntfy', ['id' => 'abc', 'event' => 'message', 'topic' => 'other-topic']],
+    'ntfy message without a topic' => ['ntfy', ['id' => 'abc', 'event' => 'message']],
 ]);
+
+it('refuses a stored plain-HTTP address once its host is no longer a listed private host', function (string $key, array $values): void {
+    Http::preventStrayRequests();
+    Http::fake();
+    config(['heptapod.outbound.delivery_private_hosts' => ['alerts.lan']]);
+    $channel = app(ChannelRegistry::class)->get($key);
+    $config = new DestinationConfig(9, 'de', $channel->configSchema()->validateConfig($values), 'UTC', 'Heptapod', 'https://heptapod.example');
+    config(['heptapod.outbound.delivery_private_hosts' => []]);
+
+    $result = transportSend($channel, transportAlert('failed'), $config, '42:9');
+
+    expect($result->status)->toBe(DeliveryState::Failed)->and($result->reason)->toBe('notifications.needs_https')
+        ->and($result->diagnosis)->toStartWith('Verwenden Sie eine HTTPS-Adresse.');
+    Http::assertNothingSent();
+})->with([
+    'ntfy' => ['ntfy', ['server' => 'http://alerts.lan', 'topic' => 'private-token']],
+    'Teams' => ['microsoftTeams', ['url' => 'http://alerts.lan/workflow']],
+]);
+
+it('refuses plain HTTP to a listed host that resolves to a public address before any connection', function (string $key, array $values, array $addresses): void {
+    config(['heptapod.outbound.delivery_private_hosts' => ['fixtures.test']]);
+    $dialed = 0;
+    // The listing vouches for a private host; a public answer (also IPv4-mapped) must stop the request before transport.
+    ClosedGuardedHttp::run(['fixtures.test' => [$addresses]], static function () use (&$dialed): PromiseInterface {
+        $dialed++;
+
+        return Create::promiseFor(new Psr7Response(200, ['Content-Type' => 'application/json'], '{"id":"abc","event":"message","topic":"private-token"}'));
+    }, static function () use ($key, $values): void {
+        $channel = app(ChannelRegistry::class)->get($key);
+        $config = new DestinationConfig(9, 'en', $channel->configSchema()->validateConfig($values), 'UTC', 'Heptapod', 'https://heptapod.example');
+
+        $result = transportSend($channel, transportAlert('failed'), $config, '42:9');
+
+        expect($result->status)->toBe(DeliveryState::Failed)->and($result->reason)->toBe('notifications.needs_https');
+    });
+    expect($dialed)->toBe(0);
+})->with([
+    'ntfy' => ['ntfy', ['server' => 'http://fixtures.test/', 'topic' => 'private-token']],
+    'Teams' => ['microsoftTeams', ['url' => 'http://fixtures.test/workflow']],
+])->with([
+    'private and public' => [['10.0.0.8', '93.184.216.34']],
+    'IPv4-mapped public' => [['::ffff:93.184.216.34']],
+]);
+
+it('keeps the webhook plain-HTTP opt-in for a public receiver', function (): void {
+    $dialed = 0;
+    ClosedGuardedHttp::run(['fixtures.test' => [['93.184.216.34']]], static function () use (&$dialed): PromiseInterface {
+        $dialed++;
+
+        return Create::promiseFor(new Psr7Response(204));
+    }, static function (): void {
+        $channel = app(ChannelRegistry::class)->get('webhook');
+        $values = ['url' => 'http://fixtures.test/hook', 'secret' => 'private-token', 'allow_insecure_http' => true];
+        $config = new DestinationConfig(9, 'en', $channel->configSchema()->validateConfig($values), 'UTC', 'Heptapod', 'https://heptapod.example');
+
+        expect(transportSend($channel, transportAlert('failed'), $config, '42:9')->status)->toBe(DeliveryState::Sent);
+    });
+    expect($dialed)->toBe(1);
+});
+
+it('fails a delivery whose compressed reply decodes past the response cap', function (string $encoding): void {
+    config(['heptapod.outbound.delivery_private_hosts' => ['fixtures.test']]);
+    $channel = app(ChannelRegistry::class)->get('webhook');
+    // The fixture sends a small compressed body that decodes to 2 MiB; the delivery cap is 1 MiB.
+    $values = ['url' => 'http://fixtures.test/http-seam/compressed/'.$encoding.'/200', 'secret' => 'private-token', 'allow_insecure_http' => true];
+    $result = transportSend($channel, transportAlert('failed'), new DestinationConfig(9, 'en', $channel->configSchema()->validateConfig($values), 'UTC', 'Heptapod', 'https://heptapod.example'), '42:9');
+
+    expect($result->status)->toBe(DeliveryState::Failed)
+        ->and($result->reason)->toBe('notifications.transport_failed')
+        ->and($result->diagnosis)->toBe('Outbound HTTP failed: too_large.');
+})->with(['gzip', 'deflate', 'br']);
 
 it('interprets Microsoft Teams workflow acknowledgements', function (string $body, int $status, string $expectedStatus, ?string $expectedReason): void {
     [$values, $url] = notificationTransports()['microsoftTeams'];

@@ -14,4 +14,9 @@ interface TargetAddressPolicy
      * @throws FetchException
      */
     public function assertAddressAllowed(string $ip, bool $permitsPrivate): void;
+
+    /** Plain HTTP stays on the private network: refuse a public address (targetClass unsupported_scheme).
+     * @throws FetchException
+     */
+    public function assertPrivateAddress(string $ip): void;
 }

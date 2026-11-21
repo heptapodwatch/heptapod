@@ -16,7 +16,7 @@ it('keeps custom header values encrypted, masked, and out of provider failure di
     $value = 'Bearer example-header-secret';
     $id = $this->postJson(route('notification-channels.store'), [
         'channel' => 'webhook', 'label' => 'Custom receiver', 'recipient_kind' => 'team', 'locale' => 'en',
-        'config' => ['url' => $url, 'secret' => 'example-signing-secret', 'headers' => [
+        'config' => ['url' => $url, 'secret' => 'example-signing-secret-of-32-chars', 'headers' => [
             ['name' => 'X-Old', 'value' => 'example-old-secret'], ['name' => 'authorization', 'value' => $value],
         ]],
     ])->assertCreated()->json('id');
@@ -28,7 +28,7 @@ it('keeps custom header values encrypted, masked, and out of provider failure di
 
     $headers = [['name' => 'authorization', 'value' => '********']];
     $this->patchJson(route('notification-channels.update', $id), [
-        'config' => ['url' => 'https://other.example.test/hook', 'secret' => 'different-signing-secret', 'headers' => $headers],
+        'config' => ['url' => 'https://other.example.test/hook', 'secret' => 'different-signing-secret-of-32-chars', 'headers' => $headers],
     ])->assertUnprocessable()->assertJsonValidationErrors('config.headers.0.value');
     $headers[0]['name'] = 'Authorization';
     $this->patchJson(route('notification-channels.update', $id), ['config' => ['headers' => $headers]])->assertOk();
@@ -56,7 +56,7 @@ it('keeps custom header values encrypted, masked, and out of provider failure di
 it('rejects unsafe or ambiguous custom header settings at save', function (array $headers, string $field): void {
     $this->actingAs(User::factory()->owner()->create())->postJson(route('notification-channels.store'), [
         'channel' => 'webhook', 'label' => 'Custom receiver', 'recipient_kind' => 'team', 'locale' => 'en',
-        'config' => ['url' => 'https://receiver.example.test/hook', 'secret' => 'example-signing-secret', 'headers' => $headers],
+        'config' => ['url' => 'https://receiver.example.test/hook', 'secret' => 'example-signing-secret-of-32-chars', 'headers' => $headers],
     ])->assertUnprocessable()->assertJsonValidationErrors('values.headers'.$field);
 })->with([
     'six headers' => [array_map(fn (int $index): array => ['name' => 'X-Field-'.$index, 'value' => 'example-value'], range(1, 6)), ''],

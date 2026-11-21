@@ -91,6 +91,6 @@ final readonly class MailChannel implements ChannelType
         }
 
         // A null SentMessage only comes from the mail fake or a MessageSending veto; the app registers no veto listener.
-        return new DeliveryResult(MailDeliveryMode::logOnly() ? DeliveryState::Logged : DeliveryState::Sent, providerMessageId: $sent?->getMessageId());
+        return new DeliveryResult(MailDeliveryMode::stayedLocal($sent) ? DeliveryState::Logged : DeliveryState::Sent, providerMessageId: $sent?->getMessageId());
     }
 }

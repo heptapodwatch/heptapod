@@ -43,9 +43,9 @@ final readonly class FixtureOnlyNetwork implements PrivateTargetGuard
         }
     }
 
-    public function clientConfig(?string $siteHost, bool $publicTargetsOnly = false, ?float $deadline = null, ?float $selectTimeoutSeconds = null, ?TargetAddressScope $scope = null): array
+    public function clientConfig(?string $siteHost, bool $publicTargetsOnly = false, ?float $deadline = null, ?float $selectTimeoutSeconds = null, ?TargetAddressScope $scope = null, bool $plainHttpPrivateOnly = false): array
     {
-        $config = $this->guard->clientConfig($siteHost, $publicTargetsOnly, $deadline, $selectTimeoutSeconds, $scope);
+        $config = $this->guard->clientConfig($siteHost, $publicTargetsOnly, $deadline, $selectTimeoutSeconds, $scope, $plainHttpPrivateOnly);
         $stack = $config['handler'];
         if (! $stack instanceof HandlerStack) {
             throw new \LogicException('Fixture-only network requires the production handler stack.');

@@ -8,10 +8,17 @@ final readonly class CertificateFetchResult
 {
     /**
      * Display-only capture, leaf first. Native verify_peer + verify_peer_name handshake determines verified; PEM parsing must never establish trust.
+     * $chainExplainsOnly: the chain came from a separate, unverified connection after the rejection. It may explain the
+     * failure, but it is not the certificate the verdict saw and must not be stored, compared or shown as such.
      *
      * @param  list<string>  $pemChain
      */
-    public function __construct(public array $pemChain, public string $hostname, public int $port, public bool $verified, public ?TlsFailureReason $failureReason = null) {}
+    public function __construct(public array $pemChain, public string $hostname, public int $port, public bool $verified, public ?TlsFailureReason $failureReason = null, public bool $chainExplainsOnly = false)
+    {
+        if ($verified && $chainExplainsOnly) {
+            throw new \InvalidArgumentException('A verified handshake supplies its own certificate chain.');
+        }
+    }
 
     /** @return array{key: string, params: array<string, string>} */
     public function failureSummary(?TlsFailureReason $nativeReason = null): array

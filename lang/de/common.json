@@ -698,6 +698,7 @@
     "causes.engine.dns_query_timeout": "DNS-Abfrage hat das Zeitlimit überschritten",
     "causes.engine.dns_resolver_no_response": "DNS-Resolver hat nicht geantwortet",
     "causes.engine.dns_query_failed": "DNS-Abfrage fehlgeschlagen",
+    "causes.engine.dns_nameserver_not_public": "DNS-Nameserver hat keine öffentliche Adresse",
     "causes.engine.dns_status_missing": "DNS-Antwort enthielt keinen Status",
     "causes.engine.dns_truncated": "DNS-Antwort wurde abgeschnitten",
     "causes.engine.dns_not_authoritative": "DNS-Antwort ist nicht autoritativ",

@@ -213,7 +213,7 @@ Owners and Admins choose another active client in the site settings. Settings, s
 | Failed (config)           | The connection, TLS or sender settings failed.                                                                                                         |
 | Retrying                  | A temporary error (SMTP 4xx or a transport failure). Heptapod tries again for up to 24 hours, then gives up: the row shows Failed with the last error. |
 | Suppressed                | Not sent on purpose, with the reason.                                                                                                                  |
-| **Logged, not delivered** | The mail transport only logs. This does not count as an accepted alert.                                                                                |
+| **Logged, not delivered** | The mail went only to the log: the mail transport only logs, or a failover fell back to its log mailer. This does not count as an accepted alert.      |
 
 Members see only their own address on delivery rows. Alerts for a person are dropped when they lose access to the site's client.
 

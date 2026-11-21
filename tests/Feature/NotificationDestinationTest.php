@@ -299,6 +299,53 @@ it('accepts ntfy topics up to the 64 characters an ntfy server allows', function
     expect(fn () => $schema->validateConfig(['server' => 'https://ntfy.example', 'topic' => str_repeat('a', 65)]))->toThrow(ValidationException::class);
 });
 
+it('requires 32 characters for a newly entered webhook secret while a stored shorter one keeps working', function (string $locale, string $message): void {
+    $this->actingAs(User::factory()->owner()->create(['locale' => $locale]));
+    app()->setLocale($locale);
+    $url = 'https://hooks.example/receiver';
+    $store = fn (string $secret) => $this->postJson(route('notification-channels.store'), [
+        'channel' => 'webhook', 'label' => 'Receiver', 'recipient_kind' => 'team', 'locale' => 'en', 'config' => ['url' => $url, 'secret' => $secret],
+    ]);
+    $store(str_repeat('s', 31))->assertUnprocessable()->assertJsonValidationErrors(['values.secret' => $message]);
+    // The edit form's mask keeps a stored secret; a new channel has none to keep.
+    $store('********')->assertUnprocessable()->assertJsonValidationErrors(['values.secret' => $message]);
+    $store('   '.str_repeat('s', 31).'   ')->assertUnprocessable()->assertJsonValidationErrors('values.secret');
+    $store(str_repeat('s', 32))->assertCreated();
+
+    $legacy = NotificationDestination::factory()->create(['channel' => 'webhook',
+        'config' => app(ChannelRegistry::class)->get('webhook')->configSchema()->validateConfig(['url' => $url, 'secret' => 'legacy-secret'])]);
+    $this->patchJson(route('notification-channels.update', $legacy), ['label' => 'Renamed', 'config' => ['url' => $url, 'secret' => '********']])->assertOk();
+    $this->patchJson(route('notification-channels.update', $legacy), ['config' => ['url' => $url, 'secret' => '']])->assertOk();
+    $this->patchJson(route('notification-channels.update', $legacy), ['config' => ['secret' => 'renewed-but-short']])
+        ->assertUnprocessable()->assertJsonValidationErrors(['values.secret' => $message]);
+    expect($legacy->refresh()->label)->toBe('Renamed')->and($legacy->destinationConfig()->string('secret'))->toBe('legacy-secret');
+    Http::preventStrayRequests();
+    Http::fake([$url => Http::response()]);
+    $this->postJson(route('notification-channels.test', $legacy))->assertOk()->assertJsonPath('status', 'sent');
+})->with([
+    ['en', 'The signing secret must be at least 32 characters long.'],
+    ['de', 'Der Signaturschlüssel muss mindestens 32 Zeichen lang sein.'],
+]);
+
+it('requires HTTPS for ntfy servers and Teams URLs unless the instance lists the private host', function (string $channel, string $field, array $extra, string $locale, string $message): void {
+    $this->actingAs(User::factory()->owner()->create(['locale' => $locale]));
+    app()->setLocale($locale);
+    $store = fn (string $url) => $this->postJson(route('notification-channels.store'), [
+        'channel' => $channel, 'label' => 'Alerts', 'recipient_kind' => 'team', 'locale' => 'en', 'config' => [$field => $url, ...$extra],
+    ]);
+    $store('http://alerts.lan/hook')->assertUnprocessable()->assertJsonValidationErrors(['values.'.$field => $message]);
+    config(['heptapod.outbound.delivery_private_hosts' => ['alerts.lan']]);
+    $store('http://alerts.example/hook')->assertUnprocessable()->assertJsonValidationErrors('values.'.$field);
+    $store('http://alerts.lan/hook')->assertCreated();
+    $store('https://alerts.example/hook')->assertCreated();
+})->with([
+    'ntfy' => ['ntfy', 'server', ['topic' => 'alerts']],
+    'Teams' => ['microsoftTeams', 'url', []],
+])->with([
+    ['en', 'Use an HTTPS address. Plain HTTP works only for hosts listed in HEPTAPOD_DELIVERY_PRIVATE_HOSTS.'],
+    ['de', 'Verwenden Sie eine HTTPS-Adresse. Unverschlüsseltes HTTP ist nur für Hosts möglich, die in HEPTAPOD_DELIVERY_PRIVATE_HOSTS eingetragen sind.'],
+]);
+
 it('requires an explicit boolean opt-in for insecure webhook destinations', function (): void {
     $schema = app(ChannelRegistry::class)->get('webhook')->configSchema();
     expect(fn () => NotificationDestination::factory()->create(['channel' => 'webhook', 'config' => $schema->validateConfig(['url' => 'http://hooks.example/receiver', 'secret' => 'private-signing-secret'])]))->toThrow(ValidationException::class);

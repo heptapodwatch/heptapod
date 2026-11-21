@@ -354,9 +354,9 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
                     }
                     $serial = $sync ? $this->serial($context, $zone, $server) : null;
                 } catch (ExternalNetworkException $exception) {
-                    // A transport failure invalidates this NS's whole observation, not its records.
+                    // A transport failure or a refused non-public NS address invalidates this NS's whole observation, not its records.
                     $this->ensureBudget($context);
-                    if (! $this->recoverable($exception)) {
+                    if (! $exception instanceof DnsNameserverRefusedException && ! $this->recoverable($exception)) {
                         throw $exception;
                     }
                     $serverFailures[$server] = $exception;
@@ -385,7 +385,11 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
             foreach ($serverFailures as $server => $exception) {
                 $issues[] = ['type' => $serverAnswers === [] ? 'dns.issue.nameservers_unreachable' : 'dns.issue.nameserver_unreachable',
                     'host' => $target, 'record_type' => null, 'nameserver' => $server,
-                    'reason' => $exception instanceof ExternalTimeoutException ? 'timeout' : 'servfail'];
+                    'reason' => match (true) {
+                        $exception instanceof DnsNameserverRefusedException => 'private_target',
+                        $exception instanceof ExternalTimeoutException => 'timeout',
+                        default => 'servfail',
+                    }];
             }
             $complete = $serverAnswers !== [];
             $publishBaseline = $publishBaseline && $complete && $serverFailures === [];

@@ -50,6 +50,7 @@ final readonly class SaveNotificationChannel
         if (! self::offers($kind, $data['channel'])) {
             throw ValidationException::withMessages(['channel' => __('notifications.user_mail_is_account')]);
         }
+        $this->assertEnteredWebhookSecretLength($data['channel'], $data['config'], keepsStoredSecret: false);
         $config = $this->channels->get($data['channel'])->configSchema()->validateConfig($data['config']);
 
         return NotificationLocks::transaction(function () use ($kind, $user, $client, $data, $config): NotificationDestination {
@@ -210,6 +211,7 @@ final readonly class SaveNotificationChannel
     {
         $schema = $this->channels->get($channel->channel)->configSchema();
         $previous = $channel->destinationConfig()->values();
+        $this->assertEnteredWebhookSecretLength($channel->channel, $incoming, keepsStoredSecret: true);
         $supplied = $incoming;
         foreach ($schema->fields as $name => $field) {
             if (array_key_exists($name, $incoming)) {
@@ -235,6 +237,23 @@ final readonly class SaveNotificationChannel
         }
 
         return $validated;
+    }
+
+    /**
+     * A webhook signing secret must resist offline guessing from one signed delivery. Only a newly entered secret is held to
+     * this; on edit a stored shorter one (kept masked or empty) keeps working until it is replaced. A new channel has no
+     * stored secret, so the edit form's mask is just a short value there.
+     *
+     * @param  array<string, mixed>  $config
+     */
+    private function assertEnteredWebhookSecretLength(string $channel, array $config, bool $keepsStoredSecret): void
+    {
+        $secret = $config['secret'] ?? null;
+        // Empty is left to the schema's required rule.
+        $notEntered = $secret === '' || ($keepsStoredSecret && $secret === '********');
+        if ($channel === 'webhook' && is_string($secret) && ! $notEntered && mb_strlen(trim($secret), 'UTF-8') < 32) {
+            throw ValidationException::withMessages(['values.secret' => __('notifications.webhook_secret_minimum')]);
+        }
     }
 
     private function isUrl(string $value): bool

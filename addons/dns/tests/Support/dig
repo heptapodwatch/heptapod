@@ -52,7 +52,7 @@ case "${DNS_PROCESS_SCENARIO:?}" in
         if [ "$domain" = 'child.delegation.example' ] && [ "$type" = 'NS' ] && [ -z "$server" ] && [ "${DNS_DELEGATION_MODE:-baseline}" = 'referral' ]; then
             exit 9
         fi
-        if [ "$server" = 'ns.parent.example' ]; then
+        if [ "$server" = '9.9.9.9' ]; then
             # Parent referral: delegation records are in the suppressed authority section.
             printf ';; status: NOERROR,\n;; flags: qr rd; QUERY: 1, ANSWER: 0, AUTHORITY: 1\n'
             exit 0

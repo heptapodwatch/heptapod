@@ -28,8 +28,10 @@ use Heptapod\Testing\ClaimedRun;
 use Heptapod\Testing\FakeCertificateFetcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Spatie\SslCertificate\SslCertificate;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
@@ -112,20 +114,65 @@ it('records a failed observation when a configured site no longer uses HTTPS', f
     expect($outcome->result)->toBe(RunResult::Failed)->and($outcome->summary)->toBe('certificate_health.not_https');
 });
 
-it('fetches and evaluates the real offline TLS variants through the registered check', function (string $host, RunResult $result, string $failedCheck): void {
+it('fetches and evaluates the real offline TLS variants through the registered check', function (string $host, RunResult $result, string $failedCheck, string $summary, ?bool $detectedValid): void {
     $type = app(CheckRegistry::class)->get(CheckKey::CertificateHealth);
     $context = certificateContext('https://'.$host);
     $outcome = $type->execute($context);
-    expect($outcome->result)->toBe($result);
+    expect($outcome->result)->toBe($result)->and($outcome->summary)->toBe($summary);
     $checks = array_column($outcome->evidence->toArray()['certificate_checks'], 'passed', 'type');
     expect($checks[$failedCheck])->toBe($result === RunResult::Succeeded);
     DB::transaction(fn () => $type->persistence()->finalize(new RunReference($context->runId, $context->startedAt), $context->claimToken));
-    expect(DB::table('detected_certificates')->value('is_valid'))->toBe($result === RunResult::Succeeded);
+    // A rejected chain or date is explained by a second connection, whose certificate is never recorded as detected.
+    expect(DB::table('detected_certificates')->value('is_valid'))->toBe($detectedValid);
 })->with([
-    ['fixtures.test', RunResult::Succeeded, 'native_verification'],
-    ['expired.fixtures.test', RunResult::Failed, 'native_verification'],
-    ['wrong-host.fixtures.test', RunResult::Failed, 'native_verification'],
+    ['fixtures.test', RunResult::Succeeded, 'native_verification', 'certificate_health.valid', true],
+    ['expired.fixtures.test', RunResult::Failed, 'native_verification', 'causes.tls.expired_date', null],
+    ['wrong-host.fixtures.test', RunResult::Failed, 'native_verification', 'causes.tls.name_mismatch_subject', false],
 ]);
+
+it('keeps the native rejection when the explaining connection fails', function (): void {
+    // Handshake 2 presents the untrusted self-signed certificate; handshake 3, the explaining connection, is aborted.
+    Http::get('http://fixtures.test/tls-rotation/reset', ['handshakes' => 1, 'fail_at' => 3])->throw();
+    $outcome = app(CheckRegistry::class)->get(CheckKey::CertificateHealth)->execute(certificateContext('https://fixtures.test:447'));
+
+    expect($outcome->result)->toBe(RunResult::Failed)
+        ->and($outcome->summary)->toBe('causes.tls.handshake')
+        ->and($outcome->evidence->toArray()['certificate_details'])->toBeNull();
+});
+
+it('lets a different certificate on the explaining connection change only the shown reason', function (): void {
+    $type = app(CheckRegistry::class)->get(CheckKey::CertificateHealth);
+    $valid = SslCertificate::createFromString((string) file_get_contents(base_path('docker/fixtures/tls/valid.crt')))->getFingerprintSha256();
+    Http::get('http://fixtures.test/tls-rotation/reset')->throw();
+    $first = certificateContext('https://fixtures.test:447');
+    expect($type->execute($first)->result)->toBe(RunResult::Succeeded);
+    DB::transaction(fn () => $type->persistence()->finalize(new RunReference($first->runId, $first->startedAt), $first->claimToken));
+
+    // Handshake 2 presents the untrusted self-signed certificate (rejected, nothing captured); the explaining
+    // connection, handshake 3, presents valid.crt again.
+    Http::get('http://fixtures.test/tls-rotation/reset', ['handshakes' => 1])->throw();
+    $second = nextCertificateAttempt($first);
+    $outcome = $type->execute($second);
+    DB::transaction(fn () => $type->persistence()->finalize(new RunReference($second->runId, $second->startedAt), $second->claimToken));
+
+    expect($outcome->result)->toBe(RunResult::Failed)
+        ->and($outcome->evidence->toArray()['certificate_details'])->toBeNull()
+        ->and($outcome->metrics->toArray()['fingerprint'] ?? null)->toBeNull()
+        ->and($outcome->events)->toBe([])
+        ->and($type->persistence()->latestCertificate($first->checkId)['certificate']['fingerprint'])->toBe($valid)
+        ->and(DB::table('detected_certificates')->pluck('is_valid')->all())->toBe([true]);
+});
+
+it('reports the certificate of the verified handshake when the server rotates certificates between connections', function (): void {
+    // fixtures.test:447 alternates valid.crt and the untrusted self-signed.crt per handshake, starting after this reset.
+    Http::get('http://fixtures.test/tls-rotation/reset')->throw();
+    $outcome = app(CheckRegistry::class)->get(CheckKey::CertificateHealth)->execute(certificateContext('https://fixtures.test:447'));
+
+    $details = $outcome->evidence->toArray()['certificate_details'];
+    expect($outcome->result)->toBe(RunResult::Succeeded)
+        ->and($details['fingerprint'])->toBe(SslCertificate::createFromString((string) file_get_contents(base_path('docker/fixtures/tls/valid.crt')))->getFingerprintSha256())
+        ->and($details['domain'])->toBe('fixtures.test');
+});
 
 it('publishes only the specified attempt and rolls back all certificate writes with the recorder transaction', function (): void {
     $pem = file_get_contents(base_path('docker/fixtures/tls/valid.crt'));
@@ -213,7 +260,8 @@ it('rejects invalid threshold settings at the config boundary', function (mixed 
 })->with([-1, '14', 1.5]);
 
 it('preserves the cause and supports valid captures after a real TLS connection failure', function (): void {
-    $context = certificateContext('https://fixtures.test:81');
+    // Port 9 has no listener in Compose or on the CI host (port 81 serves plain HTTP inside Compose).
+    $context = certificateContext('https://fixtures.test:9');
     try {
         app(CheckRegistry::class)->get(CheckKey::CertificateHealth)->execute($context);
         $this->fail('Closed fixture port accepted.');

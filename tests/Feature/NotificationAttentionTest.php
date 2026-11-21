@@ -7,6 +7,7 @@ use Heptapod\Actions\PlanNotificationEvent;
 use Heptapod\Actions\SendNotificationDelivery;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
+use Heptapod\Contracts\Schema\ValidatedConfig;
 use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
@@ -107,3 +108,65 @@ it('handles a legacy execution configuration without throwing or sending even be
     ['en', 'Secret shorter than 4 characters; please renew it.'],
     ['de', 'Das Geheimnis ist kürzer als 4 Zeichen. Bitte erneuern.'],
 ]);
+
+it('pauses saved plain-HTTP ntfy and Teams channels until an HTTPS address or a listed private host is saved', function (): void {
+    config(['heptapod.outbound.delivery_private_hosts' => ['ntfy.lan']]);
+    $ntfy = fn (string $server): NotificationDestination => NotificationDestination::factory()->create(['channel' => 'ntfy', 'config' => new ValidatedConfig(['server' => $server, 'topic' => 'alerts'], [])]);
+    $publicHttp = $ntfy('http://ntfy.example');
+    $listedHttp = $ntfy('http://ntfy.lan:8080');
+    $secure = $ntfy('https://ntfy.example');
+    $teams = NotificationDestination::factory()->create(['channel' => 'microsoftTeams', 'config' => new ValidatedConfig([], ['url' => 'http://teams.example/workflow'])]);
+    $pausedByOperator = $ntfy('http://ntfy.example');
+    $pausedByOperator->update(['enabled' => false]);
+
+    (require database_path('migrations/2026_11_21_130000_flag_plain_http_notification_destinations.php'))->up();
+
+    foreach ([$publicHttp, $teams] as $flagged) {
+        expect($flagged->refresh()->enabled)->toBeFalse()->and($flagged->getAttribute('needs_attention'))->toBeTrue()
+            ->and($flagged->getAttribute('attention_reason'))->toBe('notifications.needs_https');
+    }
+    expect($publicHttp->destinationConfig()->string('server'))->toBe('http://ntfy.example');
+    foreach ([$listedHttp, $secure] as $kept) {
+        expect($kept->refresh()->enabled)->toBeTrue()->and($kept->getAttribute('needs_attention'))->toBeFalse();
+    }
+    // Already off: stays off and unflagged, so repairing other channels never turns it on.
+    expect($pausedByOperator->refresh()->enabled)->toBeFalse()->and($pausedByOperator->getAttribute('needs_attention'))->toBeFalse();
+    $owner = User::factory()->owner()->create();
+    Http::preventStrayRequests();
+    Http::fake();
+    $this->actingAs($owner)->postJson(route('notification-channels.test', $publicHttp))->assertOk()
+        ->assertJsonPath('status', 'failed')->assertJsonPath('reason', 'notifications.needs_https');
+    Http::assertNothingSent();
+    $this->get(route('sites.index'), ['X-Inertia' => 'true', 'X-Inertia-Version' => Inertia::getVersion()])->assertOk()
+        ->assertJsonCount(2, 'props.notificationAttention')
+        ->assertJsonPath('props.notificationAttention.0.reason', __('notifications.needs_https'));
+
+    $this->patchJson(route('notification-channels.update', $publicHttp), ['config' => ['server' => 'http://ntfy.example', 'topic' => 'alerts']])
+        ->assertUnprocessable()->assertJsonValidationErrors('values.server');
+    $this->patchJson(route('notification-channels.update', $publicHttp), ['config' => ['server' => 'https://ntfy.example', 'topic' => 'alerts']])->assertOk();
+    expect($publicHttp->refresh()->enabled)->toBeTrue()->and($publicHttp->getAttribute('needs_attention'))->toBeFalse();
+
+    // The Owner lists the host instead: saving the unchanged settings resumes the channel; a save before did not.
+    config(['heptapod.outbound.delivery_private_hosts' => ['ntfy.lan', 'ntfy.office']]);
+    $office = NotificationDestination::factory()->create(['channel' => 'ntfy',
+        'config' => app(ChannelRegistry::class)->get('ntfy')->configSchema()->validateConfig(['server' => 'http://ntfy.office', 'topic' => 'alerts'])]);
+    config(['heptapod.outbound.delivery_private_hosts' => ['ntfy.lan']]);
+    $office->forceFill(['enabled' => false, 'needs_attention' => true, 'attention_reason' => 'notifications.needs_https'])->save();
+    $this->patchJson(route('notification-channels.update', $office), ['label' => 'Office'])->assertOk();
+    expect($office->refresh()->enabled)->toBeFalse()->and($office->getAttribute('needs_attention'))->toBeTrue();
+    config(['heptapod.outbound.delivery_private_hosts' => ['ntfy.lan', 'ntfy.office']]);
+    $this->patchJson(route('notification-channels.update', $office), ['config' => ['server' => 'http://ntfy.office', 'topic' => 'alerts']])->assertOk();
+    expect($office->refresh()->enabled)->toBeTrue()->and($office->getAttribute('needs_attention'))->toBeFalse();
+});
+
+it('flags plain-HTTP channels beyond the first page of the upgrade migration', function (): void {
+    $plain = new ValidatedConfig(['server' => 'http://ntfy.example', 'topic' => 'alerts'], []);
+    NotificationDestination::factory()->count(101)->create(['channel' => 'ntfy', 'config' => $plain]);
+    $teams = NotificationDestination::factory()->create(['channel' => 'microsoftTeams', 'config' => new ValidatedConfig([], ['url' => 'http://teams.example/workflow'])]);
+
+    (require database_path('migrations/2026_11_21_130000_flag_plain_http_notification_destinations.php'))->up();
+
+    expect(NotificationDestination::query()->where('needs_attention', true)->count())->toBe(102)
+        ->and(NotificationDestination::query()->where('enabled', true)->count())->toBe(0)
+        ->and($teams->refresh()->getAttribute('attention_reason'))->toBe('notifications.needs_https');
+});
