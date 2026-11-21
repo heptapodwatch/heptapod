@@ -190,7 +190,7 @@ runs:
     if: inputs.image == 'app' && inputs.acceptance == 'inline'
     shell: bash
     run: bash tests/Deployment/acceptance.sh config
-  - uses: actions/setup-node@v7
+  - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
     if: inputs.image == 'app' && inputs.acceptance == 'inline'
     with:
       node-version: '24'
