@@ -6,8 +6,8 @@ declare(strict_types=1);
  * One request through the HTTP kernel in its own process and database session (application_name site_write_race), for
  * SiteWriteRaceTest. Arguments: method, URI, JSON body, bearer token ('' for none), web user id ('' for none), and an SQL
  * fragment ('' for none): after the first query containing it the request waits for SiteWriteRacePause, which the racing
- * change holds, so a read made of several queries sees the change between them. Prints the status and the body (decoded
- * JSON, or the raw text of an HTML page).
+ * change holds, so a read made of several queries sees the change between them, and extra request headers as JSON
+ * ('{}' for none). Prints the status, the headers and the body (decoded JSON, or the raw text of an HTML page).
  */
 
 use Heptapod\Models\User;
@@ -24,7 +24,7 @@ $app = require dirname(__DIR__, 2).'/bootstrap/app.php';
 $kernel = $app->make(Kernel::class);
 $kernel->bootstrap();
 DB::statement("SET application_name = 'site_write_race'");
-[, $method, $uri, $body, $bearer, $webUser, $pauseAfter] = $argv;
+[, $method, $uri, $body, $bearer, $webUser, $pauseAfter, $headers] = $argv;
 if ($pauseAfter !== '') {
     $paused = false;
     DB::listen(static function (QueryExecuted $query) use (&$paused, $pauseAfter): void {
@@ -38,6 +38,9 @@ if ($pauseAfter !== '') {
 $server = ['HTTP_ACCEPT' => 'application/json', 'CONTENT_TYPE' => 'application/json'];
 if ($bearer !== '') {
     $server['HTTP_AUTHORIZATION'] = 'Bearer '.$bearer;
+}
+foreach (json_decode($headers, true, flags: JSON_THROW_ON_ERROR) as $name => $value) {
+    $server['HTTP_'.strtoupper(str_replace('-', '_', $name))] = $value;
 }
 $request = Request::create($uri, $method, server: $server, content: $body);
 if ($webUser !== '') {
@@ -53,5 +56,5 @@ if ($webUser !== '') {
 }
 $response = $kernel->handle($request);
 $content = (string) $response->getContent();
-echo json_encode(['status' => $response->getStatusCode(), 'body' => json_validate($content) ? json_decode($content, true) : $content], JSON_THROW_ON_ERROR);
+echo json_encode(['status' => $response->getStatusCode(), 'headers' => array_map(static fn (array $values): string => implode(', ', $values), $response->headers->all()), 'body' => json_validate($content) ? json_decode($content, true) : $content], JSON_THROW_ON_ERROR);
 $kernel->terminate($request, $response);

@@ -36,10 +36,12 @@ final class ErrorResponses
     /** Query parameters owned by partial-reload group expansions that should be stripped when a group is pruned. */
     private const array StalePartialQueryKeys = ['group', 'event_page', 'notification_group', 'notification_before', 'notification_before_id'];
 
-    public static function renderExpectedRefusal(ExpectedRefusal $refusal, Request $request): ?Response
+    public static function renderExpectedRefusal(ExpectedRefusal $refusal, Request $request): Response
     {
         if ($request->is('api/*')) {
-            return null;
+            // The API problem shape (ApiProblem), with the refusal's code and its message in the request's locale.
+            return response()->json(['error' => $refusal->errorCode ?? 'refused', 'code' => $refusal->errorCode ?? 'refused',
+                'message' => $refusal->translatedMessage(), 'details' => (object) []], $refusal->status, [...$refusal->headers(), 'Cache-Control' => 'private, no-store']);
         }
 
         self::resolveLocale($request, $refusal->status);

@@ -11,20 +11,18 @@ use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Queries\IncidentsReader;
 use Illuminate\Auth\AuthenticationException;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Sanctum\PersonalAccessToken;
 
 /**
- * Authorizes a write against the state it writes into. An authorization read before the locks of the write can go stale
+ * Authorizes a write against the state it writes into. An authorization read before the write's own locks can go stale
  * while the write waits: a site moves to another client or is deleted, its client is archived, the actor or the token
- * loses access. So the write runs in one transaction that first takes the client keys of the subjects' sites
- * (NotificationLocks::siteClients: moving, archiving and deleting hold the client FOR UPDATE), then the actor's key (member
- * access changes and deactivation hold the user FOR UPDATE) and the API token's key (revoking deletes it), reads the sites
- * and the actor afresh, asks the policy and only then calls $write, which takes its own NotificationLocks levels after
- * these. A site that is gone or no longer visible refuses as the policy does (404), a revoked token answers 401. An
- * unlocked check a caller makes first (to refuse before validating input) is only an early answer; this one guards the
- * write. Callers run it as their outermost transaction.
+ * loses access. So the write runs in one transaction that first takes the access-structure lock shared (level 0 of
+ * NotificationLocks; every such change holds it exclusive), then reads the sites, the actor and the API token afresh, asks
+ * the policy and only then calls $write, which takes its own row locks after it. A site that is gone or no longer visible
+ * refuses as the policy does (404), a revoked token answers 401, and a structural change that holds the lock too long
+ * answers 409 (try again). An unlocked check a caller makes first (to refuse before validating input) is only an early
+ * answer; this one guards the write. Callers run it as their outermost transaction.
  */
 final readonly class AuthorizeSiteWrite
 {
@@ -40,12 +38,17 @@ final readonly class AuthorizeSiteWrite
      */
     public function __invoke(User $actor, string $ability, \Closure $write, Site|Check|Incident ...$subjects): mixed
     {
-        return $this->locked(false, $actor, $ability, $write, $subjects);
+        return NotificationLocks::transaction(function () use ($actor, $ability, $write, $subjects): mixed {
+            NotificationLocks::accessShared();
+            $this->authorize($actor, $ability, $subjects);
+
+            return $write();
+        });
     }
 
     /**
-     * As __invoke, with the clients FOR UPDATE: for a site deletion, authorized and run under that one fence
-     * (DeleteSite::underClientLock), so the transaction never upgrades a key it holds.
+     * As __invoke, with the access-structure lock exclusive: a site deletion is itself a structural change
+     * (DeleteSite), so the transaction takes the exclusive lock first and never upgrades a shared one.
      *
      * @template TReturn
      *
@@ -54,32 +57,12 @@ final readonly class AuthorizeSiteWrite
      */
     public function exclusively(User $actor, string $ability, \Closure $write, Site ...$subjects): mixed
     {
-        return $this->locked(true, $actor, $ability, $write, $subjects);
-    }
-
-    /**
-     * @template TReturn
-     *
-     * @param  \Closure(): TReturn  $write
-     * @param  array<Site|Check|Incident>  $subjects
-     * @return TReturn
-     */
-    private function locked(bool $exclusive, User $actor, string $ability, \Closure $write, array $subjects): mixed
-    {
-        $siteIds = array_values(array_unique(array_map(static fn (Site|Check|Incident $subject): int => $subject instanceof Site ? $subject->id : $subject->site_id, $subjects)));
-
-        $authorize = static function (Collection $sites) use ($actor, $ability, $subjects): void {
-            foreach ($subjects as $subject) {
-                Gate::forUser($actor)->authorize($ability, $subject instanceof Check ? $subject : $sites->get($subject instanceof Site ? $subject->id : $subject->site_id));
-            }
-        };
-
-        return NotificationLocks::siteClients($siteIds, $exclusive, function (Collection $sites) use ($actor, $write, $authorize): mixed {
-            $this->lockActor($actor);
-            $authorize($sites);
+        return NotificationLocks::transaction(function () use ($actor, $ability, $write, $subjects): mixed {
+            NotificationLocks::accessExclusive();
+            $this->authorize($actor, $ability, $subjects);
 
             return $write();
-        }, $authorize);
+        });
     }
 
     /**
@@ -95,7 +78,7 @@ final readonly class AuthorizeSiteWrite
 
     /**
      * A write only Owners and Admins make whatever it targets (maintenance windows of a client or a tag): the role decided
-     * under the actor's key.
+     * under the access-structure lock.
      *
      * @template TReturn
      *
@@ -105,19 +88,31 @@ final readonly class AuthorizeSiteWrite
     public function asManager(User $actor, \Closure $write): mixed
     {
         return NotificationLocks::transaction(function () use ($actor, $write): mixed {
-            $this->lockActor($actor);
+            NotificationLocks::accessShared();
+            $this->refreshActor($actor);
             abort_unless($actor->disabled_at === null && $actor->hasAnyRole(['Owner', 'Admin']), 403);
 
             return $write();
         });
     }
 
-    private function lockActor(User $actor): void
+    /** @param array<Site|Check|Incident> $subjects */
+    private function authorize(User $actor, string $ability, array $subjects): void
     {
-        NotificationLocks::users([$actor->id]);
-        // A web session has no token (null) and a first-party SPA request a transient one.
+        $this->refreshActor($actor);
+        $siteIds = array_values(array_unique(array_map(static fn (Site|Check|Incident $subject): int => $subject instanceof Site ? $subject->id : $subject->site_id, $subjects)));
+        $sites = Site::query()->findOrFail($siteIds)->keyBy('id');
+        foreach ($subjects as $subject) {
+            Gate::forUser($actor)->authorize($ability, $subject instanceof Check ? $subject : $sites->get($subject instanceof Site ? $subject->id : $subject->site_id));
+        }
+    }
+
+    private function refreshActor(User $actor): void
+    {
+        // A web session has no token (null) and a first-party SPA request a transient one. Revoking a token is a structural
+        // change, so the token read here stays valid until commit.
         $token = $actor->currentAccessToken();
-        if ($token instanceof PersonalAccessToken && ! NotificationLocks::apiTokenKey($token->id)) { // @phpstan-ignore instanceof.alwaysTrue
+        if ($token instanceof PersonalAccessToken && ! PersonalAccessToken::query()->getQuery()->where('id', $token->id)->exists()) { // @phpstan-ignore instanceof.alwaysTrue
             throw new AuthenticationException;
         }
         $actor->refresh();

@@ -19,11 +19,13 @@ use Heptapod\Contracts\CronTaskStore;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
 use Heptapod\Enums\ClientScope;
 use Heptapod\Enums\RecipientKind;
+use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRunAttempt;
 use Heptapod\Models\Client;
 use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
+use Heptapod\Models\Invitation;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
@@ -194,7 +196,7 @@ it('refuses a check snooze change by a member whose access to the client is revo
         ->and($response['waited'])->toBeTrue();
 })->with(['snooze' => 'POST', 'unsnooze' => 'DELETE']);
 
-/* DeleteSite takes the site's client FOR UPDATE first, so a write authorized under the client key waits for it. */
+/* DeleteSite takes the access-structure lock exclusive first, so a write authorized under it waits for the deletion. */
 it('answers 404 to a write whose site is deleted while it waits', function (Closure $prepare): void {
     $fixture = siteWriteRaceFixture();
     $token = $fixture['owner']->createToken('owner', ['*'])->plainTextToken;
@@ -232,7 +234,7 @@ it('answers 404 to a write whose site is deleted while it waits', function (Clos
     }],
 ]);
 
-/* A move that commits while the write waits: the write starts over under the new client and lands there when allowed. */
+/* A move that commits while the write waits: the write then reads the site under its new client and lands there when allowed. */
 it('lands a write of an unscoped token in the client its site moved to while it waited', function (): void {
     $fixture = siteWriteRaceFixture();
     $token = $fixture['owner']->createToken('owner', ['*'])->plainTextToken;
@@ -363,42 +365,69 @@ it('refuses a maintenance edit or deletion that a concurrent lifecycle change ma
 })->with(['ended', 'started']);
 
 /*
- * An API site deletion holds the site's client FOR UPDATE and then takes its actor's key; a membership change for that
- * actor takes the new membership's client key before the member. The deletion pauses right after its client lock, the
- * membership change then waits on that client, and both complete once the deletion goes on: no deadlock.
+ * Structural changes and site writes meet only at the access-structure lock (NotificationLocks level 0). Each test below
+ * holds one structural change after it took that lock and has the others queue on it; every transaction then completes.
+ * The first two are the cycles the per-row client and user locks formed: API site deletion against a membership change of
+ * its actor, and against an invitation acceptance and the inviter's profile deletion.
  */
+
+/** A PHP process that runs $code with the test database, as session $application; it prints 'done' when $code returns. */
+function siteWriteRaceAction(string $application, string $code, array $environment = []): Process
+{
+    $script = <<<PHP
+        require 'vendor/autoload.php';
+        \$app = require 'bootstrap/app.php';
+        \$app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();
+        Illuminate\\Support\\Facades\\DB::statement("SET application_name = '{$application}'");
+        {$code}
+        echo 'done';
+        PHP;
+
+    return new Process([PHP_BINARY, '-r', $script], base_path(), [...siteWriteRaceEnvironment(), ...$environment], timeout: 30);
+}
+
+/**
+ * Starts $first, which pauses right after it took the access-structure lock, then each of $queued, waits until every one of
+ * them is blocked, and lets $first go on. Returns the statements the queued processes waited in.
+ *
+ * @param  list<Process>  $queued  started here; each runs as session site_write_race_queued_<index>
+ * @return list<string>
+ */
+function siteWriteRaceQueueBehind(Process $first, array $queued): array
+{
+    DB::beginTransaction();
+    DB::select('SELECT pg_advisory_xact_lock(?)', [SiteWriteRacePause]);
+    $first->start();
+    siteWriteRaceBlocked($first, 'site_write_race', (int) DB::scalar('SELECT pg_backend_pid()'));
+    $statements = [];
+    foreach ($queued as $index => $process) {
+        $process->start();
+        $statements[] = siteWriteRaceBlocked($process, 'site_write_race_queued_'.$index);
+    }
+    DB::commit();
+
+    return $statements;
+}
+
 it('completes a site deletion and a membership change for its actor without a deadlock', function (): void {
     $fixture = siteWriteRaceFixture();
     $admin = User::factory()->create();
     $admin->assignRole('Admin');
     $token = $admin->createToken('admin', ['*'])->plainTextToken;
     DB::commit();
-    $delete = siteWriteRaceRequest('DELETE', '/api/monitors/'.$fixture['site']->id, token: $token, pauseAfter: '"clients" where "id" = ? limit 1 FOR UPDATE');
-    $script = <<<'PHP'
-        require 'vendor/autoload.php';
-        $app = require 'bootstrap/app.php';
-        $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
-        Illuminate\Support\Facades\DB::statement("SET application_name = 'site_write_race_member'");
+    $delete = siteWriteRaceRequest('DELETE', '/api/monitors/'.$fixture['site']->id, token: $token, pauseAfter: 'pg_advisory_xact_lock(7341');
+    $change = siteWriteRaceAction('site_write_race_queued_0', <<<'PHP'
         app(Heptapod\Actions\ChangeMemberAccess::class)(Heptapod\Models\User::findOrFail((int) getenv('RACE_OWNER')),
             Heptapod\Models\User::findOrFail((int) getenv('RACE_MEMBER')), ['role' => 'Member', 'client_ids' => [(int) getenv('RACE_CLIENT')]]);
-        echo 'changed';
-        PHP;
-    $change = new Process([PHP_BINARY, '-r', $script], base_path(), [...siteWriteRaceEnvironment(), 'RACE_OWNER' => (string) $fixture['owner']->id,
-        'RACE_MEMBER' => (string) $admin->id, 'RACE_CLIENT' => (string) $fixture['from']->id], timeout: 30);
+        PHP, ['RACE_OWNER' => (string) $fixture['owner']->id, 'RACE_MEMBER' => (string) $admin->id, 'RACE_CLIENT' => (string) $fixture['from']->id]);
     try {
-        DB::beginTransaction();
-        DB::select('SELECT pg_advisory_xact_lock(?)', [SiteWriteRacePause]);
-        $delete->start();
-        siteWriteRaceBlocked($delete, 'site_write_race', (int) DB::scalar('SELECT pg_backend_pid()'));
-        $change->start();
-        $waitedOn = siteWriteRaceBlocked($change, 'site_write_race_member');
-        DB::commit();
+        $waitedOn = siteWriteRaceQueueBehind($delete, [$change]);
         $response = siteWriteRaceResponse($delete);
         $change->wait();
 
-        expect($change->getOutput())->toBe('changed', $change->getErrorOutput())
+        expect($change->getOutput())->toBe('done', $change->getErrorOutput())
             ->and($response['status'])->toBe(204, json_encode($response['body']))
-            ->and($waitedOn)->toContain('"clients"')
+            ->and($waitedOn[0])->toContain('pg_advisory_xact_lock')
             ->and(Site::query()->whereKey($fixture['site']->id)->exists())->toBeFalse()
             ->and(DB::table('client_user')->where('user_id', $admin->id)->pluck('client_id')->all())->toBe([$fixture['from']->id]);
     } finally {
@@ -411,70 +440,88 @@ it('completes a site deletion and a membership change for its actor without a de
     }
 });
 
-/*
- * A site that moves again every time the write has locked its client: after three attempts the write is refused, as a
- * conflict to try again when the actor may still write the site, as not found when it left the actor's scope. Each move is
- * its own process holding both clients FOR UPDATE, as MoveSiteToClient does, until this test lets it commit; the next move
- * already queues for its source client, so it holds that client before the write locks it again.
- */
-it('refuses a write whose site keeps moving while it waits', function (bool $scoped): void {
+it('completes a site deletion, an invitation acceptance and the inviter\'s profile deletion without a deadlock', function (): void {
     $fixture = siteWriteRaceFixture();
-    $clients = [$fixture['from'], $fixture['to'], Client::factory()->create(), Client::factory()->create()];
-    $token = $scoped ? $fixture['token'] : $fixture['owner']->createToken('owner', ['*'])->plainTextToken;
+    $inviter = User::factory()->create();
+    $inviter->assignRole('Admin');
+    $token = $inviter->createToken('inviter', ['*'])->plainTextToken;
+    $invite = str_repeat('b', 64);
+    Invitation::factory()->create(['email' => 'invited-'.$fixture['site']->id.'@example.test', 'token_hash' => hash('sha256', $invite), 'role' => 'Member',
+        'inviter_id' => $inviter->id, 'client_scope' => ClientScope::Restricted, 'client_ids' => [$fixture['from']->id]]);
     DB::commit();
-    $request = siteWriteRaceRequest('POST', '/api/monitors/'.$fixture['site']->id.'/start-maintenance', token: $token);
-    $script = <<<'PHP'
-        require 'vendor/autoload.php';
-        $app = require 'bootstrap/app.php';
-        $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
-        Illuminate\Support\Facades\DB::statement("SET application_name = 'site_write_race_move_".getenv('RACE_STEP')."'");
-        Illuminate\Support\Facades\DB::transaction(static function (): void {
-            Heptapod\Events\Notifications\NotificationLocks::clients([(int) getenv('RACE_FROM'), (int) getenv('RACE_TO')]);
-            Illuminate\Support\Facades\DB::table('sites')->where('id', (int) getenv('RACE_SITE'))->update(['client_id' => (int) getenv('RACE_TO')]);
-            Illuminate\Support\Facades\DB::select('SELECT pg_advisory_xact_lock(?)', [(int) getenv('RACE_RELEASE')]);
-        });
-        echo 'moved';
-        PHP;
-    $moves = [];
-    $parent = (int) DB::scalar('SELECT pg_backend_pid()');
-    foreach ([0, 1, 2] as $step) {
-        DB::select('SELECT pg_advisory_lock(?)', [SiteWriteRacePause + 1 + $step]);
-        $moves[$step] = new Process([PHP_BINARY, '-r', $script], base_path(), [...siteWriteRaceEnvironment(), 'RACE_STEP' => (string) $step,
-            'RACE_FROM' => (string) $clients[$step]->id, 'RACE_TO' => (string) $clients[$step + 1]->id, 'RACE_SITE' => (string) $fixture['site']->id,
-            'RACE_RELEASE' => (string) (SiteWriteRacePause + 1 + $step)], timeout: 30);
-    }
+    $delete = siteWriteRaceRequest('DELETE', '/api/monitors/'.$fixture['site']->id, token: $token, pauseAfter: 'pg_advisory_xact_lock(7341');
+    $accept = siteWriteRaceAction('site_write_race_queued_0', <<<'PHP'
+        app(Heptapod\Actions\AcceptInvitation::class)((string) getenv('RACE_INVITE'), ['name' => 'Invited', 'password' => 'invited-password-1', 'password_confirmation' => 'invited-password-1']);
+        PHP, ['RACE_INVITE' => $invite]);
+    $deleteProfile = siteWriteRaceAction('site_write_race_queued_1', <<<'PHP'
+        app(Heptapod\Actions\DeleteProfile::class)(Heptapod\Models\User::findOrFail((int) getenv('RACE_INVITER')));
+        PHP, ['RACE_INVITER' => (string) $inviter->id]);
     try {
-        $moves[0]->start();
-        siteWriteRaceBlocked($moves[0], 'site_write_race_move_0', $parent);
-        $request->start();
-        foreach ([0, 1, 2] as $step) {
-            // The write waits on the client this move holds, and the next move queues for that client too.
-            siteWriteRaceBlocked($request, 'site_write_race', (int) DB::table('pg_stat_activity')->where('application_name', 'site_write_race_move_'.$step)->value('pid'));
-            if ($step < 2) {
-                $moves[$step + 1]->start();
-                siteWriteRaceBlocked($moves[$step + 1], 'site_write_race_move_'.($step + 1));
-            }
-            DB::select('SELECT pg_advisory_unlock(?)', [SiteWriteRacePause + 1 + $step]);
-            $moves[$step]->wait();
-            expect($moves[$step]->getOutput())->toBe('moved', $moves[$step]->getErrorOutput());
-            if ($step < 2) {
-                siteWriteRaceBlocked($moves[$step + 1], 'site_write_race_move_'.($step + 1), $parent);
-            }
-        }
-        $response = siteWriteRaceResponse($request);
+        $waitedOn = siteWriteRaceQueueBehind($delete, [$accept, $deleteProfile]);
+        $response = siteWriteRaceResponse($delete);
+        $accept->wait();
+        $deleteProfile->wait();
 
-        expect($response['status'])->toBe($scoped ? 404 : 409, json_encode($response['body']))
-            ->and(MaintenancePeriod::query()->where('site_id', $fixture['site']->id)->exists())->toBeFalse()
-            ->and(Site::query()->findOrFail($fixture['site']->id)->client_id)->toBe($clients[3]->id);
-        if (! $scoped) {
-            expect(json_encode($response['body']))->toContain('site_changed');
-        }
+        expect($response['status'])->toBe(204, json_encode($response['body']))
+            ->and($accept->getOutput())->toBe('done', $accept->getErrorOutput())
+            ->and($deleteProfile->getOutput())->toBe('done', $deleteProfile->getErrorOutput())
+            ->and($waitedOn)->each->toContain('pg_advisory_xact_lock')
+            ->and(Site::query()->whereKey($fixture['site']->id)->exists())->toBeFalse()
+            ->and(User::query()->whereKey($inviter->id)->exists())->toBeFalse()
+            ->and(User::query()->where('email', 'invited-'.$fixture['site']->id.'@example.test')->sole()->clients()->pluck('clients.id')->all())->toBe([$fixture['from']->id]);
     } finally {
-        $request->stop(1);
-        foreach ($moves as $move) {
-            $move->stop(1);
+        foreach ([$delete, $accept, $deleteProfile] as $process) {
+            $process->stop(1);
         }
-        DB::select('SELECT pg_advisory_unlock_all()');
+        if (DB::transactionLevel() > 0) {
+            DB::rollBack();
+        }
         DB::beginTransaction();
     }
-})->with(['in scope' => false, 'out of scope' => true]);
+});
+
+/* A keyed write (Idempotency-Key) queued behind a move: its record and the window land under the site's new client. */
+it('completes an idempotent write that waited for a move of its site', function (): void {
+    $fixture = siteWriteRaceFixture();
+    $token = $fixture['owner']->createToken('owner', ['*'])->plainTextToken;
+
+    $response = siteWriteRace(siteWriteRaceMove($fixture), 'POST', '/api/monitors/'.$fixture['site']->id.'/start-maintenance', token: $token,
+        headers: ['Idempotency-Key' => 'race-'.$fixture['site']->id]);
+
+    expect($response['status'])->toBe(200, json_encode($response['body']))
+        ->and($response['waited'])->toBeTrue()
+        ->and(MaintenancePeriod::query()->where('site_id', $fixture['site']->id)->count())->toBe(1)
+        ->and(DB::table('api_idempotency_records')->where('target', 'site:'.$fixture['site']->id)->whereNotNull('response_status')->count())->toBe(1)
+        ->and(Site::query()->findOrFail($fixture['site']->id)->client_id)->toBe($fixture['to']->id);
+});
+
+/*
+ * A structural change that holds the access-structure lock longer than a write waits for it: the write is refused as busy,
+ * with its code and Retry-After, instead of running into the statement timeout.
+ */
+it('refuses a write as busy while a structural change holds the access lock too long', function (): void {
+    $fixture = siteWriteRaceFixture();
+    $token = $fixture['owner']->createToken('owner', ['*'])->plainTextToken;
+    DB::commit();
+    $request = siteWriteRaceRequest('POST', '/api/monitors/'.$fixture['site']->id.'/start-maintenance', token: $token);
+    try {
+        DB::beginTransaction();
+        NotificationLocks::accessExclusive();
+        $request->start();
+        $waitedOn = siteWriteRaceBlocked($request, 'site_write_race', (int) DB::scalar('SELECT pg_backend_pid()'));
+        $response = siteWriteRaceResponse($request);
+        DB::rollBack();
+
+        expect($response['status'])->toBe(409, json_encode($response['body']))
+            ->and($response['body'])->toMatchArray(['error' => 'busy_try_again', 'code' => 'busy_try_again'])
+            ->and($response['headers']['retry-after'] ?? null)->toBe('5')
+            ->and($waitedOn)->toContain('pg_advisory_xact_lock_shared')
+            ->and(MaintenancePeriod::query()->where('site_id', $fixture['site']->id)->exists())->toBeFalse();
+    } finally {
+        $request->stop(1);
+        if (DB::transactionLevel() > 0) {
+            DB::rollBack();
+        }
+        DB::beginTransaction();
+    }
+});

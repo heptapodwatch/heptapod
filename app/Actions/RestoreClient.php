@@ -16,6 +16,8 @@ final readonly class RestoreClient
     public function __invoke(Client $client, bool $resumeSites = true): void
     {
         NotificationLocks::transaction(function () use ($client, $resumeSites): void {
+            // NotificationLocks level 0: a change of who may write what holds the access-structure lock exclusive, first.
+            NotificationLocks::accessExclusive();
             NotificationLocks::clients([$client->id]);
             $locked = Client::query()->findOrFail($client->id);
             if ($locked->archived_at === null) {

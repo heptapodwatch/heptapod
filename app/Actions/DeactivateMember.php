@@ -17,6 +17,8 @@ final readonly class DeactivateMember
     public function __invoke(User $actor, User $member): void
     {
         DB::transaction(function () use ($actor, $member): void {
+            // NotificationLocks level 0: a change of who may write what holds the access-structure lock exclusive, first.
+            NotificationLocks::accessExclusive();
             $this->guard->lockOwners();
             $currentActor = User::query()->findOrFail($actor->id);
             $query = User::query()->whereKey($member->id);

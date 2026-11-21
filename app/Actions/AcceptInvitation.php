@@ -28,12 +28,12 @@ final readonly class AcceptInvitation
         ])->validate();
 
         return DB::transaction(function () use ($token, $data, $attributes): User {
+            // NotificationLocks level 0: a change of who may write what holds the access-structure lock exclusive, first.
+            NotificationLocks::accessExclusive();
             $query = Invitation::query()->where('token_hash', hash('sha256', $token));
             NotificationLocks::forUpdate($query->getQuery());
             $invitation = $query->firstOrFail();
             abort_if($invitation->expires_at->isPast(), 410);
-            // NotificationLocks: the client keys the memberships take, before the account (FOR UPDATE).
-            NotificationLocks::clientKeys($invitation->client_ids);
             $userQuery = User::query()->where('email', $invitation->email);
             NotificationLocks::forUpdate($userQuery->getQuery());
             // A re-activated user keeps their zone; a new one starts in the browser's.

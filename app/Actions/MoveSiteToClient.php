@@ -24,6 +24,8 @@ final readonly class MoveSiteToClient
     public function __invoke(User $user, Site $site, int $clientId): Site
     {
         return NotificationLocks::transaction(function () use ($user, $site, $clientId): Site {
+            // NotificationLocks level 0: a change of who may write what holds the access-structure lock exclusive, first.
+            NotificationLocks::accessExclusive();
             Gate::forUser($user)->authorize('move', $site);
             $this->policy->visibleClients($user, includeArchived: true)->findOrFail($clientId);
             // NotificationLocks: both clients (ArchiveClient takes the client before checks and site), the checks, the site,

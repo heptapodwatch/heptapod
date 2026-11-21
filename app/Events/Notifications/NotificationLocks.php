@@ -4,20 +4,24 @@ declare(strict_types=1);
 
 namespace Heptapod\Events\Notifications;
 
-use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\ResolveInactiveCheckIncidents;
 use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Incidents\UptimeDependencies;
 use Heptapod\Models\Check;
-use Heptapod\Models\Site;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /**
  * The one lock hierarchy of the notification engine. A transaction takes row locks only downwards through these levels
  * (skipping levels is fine) and several rows of one level in ascending id:
  *
+ *   0. access structure     (one advisory key, {@see self::accessShared()} / {@see self::accessExclusive()}): the first lock
+ *                              of its transaction, before everything below. A write authorized against a site and its actor
+ *                              (AuthorizeSiteWrite) holds it shared, so the site cannot move, vanish or lose the actor's
+ *                              access while it writes; a change of who may write what holds it exclusive (moving, archiving,
+ *                              restoring, deleting a site or client, member access and roles, deactivation, invitation
+ *                              acceptance, profile deletion, password reset, API token issue and revocation)
  *   1. users                (users, FOR KEY SHARE: what a row naming its actor takes; profile deletion and access
  *                              changes hold FOR UPDATE)
  *   2. maintenance recurrences (recurring_maintenance_periods, FOR NO KEY UPDATE; deletion FOR UPDATE)
@@ -29,16 +33,9 @@ use Illuminate\Support\Facades\DB;
  *   8. channels             (notification_destinations; archive, pause and resume FOR UPDATE, everyone else FOR NO KEY UPDATE)
  *   9. deliveries           (deliveries, FOR UPDATE)
  *
- * Before level 1, in this order: the Owner role row (MemberAccessGuard::lockOwners) and an invitation, then clients (a
- * client before its sender quota, SendClientMessage). A site write takes its sites' client keys there
- * ({@see self::siteClients()}; DeleteSite takes its client FOR UPDATE the same way), then its actor's key and the actor's
- * API token key ({@see AuthorizeSiteWrite}), before it authorizes. A user-first path that inserts a row naming a client
- * (a membership: ChangeMemberAccess, AcceptInvitation; a client-scoped token: CreateApiToken) takes those client keys
- * before the user, since the foreign key would take them after it: a site deletion holds its client FOR UPDATE and then
- * waits for its actor's key. Removing memberships or tokens (DeactivateMember, RevokeMemberAccess) deletes referencing rows
- * and takes no client lock. Events are locked only by the planner, between its incident and its channels, and written by
- * a digest's claim and completion under the digest's channel; an event created in a transaction is a new row nobody else
- * holds.
+ * The Owner role row (MemberAccessGuard::lockOwners), a client and its sender quota (SendClientMessage) come before
+ * level 1. Events are locked only by the planner, between its incident and its channels, and written by a digest's claim
+ * and completion under the digest's channel; an event created in a transaction is a new row nobody else holds.
  *
  * Foreign keys are locks too. Inserting or re-pointing a referencing row takes FOR KEY SHARE on the referenced row; a
  * delete runs its ON DELETE action on every referencing row: CASCADE deletes it, SET NULL updates it, and RESTRICT or
@@ -48,9 +45,6 @@ use Illuminate\Support\Facades\DB;
  * RESTRICT checks never run. The list below is derived from the schema (every pg_constraint foreign key mapped to these
  * levels):
  *
- *   clients:      client_user.client_id and personal_access_tokens.client_id (KEY SHARE on insert; the membership and token
- *                 writers take those keys before the user), sites.client_id (CreateSite holds the client FOR SHARE, a move
- *                 FOR UPDATE)
  *   users:        incidents.note_author_user_id (SaveIncidentNote), deliveries.actor_id (SendClientMessage),
  *                 notification_site_mutes.actor_id, check_snoozes.snoozed_by_/unsnoozed_by_user_id (the snooze actions):
  *                 each writer takes the user's key first. Deleting a user (DeleteProfile, the only path) SETs NULL on those
@@ -112,10 +106,11 @@ use Illuminate\Support\Facades\DB;
  * deletion are written by the cascade, not locked up front.
  *
  * Locks the schema inventory cannot see, and why they do not cycle with the engine row locks:
- *   - advisory locks: SendClientMessage takes its replay key and its sender's quota key first in its transaction, before
- *     the client and every level, so they act as levels above the client and no other engine path takes them; the manual
- *     run budget (RunController) and heavy admission (ClaimService) keys come before the check and no engine path takes
- *     them; the session locks of check data maintenance and history pruning only serialize those scheduled commands;
+ *   - advisory locks: the access-structure key is level 0, always the first lock of its transaction, so no holder of a
+ *     row lock waits for it; SendClientMessage takes its replay key and its sender's quota key first in its transaction,
+ *     before the client and every level, so they act as levels above the client and no other engine path takes them; the
+ *     manual run budget (RunController) and heavy admission (ClaimService) keys come after level 0 and before the check
+ *     and no engine path takes them; the session locks of check data maintenance and history pruning only serialize those scheduled commands;
  *   - explicit table locks: check data maintenance takes check_runs ACCESS EXCLUSIVE before it drops an expired
  *     partition and repairs check_run_attempts rows of those finished runs; it holds no engine row lock first and no
  *     recorder holds those attempts, so a recorder only waits on it;
@@ -145,6 +140,37 @@ use Illuminate\Support\Facades\DB;
  */
 final class NotificationLocks
 {
+    /** The access-structure advisory key (two-int form, its own key space apart from the single-key advisory locks). */
+    private const string AccessStructureKey = '7341, 1';
+
+    /** How long a guarded write waits for a structural change before it refuses (below the 10 s web statement timeout). */
+    private const string AccessSharedTimeout = '5s';
+
+    /**
+     * Level 0 shared, as the first lock of a guarded write's transaction. A structural change that holds it longer than
+     * AccessSharedTimeout refuses the write as busy (409, try again); the timeout covers only this acquisition.
+     */
+    public static function accessShared(): void
+    {
+        $previous = DB::scalar("SELECT current_setting('lock_timeout')");
+        DB::select("SELECT set_config('lock_timeout', ?, true)", [self::AccessSharedTimeout]);
+        try {
+            DB::select('SELECT pg_advisory_xact_lock_shared('.self::AccessStructureKey.')');
+        } catch (QueryException $exception) {
+            if ($exception->getCode() === '55P03') {
+                throw new ExpectedRefusal(status: 409, messageKey: 'errors.busy_try_again', errorCode: 'busy_try_again', retryAfterSeconds: 5, tone: 'info');
+            }
+            throw $exception;
+        }
+        DB::select("SELECT set_config('lock_timeout', ?, true)", [$previous]);
+    }
+
+    /** Level 0 exclusive, as the first lock of a structural change's transaction; it waits as long as the statement may. */
+    public static function accessExclusive(): void
+    {
+        DB::select('SELECT pg_advisory_xact_lock('.self::AccessStructureKey.')');
+    }
+
     /** One retry: a request whose first attempt Postgres aborts as a deadlock victim runs once more, a second deadlock surfaces. */
     public const int RequestAttempts = 2;
 
@@ -241,79 +267,6 @@ final class NotificationLocks
         foreach (self::ascending($ids) as $id) {
             DB::table('clients')->where('id', $id)->lockForUpdate()->first(['id']);
         }
-    }
-
-    /**
-     * FOR KEY SHARE on clients, before level 1 and before any user: what inserting a row that names the client takes (a
-     * membership, a client-scoped token, {@see self::siteClients()}). It waits only for moving, archiving and deleting.
-     *
-     * @param  iterable<mixed>  $ids  integer ids; null entries are skipped
-     */
-    public static function clientKeys(iterable $ids): void
-    {
-        foreach (self::ascending($ids) as $id) {
-            DB::table('clients')->where('id', $id)->lock('FOR KEY SHARE')->first(['id']);
-        }
-    }
-
-    /** Attempts of {@see self::siteClients()} before a site that keeps moving is refused as a conflict. */
-    private const int SiteClientAttempts = 3;
-
-    /**
-     * Runs $callback in a request transaction ({@see self::transaction()}) that first takes the clients of these sites in
-     * one ascending pass: their keys (FOR KEY SHARE, which waits only for moving sites, archiving and deleting a site), or
-     * with $exclusive FOR UPDATE (deleting a site, which so waits for every key holder). The clients are read unlocked
-     * first; when a site belongs to another client once the locks are held, the transaction ends without a write and starts
-     * over with the new set. Callers run it as their outermost transaction: an enclosing one would keep the locks of the
-     * attempt it starts over. A site that is gone answers 404. When the set has not held still after the last attempt, the
-     * sites are read once more without locks: gone answers 404, $refuseUnstable may refuse them (a target out of the actor's
-     * scope, 404), and otherwise the write is refused as a conflict to try again (409).
-     *
-     * @template TReturn
-     *
-     * @param  list<int>  $siteIds
-     * @param  \Closure(Collection<int, Site>): TReturn  $callback  receives the sites read under the locks, keyed by id
-     * @param  (\Closure(Collection<int, Site>): void)|null  $refuseUnstable
-     * @return TReturn
-     */
-    public static function siteClients(array $siteIds, bool $exclusive, \Closure $callback, ?\Closure $refuseUnstable = null): mixed
-    {
-        for ($attempt = 1; $attempt <= self::SiteClientAttempts; $attempt++) {
-            /** @var list<int> $clientIds */
-            $clientIds = DB::table('sites')->whereIn('id', $siteIds)->distinct()->pluck('client_id')->all();
-            $moved = false;
-            $result = self::transaction(static function () use ($siteIds, $exclusive, $callback, $clientIds, &$moved): mixed {
-                $moved = false;
-                foreach (self::ascending($clientIds) as $id) {
-                    DB::table('clients')->where('id', $id)->lock($exclusive ? 'FOR UPDATE' : 'FOR KEY SHARE')->first(['id']);
-                }
-                $sites = Site::query()->findOrFail($siteIds)->keyBy('id');
-                if ($sites->pluck('client_id')->diff($clientIds)->isNotEmpty()) {
-                    $moved = true;
-
-                    return null;
-                }
-
-                return $callback($sites);
-            });
-            if (! $moved) {
-                /** @var TReturn $result */
-                return $result;
-            }
-        }
-
-        $sites = Site::query()->findOrFail($siteIds)->keyBy('id');
-        if ($refuseUnstable instanceof \Closure) {
-            $refuseUnstable($sites);
-        }
-
-        throw new ExpectedRefusal(status: 409, messageKey: 'errors.site_changed', errorCode: 'site_changed', retryAfterSeconds: 1, tone: 'info');
-    }
-
-    /** FOR KEY SHARE on the actor's API token, right after the actor's key: revoking a token deletes its row. False when gone. */
-    public static function apiTokenKey(int $id): bool
-    {
-        return DB::table('personal_access_tokens')->where('id', $id)->lock('FOR KEY SHARE')->first(['id']) !== null;
     }
 
     /**

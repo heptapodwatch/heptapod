@@ -20,6 +20,8 @@ final readonly class DeleteProfile
     public function __invoke(User $user): void
     {
         NotificationLocks::transaction(function () use ($user): void {
+            // NotificationLocks level 0: a change of who may write what holds the access-structure lock exclusive, first.
+            NotificationLocks::accessExclusive();
             $this->guard->lockOwners();
             // NotificationLocks: the user (exclusive), then every row its deletion writes by referential action, level by
             // level: the incidents it authored a note on (SET NULL), all its channels (SET NULL; the archive below holds

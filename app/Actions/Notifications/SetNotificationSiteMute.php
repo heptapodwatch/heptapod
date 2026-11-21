@@ -22,7 +22,7 @@ final readonly class SetNotificationSiteMute
 {
     public function __construct(private RequestRoutingReconciliation $reconcile) {}
 
-    /** The caller holds the site's client key (AuthorizeSiteWrite), so the site's client read here cannot change before commit. */
+    /** The caller holds the access-structure lock (AuthorizeSiteWrite), so the site's client read here cannot change before commit. */
     public function __invoke(NotificationDestination $destination, Site $site, bool $muted, User $actor): void
     {
         NotificationLocks::transaction(function () use ($destination, $site, $muted, $actor): void {

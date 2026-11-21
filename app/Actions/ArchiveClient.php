@@ -23,6 +23,8 @@ final readonly class ArchiveClient
             return;
         }
         NotificationLocks::transaction(function () use ($client): void {
+            // NotificationLocks level 0: a change of who may write what holds the access-structure lock exclusive, first.
+            NotificationLocks::accessExclusive();
             NotificationLocks::clients([$client->id]);
             $locked = Client::query()->findOrFail($client->id);
             if ($locked->is_internal) {
@@ -79,6 +81,8 @@ final readonly class ArchiveClient
             $moved++;
         }
         NotificationLocks::transaction(function () use ($client): void {
+            // NotificationLocks level 0: a change of who may write what holds the access-structure lock exclusive, first.
+            NotificationLocks::accessExclusive();
             NotificationLocks::clients([$client->id]);
             $locked = Client::query()->findOrFail($client->id);
             if (DB::table('sites')->where('client_id', $locked->id)->exists()) {
