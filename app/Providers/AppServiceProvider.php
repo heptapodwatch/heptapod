@@ -226,13 +226,16 @@ class AppServiceProvider extends ServiceProvider
         ]);
         RateLimiter::for('site-probe', fn (Request $request): Limit => Limit::perMinute(6)->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         RateLimiter::for('backup-now', fn (Request $request): Limit => Limit::perMinutes(5, 1)->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
-        RateLimiter::for('notification-test', static function (Request $request): Limit {
+        RateLimiter::for('notification-test', static function (Request $request): array {
             $channel = $request->route('channel');
             $id = $channel instanceof NotificationDestination ? $channel->id : (is_string($channel) ? $channel : 'unknown');
             $user = $request->user();
             $identity = $user instanceof User ? $user->id : ($request->ip() ?? 'unknown');
 
-            return Limit::perMinute(6)->by($identity.'|'.$id);
+            return [
+                Limit::perMinute(12)->by('user:'.$identity),
+                Limit::perMinute(6)->by('channel:'.$identity.'|'.$id),
+            ];
         });
         Inertia::handleExceptionsUsing(ErrorResponses::respond(...));
     }
