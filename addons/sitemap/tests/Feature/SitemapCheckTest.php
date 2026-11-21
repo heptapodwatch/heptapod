@@ -1415,3 +1415,57 @@ it('refuses query strings in sitemap paths while keeping legacy paths running, m
     expect($cleanProps['check_settings']['settings']['path'])->toBe('/custom-sitemap.xml')
         ->and($cleanProps['check_settings']['attention_reason'])->toBeNull();
 });
+
+it('strips even short unrecognized legacy sitemap queries from new runs, retained detail and findings exports without changing the request', function (): void {
+    $owner = User::factory()->owner()->create();
+    $site = Site::factory()->create(['url' => 'http://fixtures.test']);
+    $schema = app(CheckRegistry::class)->get(CheckKey::Sitemap)->definition()->configSchema;
+    $check = Check::factory()->for($site)->create([
+        'type' => CheckKey::Sitemap,
+        'config' => $schema->validateConfig(['path' => '/sitemap.xml']),
+    ]);
+    DB::table('checks')->where('id', $check->id)->update([
+        'config' => json_encode(['path' => '/sitemap.xml?k=1'], JSON_THROW_ON_ERROR),
+    ]);
+    $check->refresh();
+
+    // New run: request keeps ?k=1, stored evidence and snapshot strip the entire query.
+    $fetched = [];
+    app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static function (FetchRequest $request) use (&$fetched): FetchResult {
+        $fetched[] = $request->url;
+
+        return new FetchResult(404, failure: new FetchFailure(FetchFailureKind::HttpStatus, 404));
+    }));
+    $run = runSitemap(new CheckContext(
+        $site->id, $check->id, 1, '00000000-0000-4000-8000-000000000088',
+        'http://fixtures.test', CarbonImmutable::now(), CarbonImmutable::now()->addSeconds(30),
+        $check->executionConfig(), [], null,
+    ));
+    expect($fetched)->toBe(['http://fixtures.test/sitemap.xml?k=1'])
+        ->and($run->evidence['checkUrl'])->toBe('http://fixtures.test/sitemap.xml')
+        ->and($run->evidence['issues'][0]['url'])->toBe('http://fixtures.test/sitemap.xml')
+        ->and(json_encode($run->evidence, JSON_THROW_ON_ERROR))->not->toContain('k=1')
+        ->and((string) DB::table('sitemap_snapshots')->where('run_id', $run->id)->value('snapshot'))->not->toContain('k=1')
+        ->and(json_encode(DB::table('sitemap_findings')->pluck('url')->all(), JSON_THROW_ON_ERROR))->not->toContain('k=1');
+
+    // Retained pre-upgrade findings/snapshot containing the raw legacy query are still stripped on detail and export.
+    $snapshotId = DB::table('sitemap_snapshots')->where('run_id', $run->id)->value('id');
+    $legacyUrl = 'http://fixtures.test/sitemap.xml?k=1';
+    $legacySnapshot = json_decode((string) DB::table('sitemap_snapshots')->where('id', $snapshotId)->value('snapshot'), true, flags: JSON_THROW_ON_ERROR);
+    $legacySnapshot['checkUrl'] = $legacyUrl;
+    $legacySnapshot['issues'][0]['url'] = $legacyUrl;
+    DB::table('sitemap_snapshots')->where('id', $snapshotId)->update(['snapshot' => json_encode($legacySnapshot, JSON_THROW_ON_ERROR)]);
+    DB::table('sitemap_findings')->where('snapshot_id', $snapshotId)->update(['url' => $legacyUrl]);
+    DB::table('check_runs')->where('id', $run->id)->where('ended_at', $run->ended_at)->update(['evidence' => json_encode($legacySnapshot, JSON_THROW_ON_ERROR)]);
+
+    $detailResponse = $this->actingAs($owner)->get('/sites/'.$site->id.'/checks/'.$check->id)->assertOk();
+    $detailResponse->assertDontSee('k=1');
+    expect($detailResponse->inertiaProps()['detail']['checkUrl'])->toBe('http://fixtures.test/sitemap.xml')
+        ->and($detailResponse->inertiaProps()['detail']['issues'][0]['url'])->toBe('http://fixtures.test/sitemap.xml');
+
+    $csv = $this->actingAs($owner)->get(route('sites.checks.findings', [
+        'site' => $site->id, 'check' => $check->id, 'format' => 'csv',
+        'run' => $run->id, 'observed_at' => $run->ended_at->toIso8601String(),
+    ]))->assertOk()->streamedContent();
+    expect($csv)->toContain('http://fixtures.test/sitemap.xml')->not->toContain('k=1');
+});
