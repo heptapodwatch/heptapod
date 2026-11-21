@@ -13,10 +13,11 @@ interface PrivateTargetGuard
      * in this execution. Third-party targets require public addresses.
      * Metadata names and link-local addresses are always refused.
      * Native flags permit multicast addresses, which cannot serve these TCP requests.
+     * $plainHttpPrivateOnly: every address of an http:// dispatch must be private (TargetAddressPolicy::assertPrivateAddress).
      *
      * @return array<string, mixed>
      *
      * @throws FetchException
      */
-    public function clientConfig(?string $siteHost, bool $publicTargetsOnly = false, ?float $deadline = null, ?float $selectTimeoutSeconds = null, ?TargetAddressScope $scope = null): array;
+    public function clientConfig(?string $siteHost, bool $publicTargetsOnly = false, ?float $deadline = null, ?float $selectTimeoutSeconds = null, ?TargetAddressScope $scope = null, bool $plainHttpPrivateOnly = false): array;
 }

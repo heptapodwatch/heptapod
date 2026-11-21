@@ -23,4 +23,9 @@ final readonly class FixtureTargetAddressPolicy implements TargetAddressPolicy
             $this->policy->assertAddressAllowed($ip, $permitsPrivate);
         }
     }
+
+    public function assertPrivateAddress(string $ip): void
+    {
+        $this->policy->assertPrivateAddress($ip);
+    }
 }

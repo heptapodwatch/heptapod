@@ -21,7 +21,7 @@ final readonly class NativePrivateTargetGuard implements PrivateTargetGuard
 {
     public function __construct(private TargetResolver $resolver, private TargetAddressPolicy $policy) {}
 
-    public function clientConfig(?string $siteHost, bool $publicTargetsOnly = false, ?float $deadline = null, ?float $selectTimeoutSeconds = null, ?TargetAddressScope $scope = null): array
+    public function clientConfig(?string $siteHost, bool $publicTargetsOnly = false, ?float $deadline = null, ?float $selectTimeoutSeconds = null, ?TargetAddressScope $scope = null, bool $plainHttpPrivateOnly = false): array
     {
         if ($selectTimeoutSeconds !== null && (! is_finite($selectTimeoutSeconds) || $selectTimeoutSeconds < 0)) {
             throw new \InvalidArgumentException('HTTP select timeout must be finite and nonnegative.');
@@ -29,7 +29,7 @@ final readonly class NativePrivateTargetGuard implements PrivateTargetGuard
         $siteHost = $siteHost === null ? null : TargetHost::normalize($siteHost);
         $scope ??= new TargetAddressScope;
         $stack = HandlerStack::create(new CurlMultiHandler($selectTimeoutSeconds === null ? [] : ['select_timeout' => $selectTimeoutSeconds]));
-        $stack->push(fn (callable $next): \Closure => function (RequestInterface $request, array $options) use ($next, $siteHost, $publicTargetsOnly, $deadline, $scope): PromiseInterface {
+        $stack->push(fn (callable $next): \Closure => function (RequestInterface $request, array $options) use ($next, $siteHost, $publicTargetsOnly, $deadline, $scope, $plainHttpPrivateOnly): PromiseInterface {
             try {
                 /** @phpstan-var object{count: int}&\stdClass $hops */
                 $hops = $options['heptapod_policy_hops'] ?? (object) ['count' => 0];
@@ -38,7 +38,7 @@ final readonly class NativePrivateTargetGuard implements PrivateTargetGuard
                 $request = $request->withUri($request->getUri()->withHost(str_contains($host, ':') ? '['.$host.']' : $host));
                 $requestDeadline = $options['heptapod_deadline'] ?? null;
                 $target = $this->pin($request->getUri(), $siteHost, $publicTargetsOnly,
-                    $deadline !== null && is_float($requestDeadline) ? min($requestDeadline, $deadline) : $deadline, $scope);
+                    $deadline !== null && is_float($requestDeadline) ? min($requestDeadline, $deadline) : $deadline, $scope, $plainHttpPrivateOnly);
             } catch (FetchException $exception) {
                 if ($exception->failure->isPolicyRefusal()) {
                     $failure = $exception->failure;
@@ -63,7 +63,7 @@ final readonly class NativePrivateTargetGuard implements PrivateTargetGuard
     }
 
     /** @return array{pins: list<string>, dnsSeconds: float} */
-    private function pin(UriInterface $uri, ?string $siteHost, bool $publicTargetsOnly, ?float $deadline, TargetAddressScope $scope): array
+    private function pin(UriInterface $uri, ?string $siteHost, bool $publicTargetsOnly, ?float $deadline, TargetAddressScope $scope, bool $plainHttpPrivateOnly): array
     {
         if (! in_array($uri->getScheme(), ['http', 'https'], true)) {
             throw new FetchException(new FetchFailure(FetchFailureKind::PrivateTarget, targetClass: 'unsupported_scheme'));
@@ -80,6 +80,9 @@ final readonly class NativePrivateTargetGuard implements PrivateTargetGuard
         foreach ($ips as $ip) {
             $permitsPrivate = ! $publicTargetsOnly && $host === $siteHost && in_array(inet_pton($ip), $initialPacked, true);
             $this->policy->assertAddressAllowed($ip, $permitsPrivate);
+            if ($plainHttpPrivateOnly && $uri->getScheme() === 'http') {
+                $this->policy->assertPrivateAddress($ip);
+            }
         }
         if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
             return ['pins' => [], 'dnsSeconds' => $resolved['dnsSeconds']];

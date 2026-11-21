@@ -10,6 +10,7 @@ interface DeliveryHttp
     /**
      * Guzzle base handler for PendingRequest::setHandler() or a Guzzle client.
      * Refusals reject with FetchException; oversized responses with FetchException(TooLarge).
+     * $plainHttpPrivateOnly: an http:// request may reach only private addresses (refused with targetClass unsupported_scheme).
      */
-    public function handler(string $destinationUrl, float $timeoutSeconds = 20.0, int $maxResponseBytes = 1048576): callable;
+    public function handler(string $destinationUrl, float $timeoutSeconds = 20.0, int $maxResponseBytes = 1048576, bool $plainHttpPrivateOnly = false): callable;
 }

@@ -84,9 +84,9 @@ final class ClosedGuardedHttp
 
                 public function __construct(private readonly NativePrivateTargetGuard $production, private readonly MockHandler|Closure $transport) {}
 
-                public function clientConfig(?string $siteHost, bool $publicTargetsOnly = false, ?float $deadline = null, ?float $selectTimeoutSeconds = null, ?TargetAddressScope $scope = null): array
+                public function clientConfig(?string $siteHost, bool $publicTargetsOnly = false, ?float $deadline = null, ?float $selectTimeoutSeconds = null, ?TargetAddressScope $scope = null, bool $plainHttpPrivateOnly = false): array
                 {
-                    $config = $this->production->clientConfig($siteHost, $publicTargetsOnly, $deadline, $selectTimeoutSeconds, $scope);
+                    $config = $this->production->clientConfig($siteHost, $publicTargetsOnly, $deadline, $selectTimeoutSeconds, $scope, $plainHttpPrivateOnly);
                     $stack = $config['handler'];
                     if (! $stack instanceof HandlerStack) {
                         throw new \LogicException('Expected production HTTP middleware stack.');

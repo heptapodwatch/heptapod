@@ -110,17 +110,25 @@ abstract class TransportChannel implements ChannelType
     /** Every channel HTTP request starts with a fresh guarded, bounded delivery attempt. */
     protected function http(string $destinationUrl): PendingRequest
     {
-        return Http::setHandler($this->deliveryHttp->handler($destinationUrl))
+        return Http::setHandler($this->deliveryHandler($destinationUrl))
             ->withoutRedirecting()->timeout(20)->connectTimeout(5);
     }
 
     protected function httpClient(string $destinationUrl): Client
     {
         // Telegram accepts Guzzle; Laravel's handler keeps Http::fake as the single external seam.
-        $handler = Http::setHandler($this->deliveryHttp->handler($destinationUrl))->buildHandlerStack();
+        $handler = Http::setHandler($this->deliveryHandler($destinationUrl))->buildHandlerStack();
 
         // Inspect rejection responses outside Telegram's sender, which otherwise owns retries and loses causes.
         return new Client(['handler' => $handler, 'http_errors' => false, 'allow_redirects' => false, 'timeout' => 20, 'connect_timeout' => 5]);
+    }
+
+    /** Channels with a delivery_https URL (ntfy, Teams) may send plain HTTP only to private addresses; a webhook keeps allow_insecure_http. */
+    private function deliveryHandler(string $destinationUrl): callable
+    {
+        $plainHttpPrivateOnly = array_any($this->configSchema()->fields, static fn (Field $field): bool => in_array('delivery_https', $field->rules, true));
+
+        return $this->deliveryHttp->handler($destinationUrl, plainHttpPrivateOnly: $plainHttpPrivateOnly);
     }
 
     protected function failure(DestinationConfig $destination, ?Response $response = null, ?Throwable $exception = null): DeliveryResult

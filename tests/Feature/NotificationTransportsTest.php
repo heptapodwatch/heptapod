@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use GuzzleHttp\Promise\Create;
+use GuzzleHttp\Promise\PromiseInterface;
+use GuzzleHttp\Psr7\Response as Psr7Response;
 use Heptapod\Contracts\CheckResult;
-use Heptapod\Contracts\Http\TargetResolver;
 use Heptapod\Contracts\Notifications\AlertMessage;
 use Heptapod\Contracts\Notifications\AlertNotification;
 use Heptapod\Contracts\Notifications\AlertSeverity;
@@ -20,13 +22,13 @@ use Heptapod\Models\Delivery;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
-use Heptapod\Testing\FakeTargetResolver;
 use Illuminate\Http\Client\Request;
 use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
+use Tests\Support\ClosedGuardedHttp;
 
 require_once __DIR__.'/../Support/NotificationChannels.php';
 
@@ -407,21 +409,46 @@ it('refuses a stored plain-HTTP address once its host is no longer a listed priv
     'Teams' => ['microsoftTeams', ['url' => 'http://alerts.lan/workflow']],
 ]);
 
-it('refuses plain HTTP to a listed host that resolves to a public address', function (string $key, array $values): void {
+it('refuses plain HTTP to a listed host that resolves to a public address before any connection', function (string $key, array $values, array $addresses): void {
     config(['heptapod.outbound.delivery_private_hosts' => ['fixtures.test']]);
-    // The listing vouches for a private host; this answer is public, so nothing may be sent in plain text to it.
-    app()->forgetExtenders(TargetResolver::class);
-    app()->instance(TargetResolver::class, (new FakeTargetResolver)->respondWith('fixtures.test', ['10.0.0.8', '93.184.216.34']));
-    $channel = app(ChannelRegistry::class)->get($key);
-    $config = new DestinationConfig(9, 'en', $channel->configSchema()->validateConfig($values), 'UTC', 'Heptapod', 'https://heptapod.example');
+    $dialed = 0;
+    // The listing vouches for a private host; a public answer (also IPv4-mapped) must stop the request before transport.
+    ClosedGuardedHttp::run(['fixtures.test' => [$addresses]], static function () use (&$dialed): PromiseInterface {
+        $dialed++;
 
-    $result = transportSend($channel, transportAlert('failed'), $config, '42:9');
+        return Create::promiseFor(new Psr7Response(200, ['Content-Type' => 'application/json'], '{"id":"abc","event":"message","topic":"private-token"}'));
+    }, static function () use ($key, $values): void {
+        $channel = app(ChannelRegistry::class)->get($key);
+        $config = new DestinationConfig(9, 'en', $channel->configSchema()->validateConfig($values), 'UTC', 'Heptapod', 'https://heptapod.example');
 
-    expect($result->status)->toBe(DeliveryState::Failed)->and($result->reason)->toBe('notifications.needs_https');
+        $result = transportSend($channel, transportAlert('failed'), $config, '42:9');
+
+        expect($result->status)->toBe(DeliveryState::Failed)->and($result->reason)->toBe('notifications.needs_https');
+    });
+    expect($dialed)->toBe(0);
 })->with([
     'ntfy' => ['ntfy', ['server' => 'http://fixtures.test/', 'topic' => 'private-token']],
     'Teams' => ['microsoftTeams', ['url' => 'http://fixtures.test/workflow']],
+])->with([
+    'private and public' => [['10.0.0.8', '93.184.216.34']],
+    'IPv4-mapped public' => [['::ffff:93.184.216.34']],
 ]);
+
+it('keeps the webhook plain-HTTP opt-in for a public receiver', function (): void {
+    $dialed = 0;
+    ClosedGuardedHttp::run(['fixtures.test' => [['93.184.216.34']]], static function () use (&$dialed): PromiseInterface {
+        $dialed++;
+
+        return Create::promiseFor(new Psr7Response(204));
+    }, static function (): void {
+        $channel = app(ChannelRegistry::class)->get('webhook');
+        $values = ['url' => 'http://fixtures.test/hook', 'secret' => 'private-token', 'allow_insecure_http' => true];
+        $config = new DestinationConfig(9, 'en', $channel->configSchema()->validateConfig($values), 'UTC', 'Heptapod', 'https://heptapod.example');
+
+        expect(transportSend($channel, transportAlert('failed'), $config, '42:9')->status)->toBe(DeliveryState::Sent);
+    });
+    expect($dialed)->toBe(1);
+});
 
 it('fails a delivery whose compressed reply decodes past the response cap', function (string $encoding): void {
     config(['heptapod.outbound.delivery_private_hosts' => ['fixtures.test']]);

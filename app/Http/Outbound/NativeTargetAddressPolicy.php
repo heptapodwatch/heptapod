@@ -34,10 +34,8 @@ final readonly class NativeTargetAddressPolicy implements TargetAddressPolicy
 
     public function assertAddressAllowed(string $ip, bool $permitsPrivate): void
     {
-        // Native flags do not classify mapped IPv6 by its embedded IPv4 range.
         $packed = inet_pton($ip);
-        $validatedIp = $packed !== false && strlen($packed) === 16 && substr($packed, 0, 12) === str_repeat("\0", 10)."\xff\xff"
-            ? inet_ntop(substr($packed, 12)) : $ip;
+        $validatedIp = self::unmapped($ip);
         // Translation/tunnel prefixes can conceal private IPv4 destinations.
         $translated = $packed !== false && strlen($packed) === 16 && (
             substr($packed, 0, 12) === hex2bin('0064ff9b0000000000000000')
@@ -50,10 +48,32 @@ final readonly class NativeTargetAddressPolicy implements TargetAddressPolicy
             || (strlen($validatedPacked) === 16 && ord($validatedPacked[0]) === 0xFE && (ord($validatedPacked[1]) & 0xC0) === 0x80)
         );
         if ($linkLocal || $translated || in_array($validatedPacked, $this->metadataPacked, true)
-            || (! $permitsPrivate && filter_var($validatedIp, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE | FILTER_FLAG_GLOBAL_RANGE) === false)) {
+            || (! $permitsPrivate && ! self::isPublic($validatedIp))) {
             $metadata = $validatedIp === '169.254.169.254' || in_array($validatedPacked, $this->metadataPacked, true);
             $class = $metadata ? 'cloud_metadata' : ($linkLocal ? 'link_local' : ($translated ? 'translation' : 'private_network'));
             throw new FetchException(new FetchFailure(FetchFailureKind::PrivateTarget, targetAddress: is_string($validatedIp) ? $validatedIp : $ip, targetClass: $class));
         }
+    }
+
+    public function assertPrivateAddress(string $ip): void
+    {
+        $validatedIp = self::unmapped($ip);
+        if (self::isPublic($validatedIp)) {
+            throw new FetchException(new FetchFailure(FetchFailureKind::PrivateTarget, targetAddress: is_string($validatedIp) ? $validatedIp : $ip, targetClass: 'unsupported_scheme'));
+        }
+    }
+
+    /** Native flags do not classify mapped IPv6 by its embedded IPv4 range, so classify that IPv4 address. */
+    private static function unmapped(string $ip): string|false
+    {
+        $packed = inet_pton($ip);
+
+        return $packed !== false && strlen($packed) === 16 && substr($packed, 0, 12) === str_repeat("\0", 10)."\xff\xff"
+            ? inet_ntop(substr($packed, 12)) : $ip;
+    }
+
+    private static function isPublic(string|false $ip): bool
+    {
+        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE | FILTER_FLAG_GLOBAL_RANGE) !== false;
     }
 }
