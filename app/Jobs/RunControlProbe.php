@@ -29,6 +29,10 @@ final class RunControlProbe implements ShouldBeUnique, ShouldQueue
 
     public const int TimeoutSeconds = 30;
 
+    public const int PublicationMarginSeconds = 5;
+
+    public const int MaxTargetsPerKind = 3;
+
     public const int UniqueForSeconds = 60;
 
     public function __construct()

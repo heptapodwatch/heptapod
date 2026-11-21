@@ -3,6 +3,7 @@
 declare(strict_types=1);
 use Heptapod\Checks\Execution\WorkerMemoryBudget;
 use Heptapod\Contracts\Http\TargetHost;
+use Heptapod\Jobs\RunControlProbe;
 
 $browserEnabled = filter_var(env('HEPTAPOD_BROWSER_ENABLED', true), FILTER_VALIDATE_BOOLEAN);
 $updateChecksEnabled = filter_var(env('HEPTAPOD_UPDATE_CHECK_ENABLED', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
@@ -68,8 +69,8 @@ if (trim($controlProbeDnsValue) !== '') {
         $controlProbeDnsHosts[] = $host;
     }
     $controlProbeDnsHosts = array_values(array_unique($controlProbeDnsHosts));
-    if (count($controlProbeDnsHosts) < 2) {
-        throw new InvalidArgumentException('HEPTAPOD_CONTROL_PROBE_DNS_HOSTS must list at least two distinct hosts, or be empty to turn off.');
+    if (count($controlProbeDnsHosts) < 2 || count($controlProbeDnsHosts) > RunControlProbe::MaxTargetsPerKind) {
+        throw new InvalidArgumentException('HEPTAPOD_CONTROL_PROBE_DNS_HOSTS must list 2 to '.RunControlProbe::MaxTargetsPerKind.' distinct hosts, or be empty to turn off.');
     }
 }
 
@@ -95,14 +96,19 @@ if (trim($controlProbeIpValue) !== '') {
         $controlProbeIpTargets[] = $target;
     }
     $controlProbeIpTargets = array_values(array_unique($controlProbeIpTargets));
-    if (count($controlProbeIpTargets) < 2) {
-        throw new InvalidArgumentException('HEPTAPOD_CONTROL_PROBE_IP_TARGETS must list at least two distinct targets, or be empty to turn off.');
+    if (count($controlProbeIpTargets) < 2 || count($controlProbeIpTargets) > RunControlProbe::MaxTargetsPerKind) {
+        throw new InvalidArgumentException('HEPTAPOD_CONTROL_PROBE_IP_TARGETS must list 2 to '.RunControlProbe::MaxTargetsPerKind.' distinct targets, or be empty to turn off.');
     }
 }
 
 $controlProbeTimeoutSeconds = filter_var(env('HEPTAPOD_CONTROL_PROBE_TIMEOUT_SECONDS', 5), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 5]]);
 if ($controlProbeTimeoutSeconds === false) {
     throw new InvalidArgumentException('HEPTAPOD_CONTROL_PROBE_TIMEOUT_SECONDS must be an integer from 1 to 5.');
+}
+$controlProbeMaxSeconds = RunControlProbe::TimeoutSeconds - RunControlProbe::PublicationMarginSeconds;
+$controlProbeWorstCaseSeconds = (count($controlProbeDnsHosts) + count($controlProbeIpTargets)) * $controlProbeTimeoutSeconds;
+if ($controlProbeWorstCaseSeconds > $controlProbeMaxSeconds) {
+    throw new InvalidArgumentException("Control probe worst-case runtime ({$controlProbeWorstCaseSeconds}s) exceeds the {$controlProbeMaxSeconds}s budget inside the ".RunControlProbe::TimeoutSeconds.'s probe job timeout.');
 }
 
 return [

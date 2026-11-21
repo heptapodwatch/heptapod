@@ -325,11 +325,15 @@ it('counts only matching failure kinds in affected_sites during a DNS-only monit
         ->and(CheckRun::query()->where('check_id', $checks[0]->id)->sole()->result)->toBe(RunResult::Failed);
 });
 
-it('refreshes ahead past the soft age while keeping protection until hard TTL, then resolves on hard expiry', function (): void {
+it('refreshes ahead past the soft age while keeping protection and relies on Redis TTL for hard expiry', function (): void {
     $probe = FakeControlProbe::dnsFailing();
     app()->instance(ControlProbe::class, $probe);
     $t0 = CarbonImmutable::parse('2026-11-20T23:21:00Z');
     runControlProbeJob($t0);
+
+    // Redis itself holds the 180 s hard TTL on the verdict key.
+    $ttl = Redis::connection('cache')->command('ttl', [Cache::store('redis')->getPrefix().MonitorOutageDetector::VerdictKey]);
+    expect(is_int($ttl) && $ttl > MonitorOutageDetector::VerdictHardTtlSeconds - 10 && $ttl <= MonitorOutageDetector::VerdictHardTtlSeconds)->toBeTrue();
 
     $checks = uptimeBurstChecks(3, 'refresh');
     $dnsFailure = new FetchResult(null, '', [], failure: new FetchFailure(FetchFailureKind::Dns));
@@ -345,7 +349,8 @@ it('refreshes ahead past the soft age while keeping protection until hard TTL, t
         expect(CheckRun::query()->where('check_id', $check->id)->latest('id')->firstOrFail()->result)->toBe(RunResult::Errored);
     }
 
-    // Past hard TTL (185 s) without a refreshed verdict: open issue resolves instead of staying pinned by connect failures.
+    // Once Redis expires the verdict key (cache miss): open issue resolves instead of staying pinned by connect failures.
+    Cache::store('redis')->forget(MonitorOutageDetector::VerdictKey);
     $tExpired = $t0->addSeconds(185);
     executeUptimeWave($checks, new FetchResult(null, '', [], failure: new FetchFailure(FetchFailureKind::Connect)), $tExpired, fakeControlProbeJob: true);
     Cache::store('redis')->forever(config('heptapod.health.scheduler_cache_key'), now()->toIso8601String());
@@ -353,6 +358,30 @@ it('refreshes ahead past the soft age while keeping protection until hard TTL, t
     $this->artisan('heptapod:evaluate-system-issues')->assertSuccessful();
 
     expect($issue->refresh()->resolved_at)->not->toBeNull();
+});
+
+it('validates control probe target caps and job-budget headroom at boot', function (): void {
+    $detector = app(MonitorOutageDetector::class);
+
+    // 6 targets at 4 s = 24 s <= 25 s budget: accepted.
+    config([
+        'heptapod.control_probe.dns_hosts' => ['one.one.one.one', 'dns.google', 'dns.quad9.net'],
+        'heptapod.control_probe.ip_targets' => ['1.1.1.1:443', '8.8.8.8:443', '9.9.9.9:443'],
+        'heptapod.control_probe.timeout_seconds' => 4,
+    ]);
+    $detector->validateConfiguration();
+
+    // 6 targets at 5 s = 30 s > 25 s budget (leaves 0 s for publication): refused.
+    config(['heptapod.control_probe.timeout_seconds' => 5]);
+    expect(fn () => $detector->validateConfiguration())->toThrow(InvalidArgumentException::class, '25s budget');
+
+    // More than 3 targets per kind: refused.
+    config([
+        'heptapod.control_probe.dns_hosts' => ['a.example', 'b.example', 'c.example', 'd.example'],
+        'heptapod.control_probe.ip_targets' => [],
+        'heptapod.control_probe.timeout_seconds' => 2,
+    ]);
+    expect(fn () => $detector->validateConfiguration())->toThrow(InvalidArgumentException::class, 'at most 3');
 });
 
 it('reports guard enqueue errors without replacing the uptime result or aborting system evaluation', function (): void {

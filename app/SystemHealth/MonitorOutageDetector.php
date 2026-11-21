@@ -146,6 +146,24 @@ final readonly class MonitorOutageDetector implements MonitorOutageGuard
         ];
     }
 
+    public function validateConfiguration(): void
+    {
+        $dnsHosts = config()->array('heptapod.control_probe.dns_hosts', []);
+        $ipTargets = config()->array('heptapod.control_probe.ip_targets', []);
+        $timeout = config()->integer('heptapod.control_probe.timeout_seconds', 5);
+        if (count($dnsHosts) > RunControlProbe::MaxTargetsPerKind) {
+            throw new \InvalidArgumentException('HEPTAPOD_CONTROL_PROBE_DNS_HOSTS must list at most '.RunControlProbe::MaxTargetsPerKind.' distinct hosts.');
+        }
+        if (count($ipTargets) > RunControlProbe::MaxTargetsPerKind) {
+            throw new \InvalidArgumentException('HEPTAPOD_CONTROL_PROBE_IP_TARGETS must list at most '.RunControlProbe::MaxTargetsPerKind.' distinct targets.');
+        }
+        $maxSeconds = RunControlProbe::TimeoutSeconds - RunControlProbe::PublicationMarginSeconds;
+        $worstCase = (count($dnsHosts) + count($ipTargets)) * $timeout;
+        if ($worstCase > $maxSeconds) {
+            throw new \InvalidArgumentException("Control probe worst-case runtime ({$worstCase}s) exceeds the {$maxSeconds}s budget inside the ".RunControlProbe::TimeoutSeconds.'s probe job timeout.');
+        }
+    }
+
     public function clear(): void
     {
         Cache::store('redis')->forget(self::VerdictKey);
@@ -203,11 +221,8 @@ final readonly class MonitorOutageDetector implements MonitorOutageGuard
             return null;
         }
 
-        // Positive age measures elapsed time since publication; a verdict published slightly ahead of $now stays fresh (age 0).
+        // Redis owns hard TTL expiry; probed_at is used only to decide when to request a refresh-ahead probe.
         $age = max(0, (int) CarbonImmutable::parse($value['probed_at'])->diffInSeconds($now, false));
-        if ($age >= self::VerdictHardTtlSeconds) {
-            return null;
-        }
 
         return [
             'result' => new ControlProbeResult($value['dns_passed'], $value['dns_total'], $value['ip_passed'], $value['ip_total']),

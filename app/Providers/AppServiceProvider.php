@@ -164,7 +164,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         RetentionPolicy::fromConfig();
-        $this->app->booted(static fn () => app(CheckFreshnessIssues::class)->validateConfiguration());
+        $this->app->booted(static function (): void {
+            app(CheckFreshnessIssues::class)->validateConfiguration();
+            app(MonitorOutageDetector::class)->validateConfiguration();
+        });
         Mail::extend('log', function (array $config): MarkedLogTransport {
             /** @var LoggerInterface $logger */
             $logger = $this->app->get(LoggerInterface::class);
