@@ -36,6 +36,12 @@ final readonly class AcceptInvitation
             // A re-activated user keeps their zone; a new one starts in the browser's.
             $user = $userQuery->first() ?? new User(['email' => $invitation->email, 'timezone' => User::initialTimezone($attributes['timezone'] ?? null)]);
             abort_if($user->exists && $user->disabled_at === null, 409);
+            if ($user->exists) {
+                // A re-activated account starts without the sign-in factors and tokens it had before its removal.
+                $user->passkeys()->getQuery()->delete();
+                $user->tokens()->getQuery()->delete();
+                $user->forceFill(['two_factor_secret' => null, 'two_factor_recovery_codes' => null, 'two_factor_confirmed_at' => null, 'remember_token' => null]);
+            }
             $user->fill(['name' => $data['name'], 'password' => $data['password'], 'client_scope' => $invitation->client_scope]);
             $user->forceFill(['email_verified_at' => now(), 'disabled_at' => null])->save();
             $user->syncRoles([$invitation->role]);

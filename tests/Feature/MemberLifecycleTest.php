@@ -182,14 +182,19 @@ it('tracks the last authenticated request without writing on every request', fun
     expect($member->refresh()->last_active_at->greaterThan($first))->toBeTrue();
 });
 
-it('reactivates an invited account without creating a second user', function (): void {
+it('reactivates an invited account without creating a second user and without its former sign-in factors', function (): void {
     Notification::fake();
+    Queue::fake([TerminateLiveConnections::class]);
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
     $client = Client::factory()->create();
-    $member = User::factory()->create(['email' => 'returning@example.test', 'client_scope' => ClientScope::Restricted]);
+    $member = User::factory()->withTwoFactor()->create(['email' => 'returning@example.test', 'client_scope' => ClientScope::Restricted,
+        'remember_token' => 'remembered-before-removal']);
     $member->assignRole('Member');
-    $member->forceFill(['disabled_at' => now()])->save();
+    $member->passkeys()->create(['name' => 'Before removal', 'credential_id' => 'removed-key', 'credential' => []]);
+    $this->actingAs($owner)->deleteJson(route('settings.members.remove', $member->id))->assertNoContent();
+    // A token that survived the removal (issued while it ran) must not come back with the account either.
+    $survivingToken = $member->createToken('issued-during-removal', ['monitors:read'])->plainTextToken;
     $this->actingAs($owner)->postJson(route('settings.members.invite'), [
         'email' => $member->email, 'role' => 'Member', 'client_ids' => [$client->id],
     ])->assertCreated();
@@ -206,7 +211,15 @@ it('reactivates an invited account without creating a second user', function ():
     expect(User::query()->where('email', $member->email)->count())->toBe(1)
         ->and($member->refresh()->disabled_at)->toBeNull()
         ->and($member->hasVerifiedEmail())->toBeTrue()
-        ->and($member->clients()->get()->modelKeys())->toBe([$client->id]);
+        ->and($member->clients()->get()->modelKeys())->toBe([$client->id])
+        ->and($member->passkeys()->count())->toBe(0)
+        ->and($member->tokens()->count())->toBe(0)
+        ->and($member->two_factor_secret)->toBeNull()
+        ->and($member->two_factor_recovery_codes)->toBeNull()
+        ->and($member->two_factor_confirmed_at)->toBeNull()
+        ->and($member->remember_token)->not->toBe('remembered-before-removal');
+    $this->post(route('logout'));
+    $this->withToken($survivingToken)->getJson('/api/monitors')->assertUnauthorized();
 });
 
 it('binds protected presence subscriptions to numeric IDs without disclosing profile data', function (): void {
