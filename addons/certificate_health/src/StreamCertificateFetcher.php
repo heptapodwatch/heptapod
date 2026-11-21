@@ -89,11 +89,16 @@ final readonly class StreamCertificateFetcher implements CertificateFetcher
                 'verify_peer' => false, 'verify_peer_name' => false,
                 'peer_name' => trim($hostname, '[]'), 'SNI_enabled' => true,
             ]]);
-            $socket = $this->connect('ssl', $address, $port, $capture, $deadline);
             try {
-                $chain = $this->capturedChain($socket);
-            } finally {
-                fclose($socket);
+                $socket = $this->connect('ssl', $address, $port, $capture, $deadline);
+                try {
+                    $chain = $this->capturedChain($socket);
+                } finally {
+                    fclose($socket);
+                }
+            } catch (ExternalNetworkException) {
+                // The native rejection stands on its own; a failed explanation must not turn it into a check error.
+                $chain = [];
             }
         }
         /** @var array<string, mixed>|false $leaf */

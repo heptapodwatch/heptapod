@@ -130,6 +130,16 @@ it('fetches and evaluates the real offline TLS variants through the registered c
     ['wrong-host.fixtures.test', RunResult::Failed, 'native_verification', 'causes.tls.name_mismatch_subject', false],
 ]);
 
+it('keeps the native rejection when the explaining connection fails', function (): void {
+    // Handshake 2 presents the untrusted self-signed certificate; handshake 3, the explaining connection, is aborted.
+    Http::get('http://fixtures.test/tls-rotation/reset', ['handshakes' => 1, 'fail_at' => 3])->throw();
+    $outcome = app(CheckRegistry::class)->get(CheckKey::CertificateHealth)->execute(certificateContext('https://fixtures.test:447'));
+
+    expect($outcome->result)->toBe(RunResult::Failed)
+        ->and($outcome->summary)->toBe('causes.tls.handshake')
+        ->and($outcome->evidence->toArray()['certificate_details'])->toBeNull();
+});
+
 it('lets a different certificate on the explaining connection change only the shown reason', function (): void {
     $type = app(CheckRegistry::class)->get(CheckKey::CertificateHealth);
     $valid = SslCertificate::createFromString((string) file_get_contents(base_path('docker/fixtures/tls/valid.crt')))->getFingerprintSha256();
@@ -250,7 +260,8 @@ it('rejects invalid threshold settings at the config boundary', function (mixed 
 })->with([-1, '14', 1.5]);
 
 it('preserves the cause and supports valid captures after a real TLS connection failure', function (): void {
-    $context = certificateContext('https://fixtures.test:81');
+    // Port 9 has no listener in Compose or on the CI host (port 81 serves plain HTTP inside Compose).
+    $context = certificateContext('https://fixtures.test:9');
     try {
         app(CheckRegistry::class)->get(CheckKey::CertificateHealth)->execute($context);
         $this->fail('Closed fixture port accepted.');
