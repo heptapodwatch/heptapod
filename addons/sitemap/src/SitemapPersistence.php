@@ -258,73 +258,127 @@ final readonly class SitemapPersistence implements FindingsExportProvider, Findi
         }
         /** @var \stdClass&object{id: int} $snapshot */
 
-        return (static function () use ($snapshot): \Generator {
+        return (function () use ($snapshot): \Generator {
+            $xmlDiagnostics = null;
+            $lastId = 0;
+            $streamed = false;
+            do {
+                $rows = DB::table('sitemap_findings')
+                    ->where('snapshot_id', $snapshot->id)
+                    ->where('id', '>', $lastId)
+                    ->orderBy('id')
+                    ->limit(250)
+                    ->get(['id', 'status', 'issue_code', 'identity']);
+                foreach ($rows as $row) {
+                    /** @var \stdClass&object{id: int, status: string, issue_code: string|null, identity: string} $row */
+                    $lastId = $row->id;
+                    $streamed = true;
+                    $findingStatus = FindingStatus::from($row->status);
+                    if ($findingStatus === FindingStatus::NotVerifiable) {
+                        /** @var array{url: string, reason: string} $finding */
+                        $finding = json_decode($row->identity, true, flags: JSON_THROW_ON_ERROR);
+                        yield ['url' => $finding['url'], 'result' => (string) __('sitemap.not_verifiable.'.$finding['reason']), 'status' => FindingStatus::NotVerifiable,
+                            'found_on' => null, 'link_text' => null, 'first_seen_at' => null, 'after_first_complete_crawl' => false];
+
+                        continue;
+                    }
+                    if ($findingStatus === FindingStatus::Unchecked) {
+                        /** @var array{url: string, reason?: string} $finding */
+                        $finding = json_decode($row->identity, true, flags: JSON_THROW_ON_ERROR);
+                        yield ['url' => $finding['url'], 'result' => (string) __('Not checked'), 'status' => FindingStatus::Unchecked,
+                            'found_on' => null, 'link_text' => null, 'first_seen_at' => null, 'after_first_complete_crawl' => false];
+
+                        continue;
+                    }
+                    /** @var array{url: string, type?: string, kind?: string, status?: int|null, xml_reason?: string, xml_line?: int, xml_element?: string} $issue */
+                    $issue = json_decode($row->identity, true, flags: JSON_THROW_ON_ERROR);
+                    if ($row->issue_code === 'sitemap.issue.invalid') {
+                        $xmlDiagnostics ??= $this->xmlDiagnostics($snapshot->id);
+                        if (isset($xmlDiagnostics[$issue['url']])) {
+                            $issue = [...$issue, ...$xmlDiagnostics[$issue['url']]];
+                        }
+                    }
+                    yield $this->exportIssueRow($issue, $findingStatus);
+                }
+            } while ($rows->count() === 250);
+
+            if ($streamed) {
+                return;
+            }
+
+            // Legacy snapshots predating sitemap_findings keep their issues and up to 50 not-verifiable rows in snapshot JSON.
             $offset = 0;
             do {
-                // Issues keep the snapshot's recorded order (with XML diagnostics), matching detailPages().
                 $rows = DB::select("SELECT finding.issue::text AS issue FROM sitemap_snapshots AS snapshot
-                    CROSS JOIN LATERAL jsonb_array_elements(snapshot.snapshot->'issues') WITH ORDINALITY AS finding(issue, position)
+                    CROSS JOIN LATERAL jsonb_array_elements(COALESCE(snapshot.snapshot->'issues', '[]'::jsonb)) WITH ORDINALITY AS finding(issue, position)
                     WHERE snapshot.id = ? ORDER BY finding.position LIMIT 250 OFFSET ?", [$snapshot->id, $offset]);
                 foreach ($rows as $row) {
                     /** @var \stdClass&object{issue: string} $row */
-                    /** @var array{url: string, type?: string, kind?: string, status?: int|null} $issue */
+                    /** @var array{url: string, type?: string, kind?: string, status?: int|null, xml_reason?: string, xml_line?: int, xml_element?: string} $issue */
                     $issue = json_decode($row->issue, true, flags: JSON_THROW_ON_ERROR);
                     if (! isset($issue['type'])) {
                         throw new \LogicException('Sitemap finding requires a type.');
                     }
-                    $status = isset($issue['kind']) && $issue['kind'] !== 'http_status'
-                        ? __('sitemap.status.'.$issue['kind']) : ($issue['status'] ?? __($issue['type']));
-                    $xmlProblem = SitemapXmlProblem::presentation($issue);
-                    $problem = $xmlProblem instanceof CheckRunPresentationPartData ? __($xmlProblem->key, $xmlProblem->localizedParams(Lang::locale())) : (($issue['kind'] ?? null) === 'tls' && ! str_starts_with($issue['type'], 'causes.tls.')
-                        ? __('TLS certificate verification failed') : __($issue['type']));
-                    if ($xmlProblem instanceof CheckRunPresentationPartData) {
-                        $status = $problem;
-                    }
-                    if ((! is_string($status) && ! is_int($status)) || ! is_string($problem)) {
-                        throw new \LogicException('Sitemap finding translations must be text.');
-                    }
-                    yield ['url' => $issue['url'], 'result' => (string) $status === $problem ? (string) $status : $status.' · '.$problem,
-                        'status' => in_array($issue['type'], self::CoverageLimitTypes, true) ? FindingStatus::CoverageLimit : FindingStatus::Broken,
-                        'found_on' => null, 'link_text' => null, 'first_seen_at' => null, 'after_first_complete_crawl' => false];
+                    yield $this->exportIssueRow($issue, in_array($issue['type'], self::CoverageLimitTypes, true) ? FindingStatus::CoverageLimit : FindingStatus::Broken);
                 }
                 $offset += count($rows);
             } while (count($rows) === 250);
 
-            // Not-verifiable rows stream from sitemap_findings (uncapped, ordered by id), matching detailPages().
-            $lastId = 0;
-            $streamedNotVerifiable = false;
-            do {
-                $rows = DB::table('sitemap_findings')
-                    ->where('snapshot_id', $snapshot->id)
-                    ->where('status', 'not_verifiable')
-                    ->where('id', '>', $lastId)
-                    ->orderBy('id')
-                    ->limit(250)
-                    ->get(['id', 'identity']);
-                foreach ($rows as $row) {
-                    /** @var \stdClass&object{id: int, identity: string} $row */
-                    $lastId = $row->id;
-                    $streamedNotVerifiable = true;
-                    /** @var array{url: string, reason: string} $finding */
-                    $finding = json_decode($row->identity, true, flags: JSON_THROW_ON_ERROR);
-                    yield ['url' => $finding['url'], 'result' => (string) __('sitemap.not_verifiable.'.$finding['reason']), 'status' => FindingStatus::NotVerifiable,
-                        'found_on' => null, 'link_text' => null, 'first_seen_at' => null, 'after_first_complete_crawl' => false];
-                }
-            } while ($rows->count() === 250);
-            if (! $streamedNotVerifiable) {
-                // Legacy snapshot rows predating sitemap_findings retain up to 50 not-verifiable entries in snapshot JSON.
-                $legacyRows = DB::select("SELECT finding.row::text AS row FROM sitemap_snapshots AS snapshot
-                    CROSS JOIN LATERAL jsonb_array_elements(COALESCE(snapshot.snapshot->'not_verifiable', '[]'::jsonb)) WITH ORDINALITY AS finding(row, position)
-                    WHERE snapshot.id = ? ORDER BY finding.position", [$snapshot->id]);
-                foreach ($legacyRows as $row) {
-                    /** @var \stdClass&object{row: string} $row */
-                    /** @var array{url: string, reason: string} $finding */
-                    $finding = json_decode($row->row, true, flags: JSON_THROW_ON_ERROR);
-                    yield ['url' => $finding['url'], 'result' => (string) __('sitemap.not_verifiable.'.$finding['reason']), 'status' => FindingStatus::NotVerifiable,
-                        'found_on' => null, 'link_text' => null, 'first_seen_at' => null, 'after_first_complete_crawl' => false];
-                }
+            $legacyRows = DB::select("SELECT finding.row::text AS row FROM sitemap_snapshots AS snapshot
+                CROSS JOIN LATERAL jsonb_array_elements(COALESCE(snapshot.snapshot->'not_verifiable', '[]'::jsonb)) WITH ORDINALITY AS finding(row, position)
+                WHERE snapshot.id = ? ORDER BY finding.position", [$snapshot->id]);
+            foreach ($legacyRows as $row) {
+                /** @var \stdClass&object{row: string} $row */
+                /** @var array{url: string, reason: string} $finding */
+                $finding = json_decode($row->row, true, flags: JSON_THROW_ON_ERROR);
+                yield ['url' => $finding['url'], 'result' => (string) __('sitemap.not_verifiable.'.$finding['reason']), 'status' => FindingStatus::NotVerifiable,
+                    'found_on' => null, 'link_text' => null, 'first_seen_at' => null, 'after_first_complete_crawl' => false];
             }
         })();
+    }
+
+    /**
+     * @param  array{url: string, type?: string, kind?: string, status?: int|null, xml_reason?: string, xml_line?: int, xml_element?: string}  $issue
+     * @return array{url: string, result: string, status: FindingStatus, found_on: null, link_text: null, first_seen_at: null, after_first_complete_crawl: false}
+     */
+    private function exportIssueRow(array $issue, FindingStatus $findingStatus): array
+    {
+        if (! isset($issue['type'])) {
+            throw new \LogicException('Sitemap finding requires a type.');
+        }
+        $status = isset($issue['kind']) && $issue['kind'] !== 'http_status'
+            ? __('sitemap.status.'.$issue['kind']) : ($issue['status'] ?? __($issue['type']));
+        $xmlProblem = SitemapXmlProblem::presentation($issue);
+        $problem = $xmlProblem instanceof CheckRunPresentationPartData ? __($xmlProblem->key, $xmlProblem->localizedParams(Lang::locale())) : (($issue['kind'] ?? null) === 'tls' && ! str_starts_with($issue['type'], 'causes.tls.')
+            ? __('TLS certificate verification failed') : __($issue['type']));
+        if ($xmlProblem instanceof CheckRunPresentationPartData) {
+            $status = $problem;
+        }
+        if ((! is_string($status) && ! is_int($status)) || ! is_string($problem)) {
+            throw new \LogicException('Sitemap finding translations must be text.');
+        }
+
+        return ['url' => $issue['url'], 'result' => (string) $status === $problem ? (string) $status : $status.' · '.$problem,
+            'status' => $findingStatus, 'found_on' => null, 'link_text' => null, 'first_seen_at' => null, 'after_first_complete_crawl' => false];
+    }
+
+    /** @return array<string, array{xml_reason?: string, xml_line?: int, xml_element?: string}> */
+    private function xmlDiagnostics(int $snapshotId): array
+    {
+        $rows = DB::select("SELECT finding.issue::text AS issue FROM sitemap_snapshots AS snapshot
+            CROSS JOIN LATERAL jsonb_array_elements(COALESCE(snapshot.snapshot->'issues', '[]'::jsonb)) AS finding(issue)
+            WHERE snapshot.id = ? AND finding.issue->>'type' = 'sitemap.issue.invalid'", [$snapshotId]);
+        $diagnostics = [];
+        foreach ($rows as $row) {
+            /** @var \stdClass&object{issue: string} $row */
+            /** @var array{url?: string, xml_reason?: string, xml_line?: int, xml_element?: string} $issue */
+            $issue = json_decode($row->issue, true, flags: JSON_THROW_ON_ERROR);
+            if (isset($issue['url'], $issue['xml_reason'])) {
+                $diagnostics[$issue['url']] = array_intersect_key($issue, array_flip(['xml_reason', 'xml_line', 'xml_element']));
+            }
+        }
+
+        return $diagnostics;
     }
 
     public function prunedTables(): array

@@ -61,7 +61,7 @@ it('shows only scoped dated observations and maintenance in chronological order'
     foreach ([[$check, '2026-10-20T00:00:00Z'], [$hiddenCheck, '2026-10-06T00:00:00Z']] as [$record, $expiry]) {
         DB::table('domain_snapshots')->insert(['site_id' => $record->site_id, 'check_id' => $record->id, 'run_id' => $record->id, 'claim_token' => (string) Str::uuid(), 'run_ended_at' => now(), 'snapshot' => json_encode(['domain' => 'site.example', 'expires_at' => $expiry, 'registrar' => 'Registrar'], JSON_THROW_ON_ERROR), 'created_at' => now()]);
     }
-    DB::table('domain_snapshots')->insert(['site_id' => $site->id, 'check_id' => $check->id, 'run_id' => 10001, 'claim_token' => (string) Str::uuid(), 'run_ended_at' => now()->addMinute(), 'snapshot' => json_encode(['domain' => 'site.example', 'expires_at' => null, 'registrar' => null], JSON_THROW_ON_ERROR), 'created_at' => now()]);
+    DB::table('domain_snapshots')->insert(['site_id' => $site->id, 'check_id' => $check->id, 'run_id' => 10001, 'claim_token' => (string) Str::uuid(), 'run_ended_at' => now()->subMinute(), 'snapshot' => json_encode(['domain' => 'site.example', 'expires_at' => null, 'registrar' => null], JSON_THROW_ON_ERROR), 'created_at' => now()->subMinute()]);
     MaintenancePeriod::factory()->create(['site_id' => $site->id, 'name' => 'Deploy', 'starts_at' => now()->addDay(), 'ends_at' => now()->addDay()->addHour()]);
 
     $this->actingAs($user)->get('/upcoming?days=30')->assertOk()
@@ -126,7 +126,7 @@ it('projects certified expiry and only rare scheduled tasks from addon facts', f
     $certificate = Check::factory()->for($site)->create(['type' => CheckKey::CertificateHealth]);
     $cron = Check::factory()->for($site)->create(['type' => CheckKey::Cron]);
     DB::table('certificate_health_snapshots')->insert(['site_id' => $site->id, 'check_id' => $certificate->id, 'run_id' => 1001, 'claim_token' => (string) Str::uuid(), 'run_ended_at' => now(), 'snapshot' => json_encode(['certificate_details' => ['valid_until' => '2026-10-14T00:00:00Z', 'issuer' => 'Issuer']], JSON_THROW_ON_ERROR), 'created_at' => now()]);
-    DB::table('certificate_health_snapshots')->insert(['site_id' => $site->id, 'check_id' => $certificate->id, 'run_id' => 1002, 'claim_token' => (string) Str::uuid(), 'run_ended_at' => now()->addMinute(), 'snapshot' => json_encode(['certificate_details' => null], JSON_THROW_ON_ERROR), 'created_at' => now()]);
+    DB::table('certificate_health_snapshots')->insert(['site_id' => $site->id, 'check_id' => $certificate->id, 'run_id' => 1002, 'claim_token' => (string) Str::uuid(), 'run_ended_at' => now()->subMinute(), 'snapshot' => json_encode(['certificate_details' => null], JSON_THROW_ON_ERROR), 'created_at' => now()->subMinute()]);
     $tasks = app(CronTaskStore::class);
     $tasks->create($cron->id, ['name' => 'Minute job', 'type' => 'simple', 'frequency_in_minutes' => 1]);
     $tasks->create($cron->id, ['name' => 'Monthly job', 'type' => 'cron', 'cron_expression' => '0 6 1 * *', 'server_timezone' => 'UTC']);
@@ -231,4 +231,58 @@ it('caps deep upcoming page requests at the server ceiling without scanning unbo
     $extreme = $this->get('/upcoming?type=task&per_page=100&page='.PHP_INT_MAX)->assertOk();
     expect($extreme->inertiaProps()['items'])->toBe([])
         ->and($extreme->inertiaProps()['next_page_url'])->toBeNull();
+});
+
+it('ignores a stale certificate expiry once a newer accepted observation has no certificate', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-04T00:30:00Z'));
+    $owner = User::factory()->owner()->create();
+    $site = Site::factory()->create();
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::CertificateHealth]);
+    DB::table('certificate_health_snapshots')->insert([
+        ['site_id' => $site->id, 'check_id' => $check->id, 'run_id' => 1001, 'claim_token' => (string) Str::uuid(), 'run_ended_at' => now(),
+            'snapshot' => json_encode(['certificate_details' => ['valid_until' => '2026-10-14T00:00:00Z', 'issuer' => 'Old Issuer']], JSON_THROW_ON_ERROR), 'created_at' => now()],
+        ['site_id' => $site->id, 'check_id' => $check->id, 'run_id' => 1002, 'claim_token' => (string) Str::uuid(), 'run_ended_at' => now()->addMinute(),
+            'snapshot' => json_encode(['certificate_details' => null], JSON_THROW_ON_ERROR), 'created_at' => now()->addMinute()],
+    ]);
+
+    $response = $this->actingAs($owner)->get('/upcoming?days=30&type=certificate')->assertOk();
+    expect($response->inertiaProps()['items'])->toBe([]);
+});
+
+it('ignores a stale domain expiry once a newer accepted observation has no expiry', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-04T00:30:00Z'));
+    $owner = User::factory()->owner()->create();
+    $site = Site::factory()->create();
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::Domain]);
+    DB::table('domain_snapshots')->insert([
+        ['site_id' => $site->id, 'check_id' => $check->id, 'run_id' => 1001, 'claim_token' => (string) Str::uuid(), 'run_ended_at' => now(),
+            'snapshot' => json_encode(['domain' => 'site.example', 'expires_at' => '2026-10-14T00:00:00Z', 'registrar' => 'Old Registrar'], JSON_THROW_ON_ERROR), 'created_at' => now()],
+        ['site_id' => $site->id, 'check_id' => $check->id, 'run_id' => 1002, 'claim_token' => (string) Str::uuid(), 'run_ended_at' => now()->addMinute(),
+            'snapshot' => json_encode(['domain' => 'site.example', 'expires_at' => null, 'registrar' => 'New Registrar'], JSON_THROW_ON_ERROR), 'created_at' => now()->addMinute()],
+    ]);
+
+    $response = $this->actingAs($owner)->get('/upcoming?days=30&type=domain')->assertOk();
+    expect($response->inertiaProps()['items'])->toBe([]);
+});
+
+it('keeps daily cron entries in Upcoming across DST transitions while excluding sub-daily schedules', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-03-27T12:00:00Z'));
+    $owner = User::factory()->owner()->create();
+    $site = Site::factory()->create();
+    $cron = Check::factory()->for($site)->create(['type' => CheckKey::Cron]);
+    $tasks = app(CronTaskStore::class);
+    $tasks->create($cron->id, ['name' => 'Daily Berlin 03:00', 'type' => 'cron', 'cron_expression' => '0 3 * * *', 'server_timezone' => 'Europe/Berlin']);
+    $tasks->create($cron->id, ['name' => 'Twice daily Berlin', 'type' => 'cron', 'cron_expression' => '0 3,15 * * *', 'server_timezone' => 'Europe/Berlin']);
+
+    $spring = $this->actingAs($owner)->get('/upcoming?days=14&type=task')->assertOk()->inertiaProps()['items'];
+    expect(array_column($spring, 'detail'))->toBe(['Daily Berlin 03:00']);
+
+    // Fall-back day (25h in Europe/Berlin): a 00:00 & 23:00 task spans 24 UTC hours but still runs twice daily.
+    $this->travelTo(CarbonImmutable::parse('2026-10-24T21:30:00Z'));
+    $fallCron = Check::factory()->for(Site::factory()->create())->create(['type' => CheckKey::Cron]);
+    $tasks->create($fallCron->id, ['name' => 'Twice on fallback', 'type' => 'cron', 'cron_expression' => '0 0,23 * * *', 'server_timezone' => 'Europe/Berlin']);
+    $tasks->create($fallCron->id, ['name' => 'Daily 02:30 fallback', 'type' => 'cron', 'cron_expression' => '30 2 * * *', 'server_timezone' => 'Europe/Berlin']);
+
+    $fall = $this->actingAs($owner)->get('/upcoming?days=14&type=task')->assertOk()->inertiaProps()['items'];
+    expect(array_column($fall, 'detail'))->toBe(['Daily 02:30 fallback']);
 });

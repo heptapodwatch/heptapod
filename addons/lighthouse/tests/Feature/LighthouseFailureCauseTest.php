@@ -6,6 +6,8 @@ use Carbon\CarbonImmutable;
 use Heptapod\Addons\Channels\RenderedAlert;
 use Heptapod\Checks\CheckRunPresentations;
 use Heptapod\Contracts\AlertPreviewRenderer;
+use Heptapod\Contracts\CertificateFetcher;
+use Heptapod\Contracts\CertificateFetchResult;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\CheckHeadline;
 use Heptapod\Contracts\CheckKey;
@@ -17,6 +19,7 @@ use Heptapod\Contracts\Http\FetchRequest;
 use Heptapod\Contracts\Http\FetchResult;
 use Heptapod\Contracts\Http\OutboundHttp;
 use Heptapod\Contracts\RunResult;
+use Heptapod\Contracts\TlsFailureReason;
 use Heptapod\Events\Notifications\NotificationMessage;
 use Heptapod\Models\CheckRunAttempt;
 use Heptapod\Models\Event;
@@ -24,6 +27,7 @@ use Heptapod\Models\Incident;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\User;
 use Heptapod\Support\Api\TrustedSummary;
+use Heptapod\Testing\FakeCertificateFetcher;
 use Heptapod\Testing\FakeOutboundHttp;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
@@ -441,4 +445,39 @@ it('stores reached stage seconds and presents them only as ordered run details',
     expect($presentation->details[2]->params)->toBe(['seconds' => 47]);
     expect($presentation->details[3]->labels)->toBe(['stage_label' => 'lighthouse.stage.gathering']);
     expect($presentation->details[3]->params)->toBe(['seconds' => 100]);
+});
+
+it('runs TLS diagnostics and summary against the validated redirected navigation host', function (): void {
+    config(['lighthouse.service_url' => 'http://lighthouse.test:3000', 'lighthouse.proxy_control_url' => 'http://proxy-control.test:3129']);
+    $token = str_repeat('a', 64);
+    app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static function (FetchRequest $request) use ($token): FetchResult {
+        return match (true) {
+            $request->url === 'http://proxy-control.test:3129/scopes' && $request->method === 'POST' => new FetchResult(200, json_encode(['token' => $token], JSON_THROW_ON_ERROR)),
+            $request->url === 'http://proxy-control.test:3129/scopes/'.$token.'?host=redirected.example.net' && $request->method === 'GET' => new FetchResult(200, '{"blockedTarget":false}'),
+            $request->url === 'http://proxy-control.test:3129/scopes/'.$token && $request->method === 'DELETE' => new FetchResult(204),
+            $request->url === 'http://lighthouse.test:3000/lighthouse' && $request->method === 'POST' => new FetchResult(200, json_encode([
+                'runtimeError' => ['code' => 'ERR_CERT_COMMON_NAME_INVALID', 'message' => 'TLS error'],
+                'target_host' => 'redirected.example.net',
+            ], JSON_THROW_ON_ERROR)),
+            default => throw new LogicException('Unexpected Lighthouse HTTP request: '.$request->url),
+        };
+    }));
+    $pem = file_get_contents(base_path('docker/fixtures/tls/valid.crt'));
+    $certificates = (new FakeCertificateFetcher)->respondWith(
+        'redirected.example.net',
+        new CertificateFetchResult([$pem], 'redirected.example.net', 443, false, TlsFailureReason::NameMismatch, chainExplainsOnly: true),
+        443,
+        'example.com',
+    );
+    app()->instance(CertificateFetcher::class, $certificates);
+
+    $check = lighthouseCheck();
+    $check->site->update(['url' => 'https://example.com:8443/']);
+
+    $run = runLighthouse($check);
+
+    expect($run->result)->toBe(RunResult::Errored)
+        ->and($run->summary)->toBe('causes.tls.name_mismatch_subject')
+        ->and($run->summary_params['host'])->toBe('redirected.example.net')
+        ->and($run->summary_params['subject'])->toBe('fixtures.test');
 });

@@ -9,9 +9,11 @@ use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Models\Event;
+use Heptapod\Models\User;
 use Heptapod\Testing\ClaimedRun;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
 
 require_once __DIR__.'/../Pest.php';
 
@@ -90,4 +92,31 @@ it('fences stale recordings and deduplicates retried accepted change events', fu
         ->and(Event::query()->where('type', 'application_health.component_changed')->count())->toBe(1)
         ->and(DB::table('application_health_components')->value('run_id'))->toBe($current->runId)
         ->and(DB::table('application_health_snapshots')->count())->toBe(2);
+});
+
+it('keeps the newest accepted empty health snapshot when pruning past raw retention', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-01T12:00:00Z'));
+    $check = applicationHealthCheck();
+    respondApplicationHealth($check, ['finishedAt' => CarbonImmutable::now()->getTimestamp(), 'checkResults' => []]);
+    runApplicationHealth($check);
+    $firstRunId = $check->refresh()->latest_run_id;
+
+    $this->travelTo(CarbonImmutable::parse('2026-10-02T12:00:00Z'));
+    respondApplicationHealth($check, ['finishedAt' => CarbonImmutable::now()->getTimestamp(), 'checkResults' => []]);
+    runApplicationHealth($check);
+    $secondRunId = $check->refresh()->latest_run_id;
+    expect(DB::table('application_health_snapshots')->where('check_id', $check->id)->whereNotNull('run_ended_at')->count())->toBe(2);
+
+    $this->travelTo(CarbonImmutable::parse('2026-12-01T12:00:00Z'));
+    app(CheckRegistry::class)->get(CheckKey::ApplicationHealth)->persistence()->prune(CarbonImmutable::now()->subDays(31));
+
+    expect(DB::table('application_health_snapshots')->where('check_id', $check->id)->pluck('run_id')->all())
+        ->toBe([$secondRunId])
+        ->and($firstRunId)->not->toBe($secondRunId);
+
+    $owner = User::factory()->owner()->create();
+    $this->actingAs($owner)->get('/sites/'.$check->site_id.'/checks/'.$check->id)->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('history.last_valid_run_id', $secondRunId)
+            ->where('history.components', []));
 });

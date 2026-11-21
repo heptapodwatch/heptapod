@@ -82,18 +82,6 @@ final class CertificatePersistence implements RunPersistence
         });
     }
 
-    public function detail(int $checkId): ?CertificateSnapshot
-    {
-        $row = DB::table('certificate_health_snapshots')->where('check_id', $checkId)->whereNotNull('run_ended_at')
-            ->orderByDesc('run_ended_at')->orderByDesc('run_id')->first(['snapshot']);
-        if ($row === null) {
-            return null;
-        }
-        /** @var \stdClass&object{snapshot: string} $row */
-
-        return CertificateSnapshot::from(json_decode($row->snapshot, true, flags: JSON_THROW_ON_ERROR));
-    }
-
     public function timeline(int $checkId): CertificateTimelineData
     {
         $rows = DB::table('certificate_health_snapshots')->where('check_id', $checkId)->whereNotNull('run_ended_at')

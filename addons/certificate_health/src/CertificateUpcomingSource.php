@@ -66,11 +66,12 @@ final readonly class CertificateUpcomingSource implements UpcomingEventSource
     private function datedSnapshots(array $visibleCheckIds, CarbonImmutable $from, CarbonImmutable $until): Builder
     {
         $latest = DB::table('certificate_health_snapshots')->selectRaw('DISTINCT ON (check_id) check_id, snapshot')
-            ->whereIntegerInRaw('check_id', $visibleCheckIds)->whereNotNull('run_ended_at')->whereNotNull('snapshot->certificate_details->valid_until')
+            ->whereIntegerInRaw('check_id', $visibleCheckIds)->whereNotNull('run_ended_at')
             ->orderBy('check_id')->orderByDesc('run_ended_at')->orderByDesc('run_id');
 
-        return DB::query()->fromSub($latest, 'latest')->whereRaw(self::Expiry.' BETWEEN ? AND ?', [
-            $from->format('Y-m-d H:i:s.uP'), $until->format('Y-m-d H:i:s.uP'),
-        ]);
+        return DB::query()->fromSub($latest, 'latest')->whereNotNull('snapshot->certificate_details->valid_until')
+            ->whereRaw(self::Expiry.' BETWEEN ? AND ?', [
+                $from->format('Y-m-d H:i:s.uP'), $until->format('Y-m-d H:i:s.uP'),
+            ]);
     }
 }

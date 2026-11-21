@@ -233,6 +233,9 @@ final readonly class ApplicationHealthPersistence implements RunPersistence, Sec
 
     public function prune(CarbonImmutable $before): void
     {
-        DB::table('application_health_snapshots')->where('run_ended_at', '<', $before->format('Y-m-d H:i:s.uP'))->delete();
+        $latest = DB::table('application_health_snapshots')->selectRaw('DISTINCT ON (check_id) id')
+            ->whereNotNull('run_ended_at')->orderBy('check_id')->orderByDesc('run_ended_at')->orderByDesc('run_id');
+        DB::table('application_health_snapshots')->where('run_ended_at', '<', $before->format('Y-m-d H:i:s.uP'))
+            ->whereNotIn('id', $latest)->delete();
     }
 }

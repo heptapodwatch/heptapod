@@ -279,13 +279,14 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
             /** @var \stdClass&object{crawled_url: string, error_message: string, status_code: int|null, found_on_url: string|null} $row */
             $notVerifiable[] = ['url' => $row->crawled_url, 'reason' => $row->error_message, 'status' => $row->status_code, 'source' => $row->found_on_url];
         }
+        $latestRun = new RunReference($latest->run_id, CarbonImmutable::parse($latest->run_ended_at));
         $firstSeen = [];
         if (! $mixed && $rows->isNotEmpty()) {
             /** @var list<string> $urls */
             $urls = $rows->pluck('crawled_url')->all();
-            $firstSeen = $this->firstSeen($checkId, $urls);
+            $firstSeen = $this->firstSeen($checkId, $urls, $latestRun);
         }
-        $firstCompleteCrawlAt = $this->firstCompleteCrawlAt($checkId);
+        $firstCompleteCrawlAt = $this->firstCompleteCrawlAt($checkId, $latestRun);
         $findings = [];
         foreach ($rows as $row) {
             /** @var \stdClass&object{crawled_url: string, mixed_content_url: string, found_on_url: string|null, link_text: string|null, status_code: int|null, type: string, element_name: string, internal: bool, error_message: string|null, current_error_message: string|null} $row */
@@ -368,15 +369,15 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
             $query->where(static fn (Builder $query) => $query->where('status_code', '>=', 400)->orWhereNull('status_code'));
         }
 
-        $firstCompleteCrawlAt = $mixed ? null : $this->firstCompleteCrawlAt($checkId);
+        $firstCompleteCrawlAt = $mixed ? null : $this->firstCompleteCrawlAt($checkId, $run);
 
-        return (function () use ($query, $checkId, $mixed, $snapshot, $firstCompleteCrawlAt): \Generator {
+        return (function () use ($query, $checkId, $mixed, $snapshot, $run, $firstCompleteCrawlAt): \Generator {
             $after = 0;
             do {
                 $rows = (clone $query)->where('id', '>', $after)->orderBy('id')->limit(250)->get();
                 /** @var list<string> $urls */
                 $urls = $mixed ? [] : $rows->pluck('crawled_url')->all();
-                $firstSeen = $urls === [] ? [] : $this->firstSeen($checkId, $urls);
+                $firstSeen = $urls === [] ? [] : $this->firstSeen($checkId, $urls, $run);
                 foreach ($rows as $row) {
                     /** @var \stdClass&object{id: int, crawled_url: string, mixed_content_url: string, status_code: int|null, error_message: string|null, found_on_url: string|null, link_text: string|null, internal: bool, current_error_message: string|null} $row */
                     $after = $row->id;
@@ -436,10 +437,11 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
             && CarbonImmutable::parse($firstSeenAt)->greaterThan(CarbonImmutable::parse($firstCompleteCrawlAt));
     }
 
-    private function firstCompleteCrawlAt(int $checkId): ?string
+    private function firstCompleteCrawlAt(int $checkId, RunReference $until): ?string
     {
         /** @var string|null $endedAt */
         $endedAt = DB::table('crawl_snapshots')->where('check_id', $checkId)->whereNotNull('run_ended_at')
+            ->whereRaw('(run_ended_at, run_id) <= (?::timestamptz, ?)', [$until->endedAt->format('Y-m-d H:i:s.uP'), $until->id])
             ->where('discovery_complete', true)->where('truncated', false)->where('time_limit_reached', false)
             ->min('run_ended_at');
 
@@ -449,7 +451,7 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
     /** @param list<string> $urls
      * @return array<string, string>
      */
-    private function firstSeen(int $checkId, array $urls): array
+    private function firstSeen(int $checkId, array $urls, RunReference $until): array
     {
         // Group and bound the lateral lookup to the requested URLs so PostgreSQL can use the snapshot/hash index rather than repeatedly scanning all findings.
         $findings = DB::table('crawl_findings as retained_finding')->select('retained_finding.crawled_url')
@@ -460,6 +462,7 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
 
         return DB::table('crawl_snapshots as snapshot')->joinLateral($findings, 'finding')
             ->where('snapshot.check_id', $checkId)->whereNotNull('snapshot.run_ended_at')
+            ->whereRaw('(snapshot.run_ended_at, snapshot.run_id) <= (?::timestamptz, ?)', [$until->endedAt->format('Y-m-d H:i:s.uP'), $until->id])
             ->selectRaw('finding.crawled_url, min(snapshot.run_ended_at) as first_seen')
             ->groupBy('finding.crawled_url')->get()
             ->mapWithKeys(static function (\stdClass $row): array {

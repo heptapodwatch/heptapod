@@ -44,6 +44,7 @@ final readonly class HttpChromiumRenderer implements ChromiumRenderer
         // restarts after every audit it has to end itself, failing the audits queued behind it.
         $auditTimeout = (float) self::auditSeconds();
         $busy = false;
+        $targetHost = null;
         while (true) {
             $context->runControl?->assertActive();
             $usable = $this->remaining($context) - self::CleanupReserve;
@@ -78,8 +79,8 @@ final readonly class HttpChromiumRenderer implements ChromiumRenderer
                         if (! is_string($report->target_host ?? null)) {
                             throw new \UnexpectedValueException('Lighthouse returned no navigation host for a failed audit.');
                         }
-                        $host = TargetHost::normalize($report->target_host);
-                        $verdict = $this->fetchService(new FetchRequest(rtrim($controlUrl, '/').'/scopes/'.$token.'?host='.rawurlencode($host),
+                        $targetHost = TargetHost::normalize($report->target_host);
+                        $verdict = $this->fetchService(new FetchRequest(rtrim($controlUrl, '/').'/scopes/'.$token.'?host='.rawurlencode($targetHost),
                             maxWireBytes: 4096, maxDecodedBytes: 4096, timeoutSeconds: min(self::ControlRequestTimeout, $this->remaining($context))), $context);
                         $policy = json_decode($verdict->body, true, flags: JSON_THROW_ON_ERROR);
                         if (! is_array($policy) || ! is_bool($policy['blockedTarget'] ?? null)) {
@@ -93,7 +94,7 @@ final readonly class HttpChromiumRenderer implements ChromiumRenderer
                             }
                             throw new FetchException(new FetchFailure(FetchFailureKind::PrivateTarget,
                                 targetAddress: $address === '' ? null : $address, targetClass: $class,
-                                redirected: $host !== TargetHost::fromUrl($url)));
+                                redirected: $targetHost !== TargetHost::fromUrl($url)));
                         }
                     }
                     break;
@@ -155,7 +156,11 @@ final readonly class HttpChromiumRenderer implements ChromiumRenderer
             }
             $tlsSummary = null;
             if ($kind === FetchFailureKind::Tls) {
-                $host = TargetHost::fromUrl($url);
+                $originHost = TargetHost::fromUrl($url);
+                $host = $targetHost ?? $originHost;
+                $port = $host === $originHost && parse_url($url, PHP_URL_SCHEME) === 'https'
+                    ? (int) (parse_url($url, PHP_URL_PORT) ?? 443)
+                    : 443;
                 $nativeReason = TlsFailureReason::fromNativeError($code);
                 $tlsSummary = $nativeReason->summary($host);
                 // Optional diagnostics cannot extend the audit budget or change the native observation.
@@ -167,7 +172,7 @@ final readonly class HttpChromiumRenderer implements ChromiumRenderer
                     ]);
                 } elseif ($this->remaining($context) >= 10.0) {
                     try {
-                        $tlsSummary = $this->certificates->fetch($host, (int) (parse_url($url, PHP_URL_PORT) ?? 443), TargetHost::fromUrl($context->url))->failureSummary($nativeReason);
+                        $tlsSummary = $this->certificates->fetch($host, $port, TargetHost::fromUrl($context->url))->failureSummary($nativeReason);
                     } catch (FetchException $exception) {
                         // A refused optional capture must not replace the primary navigation failure.
                         Log::notice('Certificate diagnostics refused; native navigation reason retained.', [

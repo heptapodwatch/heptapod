@@ -9,6 +9,8 @@ use Heptapod\Checks\Execution\ClaimService;
 use Heptapod\Checks\Execution\RunOrigin;
 use Heptapod\Checks\Recording\RecordableRun;
 use Heptapod\Checks\Recording\ResultRecorder;
+use Heptapod\Contracts\CertificateFetcher;
+use Heptapod\Contracts\CertificateFetchResult;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckOutcome;
@@ -16,6 +18,13 @@ use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\DnsLookupResult;
 use Heptapod\Contracts\DnsResolver;
+use Heptapod\Contracts\DomainRegistrationLookup;
+use Heptapod\Contracts\DomainRegistrationResult;
+use Heptapod\Contracts\DomainRegistrationSource;
+use Heptapod\Contracts\ExternalNetworkException;
+use Heptapod\Contracts\Http\FetchException;
+use Heptapod\Contracts\Http\FetchFailure;
+use Heptapod\Contracts\Http\FetchFailureKind;
 use Heptapod\Contracts\LatestRunEvidence;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Contracts\RunReference;
@@ -39,7 +48,9 @@ use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\Testing\ClaimedRun;
+use Heptapod\Testing\FakeCertificateFetcher;
 use Heptapod\Testing\FakeDnsResolver;
+use Heptapod\Testing\FakeDomainRegistrationLookup;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
@@ -663,4 +674,75 @@ it('uses exact local midnights for fractional-offset viewers and 25-hour DST fal
         ->and($berlinBuckets->get('2026-10-26 00:00')['failed_count'])->toBe(0)
         ->and($berlinBuckets->get('2026-10-26 00:00')['incident_count'])->toBe(0)
         ->and($berlinBuckets->get('2026-10-26 00:00')['uptime'])->toBe(100);
+});
+
+it('projects the latest certificate run evidence instead of a stale retained snapshot after a check error', function (): void {
+    Queue::fake();
+    $owner = User::factory()->owner()->create();
+    $site = Site::factory()->create(['url' => 'https://cert-detail.example']);
+    $schema = app(CheckRegistry::class)->get(CheckKey::CertificateHealth)->definition()->configSchema;
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::CertificateHealth, 'config' => $schema->validateConfig([])]);
+    $fake = new FakeCertificateFetcher;
+    app()->instance(CertificateFetcher::class, $fake);
+    $validPem = file_get_contents(base_path('docker/fixtures/tls/valid.crt'));
+    $fake->respondWith('cert-detail.example', new CertificateFetchResult([$validPem], 'cert-detail.example', 443, true));
+
+    $run = static function () use ($check): CheckRun {
+        expect(app(ClaimService::class)->runNow($check->id, RunOrigin::System))->not->toBeNull();
+        $definition = app(CheckRegistry::class)->get(CheckKey::CertificateHealth)->definition();
+        $job = new RunCheck($check->id, $check->refresh()->claim_token, $definition->timeout, $definition->queue);
+        app()->call($job->handle(...));
+
+        return CheckRun::forRun(new RunReference($check->refresh()->latest_run_id, $check->latest_run_ended_at))->firstOrFail();
+    };
+
+    expect($run()->result)->toBe(RunResult::Succeeded);
+    $this->actingAs($owner)->get('/sites/'.$site->id.'/checks/'.$check->id)->assertOk()->assertInertia(fn (Assert $page): Assert => $page
+        ->where('detail.certificate_details.issuer', 'Heptapod offline fixture CA'));
+
+    $fake->respondWith('cert-detail.example', new ExternalNetworkException('TLS handshake timed out.'));
+    expect($run()->result)->toBe(RunResult::Errored);
+
+    $this->actingAs($owner)->get('/sites/'.$site->id.'/checks/'.$check->id)->assertOk()->assertInertia(fn (Assert $page): Assert => $page
+        ->where('check.result', CheckResult::Errored->value)
+        ->where('detail', null));
+});
+
+it('projects the latest domain run evidence instead of a stale retained baseline when lookup becomes unavailable', function (): void {
+    Queue::fake();
+    $owner = User::factory()->owner()->create();
+    $site = Site::factory()->create(['url' => 'https://www.domain-detail.com']);
+    $schema = app(CheckRegistry::class)->get(CheckKey::Domain)->definition()->configSchema;
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::Domain, 'config' => $schema->validateConfig([])]);
+    $fake = new FakeDomainRegistrationLookup;
+    app()->instance(DomainRegistrationLookup::class, $fake);
+    $fake->respondWith('domain-detail.com', new DomainRegistrationResult(DomainRegistrationSource::Rdap, [
+        'objectClassName' => 'domain', 'ldhName' => 'domain-detail.com', 'status' => ['active'],
+        'events' => [['eventAction' => 'expiration', 'eventDate' => '2028-08-13T04:00:00Z']],
+        'nameservers' => [['ldhName' => 'NS1.DOMAIN-DETAIL.COM']],
+        'entities' => [['roles' => ['registrar'], 'vcardArray' => ['vcard', [['fn', [], 'text', 'Example Registrar']]]]],
+    ], 'https://rdap.example'));
+
+    $run = static function () use ($check): CheckRun {
+        expect(app(ClaimService::class)->runNow($check->id, RunOrigin::System))->not->toBeNull();
+        $definition = app(CheckRegistry::class)->get(CheckKey::Domain)->definition();
+        $job = new RunCheck($check->id, $check->refresh()->claim_token, $definition->timeout, $definition->queue);
+        app()->call($job->handle(...));
+
+        return CheckRun::forRun(new RunReference($check->refresh()->latest_run_id, $check->latest_run_ended_at))->firstOrFail();
+    };
+
+    expect($run()->result)->toBe(RunResult::Succeeded);
+    $this->actingAs($owner)->get('/sites/'.$site->id.'/checks/'.$check->id)->assertOk()->assertInertia(fn (Assert $page): Assert => $page
+        ->where('detail.registrar', 'Example Registrar')
+        ->where('detail.not_supported_reason', null));
+
+    $fake->respondWith('domain-detail.com', new FetchException(new FetchFailure(FetchFailureKind::Timeout)));
+    expect($run()->result)->toBe(RunResult::Errored);
+
+    $this->actingAs($owner)->get('/sites/'.$site->id.'/checks/'.$check->id)->assertOk()->assertInertia(fn (Assert $page): Assert => $page
+        ->where('check.result', CheckResult::Errored->value)
+        ->where('detail.registrar', null)
+        ->where('detail.expires_at', null)
+        ->where('detail.not_supported_reason', 'lookup_unavailable'));
 });
