@@ -33,6 +33,7 @@ final class EngineMessage
         'DNS query timed out.' => 'causes.engine.dns_query_timeout',
         'DNS resolver did not respond.' => 'causes.engine.dns_resolver_no_response',
         'DNS query failed.' => 'causes.engine.dns_query_failed',
+        'DNS nameserver address is not public.' => 'causes.engine.dns_nameserver_not_public',
         'DNS response status is missing.' => 'causes.engine.dns_status_missing',
         'DNS response was truncated.' => 'causes.engine.dns_truncated',
         'DNS response is not authoritative.' => 'causes.engine.dns_not_authoritative',

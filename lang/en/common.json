@@ -698,6 +698,7 @@
     "causes.engine.dns_query_timeout": "DNS query timed out",
     "causes.engine.dns_resolver_no_response": "DNS resolver did not respond",
     "causes.engine.dns_query_failed": "DNS query failed",
+    "causes.engine.dns_nameserver_not_public": "DNS nameserver is not at a public address",
     "causes.engine.dns_status_missing": "DNS response had no status",
     "causes.engine.dns_truncated": "DNS response was truncated",
     "causes.engine.dns_not_authoritative": "DNS response is not authoritative",

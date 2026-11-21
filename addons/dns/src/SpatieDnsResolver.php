@@ -22,7 +22,7 @@ use Spatie\Dns\Support\Factory;
 final class SpatieDnsResolver implements DnsResolver
 {
     /**
-     * Discovered nameserver => the public address its queries are pinned to, for this resolver's run.
+     * Discovered nameserver => the public address its queries are pinned to during one check run.
      *
      * @var array<string, string>
      */
@@ -67,13 +67,13 @@ final class SpatieDnsResolver implements DnsResolver
                 $this->policy->assertAddressAllowed($address, false);
             }
         } catch (TargetResolutionException $exception) {
-            throw new ExternalNetworkException('Target DNS lookup failed.', previous: $exception);
+            throw new ExternalNetworkException('Target DNS lookup failed.', $exception->getCode(), previous: $exception);
         } catch (FetchException $exception) {
             if ($exception->failure->isPolicyRefusal()) {
                 throw new DnsNameserverRefusedException($exception);
             }
             if ($exception->failure->kind === FetchFailureKind::Timeout) {
-                throw new ExternalTimeoutException('DNS query timed out.', previous: $exception);
+                throw new ExternalTimeoutException('DNS query timed out.', $exception->getCode(), previous: $exception);
             }
             throw $exception;
         }

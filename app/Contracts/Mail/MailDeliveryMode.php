@@ -29,7 +29,7 @@ final class MailDeliveryMode
         return in_array(config('mail.mailers.'.config()->string('mail.default').'.transport'), ['log', 'array'], true);
     }
 
-    /** Whether this send stayed local (log/array), including a failover that fell back to the log transport. */
+    /** Whether this send stayed local (log/array), including a fallback mailer that ended at the log transport. */
     public static function stayedLocal(?SentMessage $sent): bool
     {
         return self::logOnly() || $sent?->getSymfonySentMessage() instanceof LoggedSentMessage;

@@ -7,13 +7,12 @@ namespace Heptapod\Mail;
 use Heptapod\Contracts\Mail\LoggedSentMessage;
 use Illuminate\Mail\Transport\LogTransport;
 use Symfony\Component\Mailer\Envelope;
-use Symfony\Component\Mailer\SentMessage;
 use Symfony\Component\Mime\RawMessage;
 
-/** Marks its result so a failover that fell back to the log is not mistaken for delivered mail. */
+/** Marks its result so a fallback mailer that ended at the log is not mistaken for delivered mail. */
 final class MarkedLogTransport extends LogTransport
 {
-    public function send(RawMessage $message, ?Envelope $envelope = null): SentMessage
+    public function send(RawMessage $message, ?Envelope $envelope = null): LoggedSentMessage
     {
         parent::send($message, $envelope);
 

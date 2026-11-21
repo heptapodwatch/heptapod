@@ -50,7 +50,7 @@ final readonly class SaveNotificationChannel
         if (! self::offers($kind, $data['channel'])) {
             throw ValidationException::withMessages(['channel' => __('notifications.user_mail_is_account')]);
         }
-        self::assertEnteredWebhookSecretLength($data['channel'], $data['config']);
+        $this->assertEnteredWebhookSecretLength($data['channel'], $data['config']);
         $config = $this->channels->get($data['channel'])->configSchema()->validateConfig($data['config']);
 
         return NotificationLocks::transaction(function () use ($kind, $user, $client, $data, $config): NotificationDestination {
@@ -211,7 +211,7 @@ final readonly class SaveNotificationChannel
     {
         $schema = $this->channels->get($channel->channel)->configSchema();
         $previous = $channel->destinationConfig()->values();
-        self::assertEnteredWebhookSecretLength($channel->channel, $incoming);
+        $this->assertEnteredWebhookSecretLength($channel->channel, $incoming);
         $supplied = $incoming;
         foreach ($schema->fields as $name => $field) {
             if (array_key_exists($name, $incoming)) {
@@ -245,7 +245,7 @@ final readonly class SaveNotificationChannel
      *
      * @param  array<string, mixed>  $config
      */
-    private static function assertEnteredWebhookSecretLength(string $channel, array $config): void
+    private function assertEnteredWebhookSecretLength(string $channel, array $config): void
     {
         $secret = $config['secret'] ?? null;
         if ($channel === 'webhook' && is_string($secret) && $secret !== '' && $secret !== '********' && mb_strlen(trim($secret), 'UTF-8') < 32) {
