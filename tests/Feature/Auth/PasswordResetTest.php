@@ -73,8 +73,8 @@ test('a password reset ends every other session, API token and live connection o
     $user = User::factory()->create();
     $user->assignRole('Owner');
     $apiToken = $user->createToken('before-reset', ['monitors:read'])->plainTextToken;
+    // Signed in, but no request since: the sign-in itself binds the session.
     $this->post(route('login'), ['email' => $user->email, 'password' => 'password'])->assertRedirect();
-    $this->get(route('sites.index'))->assertOk();
     $otherBrowser = session()->all();
 
     // The reset happens in a second, signed-out browser.

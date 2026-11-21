@@ -7,6 +7,7 @@ use Heptapod\Http\ErrorResponses;
 use Heptapod\Http\Middleware\HandleAppearance;
 use Heptapod\Http\Middleware\HandleInertiaRequests;
 use Heptapod\Http\Middleware\RejectDisabledAccount;
+use Heptapod\Http\Middleware\RequireBoundSession;
 use Heptapod\Http\Middleware\SetLocale;
 use Heptapod\Http\Middleware\ThrottleApiEntry;
 use Heptapod\Http\Middleware\ThrottleRequestsExactly;
@@ -42,7 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO);
         // Global entry throttle runs before route authentication, so invalid tokens are bounded too.
         $middleware->append(ThrottleApiEntry::class);
-        $middleware->alias(['throttle' => ThrottleRequestsExactly::class]);
+        $middleware->alias(['throttle' => ThrottleRequestsExactly::class, 'auth.session' => RequireBoundSession::class]);
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state', 'locale', 'list_page_sizes']);
         // Settings → Email refuses a sender name or footer with any line break, also at the edge, so those keep their raw value.
         $middleware->trimStrings(except: [fn (Request $request): bool => $request->is('api/*'), 'sender_name', 'footer']);
@@ -50,7 +51,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Resolve locale after cookie/session setup, before CSRF and route throttles can reject the request.
         $middleware->appendToPriorityList(ShareErrorsFromSession::class, SetLocale::class);
-        // Sessions live in Redis, so a password change ends the other sessions through the stored password hash.
+        // Sessions live in Redis, so a password change ends the other sessions through the password hash stored at sign-in.
         $middleware->authenticateSessions();
         $middleware->web(append: [
             HandleAppearance::class,

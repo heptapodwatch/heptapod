@@ -18,6 +18,7 @@ use Heptapod\Testing\FixtureOnlyDnsResolver;
 use Heptapod\Testing\FixtureOnlyNetwork;
 use Heptapod\Testing\FixtureOnlyTargetResolver;
 use Heptapod\Testing\OffsetDatabaseClock;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Events\MigrationsEnded;
 use Illuminate\Database\Events\TransactionCommitted;
@@ -95,14 +96,16 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
-     * Every acting user brings their own signed-in session. The in-memory test session survives between requests, and
-     * the web group binds a session to its user's password hash, so the hash stored for an earlier user is dropped.
-     * Without a guard it acts on the web guard, as a fresh request does even after an API request switched the default.
+     * Every acting user brings their own signed-in session. The web group requires a session bound to its user's password
+     * hash at sign-in, so acting as a user binds the in-memory test session to that user's password. Without a guard it acts on the web guard, as a fresh request does even after an API request switched the default.
      */
     public function be(Authenticatable $user, $guard = null)
     {
         $guard ??= 'web';
-        $this->app['session']->forget('password_hash_'.$guard);
+        $sessionGuard = $this->app['auth']->guard($guard);
+        if ($sessionGuard instanceof SessionGuard) {
+            $this->app['session']->put('password_hash_'.$guard, $sessionGuard->hashPasswordForCookie((string) $user->getAuthPassword()));
+        }
 
         return parent::be($user, $guard);
     }
