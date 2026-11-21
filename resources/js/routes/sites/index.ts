@@ -941,7 +941,7 @@ pause.form = pauseForm
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::resume
-* @see app/Http/Controllers/SiteMonitoringController.php:35
+* @see app/Http/Controllers/SiteMonitoringController.php:37
 * @route '/sites/{site}/resume'
 */
 export const resume = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -956,7 +956,7 @@ resume.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::resume
-* @see app/Http/Controllers/SiteMonitoringController.php:35
+* @see app/Http/Controllers/SiteMonitoringController.php:37
 * @route '/sites/{site}/resume'
 */
 resume.url = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -989,7 +989,7 @@ resume.url = (args: { site: number | { id: number } } | [site: number | { id: nu
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::resume
-* @see app/Http/Controllers/SiteMonitoringController.php:35
+* @see app/Http/Controllers/SiteMonitoringController.php:37
 * @route '/sites/{site}/resume'
 */
 resume.post = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -999,7 +999,7 @@ resume.post = (args: { site: number | { id: number } } | [site: number | { id: n
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::resume
-* @see app/Http/Controllers/SiteMonitoringController.php:35
+* @see app/Http/Controllers/SiteMonitoringController.php:37
 * @route '/sites/{site}/resume'
 */
 const resumeForm = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1009,7 +1009,7 @@ const resumeForm = (args: { site: number | { id: number } } | [site: number | { 
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::resume
-* @see app/Http/Controllers/SiteMonitoringController.php:35
+* @see app/Http/Controllers/SiteMonitoringController.php:37
 * @route '/sites/{site}/resume'
 */
 resumeForm.post = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
