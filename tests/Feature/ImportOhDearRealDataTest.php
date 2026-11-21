@@ -16,7 +16,6 @@ use Heptapod\Contracts\Http\OutboundHttp;
 use Heptapod\Contracts\OhDearImportMapping;
 use Heptapod\Enums\ImportRunStatus;
 use Heptapod\Enums\ImportSection;
-use Heptapod\Events\LiveSignal;
 use Heptapod\Exceptions\UndeclaredImportNotice;
 use Heptapod\Jobs\RunOhDearImport;
 use Heptapod\Jobs\TerminateLiveConnections;
@@ -33,7 +32,6 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
@@ -762,15 +760,16 @@ test('stops an import whose starter loses access and keeps the sites already imp
     $starter = User::factory()->owner()->create();
     $otherOwner = User::factory()->owner()->create();
     app(OhDearAccountTransport::class)->fake($account);
-    $plan = $this->actingAs($starter)->postJson('/settings/import/ohdear/plan', ['ohdear_token' => 'fake-real-account-token'])->assertOk();
+    // No channel step: the last site is the run's last write.
+    $plan = $this->actingAs($starter)->postJson('/settings/import/ohdear/plan', ['ohdear_token' => 'fake-real-account-token', 'sections' => ['sites', 'maintenance']])->assertOk();
     Queue::fake([RunOhDearImport::class, TerminateLiveConnections::class]);
     $this->postJson('/settings/import/ohdear/runs/'.$plan->json('plan_id').'/start', ['expected' => count($plan->json('rows')),
         'groups' => ['team:42' => ['new_client' => 'Imported']], 'overrides' => []])->assertCreated();
     $remove = static fn () => app(DeactivateMember::class)($otherOwner, $starter);
     if ($whileRunning) {
-        // Removed from the team right after the first site was imported.
-        Event::listen(LiveSignal::class, static function (LiveSignal $signal) use (&$remove): void {
-            if ($signal->topic === 'import.progress' && $remove !== null) {
+        // Removed from the team while the last site's maintenance windows are read from Oh Dear, before it is written.
+        app(OhDearAccountTransport::class)->fake($account, onRequest: static function (string $path) use (&$remove): void {
+            if ($path === '/api/monitors/505/maintenance-periods' && $remove !== null) {
                 [$removeNow, $remove] = [$remove, null];
                 $removeNow();
             }
@@ -783,8 +782,8 @@ test('stops an import whose starter loses access and keeps the sites already imp
 
     $run = ImportRun::query()->findOrFail($plan->json('plan_id'));
     expect($run->status)->toBe(ImportRunStatus::Failed)->and($run->error)->toBe('access_revoked')
-        ->and(Site::query()->count())->toBe($sitesKept);
-})->with(['while it runs' => [true, 1], 'while it is queued' => [false, 0]]);
+        ->and(Site::query()->count())->toBe($sitesKept)->and(Site::query()->where('oh_dear_id', 505)->exists())->toBeFalse();
+})->with(['while the last site is read' => [true, 4], 'while it is queued' => [false, 0]]);
 
 test('never shows or logs a source-supplied validation path', function (string $leakedKey): void {
     $account = realOhDearAccount();

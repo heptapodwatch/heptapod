@@ -57,8 +57,9 @@ final readonly class ImportOhDearMonitor
     /**
      * @param  list<ImportSection>  $sections
      * @param  array{clientId: int|null, siteId: int|null}|null  $approved  Null when not running from a saved plan.
+     * @param  (\Closure(): void)|null  $beforeWrite  Runs first in the write transaction, after every Oh Dear request; throws to stop.
      */
-    public function __invoke(#[\SensitiveParameter] OhDear $sdk, #[\SensitiveParameter] Monitor $monitor, string $timezone, bool $dryRun, array $sections, ?array $approved): ImportPlanRowData
+    public function __invoke(#[\SensitiveParameter] OhDear $sdk, #[\SensitiveParameter] Monitor $monitor, string $timezone, bool $dryRun, array $sections, ?array $approved, ?\Closure $beforeWrite = null): ImportPlanRowData
     {
         if ($monitor->type !== 'http') {
             return $this->skipped($monitor, 'monitor:unsupported', __('import.unsupported_monitor', ['type' => $monitor->type]));
@@ -156,7 +157,10 @@ final readonly class ImportOhDearMonitor
         $coveredIds = $this->coveredIds($site, $maintenance, $timezone);
         $siteId = $site?->id;
         if (! $dryRun) {
-            [$coveredIds, $siteId] = DB::transaction(function () use ($site, $monitor, $attributes, $maintenance, $recurring, $timezone, $cronImporter, $definitions, $approved, $sites, $importCron, $cronState): array {
+            [$coveredIds, $siteId] = DB::transaction(function () use ($site, $monitor, $attributes, $maintenance, $recurring, $timezone, $cronImporter, $definitions, $approved, $sites, $importCron, $cronState, $beforeWrite): array {
+                if ($beforeWrite instanceof \Closure) {
+                    $beforeWrite();
+                }
                 if ($sites) {
                     $site = $site === null
                         ? ($this->createSite)($approved['clientId'] ?? Client::query()->where('is_internal', true)->firstOrFail()->id, $attributes)

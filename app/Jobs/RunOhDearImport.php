@@ -14,6 +14,7 @@ use Heptapod\Data\Import\ImportPlanRowData;
 use Heptapod\Enums\ImportOperation;
 use Heptapod\Enums\ImportRunStatus;
 use Heptapod\Events\LiveSignal;
+use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Exceptions\ImportAccessRevoked;
 use Heptapod\Models\ImportRun;
 use Heptapod\Models\Site;
@@ -169,12 +170,12 @@ final class RunOhDearImport implements ShouldQueue
             $name = $assignment['new_client'];
             $clientIds[$sourceId] = $assignment['client_id'] ?? ($name === null ? throw new \LogicException('Assignment without a client.')
                 : DB::transaction(function () use ($run, $name, $createClient, $ensureAccess): int {
+                    $ensureAccess();
                     $query = ImportRun::query();
                     $query->getQuery()->lockForUpdate();
                     $locked = $query->findOrFail($run->id);
                     $created = $locked->created_client_ids;
                     if (! isset($created[$name])) {
-                        $ensureAccess();
                         $created[$name] = $createClient(['name' => $name])->id;
                         $locked->created_client_ids = $created;
                         $locked->save();
@@ -229,13 +230,15 @@ final class RunOhDearImport implements ShouldQueue
 
     /**
      * Starting an import needs an active Owner or Admin (Settings → Import); the run writes a client, site or channel only
-     * while its starter still is one, checked right before each write.
+     * while its starter still is one. Each write calls this first inside its own transaction: the key share on the starter
+     * waits for a removal or access change (they hold the user FOR UPDATE) and keeps one from committing until the write has.
      *
      * @return \Closure(): void
      */
     private function ensureStarterAccess(ImportRun $run): \Closure
     {
         return static function () use ($run): void {
+            NotificationLocks::users([$run->user_id]);
             $starter = User::query()->find($run->user_id);
             if (! $starter instanceof User || $starter->disabled_at !== null || ! $starter->hasAnyRole(['Owner', 'Admin'])) {
                 throw new ImportAccessRevoked;

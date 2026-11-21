@@ -56,7 +56,7 @@ final readonly class ImportOhDearAccount
      * @param  (\Closure(ImportPlanRowData): void)|null  $progress  Called after every monitor.
      * @param  array<int, array<string, mixed>>|null  $approvedChannels
      * @param  array<int, int>  $channelClientIds
-     * @param  (\Closure(): void)|null  $beforeWrite  Called before each site and channel is written; throws to stop the import.
+     * @param  (\Closure(): void)|null  $beforeWrite  Called first in each site and channel write transaction; throws to stop the import.
      */
     public function __invoke(#[\SensitiveParameter] string $token, bool $dryRun, array $sections, ?array $approved = null, ?\Closure $progress = null, ?array $approvedChannels = null, array $channelClientIds = [], ?\Closure $beforeWrite = null): ImportPlanData
     {
@@ -89,10 +89,7 @@ final readonly class ImportOhDearAccount
                     if ($approved !== null && ! array_key_exists($monitor->id, $approved)) {
                         $rows[] = $this->notImported($monitor, 'plan:missing', 'Not in the plan; show the plan again to import it.');
                     } else {
-                        if (! $dryRun && $beforeWrite instanceof \Closure) {
-                            $beforeWrite();
-                        }
-                        $rows[] = ($this->import)($sdk, $monitor, $timezone, $dryRun, $sections, $approved[$monitor->id] ?? null);
+                        $rows[] = ($this->import)($sdk, $monitor, $timezone, $dryRun, $sections, $approved[$monitor->id] ?? null, $beforeWrite);
                     }
                 } catch (ValidationException $exception) {
                     $rows[] = $this->failed($monitor, $this->validationDetails($exception), $exception);
