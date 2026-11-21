@@ -236,6 +236,7 @@ final class DocumentApiOperation implements OperationTransformer
 
         return ['description' => $description,
             ...($status === 429 ? ['headers' => ['Retry-After' => ['$ref' => '#/components/headers/Retry-After'], 'X-RateLimit-Reset' => ['$ref' => '#/components/headers/X-RateLimit-Reset']]] : []),
+            ...($status === 409 && in_array('busy_try_again', $codes, true) ? ['headers' => ['Retry-After' => ['$ref' => '#/components/headers/Retry-After']]] : []),
             'content' => ['application/json' => ['schema' => $schema, ...($example === null ? [] : ['examples' => [$example => ['$ref' => '#/components/examples/'.$example]]])]]];
     }
 

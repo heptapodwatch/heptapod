@@ -8,6 +8,7 @@ use Heptapod\Actions\CreateCronTask;
 use Heptapod\Actions\CreateMaintenancePeriod;
 use Heptapod\Actions\DeleteSite;
 use Heptapod\Actions\EndMaintenanceWindow;
+use Heptapod\Actions\Fortify\ResetUserPassword;
 use Heptapod\Actions\RevokeApiToken;
 use Heptapod\Actions\SnoozeCheck;
 use Heptapod\Actions\SnoozeCronTask;
@@ -33,6 +34,7 @@ use Heptapod\Models\User;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Password;
 use Symfony\Component\Process\Process;
 
 require_once __DIR__.'/../Support/SiteWriteRace.php';
@@ -524,4 +526,109 @@ it('refuses a write as busy while a structural change holds the access lock too 
         }
         DB::beginTransaction();
     }
+});
+
+/*
+ * A password reset commits while a signed-in web request waits for the access lock. The request is refused and its
+ * session is signed out: the authenticated user is not refreshed in place, so the session middleware cannot bind the old
+ * session to the new password, and the next request of the same browser session is not signed in either.
+ */
+it('signs out a web session whose password was reset while its write waited', function (): void {
+    $fixture = siteWriteRaceFixture();
+    $admin = User::factory()->create(['last_active_at' => now()]);
+    $admin->assignRole('Admin');
+    $check = Check::factory()->create(['site_id' => $fixture['site']->id, 'type' => CheckKey::Uptime]);
+    $resetToken = Password::createToken($admin);
+
+    $response = siteWriteRace(static fn () => app(ResetUserPassword::class)->reset($admin, ['token' => $resetToken, 'password' => 'a-new-password-1', 'password_confirmation' => 'a-new-password-1']),
+        'POST', '/sites/'.$fixture['site']->id.'/checks/'.$check->id.'/snooze', ['minutes' => 10], webUser: $admin, followUp: '/sites/'.$fixture['site']->id);
+
+    expect($response['status'])->toBe(401, is_string($response['body']) ? 'HTML page' : json_encode($response['body']))
+        ->and($response['follow_up_status'] ?? null)->toBe(401)
+        ->and(DB::table('check_snoozes')->where('check_id', $check->id)->count())->toBe(0)
+        ->and($response['waited'])->toBeTrue();
+});
+
+/* Web structural changes decide again under their exclusive lock, with the roles the account has then. */
+it('refuses a web structural change by an admin demoted while it waits', function (Closure $prepare): void {
+    $fixture = siteWriteRaceFixture();
+    $archived = Client::factory()->create(['archived_at' => now()]);
+    $admin = User::factory()->create(['last_active_at' => now()]);
+    $admin->assignRole('Admin');
+    /** @var array{0: string, 1: string, 2: array<string, mixed>, 3: Closure(): mixed, 4: int} $request */
+    $request = $prepare($fixture, $archived);
+    [$method, $uri, $body, $observe, $status] = $request;
+    $before = $observe();
+
+    $response = siteWriteRace(static fn (): mixed => app(ChangeMemberAccess::class)($fixture['owner'], $admin, ['role' => 'Member',
+        'client_ids' => [$fixture['from']->id, $fixture['to']->id, $archived->id]]), $method, $uri, $body, webUser: $admin);
+
+    expect($response['status'])->toBe($status, is_string($response['body']) ? 'HTML page' : json_encode($response['body']))
+        ->and($observe())->toEqual($before)
+        ->and($response['waited'])->toBeTrue();
+})->with([
+    'site delete' => [static fn (array $fixture): array => ['DELETE', '/sites/'.$fixture['site']->id, ['name' => $fixture['site']->displayName()],
+        static fn (): bool => Site::query()->whereKey($fixture['site']->id)->exists(), 403]],
+    'site move' => [static fn (array $fixture): array => ['PATCH', '/sites/'.$fixture['site']->id, ['client_id' => $fixture['to']->id],
+        static fn (): int => Site::query()->findOrFail($fixture['site']->id)->client_id, 403]],
+    'client archive' => [static fn (array $fixture): array => ['POST', '/clients/'.$fixture['from']->id.'/archive', [],
+        static fn (): mixed => Client::query()->findOrFail($fixture['from']->id)->archived_at, 404]],
+    'client restore' => [static fn (array $fixture, Client $archived): array => ['POST', '/clients/'.$archived->id.'/restore', [],
+        static fn (): mixed => Client::query()->findOrFail($archived->id)->archived_at?->format('Y-m-d H:i:s.u'), 404]],
+]);
+
+/*
+ * While a structural change holds the access lock, a write to a monitor or check outside the token's scope still answers
+ * 404 at once, like a missing one, instead of a busy 409 that would tell it exists.
+ */
+it('answers 404 to a hidden target at once while the access lock is busy', function (Closure $prepare): void {
+    $fixture = siteWriteRaceFixture();
+    $hidden = Site::factory()->create(['client_id' => $fixture['to']->id]);
+    [$method, $uri, $body] = $prepare($hidden, $fixture['owner']);
+    DB::commit();
+    $request = siteWriteRaceRequest($method, $uri, $body, $fixture['token']);
+    try {
+        DB::beginTransaction();
+        NotificationLocks::accessExclusive();
+        $request->start();
+        $response = siteWriteRaceResponse($request);
+        DB::rollBack();
+
+        expect($response['status'])->toBe(404, json_encode($response['body']));
+    } finally {
+        $request->stop(1);
+        if (DB::transactionLevel() > 0) {
+            DB::rollBack();
+        }
+        DB::beginTransaction();
+    }
+})->with([
+    'monitor update' => [static fn (Site $hidden): array => ['PUT', '/api/monitors/'.$hidden->id, ['friendly_name' => 'probe']]],
+    'check unsnooze' => [static function (Site $hidden, User $owner): array {
+        $check = Check::factory()->create(['site_id' => $hidden->id, 'type' => CheckKey::Uptime]);
+        app(SnoozeCheck::class)($check, $owner, CarbonImmutable::now('UTC')->addHour());
+
+        return ['POST', '/api/checks/'.$check->id.'/unsnooze', []];
+    }],
+]);
+
+/* A web maintenance edit retargets a window to a site that is deleted while the edit waits: refused, window unchanged. */
+it('refuses a maintenance retarget to a site deleted while the edit waited', function (): void {
+    $fixture = siteWriteRaceFixture();
+    $admin = User::factory()->create(['last_active_at' => now()]);
+    $admin->assignRole('Admin');
+    $target = Site::factory()->create(['client_id' => $fixture['from']->id]);
+    $window = MaintenancePeriod::query()->create(['target_type' => 'client', 'target_id' => $fixture['from']->id, 'site_id' => null, 'name' => 'planned',
+        'starts_at' => CarbonImmutable::now()->addHour(), 'ends_at' => CarbonImmutable::now()->addHours(2), 'timezone' => 'UTC']);
+    $form = ['name' => 'retargeted', 'starts_local' => CarbonImmutable::now('UTC')->addHour()->format('Y-m-d H:i'),
+        'ends_local' => CarbonImmutable::now('UTC')->addHours(2)->format('Y-m-d H:i'), 'timezone' => 'UTC', 'mute_alerts' => true,
+        'catch_up_at_end' => true, 'target_type' => 'site', 'target_id' => $target->id];
+
+    $response = siteWriteRace(static fn () => app(DeleteSite::class)($target), 'PUT', '/maintenance/'.$window->id, $form, webUser: $admin);
+
+    $after = MaintenancePeriod::query()->findOrFail($window->id);
+    expect($response['status'])->toBe(422, is_string($response['body']) ? 'HTML page' : json_encode($response['body']))
+        ->and(json_encode($response['body']))->toContain('target_id')
+        ->and([$after->target_type, $after->target_id, $after->name])->toBe(['client', $fixture['from']->id, 'planned'])
+        ->and($response['waited'])->toBeTrue();
 });

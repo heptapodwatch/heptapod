@@ -9,8 +9,12 @@ use Heptapod\Models\Check;
 use Heptapod\Models\Incident;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
+use Heptapod\Policies\SitePolicy;
 use Heptapod\Queries\IncidentsReader;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Auth\SessionGuard;
+use Illuminate\Contracts\Auth\Guard;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -26,23 +30,23 @@ use Laravel\Sanctum\PersonalAccessToken;
  */
 final readonly class AuthorizeSiteWrite
 {
-    public function __construct(private IncidentsReader $incidents) {}
+    public function __construct(private IncidentsReader $incidents, private SitePolicy $sites) {}
 
     /**
-     * $ability is asked of each Site and Check; an Incident is authorized through its site.
+     * $ability is asked of each Site and Check; an Incident is authorized through its site. $write receives the actor as
+     * read under the lock ({@see self::currentActor()}).
      *
      * @template TReturn
      *
-     * @param  \Closure(): TReturn  $write
+     * @param  \Closure(User): TReturn  $write
      * @return TReturn
      */
     public function __invoke(User $actor, string $ability, \Closure $write, Site|Check|Incident ...$subjects): mixed
     {
         return NotificationLocks::transaction(function () use ($actor, $ability, $write, $subjects): mixed {
             NotificationLocks::accessShared();
-            $this->authorize($actor, $ability, $subjects);
 
-            return $write();
+            return $write($this->authorize($actor, $ability, $subjects));
         });
     }
 
@@ -52,16 +56,15 @@ final readonly class AuthorizeSiteWrite
      *
      * @template TReturn
      *
-     * @param  \Closure(): TReturn  $write
+     * @param  \Closure(User): TReturn  $write
      * @return TReturn
      */
     public function exclusively(User $actor, string $ability, \Closure $write, Site ...$subjects): mixed
     {
         return NotificationLocks::transaction(function () use ($actor, $ability, $write, $subjects): mixed {
             NotificationLocks::accessExclusive();
-            $this->authorize($actor, $ability, $subjects);
 
-            return $write();
+            return $write($this->authorize($actor, $ability, $subjects));
         });
     }
 
@@ -73,7 +76,7 @@ final readonly class AuthorizeSiteWrite
      */
     public function incident(User $actor, Incident $visible, \Closure $write): Incident
     {
-        return $this($actor, 'view', fn (): Incident => $write($this->incidents->scoped($actor)->findOrFail($visible->id)), $visible);
+        return $this($actor, 'view', fn (User $current): Incident => $write($this->incidents->scoped($current)->findOrFail($visible->id)), $visible);
     }
 
     /**
@@ -82,39 +85,77 @@ final readonly class AuthorizeSiteWrite
      *
      * @template TReturn
      *
-     * @param  \Closure(): TReturn  $write
+     * @param  \Closure(User): TReturn  $write
      * @return TReturn
      */
     public function asManager(User $actor, \Closure $write): mixed
     {
         return NotificationLocks::transaction(function () use ($actor, $write): mixed {
             NotificationLocks::accessShared();
-            $this->refreshActor($actor);
-            abort_unless($actor->disabled_at === null && $actor->hasAnyRole(['Owner', 'Admin']), 403);
+            $current = $this->currentActor($actor);
+            abort_unless($current->disabled_at === null && $current->hasAnyRole(['Owner', 'Admin']), 403);
 
-            return $write();
+            return $write($current);
         });
     }
 
-    /** @param array<Site|Check|Incident> $subjects */
-    private function authorize(User $actor, string $ability, array $subjects): void
-    {
-        $this->refreshActor($actor);
-        $siteIds = array_values(array_unique(array_map(static fn (Site|Check|Incident $subject): int => $subject instanceof Site ? $subject->id : $subject->site_id, $subjects)));
-        $sites = Site::query()->findOrFail($siteIds)->keyBy('id');
-        foreach ($subjects as $subject) {
-            Gate::forUser($actor)->authorize($ability, $subject instanceof Check ? $subject : $sites->get($subject instanceof Site ? $subject->id : $subject->site_id));
-        }
-    }
-
-    private function refreshActor(User $actor): void
+    /**
+     * The actor as the account is now, for a caller that holds the access-structure lock: a revoked API token answers 401,
+     * and a web session no longer bound to the account's password (a reset committed while the request waited, the check
+     * RequireBoundSession makes on entry) is signed out and answers 401. Returns a new instance and leaves the request's
+     * authenticated user untouched: refreshing that one would let the session middleware bind the old session to the new
+     * password when the response goes out.
+     */
+    public function currentActor(User $actor): User
     {
         // A web session has no token (null) and a first-party SPA request a transient one. Revoking a token is a structural
         // change, so the token read here stays valid until commit.
-        $token = $actor->currentAccessToken();
-        if ($token instanceof PersonalAccessToken && ! PersonalAccessToken::query()->getQuery()->where('id', $token->id)->exists()) { // @phpstan-ignore instanceof.alwaysTrue
-            throw new AuthenticationException;
+        /** @var object|null $token Sanctum declares a token, but a web session has none */
+        $token = $actor->currentAccessToken(); // @phpstan-ignore varTag.type
+        if ($token instanceof PersonalAccessToken) {
+            if (! PersonalAccessToken::query()->getQuery()->where('id', $token->id)->exists()) {
+                throw new AuthenticationException;
+            }
+            $current = User::query()->find($actor->id) ?? throw new AuthenticationException;
+            $current->withAccessToken($token);
+        } else {
+            $current = User::query()->find($actor->id) ?? throw new AuthenticationException;
+            $this->requireBoundSession($actor, $current);
         }
-        $actor->refresh();
+        // Membership ids are cached per request (SitePolicy::restrictedClientIds); this read is the authoritative one.
+        $this->sites->forgetMembership($current);
+
+        return $current;
+    }
+
+    /** A signed-in web session must still carry the password hash of the account as it is now; otherwise it is signed out. */
+    private function requireBoundSession(User $actor, User $current): void
+    {
+        $request = request();
+        /** @var Guard $guard a session guard on the web, a token guard on the API */
+        $guard = Auth::guard(); // @phpstan-ignore varTag.type
+        if (! $request->hasSession() || ! $guard instanceof SessionGuard || $guard->id() !== $actor->id) {
+            return;
+        }
+        $driver = Auth::getDefaultDriver();
+        if ($request->session()->get('password_hash_'.$driver) !== $guard->hashPasswordForCookie($current->getAuthPassword())) {
+            $guard->logoutCurrentDevice();
+            $request->session()->flush();
+
+            throw new AuthenticationException('Unauthenticated.', [$driver]);
+        }
+    }
+
+    /** @param array<Site|Check|Incident> $subjects */
+    private function authorize(User $actor, string $ability, array $subjects): User
+    {
+        $current = $this->currentActor($actor);
+        $siteIds = array_values(array_unique(array_map(static fn (Site|Check|Incident $subject): int => $subject instanceof Site ? $subject->id : $subject->site_id, $subjects)));
+        $sites = Site::query()->findOrFail($siteIds)->keyBy('id');
+        foreach ($subjects as $subject) {
+            Gate::forUser($current)->authorize($ability, $subject instanceof Check ? $subject : $sites->get($subject instanceof Site ? $subject->id : $subject->site_id));
+        }
+
+        return $current;
     }
 }

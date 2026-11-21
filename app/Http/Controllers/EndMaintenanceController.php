@@ -20,7 +20,7 @@ final class EndMaintenanceController extends Controller
         abort_unless($user instanceof User, 401);
         abort_unless($user->hasAnyRole(['Owner', 'Admin']), 403);
         $returnContext = MaintenanceReturnContext::parameters($request);
-        $authorize->asManager($user, static fn (): MaintenancePeriod => $end($user, $window));
+        $authorize->asManager($user, static fn (User $current): MaintenancePeriod => $end($current, $window));
 
         return to_route('maintenance.index', $returnContext);
     }

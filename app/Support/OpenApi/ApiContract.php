@@ -435,12 +435,21 @@ final class ApiContract
             'findings' => [409 => ['no_dataset', 'unsupported', 'evidence_expired', 'baseline_unavailable'], 410 => ['evidence_expired', 'cursor_expired'],
                 422 => ['invalid_cursor', 'invalid_baseline', 'unsupported_filter']],
             'getRun' => [404 => ['not_found']],
-            'createCheckRun' => [404 => ['not_found'], 409 => ['idempotency_conflict'], 422 => ['invalid_idempotency_key'], 429 => ['cooldown', 'queue_admission_limited', 'manual_run_budget']],
-            'requestCheckRun' => [429 => ['cooldown', 'queue_admission_limited']],
-            'createMaintenancePeriod' => [409 => ['idempotency_conflict'], 422 => ['invalid_idempotency_key']],
-            'startMaintenance' => [409 => ['idempotency_conflict'], 422 => ['invalid_idempotency_key']],
+            'createCheckRun' => [404 => ['not_found'], 409 => ['idempotency_conflict', 'busy_try_again'], 422 => ['invalid_idempotency_key'], 429 => ['cooldown', 'queue_admission_limited', 'manual_run_budget']],
+            'requestCheckRun' => [409 => ['busy_try_again'], 429 => ['cooldown', 'queue_admission_limited']],
+            'createMaintenancePeriod' => [409 => ['idempotency_conflict', 'busy_try_again'], 422 => ['invalid_idempotency_key']],
+            'startMaintenance' => [409 => ['idempotency_conflict', 'busy_try_again'], 422 => ['invalid_idempotency_key']],
+            ...array_fill_keys(self::SharedAccessWrites, [409 => ['busy_try_again']]),
         ];
     }
+
+    /**
+     * Writes authorized under the shared access-structure lock (AuthorizeSiteWrite) beyond the ones above: each can answer
+     * 409 busy_try_again with Retry-After while a structural change holds the lock.
+     */
+    private const array SharedAccessWrites = ['disableCheck', 'enableCheck', 'snoozeCheck', 'unsnoozeCheck', 'createCronCheck', 'syncCronChecks',
+        'updateCronCheck', 'deleteCronCheck', 'snoozeCronCheck', 'unsnoozeCronCheck', 'internal.saveIncidentNote', 'internal.snoozeIncident',
+        'internal.unsnoozeIncident', 'updateMaintenancePeriod', 'deleteMaintenancePeriod', 'updateMonitor', 'stopMaintenance', 'createTag'];
 
     /**
      * Operations that replay a stored response for a repeated `Idempotency-Key` (Support\Api\Idempotency call sites).
@@ -661,6 +670,7 @@ final class ApiContract
             'cooldown' => 'A manual run was requested too recently; details.retry_after_seconds and Retry-After say when to retry.',
             'queue_admission_limited' => 'The manual-run queue is full; retry after Retry-After.',
             'manual_run_budget' => 'Per-user (10/min) or per-token (5/min) manual-run budget used up; retry after Retry-After.',
+            'busy_try_again' => 'A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.',
         ];
     }
 }

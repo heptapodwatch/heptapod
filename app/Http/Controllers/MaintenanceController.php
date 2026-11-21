@@ -104,7 +104,7 @@ final class MaintenanceController extends Controller
         /** @var array<string, mixed> $input */
         $input = $request->all();
         $user = $this->user($request);
-        $authorize->asManager($user, static fn (): MaintenancePeriod|RecurringMaintenancePeriod => $create($user, $input));
+        $authorize->asManager($user, static fn (User $current): MaintenancePeriod|RecurringMaintenancePeriod => $create($current, $input));
 
         return to_route('maintenance.index', $returnContext);
     }
@@ -125,10 +125,14 @@ final class MaintenanceController extends Controller
         /** @var array{target_type: 'site'|'client'|'tag', target_id: int, starts_local: string, ends_local: string,
          * timezone: string, name?: string|null, reason?: string|null, mute_alerts: bool, catch_up_at_end: bool} $data
          */
-        $this->validTarget($data['target_type'], $data['target_id']);
         $start = $localTime->resolve(substr($data['starts_local'], 0, 10), substr($data['starts_local'], 11), $data['timezone']);
         $end = $localTime->resolve(substr($data['ends_local'], 0, 10), substr($data['ends_local'], 11), $data['timezone']);
-        $authorize->asManager($this->user($request), fn (): MaintenancePeriod => $update($window, $data['name'] ?? null, $start, $end, $data, $this->refuseEnded(...)));
+        // The replacement target is validated under the access lock: a site deleted while the edit waited is gone by then.
+        $authorize->asManager($this->user($request), function () use ($update, $window, $data, $start, $end): MaintenancePeriod {
+            $this->validTarget($data['target_type'], $data['target_id']);
+
+            return $update($window, $data['name'] ?? null, $start, $end, $data, $this->refuseEnded(...));
+        });
 
         return to_route('maintenance.index', $returnContext);
     }

@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Gate;
 
 final readonly class UpdateSiteSettings
 {
-    public function __construct(private UpdateSite $update, private MoveSiteToClient $move) {}
+    public function __construct(private UpdateSite $update, private MoveSiteToClient $move, private AuthorizeSiteWrite $authorize) {}
 
     /**
      * @param  array<string, mixed>  $attributes
@@ -33,7 +33,8 @@ final readonly class UpdateSiteSettings
             if ($siteAttributes === [] && $timing === []) {
                 return;
             }
-            Gate::forUser($user)->authorize('update', $site);
+            // After a move this runs under its exclusive access lock: the actor as the account is now, not as the request loaded it.
+            Gate::forUser($clientId !== null ? $this->authorize->currentActor($user) : $user)->authorize('update', $site);
             $saved = ($this->update)($site, $siteAttributes);
             if ($timing !== []) {
                 $saved->update($timing);

@@ -53,10 +53,10 @@ function siteWriteRaceMove(array $fixture): Closure
  * @param  array<string, mixed>  $body
  * @param  array<string, string>  $headers
  */
-function siteWriteRaceRequest(string $method, string $uri, array $body = [], string $token = '', ?User $webUser = null, string $pauseAfter = '', array $headers = []): Process
+function siteWriteRaceRequest(string $method, string $uri, array $body = [], string $token = '', ?User $webUser = null, string $pauseAfter = '', array $headers = [], string $followUp = ''): Process
 {
     return new Process([PHP_BINARY, __DIR__.'/site-write-request.php', $method, $uri, json_encode($body === [] ? new stdClass : $body, JSON_THROW_ON_ERROR),
-        $token, $webUser instanceof User ? (string) $webUser->id : '', $pauseAfter, json_encode($headers === [] ? new stdClass : $headers, JSON_THROW_ON_ERROR)],
+        $token, $webUser instanceof User ? (string) $webUser->id : '', $pauseAfter, json_encode($headers === [] ? new stdClass : $headers, JSON_THROW_ON_ERROR), $followUp],
         base_path(), siteWriteRaceEnvironment(), timeout: 30);
 }
 
@@ -89,14 +89,14 @@ function siteWriteRaceBlocked(Process $process, string $application, ?int $block
     return '';
 }
 
-/** @return array{status: int, headers: array<string, string>, body: mixed} the answer of a finished site-write-request.php process */
+/** @return array{status: int, headers: array<string, string>, body: mixed, follow_up_status?: int} the answer of a finished site-write-request.php process */
 function siteWriteRaceResponse(Process $request): array
 {
     $request->wait();
     expect($request->isSuccessful())->toBeTrue($request->getErrorOutput())
         ->and(json_validate($request->getOutput()))->toBeTrue($request->getOutput());
 
-    /** @var array{status: int, headers: array<string, string>, body: mixed} */
+    /** @var array{status: int, headers: array<string, string>, body: mixed, follow_up_status?: int} */
     return json_decode($request->getOutput(), true, flags: JSON_THROW_ON_ERROR);
 }
 
@@ -108,12 +108,12 @@ function siteWriteRaceResponse(Process $request): array
  *
  * @param  array<string, mixed>  $body
  * @param  array<string, string>  $headers
- * @return array{status: int, headers: array<string, string>, body: mixed, waited: bool, blocked_on: string|null} blocked_on: the statement the request waited in
+ * @return array{status: int, headers: array<string, string>, body: mixed, follow_up_status?: int, waited: bool, blocked_on: string|null} blocked_on: the statement the request waited in
  */
-function siteWriteRace(Closure $change, string $method, string $uri, array $body = [], string $token = '', ?User $webUser = null, string $pauseAfter = '', array $headers = []): array
+function siteWriteRace(Closure $change, string $method, string $uri, array $body = [], string $token = '', ?User $webUser = null, string $pauseAfter = '', array $headers = [], string $followUp = ''): array
 {
     DB::commit();
-    $request = siteWriteRaceRequest($method, $uri, $body, $token, $webUser, $pauseAfter, $headers);
+    $request = siteWriteRaceRequest($method, $uri, $body, $token, $webUser, $pauseAfter, $headers, $followUp);
     try {
         DB::beginTransaction();
         $change();

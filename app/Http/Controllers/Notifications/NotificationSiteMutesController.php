@@ -32,8 +32,9 @@ final class NotificationSiteMutesController extends Controller
         Gate::authorize('update', $channel);
         $actor = $request->user();
         abort_unless($actor instanceof User, 401);
-        // The site is authorized under the access-structure lock; the channel again under the channel lock (SetNotificationSiteMute).
-        $authorize($actor, 'view', static fn () => $mute($channel, $site, $muted, $actor), $site);
+        Gate::forUser($actor)->authorize('view', $site);
+        // Decided again under the access-structure lock (the site) and the channel lock (SetNotificationSiteMute).
+        $authorize($actor, 'view', static fn (User $current) => $mute($channel, $site, $muted, $current), $site);
 
         return response()->json(null, 204);
     }

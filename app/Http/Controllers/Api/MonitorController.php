@@ -85,6 +85,8 @@ final class MonitorController extends Controller
     {
         /** @var array<string, mixed> $attributes */
         $attributes = $request->all();
+        // Early and unlocked, so a hidden monitor answers 404 like a missing one even while the access lock is busy.
+        Gate::authorize('update', $monitor);
         $site = $authorize($this->principal($request), 'update', static fn (): Site => $update($monitor, $attributes), $monitor);
 
         return new MonitorResource($site->load(['checks' => static function (Relation $checks): void {
@@ -94,6 +96,7 @@ final class MonitorController extends Controller
 
     public function destroy(Request $request, Site $monitor, DeleteSite $delete, AuthorizeSiteWrite $authorize): Response
     {
+        Gate::authorize('delete', $monitor);
         $authorize->exclusively($this->principal($request), 'delete', static fn () => $delete($monitor), $monitor);
 
         return response()->noContent();

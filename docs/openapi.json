@@ -3495,6 +3495,36 @@
                         },
                         "description": "Not found or not visible to this token."
                     },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
+                    },
                     "429": {
                         "content": {
                             "application/json": {
@@ -3631,6 +3661,36 @@
                             }
                         },
                         "description": "Not found or not visible to this token."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
                     },
                     "429": {
                         "content": {
@@ -3815,6 +3875,36 @@
                             }
                         },
                         "description": "Not found or not visible to this token."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
                     },
                     "422": {
                         "content": {
@@ -4032,7 +4122,8 @@
                                             "properties": {
                                                 "code": {
                                                     "enum": [
-                                                        "idempotency_conflict"
+                                                        "idempotency_conflict",
+                                                        "busy_try_again"
                                                     ],
                                                     "type": "string"
                                                 }
@@ -4043,7 +4134,12 @@
                                 }
                             }
                         },
-                        "description": "Domain error.\n- `idempotency_conflict`: The Idempotency-Key was used for another operation, target or request."
+                        "description": "Domain error.\n- `idempotency_conflict`: The Idempotency-Key was used for another operation, target or request.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
                     },
                     "422": {
                         "content": {
@@ -4299,6 +4395,36 @@
                         },
                         "description": "Not found or not visible to this token."
                     },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
+                    },
                     "422": {
                         "content": {
                             "application/json": {
@@ -4457,6 +4583,36 @@
                         },
                         "description": "Not found or not visible to this token."
                     },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
+                    },
                     "429": {
                         "content": {
                             "application/json": {
@@ -4550,6 +4706,36 @@
                             }
                         },
                         "description": "The token lacks a required ability, or the user's role or client access does not allow this action."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
                     },
                     "429": {
                         "content": {
@@ -4737,6 +4923,36 @@
                         },
                         "description": "The token lacks a required ability, or the user's role or client access does not allow this action."
                     },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
+                    },
                     "429": {
                         "content": {
                             "application/json": {
@@ -4887,6 +5103,36 @@
                         },
                         "description": "The token lacks a required ability, or the user's role or client access does not allow this action."
                     },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
+                    },
                     "422": {
                         "content": {
                             "application/json": {
@@ -5019,6 +5265,36 @@
                             }
                         },
                         "description": "The token lacks a required ability, or the user's role or client access does not allow this action."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
                     },
                     "429": {
                         "content": {
@@ -6556,6 +6832,36 @@
                         },
                         "description": "Not found or not visible to this token."
                     },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
+                    },
                     "422": {
                         "content": {
                             "application/json": {
@@ -6697,6 +7003,36 @@
                             }
                         },
                         "description": "Not found or not visible to this token."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
                     },
                     "429": {
                         "content": {
@@ -6849,6 +7185,36 @@
                             }
                         },
                         "description": "Not found or not visible to this token."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
                     },
                     "422": {
                         "content": {
@@ -7051,7 +7417,8 @@
                                             "properties": {
                                                 "code": {
                                                     "enum": [
-                                                        "idempotency_conflict"
+                                                        "idempotency_conflict",
+                                                        "busy_try_again"
                                                     ],
                                                     "type": "string"
                                                 }
@@ -7062,7 +7429,12 @@
                                 }
                             }
                         },
-                        "description": "Domain error.\n- `idempotency_conflict`: The Idempotency-Key was used for another operation, target or request."
+                        "description": "Domain error.\n- `idempotency_conflict`: The Idempotency-Key was used for another operation, target or request.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
                     },
                     "422": {
                         "content": {
@@ -7208,6 +7580,36 @@
                             }
                         },
                         "description": "Not found or not visible to this token."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
                     },
                     "429": {
                         "content": {
@@ -7374,6 +7776,36 @@
                             }
                         },
                         "description": "Not found or not visible to this token."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
                     },
                     "422": {
                         "content": {
@@ -11189,6 +11621,36 @@
                         },
                         "description": "Not found or not visible to this token."
                     },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
+                    },
                     "429": {
                         "content": {
                             "application/json": {
@@ -12055,6 +12517,36 @@
                         },
                         "description": "Not found or not visible to this token."
                     },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
+                    },
                     "429": {
                         "content": {
                             "application/json": {
@@ -12435,6 +12927,36 @@
                             }
                         },
                         "description": "Not found or not visible to this token."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
                     },
                     "422": {
                         "content": {
@@ -13281,7 +13803,8 @@
                                             "properties": {
                                                 "code": {
                                                     "enum": [
-                                                        "idempotency_conflict"
+                                                        "idempotency_conflict",
+                                                        "busy_try_again"
                                                     ],
                                                     "type": "string"
                                                 }
@@ -13292,7 +13815,12 @@
                                 }
                             }
                         },
-                        "description": "Domain error.\n- `idempotency_conflict`: The Idempotency-Key was used for another operation, target or request."
+                        "description": "Domain error.\n- `idempotency_conflict`: The Idempotency-Key was used for another operation, target or request.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
                     },
                     "422": {
                         "content": {
@@ -13456,6 +13984,36 @@
                             }
                         },
                         "description": "Not found or not visible to this token."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
                     },
                     "422": {
                         "content": {
@@ -14255,6 +14813,36 @@
                             }
                         },
                         "description": "The token lacks a required ability, or the user's role or client access does not allow this action."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Problem"
+                                        },
+                                        {
+                                            "properties": {
+                                                "code": {
+                                                    "enum": [
+                                                        "busy_try_again"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Domain error.\n- `busy_try_again`: A change of sites, clients or access was being saved for longer than this write waits for it; retry after Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        }
                     },
                     "422": {
                         "content": {
