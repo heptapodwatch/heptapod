@@ -110,14 +110,6 @@ final class MaintenanceController extends Controller
         LocalMaintenanceTime $localTime): RedirectResponse
     {
         $this->writable($request);
-        if ($window->ends_at <= CarbonImmutable::now('UTC')) {
-            throw new ExpectedRefusal(
-                status: 409,
-                messageKey: 'errors.maintenance.already_ended',
-                errorCode: 'maintenance_already_ended',
-                tone: 'info',
-            );
-        }
         $returnContext = MaintenanceReturnContext::parameters($request);
         $data = Validator::make($request->all(), [
             'name' => 'nullable|string|max:255', 'reason' => 'nullable|string|max:255',
@@ -131,7 +123,7 @@ final class MaintenanceController extends Controller
         $this->validTarget($data['target_type'], $data['target_id']);
         $start = $localTime->resolve(substr($data['starts_local'], 0, 10), substr($data['starts_local'], 11), $data['timezone']);
         $end = $localTime->resolve(substr($data['ends_local'], 0, 10), substr($data['ends_local'], 11), $data['timezone']);
-        $update($window, $data['name'] ?? null, $start, $end, $data);
+        $update($window, $data['name'] ?? null, $start, $end, $data, self::refuseEnded(...));
 
         return to_route('maintenance.index', $returnContext);
     }
@@ -139,6 +131,28 @@ final class MaintenanceController extends Controller
     public function destroy(Request $request, MaintenancePeriod $window, DeleteMaintenancePeriod $delete): RedirectResponse
     {
         $this->writable($request);
+        $returnContext = MaintenanceReturnContext::parameters($request);
+        $delete($window, self::refuseStarted(...));
+
+        return to_route('maintenance.index', $returnContext);
+    }
+
+    /** Decided on the locked window (UpdateMaintenancePeriod): a window ended meanwhile is not reopened by an older form. */
+    private static function refuseEnded(MaintenancePeriod $window): void
+    {
+        if ($window->ends_at <= CarbonImmutable::now('UTC')) {
+            throw new ExpectedRefusal(
+                status: 409,
+                messageKey: 'errors.maintenance.already_ended',
+                errorCode: 'maintenance_already_ended',
+                tone: 'info',
+            );
+        }
+    }
+
+    /** Decided on the locked window (DeleteMaintenancePeriod): a window that has started meanwhile is not deleted. */
+    private static function refuseStarted(MaintenancePeriod $window): void
+    {
         if ($window->starts_at <= CarbonImmutable::now('UTC')) {
             throw new ExpectedRefusal(
                 status: 409,
@@ -146,10 +160,6 @@ final class MaintenanceController extends Controller
                 errorCode: 'maintenance_already_started',
             );
         }
-        $returnContext = MaintenanceReturnContext::parameters($request);
-        $delete($window);
-
-        return to_route('maintenance.index', $returnContext);
     }
 
     private function user(Request $request): User

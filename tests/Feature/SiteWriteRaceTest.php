@@ -3,19 +3,26 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\ChangeMemberAccess;
 use Heptapod\Actions\CreateCronTask;
 use Heptapod\Actions\CreateMaintenancePeriod;
+use Heptapod\Actions\DeleteSite;
+use Heptapod\Actions\EndMaintenanceWindow;
+use Heptapod\Actions\SnoozeCheck;
 use Heptapod\Actions\SnoozeCronTask;
 use Heptapod\Actions\StartMaintenance;
+use Heptapod\Actions\UpdateMaintenancePeriod;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\CronTaskStore;
+use Heptapod\Enums\ClientScope;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRunAttempt;
 use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\Site;
+use Heptapod\Models\User;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -106,6 +113,30 @@ it('refuses a scoped token write once the site has moved to another client', fun
 
         return ['PUT', '/api/internal/incidents/'.$incident->id.'/note', ['note' => 'raced'], static fn (): ?string => Incident::query()->findOrFail($incident->id)->notes];
     }],
+    'check snooze' => [static function (Site $site): array {
+        $check = Check::factory()->create(['site_id' => $site->id, 'type' => CheckKey::Uptime]);
+
+        return ['POST', '/api/checks/'.$check->id.'/snooze', ['minutes' => 10], static fn (): int => DB::table('check_snoozes')->where('check_id', $check->id)->count()];
+    }],
+    'check unsnooze' => [static function (Site $site, User $owner): array {
+        $check = Check::factory()->create(['site_id' => $site->id, 'type' => CheckKey::Uptime]);
+        app(SnoozeCheck::class)($check, $owner, CarbonImmutable::now('UTC')->addHour());
+
+        return ['POST', '/api/checks/'.$check->id.'/unsnooze', [], static fn (): int => DB::table('check_snoozes')->where('check_id', $check->id)->whereNull('unsnoozed_at')->count()];
+    }],
+    'check enable' => [static function (Site $site): array {
+        $check = Check::factory()->create(['site_id' => $site->id, 'type' => CheckKey::Uptime, 'enabled' => false]);
+
+        return ['POST', '/api/checks/'.$check->id.'/enable', [], static fn (): bool => Check::query()->findOrFail($check->id)->enabled];
+    }],
+    'check disable' => [static function (Site $site): array {
+        $check = Check::factory()->create(['site_id' => $site->id, 'type' => CheckKey::Uptime]);
+
+        return ['POST', '/api/checks/'.$check->id.'/disable', [], static fn (): bool => Check::query()->findOrFail($check->id)->enabled];
+    }],
+    'monitor update' => [static fn (Site $site): array => ['PUT', '/api/monitors/'.$site->id, ['friendly_name' => 'raced'],
+        static fn (): ?string => Site::query()->findOrFail($site->id)->friendly_name]],
+    'monitor delete' => [static fn (Site $site): array => ['DELETE', '/api/monitors/'.$site->id, [], static fn (): bool => Site::query()->whereKey($site->id)->exists()]],
     'incident reminders snooze' => [static function (Site $site): array {
         $incident = Incident::factory()->create(['check_id' => Check::factory()->create(['site_id' => $site->id])->id]);
 
@@ -130,3 +161,64 @@ it('leaves out an activity row whose site moved to another client while the feed
     expect($response['status'])->toBe(200, json_encode($response['body']))
         ->and(json_encode($response['body']))->not->toContain('client:'.$fixture['to']->id)->not->toContain($fixture['to']->name);
 });
+
+/*
+ * Activity was recorded within the minute, so the request takes no lock on the member before it authorizes; an API request
+ * waits on its token row first, which the revocation deletes, and so is refused there already.
+ */
+it('refuses a check snooze change by a member whose access to the client is revoked while it waits', function (string $method): void {
+    $fixture = siteWriteRaceFixture();
+    $member = User::factory()->create(['client_scope' => ClientScope::Restricted, 'last_active_at' => now()]);
+    $member->assignRole('Member');
+    $member->clients()->sync([$fixture['from']->id]);
+    $check = Check::factory()->create(['site_id' => $fixture['site']->id, 'type' => CheckKey::Uptime]);
+    if ($method === 'DELETE') {
+        app(SnoozeCheck::class)($check, $fixture['owner'], CarbonImmutable::now('UTC')->addHour());
+    }
+    $snoozes = static fn (): array => DB::table('check_snoozes')->where('check_id', $check->id)->orderBy('id')->get(['id', 'unsnoozed_at'])->map(static fn (object $row): array => (array) $row)->all();
+    $before = $snoozes();
+
+    $response = siteWriteRace(static fn (): mixed => app(ChangeMemberAccess::class)($fixture['owner'], $member, ['role' => 'Member', 'client_ids' => [$fixture['to']->id]]),
+        $method, '/sites/'.$fixture['site']->id.'/checks/'.$check->id.'/snooze', $method === 'POST' ? ['minutes' => 10] : [], webUser: $member);
+
+    expect($response['status'])->toBe(404, json_encode($response['body']))
+        ->and($snoozes())->toBe($before);
+})->with(['snooze' => 'POST', 'unsnooze' => 'DELETE']);
+
+it('answers 404 to an unsnooze whose site is deleted while it waits', function (): void {
+    $fixture = siteWriteRaceFixture();
+    $check = Check::factory()->create(['site_id' => $fixture['site']->id, 'type' => CheckKey::Uptime]);
+    app(SnoozeCheck::class)($check, $fixture['owner'], CarbonImmutable::now('UTC')->addHour());
+    $token = $fixture['owner']->createToken('owner', ['*'])->plainTextToken;
+
+    $response = siteWriteRace(static fn () => app(DeleteSite::class)($fixture['site']), 'POST', '/api/checks/'.$check->id.'/unsnooze', token: $token);
+
+    expect($response['status'])->toBe(404, json_encode($response['body']))
+        ->and(Check::query()->whereKey($check->id)->exists())->toBeFalse();
+});
+
+/*
+ * Two admins on one window: a lifecycle change commits while the other's edit or deletion waits for the window. The
+ * waiting request decides on the window as it is now.
+ */
+it('refuses a maintenance edit or deletion that a concurrent lifecycle change made stale', function (string $change): void {
+    $fixture = siteWriteRaceFixture();
+    $admin = User::factory()->create();
+    $admin->assignRole('Admin');
+    $window = $change === 'ended'
+        ? app(CreateMaintenancePeriod::class)($fixture['site'], 'running', CarbonImmutable::now()->subMinute(), CarbonImmutable::now()->addHour())
+        : app(CreateMaintenancePeriod::class)($fixture['site'], 'planned', CarbonImmutable::now()->addHour(), CarbonImmutable::now()->addHours(2));
+    $form = ['name' => 'edited', 'starts_local' => CarbonImmutable::now('UTC')->subMinute()->format('Y-m-d H:i'),
+        'ends_local' => CarbonImmutable::now('UTC')->addHours(3)->format('Y-m-d H:i'), 'timezone' => 'UTC', 'mute_alerts' => true,
+        'catch_up_at_end' => true, 'target_type' => 'site', 'target_id' => $fixture['site']->id];
+
+    $response = $change === 'ended'
+        ? siteWriteRace(static fn () => app(EndMaintenanceWindow::class)($fixture['owner'], $window), 'PUT', '/maintenance/'.$window->id, $form, webUser: $admin)
+        : siteWriteRace(static fn () => app(UpdateMaintenancePeriod::class)($window, 'planned', CarbonImmutable::now()->subMinute(), CarbonImmutable::now()->addHours(2)),
+            'DELETE', '/maintenance/'.$window->id, webUser: $admin);
+
+    $locked = MaintenancePeriod::query()->find($window->id);
+    expect($response['status'])->toBe(409, json_encode($response['body']))
+        ->and($locked?->name)->toBe($change === 'ended' ? 'running' : 'planned')
+        ->and($change === 'ended' ? $locked?->ends_at->isPast() : $locked?->starts_at->isPast())->toBeTrue();
+})->with(['ended', 'started']);

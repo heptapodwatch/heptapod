@@ -37,10 +37,11 @@ $server = ['HTTP_ACCEPT' => 'application/json', 'CONTENT_TYPE' => 'application/j
 if ($bearer !== '') {
     $server['HTTP_AUTHORIZATION'] = 'Bearer '.$bearer;
 }
+$request = Request::create($uri, $method, server: $server, content: $body);
 if ($webUser !== '') {
+    $app->instance('request', $request);
     Auth::guard('web')->setUser(User::query()->findOrFail((int) $webUser));
 }
-$request = Request::create($uri, $method, server: $server, content: $body);
 $response = $kernel->handle($request);
 echo json_encode(['status' => $response->getStatusCode(), 'body' => json_decode((string) $response->getContent(), true)], JSON_THROW_ON_ERROR);
 $kernel->terminate($request, $response);

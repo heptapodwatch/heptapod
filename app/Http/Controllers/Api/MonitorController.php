@@ -6,6 +6,7 @@ namespace Heptapod\Http\Controllers\Api;
 
 use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Attributes\Group;
+use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\CreateSite;
 use Heptapod\Actions\DeleteSite;
 use Heptapod\Actions\UpdateSite;
@@ -80,22 +81,20 @@ final class MonitorController extends Controller
         }, 'checks.snoozes', 'tags', 'client', 'repositories']))->response()->setStatusCode(201);
     }
 
-    public function update(Request $request, Site $monitor, UpdateSite $update): MonitorResource
+    public function update(Request $request, Site $monitor, UpdateSite $update, AuthorizeSiteWrite $authorize): MonitorResource
     {
-        Gate::authorize('update', $monitor);
         /** @var array<string, mixed> $attributes */
         $attributes = $request->all();
-        $site = $update($monitor, $attributes);
+        $site = $authorize($this->principal($request), 'update', static fn (): Site => $update($monitor, $attributes), $monitor);
 
         return new MonitorResource($site->load(['checks' => static function (Relation $checks): void {
             $checks->getQuery()->getQuery()->orderBy('id');
         }, 'checks.snoozes', 'tags', 'client', 'repositories']));
     }
 
-    public function destroy(Site $monitor, DeleteSite $delete): Response
+    public function destroy(Request $request, Site $monitor, DeleteSite $delete, AuthorizeSiteWrite $authorize): Response
     {
-        Gate::authorize('delete', $monitor);
-        $delete($monitor);
+        $authorize($this->principal($request), 'delete', static fn () => $delete($monitor), $monitor);
 
         return response()->noContent();
     }

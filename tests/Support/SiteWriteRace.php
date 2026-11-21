@@ -76,7 +76,8 @@ function siteWriteRace(Closure $change, string $method, string $uri, array $body
         } while (hrtime(true) < $deadline);
         DB::commit();
         $request->wait();
-        expect($request->isSuccessful())->toBeTrue($request->getErrorOutput());
+        expect($request->isSuccessful())->toBeTrue($request->getErrorOutput())
+            ->and(json_validate($request->getOutput()))->toBeTrue($request->getOutput());
 
         /** @var array{status: int, body: mixed} */
         return json_decode($request->getOutput(), true, flags: JSON_THROW_ON_ERROR);
