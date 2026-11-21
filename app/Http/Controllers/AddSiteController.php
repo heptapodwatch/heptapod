@@ -8,16 +8,15 @@ use Heptapod\Actions\CreateSite;
 use Heptapod\Actions\NormaliseSiteUrl;
 use Heptapod\Checks\SiteProbe;
 use Heptapod\Exceptions\CheckConfigurationValidationException;
-use Heptapod\Exceptions\ExpectedRefusal;
+use Heptapod\Http\Middleware\ThrottleRequestsExactly;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 use Heptapod\Queries\AddSiteReader;
 use Heptapod\Settings\InstanceSettings;
-use Heptapod\Support\AtomicRateLimiter;
-use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -37,7 +36,7 @@ final class AddSiteController extends Controller
             ->with('instanceTimezone', app(InstanceSettings::class)->timezone);
     }
 
-    public function store(Request $request, CreateSite $create, SitePolicy $policy, SiteProbe $probe, NormaliseSiteUrl $normalise, AtomicRateLimiter $limiter): RedirectResponse
+    public function store(Request $request, CreateSite $create, SitePolicy $policy, SiteProbe $probe, NormaliseSiteUrl $normalise, ThrottleRequestsExactly $throttle): RedirectResponse
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
@@ -59,7 +58,7 @@ final class AddSiteController extends Controller
         if (! array_key_exists('checks', $attributes)) {
             /** @var array{url: string} $address */
             $address = Validator::make($attributes, ['url' => ['required', 'string', 'max:2048']])->validate();
-            $this->consumeSiteProbeLimit($request, $limiter, $user);
+            $throttle->handle($request, static fn (): HttpResponse => response()->noContent(), 'site-probe');
             $attributes['url'] = $normalise($address['url']);
             $detection = $probe($attributes['url']);
         }
@@ -70,34 +69,5 @@ final class AddSiteController extends Controller
         }
 
         return redirect()->route('sites.show', ['site' => $site->id]);
-    }
-
-    private function consumeSiteProbeLimit(Request $request, AtomicRateLimiter $limiter, User $user): void
-    {
-        $resolver = $limiter->limiter('site-probe');
-        if ($resolver === null) {
-            return;
-        }
-        /** @var Limit|list<Limit> $resolved */
-        $resolved = $resolver($request);
-        $limits = is_array($resolved) ? $resolved : [$resolved];
-        $entries = array_map(static fn (Limit $limit): array => [
-            'key' => md5('site-probe'.(is_scalar($limit->key) ? (string) $limit->key : '')),
-            'maxAttempts' => $limit->maxAttempts,
-            'decaySeconds' => $limit->decaySeconds,
-        ], $limits);
-        $exhausted = $limiter->consume($entries);
-        if ($exhausted !== null) {
-            $retryAfter = max(1, $limiter->availableIn($entries[$exhausted]['key']));
-            ['wait' => $wait] = ExpectedRefusal::cooldownParts($retryAfter, $user);
-
-            throw new ExpectedRefusal(
-                status: 429,
-                messageKey: 'errors.429.retry_in',
-                params: ['wait' => $wait],
-                errorCode: 'rate_limited',
-                retryAfterSeconds: $retryAfter,
-            );
-        }
     }
 }

@@ -8,7 +8,6 @@ use Illuminate\Foundation\Events\DiagnosingHealth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Event;
 use Throwable;
 
 final class HealthController
@@ -18,7 +17,7 @@ final class HealthController
         $healthy = true;
 
         try {
-            Event::dispatch(new DiagnosingHealth);
+            event(new DiagnosingHealth);
         } catch (Throwable $exception) {
             if (app()->hasDebugModeEnabled()) {
                 throw $exception;

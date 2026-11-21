@@ -808,7 +808,7 @@ search.form = searchForm
 
 /**
 * @see \Heptapod\Http\Controllers\HealthController::__invoke
-* @see app/Http/Controllers/HealthController.php:16
+* @see app/Http/Controllers/HealthController.php:15
 * @route '/up'
 */
 export const health = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -823,7 +823,7 @@ health.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\HealthController::__invoke
-* @see app/Http/Controllers/HealthController.php:16
+* @see app/Http/Controllers/HealthController.php:15
 * @route '/up'
 */
 health.url = (options?: RouteQueryOptions) => {
@@ -832,7 +832,7 @@ health.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\HealthController::__invoke
-* @see app/Http/Controllers/HealthController.php:16
+* @see app/Http/Controllers/HealthController.php:15
 * @route '/up'
 */
 health.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -842,7 +842,7 @@ health.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\HealthController::__invoke
-* @see app/Http/Controllers/HealthController.php:16
+* @see app/Http/Controllers/HealthController.php:15
 * @route '/up'
 */
 health.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -852,7 +852,7 @@ health.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\HealthController::__invoke
-* @see app/Http/Controllers/HealthController.php:16
+* @see app/Http/Controllers/HealthController.php:15
 * @route '/up'
 */
 const healthForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -862,7 +862,7 @@ const healthForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\HealthController::__invoke
-* @see app/Http/Controllers/HealthController.php:16
+* @see app/Http/Controllers/HealthController.php:15
 * @route '/up'
 */
 healthForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -872,7 +872,7 @@ healthForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\HealthController::__invoke
-* @see app/Http/Controllers/HealthController.php:16
+* @see app/Http/Controllers/HealthController.php:15
 * @route '/up'
 */
 healthForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
