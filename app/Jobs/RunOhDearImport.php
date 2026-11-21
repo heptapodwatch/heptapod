@@ -14,6 +14,7 @@ use Heptapod\Data\Import\ImportPlanRowData;
 use Heptapod\Enums\ImportOperation;
 use Heptapod\Enums\ImportRunStatus;
 use Heptapod\Events\LiveSignal;
+use Heptapod\Exceptions\ImportAccessRevoked;
 use Heptapod\Models\ImportRun;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
@@ -60,6 +61,11 @@ final class RunOhDearImport implements ShouldQueue
 
     private function import(ImportRun $run, ImportOhDearAccount $import, CreateClient $createClient): void
     {
+        if ($this->starterLostAccess($run)) {
+            $this->stopForRevokedAccess($run);
+
+            return;
+        }
         $token = ImportTokenStore::get($run->id);
         if ($token === null) {
             $this->finish($run, ImportRunStatus::Failed, 'token_expired');
@@ -111,10 +117,19 @@ final class RunOhDearImport implements ShouldQueue
             $run->results = $results;
             $run->save();
             LiveSignal::forImport();
+            if ($this->starterLostAccess($run)) {
+                throw new ImportAccessRevoked;
+            }
         };
         // Stored reasons are text, so they are written in the language of the run's owner, the only user who sees them.
         $locale = User::query()->whereKey($run->user_id)->value('locale');
-        $plan = $this->withLocale(is_string($locale) ? $locale : config()->string('app.locale'), static fn (): ImportPlanData => $import($token, false, $sections, $approved, $progress, $approvedChannels, $channelClientIds));
+        try {
+            $plan = $this->withLocale(is_string($locale) ? $locale : config()->string('app.locale'), static fn (): ImportPlanData => $import($token, false, $sections, $approved, $progress, $approvedChannels, $channelClientIds));
+        } catch (ImportAccessRevoked) {
+            $this->stopForRevokedAccess($run);
+
+            return;
+        }
         $run->remote_error = $plan->remote_error;
         if ($plan->remote_error === null) {
             /** @var list<array<string, mixed>> $channelResults */
@@ -212,6 +227,21 @@ final class RunOhDearImport implements ShouldQueue
         }
 
         return false;
+    }
+
+    /** Starting an import needs an active Owner or Admin (Settings → Import); a run keeps going only while its starter is one. */
+    private function starterLostAccess(ImportRun $run): bool
+    {
+        $starter = User::query()->find($run->user_id);
+
+        return ! $starter instanceof User || $starter->disabled_at !== null || ! $starter->hasAnyRole(['Owner', 'Admin']);
+    }
+
+    /** Sites imported so far are kept; the token goes, so nobody can continue the run without a new plan. */
+    private function stopForRevokedAccess(ImportRun $run): void
+    {
+        ImportTokenStore::forget($run->id);
+        $this->finish($run, ImportRunStatus::Failed, 'access_revoked');
     }
 
     private function finish(ImportRun $run, ImportRunStatus $status, ?string $error): void
