@@ -588,6 +588,26 @@ it('requires re-entry when removing a payload row shifts or makes a masked row a
     expect($check->refresh()->executionConfig()['payload'])->toBe([
         ['name' => 'tag', 'value' => 'secret-two'],
     ]);
+
+    // Sol's rename case: start with distinct rows `tag` and `other`, delete `tag`, rename `other` -> `tag` keeping its mask, and add a typed `tag` -> refused.
+    $this->actingAs($owner)->patchJson($url, [
+        'payload' => [
+            ['name' => 'tag', 'value' => 'secret-tag'],
+            ['name' => 'other', 'value' => 'secret-other'],
+        ],
+    ])->assertRedirect();
+    $renameDuplicate = $this->actingAs($owner)->patchJson($url, [
+        'payload' => [
+            ['name' => 'tag', 'value' => '********'],
+            ['name' => 'tag', 'value' => 'secret-new'],
+        ],
+    ])->assertUnprocessable()->assertJsonValidationErrors('payload.0.value');
+    expect($renameDuplicate->json('errors')['payload.0.value'][0] ?? '')
+        ->toBe(__('validation.secret_reentry_rows_changed', locale: 'en'));
+    expect($check->refresh()->executionConfig()['payload'])->toBe([
+        ['name' => 'tag', 'value' => 'secret-tag'],
+        ['name' => 'other', 'value' => 'secret-other'],
+    ]);
 });
 
 it('redacts uptime diagnostic URLs without rewriting protocol keys, issue codes or numeric facts', function (): void {

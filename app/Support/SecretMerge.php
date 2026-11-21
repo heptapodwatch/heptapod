@@ -41,42 +41,53 @@ final class SecretMerge
             }
         }
         if ($field->items instanceof Field) {
-            // Case-insensitively unique names identify rows across reordering; other lists use position, and duplicate-name groups accept masks only when unchanged and all-masked.
+            // Case-insensitively unique names identify rows across reordering; other lists accept masks only when the name sequence is unchanged and every duplicate-name group is all-masked.
             $uniqueNames = self::hasCaseInsensitiveNames($field->items);
             $previousByName = $uniqueNames ? array_change_key_case(array_column($previous, null, 'name')) : [];
-            $previousCounts = [];
-            $incomingCounts = [];
-            $incomingAllMasked = [];
+            $allowPositionalMasks = true;
             if (! $uniqueNames && isset($field->items->properties['name'])) {
-                foreach ($previous as $item) {
-                    if (is_array($item) && is_string($item['name'] ?? null)) {
-                        $previousCounts[$item['name']] = ($previousCounts[$item['name']] ?? 0) + 1;
-                    }
-                }
-                foreach ($value as $item) {
-                    if (is_array($item) && is_string($item['name'] ?? null)) {
-                        $incomingCounts[$item['name']] = ($incomingCounts[$item['name']] ?? 0) + 1;
-                        $incomingAllMasked[$item['name']] = ($incomingAllMasked[$item['name']] ?? true) && ($item['value'] ?? null) === '********';
+                $previousNames = self::rowNames($previous);
+                $incomingNames = self::rowNames($value);
+                $allowPositionalMasks = $previousNames !== null && $previousNames === $incomingNames;
+                if ($allowPositionalMasks) {
+                    $counts = array_count_values($incomingNames);
+                    foreach ($value as $index => $item) {
+                        if ($counts[$incomingNames[$index]] > 1 && (! is_array($item) || ($item['value'] ?? null) !== '********')) {
+                            $allowPositionalMasks = false;
+                            break;
+                        }
                     }
                 }
             }
             foreach ($value as $index => $item) {
                 $name = is_array($item) ? $item['name'] ?? null : null;
-                if ($uniqueNames) {
-                    $oldItem = is_string($name) ? $previousByName[strtolower($name)] ?? null : null;
-                } else {
-                    $candidate = $previous[$index] ?? null;
-                    $previousCount = is_string($name) ? ($previousCounts[$name] ?? 0) : 0;
-                    $ambiguousDuplicate = is_string($name)
-                        && $previousCount > 1
-                        && (($incomingCounts[$name] ?? 0) !== $previousCount || ! ($incomingAllMasked[$name] ?? false));
-                    $oldItem = $ambiguousDuplicate ? null : $candidate;
-                }
+                $oldItem = $uniqueNames
+                    ? (is_string($name) ? $previousByName[strtolower($name)] ?? null : null)
+                    : ($allowPositionalMasks ? ($previous[$index] ?? null) : null);
                 $value[$index] = self::preserve($field->items, $item, $oldItem, $path.'.'.$index, $nullClearsNullable, inList: true);
             }
         }
 
         return $value;
+    }
+
+    /** @param array<array-key, mixed> $rows
+     * @return list<string>|null
+     */
+    private static function rowNames(array $rows): ?array
+    {
+        if (! array_is_list($rows)) {
+            return null;
+        }
+        $names = [];
+        foreach ($rows as $item) {
+            if (! is_array($item) || ! is_string($item['name'] ?? null)) {
+                return null;
+            }
+            $names[] = $item['name'];
+        }
+
+        return $names;
     }
 
     private static function nameKey(Field $field, mixed $name): mixed
