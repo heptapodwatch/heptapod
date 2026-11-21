@@ -6,7 +6,9 @@ namespace Heptapod\Actions\Fortify;
 
 use Heptapod\Actions\RevokeMemberAccess;
 use Heptapod\Concerns\PasswordValidationRules;
+use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\ResetsUserPasswords;
 
@@ -28,9 +30,14 @@ class ResetUserPassword implements ResetsUserPasswords
             'password' => $this->passwordRules(),
         ])->validate();
 
-        $user->forceFill([
-            'password' => $input['password'],
-        ])->save();
-        ($this->revoke)($user);
+        DB::transaction(function () use ($user, $input): void {
+            // The same exclusive user lock as removal: a token issued concurrently either exists before the revocation
+            // deletes it or waits and is refused (CreateApiToken).
+            NotificationLocks::forUpdate(User::query()->whereKey($user->id)->getQuery())->first(['id']);
+            $user->forceFill([
+                'password' => $input['password'],
+            ])->save();
+            ($this->revoke)($user);
+        });
     }
 }

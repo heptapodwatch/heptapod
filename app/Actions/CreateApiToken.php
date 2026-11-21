@@ -39,12 +39,15 @@ final class CreateApiToken
     /** @param list<string> $abilities */
     public function __invoke(User $user, string $name, array $abilities, ?int $clientId = null, ?DateTimeInterface $expiresAt = null): string
     {
-        return DB::transaction(function () use ($user, $name, $abilities, $clientId, $expiresAt): string {
-            // Removal and access changes hold the user FOR UPDATE while they delete its tokens: a token is issued only under
-            // the access the account has once they committed.
-            NotificationLocks::users([$user->id]);
-            $user = User::query()->findOrFail($user->id);
-            abort_if($user->disabled_at !== null, 403);
+        $authenticated = $user;
+
+        return DB::transaction(function () use ($authenticated, $name, $abilities, $clientId, $expiresAt): string {
+            // Removal, access changes and password resets hold the user FOR UPDATE while they delete its tokens: a token is
+            // issued only under the access the account has once they committed, and only to a caller whose sign-in still
+            // holds (a changed password means the caller authenticated before the reset).
+            NotificationLocks::users([$authenticated->id]);
+            $user = User::query()->findOrFail($authenticated->id);
+            abort_if($user->disabled_at !== null || $user->getAuthPassword() !== $authenticated->getAuthPassword(), 403);
             $allowed = $user->hasRole('Owner') ? ['*', ...$this->allowedAbilities($user)] : $this->allowedAbilities($user);
             Validator::make(['name' => $name, 'abilities' => $abilities], ['name' => ['required', 'string', 'max:255'], 'abilities' => ['required', 'array', 'min:1'], 'abilities.*' => ['string', 'distinct', Rule::in($allowed)]])->validate();
 

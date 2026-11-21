@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Heptapod\Actions\DeactivateMember;
+use Heptapod\Actions\Fortify\ResetUserPassword;
 use Heptapod\Jobs\TerminateLiveConnections;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -11,11 +12,11 @@ use Spatie\Permission\Models\Role;
 use Symfony\Component\Process\Process;
 
 /*
- * A token issued while the account is being removed must not outlive the removal. The removal runs in this connection and
- * holds its transaction open while a second process issues a token for the same, still loaded, account. Not a Gate test:
- * a subprocess and committed data (scripts/check-gate-tests.php).
+ * A token issued while the account is removed or its password reset must not outlive that revocation. The revocation runs
+ * in this connection and holds its transaction open while a second process issues a token for the same account, loaded as
+ * its request authenticated it. Not a Gate test: a subprocess and committed data (scripts/check-gate-tests.php).
  */
-it('refuses a token issued while the account is being removed, so none survives the removal', function (): void {
+it('refuses a token issued during a revocation, so none survives it', function (string $revocation): void {
     Queue::fake([TerminateLiveConnections::class]);
     $roleIds = Role::query()->pluck('id')->all();
     $owner = User::factory()->create();
@@ -29,7 +30,7 @@ it('refuses a token issued while the account is being removed, so none survives 
         $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
         $member = Heptapod\Models\User::query()->findOrFail((int) getenv('RACE_USER'));
         try {
-            app(Heptapod\Actions\CreateApiToken::class)($member, 'issued-during-removal', ['monitors:read']);
+            app(Heptapod\Actions\CreateApiToken::class)($member, 'issued-during-revocation', ['monitors:read']);
             echo 'issued';
         } catch (Symfony\Component\HttpKernel\Exception\HttpException $exception) {
             echo 'refused:'.$exception->getStatusCode();
@@ -38,7 +39,10 @@ it('refuses a token issued while the account is being removed, so none survives 
         'CACHE_STORE' => 'array', 'QUEUE_CONNECTION' => 'sync', 'BROADCAST_CONNECTION' => 'null', 'RACE_USER' => (string) $member->id], timeout: 30);
     try {
         DB::beginTransaction();
-        app(DeactivateMember::class)($owner, $member);
+        match ($revocation) {
+            'removal' => app(DeactivateMember::class)($owner, $member),
+            'password reset' => app(ResetUserPassword::class)->reset($member, ['password' => 'a-new-password-1', 'password_confirmation' => 'a-new-password-1']),
+        };
         $issue->start();
         $deadline = hrtime(true) + 20_000_000_000;
         do {
@@ -66,4 +70,4 @@ it('refuses a token issued while the account is being removed, so none survives 
         Role::query()->whereNotIn('id', $roleIds)->delete();
         DB::beginTransaction();
     }
-});
+})->with(['removal', 'password reset']);
