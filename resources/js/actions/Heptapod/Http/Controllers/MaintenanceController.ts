@@ -228,7 +228,7 @@ update.form = updateForm
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::destroy
-* @see app/Http/Controllers/MaintenanceController.php:136
+* @see app/Http/Controllers/MaintenanceController.php:140
 * @route '/maintenance/{window}'
 */
 export const destroy = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -243,7 +243,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::destroy
-* @see app/Http/Controllers/MaintenanceController.php:136
+* @see app/Http/Controllers/MaintenanceController.php:140
 * @route '/maintenance/{window}'
 */
 destroy.url = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -276,7 +276,7 @@ destroy.url = (args: { window: number | { id: number } } | [window: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::destroy
-* @see app/Http/Controllers/MaintenanceController.php:136
+* @see app/Http/Controllers/MaintenanceController.php:140
 * @route '/maintenance/{window}'
 */
 destroy.delete = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -286,7 +286,7 @@ destroy.delete = (args: { window: number | { id: number } } | [window: number | 
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::destroy
-* @see app/Http/Controllers/MaintenanceController.php:136
+* @see app/Http/Controllers/MaintenanceController.php:140
 * @route '/maintenance/{window}'
 */
 const destroyForm = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -301,7 +301,7 @@ const destroyForm = (args: { window: number | { id: number } } | [window: number
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::destroy
-* @see app/Http/Controllers/MaintenanceController.php:136
+* @see app/Http/Controllers/MaintenanceController.php:140
 * @route '/maintenance/{window}'
 */
 destroyForm.delete = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

@@ -1665,7 +1665,7 @@ updateMonitor.form = updateMonitorForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::deleteMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:95
+* @see app/Http/Controllers/Api/MonitorController.php:97
 * @route '/api/monitors/{monitor}'
 */
 export const deleteMonitor = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -1680,7 +1680,7 @@ deleteMonitor.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::deleteMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:95
+* @see app/Http/Controllers/Api/MonitorController.php:97
 * @route '/api/monitors/{monitor}'
 */
 deleteMonitor.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -1713,7 +1713,7 @@ deleteMonitor.url = (args: { monitor: number | { id: number } } | [monitor: numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::deleteMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:95
+* @see app/Http/Controllers/Api/MonitorController.php:97
 * @route '/api/monitors/{monitor}'
 */
 deleteMonitor.delete = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -1723,7 +1723,7 @@ deleteMonitor.delete = (args: { monitor: number | { id: number } } | [monitor: n
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::deleteMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:95
+* @see app/Http/Controllers/Api/MonitorController.php:97
 * @route '/api/monitors/{monitor}'
 */
 const deleteMonitorForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1738,7 +1738,7 @@ const deleteMonitorForm = (args: { monitor: number | { id: number } } | [monitor
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::deleteMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:95
+* @see app/Http/Controllers/Api/MonitorController.php:97
 * @route '/api/monitors/{monitor}'
 */
 deleteMonitorForm.delete = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2378,7 +2378,7 @@ listCheckRuns.form = listCheckRunsForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\EnableCheckController::__invoke
-* @see app/Http/Controllers/Api/EnableCheckController.php:21
+* @see app/Http/Controllers/Api/EnableCheckController.php:22
 * @route '/api/checks/{check}/enable'
 */
 export const enableCheck = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2393,7 +2393,7 @@ enableCheck.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\EnableCheckController::__invoke
-* @see app/Http/Controllers/Api/EnableCheckController.php:21
+* @see app/Http/Controllers/Api/EnableCheckController.php:22
 * @route '/api/checks/{check}/enable'
 */
 enableCheck.url = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -2426,7 +2426,7 @@ enableCheck.url = (args: { check: number | { id: number } } | [check: number | {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\EnableCheckController::__invoke
-* @see app/Http/Controllers/Api/EnableCheckController.php:21
+* @see app/Http/Controllers/Api/EnableCheckController.php:22
 * @route '/api/checks/{check}/enable'
 */
 enableCheck.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2436,7 +2436,7 @@ enableCheck.post = (args: { check: number | { id: number } } | [check: number | 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\EnableCheckController::__invoke
-* @see app/Http/Controllers/Api/EnableCheckController.php:21
+* @see app/Http/Controllers/Api/EnableCheckController.php:22
 * @route '/api/checks/{check}/enable'
 */
 const enableCheckForm = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2446,7 +2446,7 @@ const enableCheckForm = (args: { check: number | { id: number } } | [check: numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\EnableCheckController::__invoke
-* @see app/Http/Controllers/Api/EnableCheckController.php:21
+* @see app/Http/Controllers/Api/EnableCheckController.php:22
 * @route '/api/checks/{check}/enable'
 */
 enableCheckForm.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2458,7 +2458,7 @@ enableCheck.form = enableCheckForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DisableCheckController::__invoke
-* @see app/Http/Controllers/Api/DisableCheckController.php:21
+* @see app/Http/Controllers/Api/DisableCheckController.php:22
 * @route '/api/checks/{check}/disable'
 */
 export const disableCheck = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2473,7 +2473,7 @@ disableCheck.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DisableCheckController::__invoke
-* @see app/Http/Controllers/Api/DisableCheckController.php:21
+* @see app/Http/Controllers/Api/DisableCheckController.php:22
 * @route '/api/checks/{check}/disable'
 */
 disableCheck.url = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -2506,7 +2506,7 @@ disableCheck.url = (args: { check: number | { id: number } } | [check: number | 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DisableCheckController::__invoke
-* @see app/Http/Controllers/Api/DisableCheckController.php:21
+* @see app/Http/Controllers/Api/DisableCheckController.php:22
 * @route '/api/checks/{check}/disable'
 */
 disableCheck.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2516,7 +2516,7 @@ disableCheck.post = (args: { check: number | { id: number } } | [check: number |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DisableCheckController::__invoke
-* @see app/Http/Controllers/Api/DisableCheckController.php:21
+* @see app/Http/Controllers/Api/DisableCheckController.php:22
 * @route '/api/checks/{check}/disable'
 */
 const disableCheckForm = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2526,7 +2526,7 @@ const disableCheckForm = (args: { check: number | { id: number } } | [check: num
 
 /**
 * @see \Heptapod\Http\Controllers\Api\DisableCheckController::__invoke
-* @see app/Http/Controllers/Api/DisableCheckController.php:21
+* @see app/Http/Controllers/Api/DisableCheckController.php:22
 * @route '/api/checks/{check}/disable'
 */
 disableCheckForm.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2871,7 +2871,7 @@ snoozeCheck.form = snoozeCheckForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:21
+* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:22
 * @route '/api/checks/{check}/unsnooze'
 */
 export const unsnoozeCheck = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2886,7 +2886,7 @@ unsnoozeCheck.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:21
+* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:22
 * @route '/api/checks/{check}/unsnooze'
 */
 unsnoozeCheck.url = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -2919,7 +2919,7 @@ unsnoozeCheck.url = (args: { check: number | { id: number } } | [check: number |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:21
+* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:22
 * @route '/api/checks/{check}/unsnooze'
 */
 unsnoozeCheck.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -2929,7 +2929,7 @@ unsnoozeCheck.post = (args: { check: number | { id: number } } | [check: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:21
+* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:22
 * @route '/api/checks/{check}/unsnooze'
 */
 const unsnoozeCheckForm = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -2939,7 +2939,7 @@ const unsnoozeCheckForm = (args: { check: number | { id: number } } | [check: nu
 
 /**
 * @see \Heptapod\Http\Controllers\Api\UnsnoozeCheckController::__invoke
-* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:21
+* @see app/Http/Controllers/Api/UnsnoozeCheckController.php:22
 * @route '/api/checks/{check}/unsnooze'
 */
 unsnoozeCheckForm.post = (args: { check: number | { id: number } } | [check: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
