@@ -18,6 +18,7 @@ use Heptapod\Testing\FixtureOnlyDnsResolver;
 use Heptapod\Testing\FixtureOnlyNetwork;
 use Heptapod\Testing\FixtureOnlyTargetResolver;
 use Heptapod\Testing\OffsetDatabaseClock;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Events\MigrationsEnded;
 use Illuminate\Database\Events\TransactionCommitted;
 use Illuminate\Foundation\Application;
@@ -28,6 +29,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Vite;
+use Illuminate\Testing\TestResponse;
 use Laravel\Fortify\Features;
 
 abstract class TestCase extends BaseTestCase
@@ -80,6 +82,29 @@ abstract class TestCase extends BaseTestCase
         // disk_space_low issue that exists only there. Tests about disk space bind their own samples.
         $this->app->instance(DiskSpaceReader::class, FakeDiskSpaceReader::healthy());
         $this->app->instance(LiveConnectionTerminator::class, new FakeLiveConnectionTerminator);
+    }
+
+    public function call(mixed $method, mixed $uri, mixed $parameters = [], mixed $cookies = [], mixed $files = [], mixed $server = [], mixed $content = null): TestResponse
+    {
+        if (! str_starts_with((string) parse_url($uri, PHP_URL_PATH), '/api/')) {
+            // A fresh web request starts on the web guard, also after an API request in this test made Sanctum the default.
+            $this->app['auth']->shouldUse('web');
+        }
+
+        return parent::call($method, $uri, $parameters, $cookies, $files, $server, $content);
+    }
+
+    /**
+     * Every acting user brings their own signed-in session. The in-memory test session survives between requests, and
+     * the web group binds a session to its user's password hash, so the hash stored for an earlier user is dropped.
+     * Without a guard it acts on the web guard, as a fresh request does even after an API request switched the default.
+     */
+    public function be(Authenticatable $user, $guard = null)
+    {
+        $guard ??= 'web';
+        $this->app['session']->forget('password_hash_'.$guard);
+
+        return parent::be($user, $guard);
     }
 
     protected function skipUnlessFortifyHas(string $feature, ?string $message = null): void

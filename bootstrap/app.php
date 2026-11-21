@@ -50,6 +50,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Resolve locale after cookie/session setup, before CSRF and route throttles can reject the request.
         $middleware->appendToPriorityList(ShareErrorsFromSession::class, SetLocale::class);
+        // Sessions live in Redis, so a password change ends the other sessions through the stored password hash.
+        $middleware->authenticateSessions();
         $middleware->web(append: [
             HandleAppearance::class,
             RejectDisabledAccount::class,
