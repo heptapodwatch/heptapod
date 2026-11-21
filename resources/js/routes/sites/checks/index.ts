@@ -203,7 +203,7 @@ findings.form = findingsForm
 
 /**
 * @see \Heptapod\Http\Controllers\UpdateCheckSettingsController::__invoke
-* @see app/Http/Controllers/UpdateCheckSettingsController.php:21
+* @see app/Http/Controllers/UpdateCheckSettingsController.php:22
 * @route '/sites/{site}/checks/{check}'
 */
 export const update = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -218,7 +218,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\UpdateCheckSettingsController::__invoke
-* @see app/Http/Controllers/UpdateCheckSettingsController.php:21
+* @see app/Http/Controllers/UpdateCheckSettingsController.php:22
 * @route '/sites/{site}/checks/{check}'
 */
 update.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
@@ -244,7 +244,7 @@ update.url = (args: { site: string | number, check: string | number } | [site: s
 
 /**
 * @see \Heptapod\Http\Controllers\UpdateCheckSettingsController::__invoke
-* @see app/Http/Controllers/UpdateCheckSettingsController.php:21
+* @see app/Http/Controllers/UpdateCheckSettingsController.php:22
 * @route '/sites/{site}/checks/{check}'
 */
 update.patch = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -254,7 +254,7 @@ update.patch = (args: { site: string | number, check: string | number } | [site:
 
 /**
 * @see \Heptapod\Http\Controllers\UpdateCheckSettingsController::__invoke
-* @see app/Http/Controllers/UpdateCheckSettingsController.php:21
+* @see app/Http/Controllers/UpdateCheckSettingsController.php:22
 * @route '/sites/{site}/checks/{check}'
 */
 const updateForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -269,7 +269,7 @@ const updateForm = (args: { site: string | number, check: string | number } | [s
 
 /**
 * @see \Heptapod\Http\Controllers\UpdateCheckSettingsController::__invoke
-* @see app/Http/Controllers/UpdateCheckSettingsController.php:21
+* @see app/Http/Controllers/UpdateCheckSettingsController.php:22
 * @route '/sites/{site}/checks/{check}'
 */
 updateForm.patch = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
