@@ -35,7 +35,7 @@ final readonly class NativeTargetAddressPolicy implements TargetAddressPolicy
     public function assertAddressAllowed(string $ip, bool $permitsPrivate): void
     {
         $packed = inet_pton($ip);
-        $validatedIp = self::unmapped($ip);
+        $validatedIp = self::classifiable($ip);
         // Translation/tunnel prefixes can conceal private IPv4 destinations.
         $translated = $packed !== false && strlen($packed) === 16 && (
             substr($packed, 0, 12) === hex2bin('0064ff9b0000000000000000')
@@ -57,14 +57,14 @@ final readonly class NativeTargetAddressPolicy implements TargetAddressPolicy
 
     public function assertPrivateAddress(string $ip): void
     {
-        $validatedIp = self::unmapped($ip);
+        $validatedIp = self::classifiable($ip);
         if (self::isPublic($validatedIp)) {
             throw new FetchException(new FetchFailure(FetchFailureKind::PrivateTarget, targetAddress: is_string($validatedIp) ? $validatedIp : $ip, targetClass: 'unsupported_scheme'));
         }
     }
 
-    /** Native flags do not classify mapped IPv6 by its embedded IPv4 range, so classify that IPv4 address. */
-    private static function unmapped(string $ip): string|false
+    // Native flags do not classify mapped IPv6 by its embedded IPv4 range, so classify that IPv4 address.
+    private static function classifiable(string $ip): string|false
     {
         $packed = inet_pton($ip);
 
