@@ -54,6 +54,7 @@ export function PageHeaderActions({
     secondaryOpen,
     onSecondaryOpenChange,
     secondaryActionCount,
+    className,
 }: {
     primary?: ReactNode;
     secondary?: ReactNode;
@@ -66,6 +67,7 @@ export function PageHeaderActions({
     secondaryOpen?: boolean;
     onSecondaryOpenChange?: (open: boolean) => void;
     secondaryActionCount?: number;
+    className?: string;
 }) {
     const isMobile = useIsMobile();
     const [localOpen, setLocalOpen] = useState(false);
@@ -74,8 +76,9 @@ export function PageHeaderActions({
     return (
         <div
             className={cn(
-                'flex shrink-0 items-start gap-2 md:ml-auto md:max-w-[60%] md:min-w-0 md:flex-wrap md:justify-end',
+                'flex shrink-0 items-center gap-2 md:ml-auto md:max-w-[60%] md:min-w-0 md:flex-wrap md:justify-end',
                 fullWidthOnMobile && 'w-full md:w-auto',
+                className,
             )}
         >
             {overflowSecondary === 'always' ||

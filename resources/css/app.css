@@ -305,6 +305,8 @@ html body[data-scroll-locked] {
     --muted-foreground: var(--tooltip-muted);
     --color-muted-foreground: var(--tooltip-muted);
     --color-foreground: var(--tooltip-subject);
+    --destructive: var(--tooltip-status-down);
+    --color-destructive: var(--tooltip-status-down);
     --status-ok: var(--tooltip-status-ok);
     --status-warn: var(--tooltip-status-warn);
     --status-down: var(--tooltip-status-down);

@@ -1,3 +1,4 @@
+import type { ActionNoteDescriptor } from '@/components/action-note-slot';
 import { useState, type ReactNode } from 'react';
 import { Send } from 'lucide-react';
 import { SendToClientSheet } from '@/components/send-to-client-sheet';
@@ -19,10 +20,12 @@ import { findings as findingsExport } from '@/routes/sites/checks';
 export function ProductCheckDetail({
     page,
     primaryAction,
+    actionNote,
     requestedRun,
 }: {
     page: Heptapod.Data.Ui.CheckTabPageData;
     primaryAction?: ReactNode;
+    actionNote?: ActionNoteDescriptor;
     requestedRun: RequestedRun;
 }) {
     const headlineFor = useCheckHeadline();
@@ -117,6 +120,7 @@ export function ProductCheckDetail({
                 page={page}
                 headline={headline}
                 primaryAction={primaryAction}
+                actionNote={actionNote}
                 evidence={evidence}
             />
             {sendable && page.client && sendOpen && (

@@ -1,3 +1,4 @@
+import { ActionNoteSlot } from '@/components/action-note-slot';
 import { InfoTooltip } from '@/components/info-tooltip';
 import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import { ClientMark } from '@/components/client-mark';
@@ -14,7 +15,7 @@ import { Sheet } from '@/components/ui/sheet';
 import { PageHeader } from '@/components/page-header';
 import { Head, usePage } from '@inertiajs/react';
 import { Users, Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -346,6 +347,8 @@ function EditMemberSheet({
     const [confirmRestriction, setConfirmRestriction] = useState(false);
     const legacyAll = member.role === 'Member' && member.client_scope === 'all';
     const [error, setError] = useState('');
+    const [removalError, setRemovalError] = useState('');
+    const removeNoteId = useId();
     const [refreshing, setRefreshing] = useState(false);
     const [saved, setSaved] = useState(false);
     const busy = form.processing || removal.processing || refreshing;
@@ -375,7 +378,8 @@ function EditMemberSheet({
     }));
     /** Resolves true when the change was committed and the roster refreshed; failures are shown in `error`. */
     const save = async (deactivate: boolean): Promise<boolean> => {
-        setError('');
+        if (deactivate) setRemovalError('');
+        else setError('');
         let committed = false;
         try {
             const request = deactivate ? removal : form;
@@ -397,17 +401,17 @@ function EditMemberSheet({
                 Object.keys(failure.errors).length > 0
             )
                 return false;
-            setError(
-                committed
-                    ? t(
-                          'Change saved, but the roster could not refresh. Close and refresh the roster.',
-                      )
-                    : httpErrorMessage(
-                          failure,
-                          t,
-                          'Change failed. Check your connection and permissions, then try again.',
-                      ),
-            );
+            const message = committed
+                ? t(
+                      'Change saved, but the roster could not refresh. Close and refresh the roster.',
+                  )
+                : httpErrorMessage(
+                      failure,
+                      t,
+                      'Change failed. Check your connection and permissions, then try again.',
+                  );
+            if (deactivate) setRemovalError(message);
+            else setError(message);
             return false;
         } finally {
             setRefreshing(false);
@@ -530,7 +534,10 @@ function EditMemberSheet({
             {/* Removal revokes sign-in, sessions and tokens; returning needs a new invitation, so it is destructive. */}
             <ConfirmDialog
                 open={confirmRemoval}
-                onOpenChange={setConfirmRemoval}
+                onOpenChange={(open) => {
+                    setConfirmRemoval(open);
+                    if (!open) setRemovalError('');
+                }}
                 destructive
                 title={t('Remove :name from the team?', {
                     name: member.name,
@@ -541,9 +548,12 @@ function EditMemberSheet({
                 confirmLabel={t('Remove from team')}
                 confirmTestId="confirm-remove-member"
                 confirmDisabled={saved}
+                confirmDescribedBy={removalError ? removeNoteId : undefined}
                 onConfirm={() => save(true)}
             >
-                <InputError message={error} />
+                <ActionNoteSlot id={removeNoteId}>
+                    {removalError && <InputError message={removalError} />}
+                </ActionNoteSlot>
             </ConfirmDialog>
         </Sheet>
     );

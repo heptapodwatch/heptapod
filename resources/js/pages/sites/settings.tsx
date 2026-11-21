@@ -1,3 +1,4 @@
+import { ActionNoteSlot } from '@/components/action-note-slot';
 import { InfoTooltip } from '@/components/info-tooltip';
 import { TooltipHint } from '@/components/truncated-text';
 import { ClientCreateSheet } from '@/components/client-create-sheet';
@@ -13,7 +14,7 @@ import {
     categories,
     NotificationExplanation,
 } from '@/components/notification-explanation';
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useSiteUrlProbe } from '@/hooks/use-site-url-probe';
 import { useTranslation } from 'react-i18next';
 import { SiteHeader } from '@/components/site-header';
@@ -137,6 +138,25 @@ export default function SiteSettings({
         useState<Heptapod.Data.Ui.CheckOptionData | null>(null);
     const iconForm = useForm<{ icon?: string }>({});
     const iconPending = icon_manual_result?.key === 'icons.queued';
+    const iconNoteId = useId();
+    const iconStandingNote = icon_manual_result ? (
+        <p role="status" className="text-foreground">
+            {iconRefreshOutcomes.has(icon_manual_result.key)
+                ? t(icon_manual_result.key, icon_manual_result.params)
+                : `${t('icons.refresh_failed', {
+                      reason: t(
+                          icon_manual_result.key,
+                          icon_manual_result.params,
+                      ),
+                  })} ${t(
+                      site.identity.icon_url
+                          ? 'icons.showing_previous'
+                          : 'icons.showing_letters',
+                  )}`}
+        </p>
+    ) : null;
+    const iconHasNote = Boolean(iconForm.errors.icon || iconStandingNote);
+    const canRefreshIcon = !archivedClient && site.identity.state !== 'paused';
     const reloadPage = useLiveReload(
         ['state.changed'],
         [
@@ -660,74 +680,71 @@ export default function SiteSettings({
                     description={t('icons.description')}
                     detail={t('icons.description_detail')}
                 >
-                    <div className="flex flex-wrap items-center gap-3">
-                        <SiteAvatar
-                            name={site.identity.name}
-                            iconUrl={site.identity.icon_url}
-                            iconBacking={site.identity.icon_backing}
-                        />
-                        <div className="min-w-0 flex-1 text-sm text-muted-foreground">
-                            <p>
-                                {site.identity.icon_url
-                                    ? t('icons.current')
-                                    : t('icons.letters')}
-                            </p>
-                            <TooltipHint
-                                content={
-                                    icon_fetched_at
-                                        ? format.exact(icon_fetched_at)
-                                        : undefined
+                    <div className="space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <SiteAvatar
+                                name={site.identity.name}
+                                iconUrl={site.identity.icon_url}
+                                iconBacking={site.identity.icon_backing}
+                            />
+                            <div className="min-w-0 flex-1 text-sm text-muted-foreground">
+                                <p>
+                                    {site.identity.icon_url
+                                        ? t('icons.current')
+                                        : t('icons.letters')}
+                                </p>
+                                <TooltipHint
+                                    content={
+                                        icon_fetched_at
+                                            ? format.exact(icon_fetched_at)
+                                            : undefined
+                                    }
+                                >
+                                    <p className="font-mono tabular-nums">
+                                        {icon_fetched_at
+                                            ? t('icons.fetched', {
+                                                  date: format.timestamp(
+                                                      icon_fetched_at,
+                                                  ),
+                                              })
+                                            : t('icons.never')}
+                                    </p>
+                                </TooltipHint>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                aria-describedby={
+                                    iconHasNote ? iconNoteId : undefined
+                                }
+                                disabled={
+                                    archivedClient ||
+                                    iconForm.processing ||
+                                    iconPending ||
+                                    site.identity.state === 'paused'
+                                }
+                                onClick={() =>
+                                    iconForm.post(refreshIcon.url(site.id), {
+                                        preserveScroll: true,
+                                    })
                                 }
                             >
-                                <p className="font-mono tabular-nums">
-                                    {icon_fetched_at
-                                        ? t('icons.fetched', {
-                                              date: format.timestamp(
-                                                  icon_fetched_at,
-                                              ),
-                                          })
-                                        : t('icons.never')}
-                                </p>
-                            </TooltipHint>
+                                {t('icons.refresh')}
+                            </Button>
                         </div>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={
-                                archivedClient ||
-                                iconForm.processing ||
-                                iconPending ||
-                                site.identity.state === 'paused'
-                            }
-                            onClick={() =>
-                                iconForm.post(refreshIcon.url(site.id), {
-                                    preserveScroll: true,
-                                })
-                            }
-                        >
-                            {t('icons.refresh')}
-                        </Button>
+                        {(canRefreshIcon || iconHasNote) && (
+                            <ActionNoteSlot id={iconNoteId}>
+                                {iconForm.errors.icon ? (
+                                    <InputError
+                                        message={iconForm.errors.icon}
+                                    />
+                                ) : (
+                                    iconStandingNote
+                                )}
+                            </ActionNoteSlot>
+                        )}
                     </div>
-                    <p className="text-sm" role="status">
-                        {icon_manual_result &&
-                            (iconRefreshOutcomes.has(icon_manual_result.key)
-                                ? t(
-                                      icon_manual_result.key,
-                                      icon_manual_result.params,
-                                  )
-                                : `${t('icons.refresh_failed', {
-                                      reason: t(
-                                          icon_manual_result.key,
-                                          icon_manual_result.params,
-                                      ),
-                                  })} ${t(
-                                      site.identity.icon_url
-                                          ? 'icons.showing_previous'
-                                          : 'icons.showing_letters',
-                                  )}`)}
-                    </p>
-                    <InputError message={iconForm.errors.icon} />
                 </FormSection>
                 <FormSection
                     title={t('Delete')}

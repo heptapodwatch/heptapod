@@ -1,9 +1,21 @@
+import {
+    hasActionNote,
+    type ActionNoteDescriptor,
+} from '@/components/action-note-slot';
 import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { PresentationChanges } from '@/components/presentation-changes';
-import { Link, router, useForm, usePage } from '@inertiajs/react';
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Link, router, useForm } from '@inertiajs/react';
+import { toast } from 'sonner';
+import {
+    Fragment,
+    useEffect,
+    useId,
+    useMemo,
+    useState,
+    type ReactNode,
+} from 'react';
 import {
     ArrowRight,
     ExternalLink,
@@ -107,9 +119,6 @@ export function IncidentEpisode({
 }) {
     const { t } = useTranslation();
     const format = useFormat();
-    const {
-        props: { errors },
-    } = usePage();
     const [noteOpen, setNoteOpen] = useState(false);
     // The incident and its current snapshot are single records: after the own run they show the refetched state.
     const ownRunState = ownRun && {
@@ -141,6 +150,22 @@ export function IncidentEpisode({
     const cooldownUntil = page.cooldown_until ?? null;
     const { active: inCooldown, remainingSeconds: cooldownSeconds } =
         useCooldown(cooldownUntil);
+    const runNoteId = useId();
+    const runStandingNote =
+        canShowRun && activeRun ? (
+            <RunCheckReason run={activeRun} />
+        ) : canShowRun && !activeRun && inCooldown ? (
+            <CooldownReason
+                until={cooldownUntil}
+                remainingSeconds={cooldownSeconds}
+            />
+        ) : null;
+    const runActionNote: ActionNoteDescriptor | undefined = canShowRun
+        ? {
+              id: runNoteId,
+              content: runStandingNote,
+          }
+        : undefined;
     const [runPending, setRunPending] = useState(false);
     const [now, setNow] = useState(Date.now());
     const [actionsOpen, setActionsOpen] = useState(false);
@@ -456,51 +481,60 @@ export function IncidentEpisode({
                 }
                 primaryAction={
                     canShowRun ? (
-                        <div className="space-y-1">
-                            <Button
-                                disabled={
-                                    runPending ||
-                                    activeRun !== null ||
-                                    inCooldown ||
-                                    check.unavailable_reason !== null
-                                }
-                                onClick={() => {
-                                    setRunPending(true);
-                                    requestedRun.request();
-                                    router.post(
-                                        checkRun.url({
-                                            site: page.site.id,
-                                            check: check.id,
-                                        }),
-                                        { incident: incident.id },
-                                        {
-                                            preserveScroll: true,
-                                            onSuccess: requestedRun.accept,
-                                            onError: requestedRun.abandon,
-                                            onHttpException: () => {
-                                                requestedRun.abandon();
-                                            },
-                                            onFinish: () =>
-                                                setRunPending(false),
+                        <Button
+                            aria-describedby={
+                                hasActionNote(runActionNote)
+                                    ? runNoteId
+                                    : undefined
+                            }
+                            disabled={
+                                runPending ||
+                                activeRun !== null ||
+                                inCooldown ||
+                                check.unavailable_reason !== null
+                            }
+                            onClick={() => {
+                                setRunPending(true);
+                                requestedRun.request();
+                                router.post(
+                                    checkRun.url({
+                                        site: page.site.id,
+                                        check: check.id,
+                                    }),
+                                    { incident: incident.id },
+                                    {
+                                        preserveScroll: true,
+                                        onSuccess: requestedRun.accept,
+                                        onError: (errors) => {
+                                            requestedRun.abandon();
+                                            const messages = Object.entries(
+                                                errors,
+                                            )
+                                                .filter(
+                                                    ([key]) =>
+                                                        key !== '_refusal',
+                                                )
+                                                .map(([, message]) => message);
+                                            // `_refusal` already flashed a toast from the server.
+                                            if (messages.length > 0) {
+                                                toast.error(
+                                                    messages.join(' · '),
+                                                );
+                                            }
                                         },
-                                    );
-                                }}
-                            >
-                                {t(runPending ? 'Running check…' : 'Run check')}
-                            </Button>
-                            {activeRun && <RunCheckReason run={activeRun} />}
-                            {!activeRun && inCooldown && (
-                                <CooldownReason
-                                    until={cooldownUntil}
-                                    remainingSeconds={cooldownSeconds}
-                                />
-                            )}
-                            <InputError message={errors.check} />
-                        </div>
-                    ) : errors.check ? (
-                        <InputError message={errors.check} />
+                                        onHttpException: () => {
+                                            requestedRun.abandon();
+                                        },
+                                        onFinish: () => setRunPending(false),
+                                    },
+                                );
+                            }}
+                        >
+                            {t(runPending ? 'Running check…' : 'Run check')}
+                        </Button>
                     ) : undefined
                 }
+                actionNote={runActionNote}
                 secondaryActions={
                     <>
                         {page.can_snooze &&

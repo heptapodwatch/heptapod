@@ -262,7 +262,10 @@ export function RunLine({
                 )}
             >
                 <RunGlyph phase={phase} progress={progress} outcome={outcome} />
-                <span className={cn('min-w-0', !wrap && 'truncate')}>
+                <span
+                    data-truncate={wrap ? undefined : ''}
+                    className={cn('min-w-0', !wrap && 'truncate')}
+                >
                     {label}
                 </span>
                 {detail !== undefined && (

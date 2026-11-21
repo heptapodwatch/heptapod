@@ -1,3 +1,7 @@
+import {
+    ActionNoteSlot,
+    type ActionNoteDescriptor,
+} from '@/components/action-note-slot';
 import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import type { ComponentProps, ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +39,7 @@ export function PageHeader({
     secondaryActionCount,
     notices,
     refresh,
+    actionNote,
 }: {
     title: string;
     titleTooltip?: string;
@@ -61,9 +66,15 @@ export function PageHeader({
         refreshing: boolean;
         disabled?: boolean;
     };
+    /**
+     * Reserved single-line note for a header action (CooldownReason, RunCheckReason, refusal). Passing the descriptor
+     * reserves the slot inside the action column even when empty; omit when the action capability is absent.
+     */
+    actionNote?: ActionNoteDescriptor;
 } & PageHeaderActionSlots) {
     const { t } = useTranslation();
     const Heading = headingLevel === 1 ? 'h1' : 'h2';
+    const hasActionNoteSlot = actionNote !== undefined;
     return (
         <header data-page-header className="flex min-w-0 flex-col gap-4">
             <div
@@ -73,7 +84,7 @@ export function PageHeader({
                         : 'flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between'
                 }
             >
-                <div className="min-w-0 space-y-2">
+                <div className="min-w-0 flex-1 space-y-2">
                     {trail !== undefined && (
                         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                             {trail}
@@ -126,17 +137,52 @@ export function PageHeader({
                         </TruncatedText>
                     )}
                 </div>
-                {(primaryAction || secondaryActions) && (
-                    <PageHeaderActions
-                        primary={primaryAction}
-                        secondary={secondaryActions}
-                        fullWidthOnMobile={headingLevel === 2}
-                        overflowSecondary={overflowSecondary}
-                        secondaryOpen={secondaryOpen}
-                        onSecondaryOpenChange={onSecondaryOpenChange}
-                        secondaryActionCount={secondaryActionCount}
-                    />
-                )}
+                {(primaryAction || secondaryActions || hasActionNoteSlot) &&
+                    (hasActionNoteSlot ? (
+                        <div
+                            className={
+                                headingLevel === 1
+                                    ? 'flex min-w-0 flex-col gap-1.5 sm:max-w-[60%] sm:min-w-64 sm:shrink-0 sm:items-end'
+                                    : 'flex min-w-0 flex-col gap-1.5 md:max-w-[60%] md:min-w-64 md:shrink-0 md:items-end'
+                            }
+                        >
+                            {(primaryAction || secondaryActions) && (
+                                <PageHeaderActions
+                                    primary={primaryAction}
+                                    secondary={secondaryActions}
+                                    fullWidthOnMobile={headingLevel === 2}
+                                    overflowSecondary={overflowSecondary}
+                                    secondaryOpen={secondaryOpen}
+                                    onSecondaryOpenChange={
+                                        onSecondaryOpenChange
+                                    }
+                                    secondaryActionCount={secondaryActionCount}
+                                    className="md:ml-0 md:max-w-full"
+                                />
+                            )}
+                            <ActionNoteSlot
+                                id={actionNote.id}
+                                align={headingLevel === 1 ? 'end-sm' : 'end-md'}
+                                className={
+                                    headingLevel === 1
+                                        ? 'w-full sm:w-0 sm:min-w-full'
+                                        : 'w-full md:w-0 md:min-w-full'
+                                }
+                            >
+                                {actionNote.content}
+                            </ActionNoteSlot>
+                        </div>
+                    ) : (
+                        <PageHeaderActions
+                            primary={primaryAction}
+                            secondary={secondaryActions}
+                            fullWidthOnMobile={headingLevel === 2}
+                            overflowSecondary={overflowSecondary}
+                            secondaryOpen={secondaryOpen}
+                            onSecondaryOpenChange={onSecondaryOpenChange}
+                            secondaryActionCount={secondaryActionCount}
+                        />
+                    ))}
                 {(actions || refresh) && (
                     <div className="flex shrink-0 flex-wrap items-center gap-2 sm:ml-auto sm:max-w-[60%] sm:justify-end">
                         {refresh && (

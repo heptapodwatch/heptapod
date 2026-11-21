@@ -1,9 +1,10 @@
+import { ActionNoteSlot } from '@/components/action-note-slot';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { router, useForm } from '@inertiajs/react';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { NumberField } from '@/components/ui/number-field';
 import { Label } from '@/components/ui/label';
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { httpResponseMessage } from '@/hooks/use-http-request';
 import {
@@ -181,6 +182,7 @@ function SavedCheckSettingsSheet({
         null,
     );
     const [probeMessage, setProbeMessage] = useState<string | null>(null);
+    const probeNoteId = useId();
     const [probing, setProbing] = useState(false);
     const [saving, setSaving] = useState(false);
     const probeVersion = useRef(0);
@@ -606,43 +608,57 @@ function SavedCheckSettingsSheet({
                                     'Leave the secret unchanged to keep the stored value.',
                                 )}
                             </p>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => void testHealth()}
-                                disabled={probing || saving || form.processing}
-                            >
-                                {t(
-                                    probing
-                                        ? 'Testing health endpoint…'
-                                        : 'Test health endpoint',
-                                )}
-                            </Button>
-                            {(probeResult || probeMessage) && (
-                                <p
-                                    role="status"
-                                    aria-live="polite"
-                                    className={
-                                        probeResult?.result === 'ok'
-                                            ? 'text-[var(--status-ok)]'
-                                            : 'text-[var(--status-warn)]'
+                            <div className="space-y-1.5">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    aria-describedby={
+                                        probeMessage || probeResult
+                                            ? probeNoteId
+                                            : undefined
+                                    }
+                                    onClick={() => void testHealth()}
+                                    disabled={
+                                        probing || saving || form.processing
                                     }
                                 >
-                                    {probeMessage ??
-                                        (probeResult?.result === 'ok'
-                                            ? `${t('Health probe succeeded')} · ${probeResult.component_count} ${t('components')}`
-                                            : t(
-                                                  `health.probe.${probeResult?.result}`,
-                                              ))}
-                                </p>
-                            )}
-                            {probeResult?.result !== 'ok' && (
-                                <p className="text-muted-foreground">
                                     {t(
-                                        'Not saved yet. Test successfully before saving.',
+                                        probing
+                                            ? 'Testing health endpoint…'
+                                            : 'Test health endpoint',
                                     )}
-                                </p>
-                            )}
+                                </Button>
+                                <ActionNoteSlot id={probeNoteId}>
+                                    {probeMessage ? (
+                                        <InputError message={probeMessage} />
+                                    ) : probeResult ? (
+                                        <p
+                                            role="status"
+                                            aria-live="polite"
+                                            className={
+                                                probeResult.result === 'ok'
+                                                    ? 'text-[var(--status-ok)]'
+                                                    : 'text-[var(--status-warn)]'
+                                            }
+                                        >
+                                            {probeResult.result === 'ok'
+                                                ? `${t('Health probe succeeded')} · ${probeResult.component_count} ${t('components')}`
+                                                : t(
+                                                      `health.probe.${probeResult.result}`,
+                                                  )}
+                                        </p>
+                                    ) : null}
+                                </ActionNoteSlot>
+                                <ActionNoteSlot>
+                                    {probeResult?.result !== 'ok' && (
+                                        <p className="text-muted-foreground">
+                                            {t(
+                                                'Not saved yet. Test successfully before saving.',
+                                            )}
+                                        </p>
+                                    )}
+                                </ActionNoteSlot>
+                            </div>
                         </div>
                     )}
                 </SheetForm>

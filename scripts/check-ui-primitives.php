@@ -83,10 +83,13 @@ $rawButtonOwners = [
 ];
 /** Per file: the one error key a button action returns (no form field holds it), and why it has no field link. */
 $actionErrorKeys = [
-    'resources/js/components/incident-episode.tsx' => 'check', // Run check refused (api.run_unavailable): the header action's result.
-    'resources/js/pages/sites/settings.tsx' => 'icon', // Refresh icon refused (unavailable / throttled): the Refresh button's result.
+    'resources/js/pages/sites/settings.tsx' => 'icon', // Refresh icon refused (unavailable / throttled): rendered in ActionNoteSlot beside the Refresh button.
     'resources/js/pages/sites/create.tsx' => '_refusal', // Shared non-field Inertia refusal message from ErrorResponses::flashBack.
     'resources/js/pages/settings/security.tsx' => '_refusal', // Shared non-field Inertia refusal message from ErrorResponses::flashBack.
+];
+/** Per file: the one auth-only full-width button followed directly by its InputError (AuthLayout, not an AppLayout action row). */
+$inlineActionErrorExceptions = [
+    'resources/js/components/passkey-verify.tsx' => 'AuthLayout full-width passkey sign-in button with centered error below it.',
 ];
 /** Per file: the one destructive-coloured paragraph (keyed by a snippet of its className) that is not an inline error. Every other text-destructive <p> must be InputError. */
 $destructiveTextExceptions = [];
@@ -554,6 +557,35 @@ foreach ($files as $path) {
                 }
             }
         }
+        // Inline action notes (heptapod-ui-rules Errors and refusals): CooldownReason, RunCheckReason and refusal
+        // InputErrors belong in ActionNoteSlot (or PageHeader actionNote), never wrapped beside or inside a button row.
+        // Source-pattern limits (review-only): only primaryAction= expressions and notes placed directly after
+        // </Button> / </PageHeaderAction> are checked; notes returned from a separate helper component or separated
+        // from a button by an extra non-slot wrapper element remain review-only.
+        if (preg_match_all('~\bprimaryAction=~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
+            foreach ($matches[0] as [$text, $offset]) {
+                $value = expressionValue($source, $offset + strlen($text));
+                if (preg_match('~<(CooldownReason|RunCheckReason)\b~', $value, $note) === 1) {
+                    $failures[] = sprintf('%s:%d: %s inside primaryAction; pass action notes through PageHeader actionNote instead of wrapping header buttons', $path, substr_count($source, "\n", 0, $offset) + 1, $note[1]);
+                }
+                if (preg_match_all('~<InputError\b((?:[^<>]|=>)*?)/>~s', $value, $errMatches, PREG_SET_ORDER) > 0) {
+                    foreach ($errMatches as $errMatch) {
+                        if (preg_match('~\b(?:field|id)=~', $errMatch[1]) !== 1) {
+                            $failures[] = sprintf('%s:%d: unfielded InputError inside primaryAction; pass action refusals through PageHeader actionNote', $path, substr_count($source, "\n", 0, $offset) + 1);
+                        }
+                    }
+                }
+            }
+        }
+        if (! isset($inlineActionErrorExceptions[$path])
+            && preg_match_all('~</(?:Button|PageHeaderAction)>\s*(?:(?:\{[^{}<>]*?(?:\?\s*\(?|&&\s*\(?)\s*)*)<(CooldownReason|RunCheckReason|InputError)\b((?:[^<>]|=>)*?)/>~s', $source, $matches, PREG_OFFSET_CAPTURE | PREG_SET_ORDER) > 0) {
+            foreach ($matches as $match) {
+                if ($match[1][0] === 'InputError' && preg_match('~\b(?:field|id)=~', $match[2][0]) === 1) {
+                    continue;
+                }
+                $failures[] = sprintf('%s:%d: %s directly after an action button; render inline action notes inside ActionNoteSlot or PageHeader actionNote', $path, substr_count($source, "\n", 0, $match[0][1]) + 1, $match[1][0]);
+            }
+        }
     }
     if (str_starts_with($path, 'resources/js/pages/sites/') && str_contains($source, '<SectionTabs')) {
         $failures[] = "{$path}: local site sections; use SiteTabs for consistent check markers";
@@ -824,6 +856,11 @@ foreach ($calloutTintExceptions as $path => $reason) {
         $failures[] = "{$path}: callout-tint exception no longer exists ({$reason})";
     }
 }
+foreach ($inlineActionErrorExceptions as $path => $reason) {
+    if (! is_file($root.'/'.$path)) {
+        $failures[] = "{$path}: inline-action-error exception no longer exists ({$reason})";
+    }
+}
 foreach ($underlineAllowlist as $path => $reason) {
     if (! is_file($root.'/'.$path)) {
         $failures[] = "{$path}: allowlisted file no longer exists ({$reason})";
@@ -838,4 +875,4 @@ passthru('cd '.escapeshellarg($root).' && node scripts/check-form-selects.mjs', 
 if ($formSelectStatus !== 0) {
     exit($formSelectStatus);
 }
-printf("UI primitives: %d files checked; 0 native prompts, 0 hand-styled link underlines, 0 link hover colour changes, 0 other focus rings, 0 local filled status dots, 0 local section titles or typography overrides, 0 local display-time presets, 0 large action buttons, 0 local horizontal navigation or step progress, 0 enabled cursor overrides, 0 local row density overrides or raw tables, 0 native date/time inputs, 0 hand-tinted callouts or notices above the page header, 0 raw palette text colours, 0 local spinners, 0 irreversible confirmations without destructive, 0 native checkbox/radio/number/details/select controls or raw inputs/textareas/buttons, 0 forms with browser validation, 0 hand-rolled error lines, 0 off-token control heights, 0 arbitrary or off-scale font sizes, 0 native title tooltips, 0 local list pagers, 0 local motion, 0 local tooltip providers, 0 site headers or second layouts on incident pages, 0 multi-line picker triggers, 0 local row emphasis, 0 switch rows without a row label.\n", count($files));
+printf("UI primitives: %d files checked; 0 native prompts, 0 hand-styled link underlines, 0 link hover colour changes, 0 other focus rings, 0 local filled status dots, 0 local section titles or typography overrides, 0 local display-time presets, 0 large action buttons, 0 local horizontal navigation or step progress, 0 enabled cursor overrides, 0 local row density overrides or raw tables, 0 native date/time inputs, 0 hand-tinted callouts or notices above the page header, 0 raw palette text colours, 0 local spinners, 0 irreversible confirmations without destructive, 0 native checkbox/radio/number/details/select controls or raw inputs/textareas/buttons, 0 forms with browser validation, 0 hand-rolled error lines, 0 off-token control heights, 0 arbitrary or off-scale font sizes, 0 native title tooltips, 0 local list pagers, 0 local motion, 0 local tooltip providers, 0 site headers or second layouts on incident pages, 0 multi-line picker triggers, 0 local row emphasis, 0 switch rows without a row label, 0 inline action notes outside ActionNoteSlot.\n", count($files));
