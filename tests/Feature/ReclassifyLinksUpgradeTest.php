@@ -5,8 +5,6 @@ declare(strict_types=1);
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckResult;
-use Heptapod\Contracts\FindingReclassificationPlan;
-use Heptapod\Contracts\FindingReclassifier;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
@@ -15,6 +13,7 @@ use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\Artisan;
@@ -211,51 +210,23 @@ it('rejects an unsupported upgrade policy without changing stored data', functio
     expect(linkUpgradeSnapshot())->toBe($before);
 });
 
-it('streams reclassification one check at a time instead of retaining every plan in memory', function (): void {
+it('streams reclassification one check at a time without loading every snapshot before the first update', function (): void {
     $first = legacyLinkUpgrade();
     $second = legacyLinkUpgrade();
-    $inner = app(FindingReclassifier::class);
-    $trace = [];
-    app()->instance(FindingReclassifier::class, new class($inner, $trace) implements FindingReclassifier
-    {
-        /** @param list<string> $trace */
-        public function __construct(private readonly FindingReclassifier $inner, public array &$trace) {}
-
-        public function policyVersion(): int
-        {
-            return $this->inner->policyVersion();
-        }
-
-        public function pendingChecks(): array
-        {
-            return $this->inner->pendingChecks();
-        }
-
-        public function plan(int $checkId): ?FindingReclassificationPlan
-        {
-            $this->trace[] = 'plan:'.$checkId;
-
-            return $this->inner->plan($checkId);
-        }
-
-        public function apply(FindingReclassificationPlan $plan): void
-        {
-            $this->trace[] = 'apply:'.$plan->checkId;
-            $this->inner->apply($plan);
-        }
-
-        public function explainedByRelabeling(int $checkId, int $runId, ?array $findingIds, array $relabeledIds): bool
-        {
-            return $this->inner->explainedByRelabeling($checkId, $runId, $findingIds, $relabeledIds);
+    $milestones = [];
+    DB::listen(static function (QueryExecuted $query) use (&$milestones, $first, $second): void {
+        if (str_contains($query->sql, 'from "crawl_findings"') && ($query->bindings[0] ?? null) === $first['snapshot']) {
+            $milestones[] = 'read:first';
+        } elseif (str_contains($query->sql, 'from "crawl_findings"') && ($query->bindings[0] ?? null) === $second['snapshot']) {
+            $milestones[] = 'read:second';
+        } elseif (str_starts_with(strtolower($query->sql), 'update "crawl_snapshots"') && ($query->bindings[count($query->bindings) - 1] ?? null) === $first['snapshot']) {
+            $milestones[] = 'update:first';
+        } elseif (str_starts_with(strtolower($query->sql), 'update "crawl_snapshots"') && ($query->bindings[count($query->bindings) - 1] ?? null) === $second['snapshot']) {
+            $milestones[] = 'update:second';
         }
     });
 
     $this->artisan('heptapod:reclassify-links', ['--policy' => '1', '--no-interaction' => true])->assertSuccessful();
 
-    expect($trace)->toBe([
-        'plan:'.$first['check']->id,
-        'apply:'.$first['check']->id,
-        'plan:'.$second['check']->id,
-        'apply:'.$second['check']->id,
-    ]);
+    expect($milestones)->toBe(['read:first', 'update:first', 'read:second', 'update:second']);
 });

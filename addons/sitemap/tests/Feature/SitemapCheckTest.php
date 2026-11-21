@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Carbon\CarbonImmutable;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Uri as PsrUri;
+use Heptapod\Addons\Sitemap\SitemapCheck;
 use Heptapod\Addons\Sitemap\SitemapPersistence;
 use Heptapod\Checks\CheckRunPresentations;
 use Heptapod\Checks\Execution\ClaimService;
@@ -95,9 +96,11 @@ function sitemapXml(array $urls, bool $index = false): string
     return '<'.$root.' xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'.implode('', array_map(static fn (string $url): string => '<'.$tag.'><loc>'.htmlspecialchars($url, ENT_XML1).'</loc></'.$tag.'>', $urls)).'</'.$root.'>';
 }
 
-function sitemapRequest(string $path = '/sitemap.xml', string $method = 'GET', bool $operator = true, int $maxBytes = 2097152): FetchRequest
+function sitemapRequest(string $path = '/sitemap.xml', string $method = 'GET', bool $operator = true, ?int $maxBytes = null): FetchRequest
 {
-    return sitemapLibraryRequest(new FetchRequest('http://fixtures.test'.$path, $method, maxWireBytes: $maxBytes, maxDecodedBytes: $maxBytes,
+    $bytes = $maxBytes ?? (! $operator && ! str_ends_with($path, '.xml') ? SitemapCheck::MaxReachabilityProbeBytes : 2097152);
+
+    return sitemapLibraryRequest(new FetchRequest('http://fixtures.test'.$path, $method, maxWireBytes: $bytes, maxDecodedBytes: $bytes,
         redirects: $operator ? RedirectPolicy::Operator : RedirectPolicy::Untrusted, siteHost: 'fixtures.test', timeoutSeconds: 10.0, acceptedStatuses: range(200, 599)));
 }
 
@@ -160,7 +163,7 @@ it('passes crawler headers only for the trusted site host and treats external ch
         new FetchResult(200, sitemapXml(['http://external.fixtures.test/child.xml'], true)))
         ->respondWith(sitemapLibraryRequest(new FetchRequest('http://external.fixtures.test/child.xml', maxWireBytes: 2097152, maxDecodedBytes: 2097152,
             redirects: RedirectPolicy::Untrusted, siteHost: 'fixtures.test', timeoutSeconds: 10.0, acceptedStatuses: range(200, 599))), new FetchResult(200, sitemapXml(['http://external.fixtures.test/page'])))
-        ->respondWith(sitemapLibraryRequest(new FetchRequest('http://external.fixtures.test/page', 'HEAD', maxWireBytes: 2097152, maxDecodedBytes: 2097152,
+        ->respondWith(sitemapLibraryRequest(new FetchRequest('http://external.fixtures.test/page', 'HEAD', maxWireBytes: SitemapCheck::MaxReachabilityProbeBytes, maxDecodedBytes: SitemapCheck::MaxReachabilityProbeBytes,
             redirects: RedirectPolicy::Untrusted, siteHost: 'fixtures.test', timeoutSeconds: 10.0, acceptedStatuses: range(200, 599))), new FetchResult(200));
     app()->instance(OutboundHttp::class, $fake);
     $context = sitemapContext();
@@ -1450,8 +1453,7 @@ it('strips legacy sitemap queries on exact complete URLs at write time without c
         ->and($run->evidence['issues'][0]['url'])->toBe($nestedUrl);
 });
 
-it('enforces cumulative sitemap byte limits and bounds sitemap change event diffs', function (): void {
-    // 1) Cumulative URL byte budget stops multi-sitemap amplification with sitemap.issue.size_limit.
+it('enforces cumulative sitemap URL byte limits across child sitemaps', function (): void {
     $context = sitemapContext(['speed' => 'fastest', 'urls_per_run' => '0']);
     $longPath = str_repeat('a', 1900);
     $childUrls = array_map(static fn (int $child): string => 'http://fixtures.test/child-'.$child.'.xml', range(1, 20));
@@ -1477,6 +1479,55 @@ it('enforces cumulative sitemap byte limits and bounds sitemap change event diff
     expect($limitedRun->result)->toBe(RunResult::Failed)
         ->and(array_column($limitedRun->evidence['issues'], 'type'))->toContain('sitemap.issue.size_limit')
         ->and(count($fake->requests))->toBeLessThan(count($childUrls) + 1);
+});
+
+it('enforces cumulative sitemap XML byte limits across child sitemaps', function (): void {
+    // 12 child sitemaps of ~1.6 MiB XML each (~19.2 MiB total) exceed the 16 MiB cumulative XML budget before all 12 are parsed.
+    $context = sitemapContext(['speed' => 'fastest', 'urls_per_run' => '0']);
+    $childUrls = array_map(static fn (int $child): string => 'http://fixtures.test/xml-'.$child.'.xml', range(1, 12));
+    $indexXml = '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        .implode('', array_map(static fn (string $url): string => '<sitemap><loc>'.$url.'</loc></sitemap>', $childUrls))
+        .'</sitemapindex>';
+    $padding = '<!-- '.str_repeat('x', 1_600_000).' -->';
+    $fake = (new FakeOutboundHttp)->respondUsing(static function (FetchRequest $request) use ($indexXml, $padding): FetchResult {
+        if ($request->url === 'http://fixtures.test/sitemap.xml') {
+            return new FetchResult(200, $indexXml);
+        }
+
+        return new FetchResult(200, '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'.$padding.'<url><loc>http://fixtures.test/ok</loc></url></urlset>');
+    });
+    app()->instance(OutboundHttp::class, $fake);
+
+    $xmlLimitedRun = runSitemap($context);
+
+    expect($xmlLimitedRun->result)->toBe(RunResult::Failed)
+        ->and(array_column($xmlLimitedRun->evidence['issues'], 'type'))->toContain('sitemap.issue.size_limit')
+        ->and(count($fake->requests))->toBeLessThan(count($childUrls) + 1);
+});
+
+it('bounds reachability HEAD and fallback GET probe byte requests separately from XML', function (): void {
+    $probeContext = sitemapContext(['speed' => 'fastest', 'urls_per_run' => '100']);
+    $probeFake = (new FakeOutboundHttp)->respondUsing(static function (FetchRequest $request): FetchResult {
+        if (str_ends_with($request->url, '/sitemap.xml')) {
+            return new FetchResult(200, sitemapXml(['http://fixtures.test/large-page']));
+        }
+        if ($request->method === 'HEAD') {
+            return new FetchResult(405, failure: new FetchFailure(FetchFailureKind::HttpStatus, 405));
+        }
+
+        return new FetchResult(200, str_repeat('a', 200_000));
+    });
+    app()->instance(OutboundHttp::class, $probeFake);
+
+    $probeRun = runSitemap($probeContext);
+
+    expect($probeRun->result)->toBe(RunResult::Succeeded);
+    $probeRequests = array_values(array_filter($probeFake->requests, static fn (array $entry): bool => str_ends_with($entry['request']->url, '/large-page')));
+    expect($probeRequests)->toHaveCount(2);
+    foreach ($probeRequests as $entry) {
+        expect($entry['request']->maxWireBytes)->toBe(SitemapCheck::MaxReachabilityProbeBytes)
+            ->and($entry['request']->maxDecodedBytes)->toBe(SitemapCheck::MaxReachabilityProbeBytes);
+    }
 });
 
 it('bounds sitemap change event diffs when many issues appear at once', function (): void {

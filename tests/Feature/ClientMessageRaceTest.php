@@ -118,19 +118,26 @@ it('turns two concurrent sends with the same key into one message and one replay
 
 it('leaves no orphan attachment files when concurrent sends race on the same key or last quota slot', function (): void {
     $before = Storage::disk(SendClientMessage::Disk)->files(SendClientMessage::Directory);
-    $fixture = clientMessageRaceFixture(alreadySent: 9);
+    $fixture = clientMessageRaceFixture(alreadySent: 8);
     $payload = [...$fixture['payload'], 'attach' => true];
     try {
-        // Same-key race with attachment: 1 created, 1 replayed, exactly 1 attachment file on disk.
+        // 1) Same-key race with attachment (slot 9 of 10): 1 created, 1 replayed, exactly 1 attachment file on disk.
         $sameKeyOutputs = clientMessageRace($fixture['client'],
             clientMessageRaceProcess($fixture['owner'], $fixture['client'], $payload, 'attach-same'),
             clientMessageRaceProcess($fixture['owner'], $fixture['client'], $payload, 'attach-same'));
-        $created = (int) substr($sameKeyOutputs[0], strlen('created:'));
-        expect($sameKeyOutputs[0])->toStartWith('created:')->and($sameKeyOutputs[1])->toBe('replayed:'.$created);
+        $sameKeyCreated = (int) substr($sameKeyOutputs[0], strlen('created:'));
+        expect($sameKeyOutputs[0])->toStartWith('created:')->and($sameKeyOutputs[1])->toBe('replayed:'.$sameKeyCreated);
+
+        // 2) Distinct-key last-quota-slot race with attachment (slot 10 of 10): 1 created, 1 refused 429, zero orphans.
+        $quotaOutputs = clientMessageRace($fixture['client'],
+            clientMessageRaceProcess($fixture['owner'], $fixture['client'], $payload, 'attach-quota-a'),
+            clientMessageRaceProcess($fixture['owner'], $fixture['client'], $payload, 'attach-quota-b'));
+        $quotaCreated = (int) substr($quotaOutputs[0], strlen('created:'));
+        expect($quotaOutputs[0])->toStartWith('created:')->and($quotaOutputs[1])->toBe('http:429');
 
         $afterFiles = array_values(array_diff(Storage::disk(SendClientMessage::Disk)->files(SendClientMessage::Directory), $before));
-        $committedPaths = DB::table('client_message_attachments')->where('event_id', $created)->pluck('path')->all();
-        expect($afterFiles)->toEqualCanonicalizing($committedPaths);
+        $committedPaths = DB::table('client_message_attachments')->whereIn('event_id', [$sameKeyCreated, $quotaCreated])->pluck('path')->all();
+        expect($afterFiles)->toHaveCount(2)->toEqualCanonicalizing($committedPaths);
     } finally {
         $leftovers = array_diff(Storage::disk(SendClientMessage::Disk)->files(SendClientMessage::Directory), $before);
         foreach ($leftovers as $path) {

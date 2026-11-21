@@ -17,6 +17,7 @@ use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
 use Heptapod\Models\MaintenancePeriod;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 
@@ -24,6 +25,9 @@ final readonly class EmitMaintenanceCatchUps
 {
     /** Maximum ended maintenance windows processed per pass. */
     public const int Batch = 20;
+
+    /** Maximum unprocessed sites locked and emitted per maintenance window transaction. */
+    public const int SitesPerWindow = 50;
 
     public function __construct(private NotificationRecipients $routing, private NotificationSuppression $suppression, private HandleDeferredUptimeOpening $deferredOpenings) {}
 
@@ -64,24 +68,43 @@ final readonly class EmitMaintenanceCatchUps
             ->orderBy('ends_at')->limit(self::Batch + 1);
         $windows = $candidates->get();
         $hasMore = $windows->count() > self::Batch;
+        $windowHasMore = false;
         foreach ($windows->take(self::Batch) as $candidate) {
-            DB::transaction(function () use ($candidate, $at): void {
+            $partial = DB::transaction(function () use ($candidate, $at): bool {
                 // NotificationLocks: the window (exclusive, so the recorder cannot open an incident in it meanwhile), the
                 // checks the catch-up events refer to, then the open incidents. No site lock: the inserts below only take
                 // the site's key.
                 NotificationLocks::maintenanceWindows([$candidate->id], exclusive: true);
                 $window = MaintenancePeriod::query()->findOrFail($candidate->id);
                 if ($window->catch_up_processed_at !== null) {
-                    return;
+                    return false;
                 }
-                $open = Incident::query()->with(['check', 'site']);
-                $open->getQuery()->where('opened_during_maintenance_window_id', $window->id)
-                    ->whereNull('resolved_at')->orderBy('site_id')->orderBy('id');
-                $openIds = (clone $open)->get(['id', 'check_id']);
-                NotificationLocks::checks($openIds->pluck('check_id'));
-                NotificationLocks::incidents($openIds->pluck('id'));
-                $incidents = $open->get();
-                $remaining = false;
+                /** @var list<int> $candidateSiteIds */
+                $candidateSiteIds = DB::table('incidents')
+                    ->where('opened_during_maintenance_window_id', $window->id)
+                    ->whereNull('resolved_at')
+                    ->whereNotExists(static fn (QueryBuilder $processed): QueryBuilder => $processed
+                        ->selectRaw('1')->from('maintenance_catch_up_sites')
+                        ->where('maintenance_catch_up_sites.maintenance_period_id', $window->id)
+                        ->whereColumn('maintenance_catch_up_sites.site_id', 'incidents.site_id'))
+                    ->distinct()->orderBy('site_id')->limit(self::SitesPerWindow + 1)
+                    ->pluck('site_id')->all();
+                $moreSites = count($candidateSiteIds) > self::SitesPerWindow;
+                $batchSiteIds = array_slice($candidateSiteIds, 0, self::SitesPerWindow);
+                /** @var Collection<int, Incident> $incidents */
+                $incidents = new Collection;
+                if ($batchSiteIds !== []) {
+                    $open = Incident::query()->with(['check', 'site']);
+                    $open->getQuery()->where('opened_during_maintenance_window_id', $window->id)
+                        ->whereNull('resolved_at')->whereIn('site_id', $batchSiteIds)
+                        ->orderBy('site_id')->orderBy('id');
+                    $openIds = (clone $open)->get(['id', 'check_id']);
+                    NotificationLocks::checks($openIds->pluck('check_id'));
+                    NotificationLocks::incidents($openIds->pluck('id'));
+                    $incidents = $open->get();
+                }
+                $remaining = $moreSites;
+                $progressed = false;
                 foreach ($incidents->groupBy('site_id') as $siteIncidents) {
                     $first = $siteIncidents->first();
                     if ($first === null) {
@@ -149,20 +172,29 @@ final readonly class EmitMaintenanceCatchUps
                         $this->admit($window, (string) $recipientKey, $recipientId, $opening, $items, $recipient['route'], $at);
                     }
                     DB::table('maintenance_catch_up_sites')->insert(['maintenance_period_id' => $window->id, 'site_id' => $siteId]);
+                    $progressed = true;
                     if ($left !== null) {
                         DB::table('maintenance_site_exclusions')->where('id', $left->id)->update(['catch_up_processed_at' => $at]);
                     }
                 }
-                DB::table('maintenance_site_exclusions')->where('maintenance_period_id', $window->id)
-                    ->where('left_at', '<=', $at->format('Y-m-d H:i:s.uP'))->whereNull('catch_up_processed_at')
-                    ->whereNotIn('site_id', $incidents->pluck('site_id')->all())->update(['catch_up_processed_at' => $at]);
-                if (! $remaining && $window->ends_at->lessThanOrEqualTo($at)) {
-                    $window->update(['catch_up_processed_at' => $at]);
+                if (! $moreSites) {
+                    DB::table('maintenance_site_exclusions')->where('maintenance_period_id', $window->id)
+                        ->where('left_at', '<=', $at->format('Y-m-d H:i:s.uP'))->whereNull('catch_up_processed_at')
+                        ->whereNotIn('site_id', $incidents->pluck('site_id')->all())->update(['catch_up_processed_at' => $at]);
+                    if (! $remaining && $window->ends_at->lessThanOrEqualTo($at)) {
+                        $window->update(['catch_up_processed_at' => $at]);
+                    }
                 }
+
+                return $moreSites && $progressed;
             });
+            if ($partial) {
+                $windowHasMore = true;
+                break;
+            }
         }
 
-        return $hasMore;
+        return $hasMore || $windowHasMore;
     }
 
     /** Called by active-episode reconciliation with the site locked; recorder suppression remains unchanged. */

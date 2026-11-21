@@ -36,7 +36,7 @@ final class DispatchNotifications implements ShouldBeUniqueUntilProcessing, Shou
 
     public const int Batch = 100;
 
-    public function __construct()
+    public function __construct(public readonly bool $continuation = false)
     {
         $this->onQueue('notifications');
     }
@@ -108,23 +108,23 @@ final class DispatchNotifications implements ShouldBeUniqueUntilProcessing, Shou
             $isolated(fn () => $plan->reconcileActiveEpisode($incident->id));
         }
         $catchUpsMore = $isolated($catchUps) === true;
-        $remindersMore = $isolated($reminders) === true;
+        $remindersMore = $isolated(fn (): bool => $reminders($this->continuation)) === true;
         $events = Event::query();
         $events->getQuery()->whereNull('notification_routed_at')->orderBy('id')->limit(self::Batch);
         $unrouted = $events->get(['id']);
         foreach ($unrouted as $event) {
             $isolated(fn () => $plan($event->id));
         }
-        $digestsMore = $isolated($digests) === true;
+        $digestsMore = $isolated(fn (): bool => $digests($this->continuation)) === true;
         $dispatchDue();
 
         if ($failure instanceof Throwable) {
             throw $failure;
         }
-        // A full batch or bounded housekeeping backlog continues at once; the follow-up queues behind the sends above.
+        // A full batch or bounded housekeeping backlog continues at once; continuation passes resume only active sweeps.
         if ($catchUpsMore || $remindersMore || $digestsMore
             || in_array(self::Batch, [$incidents->count(), $unrouted->count(), count($dispatchedIds)], true)) {
-            self::dispatch();
+            self::dispatch(continuation: true);
         }
     }
 }

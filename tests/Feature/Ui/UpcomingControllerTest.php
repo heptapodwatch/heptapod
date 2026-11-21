@@ -207,3 +207,23 @@ it('keeps standalone maintenance pages disjoint when equal start times cross dig
         ->and(array_intersect($page1, $page2))->toBe([])
         ->and(array_unique([...$page1, ...$page2]))->toHaveCount(15);
 });
+
+it('caps deep upcoming page requests at the server ceiling without scanning unbounded cron tasks', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-04T00:30:00Z'));
+    $owner = User::factory()->owner()->create();
+    $site = Site::factory()->create();
+    $cron = Check::factory()->for($site)->create(['type' => CheckKey::Cron]);
+    $tasks = app(CronTaskStore::class);
+    $tasks->create($cron->id, ['name' => 'Weekly job', 'type' => 'simple', 'frequency_in_minutes' => 10080]);
+
+    $this->actingAs($owner);
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+    $response = $this->get('/upcoming?type=task&per_page=100&page=1000')->assertOk();
+    $queries = DB::getQueryLog();
+    DB::disableQueryLog();
+
+    expect($response->inertiaProps()['items'])->toBe([])
+        ->and($response->inertiaProps()['next_page_url'])->toBeNull();
+    expect(array_filter($queries, static fn (array $q): bool => str_contains($q['query'], 'cron_checks')))->toBe([]);
+});

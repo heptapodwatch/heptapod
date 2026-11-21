@@ -28,19 +28,28 @@ final readonly class EmitNotificationDigests
     /** Maximum digest destinations inspected per pass so digest scans cannot starve immediate alert delivery. */
     public const int Batch = 100;
 
+    /** Maximum digest source rows locked and evaluated for one destination in a single pass. */
+    public const int SourcesPerDestination = 500;
+
     /** Maximum archived digest source rows suppressed per pass. */
     public const int ArchivedBatch = 100;
 
     private const string CursorCacheKey = 'heptapod:notifications:digests_after_id';
 
+    private const string ArchivedMoreCacheKey = 'heptapod:notifications:digests_archived_more';
+
     public function __construct(private NotificationSuppression $suppression, private NotificationTiming $timing,
         private NotificationEventTypes $types) {}
 
     /** @return bool whether more digest work remains after this bounded pass */
-    public function __invoke(): bool
+    public function __invoke(bool $continuation = false): bool
     {
-        $archivedMore = $this->suppressArchivedSources();
+        $archivedMore = (! $continuation || Cache::get(self::ArchivedMoreCacheKey) === true)
+            && $this->suppressArchivedSources();
         $after = Cache::get(self::CursorCacheKey);
+        if ($continuation && ! is_int($after)) {
+            return $archivedMore;
+        }
         $afterId = is_int($after) ? $after : 0;
         $destinations = NotificationDestination::query()->where('enabled', true)
             ->whereHas('deliveries', function (Builder $query): void {
@@ -51,15 +60,17 @@ final readonly class EmitNotificationDigests
             ->where('notification_destinations.id', '>', $afterId)->orderBy('notification_destinations.id')
             ->limit(self::Batch + 1);
         $candidates = $destinations->get();
-        $hasMore = $candidates->count() > self::Batch;
+        $hasMoreDestinations = $candidates->count() > self::Batch;
         $page = $candidates->take(self::Batch);
+        $destinationHasMore = false;
+        $resumeCursor = null;
         foreach ($page as $candidate) {
-            DB::transaction(function () use ($candidate): void {
+            $partial = DB::transaction(function () use ($candidate): bool {
                 // NotificationLocks: this channel, then its source deliveries in ascending id (below).
                 NotificationLocks::channels([$candidate->id]);
                 $destination = NotificationDestination::query()->findOrFail($candidate->id);
                 if ($destination->removed_at !== null) {
-                    return;
+                    return false;
                 }
                 $schedule = NotificationSchedule::forChannel($destination);
                 $timezone = $schedule->timezone();
@@ -69,16 +80,22 @@ final readonly class EmitNotificationDigests
                 $weekdays = $schedule->effectiveDigestWeekdays();
                 if ($weekdays !== null && ! in_array($local->dayOfWeekIso, $weekdays, true)) {
                     $remaining = Delivery::recurringDigest()->where('destination_id', $destination->id)->where('state', DeliveryState::Pending->value);
-                    $remaining->getQuery()->whereNull('digest_event_id')->where('next_attempt_at', '<=', $at);
-                    /** @var list<int> $eventIds */
-                    $eventIds = $remaining->pluck('event_id')->all();
-                    $remaining->getQuery()->update(['next_attempt_at' => $this->timing->nextDailyDigest($at, $weekdays, $schedule->digest_time, $timezone)]);
-                    Delivery::announceEvents($eventIds);
+                    $remaining->getQuery()->whereNull('digest_event_id')->where('next_attempt_at', '<=', $at)->orderBy('id')->limit(self::SourcesPerDestination + 1);
+                    $batch = $remaining->get(['id', 'event_id']);
+                    $more = $batch->count() > self::SourcesPerDestination;
+                    $slice = $batch->take(self::SourcesPerDestination);
+                    $ids = $slice->pluck('id')->all();
+                    if ($ids !== []) {
+                        /** @var list<int> $eventIds */
+                        $eventIds = $slice->pluck('event_id')->all();
+                        DB::table('deliveries')->whereIn('id', $ids)->update(['next_attempt_at' => $this->timing->nextDailyDigest($at, $weekdays, $schedule->digest_time, $timezone)]);
+                        Delivery::announceEvents($eventIds);
+                    }
 
-                    return;
+                    return $more;
                 }
                 if ($at->lessThan($this->timing->nextDailyDigest($local->startOfDay()->subSecond(), $weekdays, $schedule->digest_time, $timezone))) {
-                    return;
+                    return false;
                 }
                 $query = Delivery::recurringDigest()->with(['event.site', 'event.check', 'event.incident'])->where('destination_id', $destination->id)
                     ->where(function (Builder $query) use ($date): void {
@@ -92,19 +109,23 @@ final readonly class EmitNotificationDigests
                             $sent->where('state', DeliveryState::Sent->value)->where('sent_at', '<', $local->startOfDay()->utc()->format('Y-m-d H:i:s.uP'));
                         });
                     });
-                NotificationLocks::forUpdate($query->getQuery()->orderBy('id'));
-                $sources = $query->get();
+                NotificationLocks::forUpdate($query->getQuery()->orderBy('id')->limit(self::SourcesPerDestination + 1));
+                $fetched = $query->get();
+                $more = $fetched->count() > self::SourcesPerDestination;
+                $sources = $fetched->take(self::SourcesPerDestination);
                 if ($sources->isEmpty()) {
-                    return;
+                    return false;
                 }
                 $included = [];
                 $sites = [];
                 $recipient = $destination->user_id === null ? null : User::query()->findOrFail($destination->user_id);
+                $progressed = false;
                 foreach ($sources as $source) {
                     $event = $source->event ?? throw new \LogicException('Digest source event is missing.');
                     if ($event->site_id === null || $event->check_id === null) {
                         if ($source->state === DeliveryState::Pending) {
                             $source->update(['suppressed' => true, 'suppression_reason' => $event->site_id === null ? 'site_deleted' : 'monitoring_stopped', 'suppression_evaluated_at' => $at]);
+                            $progressed = true;
                         }
 
                         continue;
@@ -118,6 +139,7 @@ final readonly class EmitNotificationDigests
                     if ($confirmation === AlertConfirmation::Refuted) {
                         $source->update(['suppressed' => true, 'suppression_reason' => AlertConfirmation::SuppressionReason, 'suppression_evaluated_at' => $at]);
                         $source->announceChanges();
+                        $progressed = true;
 
                         continue;
                     }
@@ -133,6 +155,7 @@ final readonly class EmitNotificationDigests
                         if ($source->state === DeliveryState::Pending) {
                             $source->update(['suppressed' => true, 'suppression_reason' => 'personal_site_access_revoked', 'suppression_evaluated_at' => $at]);
                             $source->announceChanges();
+                            $progressed = true;
                         }
 
                         continue;
@@ -142,6 +165,7 @@ final readonly class EmitNotificationDigests
                             $source->update(['suppressed' => true, 'suppression_reason' => $decision->suppressed ? $decision->reason : 'digest_no_longer_open',
                                 'suppression_evaluated_at' => $decision->evaluatedAt]);
                             $source->announceChanges();
+                            $progressed = true;
                         }
                     } else {
                         $included[] = $source->id;
@@ -149,7 +173,7 @@ final readonly class EmitNotificationDigests
                     }
                 }
                 if ($included === []) {
-                    return;
+                    return $more && $progressed;
                 }
                 $shown = array_map(static fn (string $label): string => mb_strlen($label, 'UTF-8') > 80
                     ? mb_substr($label, 0, 79, 'UTF-8').'…' : $label, array_slice(array_values($sites), 0, 20));
@@ -164,13 +188,19 @@ final readonly class EmitNotificationDigests
                 Delivery::query()->create(['event_id' => $digest->id, 'destination_id' => $destination->id,
                     'next_attempt_at' => $at, 'suppression_evaluated_at' => $at, 'digest_local_date' => $date,
                     'digest_slot_at' => $at->startOfMinute()]);
+
+                return $more;
             });
-        }
-        if ($hasMore) {
-            $last = $page->last();
-            if ($last instanceof NotificationDestination) {
-                Cache::put(self::CursorCacheKey, $last->id, 3600);
+            if ($partial) {
+                $destinationHasMore = true;
+                $resumeCursor = max(0, $candidate->id - 1);
+                break;
             }
+            $resumeCursor = $candidate->id;
+        }
+        $hasMore = $destinationHasMore || $hasMoreDestinations;
+        if ($hasMore && $resumeCursor !== null) {
+            Cache::put(self::CursorCacheKey, $resumeCursor, 3600);
         } else {
             Cache::forget(self::CursorCacheKey);
         }
@@ -191,6 +221,11 @@ final readonly class EmitNotificationDigests
             $reason = $source->destination?->removed_reason === 'recipient_deleted' ? 'recipient_deleted' : 'destination_archived';
             $source->update(['suppressed' => true, 'suppression_reason' => $reason, 'suppression_evaluated_at' => CarbonImmutable::now('UTC')]);
             $source->announceChanges();
+        }
+        if ($hasMore) {
+            Cache::put(self::ArchivedMoreCacheKey, true, 3600);
+        } else {
+            Cache::forget(self::ArchivedMoreCacheKey);
         }
 
         return $hasMore;

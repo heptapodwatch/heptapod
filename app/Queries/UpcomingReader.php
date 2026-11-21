@@ -25,6 +25,9 @@ use Illuminate\Support\Facades\DB;
 /** @phpstan-type SiteRow \stdClass&object{id: int, client_id: int, url: string, friendly_name: string|null, client_name: string, icon_hash: string|null, icon_backing: value-of<SiteIconBacking>} */
 final readonly class UpcomingReader
 {
+    /** Upper bound on occurrences materialized by a single agenda read so deep page numbers cannot exhaust memory. */
+    public const int MaxItems = 2000;
+
     public function __construct(private SitesReader $sites, private MaintenanceOccurrences $occurrences, private MaintenanceReader $maintenance, private MaintenanceTargets $targets) {}
 
     /** @return EloquentBuilder<MaintenancePeriod> */
@@ -50,11 +53,12 @@ final readonly class UpcomingReader
 
     /**
      * @param  list<string>|null  $types  null reads every type
-     * @param  int|null  $limit  the first dates only; null reads every date of the window (the agenda pages them)
+     * @param  int|null  $limit  the first dates only, clamped to {@see self::MaxItems}
      * @return list<UpcomingItemData>
      */
     public function read(User $user, int $days = 90, ?array $types = null, ?int $clientId = null, ?int $siteId = null, ?int $limit = 100): array
     {
+        $effectiveLimit = $limit === null ? self::MaxItems : max(1, min($limit, self::MaxItems));
         $now = CarbonImmutable::now('UTC');
         $through = $now->addDays($days);
         $visibleIds = $this->sites->visibleSiteIds($user);
@@ -77,7 +81,7 @@ final readonly class UpcomingReader
             }
             $this->targets->withSiteCount($maintenanceQuery, $now);
             // Match the final merge's (date, key) string order so expanding limit for page 2 never reorders page 1.
-            $maintenanceQuery->getQuery()->orderBy('starts_at')->orderByRaw('(\'maintenance:\' || id::text) COLLATE "C"')->when($limit !== null, static fn (Builder $query): Builder => $query->limit($limit ?? 0));
+            $maintenanceQuery->getQuery()->orderBy('starts_at')->orderByRaw('(\'maintenance:\' || id::text) COLLATE "C"')->limit($effectiveLimit);
             $windows = $maintenanceQuery->get();
             $recurringQuery = RecurringMaintenancePeriod::query();
             $this->maintenance->visibleTargets($recurringQuery, $user, $clientId);
@@ -94,13 +98,13 @@ final readonly class UpcomingReader
                 $taken = 0;
                 foreach ($this->recurringDates($period, $now, $through) as [$start]) {
                     $items[] = $this->maintenanceItem($period, $start, 'recurring:'.$period->id.':'.$start->timestamp, $labels, $icons);
-                    if ($limit !== null && ++$taken >= $limit) {
+                    if (++$taken >= $effectiveLimit) {
                         break;
                     }
                 }
-                if ($limit !== null && count($items) > 2 * $limit) {
+                if (count($items) > 2 * $effectiveLimit) {
                     usort($items, static fn (UpcomingItemData $a, UpcomingItemData $b): int => [$a->date, $a->key] <=> [$b->date, $b->key]);
-                    $items = array_slice($items, 0, $limit);
+                    $items = array_slice($items, 0, $effectiveLimit);
                 }
             }
         }
@@ -114,9 +118,7 @@ final readonly class UpcomingReader
                 if (! $source instanceof UpcomingEventSource) {
                     throw new \LogicException('Upcoming source must implement its contract.');
                 }
-                $occurrences = $limit === null
-                    ? $source->read($checkIds, $now, $through)
-                    : $source->page($checkIds, $now, $through, null, $limit)->occurrences;
+                $occurrences = $source->page($checkIds, $now, $through, null, $effectiveLimit)->occurrences;
                 foreach ($occurrences as $occurrence) {
                     if ($types !== null && ! in_array($occurrence->type, $types, true)) {
                         continue;
@@ -130,7 +132,7 @@ final readonly class UpcomingReader
         }
         usort($items, static fn (UpcomingItemData $a, UpcomingItemData $b): int => [$a->date, $a->key] <=> [$b->date, $b->key]);
 
-        return $limit === null ? $items : array_slice($items, 0, $limit);
+        return array_slice($items, 0, $effectiveLimit);
     }
 
     /**

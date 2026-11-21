@@ -35,7 +35,7 @@ final readonly class EmitIncidentReminders
     public function __construct(private EventOutbox $outbox, private CheckRegistry $registry) {}
 
     /** @return bool whether more open incidents remain after this bounded batch */
-    public function __invoke(): bool
+    public function __invoke(bool $continuation = false): bool
     {
         $standard = config('notifications.renotify_intervals_seconds');
         if ($standard === null) {
@@ -50,6 +50,9 @@ final readonly class EmitIncidentReminders
             }
         }
         $after = Cache::get(self::CursorCacheKey);
+        if ($continuation && ! is_int($after)) {
+            return false;
+        }
         $afterId = is_int($after) ? $after : 0;
         $query = Incident::query();
         $query->whereHas('check', static fn (Builder $checks): Builder => $checks->where('type', CheckKey::Uptime));

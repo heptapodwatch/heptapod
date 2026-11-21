@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Addons\Dns\DnsCheck;
 use Heptapod\Addons\Dns\DnsPersistence;
 use Heptapod\Addons\Dns\DnsResolverStatusException;
 use Heptapod\Addons\Dns\ResetDnsBaseline;
@@ -784,4 +785,27 @@ it('rejects excessive authoritative nameserver fan-out and bounds DNS change eve
     expect($event->payload['truncated'] ?? false)->toBeTrue()
         ->and(count($event->payload['changes']['TXT']['added']))->toBeLessThanOrEqual(100)
         ->and($event->payload['changes']['TXT']['added_count'])->toBe(130);
+});
+
+it('charges authoritative lookup replies at lookup time before retaining oversized raw output', function (): void {
+    $fake = new FakeDnsResolver;
+    app()->instance(DnsResolver::class, $fake);
+    $check = dnsCheck();
+    $servers = array_map(
+        static fn (int $index): array => ['host' => 'example.com', 'ttl' => 300, 'class' => 'IN', 'type' => 'NS', 'target' => sprintf('ns%02d.example.com', $index)],
+        range(1, 4),
+    );
+    $hugeRaw = [str_repeat('x', 300_000)];
+    $fake->respondWith('example.com', 'NS', new DnsLookupResult($servers, ['ns'], null));
+    foreach ($servers as $server) {
+        foreach (DnsCheck::Types as $type) {
+            $answer = $type === 'A' ? [dnsA()] : ($type === 'NS' ? $servers : []);
+            $fake->respondWith('example.com', $type, new DnsLookupResult($answer, $hugeRaw, $server['target']), $server['target']);
+        }
+    }
+
+    $run = dnsRun($check);
+
+    expect($run->result)->toBe(RunResult::Errored)
+        ->and($run->summary)->toBe('dns.response_limit_exceeded');
 });

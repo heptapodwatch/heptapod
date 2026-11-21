@@ -210,8 +210,9 @@ final readonly class SendClientMessage
                 hash_update_stream($digest, $file);
                 rewind($file);
                 $disk = Storage::disk(self::Disk);
-                $disk->writeStream($path, $file);
+                // Register rollback cleanup before writing so a partial write failure leaves no orphan file.
                 DB::afterRollBack(static fn () => Storage::disk(self::Disk)->delete($path));
+                $disk->writeStream($path, $file);
                 fclose($file);
                 $file = null;
                 $handle = fopen($disk->path($path), 'r');

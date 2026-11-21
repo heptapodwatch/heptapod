@@ -67,6 +67,12 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
     /** Per-document issue preview kept inside sitemapIndexes/sitemaps entries; full issues stay in the top-level list. */
     private const int MaxPerDocumentIssues = 5;
 
+    /** Reachability probes only need status, headers and bot-block prefix (16 KiB); 64 KiB bounds transfer memory separately from XML. */
+    public const int MaxReachabilityProbeBytes = 64 * 1024;
+
+    /** Maximum concurrent reachability probes accumulated in one batch before discarding bodies. */
+    private const int MaxReachabilityBatchSize = 100;
+
     public function __construct(private OutboundHttp $http, private SitemapPersistence $store, private SitemapDocumentReader $documents) {}
 
     public function configAttentionReason(#[\SensitiveParameter] array $config): ?string
@@ -544,15 +550,16 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
                     break;
                 }
                 $batchStarted = CarbonImmutable::now();
+                $probeMaxBytes = min($limits['max_xml_bytes'], self::MaxReachabilityProbeBytes);
                 $pending = [];
                 foreach ($batch as $target) {
-                    $pending[$target] = $this->request($context, 'HEAD', $target, $limits['max_xml_bytes']);
+                    $pending[$target] = $this->request($context, 'HEAD', $target, $probeMaxBytes);
                 }
                 $results = $this->fetchBatches($client, $pending);
                 $fallback = [];
                 foreach ($results as $target => $result) {
                     if ($result?->failure?->kind === FetchFailureKind::HttpStatus) {
-                        $fallback[$target] = $this->request($context, 'GET', $target, $limits['max_xml_bytes']);
+                        $fallback[$target] = $this->request($context, 'GET', $target, $probeMaxBytes);
                     }
                 }
                 $results = array_replace($results, $this->fetchBatches($client, $fallback));
@@ -731,7 +738,8 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
     }
 
     /**
-     * The paced client bounds one batch to 500 requests; larger per-run settings dispatch consecutive batches.
+     * Bounds concurrent probe batch size and trims each retained probe body to the bot-block inspection prefix
+     * so fallback GETs never accumulate full HTML documents in memory.
      *
      * @param  array<string, FetchRequest>  $requests
      * @return array<string, FetchResult|null>
@@ -739,9 +747,29 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
     private function fetchBatches(PacedHttpClient $client, array $requests): array
     {
         $results = [];
-        foreach (array_chunk($requests, 500, true) as $batch) {
+        foreach (array_chunk($requests, self::MaxReachabilityBatchSize, true) as $batch) {
             foreach ($client->fetchMany($batch) as $target => $response) {
-                $results[(string) $target] = $response instanceof FetchResult ? $this->classifyResponse($response) : null;
+                if (! $response instanceof FetchResult) {
+                    $results[(string) $target] = null;
+
+                    continue;
+                }
+                $classified = $this->classifyResponse($response);
+                $body = strlen($classified->body) > AutomatedCheckBlock::BODY_PREFIX_BYTES
+                    ? substr($classified->body, 0, AutomatedCheckBlock::BODY_PREFIX_BYTES)
+                    : $classified->body;
+                $results[(string) $target] = $body === $classified->body
+                    ? $classified
+                    : new FetchResult(
+                        status: $classified->status,
+                        body: $body,
+                        headers: $classified->headers,
+                        failure: $classified->failure,
+                        transfers: $classified->transfers,
+                        effectiveUrl: $classified->effectiveUrl,
+                        certificate: $classified->certificate,
+                        certificateUnavailableReason: $classified->certificateUnavailableReason,
+                    );
             }
         }
 

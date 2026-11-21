@@ -54,10 +54,16 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
     /** Accommodates up to 22 targets across several authoritative nameservers while bounding resolver work. */
     public const int MaxQueriesPerRun = 1000;
 
-    /** Aggregate DNS records retained across all targets and types in one run. */
+    /** Aggregate DNS records accepted across all resolver lookups in one run before retaining replies. */
+    public const int MaxLookupRecords = 10000;
+
+    /** Aggregate raw dig output bytes accepted across all resolver lookups in one run before retaining replies. */
+    public const int MaxLookupRawBytes = 1024 * 1024;
+
+    /** Aggregate DNS records retained in one persisted snapshot across all targets and types. */
     public const int MaxTotalRecords = 5000;
 
-    /** Aggregate raw dig output bytes retained across all targets and types in one run. */
+    /** Aggregate raw dig output bytes retained in one persisted snapshot across all targets and types. */
     public const int MaxTotalRawBytes = 512 * 1024;
 
     /** Maximum changed DNS records embedded in one dns.records_changed event payload. */
@@ -349,7 +355,7 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
         $records = [];
         $raw = [];
         $rawBytes = 0;
-        $queries = 0;
+        $budget = ['queries' => 0, 'records' => 0, 'raw_bytes' => 0];
         $issues = [];
         $diagnostics = [];
         $authoritative = [];
@@ -357,7 +363,7 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
         $publishBaseline = true;
         try {
             foreach ($targets as $target) {
-                [$zone, $servers, $resolverFailure] = $this->authorities($context, $target, $queries);
+                [$zone, $servers, $resolverFailure] = $this->authorities($context, $target, $budget);
                 $authoritative = [...$authoritative, ...$servers];
                 /** @var array<string, array<string, DnsLookupResult>> $serverAnswers */
                 $serverAnswers = [];
@@ -370,9 +376,9 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
                     $source = [];
                     try {
                         foreach (array_unique([...$types, 'A', 'AAAA', 'CNAME']) as $type) {
-                            $source[$type] = $this->lookup($context, $target, $type, $queries, $server);
+                            $source[$type] = $this->lookup($context, $target, $type, $budget, $server);
                         }
-                        $serial = $sync ? $this->serial($context, $zone, $server, $queries) : null;
+                        $serial = $sync ? $this->serial($context, $zone, $server, $budget) : null;
                     } catch (ExternalNetworkException $exception) {
                         // A transport failure or a refused non-public NS address invalidates this NS's whole observation, not its records.
                         $this->ensureBudget($context);
@@ -417,7 +423,7 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
                 $observed = [];
                 try {
                     foreach (array_unique([...$types, 'A', 'AAAA', 'CNAME', 'NS']) as $type) {
-                        $observed[$type] = $this->lookup($context, $target, $type, $queries);
+                        $observed[$type] = $this->lookup($context, $target, $type, $budget);
                     }
                 } catch (ExternalNetworkException $exception) {
                     $this->ensureBudget($context);
@@ -512,15 +518,18 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
         return new CheckOutcome($result, $failed ? 'dns.failed' : ($issues !== [] ? 'dns.nameservers_unreachable' : ($changed ? 'dns.changed' : 'dns.succeeded')), [], new DnsMetrics(count($records), count($issues), $changed), $snapshot->bounded(), $events);
     }
 
-    /** @return array{string, list<string>, string|null} */
-    private function authorities(CheckContext $context, string $target, int &$queries): array
+    /**
+     * @param  array{queries: int, records: int, raw_bytes: int}  $budget
+     * @return array{string, list<string>, string|null}
+     */
+    private function authorities(CheckContext $context, string $target, array &$budget): array
     {
         // Cross-zone CNAME replies can contain NS records belonging to the target zone.
         $zone = $target;
         $failure = null;
         do {
             try {
-                $answer = $this->lookup($context, $zone, 'NS', $queries);
+                $answer = $this->lookup($context, $zone, 'NS', $budget);
             } catch (ExternalNetworkException $exception) {
                 $this->ensureBudget($context);
                 if (! $this->recoverable($exception) || ! str_contains($zone, '.')) {
@@ -553,9 +562,10 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
         return [$zone, $servers, $failure];
     }
 
-    private function serial(CheckContext $context, string $zone, string $server, int &$queries): int
+    /** @param array{queries: int, records: int, raw_bytes: int} $budget */
+    private function serial(CheckContext $context, string $zone, string $server, array &$budget): int
     {
-        $records = $this->lookup($context, $zone, 'SOA', $queries, $server)->records;
+        $records = $this->lookup($context, $zone, 'SOA', $budget, $server)->records;
         /** @var array{soa: list<array{serial: int}>} $validated */
         $validated = Validator::make(['soa' => $records], [
             'soa' => ['required', 'array', 'list', 'size:1'],
@@ -568,16 +578,28 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
         return $validated['soa'][0]['serial'];
     }
 
-    private function lookup(CheckContext $context, string $host, string $type, int &$queries, ?string $server = null): DnsLookupResult
+    /** @param array{queries: int, records: int, raw_bytes: int} $budget */
+    private function lookup(CheckContext $context, string $host, string $type, array &$budget, ?string $server = null): DnsLookupResult
     {
         $this->ensureBudget($context);
-        $queries++;
-        if ($queries > self::MaxQueriesPerRun) {
+        $budget['queries']++;
+        if ($budget['queries'] > self::MaxQueriesPerRun) {
             throw new \OverflowException('DNS queries exceeded '.self::MaxQueriesPerRun.' per run.');
         }
         $result = $this->resolver->resolve($host, $type, $server);
         if ($result->nameserver !== $server) {
             throw new \UnexpectedValueException('DNS response nameserver differs from request.');
+        }
+        // Charge every reply before retaining it in serverAnswers or normalizing it.
+        $budget['records'] += count($result->records);
+        if ($budget['records'] > self::MaxLookupRecords) {
+            throw new \OverflowException('DNS lookup records exceeded '.self::MaxLookupRecords.' per run.');
+        }
+        foreach ($result->rawLines as $line) {
+            $budget['raw_bytes'] += strlen($line);
+            if ($budget['raw_bytes'] > self::MaxLookupRawBytes) {
+                throw new \OverflowException('DNS lookup raw output exceeded '.self::MaxLookupRawBytes.' bytes per run.');
+            }
         }
         // Validate before a later transport failure discards this answer or address union replaces it.
         if ($type !== 'SOA') {

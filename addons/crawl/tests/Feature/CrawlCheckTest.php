@@ -12,6 +12,7 @@ use GuzzleHttp\Psr7\Response;
 use Heptapod\Addons\Crawl\CrawlArtifact;
 use Heptapod\Addons\Crawl\CrawlCollector;
 use Heptapod\Addons\Crawl\CrawlMetrics;
+use Heptapod\Addons\Crawl\CrawlObserver;
 use Heptapod\Addons\Crawl\CrawlPersistence;
 use Heptapod\Addons\Crawl\CrawlTargetUnavailable;
 use Heptapod\Addons\Crawl\LinkClassificationPolicy;
@@ -57,6 +58,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Psr\Http\Message\RequestInterface;
+use Spatie\Crawler\CrawlResponse;
 use Spatie\LaravelData\Exceptions\CannotCastEnum;
 use Symfony\Component\Process\Process;
 use Tests\Support\ClosedGuardedHttp;
@@ -2026,4 +2028,22 @@ it('bounds collected link text and rejects oversized crawl artifacts at the pers
     ];
     expect(fn () => app(CrawlPersistence::class)->stage(crawlContext($check), 'artifact', [$artifact]))
         ->toThrow(ValidationException::class);
+});
+
+it('withholds page coverage when a mixed-content scan stops early at the artifact budget', function (): void {
+    $site = Site::factory()->create(['url' => 'https://mixed-cap.example.test']);
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::MixedContent]);
+    $observer = new CrawlObserver($site->url, new FakeOutboundHttp, crawlContext($check), 100);
+    // Exhaust nearly the entire artifact byte budget before inspecting a page with insecure resources.
+    expect($observer->consumeArtifactBytes(CrawlPersistence::MAX_ARTIFACT_BYTES - 10))->toBeTrue();
+    $response = new CrawlResponse(
+        new Response(200, ['Content-Type' => 'text/html'], '<html lang="en"><body><img src="http://cdn.example.test/insecure.png"></body></html>'),
+        foundOnUrl: $site->url,
+    );
+
+    $observer->inspectPage($site->url, $response);
+
+    expect($observer->artifactByteLimitReached)->toBeTrue()
+        ->and($observer->observedPages)->toBe([])
+        ->and($observer->mixed)->toBe([]);
 });
