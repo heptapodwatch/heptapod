@@ -1,8 +1,8 @@
 <?php
 
-use Heptapod\Contracts\LiveConnectionTerminator;
+use Heptapod\Jobs\TerminateLiveConnections;
 use Heptapod\Models\User;
-use Heptapod\Testing\FakeLiveConnectionTerminator;
+use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia;
 
 test('profile page is displayed', function (): void {
@@ -102,6 +102,7 @@ test('guests cannot save profile preferences', function (): void {
 });
 
 test('user can delete their account', function (): void {
+    Queue::fake([TerminateLiveConnections::class]);
     $user = User::factory()->create();
 
     $response = $this
@@ -116,12 +117,11 @@ test('user can delete their account', function (): void {
 
     $this->assertGuest();
     $this->assertNull($user->fresh());
-    $terminator = app(LiveConnectionTerminator::class);
-    expect($terminator)->toBeInstanceOf(FakeLiveConnectionTerminator::class);
-    expect($terminator->terminated)->toBe([$user->id]);
+    expect(Queue::pushed(TerminateLiveConnections::class)->pluck('userId')->all())->toBe([$user->id]);
 });
 
 test('correct password must be provided to delete account', function (): void {
+    Queue::fake([TerminateLiveConnections::class]);
     $user = User::factory()->create();
 
     $response = $this
@@ -136,7 +136,5 @@ test('correct password must be provided to delete account', function (): void {
         ->assertRedirect(route('profile.edit'));
 
     $this->assertNotNull($user->fresh());
-    $terminator = app(LiveConnectionTerminator::class);
-    expect($terminator)->toBeInstanceOf(FakeLiveConnectionTerminator::class);
-    expect($terminator->terminated)->toBeEmpty();
+    Queue::assertNotPushed(TerminateLiveConnections::class);
 });
