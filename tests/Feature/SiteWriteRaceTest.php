@@ -462,9 +462,9 @@ it('completes a site deletion, an invitation acceptance and the inviter\'s profi
         $accept->wait();
         $deleteProfile->wait();
 
-        expect($response['status'])->toBe(204, json_encode($response['body']))
-            ->and($accept->getOutput())->toBe('done', $accept->getErrorOutput())
+        expect($accept->getOutput())->toBe('done', $accept->getErrorOutput())
             ->and($deleteProfile->getOutput())->toBe('done', $deleteProfile->getErrorOutput())
+            ->and($response['status'])->toBe(204, json_encode($response['body']))
             ->and($waitedOn)->each->toContain('pg_advisory_xact_lock')
             ->and(Site::query()->whereKey($fixture['site']->id)->exists())->toBeFalse()
             ->and(User::query()->whereKey($inviter->id)->exists())->toBeFalse()
