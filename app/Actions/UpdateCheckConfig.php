@@ -60,7 +60,7 @@ final readonly class UpdateCheckConfig
             $supplied = $incoming;
             foreach ($schema->fields as $name => $field) {
                 if (array_key_exists($name, $incoming)) {
-                    $incoming[$name] = SecretMerge::preserve($field, $incoming[$name], $previous[$name] ?? null, $name);
+                    $incoming[$name] = SecretMerge::preserve($field, $incoming[$name], $previous[$name] ?? null, $name, nullClearsNullable: true);
                 }
             }
             /** @var array<string, mixed> $config */

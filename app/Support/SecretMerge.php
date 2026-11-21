@@ -11,9 +11,9 @@ use Illuminate\Validation\ValidationException;
 
 final class SecretMerge
 {
-    public static function preserve(Field $field, mixed $value, mixed $previous, string $path): mixed
+    public static function preserve(Field $field, mixed $value, mixed $previous, string $path, bool $nullClearsNullable = false): mixed
     {
-        if ($field->type === FieldType::Secret && ($value === '********' || $value === null)) {
+        if ($field->type === FieldType::Secret && ($value === '********' || ($value === null && ! ($nullClearsNullable && in_array('nullable', $field->rules, true))))) {
             if ($previous === null && $value === '********') {
                 $attribute = $field->presentation instanceof FieldPresentation ? __($field->presentation->labelKey) : $path;
                 throw ValidationException::withMessages([$path => __('validation.required', ['attribute' => $attribute])]);
@@ -33,7 +33,7 @@ final class SecretMerge
         }
         foreach ($field->properties as $name => $child) {
             if (array_key_exists($name, $value)) {
-                $value[$name] = self::preserve($child, $value[$name], $previous[$name] ?? null, $path.'.'.$name);
+                $value[$name] = self::preserve($child, $value[$name], $previous[$name] ?? null, $path.'.'.$name, $nullClearsNullable);
             } elseif ($child->type === FieldType::Secret && array_key_exists($name, $previous)) {
                 $value[$name] = $previous[$name];
             }
@@ -45,7 +45,7 @@ final class SecretMerge
             foreach ($value as $index => $item) {
                 $name = is_array($item) ? $item['name'] ?? null : null;
                 $oldItem = $uniqueNames ? (is_string($name) ? $previousByName[strtolower($name)] ?? null : null) : ($previous[$index] ?? null);
-                $value[$index] = self::preserve($field->items, $item, $oldItem, $path.'.'.$index);
+                $value[$index] = self::preserve($field->items, $item, $oldItem, $path.'.'.$index, $nullClearsNullable);
             }
         }
 

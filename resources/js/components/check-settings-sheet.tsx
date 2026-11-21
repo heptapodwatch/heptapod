@@ -583,6 +583,22 @@ function SavedCheckSettingsSheet({
                             }
                         />
                     )}
+                    {!isHealth &&
+                        fields.some(
+                            (field) =>
+                                field.type === 'secret' ||
+                                (field.type === 'object-list' &&
+                                    field.properties.some(
+                                        (property) =>
+                                            property.type === 'secret',
+                                    )),
+                        ) && (
+                            <p className="text-sm text-muted-foreground">
+                                {t(
+                                    'Leave the secret unchanged to keep the stored value.',
+                                )}
+                            </p>
+                        )}
                     {isHealth && (
                         <div className="space-y-3 text-sm">
                             <p className="text-muted-foreground">

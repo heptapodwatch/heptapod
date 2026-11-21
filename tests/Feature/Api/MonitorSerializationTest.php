@@ -68,9 +68,10 @@ it('never returns plaintext secrets even to readers and preserves omitted masked
 it('round trips exact whitespace assertions and empty public values while clearing credential headers', function (string $assertion): void {
     $response = $this->postJson('/api/monitors', ['team_id' => 1, 'type' => 'http', 'url' => 'https://whitespace.test', 'uptime_check_settings' => ['look_for_string' => $assertion]])->assertCreated()->assertJsonPath('uptime_check_settings.look_for_string', $assertion);
     $this->putJson('/api/monitors/'.$response->json('id'), ['crawler_headers' => [['name' => 'X-Empty', 'value' => '']], 'uptime_check_settings' => ['http_client_headers' => [['name' => 'X-Empty', 'value' => '']], 'expected_response_headers' => [['name' => 'X-Empty', 'condition' => 'equals', 'value' => '']], 'payload' => [['name' => 'empty', 'value' => '']]]])->assertOk();
-    $this->getJson('/api/monitors/'.$response->json('id'))->assertOk()->assertJsonPath('uptime_check_settings.look_for_string', $assertion)->assertJsonPath('uptime_check_settings.expected_response_headers.0.value', '')->assertJsonPath('uptime_check_settings.payload.0.value', '');
+    $this->getJson('/api/monitors/'.$response->json('id'))->assertOk()->assertJsonPath('uptime_check_settings.look_for_string', $assertion)->assertJsonPath('uptime_check_settings.expected_response_headers.0.value', '');
     $check = Check::query()->where('site_id', $response->json('id'))->where('type', CheckKey::Uptime)->firstOrFail();
-    expect($check->executionConfig()['http_client_headers'])->toBe([]);
+    expect($check->executionConfig()['http_client_headers'])->toBe([])
+        ->and($check->executionConfig()['payload'])->toBe([]);
     expect(Site::query()->findOrFail($response->json('id'))->crawler_headers)->toBe([]);
 })->with([' ', ' OK ', '']);
 

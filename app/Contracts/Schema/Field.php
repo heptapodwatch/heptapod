@@ -27,6 +27,7 @@ final class Field extends Data
         public readonly bool $uppercase = false,
         public readonly bool $trimmedStrings = false,
         private readonly array $ruleMessages = [],
+        private readonly bool $allowShortSecret = false,
     ) {
         if ($trimmedStrings && ($type !== FieldType::List || $items?->type !== FieldType::String)) {
             throw new \InvalidArgumentException('Only lists of non-secret strings may trim and drop blank items.');
@@ -77,7 +78,7 @@ final class Field extends Data
                 },
             ],
             FieldType::List => ['array', 'list'],
-            FieldType::Secret => ['string', new SecretMinimum],
+            FieldType::Secret => $this->allowShortSecret ? ['string'] : ['string', new SecretMinimum],
             FieldType::Integer => ['integer:strict'],
             FieldType::Boolean => ['boolean:strict'],
             FieldType::Number => ['numeric:strict'],
@@ -189,11 +190,29 @@ final class Field extends Data
         return $urls;
     }
 
+    public function hasShortSecrets(#[\SensitiveParameter] mixed $value): bool
+    {
+        if ($this->type === FieldType::Secret) {
+            return ! $this->allowShortSecret && SecretMinimum::tooShort($value);
+        }
+        if (! is_array($value)) {
+            return false;
+        }
+        foreach ($value as $key => $child) {
+            $field = $this->type === FieldType::List ? $this->items : ($this->properties[$key] ?? null);
+            if ($field instanceof Field && $field->hasShortSecrets($child)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** @return array{mixed, mixed, bool} Split by schema, retaining ordered lists and duplicate header names. */
     public function split(mixed $value): array
     {
         if ($this->type === FieldType::Secret) {
-            return [null, $value, true];
+            return $value === null ? [null, null, false] : [null, $value, true];
         }
         if ($value === null || ! in_array($this->type, [FieldType::Object, FieldType::List], true)) {
             return [$value, null, false];

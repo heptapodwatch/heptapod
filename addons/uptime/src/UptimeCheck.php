@@ -62,7 +62,7 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
     {
         $pair = new Field(FieldType::Object, properties: [
             'name' => new Field(FieldType::String, ['required']),
-            'value' => new Field(FieldType::String, ['present']),
+            'value' => new Field(FieldType::Secret, ['present'], allowShortSecret: true),
         ]);
         $headers = new Field(FieldType::Object, properties: [
             'name' => new Field(FieldType::String, ['required', 'regex:/^[!#$%&\'*+.^_`|~0-9A-Za-z-]+$/']),
@@ -92,11 +92,11 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
                     'value' => new Field(FieldType::String, ['present_unless:values.response_body_assertions.*.operator,exists,does not exist', 'nullable']),
                 ]), default: []),
                 'payload' => new Field(FieldType::List, ['sometimes'], items: $pair, default: []),
-                'raw_payload' => new Field(FieldType::String, ['sometimes', 'nullable', 'json'], default: null),
+                'raw_payload' => new Field(FieldType::Secret, ['sometimes', 'nullable', 'json'], default: null, allowShortSecret: true),
                 'timeout' => new Field(FieldType::Integer, ['sometimes', 'min:1'], default: 30),
                 'valid_status_codes' => new Field(FieldType::List, ['sometimes', 'min:1'], items: new Field(FieldType::String, ['required', 'regex:/^[1-5][0-9*]{0,2}$/']), default: ['2*']),
                 'max_redirect_count' => new Field(FieldType::Integer, ['sometimes', 'min:0'], default: 5),
-                'expected_final_redirect_url' => new Field(FieldType::String, ['sometimes', 'nullable', 'url:http,https'], default: null),
+                'expected_final_redirect_url' => new Field(FieldType::Secret, ['sometimes', 'nullable', 'url:http,https'], default: null),
                 'http_client_headers' => new Field(FieldType::List, ['sometimes'], items: $headers, default: []),
             ]),
             new Schema([

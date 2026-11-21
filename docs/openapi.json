@@ -9176,11 +9176,13 @@
                                             },
                                             "expected_final_redirect_url": {
                                                 "default": null,
+                                                "description": "Secret; responses return `********` or null.",
                                                 "format": "uri",
                                                 "type": [
                                                     "string",
                                                     "null"
-                                                ]
+                                                ],
+                                                "writeOnly": true
                                             },
                                             "expected_response_headers": {
                                                 "default": [],
@@ -9297,7 +9299,9 @@
                                                             "type": "string"
                                                         },
                                                         "value": {
-                                                            "type": "string"
+                                                            "description": "Secret; responses return `********` or null.",
+                                                            "type": "string",
+                                                            "writeOnly": true
                                                         }
                                                     },
                                                     "required": [
@@ -9311,10 +9315,12 @@
                                             "raw_payload": {
                                                 "contentMediaType": "application/json",
                                                 "default": null,
+                                                "description": "Secret; responses return `********` or null.",
                                                 "type": [
                                                     "string",
                                                     "null"
-                                                ]
+                                                ],
+                                                "writeOnly": true
                                             },
                                             "response_body_assertions": {
                                                 "default": [],
@@ -11151,11 +11157,13 @@
                                             },
                                             "expected_final_redirect_url": {
                                                 "default": null,
+                                                "description": "Secret; responses return `********` or null.",
                                                 "format": "uri",
                                                 "type": [
                                                     "string",
                                                     "null"
-                                                ]
+                                                ],
+                                                "writeOnly": true
                                             },
                                             "expected_response_headers": {
                                                 "default": [],
@@ -11272,7 +11280,9 @@
                                                             "type": "string"
                                                         },
                                                         "value": {
-                                                            "type": "string"
+                                                            "description": "Secret; responses return `********` or null.",
+                                                            "type": "string",
+                                                            "writeOnly": true
                                                         }
                                                     },
                                                     "required": [
@@ -11286,10 +11296,12 @@
                                             "raw_payload": {
                                                 "contentMediaType": "application/json",
                                                 "default": null,
+                                                "description": "Secret; responses return `********` or null.",
                                                 "type": [
                                                     "string",
                                                     "null"
-                                                ]
+                                                ],
+                                                "writeOnly": true
                                             },
                                             "response_body_assertions": {
                                                 "default": [],

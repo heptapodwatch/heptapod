@@ -23,6 +23,7 @@ use Heptapod\Jobs\RunCheck;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\Site;
+use Heptapod\Models\User;
 use Heptapod\Testing\FakeOutboundHttp;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
@@ -350,3 +351,110 @@ it('records an out-of-range HTTP observation as an engine error without inventin
             'class' => LogicException::class, 'message' => 'HTTP summary requires a valid integer status.',
         ]);
 })->with([99, 1000]);
+
+it('stores uptime payload, raw_payload and expected_final_redirect_url as secrets, masks them, preserves on edit and migrates legacy rows', function (): void {
+    $owner = User::factory()->owner()->create();
+    $member = User::factory()->create();
+    $member->assignRole('Member');
+    $writeToken = $owner->createToken('uptime-write', ['monitors:write', 'monitors:read'])->plainTextToken;
+    $readToken = $owner->createToken('uptime-read', ['monitors:read'])->plainTextToken;
+
+    $created = $this->withToken($writeToken)->postJson('/api/monitors', [
+        'team_id' => 1,
+        'type' => 'http',
+        'url' => 'https://payload-secret.example.test',
+        'uptime_check_settings' => [
+            'http_verb' => 'POST',
+            'payload' => [['name' => 'api_key', 'value' => 'form-secret-val']],
+            'raw_payload' => '{"secret":"json-secret-val"}',
+            'expected_final_redirect_url' => 'https://payload-secret.example.test/done?token=redirect-secret-val',
+        ],
+    ])->assertCreated();
+    $created->assertDontSee('form-secret-val')
+        ->assertDontSee('json-secret-val')
+        ->assertDontSee('redirect-secret-val');
+
+    $siteId = $created->json('id');
+    $check = Check::query()->where('site_id', $siteId)->where('type', CheckKey::Uptime)->sole();
+    $rawConfig = (string) DB::table('checks')->where('id', $check->id)->value('config');
+    expect($rawConfig)->not->toContain('form-secret-val', 'json-secret-val', 'redirect-secret-val');
+    expect($check->executionConfig())->toMatchArray([
+        'payload' => [['name' => 'api_key', 'value' => 'form-secret-val']],
+        'raw_payload' => '{"secret":"json-secret-val"}',
+        'expected_final_redirect_url' => 'https://payload-secret.example.test/done?token=redirect-secret-val',
+    ]);
+
+    // Read-scoped token and Member UI see masked placeholders, never plaintext.
+    $this->app['auth']->forgetGuards();
+    $read = $this->withToken($readToken)->getJson('/api/monitors/'.$siteId)->assertOk();
+    $read->assertDontSee('form-secret-val')->assertDontSee('json-secret-val')->assertDontSee('redirect-secret-val')
+        ->assertJsonPath('uptime_check_settings.payload.0.value', '********')
+        ->assertJsonPath('uptime_check_settings.raw_payload', '********')
+        ->assertJsonPath('uptime_check_settings.expected_final_redirect_url', '********');
+
+    $this->app['auth']->forgetGuards();
+    $memberProps = $this->actingAs($member)->get('/sites/'.$siteId.'/checks/'.$check->id)
+        ->assertOk()
+        ->assertDontSee('form-secret-val')
+        ->assertDontSee('json-secret-val')
+        ->assertDontSee('redirect-secret-val')
+        ->inertiaProps();
+    expect($memberProps['check_settings']['settings']['payload'][0]['value'])->toBe('********')
+        ->and($memberProps['check_settings']['settings']['raw_payload'])->toBe('********')
+        ->and($memberProps['check_settings']['settings']['expected_final_redirect_url'])->toBe('********');
+
+    // Keep-stored-value mask on edit (both '********' and omitted fields).
+    $this->app['auth']->forgetGuards();
+    $this->actingAs($owner)->patch('/sites/'.$siteId.'/checks/'.$check->id, [
+        'timeout' => 15,
+        'payload' => [['name' => 'api_key', 'value' => '********']],
+        'raw_payload' => '********',
+        'expected_final_redirect_url' => '********',
+    ])->assertRedirect();
+    expect($check->refresh()->executionConfig())->toMatchArray([
+        'timeout' => 15,
+        'payload' => [['name' => 'api_key', 'value' => 'form-secret-val']],
+        'raw_payload' => '{"secret":"json-secret-val"}',
+        'expected_final_redirect_url' => 'https://payload-secret.example.test/done?token=redirect-secret-val',
+    ]);
+
+    // Clearing nullable secrets leaves null (not '********') in masked projection.
+    $this->actingAs($owner)->patch('/sites/'.$siteId.'/checks/'.$check->id, [
+        'payload' => [],
+        'raw_payload' => '',
+        'expected_final_redirect_url' => '',
+    ])->assertRedirect();
+    $check->refresh();
+    expect($check->executionConfig()['payload'])->toBe([])
+        ->and($check->executionConfig()['raw_payload'] ?? null)->toBeNull()
+        ->and($check->executionConfig()['expected_final_redirect_url'] ?? null)->toBeNull();
+    $this->app['auth']->forgetGuards();
+    $cleared = $this->withToken($readToken)->getJson('/api/monitors/'.$siteId)->assertOk();
+    expect($cleared->json('uptime_check_settings.raw_payload'))->toBeNull()
+        ->and($cleared->json('uptime_check_settings.expected_final_redirect_url'))->toBeNull();
+
+    // Short non-credential request bodies still work through validation and real engine execution.
+    expect(runUptimeAddon(['http_verb' => 'POST', 'raw_payload' => '{}'], response: new FetchResult(200))->result)->toBe(RunResult::Succeeded);
+
+    // Migration moves legacy plaintext values into encrypted config_secrets idempotently.
+    DB::table('checks')->where('id', $check->id)->update([
+        'config' => json_encode([
+            'http_verb' => 'POST',
+            'payload' => [['name' => 'k', 'value' => 'legacy-form-secret']],
+            'raw_payload' => '{"k":"legacy-raw-secret"}',
+            'expected_final_redirect_url' => 'https://payload-secret.example.test/legacy?token=legacy-redir',
+        ], JSON_THROW_ON_ERROR),
+        'config_secrets' => null,
+    ]);
+    $migration = require database_path('migrations/2026_11_21_130000_move_uptime_request_secrets_to_config_secrets.php');
+    $migration->up();
+    $migration->up();
+
+    $migratedRaw = (string) DB::table('checks')->where('id', $check->id)->value('config');
+    expect($migratedRaw)->not->toContain('legacy-form-secret', 'legacy-raw-secret', 'legacy-redir');
+    expect($check->refresh()->executionConfig())->toMatchArray([
+        'payload' => [['name' => 'k', 'value' => 'legacy-form-secret']],
+        'raw_payload' => '{"k":"legacy-raw-secret"}',
+        'expected_final_redirect_url' => 'https://payload-secret.example.test/legacy?token=legacy-redir',
+    ]);
+});
