@@ -681,6 +681,7 @@ it('commits preferences and site mutes atomically and rolls both back on refusal
         ->and(DB::table('notification_site_mutes')->where('destination_id', $memberChannel->id)->count())->toBe(0);
 
     $this->actingAs($admin)->putJson(route('notification-channels.preferences', $clientChannel), [
+        'preferences' => ['warning' => 'digest'],
         'mute_site_ids' => range(1, UpdateNotificationPreferences::MaxSiteMutesBatch + 1),
-    ])->assertUnprocessable();
+    ])->assertUnprocessable()->assertJsonValidationErrors(['mute_site_ids']);
 });

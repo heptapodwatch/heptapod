@@ -159,3 +159,61 @@ it('repositions an edited row to its new server sort order without leaving its o
     ]);
     expect(result.current.pendingCount).toBe(1);
 });
+
+it('keeps a content-only own edit in place without revealing a buffered foreign reorder', () => {
+    const initial = [
+        { id: 'A', starts: '10:00', reason: 'A' },
+        { id: 'B', starts: '11:00', reason: 'B' },
+        { id: 'C', starts: '12:00', reason: 'C v1' },
+    ];
+    // Foreign tab rescheduled B after C.
+    const afterForeignReorder = [
+        { id: 'A', starts: '10:00', reason: 'A' },
+        { id: 'C', starts: '12:00', reason: 'C v1' },
+        { id: 'B', starts: '13:00', reason: 'B' },
+    ];
+    // This tab edited only C's reason (position unchanged in server order).
+    const afterOwnReasonEdit = [
+        { id: 'A', starts: '10:00', reason: 'A' },
+        { id: 'C', starts: '12:00', reason: 'C v2' },
+        { id: 'B', starts: '13:00', reason: 'B' },
+    ];
+    const { result, rerender } = renderHook(
+        ({ rows }) =>
+            useBufferedChanges(
+                rows,
+                (row) => row.id,
+                null,
+                (row) => JSON.stringify(row),
+                'windows',
+            ),
+        { initialProps: { rows: initial } },
+    );
+
+    rerender({ rows: afterForeignReorder });
+    expect(result.current.rows).toEqual(initial);
+    expect(result.current.pendingCount).toBe(1);
+
+    act(() => {
+        emit('start', { visit: { id: 'v3', method: 'patch' } });
+    });
+    rerender({ rows: afterOwnReasonEdit });
+    act(() => {
+        emit('success', {
+            visitId: 'v3',
+            page: { props: { windows: afterOwnReasonEdit } },
+        });
+        emit('finish', { visit: { id: 'v3', method: 'patch' } });
+    });
+
+    expect(result.current.rows).toEqual([
+        { id: 'A', starts: '10:00', reason: 'A' },
+        { id: 'B', starts: '11:00', reason: 'B' },
+        { id: 'C', starts: '12:00', reason: 'C v2' },
+    ]);
+    expect(result.current.pendingCount).toBe(1);
+
+    act(() => result.current.apply());
+    expect(result.current.rows).toEqual(afterOwnReasonEdit);
+    expect(result.current.pendingCount).toBe(0);
+});

@@ -67,15 +67,47 @@ function mergeOwnMutation<T>(
           )
         : new Set<number | string>();
 
-    // Remove deleted and own-modified rows so own-modified rows can be placed at their new server order
-    // (e.g. a rescheduled maintenance window) without disturbing buffered foreign rows or foreign reorders.
+    const sharedKeys = new Set(
+        [...prevByKey.keys()].filter((id) => acceptedByKey.has(id)),
+    );
+    const hasUntouchedShared = [...sharedKeys].some(
+        (id) => !ownModified.has(id),
+    );
+    const orderContext = (list: T[], targetId: number | string): string => {
+        const preceding: (number | string)[] = [];
+        for (const row of list) {
+            const id = getKey(row);
+            if (id === targetId) {
+                break;
+            }
+            if (
+                sharedKeys.has(id) &&
+                (!hasUntouchedShared || !ownModified.has(id))
+            ) {
+                preceding.push(id);
+            }
+        }
+        return JSON.stringify(preceding);
+    };
+    const ownMoved = new Set(
+        [...ownModified].filter(
+            (id) =>
+                orderContext(previousLatest, id) !== orderContext(accepted, id),
+        ),
+    );
+
+    // Keep content-only edits in place; remove only deleted and own-reordered rows so a save
+    // repositions rows it actually moved without revealing a buffered foreign reorder.
     const nextVisible = shown
         .filter((row) => {
             const id = getKey(row);
-            return !ownRemoved.has(id) && !ownModified.has(id);
+            return !ownRemoved.has(id) && !ownMoved.has(id);
         })
         .map((row) => {
             const id = getKey(row);
+            if (ownModified.has(id)) {
+                return acceptedByKey.get(id)!;
+            }
             return contentKey === undefined && acceptedByKey.has(id)
                 ? acceptedByKey.get(id)!
                 : row;
@@ -84,7 +116,7 @@ function mergeOwnMutation<T>(
     for (let index = 0; index < accepted.length; index++) {
         const row = accepted[index]!;
         const id = getKey(row);
-        if (!ownAdded.has(id) && !ownModified.has(id)) {
+        if (!ownAdded.has(id) && !ownMoved.has(id)) {
             continue;
         }
         if (nextVisible.some((item) => getKey(item) === id)) {
