@@ -80,13 +80,25 @@ try {
             });
         });
         await page.setRequestInterception(true);
-        let targetHost = new URL(url).hostname;
+        const portOf = (parsed) =>
+            parsed.port
+                ? Number(parsed.port)
+                : parsed.protocol === 'https:'
+                  ? 443
+                  : parsed.protocol === 'http:'
+                    ? 80
+                    : null;
+        const initial = new URL(url);
+        let targetHost = initial.hostname;
+        let targetPort = portOf(initial);
         page.on('request', async (request) => {
             if (
                 request.isNavigationRequest() &&
                 request.frame() === page.mainFrame()
             ) {
-                targetHost = new URL(request.url()).hostname;
+                const parsed = new URL(request.url());
+                targetHost = parsed.hostname;
+                targetPort = portOf(parsed);
             }
             // Remove inherited overrides too: redirects must never carry credentials across origins.
             const headers = Object.fromEntries([
@@ -138,6 +150,7 @@ try {
                     : {}),
                 target_status_code: targetStatus,
                 target_host: targetHost,
+                target_port: targetPort,
             }),
         );
     } finally {

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Heptapod\Actions\MarkBackupRunning;
+use Heptapod\Actions\ReconcileQueuedWork;
 use Heptapod\Checks\Execution\ExecutionBudget;
 use Heptapod\Jobs\RunBackupNow;
 use Heptapod\Models\User;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Queue\Connectors\ConnectorInterface;
 use Illuminate\Queue\NullQueue;
 use Illuminate\Support\Facades\Context;
@@ -106,4 +108,40 @@ it('does not leave a manual backup stuck in queued after a dispatch failure or a
 
     expect(DB::table('backup_runs')->where('id', $second)->value('state'))->toBe('failed')
         ->and(DB::table('backup_runs')->where('id', $third)->value('state'))->toBe('queued');
+});
+
+it('expires stale backups conditionally in one write so a freshly claimed backup is never failed', function (): void {
+    $owner = User::factory()->owner()->create();
+    $staleId = DB::table('backup_runs')->insertGetId([
+        'requested_by' => $owner->id,
+        'state' => 'queued',
+        'requested_at' => now('UTC')->subSeconds(ExecutionBudget::RetryAfter + 5),
+    ]);
+    $claimedId = DB::table('backup_runs')->insertGetId([
+        'requested_by' => $owner->id,
+        'state' => 'queued',
+        'requested_at' => now('UTC')->subSeconds(ExecutionBudget::RetryAfter + 5),
+    ]);
+    app(MarkBackupRunning::class)($claimedId);
+
+    $sawUpdate = false;
+    $claimedDuringSelect = false;
+    DB::listen(static function (QueryExecuted $query) use (&$sawUpdate, &$claimedDuringSelect, $staleId): void {
+        if (! str_contains($query->sql, '"backup_runs"')) {
+            return;
+        }
+        if (str_starts_with(strtolower($query->sql), 'update')) {
+            $sawUpdate = true;
+        } elseif (! $sawUpdate && ! $claimedDuringSelect && str_starts_with(strtolower($query->sql), 'select')) {
+            $claimedDuringSelect = true;
+            app(MarkBackupRunning::class)($staleId);
+        }
+    });
+
+    app(ReconcileQueuedWork::class)->failStaleBackups();
+
+    expect($claimedDuringSelect)->toBeFalse()
+        ->and($sawUpdate)->toBeTrue()
+        ->and(DB::table('backup_runs')->where('id', $staleId)->value('state'))->toBe('failed')
+        ->and(DB::table('backup_runs')->where('id', $claimedId)->value('state'))->toBe('running');
 });

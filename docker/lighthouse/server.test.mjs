@@ -215,6 +215,8 @@ console.log(JSON.stringify({
     ...(path === '/tls-error' ? {runtimeError: {code: 'FAILED_DOCUMENT_REQUEST', message: 'Lighthouse was unable to reliably load the page (net::ERR_CERT_COMMON_NAME_INVALID)'}} : {}),
     ...(path === '/long-tls-error' ? {runtimeError: {code: 'FAILED_DOCUMENT_REQUEST', message: 'x'.repeat(600) + ' net::ERR_CERT_COMMON_NAME_INVALID'}} : {}),
     ...(path === '/blocked-target' ? {runtimeError: {code: 'FAILED_DOCUMENT_REQUEST'}, target_status_code: 403, target_host: '127.0.0.1'} : {}),
+    ...(path === '/redirected-tls' ? {runtimeError: {code: 'FAILED_DOCUMENT_REQUEST', message: 'net::ERR_CERT_COMMON_NAME_INVALID'}, target_host: 'redirected.example.net', target_port: 8444} : {}),
+    ...(path === '/invalid-target-port' ? {runtimeError: {code: 'FAILED_DOCUMENT_REQUEST', message: 'net::ERR_CERT_COMMON_NAME_INVALID'}, target_host: 'example.com', target_port: '8444'} : {}),
 }));
 `,
     );
@@ -272,6 +274,22 @@ void test('retains the failed navigation host for the private-target verdict', a
         target_status_code: 403,
         target_host: '127.0.0.1',
     });
+});
+void test('forwards a valid navigation port on runtime errors and rejects invalid ones', async () => {
+    const valid = await post({ url: 'https://example.com/redirected-tls' });
+    assert.equal(valid.status, 200);
+    assert.deepEqual(await valid.json(), {
+        runtimeError: {
+            code: 'ERR_CERT_COMMON_NAME_INVALID',
+            message: 'net::ERR_CERT_COMMON_NAME_INVALID',
+        },
+        target_host: 'redirected.example.net',
+        target_port: 8444,
+    });
+    const invalid = await post({
+        url: 'https://example.com/invalid-target-port',
+    });
+    assert.equal(invalid.status, 502);
 });
 void test('preserves a multibyte URL split across request chunks', async () => {
     const url = 'https://example.com/über';

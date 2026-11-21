@@ -23,6 +23,7 @@ use Heptapod\Models\User;
 use Heptapod\Support\ImportTokenStore;
 use Heptapod\Support\OhDearImportNotices;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Support\Arr;
@@ -38,7 +39,7 @@ final class RunOhDearImport implements ShouldQueue
     use Localizable;
     use Queueable;
 
-    public function __construct(public readonly string $runId)
+    public function __construct(public readonly string $runId, public readonly ?int $attempt = null)
     {
         $this->onConnection('redis');
         $this->onQueue('reports');
@@ -46,8 +47,11 @@ final class RunOhDearImport implements ShouldQueue
 
     public function handle(ImportOhDearAccount $import, CreateClient $createClient): void
     {
-        // Claim the queued run; a duplicate or late job finds a running or terminal run and does nothing.
-        $claimed = ImportRun::query()->getQuery()->where('id', $this->runId)->where('status', ImportRunStatus::Queued->value)
+        // Claim only the queued run for this attempt generation; a duplicate or late job finds another attempt or state and does nothing.
+        $claimed = ImportRun::query()->getQuery()
+            ->where('id', $this->runId)
+            ->where('status', ImportRunStatus::Queued->value)
+            ->when($this->attempt !== null, fn (Builder $query): Builder => $query->where('attempts', $this->attempt))
             ->update(['status' => ImportRunStatus::Running->value, 'remote_error' => null, 'error' => null, 'finished_at' => null, 'updated_at' => now()]);
         if ($claimed !== 1) {
             return;
@@ -121,9 +125,24 @@ final class RunOhDearImport implements ShouldQueue
                 $result['details'] = $row->details.' '.__('import.log_reference', ['run' => $run->id]);
             }
             $results[$row->source_id] = $result;
-            $run->results = $results;
-            $run->save();
-            LiveSignal::forImport();
+            $saved = DB::transaction(static function () use ($run, $attempt, $results): bool {
+                $query = ImportRun::query()->whereKey($run->id)
+                    ->where('status', ImportRunStatus::Running->value)
+                    ->where('attempts', $attempt);
+                $query->getQuery()->lockForUpdate();
+                $locked = $query->first();
+                if (! $locked instanceof ImportRun) {
+                    return false;
+                }
+                $locked->results = $results;
+                $locked->save();
+
+                return true;
+            });
+            if ($saved) {
+                $run->results = $results;
+                LiveSignal::forImport();
+            }
         };
         // Stored reasons are text, so they are written in the language of the run's owner, the only user who sees them.
         $locale = User::query()->whereKey($run->user_id)->value('locale');
@@ -146,7 +165,7 @@ final class RunOhDearImport implements ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        app(ReconcileQueuedWork::class)->failImport($this->runId);
+        app(ReconcileQueuedWork::class)->failImport($this->runId, attempt: $this->attempt);
     }
 
     /**
@@ -246,10 +265,27 @@ final class RunOhDearImport implements ShouldQueue
 
     private function finish(ImportRun $run, ImportRunStatus $status, ?string $error): void
     {
-        $run->status = $status;
-        $run->error = $error;
-        $run->finished_at = now()->toImmutable();
-        $run->save();
-        LiveSignal::forImportChange();
+        $expectedAttempt = $this->attempt ?? $run->attempts;
+        $updated = DB::transaction(static function () use ($run, $status, $error, $expectedAttempt): bool {
+            $query = ImportRun::query()->whereKey($run->id)
+                ->where('status', ImportRunStatus::Running->value)
+                ->where('attempts', $expectedAttempt);
+            $query->getQuery()->lockForUpdate();
+            $locked = $query->first();
+            if (! $locked instanceof ImportRun) {
+                return false;
+            }
+            $locked->status = $status;
+            $locked->error = $error;
+            $locked->remote_error = $run->remote_error;
+            $locked->channel_results = $run->channel_results;
+            $locked->finished_at = now()->toImmutable();
+            $locked->save();
+
+            return true;
+        });
+        if ($updated) {
+            LiveSignal::forImportChange();
+        }
     }
 }

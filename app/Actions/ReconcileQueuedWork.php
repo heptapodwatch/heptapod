@@ -41,7 +41,7 @@ final readonly class ReconcileQueuedWork
         }
     }
 
-    public function failImport(string $runId, bool $onlyQueued = false, string $error = 'unexpected'): bool
+    public function failImport(string $runId, bool $onlyQueued = false, string $error = 'unexpected', ?int $attempt = null): bool
     {
         $states = $onlyQueued
             ? [ImportRunStatus::Queued->value]
@@ -50,6 +50,7 @@ final readonly class ReconcileQueuedWork
         $updated = DB::table('import_runs')
             ->where('id', $runId)
             ->whereIn('status', $states)
+            ->when($attempt !== null, static fn (Builder $query): Builder => $query->where('attempts', $attempt))
             ->update([
                 'status' => ImportRunStatus::Failed->value,
                 'error' => $error,
@@ -88,20 +89,20 @@ final readonly class ReconcileQueuedWork
 
     public function failStaleImports(?CarbonImmutable $now = null): int
     {
-        $cutoff = ($now ?? now('UTC')->toImmutable())->subSeconds(self::StaleTimeout);
-        // Bounded to the active partial index (import_runs_active: WHERE status IN ('queued', 'running')).
-        $staleIds = DB::table('import_runs')
+        $at = $now ?? now('UTC')->toImmutable();
+        $cutoff = $at->subSeconds(self::StaleTimeout);
+        // Single conditional write bounded by import_runs_active: a row claimed concurrently refreshes updated_at and is skipped.
+        $failed = DB::table('import_runs')
             ->whereIn('status', [ImportRunStatus::Queued->value, ImportRunStatus::Running->value])
             ->where('updated_at', '<=', $cutoff)
-            ->pluck('id');
-        $failed = 0;
-        foreach ($staleIds as $runId) {
-            if (! is_string($runId)) {
-                throw new \UnexpectedValueException('Import run ID must be a string.');
-            }
-            if ($this->failImport($runId)) {
-                $failed++;
-            }
+            ->update([
+                'status' => ImportRunStatus::Failed->value,
+                'error' => 'unexpected',
+                'finished_at' => $at,
+                'updated_at' => $at,
+            ]);
+        if ($failed > 0) {
+            LiveSignal::forImportChange();
         }
 
         return $failed;
@@ -109,9 +110,10 @@ final readonly class ReconcileQueuedWork
 
     public function failStaleBackups(?CarbonImmutable $now = null): int
     {
-        $cutoff = ($now ?? now('UTC')->toImmutable())->subSeconds(self::StaleTimeout);
-        // Bounded to the active partial index (backup_runs_active: WHERE state IN ('queued', 'running')).
-        $staleIds = DB::table('backup_runs')
+        $at = $now ?? now('UTC')->toImmutable();
+        $cutoff = $at->subSeconds(self::StaleTimeout);
+        // Single conditional write bounded by backup_runs_active: a queued backup claimed concurrently switches to running with fresh started_at and is skipped.
+        $failed = DB::table('backup_runs')
             ->whereIn('state', ['queued', 'running'])
             ->where(static function (Builder $query) use ($cutoff): void {
                 $query->where(static function (Builder $queued) use ($cutoff): void {
@@ -120,14 +122,9 @@ final readonly class ReconcileQueuedWork
                     $running->where('state', 'running')->where('started_at', '<=', $cutoff);
                 });
             })
-            ->pluck('id');
-        $failed = 0;
-        foreach ($staleIds as $backupId) {
-            if (! is_int($backupId)) {
-                throw new \UnexpectedValueException('Backup ID must be an integer.');
-            }
-            ($this->failRequestedBackup)($backupId);
-            $failed++;
+            ->update(['state' => 'failed', 'completed_at' => $at]);
+        if ($failed > 0) {
+            LiveSignal::forBackup();
         }
 
         return $failed;

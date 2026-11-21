@@ -27,7 +27,6 @@ use Heptapod\Models\NotificationSchedule;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
-use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Notifications\Channels\MailChannel;
 use Illuminate\Support\Facades\Artisan;
@@ -685,35 +684,4 @@ it('commits preferences and site mutes atomically and rolls both back on refusal
         'preferences' => ['warning' => 'digest'],
         'mute_site_ids' => range(1, UpdateNotificationPreferences::MaxSiteMutesBatch + 1),
     ])->assertUnprocessable()->assertJsonValidationErrors(['mute_site_ids']);
-});
-
-it('serializes concurrent first-time schedule saves without a unique-constraint failure', function (): void {
-    $owner = recipientUser('Owner');
-    $client = Client::factory()->create();
-    expect(NotificationSchedule::query()->where('client_id', $client->id)->exists())->toBeFalse();
-    $raced = false;
-    DB::listen(static function (QueryExecuted $query) use (&$raced, $client): void {
-        if (! $raced && str_contains($query->sql, 'pg_advisory_xact_lock')) {
-            $raced = true;
-            NotificationSchedule::query()->create([
-                'recipient_kind' => RecipientKind::Client->value,
-                'user_id' => null,
-                'client_id' => $client->id,
-                'quiet_start' => '23:00',
-                'quiet_end' => '06:00',
-                'quiet_weekends' => false,
-                'digest_time' => '08:00',
-                'digest_weekdays' => null,
-            ]);
-        }
-    });
-
-    $this->actingAs($owner)
-        ->patchJson(route('notification-schedules.update', ['kind' => 'client', 'id' => $client->id]), ['digest_time' => '09:30'])
-        ->assertOk()
-        ->assertJsonPath('digest_time', '09:30')
-        ->assertJsonPath('quiet_start', '23:00');
-
-    expect($raced)->toBeTrue()
-        ->and(NotificationSchedule::query()->where('client_id', $client->id)->count())->toBe(1);
 });

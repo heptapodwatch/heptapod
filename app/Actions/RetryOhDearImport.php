@@ -23,8 +23,9 @@ final readonly class RetryOhDearImport
         }
         // Atomic claim: of two concurrent retries only one moves the run back to queued.
         // Compare-and-set on the observed attempt: a retry that read an older attempt cannot claim a newer one.
+        $nextAttempt = $importRun->attempts + 1;
         $query = ImportRun::query()->getQuery()->where('id', $importRun->id)->where('attempts', $importRun->attempts)->whereIn('status', [ImportRunStatus::Incomplete->value, ImportRunStatus::Failed->value]);
-        $claimed = $query->update(['status' => ImportRunStatus::Queued->value, 'attempts' => $importRun->attempts + 1, 'updated_at' => now()]);
+        $claimed = $query->update(['status' => ImportRunStatus::Queued->value, 'attempts' => $nextAttempt, 'updated_at' => now()]);
         if ($claimed !== 1) {
             throw new ExpectedRefusal(
                 status: 409,
@@ -33,8 +34,8 @@ final readonly class RetryOhDearImport
             );
         }
         $this->reconcile->dispatchOrFail(
-            static fn () => RunOhDearImport::dispatch($importRun->id),
-            fn (): bool => $this->reconcile->failImport($importRun->id, onlyQueued: true),
+            static fn () => RunOhDearImport::dispatch($importRun->id, $nextAttempt),
+            fn (): bool => $this->reconcile->failImport($importRun->id, onlyQueued: true, attempt: $nextAttempt),
         );
         LiveSignal::forImportChange();
     }

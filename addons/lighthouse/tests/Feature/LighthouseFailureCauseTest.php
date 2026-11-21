@@ -447,24 +447,28 @@ it('stores reached stage seconds and presents them only as ordered run details',
     expect($presentation->details[3]->params)->toBe(['seconds' => 100]);
 });
 
-it('runs TLS diagnostics and summary against the validated redirected navigation host', function (): void {
+it('runs TLS diagnostics against the validated redirected navigation host and port, and skips capture when the port is unknown', function (): void {
     config(['lighthouse.service_url' => 'http://lighthouse.test:3000', 'lighthouse.proxy_control_url' => 'http://proxy-control.test:3129']);
     $token = str_repeat('a', 64);
-    app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static fn (FetchRequest $request): FetchResult => match (true) {
-        $request->url === 'http://proxy-control.test:3129/scopes' && $request->method === 'POST' => new FetchResult(200, json_encode(['token' => $token], JSON_THROW_ON_ERROR)),
-        $request->url === 'http://proxy-control.test:3129/scopes/'.$token.'?host=redirected.example.net' && $request->method === 'GET' => new FetchResult(200, '{"blockedTarget":false}'),
-        $request->url === 'http://proxy-control.test:3129/scopes/'.$token && $request->method === 'DELETE' => new FetchResult(204),
-        $request->url === 'http://lighthouse.test:3000/lighthouse' && $request->method === 'POST' => new FetchResult(200, json_encode([
-            'runtimeError' => ['code' => 'ERR_CERT_COMMON_NAME_INVALID', 'message' => 'TLS error'],
-            'target_host' => 'redirected.example.net',
-        ], JSON_THROW_ON_ERROR)),
-        default => throw new LogicException('Unexpected Lighthouse HTTP request: '.$request->url),
+    $payload = [
+        'runtimeError' => ['code' => 'ERR_CERT_COMMON_NAME_INVALID', 'message' => 'TLS error'],
+        'target_host' => 'redirected.example.net',
+        'target_port' => 8444,
+    ];
+    app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static function (FetchRequest $request) use ($token, &$payload): FetchResult {
+        return match (true) {
+            $request->url === 'http://proxy-control.test:3129/scopes' && $request->method === 'POST' => new FetchResult(200, json_encode(['token' => $token], JSON_THROW_ON_ERROR)),
+            $request->url === 'http://proxy-control.test:3129/scopes/'.$token.'?host=redirected.example.net' && $request->method === 'GET' => new FetchResult(200, '{"blockedTarget":false}'),
+            $request->url === 'http://proxy-control.test:3129/scopes/'.$token && $request->method === 'DELETE' => new FetchResult(204),
+            $request->url === 'http://lighthouse.test:3000/lighthouse' && $request->method === 'POST' => new FetchResult(200, json_encode($payload, JSON_THROW_ON_ERROR)),
+            default => throw new LogicException('Unexpected Lighthouse HTTP request: '.$request->url),
+        };
     }));
     $pem = file_get_contents(base_path('docker/fixtures/tls/valid.crt'));
     $certificates = (new FakeCertificateFetcher)->respondWith(
         'redirected.example.net',
-        new CertificateFetchResult([$pem], 'redirected.example.net', 443, false, TlsFailureReason::NameMismatch, chainExplainsOnly: true),
-        443,
+        new CertificateFetchResult([$pem], 'redirected.example.net', 8444, false, TlsFailureReason::NameMismatch, chainExplainsOnly: true),
+        8444,
         'example.com',
     );
     app()->instance(CertificateFetcher::class, $certificates);
@@ -478,4 +482,26 @@ it('runs TLS diagnostics and summary against the validated redirected navigation
         ->and($run->summary)->toBe('causes.tls.name_mismatch_subject')
         ->and($run->summary_params['host'])->toBe('redirected.example.net')
         ->and($run->summary_params['subject'])->toBe('fixtures.test');
+
+    // Without a reported navigation port, retain the native TLS summary and skip optional certificate capture.
+    $payload = [
+        'runtimeError' => ['code' => 'ERR_CERT_COMMON_NAME_INVALID', 'message' => 'TLS error'],
+        'target_host' => 'redirected.example.net',
+    ];
+    app()->instance(CertificateFetcher::class, new FakeCertificateFetcher);
+
+    $withoutPort = runLighthouse($check);
+
+    expect($withoutPort->result)->toBe(RunResult::Errored)
+        ->and($withoutPort->summary)->toBe('causes.tls.name_mismatch')
+        ->and($withoutPort->summary_params)->toBe([]);
 });
+
+it('rejects an invalid navigation port at the renderer boundary', function (mixed $port): void {
+    lighthouseFailureHttp(['runtimeError' => ['code' => 'ERR_CERT_COMMON_NAME_INVALID', 'message' => 'TLS error'], 'target_host' => 'example.com', 'target_port' => $port]);
+
+    $run = runLighthouse(lighthouseCheck());
+
+    expect($run->result)->toBe(RunResult::Errored)->and($run->metrics)->toBeNull();
+    expect(json_decode($run->error, true, flags: JSON_THROW_ON_ERROR)['message'])->toBe('Invalid Lighthouse target port.');
+})->with(['zero' => 0, 'negative' => -1, 'overflow' => 65536, 'string' => '443', 'bool' => true]);

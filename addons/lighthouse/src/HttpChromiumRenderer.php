@@ -133,6 +133,10 @@ final readonly class HttpChromiumRenderer implements ChromiumRenderer
         if ($targetStatus !== null && (! is_int($targetStatus) || $targetStatus < 100 || $targetStatus > 599)) {
             throw new \UnexpectedValueException('Invalid Lighthouse target status.');
         }
+        $targetPort = $decoded instanceof \stdClass && property_exists($decoded, 'target_port') ? $decoded->target_port : null;
+        if ($targetPort !== null && (! is_int($targetPort) || $targetPort < 1 || $targetPort > 65535)) {
+            throw new \UnexpectedValueException('Invalid Lighthouse target port.');
+        }
         if (AvailabilityFailure::fromStatus($targetStatus) instanceof AvailabilityFailure) {
             throw new TargetAvailabilityException(new FetchFailure(FetchFailureKind::HttpStatus, $targetStatus));
         }
@@ -156,23 +160,20 @@ final readonly class HttpChromiumRenderer implements ChromiumRenderer
             }
             $tlsSummary = null;
             if ($kind === FetchFailureKind::Tls) {
-                $originHost = TargetHost::fromUrl($url);
-                $host = $targetHost ?? $originHost;
-                $port = $host === $originHost && parse_url($url, PHP_URL_SCHEME) === 'https'
-                    ? (int) (parse_url($url, PHP_URL_PORT) ?? 443)
-                    : 443;
+                $host = $targetHost ?? TargetHost::fromUrl($url);
                 $nativeReason = TlsFailureReason::fromNativeError($code);
                 $tlsSummary = $nativeReason->summary($host);
-                // Optional diagnostics cannot extend the audit budget or change the native observation.
-                if (! $this->certificates instanceof CertificateFetcher) {
+                // Optional diagnostics cannot extend the audit budget or guess an unknown port.
+                if (! $this->certificates instanceof CertificateFetcher || ! is_int($targetPort)) {
                     Log::notice('Certificate diagnostics unavailable; native TLS reason retained.', [
                         'check_id' => $context->checkId, 'run_id' => $context->runId,
-                        'diagnostics_available' => false, 'native_reason' => $nativeReason->value,
+                        'diagnostics_available' => false,
+                        'native_reason' => $nativeReason->value,
                         'summary' => $tlsSummary['key'],
                     ]);
                 } elseif ($this->remaining($context) >= 10.0) {
                     try {
-                        $tlsSummary = $this->certificates->fetch($host, $port, TargetHost::fromUrl($context->url))->failureSummary($nativeReason);
+                        $tlsSummary = $this->certificates->fetch($host, $targetPort, TargetHost::fromUrl($context->url))->failureSummary($nativeReason);
                     } catch (FetchException $exception) {
                         // A refused optional capture must not replace the primary navigation failure.
                         Log::notice('Certificate diagnostics refused; native navigation reason retained.', [

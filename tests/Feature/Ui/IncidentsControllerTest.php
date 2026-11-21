@@ -598,3 +598,28 @@ it('exports a stable incident snapshot without skipping or duplicating rows when
     expect($mutated)->toBeTrue()
         ->and($exportedIds)->toBe($expectedIds);
 });
+
+it('decides the CSV row-limit refusal from the same snapshot as the exported IDs', function (): void {
+    $this->withoutVite();
+    $owner = User::factory()->owner()->create();
+    $check = Check::factory()->create();
+    $row = ['check_id' => $check->id, 'site_id' => $check->site_id, 'cause' => 'failed',
+        'opened_at' => now(), 'first_failure_at' => now()->subMinute(), 'resolved_at' => now(),
+        'evidence' => '{}', 'created_at' => now(), 'updated_at' => now()];
+    for ($batch = 0; $batch < 10; $batch++) {
+        DB::table('incidents')->insert(array_fill(0, 1000, $row));
+    }
+    DB::table('incidents')->insert([$row, $row]);
+
+    $trimmed = false;
+    DB::listen(static function (QueryExecuted $query) use (&$trimmed): void {
+        if (! $trimmed && str_contains($query->sql, 'from "incidents"') && str_contains($query->sql, 'limit 10001')) {
+            $trimmed = true;
+            DB::table('incidents')->whereIn('id', DB::table('incidents')->orderByDesc('id')->limit(3)->pluck('id'))->delete();
+        }
+    });
+
+    // Even if 3 rows disappear after the 10,001-ID snapshot, CSV must refuse 413 rather than serving a capped list.
+    $this->actingAs($owner)->get('/incidents/export.csv?filter[status]=all')->assertStatus(413);
+    expect($trimmed)->toBeTrue();
+});

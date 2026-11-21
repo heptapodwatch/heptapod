@@ -21,41 +21,46 @@ final class ExportResponse
      * table without a known total (a retained findings snapshot) streams every row. Markdown and plain text stop reading
      * after the limit and say so at the end.
      */
+    /** @param Table|\Closure(): Table $table */
     public static function make(
-        Table $table,
+        Table|\Closure $table,
         ExportFormat $format,
         ?string $recoveryRoute = null,
         ?string $recoveryLabelKey = null,
+        bool $repeatableRead = false,
     ): StreamedResponse {
-        if ($format === ExportFormat::Csv && $table->total !== null && $table->total > Table::RowLimit) {
-            throw new ExpectedRefusal(
-                status: 413,
-                messageKey: 'export.csv_too_large',
-                params: ['max' => (string) Number::format(Table::RowLimit, locale: app()->getLocale())],
-                errorCode: 'export_csv_too_large',
-                titleKey: 'errors.incidents.export_too_large_title',
-                recoveryRoute: $recoveryRoute,
-                recoveryLabelKey: $recoveryLabelKey,
-            );
-        }
-
-        // Single share-locked transaction into a bounded temp stream (spills to disk above 2 MB): findings retention
-        // cannot delete an accepted snapshot between an existence check and stream start, so an expired snapshot throws
-        // ExpectedRefusal(410) cleanly before HTTP 200 headers are sent.
-        $buffer = DB::transaction(static function () use ($table, $format) {
+        // Single transaction into a bounded temp stream (spills to disk above 2 MB): findings retention cannot delete
+        // an accepted snapshot between an existence check and stream start, and repeatable-read exports keep their cap
+        // check, total count and chunk reads on one PostgreSQL snapshot before HTTP 200 headers are sent.
+        [$buffer, $filename] = DB::transaction(static function () use ($table, $format, $recoveryRoute, $recoveryLabelKey, $repeatableRead): array {
+            if ($repeatableRead && DB::transactionLevel() === 1) {
+                DB::statement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
+            }
+            $resolved = $table instanceof \Closure ? $table() : $table;
+            if ($format === ExportFormat::Csv && $resolved->total !== null && $resolved->total > Table::RowLimit) {
+                throw new ExpectedRefusal(
+                    status: 413,
+                    messageKey: 'export.csv_too_large',
+                    params: ['max' => (string) Number::format(Table::RowLimit, locale: app()->getLocale())],
+                    errorCode: 'export_csv_too_large',
+                    titleKey: 'errors.incidents.export_too_large_title',
+                    recoveryRoute: $recoveryRoute,
+                    recoveryLabelKey: $recoveryLabelKey,
+                );
+            }
             $stream = fopen('php://temp', 'r+b');
             if ($stream === false) {
                 throw new \RuntimeException('Cannot open the export stream.');
             }
             try {
-                self::write($table, $format, $stream);
+                self::write($resolved, $format, $stream);
             } catch (\Throwable $exception) {
                 fclose($stream);
                 throw $exception;
             }
             rewind($stream);
 
-            return $stream;
+            return [$stream, $resolved->filename];
         });
 
         return response()->streamDownload(static function () use ($buffer): void {
@@ -64,7 +69,7 @@ final class ExportResponse
             } finally {
                 fclose($buffer);
             }
-        }, $table->filename.'.'.$format->value, ['Content-Type' => $format->contentType(), 'Cache-Control' => 'private, no-store', 'X-Accel-Buffering' => 'no']);
+        }, $filename.'.'.$format->value, ['Content-Type' => $format->contentType(), 'Cache-Control' => 'private, no-store', 'X-Accel-Buffering' => 'no']);
     }
 
     /** @param resource $output */

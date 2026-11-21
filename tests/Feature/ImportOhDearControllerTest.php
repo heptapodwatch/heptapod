@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\ReconcileQueuedWork;
 use Heptapod\Checks\Execution\ExecutionBudget;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CronTaskStore;
@@ -17,6 +18,7 @@ use Heptapod\Support\ImportTokenStore;
 use Heptapod\Testing\OhDearAccountTransport;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Queue\Connectors\ConnectorInterface;
 use Illuminate\Queue\NullQueue;
 use Illuminate\Support\Facades\DB;
@@ -304,4 +306,45 @@ it('reconciles stale queued and running imports through the scheduled reconciler
         ->and($staleQueued->error)->toBe('unexpected')
         ->and($staleQueued->finished_at)->not->toBeNull()
         ->and($freshQueued->refresh()->status)->toBe(ImportRunStatus::Queued);
+});
+
+it('fences import claims and failure callbacks by attempt generation and never fails a freshly claimed run during reconciliation', function (): void {
+    $owner = User::factory()->owner()->create();
+    $run = ImportRun::query()->create(['user_id' => $owner->id, 'source' => 'ohdear', 'status' => 'queued', 'expected' => 0,
+        'attempts' => 2, 'teams' => [], 'plan' => [], 'results' => [], 'created_client_ids' => []]);
+    ImportTokenStore::put($run->id, 'fixture-fence-secret');
+
+    // A late job from attempt 1 must neither claim nor fail attempt 2.
+    app()->call([new RunOhDearImport($run->id, 1), 'handle']);
+    expect($run->refresh()->status)->toBe(ImportRunStatus::Queued);
+
+    new RunOhDearImport($run->id, 1)->failed(new RuntimeException('late attempt 1 failure'));
+    expect($run->refresh()->status)->toBe(ImportRunStatus::Queued);
+
+    DB::table('import_runs')->where('id', $run->id)->update(['status' => 'running', 'updated_at' => now()]);
+    new RunOhDearImport($run->id, 1)->failed(new RuntimeException('late attempt 1 failure while attempt 2 runs'));
+    expect($run->refresh()->status)->toBe(ImportRunStatus::Running);
+
+    // If a worker claims a stale queued import between a select and an update, reconciliation must not fail the newly running row.
+    $raced = ImportRun::query()->create(['user_id' => $owner->id, 'source' => 'ohdear', 'status' => 'queued', 'expected' => 0,
+        'attempts' => 1, 'teams' => [], 'plan' => [], 'results' => [], 'created_client_ids' => []]);
+    DB::table('import_runs')->where('id', $raced->id)->update(['updated_at' => now()->subSeconds(ExecutionBudget::RetryAfter + 5)]);
+    $sawUpdate = false;
+    $claimedDuringSelect = false;
+    DB::listen(static function (QueryExecuted $query) use (&$sawUpdate, &$claimedDuringSelect, $raced): void {
+        if (! str_contains($query->sql, '"import_runs"')) {
+            return;
+        }
+        if (str_starts_with(strtolower($query->sql), 'update')) {
+            $sawUpdate = true;
+        } elseif (! $sawUpdate && ! $claimedDuringSelect && str_starts_with(strtolower($query->sql), 'select')) {
+            $claimedDuringSelect = true;
+            DB::table('import_runs')->where('id', $raced->id)->update(['status' => 'running', 'updated_at' => now()]);
+        }
+    });
+
+    app(ReconcileQueuedWork::class)->failStaleImports();
+    expect($claimedDuringSelect)->toBeFalse()
+        ->and($sawUpdate)->toBeTrue()
+        ->and($raced->refresh()->status)->toBe(ImportRunStatus::Failed);
 });
