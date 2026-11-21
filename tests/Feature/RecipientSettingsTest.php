@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Carbon\CarbonImmutable;
 use Heptapod\Actions\CreateOwner;
 use Heptapod\Actions\EnsureAccountChannel;
+use Heptapod\Actions\Notifications\UpdateNotificationPreferences;
 use Heptapod\Actions\SetNotificationDestinationEnabled;
 use Heptapod\Addons\Channels\CommunityChannel;
 use Heptapod\Contracts\CheckKey;
@@ -678,4 +679,8 @@ it('commits preferences and site mutes atomically and rolls both back on refusal
     ])->assertNotFound();
     expect(recipientGrid($memberChannel->id))->toBe($memberBefore)
         ->and(DB::table('notification_site_mutes')->where('destination_id', $memberChannel->id)->count())->toBe(0);
+
+    $this->actingAs($admin)->putJson(route('notification-channels.preferences', $clientChannel), [
+        'mute_site_ids' => range(1, UpdateNotificationPreferences::MaxSiteMutesBatch + 1),
+    ])->assertUnprocessable();
 });

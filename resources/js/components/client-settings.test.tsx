@@ -387,7 +387,7 @@ it('clears the avatar draft when the saved site icon is chosen again', () => {
     expect(screen.getByText('No unsaved changes')).toBeTruthy();
 });
 
-it('resets defaults to server-saved client values with null avatar after saving', async () => {
+it('syncs defaults to server-normalized client values after saving with an avatar', async () => {
     const post = vi.spyOn(router, 'post').mockImplementation(() => {});
     render(page());
     dropAvatar();

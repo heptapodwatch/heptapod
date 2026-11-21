@@ -47,52 +47,68 @@ function mergeOwnMutation<T>(
     }
     const prevByKey = new Map(previousLatest.map((row) => [getKey(row), row]));
     const acceptedByKey = new Map(accepted.map((row) => [getKey(row), row]));
-    const signature = (row: T) =>
-        contentKey ? contentKey(row) : JSON.stringify(row);
     const ownRemoved = new Set(
         [...prevByKey.keys()].filter((id) => !acceptedByKey.has(id)),
     );
     const ownAdded = new Set(
         [...acceptedByKey.keys()].filter((id) => !prevByKey.has(id)),
     );
-    const ownModified = new Set(
-        [...acceptedByKey.entries()]
-            .filter(([id, row]) => {
-                const before = prevByKey.get(id);
-                return (
-                    before !== undefined && signature(before) !== signature(row)
-                );
-            })
-            .map(([id]) => id),
-    );
+    const ownModified = contentKey
+        ? new Set(
+              [...acceptedByKey.entries()]
+                  .filter(([id, row]) => {
+                      const before = prevByKey.get(id);
+                      return (
+                          before !== undefined &&
+                          contentKey(before) !== contentKey(row)
+                      );
+                  })
+                  .map(([id]) => id),
+          )
+        : new Set<number | string>();
 
-    let nextVisible = shown
-        .filter((row) => !ownRemoved.has(getKey(row)))
+    // Remove deleted and own-modified rows so own-modified rows can be placed at their new server order
+    // (e.g. a rescheduled maintenance window) without disturbing buffered foreign rows or foreign reorders.
+    const nextVisible = shown
+        .filter((row) => {
+            const id = getKey(row);
+            return !ownRemoved.has(id) && !ownModified.has(id);
+        })
         .map((row) => {
             const id = getKey(row);
-            if (ownModified.has(id)) {
-                return acceptedByKey.get(id)!;
-            }
-            if (contentKey === undefined && acceptedByKey.has(id)) {
-                return acceptedByKey.get(id)!;
-            }
-            return row;
+            return contentKey === undefined && acceptedByKey.has(id)
+                ? acceptedByKey.get(id)!
+                : row;
         });
 
-    accepted.forEach((row, index) => {
+    for (let index = 0; index < accepted.length; index++) {
+        const row = accepted[index]!;
         const id = getKey(row);
-        if (
-            ownAdded.has(id) &&
-            !nextVisible.some((item) => getKey(item) === id)
-        ) {
-            const position = Math.min(index, nextVisible.length);
-            nextVisible = [
-                ...nextVisible.slice(0, position),
-                row,
-                ...nextVisible.slice(position),
-            ];
+        if (!ownAdded.has(id) && !ownModified.has(id)) {
+            continue;
         }
-    });
+        if (nextVisible.some((item) => getKey(item) === id)) {
+            continue;
+        }
+        // Insert before the earliest visible row that appears after `row` in `accepted`, preserving
+        // the new server position of own rows while leaving any buffered foreign reorder untouched.
+        const visibleIndexByKey = new Map(
+            nextVisible.map((item, visibleIndex) => [
+                getKey(item),
+                visibleIndex,
+            ]),
+        );
+        let position = nextVisible.length;
+        for (let after = index + 1; after < accepted.length; after++) {
+            const followingIndex = visibleIndexByKey.get(
+                getKey(accepted[after]!),
+            );
+            if (followingIndex !== undefined && followingIndex < position) {
+                position = followingIndex;
+            }
+        }
+        nextVisible.splice(position, 0, row);
+    }
 
     const differences = countDifferences(
         nextVisible,
@@ -135,21 +151,28 @@ export function useBufferedChanges<T>(
     visibleRef.current = visible;
     const [pendingCount, setPendingCount] = useState(0);
     const [ownMutationsInFlight, setOwnMutationsInFlight] = useState(0);
+    const mutationsInFlightRef = useRef(0);
     const holdRows = ownResponseProp !== undefined && ownMutationsInFlight > 0;
 
     useEffect(() => {
-        latest.current = rows;
         if (previousUrl.current !== url || previousScope.current !== scope) {
             previousUrl.current = url;
             previousScope.current = scope;
+            latest.current = rows;
             visibleRef.current = rows;
             setVisible(rows);
             setPendingCount(0);
             return;
         }
-        if (holdRows) {
+        // Inertia commits response props via flushSync before firing `success`: keep `latest.current` at the
+        // pre-response snapshot until `success` diffs the own mutation against it (or `finish` releases on error).
+        if (
+            holdRows ||
+            (ownResponseProp !== undefined && mutationsInFlightRef.current > 0)
+        ) {
             return;
         }
+        latest.current = rows;
         let base = visible;
         const accepts = ownRunAccepts.current;
         if (accepts) {
@@ -223,6 +246,7 @@ export function useBufferedChanges<T>(
                 return;
             }
             mutationVisitIds.add(detail.visit.id);
+            mutationsInFlightRef.current++;
             setOwnMutationsInFlight((count) => count + 1);
         });
         const removeSuccess = router.on('success', ({ detail }) => {
@@ -260,6 +284,10 @@ export function useBufferedChanges<T>(
             if (!mutationVisitIds.delete(detail.visit.id)) {
                 return;
             }
+            mutationsInFlightRef.current = Math.max(
+                0,
+                mutationsInFlightRef.current - 1,
+            );
             setOwnMutationsInFlight((count) => count - 1);
         });
         return () => {

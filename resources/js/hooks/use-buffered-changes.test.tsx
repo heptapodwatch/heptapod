@@ -50,7 +50,7 @@ it('updates existing rows while buffering insertion and reordering', () => {
     expect(result.current.pendingCount).toBe(0);
 });
 
-it('applies only the own mutation while keeping previously buffered foreign changes pending', () => {
+it('applies only the own mutation in Inertia prop-commit-before-success order while keeping buffered foreign changes pending', () => {
     const initial = [
         { id: 1, label: 'Mine v1' },
         { id: 2, label: 'Foreign v1' },
@@ -82,15 +82,16 @@ it('applies only the own mutation while keeping previously buffered foreign chan
     expect(result.current.rows).toEqual(initial);
     expect(result.current.pendingCount).toBe(2);
 
+    // Production Inertia 3.11 order: start -> props commit (flushSync) -> success -> finish.
     act(() => {
         emit('start', { visit: { id: 'v1', method: 'patch' } });
+    });
+    rerender({ rows: afterOwnEdit });
+    act(() => {
         emit('success', {
             visitId: 'v1',
             page: { props: { windows: afterOwnEdit } },
         });
-    });
-    rerender({ rows: afterOwnEdit });
-    act(() => {
         emit('finish', { visit: { id: 'v1', method: 'patch' } });
     });
 
@@ -104,4 +105,57 @@ it('applies only the own mutation while keeping previously buffered foreign chan
     act(() => result.current.apply());
     expect(result.current.rows).toEqual(afterOwnEdit);
     expect(result.current.pendingCount).toBe(0);
+});
+
+it('repositions an edited row to its new server sort order without leaving its own reorder pending', () => {
+    const initial = [
+        { id: 1, starts: '10:00' },
+        { id: 2, starts: '11:00' },
+        { id: 3, starts: '12:00' },
+    ];
+    const afterForeign = [
+        { id: 1, starts: '10:00' },
+        { id: 2, starts: '11:00' },
+        { id: 9, starts: '11:30' },
+        { id: 3, starts: '12:00' },
+    ];
+    const afterReschedule = [
+        { id: 2, starts: '11:00' },
+        { id: 9, starts: '11:30' },
+        { id: 3, starts: '12:00' },
+        { id: 1, starts: '13:00' },
+    ];
+    const { result, rerender } = renderHook(
+        ({ rows }) =>
+            useBufferedChanges(
+                rows,
+                (row) => row.id,
+                null,
+                (row) => JSON.stringify(row),
+                'windows',
+            ),
+        { initialProps: { rows: initial } },
+    );
+
+    rerender({ rows: afterForeign });
+    expect(result.current.pendingCount).toBe(1);
+
+    act(() => {
+        emit('start', { visit: { id: 'v2', method: 'patch' } });
+    });
+    rerender({ rows: afterReschedule });
+    act(() => {
+        emit('success', {
+            visitId: 'v2',
+            page: { props: { windows: afterReschedule } },
+        });
+        emit('finish', { visit: { id: 'v2', method: 'patch' } });
+    });
+
+    expect(result.current.rows).toEqual([
+        { id: 2, starts: '11:00' },
+        { id: 3, starts: '12:00' },
+        { id: 1, starts: '13:00' },
+    ]);
+    expect(result.current.pendingCount).toBe(1);
 });

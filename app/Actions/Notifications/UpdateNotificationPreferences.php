@@ -31,6 +31,8 @@ use Illuminate\Validation\ValidationException;
  */
 final readonly class UpdateNotificationPreferences
 {
+    public const int MaxSiteMutesBatch = 500;
+
     public function __construct(private RequestRoutingReconciliation $reconcile, private NotificationTiming $timing) {}
 
     /** @param array<string, mixed> $input */
@@ -62,6 +64,9 @@ final readonly class UpdateNotificationPreferences
             throw ValidationException::withMessages(['preferences' => __('validation.required', ['attribute' => __('recipient_settings.grid.title')])]);
         }
         $allSiteIds = array_values(array_unique([...$muteSiteIds, ...$unmuteSiteIds]));
+        if (count($allSiteIds) > self::MaxSiteMutesBatch) {
+            throw ValidationException::withMessages(['site' => __('validation.max.array', ['attribute' => __('recipient_settings.mutes.title'), 'max' => self::MaxSiteMutesBatch])]);
+        }
         $muteActor = null;
         if ($allSiteIds !== []) {
             if (! $actor instanceof User) {
@@ -90,8 +95,10 @@ final readonly class UpdateNotificationPreferences
                 RequestRoutingReconciliation::OpeningCategories,
                 static fn (NotificationCategory $category): bool => ($requested[$category->value] ?? NotificationMode::Off) !== NotificationMode::Off,
             );
-            if ($openingRequested || $unmuteSiteIds !== []) {
+            if ($openingRequested) {
                 $this->reconcile->lockEpisodes($destination);
+            } elseif ($unmuteSiteIds !== []) {
+                $this->reconcile->lockEpisodes($destination, $unmuteSiteIds);
             }
             NotificationLocks::channels([$destination->id]);
             $locked = NotificationDestination::query()->with('user')->findOrFail($destination->id);
@@ -166,6 +173,9 @@ final readonly class UpdateNotificationPreferences
     {
         if (! is_array($raw)) {
             throw ValidationException::withMessages([$field => __('validation.array', ['attribute' => __('recipient_settings.mutes.title')])]);
+        }
+        if (count($raw) > self::MaxSiteMutesBatch) {
+            throw ValidationException::withMessages([$field => __('validation.max.array', ['attribute' => __('recipient_settings.mutes.title'), 'max' => self::MaxSiteMutesBatch])]);
         }
         $ids = [];
         foreach ($raw as $value) {

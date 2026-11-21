@@ -624,7 +624,6 @@ it('uses server identities for mixed-stage collisions in chips and picker detail
 });
 
 it('saves channel preference and site-mute changes in a single atomic request', async () => {
-    mockedPageUrl = '/settings/notifications/team?channel=7';
     render(
         <RecipientSettings
             page={{
@@ -650,6 +649,7 @@ it('saves channel preference and site-mute changes in a single atomic request', 
             scopeDescription="scope"
         />,
     );
+    fireEvent.click(screen.getByRole('button', { name: 'Slack #alerts' }));
     const sheet = await screen.findByRole('dialog');
     fireEvent.click(
         within(sheet).getByRole('button', {
