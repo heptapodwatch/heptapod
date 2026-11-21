@@ -9,7 +9,9 @@ use Heptapod\Concerns\PasswordValidationRules;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\ResetsUserPasswords;
 
 class ResetUserPassword implements ResetsUserPasswords
@@ -31,13 +33,19 @@ class ResetUserPassword implements ResetsUserPasswords
         ])->validate();
 
         DB::transaction(function () use ($user, $input): void {
-            // The same exclusive user lock as removal: a token issued concurrently either exists before the revocation
-            // deletes it or waits and is refused (CreateApiToken).
+            // The same exclusive user lock as removal and reactivation: a token issued concurrently either exists before the
+            // revocation deletes it or waits and is refused (CreateApiToken).
             NotificationLocks::forUpdate(User::query()->whereKey($user->id)->getQuery())->first(['id']);
-            $user->forceFill([
+            // The broker approved the link before this lock: a removal or reactivation since may have voided it.
+            $current = User::query()->findOrFail($user->id);
+            if ($current->disabled_at !== null || ! Password::tokenExists($current, $input['token'] ?? '')) {
+                throw ValidationException::withMessages(['email' => __(Password::INVALID_TOKEN)]);
+            }
+            Password::deleteToken($current);
+            $current->forceFill([
                 'password' => $input['password'],
             ])->save();
-            ($this->revoke)($user);
+            ($this->revoke)($current);
         });
     }
 }
