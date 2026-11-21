@@ -19,13 +19,12 @@ use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\ExternalTimeoutException;
-use Heptapod\Contracts\Http\AutomatedCheckBlock;
-use Heptapod\Contracts\Http\AutomatedCheckBlockReason;
 use Heptapod\Contracts\Http\FetchFailure;
 use Heptapod\Contracts\Http\FetchFailureKind;
 use Heptapod\Contracts\Http\FetchRequest;
 use Heptapod\Contracts\Http\FetchResult;
 use Heptapod\Contracts\Http\OutboundHttp;
+use Heptapod\Contracts\Http\PacedHttpClient;
 use Heptapod\Contracts\Http\PublicRequestProfile;
 use Heptapod\Contracts\Http\RedirectPolicy;
 use Heptapod\Contracts\Mail\MailEventFacts;
@@ -104,8 +103,7 @@ function sitemapRequest(string $path = '/sitemap.xml', string $method = 'GET', b
     $bytes = $maxBytes ?? ($isProbe ? SitemapCheck::MaxReachabilityProbeBytes : 2097152);
 
     return sitemapLibraryRequest(new FetchRequest('http://fixtures.test'.$path, $method, maxWireBytes: $bytes, maxDecodedBytes: $bytes,
-        redirects: $operator ? RedirectPolicy::Operator : RedirectPolicy::Untrusted, siteHost: 'fixtures.test', timeoutSeconds: 10.0, acceptedStatuses: range(200, 599),
-        truncateAtLimit: $isProbe && $method === 'GET'));
+        redirects: $operator ? RedirectPolicy::Operator : RedirectPolicy::Untrusted, siteHost: 'fixtures.test', timeoutSeconds: 10.0, acceptedStatuses: range(200, 599)));
 }
 
 /** Library integration fakes observe the public request profile, PSR-generated Host and an empty stream body. */
@@ -120,8 +118,7 @@ function sitemapLibraryRequest(FetchRequest $request): FetchRequest
     }
 
     return new FetchRequest($request->url, $request->method, $headers, (string) $message->getBody(), $request->maxWireBytes, $request->maxDecodedBytes,
-        $request->redirects, $request->maxRedirects, $request->siteHost, $request->timeoutSeconds, $request->acceptedStatuses, $request->strictRedirects, $request->withCertificateInfo, $request->publicTargetsOnly,
-        truncateAtLimit: $request->truncateAtLimit);
+        $request->redirects, $request->maxRedirects, $request->siteHost, $request->timeoutSeconds, $request->acceptedStatuses, $request->strictRedirects, $request->withCertificateInfo, $request->publicTargetsOnly);
 }
 
 /** @return array<string, list<string>> */
@@ -1531,33 +1528,66 @@ it('bounds reachability HEAD and fallback GET probe byte requests separately fro
     expect($probeRequests)->toHaveCount(2);
     foreach ($probeRequests as $entry) {
         expect($entry['request']->maxWireBytes)->toBe(SitemapCheck::MaxReachabilityProbeBytes)
-            ->and($entry['request']->maxDecodedBytes)->toBe(SitemapCheck::MaxReachabilityProbeBytes)
-            ->and($entry['request']->truncateAtLimit)->toBe($entry['request']->method === 'GET');
+            ->and($entry['request']->maxDecodedBytes)->toBe(SitemapCheck::MaxReachabilityProbeBytes);
     }
 });
 
-it('preserves status, headers and block prefix on capped fallback GETs through real outbound transport', function (): void {
+it('treats a capped fallback GET that ends as TooLarge as unverified through real outbound transport', function (): void {
     $this->travelBack();
+    $realHttp = app(OutboundHttp::class);
+    // Serve a synthetic sitemap listing real oversized 503 and 200 endpoints, while forwarding all probes through real Guzzle/cURL transport.
+    app()->instance(OutboundHttp::class, new class($realHttp) implements OutboundHttp
+    {
+        public function __construct(private readonly OutboundHttp $real) {}
+
+        public function fetch(FetchRequest $request, CheckContext $context): FetchResult
+        {
+            return $this->real->fetch($request, $context);
+        }
+
+        public function pacedClient(CheckContext $context, int $additionalDelayMilliseconds = 0): PacedHttpClient
+        {
+            $realClient = $this->real->pacedClient($context, $additionalDelayMilliseconds);
+
+            return new class($realClient) implements PacedHttpClient
+            {
+                public function __construct(private readonly PacedHttpClient $realClient) {}
+
+                public function fetch(FetchRequest $request): ?FetchResult
+                {
+                    if (str_ends_with($request->url, '/sitemap.xml')) {
+                        return new FetchResult(200, sitemapXml([
+                            'http://fixtures.test/http-seam/large/503',
+                            'http://fixtures.test/http-seam/large/200',
+                        ]));
+                    }
+
+                    return $this->realClient->fetch($request);
+                }
+
+                public function fetchMany(array $requests): array
+                {
+                    return $this->realClient->fetchMany($requests);
+                }
+            };
+        }
+
+        public function clientConfig(FetchRequest $request, CheckContext $context, ?float $selectTimeoutSeconds = null): array
+        {
+            return $this->real->clientConfig($request, $context, $selectTimeoutSeconds);
+        }
+    });
+
     $context = sitemapContext(['speed' => 'fastest', 'urls_per_run' => '100']);
-    $client = app(OutboundHttp::class)->pacedClient($context, 0);
+    $run = runSitemap($context);
 
-    // Real 2 MiB 200 and 503 responses + real Cloudflare 403 WAF page truncated mid-body via cURL.
-    $results = $client->fetchMany([
-        'large200' => new FetchRequest('http://fixtures.test/http-seam/large/200', 'GET', maxWireBytes: SitemapCheck::MaxReachabilityProbeBytes, maxDecodedBytes: SitemapCheck::MaxReachabilityProbeBytes, redirects: RedirectPolicy::Untrusted, siteHost: 'fixtures.test', timeoutSeconds: 10.0, acceptedStatuses: range(200, 599), refusalIsFinding: true, truncateAtLimit: true),
-        'large503' => new FetchRequest('http://fixtures.test/http-seam/large/503', 'GET', maxWireBytes: SitemapCheck::MaxReachabilityProbeBytes, maxDecodedBytes: SitemapCheck::MaxReachabilityProbeBytes, redirects: RedirectPolicy::Untrusted, siteHost: 'fixtures.test', timeoutSeconds: 10.0, acceptedStatuses: range(200, 599), refusalIsFinding: true, truncateAtLimit: true),
-        'waf403' => new FetchRequest('http://fixtures.test/bot-protection/waf', 'GET', maxWireBytes: 64, maxDecodedBytes: 64, redirects: RedirectPolicy::Untrusted, siteHost: 'fixtures.test', timeoutSeconds: 10.0, acceptedStatuses: range(200, 599), refusalIsFinding: true, truncateAtLimit: true),
-    ]);
-
-    expect($results['large200']->failure)->toBeNull()
-        ->and($results['large200']->status)->toBe(200)
-        ->and(strlen($results['large200']->body))->toBeLessThanOrEqual(SitemapCheck::MaxReachabilityProbeBytes);
-    expect($results['large503']->failure)->toBeNull()
-        ->and($results['large503']->status)->toBe(503)
-        ->and(strlen($results['large503']->body))->toBeLessThanOrEqual(SitemapCheck::MaxReachabilityProbeBytes);
-    expect($results['waf403']->failure)->toBeNull()
-        ->and($results['waf403']->status)->toBe(403)
-        ->and(AutomatedCheckBlock::reason($results['waf403']->status, $results['waf403']->headers, $results['waf403']->body))
-        ->toBe(AutomatedCheckBlockReason::BotProtection);
+    // 2 MiB 503 triggers HEAD 503 -> capped fallback GET TooLarge(503) -> treated as unverified (unchecked), never size_limit.
+    expect($run->result)->toBe(RunResult::Succeeded)
+        ->and($run->evidence['issues'])->toBe([])
+        ->and($run->evidence['sitemaps'][0]['checkedReachabilityOfAllUrls'])->toBeFalse();
+    $snapshotId = DB::table('sitemap_snapshots')->where('run_id', $run->id)->value('id');
+    expect(DB::table('sitemap_findings')->where('snapshot_id', $snapshotId)->where('url', 'http://fixtures.test/http-seam/large/503')->value('status'))
+        ->toBe('unchecked');
 });
 
 it('bounds sitemap change event diffs when many issues appear at once', function (): void {

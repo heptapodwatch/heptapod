@@ -210,7 +210,7 @@ final readonly class GuzzleOutboundHttp implements OutboundHttp
                 }
                 $options['timeout'] = $remaining;
                 $options['connect_timeout'] = min(10.0, $remaining);
-                if (strtoupper($message->getMethod()) !== 'HEAD' && ! $request->truncateAtLimit) {
+                if (strtoupper($message->getMethod()) !== 'HEAD') {
                     /** @var array<int, mixed> $curlOptions */
                     $curlOptions = $options['curl'] ?? [];
                     $curlOptions[CURLOPT_MAXFILESIZE_LARGE] = $request->maxWireBytes;
@@ -227,19 +227,7 @@ final readonly class GuzzleOutboundHttp implements OutboundHttp
                 // An exception from a curl callback escapes the shared multi loop and rejects another transfer's promise.
                 $options['sink'] = FnStream::decorate($sink, [
                     'write' => static function (#[\SensitiveParameter] string $bytes) use ($sink, $state, $request): int {
-                        if ($state->overflow) {
-                            return 0;
-                        }
-                        if ($state->decoded + strlen($bytes) > $request->maxDecodedBytes) {
-                            $remaining = $request->maxDecodedBytes - $state->decoded;
-                            if ($request->truncateAtLimit && $remaining > 0) {
-                                try {
-                                    $written = $sink->write(substr($bytes, 0, $remaining));
-                                    $state->decoded += $written;
-                                } catch (\Throwable $exception) {
-                                    $state->callbackError = $exception;
-                                }
-                            }
+                        if ($state->overflow || $state->decoded + strlen($bytes) > $request->maxDecodedBytes) {
                             $state->overflow = true;
 
                             return 0;
@@ -259,11 +247,6 @@ final readonly class GuzzleOutboundHttp implements OutboundHttp
                 $options['on_headers'] = static function (ResponseInterface $response) use ($state, $request, $message): void {
                     try {
                         $state->status = $response->getStatusCode();
-                        if ($request->truncateAtLimit) {
-                            $state->headers = $response->getHeaders();
-
-                            return;
-                        }
                         $length = $response->getHeaderLine('Content-Length');
                         // HEAD/304 lengths describe a representation, not incoming body bytes.
                         $hasBody = strtoupper($message->getMethod()) !== 'HEAD' && $state->status >= 200 && ! in_array($state->status, [204, 304], true);
@@ -331,26 +314,20 @@ final readonly class GuzzleOutboundHttp implements OutboundHttp
                     return Create::rejectionFor($this->failure($exception, $state->status, $state->errno, $state->tlsTarget));
                 }
 
-                return $promise->then(function (ResponseInterface $response) use ($state, $request, $sink): ResponseInterface {
+                return $promise->then(function (ResponseInterface $response) use ($state): ResponseInterface {
                     if ($state->callbackError instanceof \Throwable) {
                         throw $state->callbackError;
                     }
                     if ($state->overflow) {
-                        if ($request->truncateAtLimit && $state->status !== null) {
-                            return new Response($state->status, $state->headers, (string) $sink);
-                        }
                         throw new FetchException(new FetchFailure(FetchFailureKind::TooLarge, $state->status));
                     }
 
                     return $response;
-                }, function (#[\SensitiveParameter] mixed $reason) use ($state, $request, $sink): ResponseInterface {
+                }, function (#[\SensitiveParameter] mixed $reason) use ($state): never {
                     if ($state->callbackError instanceof \Throwable) {
                         throw $state->callbackError;
                     }
                     if ($state->overflow) {
-                        if ($request->truncateAtLimit && $state->status !== null) {
-                            return new Response($state->status, $state->headers, (string) $sink);
-                        }
                         throw new FetchException(new FetchFailure(FetchFailureKind::TooLarge, $state->status));
                     }
                     if (! $reason instanceof \Throwable) {

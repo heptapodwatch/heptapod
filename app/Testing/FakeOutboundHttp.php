@@ -85,7 +85,6 @@ final class FakeOutboundHttp implements OutboundHttp
                 (string) $message->getUri(), $message->getMethod(), $headers, (string) $message->getBody(),
                 $request->maxWireBytes, $request->maxDecodedBytes, $request->redirects, $request->maxRedirects,
                 $request->siteHost, $request->timeoutSeconds, $request->acceptedStatuses, $request->strictRedirects, $request->withCertificateInfo, $request->publicTargetsOnly,
-                truncateAtLimit: $request->truncateAtLimit,
             );
             $result = $this->fetch($fetch, $context);
             if ($result->failure instanceof FetchFailure && ($result->failure->kind !== FetchFailureKind::HttpStatus

@@ -23,7 +23,6 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
 
 final readonly class CrawlPersistence implements FindingsExportProvider, FindingsQueryProvider, RunPersistence
 {
@@ -127,8 +126,9 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
                 Validator::make([$key => array_slice($values[$key], $offset, 1000, true)], $itemRules)->validate();
             }
         }
-        if (strlen(json_encode($values, JSON_THROW_ON_ERROR)) > self::MAX_ARTIFACT_BYTES) {
-            throw ValidationException::withMessages(['artifact' => 'Crawl artifact exceeds the maximum byte limit.']);
+        $encoded = json_encode($values, JSON_THROW_ON_ERROR);
+        if (strlen($encoded) > self::MAX_ARTIFACT_BYTES) {
+            throw new CrawlArtifactTooLarge(strlen($encoded), is_int($values['settings']['max_pages'] ?? null) ? $values['settings']['max_pages'] : 0);
         }
         DB::transaction(function () use ($context, $values): void {
             $query = DB::table('crawl_snapshots')->where('run_id', $context->runId)->where('claim_token', $context->claimToken);

@@ -9,8 +9,10 @@ use GuzzleHttp\Middleware;
 use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Psr7\Request as GuzzleRequest;
 use GuzzleHttp\Psr7\Response;
+use Heptapod\Addons\Crawl\BrokenLinksCheck;
 use Heptapod\Addons\Crawl\CrawlArtifact;
 use Heptapod\Addons\Crawl\CrawlCollector;
+use Heptapod\Addons\Crawl\CrawlFinding;
 use Heptapod\Addons\Crawl\CrawlMetrics;
 use Heptapod\Addons\Crawl\CrawlObserver;
 use Heptapod\Addons\Crawl\CrawlPersistence;
@@ -52,6 +54,7 @@ use Heptapod\Testing\ClaimedRun;
 use Heptapod\Testing\FakeOutboundHttp;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -62,6 +65,7 @@ use Spatie\Crawler\CrawlResponse;
 use Spatie\LaravelData\Exceptions\CannotCastEnum;
 use Symfony\Component\Process\Process;
 use Tests\Support\ClosedGuardedHttp;
+use Uri\WhatWg\Url;
 
 beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-28T12:00:00Z'));
@@ -2084,6 +2088,60 @@ it('fails with the typed resource-cap result without writing oversized crawl col
     expect($run->result)->toBe(RunResult::Errored)
         ->and($run->summary)->toBe('broken_links.incomplete_resources')
         ->and($run->evidence['resource_cap_reached'])->toBeTrue()
+        ->and($run->evidence['notes'][0]['key'])->toBe('crawl.coverage.storage_limit')
         ->and(DB::table('crawl_collections')->where('site_id', $site->id)->exists())->toBeFalse()
+        ->and(DB::table('crawl_snapshots')->where('check_id', $check->id)->exists())->toBeFalse();
+    foreach (['en', 'de'] as $locale) {
+        expect(__('crawl.coverage.storage_limit', locale: $locale))->not->toBe('crawl.coverage.storage_limit');
+    }
+});
+
+it('routes final staging payload byte overflow through the same typed storage-limit result', function (): void {
+    $site = Site::factory()->create(['url' => 'https://staging-overflow.example.test']);
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::BrokenLinks]);
+    // Cache a collection that fits just below MAX_ARTIFACT_BYTES before evaluated_finding_ids and comparison_key are appended.
+    $longSegment = str_repeat('b', 7000);
+    $urls = [];
+    $observedUrls = [$site->url];
+    $discoveredUrls = [$site->url];
+    for ($i = 1; $i <= 575; $i++) {
+        $url = $site->url.'/missing-'.$i.'/'.$longSegment;
+        $relative = '/missing-'.$i.'/'.$longSegment;
+        $urls[] = new CrawlFinding($url, $relative, 404, $site->url, '/', null, 'link', null, true);
+        $observedUrls[] = $url;
+        $discoveredUrls[] = $url;
+    }
+    $config = BrokenLinksCheck::configSchema()->defaults();
+    $crawlSettings = array_diff_key($config, array_flip(['whitelisted_urls', 'new_links_only']));
+    $runtimeSettings = array_diff_key(config('heptapod.crawl'), array_flip(['defaults', 'interval_seconds', 'lock_wait_seconds']));
+    $fingerprint = hash_hmac('sha256', json_encode([12, $crawlSettings, [], $runtimeSettings], JSON_THROW_ON_ERROR), Crypt::getKey());
+    $targetFingerprint = hash_hmac('sha256', new Url($site->url)->toAsciiString(), Crypt::getKey());
+    $artifact = new CrawlArtifact(
+        $site->url, now()->toIso8601String(), $config, $urls, [], $targetFingerprint,
+        false, $observedUrls, [$site->url], $discoveredUrls, true, config_fingerprint: $fingerprint,
+        classification_policy_version: LinkClassificationPolicy::VERSION, start_page_final_url: $site->url,
+    );
+    $encoded = json_encode($artifact->privateStorage(), JSON_THROW_ON_ERROR);
+    // Pad discovered_urls to sit within ~10 KiB of MAX_ARTIFACT_BYTES so appending 575 finding hashes (~40 KiB) crosses the cap.
+    $padCount = max(0, (int) floor((CrawlPersistence::MAX_ARTIFACT_BYTES - strlen($encoded) - 10_000) / 7045));
+    for ($p = 1; $p <= $padCount; $p++) {
+        $discoveredUrls[] = $site->url.'/pad-'.$p.'/'.$longSegment;
+    }
+    $artifact = new CrawlArtifact(
+        $site->url, now()->toIso8601String(), $config, $urls, [], $targetFingerprint,
+        false, $observedUrls, [$site->url], $discoveredUrls, true, config_fingerprint: $fingerprint,
+        classification_policy_version: LinkClassificationPolicy::VERSION, start_page_final_url: $site->url,
+    );
+    $encoded = json_encode($artifact->privateStorage(), JSON_THROW_ON_ERROR);
+    expect(strlen($encoded))->toBeLessThanOrEqual(CrawlPersistence::MAX_ARTIFACT_BYTES);
+    DB::table('crawl_collections')->insert(['site_id' => $site->id, 'artifact' => $encoded, 'collected_at' => $artifact->collected_at]);
+
+    recordCrawl(crawlContext($check));
+
+    $run = CheckRun::query()->where('check_id', $check->id)->sole();
+    expect($run->result)->toBe(RunResult::Errored)
+        ->and($run->summary)->toBe('broken_links.incomplete_resources')
+        ->and($run->evidence['resource_cap_reached'])->toBeTrue()
+        ->and($run->evidence['notes'][0]['key'])->toBe('crawl.coverage.storage_limit')
         ->and(DB::table('crawl_snapshots')->where('check_id', $check->id)->exists())->toBeFalse();
 });

@@ -147,6 +147,7 @@
     "crawl.discovery.invalid_url_limit": "The invalid URL limit stopped recording discovered links",
     "crawl.discovery.start_page_unavailable": "The start page could not be read",
     "crawl.coverage.reason_not_recorded": "This saved run has no recorded coverage reason. Run the check again for current coverage.",
+    "crawl.coverage.storage_limit": "The crawl results exceeded the storage limit, so findings were not updated.",
     "crawl.result.unchecked_connection_reset": "Could not be checked: the server closed the connection",
     "crawl.result.login_required": "Login required",
     "crawl.result.access_refused": "Refused automated checks",

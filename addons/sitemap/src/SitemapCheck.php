@@ -559,7 +559,7 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
                 $fallback = [];
                 foreach ($results as $target => $result) {
                     if ($result?->failure?->kind === FetchFailureKind::HttpStatus) {
-                        $fallback[$target] = $this->request($context, 'GET', $target, $probeMaxBytes, truncateAtLimit: true);
+                        $fallback[$target] = $this->request($context, 'GET', $target, $probeMaxBytes);
                     }
                 }
                 $results = array_replace($results, $this->fetchBatches($client, $fallback));
@@ -575,6 +575,10 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
                         if ($block === AutomatedCheckBlockReason::RateLimited) {
                             // A rate limit supplies no recovery evidence for an earlier broken URL.
                             $rateLimitedUrls[$this->publicUrl($target, $secrets, $legacyCheckUrl)] = true;
+                            $discoveryComplete = false;
+                            $urlIssues[$target] = null;
+                        } elseif (isset($fallback[$target]) && $result->failure?->kind === FetchFailureKind::TooLarge && $result->failure->status !== 200) {
+                            // A capped fallback GET could not read the error response; treat as unverified, never as a size-limit finding.
                             $discoveryComplete = false;
                             $urlIssues[$target] = null;
                         } else {
@@ -786,7 +790,7 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
         return new FetchResult($response->status, failure: new FetchFailure(FetchFailureKind::HttpStatus, $response->status));
     }
 
-    private function request(CheckContext $context, string $method, string $url, int $maxBytes, bool $operator = false, bool $truncateAtLimit = false): FetchRequest
+    private function request(CheckContext $context, string $method, string $url, int $maxBytes, bool $operator = false): FetchRequest
     {
         $site = Uri::new($context->url);
         $siteHost = TargetHost::normalize($site->getHost() ?? throw new \InvalidArgumentException('Sitemap site URL needs a host.'));
@@ -802,7 +806,7 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
         return new FetchRequest($url, $method, $headers, maxWireBytes: $maxBytes, maxDecodedBytes: $maxBytes,
             redirects: $operator ? RedirectPolicy::Operator : RedirectPolicy::Untrusted, siteHost: $siteHost, timeoutSeconds: 10.0, acceptedStatuses: range(200, 599),
             // A listed URL or child sitemap that the guard refuses is a per-item issue; the configured sitemap URL still errors the run.
-            refusalIsFinding: ! $operator, truncateAtLimit: $truncateAtLimit);
+            refusalIsFinding: ! $operator);
     }
 
     /**
