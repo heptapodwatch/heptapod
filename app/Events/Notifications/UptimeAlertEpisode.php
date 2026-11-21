@@ -24,6 +24,8 @@ final class UptimeAlertEpisode
 
     public const string ReadyReason = 'recovery_checks_ready';
 
+    public const string FoldedSuppressionReason = 'folded_into_late_opener';
+
     public static function appliesTo(?Incident $incident): bool
     {
         return $incident instanceof Incident && $incident->alert_episode_started_at !== null && $incident->check?->type === CheckKey::Uptime;

@@ -56,12 +56,17 @@ final class AlertMessage extends Data
         public readonly ?array $systemFacts = null,
         #[Hidden, TypeScriptHidden]
         public readonly array $repositories = [],
+        #[Hidden, TypeScriptHidden]
+        public readonly ?CarbonImmutable $recoveredAt = null,
     ) {
         if (! in_array($cause, ['failed', 'errored', null], true)) {
             throw new \InvalidArgumentException('Invalid alert cause.');
         }
         if ($since->getOffset() !== 0) {
             throw new \InvalidArgumentException('Alert since must be UTC.');
+        }
+        if ($recoveredAt instanceof CarbonImmutable && $recoveredAt->getOffset() !== 0) {
+            throw new \InvalidArgumentException('Alert recoveredAt must be UTC.');
         }
         if ($link !== null && (filter_var($link, FILTER_VALIDATE_URL) === false || ! in_array(parse_url($link, PHP_URL_SCHEME), ['http', 'https'], true))) {
             throw new \InvalidArgumentException('Alert link must be an absolute HTTP URL.');

@@ -200,21 +200,34 @@ final readonly class TransactionalResultRecorder implements ResultRecorder
             }
             $from = $check->latest_run_result;
             $to = CheckResult::from($outcome->result->value);
-            $failing = in_array($outcome->result, [RunResult::Failed, RunResult::Errored], true);
-            $countFailure = ! $outcome->incomplete || $outcome->confirmedIncompleteFailure;
-            $check->update([
-                'first_result_at' => $outcome->result === RunResult::Errored ? $check->first_result_at : ($check->first_result_at ?? $run->endedAt),
-                'failing_since' => $countFailure ? ($failing ? ($check->failing_since ?? $run->startedAt) : null) : $check->failing_since,
-                'latest_run_result' => $countFailure ? $to : $from, 'latest_run_id' => $stored->id,
-                'latest_run_started_at' => $run->startedAt, 'latest_run_ended_at' => $run->endedAt,
-                'summary' => $stored->summary, 'summary_params' => $stored->summary_params,
-                'consecutive_failures' => $countFailure ? ($failing ? $check->consecutive_failures + 1 : 0) : $check->consecutive_failures,
-            ]);
-            $incident = $this->incidents->apply($check, $stored, $from, $outcome->incomplete, $outcome->confirmedIncompleteFailure, $outcome->verifiedNothing);
-            // Partial verification can recover a pure Check error; verifying nothing never can.
-            $recoversError = ! $outcome->verifiedNothing && $incident?->cause === IncidentCause::Errored && $incident->resolved_at !== null;
-            if (! $countFailure && $recoversError) {
-                $check->update(['latest_run_result' => $to]);
+            if ($outcome->monitorOutage) {
+                $openQuery = $check->incidents()->getQuery();
+                $openQuery->getQuery()->whereNull('resolved_at');
+                $incident = $openQuery->first();
+                $check->update([
+                    'latest_run_result' => $to, 'latest_run_id' => $stored->id,
+                    'latest_run_started_at' => $run->startedAt, 'latest_run_ended_at' => $run->endedAt,
+                    'summary' => $stored->summary, 'summary_params' => $stored->summary_params,
+                    // Do not let a monitor outage open a site incident or backdate a later outage; keep an already-open incident untouched.
+                    ...($incident === null ? ['failing_since' => null, 'consecutive_failures' => 0] : []),
+                ]);
+            } else {
+                $failing = in_array($outcome->result, [RunResult::Failed, RunResult::Errored], true);
+                $countFailure = ! $outcome->incomplete || $outcome->confirmedIncompleteFailure;
+                $check->update([
+                    'first_result_at' => $outcome->result === RunResult::Errored ? $check->first_result_at : ($check->first_result_at ?? $run->endedAt),
+                    'failing_since' => $countFailure ? ($failing ? ($check->failing_since ?? $run->startedAt) : null) : $check->failing_since,
+                    'latest_run_result' => $countFailure ? $to : $from, 'latest_run_id' => $stored->id,
+                    'latest_run_started_at' => $run->startedAt, 'latest_run_ended_at' => $run->endedAt,
+                    'summary' => $stored->summary, 'summary_params' => $stored->summary_params,
+                    'consecutive_failures' => $countFailure ? ($failing ? $check->consecutive_failures + 1 : 0) : $check->consecutive_failures,
+                ]);
+                $incident = $this->incidents->apply($check, $stored, $from, $outcome->incomplete, $outcome->confirmedIncompleteFailure, $outcome->verifiedNothing);
+                // Partial verification can recover a pure Check error; verifying nothing never can.
+                $recoversError = ! $outcome->verifiedNothing && $incident?->cause === IncidentCause::Errored && $incident->resolved_at !== null;
+                if (! $countFailure && $recoversError) {
+                    $check->update(['latest_run_result' => $to]);
+                }
             }
             // heptapod:reclassify-links marks a Warning that still rested on relabeled findings. The next complete evaluation
             // consumes the mark; if it ends that Warning, the change is a policy reclassification, not a verified recovery.

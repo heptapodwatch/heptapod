@@ -38,5 +38,8 @@
     "uptime.mail_event.check.warning": "Warnungen",
     "uptime.mail_event.check.recovered": "Wiederherstellungen",
     "uptime.reason.required_string": "Erwarteter Text nicht gefunden",
-    "uptime.reason.absent_string": "Unerwünschter Text gefunden"
+    "uptime.reason.absent_string": "Unerwünschter Text gefunden",
+    "uptime.monitor_dns_outage": "Monitor konnte keine Domainnamen auflösen",
+    "uptime.monitor_network_outage": "Monitor erreichte das Netzwerk nicht",
+    "uptime.monitor_outage_reason": "Netzwerkverbindung des Monitors fehlgeschlagen"
 }

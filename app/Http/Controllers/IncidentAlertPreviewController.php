@@ -33,7 +33,7 @@ final class IncidentAlertPreviewController extends Controller
         $destination = $delivery->destination ?? throw new \LogicException('Accepted mail delivery has no destination.');
         abort_unless(app()->bound(AlertPreviewRenderer::class), 404);
         $config = $destination->destinationConfig();
-        $preview = app(AlertPreviewRenderer::class)->render($messages->build($row, $destination, $delivery->category), $config->locale, $config->timezone, $config->instanceName, $config->instanceUrl);
+        $preview = app(AlertPreviewRenderer::class)->render($messages->build($row, $destination, $delivery->category, foldedRecovery: $delivery->folded_with_recovery), $config->locale, $config->timezone, $config->instanceName, $config->instanceUrl);
 
         return response()->json([
             'subject' => $preview['subject'], 'html' => $preview['html'],

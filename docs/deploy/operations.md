@@ -70,6 +70,28 @@ For a disappearing worker, retain root-readable Docker and containerd journals a
 
 Operators can evaluate [Docker live restore](https://docs.docker.com/engine/daemon/live-restore/) for supported patch upgrades; it requires compatible daemon options and does not cover every upgrade. See [restart-policy semantics](https://docs.docker.com/engine/containers/start-containers-automatically/) and [daemon shutdown configuration](https://docs.docker.com/reference/cli/dockerd/). Rootless Podman is daemonless: restarting a disposable Podman container can verify its stop/restart behavior, but cannot reproduce Docker/containerd's package-upgrade shutdown path.
 
+## Monitor outage guard
+
+When at least three distinct active uptime checks fail with network-level errors (DNS resolution, connection failure or timeout) within 120 seconds, Heptapod checks a single cached control verdict (60-second soft refresh age, 180-second hard TTL) published by a unique, non-overlapping queued job (`RunControlProbe` on `checks-fast`). Uptime checks never run control probes or wait on them.
+
+| Variable                                 | Default                      | Meaning                                                                                                                                                                     |
+| ---------------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HEPTAPOD_CONTROL_PROBE_DNS_HOSTS`       | `one.one.one.one,dns.google` | Comma-separated domain names (2 to 3 on independent providers) resolved through the host's DNS resolver. Empty disables DNS control probing.                                |
+| `HEPTAPOD_CONTROL_PROBE_IP_TARGETS`      | `1.1.1.1:443,8.8.8.8:443`    | Comma-separated `ip:port` or `[ipv6]:port` targets (2 to 3 on independent providers) checked with a plain TCP connect and immediate close. Empty disables IP probing.       |
+| `HEPTAPOD_CONTROL_PROBE_TIMEOUT_SECONDS` | `5`                          | Per-target timeout in seconds (`1`–`5`). Boot validation requires `total targets × timeout <= 25 s` so at least 5 s remain for publication inside the 30-second job budget. |
+
+Setting both `HEPTAPOD_CONTROL_PROBE_DNS_HOSTS=` and `HEPTAPOD_CONTROL_PROBE_IP_TARGETS=` to empty strings turns the guard off. Control probes send no HTTP request, no TLS handshake, no telemetry and no instance identifiers.
+
+- **No fresh verdict yet / refresh-ahead:** on a cache miss, the uptime check dispatches `RunControlProbe` and records its failure normally without waiting. Once a cached verdict passes 60 seconds during a continuing burst, checks dispatch a refresh-ahead `RunControlProbe` while continuing to use the cached verdict until Redis expires its 180-second hard TTL. `RunControlProbe` runs each target inside its own bounded timeout, prevents overlapping executions, and publishes only a complete verdict.
+- **Guard errors stay isolated:** a Redis or queue-enqueue error inside the uptime guard is reported without replacing the site's original uptime result. During system evaluation, queue-enqueue errors are reported without aborting evaluation, while a Redis outage still fails evaluation as for other system issues.
+- If all configured DNS probes fail, uptime runs failing with DNS resolution errors are recorded as **Check error** (`ReclassifiedCheckError`) without opening site incidents, sending per-site alerts or counting site downtime.
+- If all configured direct-IP probes fail, uptime runs failing with connection, timeout or DNS errors are reclassified the same way.
+- **Leading edge:** checks that fail before the three-check threshold is crossed or before the first `RunControlProbe` publishes its verdict record normally. With the default failure threshold of two, healthy sites do not open incidents on the first wave and are reclassified on the second. A site with a failure threshold of one, or one that already had a prior failure, can still open a **Down** incident on the leading edge.
+- HTTP status failures (such as 5xx), TLS failures, keyword failures and redirects always stay **Down**.
+- One `monitor_outage` system issue opens and resolves from the same cached verdict on system evaluation (alerting Owners, opted-in Admins and team System channels), with no separate probing path.
+- **False negative (partial monitor breakage):** if any control probe for that layer succeeds, the guard stays out and normal **Down** handling stands.
+- **False positive (control targets unreachable during a real wide outage):** affected runs are recorded as **Check error**, and the `monitor_outage` system issue explains that the control probes failed.
+
 ## Notifications stall or a channel keeps failing
 
 `notifications_stalled` opens when the oldest event that no dispatcher run has routed, or the oldest delivery that is due but has not completed, is more than ten minutes old. Age counts from the delivery's `next_attempt_at`, which a claim keeps, so a send that throws after every claim is caught even though each reclaim renews its lease. A delivery waiting in backoff is not due, so a dead channel alone does not open it. `DispatchNotifications` routes and sends each item on its own: an event or step that throws is reported and the job fails after the other items ran, so one bad row cannot stop all alerts but keeps this issue open until it is fixed. A run that fills a batch of 100 queues the next run at once.

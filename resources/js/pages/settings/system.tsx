@@ -334,6 +334,34 @@ export default function System({ systemPage }: { systemPage: Page }) {
                                         {issue.details.channel}
                                     </p>
                                 )}
+                                {issue.kind === 'monitor_outage' && (
+                                    <p className="font-mono tabular-nums">
+                                        {t(
+                                            'system_issue.monitor_outage.summary',
+                                            {
+                                                count: Number(
+                                                    issue.details
+                                                        .affected_sites ?? 0,
+                                                ),
+                                                formattedCount: number(
+                                                    Number(
+                                                        issue.details
+                                                            .affected_sites ??
+                                                            0,
+                                                    ),
+                                                ),
+                                                dns: String(
+                                                    issue.details.dns_probes ??
+                                                        '—',
+                                                ),
+                                                ip: String(
+                                                    issue.details.ip_probes ??
+                                                        '—',
+                                                ),
+                                            },
+                                        )}
+                                    </p>
+                                )}
                             </AlertDescription>
                         </Alert>
                     ))}

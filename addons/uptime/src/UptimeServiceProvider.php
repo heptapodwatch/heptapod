@@ -8,6 +8,7 @@ use Heptapod\Contracts\CertificateFetcher;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\Http\OutboundHttp;
 use Heptapod\Contracts\ListPaging;
+use Heptapod\Contracts\MonitorOutageGuard;
 use Heptapod\Contracts\OhDearImportMapping;
 use Illuminate\Support\ServiceProvider;
 
@@ -19,6 +20,7 @@ final class UptimeServiceProvider extends ServiceProvider
             $this->app->make(OutboundHttp::class),
             $this->app->make(ListPaging::class),
             $this->app->bound(CertificateFetcher::class) ? $this->app->make(CertificateFetcher::class) : null,
+            $this->app->bound(MonitorOutageGuard::class) ? $this->app->make(MonitorOutageGuard::class) : null,
         ));
     }
 

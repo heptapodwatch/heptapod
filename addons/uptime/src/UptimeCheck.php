@@ -37,6 +37,7 @@ use Heptapod\Contracts\Mail\MailEventFacts;
 use Heptapod\Contracts\Mail\MailEvidenceProvider;
 use Heptapod\Contracts\Mail\MailTone;
 use Heptapod\Contracts\Mail\TableBlock;
+use Heptapod\Contracts\MonitorOutageGuard;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\ReclassifiedCheckError;
 use Heptapod\Contracts\RunPersistence;
@@ -56,7 +57,12 @@ use Illuminate\Support\Str;
 
 final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresenter, CheckSummaryPresenter, CheckType, MailEvidenceProvider
 {
-    public function __construct(private OutboundHttp $http, private ListPaging $paging, private ?CertificateFetcher $certificates = null) {}
+    public function __construct(
+        private OutboundHttp $http,
+        private ListPaging $paging,
+        private ?CertificateFetcher $certificates = null,
+        private ?MonitorOutageGuard $outageGuard = null,
+    ) {}
 
     public function definition(): CheckDefinition
     {
@@ -182,6 +188,7 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
                 'body_not_json' => 'uptime.body_not_json',
                 'assertion_body_too_large' => 'uptime.assertion_body_too_large',
                 'bot_protection' => 'uptime.bot_protection',
+                'monitor_outage' => 'uptime.monitor_outage_reason',
                 'response_too_large' => 'causes.outbound.too_large',
                 'redirect_limit' => 'uptime.redirect_limit',
                 'redirect_blocked' => 'uptime.redirect_blocked',
@@ -310,6 +317,10 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
         ), $context);
         $transfers = $response->transfers;
         if ($response->failure instanceof FetchFailure) {
+            $monitorOutage = $this->outageGuard?->evaluateFailure($context->checkId, $response->failure->kind, CarbonImmutable::now('UTC'));
+            if ($monitorOutage !== null) {
+                return $this->outcome($context, $transfers, $response->status, ['monitor_outage'], $response->failure->kind, $response->effectiveUrl, monitorOutage: $monitorOutage);
+            }
             $issue = match ($response->failure->kind) {
                 FetchFailureKind::TooManyRedirects => 'redirect_limit',
                 FetchFailureKind::RedirectBlocked => 'redirect_blocked',
@@ -420,8 +431,9 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
 
     /** @param list<array<string, mixed>> $transfers
      * @param  list<string>  $issues
+     * @param  'dns'|'network'|null  $monitorOutage
      */
-    private function outcome(CheckContext $context, array $transfers, ?int $status, array $issues, ?FetchFailureKind $failure = null, ?string $effectiveUrl = null, ?TlsFailureReason $tlsReason = null, ?string $tlsTarget = null): CheckOutcome
+    private function outcome(CheckContext $context, array $transfers, ?int $status, array $issues, ?FetchFailureKind $failure = null, ?string $effectiveUrl = null, ?TlsFailureReason $tlsReason = null, ?string $tlsTarget = null, ?string $monitorOutage = null): CheckOutcome
     {
         $curl = [];
         $last = $transfers === [] ? [] : array_last($transfers);
@@ -445,6 +457,7 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
             ['response_too_large'] => 'uptime.response_too_large',
             ['assertion_body_too_large'] => 'uptime.assertion_body_too_large',
             ['bot_protection'] => 'uptime.bot_protection',
+            ['monitor_outage'] => $monitorOutage === 'dns' ? 'uptime.monitor_dns_outage' : 'uptime.monitor_network_outage',
             ['redirect_blocked'] => 'checks.engine.redirect_blocked',
             ['private_target'] => 'checks.engine.private_target',
             ['redirect_limit'] => 'uptime.redirect_limit',
@@ -462,7 +475,9 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
 
         /** @var array{timeout: int, expected_final_redirect_url: ?string, look_for_string: ?string, absent_string: ?string} $config */
         $config = array_replace($this->definition()->configSchema->defaults(), $context->config);
-        if ($failure === FetchFailureKind::Timeout) {
+        if ($monitorOutage !== null) {
+            // Monitor outage guard already chose the monitor-side Check error summary.
+        } elseif ($failure === FetchFailureKind::Timeout) {
             $summary = 'causes.timeout';
             $summaryParams = ['seconds' => $config['timeout']];
         } elseif ($failure === FetchFailureKind::Tls) {
@@ -516,10 +531,13 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
         }
 
         $presented = $this->presentSummary($summary, $summaryParams);
-        // Local inspection limits and probe refusals mean we could not check; any confirmed failure still wins.
-        $checkError = $issues !== [] && array_diff($issues, ['response_too_large', 'assertion_body_too_large', 'bot_protection']) === []
+        // Local inspection limits, probe refusals and monitor outages mean we could not check; any confirmed failure still wins.
+        $checkError = $issues !== [] && array_diff($issues, ['response_too_large', 'assertion_body_too_large', 'bot_protection', 'monitor_outage']) === []
             ? new CheckError(ReclassifiedCheckError::class, match ($issues[0]) {
                 'bot_protection' => 'Monitored URL served a bot protection challenge.',
+                'monitor_outage' => $monitorOutage === 'dns'
+                    ? 'Monitor DNS control probes failed.'
+                    : 'Monitor network control probes failed.',
                 default => 'Response exceeded the uptime inspection limit.',
             })
             : null;
@@ -528,8 +546,10 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
             new UptimeEvidence($status, $issues, $failure?->value, $config['timeout'], $effectiveUrl,
                 $config['expected_final_redirect_url'], $config['look_for_string'], $config['absent_string']),
             error: $checkError,
-            availabilityFailure: $failure === FetchFailureKind::Tls ? AvailabilityFailure::Tls
-                : (in_array('status', $issues, true) ? AvailabilityFailure::fromStatus($status) : null));
+            availabilityFailure: $monitorOutage !== null ? null
+                : ($failure === FetchFailureKind::Tls ? AvailabilityFailure::Tls
+                    : (in_array('status', $issues, true) ? AvailabilityFailure::fromStatus($status) : null)),
+            monitorOutage: $monitorOutage !== null);
     }
 
     /** @param list<array<string, mixed>> $transfers */

@@ -28,24 +28,30 @@ final class AlertMailBuilder
         $incidentId = $context->incidentId ?? throw new \LogicException('Uptime mail requires an incident.');
         // Before a cause change the check could not run, so the outage is only known from the change itself.
         $since = ($context->event === AlertMailEvent::CauseChanged ? $context->eventAt : $message->since)->setTimezone($context->timezone)->format('H:i T');
-        $recovered = $context->event === AlertMailEvent::Recovered;
+        $lateFold = $context->event === AlertMailEvent::LateFold;
+        $recovered = in_array($context->event, [AlertMailEvent::Recovered, AlertMailEvent::LateFold], true);
         $reminder = $context->event === AlertMailEvent::Reminder;
         $durationSeconds = $recovered
             ? ($message->downtimeSeconds ?? throw new \LogicException('Recovery email requires outage duration.'))
             : (int) $message->since->diffInSeconds($context->eventAt);
         $duration = $this->duration($durationSeconds, $alert->destinationLocale);
-        $params = ['site' => $message->siteLabel, 'reason' => $reason, 'since' => $since, 'duration' => $duration];
+        $sinceClock = $message->since->setTimezone($context->timezone)->format('H:i');
+        $untilClock = $context->eventAt->setTimezone($context->timezone)->format('H:i');
+        $params = ['site' => $message->siteLabel, 'reason' => $reason, 'since' => $since, 'duration' => $duration,
+            'since_clock' => $sinceClock, 'until_clock' => $untilClock];
         $subject = match ($context->event) {
             // A cause change to failed is the outage starting: the check could not run before.
             AlertMailEvent::Opened, AlertMailEvent::CauseChanged => $alert->translate('emails.down_subject', [...$params, 'reason' => $subjectReason]),
             AlertMailEvent::Reminder => $alert->translate('emails.reminder_subject', $params),
             AlertMailEvent::Recovered => $alert->translate('emails.recovered_subject', $params),
+            AlertMailEvent::LateFold => $alert->translate('emails.late_fold_subject', $params),
             default => throw new \LogicException('Unexpected uptime email variant.'),
         };
         $headline = $alert->translate(match ($context->event) {
             AlertMailEvent::Opened, AlertMailEvent::CauseChanged => 'emails.down_headline',
             AlertMailEvent::Reminder => 'emails.reminder_headline',
             AlertMailEvent::Recovered => 'emails.recovered_headline',
+            AlertMailEvent::LateFold => 'emails.late_fold_headline',
         }, [...$params, 'reason' => $alert->destinationLocale === 'en' && preg_match('/^\p{Lu}\p{Ll}/u', $reason) === 1 ? lcfirst($reason) : $reason]);
         $state = $recovered
             ? $alert->translate('emails.recovered_state', ['since' => $since, 'until' => $context->eventAt->setTimezone($context->timezone)->format('H:i T'), 'id' => $incidentId])
@@ -54,7 +60,7 @@ final class AlertMailBuilder
         return new MailModel(
             locale: $alert->destinationLocale,
             subject: $subject,
-            preheader: $reminder ? $alert->translate('emails.reminder_preheader') : ($recovered ? $alert->translate('emails.recovered_preheader') : $reason),
+            preheader: $reminder ? $alert->translate('emails.reminder_preheader') : ($lateFold ? $alert->translate('emails.late_fold_preheader') : ($recovered ? $alert->translate('emails.recovered_preheader') : $reason)),
             headline: $headline,
             footerWhy: $context->routingWhy,
             instance: $alert->instanceName.' · '.parse_url($alert->instanceUrl, PHP_URL_HOST),

@@ -119,5 +119,16 @@
     "system_mail.check_not_fresh.reset": "Die Prüfung wurde zurückgesetzt.",
     "system_mail.resolution.check_reset": "Die Prüfung wurde zurückgesetzt",
     "system_mail.detail.no_result_cause": "Ursache für fehlendes Ergebnis",
-    "system_mail.detail.reason": "Grund"
+    "system_mail.detail.reason": "Grund",
+    "system_mail.detail.mode": "Ursache",
+    "system_mail.detail.affected_sites": "Betroffene Websites",
+    "system_mail.detail.dns_probes": "DNS-Kontrollabfragen",
+    "system_mail.detail.ip_probes": "Direkt-IP-Kontrollabfragen",
+    "system_mail.monitor_outage.dns.title": "Heptapod kann keine Domainnamen auflösen",
+    "system_mail.monitor_outage.dns.action": "Erreichbarkeitsläufe werden als Prüffehler statt als Ausfall erfasst, weil die DNS-Abfragen dieses Servers fehlschlagen. Prüfen Sie den DNS-Resolver des Hosts.",
+    "system_mail.monitor_outage.title": "Heptapod erreicht das Netzwerk nicht",
+    "system_mail.monitor_outage.action": "Erreichbarkeitsläufe werden als Prüffehler statt als Ausfall erfasst, weil die Kontrollabfragen dieses Servers fehlschlagen. Prüfen Sie die Netzwerkverbindung des Hosts.",
+    "system_mail.monitor_outage.recovered": "Die Kontrollabfragen gelingen wieder. Erreichbarkeitsläufe werden wieder normal ausgewertet.",
+    "system_mail.monitor_outage.mode.dns": "DNS-Abfragen fehlgeschlagen",
+    "system_mail.monitor_outage.mode.network": "Ausgehendes Netzwerk ohne Verbindung"
 }

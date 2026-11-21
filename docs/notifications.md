@@ -169,7 +169,8 @@ Only open uptime Down incidents send reminders. Other incidents send an opening 
 
 - A recovery needs an accepted opening alert on the same channel. A warning or component recovery needs its own accepted opening alert.
 - An opening alert held by quiet hours or a digest until after the recovery is dropped with its recovery.
-- An alert that was already due, or is being retried, still goes out, followed by its recovery.
+- If a **Down** alert has not been attempted before recovery is confirmed, Heptapod sends one combined message ("was down HH:MM–HH:MM (duration), up again") per site and channel. It replaces **Down** and **Recovered**.
+- A channel where **Down** was already attempted or accepted before recovery keeps its separate **Down** and **Recovered** alerts.
 - Repeated failures of one component share one recovery.
 - Recovery alerts state how long the problem lasted, for example `[Recovered] <site> after 7 min`. A scheduled task also lists **Failure started** when it is known.
 - Chat messages say **Total downtime** for uptime and **Total duration** for other checks.

@@ -40,6 +40,7 @@
     "notifications.suppression.episode_already_alerted": "Für diese Unterbrechung wurde bereits ein Eröffnungsalarm gesendet.",
     "notifications.suppression.episode_continued": "Die Unterbrechung dauert an; ihre nächste Störung übernimmt den Eröffnungsalarm.",
     "notifications.suppression.reopened_before_recovery_confirmed": "Die Unterbrechung kehrte vor der bestätigten Wiederherstellung zurück. Es wurde keine Entwarnung gesendet.",
+    "notifications.suppression.folded_into_late_opener": "Mit dem verspäteten Ausfallalarm nach der Wiederherstellung zusammengefasst.",
     "notifications.recovery_checks_pending": "Auf aufeinanderfolgende erfolgreiche Prüfungen warten, bevor die Entwarnung gesendet wird.",
     "notifications.alert_delay_due": "Alarm fällig um :time (nach :minutes Minuten mit Fehlprüfung).",
     "notifications.maintenance_ended_context": "Die Wartung ist beendet. Diese Unterbrechung dauert weiterhin an.",

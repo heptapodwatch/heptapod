@@ -119,5 +119,16 @@
     "system_mail.check_not_fresh.reset": "The check was reset.",
     "system_mail.resolution.check_reset": "The check was reset",
     "system_mail.detail.no_result_cause": "Missing result cause",
-    "system_mail.detail.reason": "Reason"
+    "system_mail.detail.reason": "Reason",
+    "system_mail.detail.mode": "Cause",
+    "system_mail.detail.affected_sites": "Affected sites",
+    "system_mail.detail.dns_probes": "DNS control probes",
+    "system_mail.detail.ip_probes": "Direct-IP control probes",
+    "system_mail.monitor_outage.dns.title": "Heptapod cannot look up domain names",
+    "system_mail.monitor_outage.dns.action": "Uptime runs are recorded as Check error instead of Down because this server's DNS lookups fail. Check the host DNS resolver.",
+    "system_mail.monitor_outage.title": "Heptapod cannot reach the network",
+    "system_mail.monitor_outage.action": "Uptime runs are recorded as Check error instead of Down because this server's control probes fail. Check the host network connection.",
+    "system_mail.monitor_outage.recovered": "Control probes pass again. Uptime runs are evaluated normally.",
+    "system_mail.monitor_outage.mode.dns": "DNS lookups failed",
+    "system_mail.monitor_outage.mode.network": "Outbound network unreachable"
 }
