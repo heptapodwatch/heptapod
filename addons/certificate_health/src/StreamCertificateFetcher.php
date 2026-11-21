@@ -75,13 +75,15 @@ final readonly class StreamCertificateFetcher implements CertificateFetcher
             if (stream_get_meta_data($socket)['timed_out']) {
                 throw new ExternalTimeoutException('TLS verification timed out.');
             }
-            // A verified verdict describes exactly the chain this handshake presented, never one from a later connection.
-            $chain = $verified ? $this->capturedChain($socket) : null;
+            // The verdict describes exactly the chain this handshake presented (a name mismatch is captured too).
+            $chain = $this->capturedChain($socket);
         } finally {
             fclose($socket);
         }
-        if ($chain === null) {
-            // OpenSSL captures nothing from a rejected handshake; this second one only displays the rejected certificate.
+        $explainsOnly = ! $verified && $chain === [];
+        if ($explainsOnly) {
+            // OpenSSL captures nothing from a chain or date rejection. This second connection may present another
+            // certificate, so its chain only explains the failure; it never becomes the checked certificate.
             $capture = stream_context_create(['ssl' => [
                 'capture_peer_cert' => true, 'capture_peer_cert_chain' => true,
                 'verify_peer' => false, 'verify_peer_name' => false,
@@ -101,7 +103,7 @@ final readonly class StreamCertificateFetcher implements CertificateFetcher
                 $this->chainTrusted($chain, $ssl), time());
         }
 
-        return new CertificateFetchResult($chain, $hostname, $port, $verified, $failureReason);
+        return new CertificateFetchResult($chain, $hostname, $port, $verified, $failureReason, $explainsOnly);
     }
 
     /** @param resource $socket
