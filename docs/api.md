@@ -291,8 +291,10 @@ Owners and Admins can also import under **Settings → Import**. On the command 
 2. Preview the import:
 
     ```sh
-    docker compose exec app php artisan heptapod:import-ohdear --token="$OH_DEAR_READ_ONLY_TOKEN" --dry-run
+    docker compose exec -e OH_DEAR_API_TOKEN="$OH_DEAR_READ_ONLY_TOKEN" app php artisan heptapod:import-ohdear --dry-run
     ```
+
+    You can also pipe the token with `--token-stdin` or omit both in an interactive terminal to be prompted without echoing the token. Passing `--token=` is deprecated because command-line arguments are visible in the process list.
 
 3. Read the plan and the per-monitor notices.
 4. Run the same command without `--dry-run`.
