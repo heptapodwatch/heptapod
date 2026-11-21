@@ -55,12 +55,14 @@ final readonly class RunsReader
         }
         if ($before !== null) {
             // The cursor shares the period clock and breaks timestamp ties by physical attempt ID.
-            // A retention-pruned cursor has no tuple, so its expired page contains no rows.
+            // A retention-pruned cursor has no tuple, so its expired page contains no rows; so does a cursor outside
+            // the viewer's checks, which must not position the page by a hidden attempt.
             $rowsQuery->getQuery()->whereRaw(<<<'SQL'
                 (requested_at, id) < (
-                    SELECT cursor.requested_at, cursor.id FROM check_run_attempts cursor WHERE cursor.id = ?
+                    SELECT cursor.requested_at, cursor.id FROM check_run_attempts cursor
+                    WHERE cursor.id = ? AND cursor.check_id = ANY(?::bigint[])
                 )
-                SQL, [$before]);
+                SQL, [$before, '{'.implode(',', $historyIds).'}']);
         }
         if ($phase instanceof RunPhase) {
             $rowsQuery->where('phase', $phase);
