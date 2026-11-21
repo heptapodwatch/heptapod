@@ -360,3 +360,37 @@ it('accepts real-shaped keyed and empty health collections with no incident or n
     'numeric-key object' => ['numeric-keys', 6, 'application_health.summary'],
     'empty list' => ['empty', 0, 'application_health.no_checks'],
 ]);
+
+it('rejects oversized or deeply nested component metadata and omits ordinary metadata from run evidence', function (): void {
+    $check = applicationHealthCheck();
+    respondApplicationHealth($check, applicationHealthPayload());
+    runApplicationHealth($check);
+
+    $baselineRun = CheckRun::query()->sole();
+    expect($baselineRun->result)->toBe(RunResult::Succeeded)
+        ->and($baselineRun->evidence['components'][0]['meta'])->toBe([]);
+    $componentSnapshot = json_decode(DB::table('application_health_components')->value('snapshot'), true, flags: JSON_THROW_ON_ERROR);
+    expect($componentSnapshot['meta'])->toBe(['disk_space_used_percentage' => 70]);
+
+    $deep = ['leaf' => 'ok'];
+    for ($depth = 0; $depth < 10; $depth++) {
+        $deep = ['nested' => $deep];
+    }
+    $deepPayload = applicationHealthPayload();
+    $deepPayload['checkResults'][0]['meta'] = $deep;
+    respondApplicationHealth($check, $deepPayload);
+    runApplicationHealth($check);
+    $deepRun = CheckRun::query()->orderByDesc('id')->firstOrFail();
+    expect($deepRun->result)->toBe(RunResult::Errored)
+        ->and($deepRun->evidence['reason'])->toBe('invalid_payload')
+        ->and(DB::table('application_health_components')->sole()->run_id)->toBe($baselineRun->id);
+
+    $largePayload = applicationHealthPayload();
+    $largePayload['checkResults'][0]['meta'] = ['blob' => str_repeat('a', 150_000)];
+    respondApplicationHealth($check, $largePayload);
+    runApplicationHealth($check);
+    $largeRun = CheckRun::query()->orderByDesc('id')->firstOrFail();
+    expect($largeRun->result)->toBe(RunResult::Errored)
+        ->and($largeRun->evidence['reason'])->toBe('response_too_large')
+        ->and(DB::table('application_health_components')->sole()->run_id)->toBe($baselineRun->id);
+});

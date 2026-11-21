@@ -140,7 +140,8 @@ final readonly class CrawlEvaluation
             }
             $previous['finding_ids'] = array_keys($acceptedIds);
         }
-        $overflow = max(array_map(count(...), [$artifact->urls, $artifact->mixed_content, $artifact->observed_urls, $artifact->observed_pages, $artifact->discovered_urls])) > CrawlPersistence::COMPARISON_LIMIT;
+        $overflow = max(array_map(count(...), [$artifact->urls, $artifact->mixed_content, $artifact->observed_urls, $artifact->observed_pages, $artifact->discovered_urls])) > CrawlPersistence::COMPARISON_LIMIT
+            || CrawlPersistence::artifactBytes($artifact->privateStorage()) > CrawlPersistence::MAX_ARTIFACT_BYTES;
         if ($overflow) {
             $artifact = $visible;
             $artifact->urls = array_slice($artifact->urls, 0, CrawlPersistence::COMPARISON_LIMIT);

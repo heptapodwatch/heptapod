@@ -246,3 +246,32 @@ it('answers a maintenance window outside a client-scoped token like a missing on
     }
     expect(MaintenancePeriod::query()->count())->toBe(5);
 });
+
+it('bounds monitor maintenance period listings to the configured maximum', function (): void {
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $site = Site::factory()->create();
+    $base = CarbonImmutable::parse('2026-10-05T00:00:00Z');
+    $rows = [];
+    for ($i = 0; $i < 1005; $i++) {
+        $starts = $base->addMinutes($i * 2);
+        $rows[] = [
+            'site_id' => $site->id,
+            'target_type' => 'site',
+            'target_id' => $site->id,
+            'starts_at' => $starts,
+            'ends_at' => $starts->addMinute(),
+            'mute_alerts' => true,
+            'created_at' => $starts,
+            'updated_at' => $starts,
+        ];
+    }
+    foreach (array_chunk($rows, 500) as $chunk) {
+        DB::table('maintenance_periods')->insert($chunk);
+    }
+
+    $this->withToken($owner->createToken('maint-bound', ['maintenance:read'])->plainTextToken);
+    $response = $this->getJson('/api/monitors/'.$site->id.'/maintenance-periods')->assertOk();
+
+    expect($response->json('data'))->toHaveCount(1000);
+});

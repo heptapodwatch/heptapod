@@ -161,3 +161,39 @@ it('shows same-origin URLs as path, keeps others absolute, and keeps href and to
         screen.getByText('htp:/demo-01.example//broken loc').closest('a'),
     ).toBeNull();
 });
+
+it('bounds rendered link text and text-fragment anchors without materializing huge strings', () => {
+    const huge = '🚀'.repeat(20_000);
+    render(
+        <FindingsTable
+            stackWhenNarrow
+            showSource
+            showFindingDetails
+            origin="https://demo-01.example"
+            rows={[
+                {
+                    url: 'https://demo-01.example/broken',
+                    status: 404,
+                    source: 'https://demo-01.example/page',
+                    linkText: huge,
+                },
+            ]}
+        />,
+    );
+    const cells = screen.getAllByText(/🚀/);
+    for (const cell of cells) {
+        expect((cell.textContent ?? '').length).toBeLessThan(1000);
+    }
+    const sourceLinks = screen
+        .getAllByRole('link')
+        .filter((link) =>
+            link
+                .getAttribute('href')
+                ?.startsWith('https://demo-01.example/page#:~:text='),
+        );
+    expect(sourceLinks.length).toBeGreaterThan(0);
+    for (const link of sourceLinks) {
+        const encoded = link.getAttribute('href')?.split('#:~:text=')[1] ?? '';
+        expect(Array.from(decodeURIComponent(encoded))).toHaveLength(200);
+    }
+});

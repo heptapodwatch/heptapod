@@ -54,6 +54,29 @@ function findingUrl(value: string, origin?: string) {
         : value;
 }
 
+const MAX_FRAGMENT_CHARS = 200;
+const MAX_DISPLAY_LINK_TEXT_CHARS = 300;
+
+/**
+ * Slices at most `maxChars` Unicode scalar values without materializing an array over an unbounded string.
+ * At most two UTF-16 code units encode one scalar value, so a bounded prefix suffices before `Array.from`.
+ */
+function takeCodePoints(value: string, maxChars: number): [string, boolean] {
+    const prefix = value.slice(0, maxChars * 2 + 2);
+    const points = Array.from(prefix);
+    const truncated = points.length > maxChars || prefix.length < value.length;
+    return [points.slice(0, maxChars).join(''), truncated];
+}
+
+function boundedLinkText(value: string | null | undefined): string | null {
+    if (!value) return null;
+    const [head, truncated] = takeCodePoints(
+        value,
+        MAX_DISPLAY_LINK_TEXT_CHARS,
+    );
+    return truncated ? `${head}…` : head;
+}
+
 /**
  * At most two lines of the recorded URL (unless clamp is off). Only recorded HTTP(S) URLs may become links (href and title stay absolute);
  * remote text is never markup and other values stay literal.
@@ -74,10 +97,10 @@ function FindingLink({
 }) {
     const text = findingUrl(value, origin);
     const url = enabled ? safeHttpUrl(value) : null;
-    const fragment = Array.from(linkText?.trim() ?? '')
-        .slice(0, 200)
-        .join('')
-        .trim();
+    const fragment = takeCodePoints(
+        linkText?.trimStart() ?? '',
+        MAX_FRAGMENT_CHARS,
+    )[0].trim();
     if (url && fragment) {
         // A recorded anchor must not prevent text-fragment navigation.
         url.hash = `:~:text=${encodeURIComponent(fragment).replaceAll('-', '%2D')}`;
@@ -195,8 +218,8 @@ export function FindingsTable({
                                         </p>
                                         {showFindingDetails && (
                                             <p className="[overflow-wrap:anywhere]">
-                                                {row.linkText
-                                                    ? `“${row.linkText}”`
+                                                {boundedLinkText(row.linkText)
+                                                    ? `“${boundedLinkText(row.linkText)}”`
                                                     : t(
                                                           'No link text recorded',
                                                       )}
@@ -290,8 +313,9 @@ export function FindingsTable({
                                     {showFindingDetails ? (
                                         <>
                                             <TableCell className="text-xs [overflow-wrap:anywhere] whitespace-normal">
-                                                {row.linkText ??
-                                                    t('No link text recorded')}
+                                                {boundedLinkText(
+                                                    row.linkText,
+                                                ) ?? t('No link text recorded')}
                                             </TableCell>
                                             <TableCell className="text-xs whitespace-normal text-muted-foreground">
                                                 {row.since}

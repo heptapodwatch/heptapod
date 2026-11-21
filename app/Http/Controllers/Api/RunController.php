@@ -8,7 +8,6 @@ use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\RequestCheckRun;
 use Heptapod\Checks\CheckRunPresentations;
-use Heptapod\Checks\Execution\ManualRunRefused;
 use Heptapod\Checks\Execution\RunOrigin;
 use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Contracts\RunPhase;
@@ -24,19 +23,13 @@ use Heptapod\Support\Api\ApiProblem;
 use Heptapod\Support\Api\Idempotency;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 
 #[Group('Check runs')]
 final class RunController extends Controller
 {
     use ResolvesApiPrincipal;
-
-    private const int UserRunsPerMinute = 10;
-
-    private const int TokenRunsPerMinute = 5;
 
     public function store(Request $request, int $check, RequestCheckRun $run, Idempotency $idempotency, AuthorizeSiteWrite $authorize): JsonResponse
     {
@@ -47,22 +40,7 @@ final class RunController extends Controller
 
         // The site lock comes first, before the idempotency record (it names the user), and a replay is authorized too.
         return $authorize($user, 'update', static fn (): JsonResponse => $idempotency->run($request, 'check_run.create', 'check:'.$target->id, [], static function () use ($target, $run, $user, $token): JsonResponse {
-            // Budgets are per user and per token. One user lock serializes check through consumption, so parallel
-            // distinct-key requests and token rotation cannot overshoot. Released at commit.
-            DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['manual-runs:user:'.$user->id]);
-            $budgets = ['manual-runs:user:'.$user->id => self::UserRunsPerMinute, 'manual-runs:token:'.$token->id => self::TokenRunsPerMinute];
-            foreach ($budgets as $key => $limit) {
-                if (RateLimiter::tooManyAttempts($key, $limit)) {
-                    throw new ManualRunRefused('manual_run_budget', max(1, RateLimiter::availableIn($key)));
-                }
-            }
             $attempt = $run($target, RunOrigin::Manual, actor: $user, actorTokenId: $token->id);
-            foreach (array_keys($budgets) as $key) {
-                RateLimiter::hit($key, 60);
-                // The counter lives outside the database: an attempt that rolls back (a deadlock retry, a failed response
-                // record) takes its hit back, so a request counts once, and only when it commits.
-                DB::afterRollBack(static fn (): int => RateLimiter::decrement($key, 60));
-            }
             $location = route('api.getRun', ['attemptRef' => 'attempt:'.$attempt->id], false);
 
             return response()->json(['attempt_ref' => 'attempt:'.$attempt->id, 'check_ref' => 'check:'.$target->id, 'phase' => $attempt->phase->value,

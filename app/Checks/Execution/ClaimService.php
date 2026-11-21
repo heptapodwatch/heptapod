@@ -133,15 +133,14 @@ final readonly class ClaimService
 
     /** Manual requests share scheduled ownership, enablement and pause rules.
      * @param  list<array{name: string, value: string}>  $headers
-     * @param  bool  $heavyAdmission  manual heavy-queue admission; the compatibility request-run route opts out
      *
      * @throws ManualRunRefused
      */
-    public function runNow(int $checkId, RunOrigin $origin, array $headers = [], ?int $actorUserId = null, ?int $actorTokenId = null, bool $heavyAdmission = true): ?CheckRunAttempt
+    public function runNow(int $checkId, RunOrigin $origin, array $headers = [], ?int $actorUserId = null, ?int $actorTokenId = null): ?CheckRunAttempt
     {
-        return DB::transaction(function () use ($checkId, $origin, $headers, $actorUserId, $actorTokenId, $heavyAdmission): ?CheckRunAttempt {
+        return DB::transaction(function () use ($checkId, $origin, $headers, $actorUserId, $actorTokenId): ?CheckRunAttempt {
             $queue = $origin === RunOrigin::Manual ? $this->queueOf($checkId) : null;
-            if ($heavyAdmission && $queue !== null && $queue !== 'checks-fast') {
+            if ($queue !== null && $queue !== 'checks-fast') {
                 // Serializes manual heavy admission per queue; the scheduler never takes this lock.
                 DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['manual-admission:'.$queue]);
                 $outstanding = CheckRunAttempt::query()->getQuery()->where('queue', $queue)->where('origin', RunOrigin::Manual->value)

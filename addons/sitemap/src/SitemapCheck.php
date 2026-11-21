@@ -55,6 +55,18 @@ use Spatie\Crawler\UrlParsers\SitemapUrlParser;
 
 final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailProvider, CheckRunPresenter, CheckType, MailEvidenceProvider
 {
+    /** Cumulative XML bytes fetched across all sitemap documents in one run (a 10,000-URL sitemap is ~1.5-2 MiB). */
+    public const int MaxTotalXmlBytes = 16 * 1024 * 1024;
+
+    /** Cumulative URL bytes retained across listed entries in one run (10,000 normal ~100-byte URLs use ~1 MiB). */
+    public const int MaxTotalUrlBytes = 4 * 1024 * 1024;
+
+    /** Maximum new and resolved issues embedded in one sitemap.issues_changed event payload. */
+    public const int MaxEventDiffIssues = 100;
+
+    /** Per-document issue preview kept inside sitemapIndexes/sitemaps entries; full issues stay in the top-level list. */
+    private const int MaxPerDocumentIssues = 5;
+
     public function __construct(private OutboundHttp $http, private SitemapPersistence $store, private SitemapDocumentReader $documents) {}
 
     public function configAttentionReason(#[\SensitiveParameter] array $config): ?string
@@ -295,6 +307,8 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
         $listedUrls = [$this->publicUrl($checkUrl, $secrets, $legacyCheckUrl) => true];
         $discoveryComplete = true;
         $processedUrls = 0;
+        $totalXmlBytes = 0;
+        $totalUrlBytes = strlen($this->publicUrl($checkUrl, $secrets, $legacyCheckUrl));
         $issues = [];
         $indexes = [];
         $sitemaps = [];
@@ -390,7 +404,12 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
                     }
                     $discoveryComplete = false;
                     $localIssues[] = $this->failureIssue($url, $response->failure, $secrets, $legacyCheckUrl);
+                } elseif ($totalXmlBytes + strlen($response->body) > self::MaxTotalXmlBytes) {
+                    $discoveryComplete = false;
+                    $exhausted = true;
+                    $localIssues[] = $this->issue($url, 'sitemap.issue.size_limit', $secrets, $legacyCheckUrl);
                 } else {
+                    $totalXmlBytes += strlen($response->body);
                     try {
                         $document = $this->documents->read($response->body, $limits['max_xml_bytes']);
                     } catch (SitemapSizeExceeded) {
@@ -435,19 +454,25 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
                                     $localIssues[] = $this->issue($url, 'sitemap.issue.recursion_limit', $secrets, $legacyCheckUrl);
                                     break;
                                 }
-                                $listedUrls[$this->publicUrl($entry->url, $secrets, $legacyCheckUrl)] = true;
+                                $publicEntryUrl = $this->publicUrl($entry->url, $secrets, $legacyCheckUrl);
+                                if (! isset($listedUrls[$publicEntryUrl])) {
+                                    if ($totalUrlBytes + strlen($publicEntryUrl) > self::MaxTotalUrlBytes) {
+                                        $discoveryComplete = false;
+                                        $exhausted = true;
+                                        $localIssues[] = $this->issue($url, 'sitemap.issue.size_limit', $secrets, $legacyCheckUrl);
+                                        break;
+                                    }
+                                    $totalUrlBytes += strlen($publicEntryUrl);
+                                    $listedUrls[$publicEntryUrl] = true;
+                                }
                                 $scheduled[$entry->url] = true;
                                 $queue[] = [$entry->url, $depth + 1];
                             }
-                            $indexes[] = ['url' => $this->publicUrl($url, $secrets, $legacyCheckUrl), 'issues' => $localIssues];
+                            $indexes[] = ['url' => $this->publicUrl($url, $secrets, $legacyCheckUrl), 'issues' => array_slice($localIssues, 0, self::MaxPerDocumentIssues)];
                         } else {
                             $allChecked = true;
                             /** @var list<array{string, string}> $keys */
                             $keys = [];
-                            // Retain known-but-unchecked entries even when the execution budget ends before probing.
-                            foreach (array_slice($entries, 0, max(0, $limits['max_urls'] - $processedUrls)) as $entry) {
-                                $listedUrls[$this->publicUrl($entry->url, $secrets, $legacyCheckUrl)] = true;
-                            }
                             foreach ($entries as $entry) {
                                 if ($this->remainingMilliseconds($context) <= 0) {
                                     $localIssues[] = $this->issue($url, 'sitemap.issue.time_limit', $secrets, $legacyCheckUrl);
@@ -461,11 +486,22 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
                                     $allChecked = false;
                                     break;
                                 }
-                                $listedUrls[$this->publicUrl($entry->url, $secrets, $legacyCheckUrl)] = true;
+                                $publicEntryUrl = $this->publicUrl($entry->url, $secrets, $legacyCheckUrl);
+                                if (! isset($listedUrls[$publicEntryUrl])) {
+                                    if ($totalUrlBytes + strlen($publicEntryUrl) > self::MaxTotalUrlBytes) {
+                                        $discoveryComplete = false;
+                                        $localIssues[] = $this->issue($url, 'sitemap.issue.size_limit', $secrets, $legacyCheckUrl);
+                                        $allChecked = false;
+                                        $exhausted = true;
+                                        break;
+                                    }
+                                    $totalUrlBytes += strlen($publicEntryUrl);
+                                    $listedUrls[$publicEntryUrl] = true;
+                                }
                                 $processedUrls++;
                                 $oversized = strlen($entry->url) > 2048;
-                                $urlKey = $oversized ? $this->publicUrl($entry->url, $secrets, $legacyCheckUrl) : $entry->url;
-                                $keys[] = [$urlKey, $this->publicUrl($entry->url, $secrets, $legacyCheckUrl)];
+                                $urlKey = $oversized ? $publicEntryUrl : $entry->url;
+                                $keys[] = [$urlKey, $publicEntryUrl];
                                 if (! array_key_exists($urlKey, $urlIssues)) {
                                     // Oversized and credential-bearing locations are structure issues; they never take a probe slot.
                                     if ($oversized) {
@@ -569,7 +605,7 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
             if ($windowTimedOut) {
                 $documentIssues[] = $issues[] = $this->issue($document['url'], 'sitemap.issue.time_limit', $secrets, $legacyCheckUrl);
             }
-            $sitemaps[] = ['url' => $this->publicUrl($document['url'], $secrets, $legacyCheckUrl), 'urlCount' => $document['urlCount'], 'checkedReachabilityOfAllUrls' => $allChecked, 'issuesCount' => count($documentIssues), 'issues' => $documentIssues];
+            $sitemaps[] = ['url' => $this->publicUrl($document['url'], $secrets, $legacyCheckUrl), 'urlCount' => $document['urlCount'], 'checkedReachabilityOfAllUrls' => $allChecked, 'issuesCount' => count($documentIssues), 'issues' => array_slice($documentIssues, 0, self::MaxPerDocumentIssues)];
         }
         if ($this->remainingMilliseconds($context) <= 0 && ! in_array('sitemap.issue.time_limit', array_column($issues, 'type'), true)) {
             $discoveryComplete = false;
@@ -630,10 +666,19 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
 
                 return $issue;
             };
-            $events[] = new AddonEvent('sitemap.issues_changed', 'sitemap:'.$context->checkId.':'.$baseline['run_id'].':'.hash('sha256', json_encode($comparisonIssues, JSON_THROW_ON_ERROR)), 1, [
-                'new' => array_values(array_map($withoutIdentity, array_diff_key($new, $old))),
-                'resolved' => array_values(array_map($withoutIdentity, array_filter(array_diff_key($old, $new), static fn (array $issue): bool => ($notVerifiable[$issue['url']]['reason'] ?? null) !== AutomatedCheckBlockReason::BotProtection->value))),
-            ]);
+            $newIssues = array_values(array_map($withoutIdentity, array_diff_key($new, $old)));
+            $resolvedIssues = array_values(array_map($withoutIdentity, array_filter(array_diff_key($old, $new), static fn (array $issue): bool => ($notVerifiable[$issue['url']]['reason'] ?? null) !== AutomatedCheckBlockReason::BotProtection->value)));
+            $diffTruncated = count($newIssues) > self::MaxEventDiffIssues || count($resolvedIssues) > self::MaxEventDiffIssues;
+            $eventPayload = [
+                'new' => array_slice($newIssues, 0, self::MaxEventDiffIssues),
+                'resolved' => array_slice($resolvedIssues, 0, self::MaxEventDiffIssues),
+            ];
+            if ($diffTruncated) {
+                $eventPayload['truncated'] = true;
+                $eventPayload['new_count'] = count($newIssues);
+                $eventPayload['resolved_count'] = count($resolvedIssues);
+            }
+            $events[] = new AddonEvent('sitemap.issues_changed', 'sitemap:'.$context->checkId.':'.$baseline['run_id'].':'.hash('sha256', json_encode($comparisonIssues, JSON_THROW_ON_ERROR)), 1, $eventPayload);
         }
 
         if ($timedOut) {

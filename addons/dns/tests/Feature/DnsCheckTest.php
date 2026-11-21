@@ -747,3 +747,41 @@ it('preserves a delegated child baseline when discovery cannot establish authori
     'last discovery label timeout and live recursion' => ['empty-last-timeout-live', RunResult::Errored, 'DNS resolver did not respond.'],
     'last discovery label SERVFAIL and live recursion' => ['empty-last-servfail-live', RunResult::Errored, 'DNS resolver returned SERVFAIL.'],
 ])->with([false, true]);
+
+it('rejects excessive authoritative nameserver fan-out and bounds DNS change event payloads', function (): void {
+    $fake = new FakeDnsResolver;
+    app()->instance(DnsResolver::class, $fake);
+    $check = dnsCheck();
+    $manyNs = array_map(
+        static fn (int $index): array => ['host' => 'example.com', 'ttl' => 300, 'class' => 'IN', 'type' => 'NS', 'target' => sprintf('ns%02d.example.com', $index)],
+        range(1, 20),
+    );
+    $fake->respondWith('example.com', 'NS', new DnsLookupResult($manyNs, [], null), null);
+
+    $errored = dnsRun($check);
+
+    expect($errored->result)->toBe(RunResult::Errored)
+        ->and($errored->summary)->toBe('dns.response_limit_exceeded');
+
+    // Baseline with 1 A record, then add 130 TXT records: event payload is capped while presentation preserves real counts.
+    $fake = new FakeDnsResolver;
+    app()->instance(DnsResolver::class, $fake);
+    $ns = [['host' => 'example.com', 'ttl' => 300, 'class' => 'IN', 'type' => 'NS', 'target' => 'ns1.example.com']];
+    dnsReplies($fake, [dnsA(), ...$ns]);
+    dnsReplies($fake, [dnsA(), ...$ns], nameserver: 'ns1.example.com');
+    expect(dnsRun($check)->result)->toBe(RunResult::Succeeded);
+
+    $manyTxt = array_map(
+        static fn (int $index): array => ['host' => 'example.com', 'ttl' => 300, 'class' => 'IN', 'type' => 'TXT', 'txt' => 'v=record-'.$index],
+        range(1, 130),
+    );
+    dnsReplies($fake, [dnsA(), ...$ns, ...$manyTxt]);
+    dnsReplies($fake, [dnsA(), ...$ns, ...$manyTxt], nameserver: 'ns1.example.com');
+    $changed = dnsRun($check);
+
+    expect($changed->result)->toBe(RunResult::Warning);
+    $event = Event::query()->where('type', 'dns.records_changed')->sole();
+    expect($event->payload['truncated'] ?? false)->toBeTrue()
+        ->and(count($event->payload['changes']['TXT']['added']))->toBeLessThanOrEqual(100)
+        ->and($event->payload['changes']['TXT']['added_count'])->toBe(130);
+});

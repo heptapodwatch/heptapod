@@ -14,6 +14,7 @@ use Heptapod\Addons\Crawl\CrawlCollector;
 use Heptapod\Addons\Crawl\CrawlMetrics;
 use Heptapod\Addons\Crawl\CrawlPersistence;
 use Heptapod\Addons\Crawl\CrawlTargetUnavailable;
+use Heptapod\Addons\Crawl\LinkClassificationPolicy;
 use Heptapod\Addons\Crawl\MixedContentFinding;
 use Heptapod\Addons\Crawl\NotCrawlableReason;
 use Heptapod\Checks\Execution\CheckExecutor;
@@ -1981,4 +1982,48 @@ it('names the classification of every exported broken-links and mixed-content ro
             ['http://cdn.example.test/a.png', 'broken'], ['https://export.example.test/blocked', 'not_verifiable'],
         ]);
     });
+});
+
+it('bounds collected link text and rejects oversized crawl artifacts at the persistence boundary', function (): void {
+    $site = Site::factory()->create(['url' => 'https://bounded-crawl.example.test']);
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::BrokenLinks]);
+    $hugeText = str_repeat('word ', 1000);
+    $fake = (new FakeOutboundHttp)->respondUsing(static function (FetchRequest $request) use ($hugeText): FetchResult {
+        if (str_ends_with($request->url, '/robots.txt')) {
+            return new FetchResult(404, '');
+        }
+        if (str_ends_with($request->url, '/broken')) {
+            return new FetchResult(404, 'missing', ['Content-Type' => ['text/html']]);
+        }
+
+        return new FetchResult(200, '<html lang="en"><body><a href="/broken">'.$hugeText.'</a></body></html>', ['Content-Type' => ['text/html']]);
+    });
+    app()->instance(OutboundHttp::class, $fake);
+
+    recordCrawl(crawlContext($check));
+
+    $stored = DB::table('crawl_findings')->where('crawled_url', 'https://bounded-crawl.example.test/broken')->value('link_text');
+    expect(is_string($stored))->toBeTrue()
+        ->and(strlen($stored))->toBeLessThanOrEqual(1000);
+
+    $oversizedUrl = 'https://bounded-crawl.example.test/'.str_repeat('a', 9000);
+    $artifact = [
+        'evaluated_finding_ids' => [],
+        'site_url' => 'https://bounded-crawl.example.test',
+        'target_fingerprint' => str_repeat('a', 64),
+        'config_fingerprint' => str_repeat('b', 64),
+        'classification_policy_version' => LinkClassificationPolicy::VERSION,
+        'collected_at' => now()->toIso8601String(),
+        'truncated' => false,
+        'observed_urls' => [$oversizedUrl],
+        'observed_pages' => [],
+        'discovered_urls' => [],
+        'discovery_complete' => true,
+        'notes' => [],
+        'settings' => ['max_pages' => 100],
+        'urls' => [],
+        'mixed_content' => [],
+    ];
+    expect(fn () => app(CrawlPersistence::class)->stage(crawlContext($check), 'artifact', [$artifact]))
+        ->toThrow(ValidationException::class);
 });

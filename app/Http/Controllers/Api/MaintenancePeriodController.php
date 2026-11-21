@@ -35,6 +35,9 @@ final class MaintenancePeriodController extends Controller
 {
     use ResolvesApiPrincipal;
 
+    /** Bounds memory and response size for monitors with large maintenance histories. */
+    public const int MaxPeriods = 1000;
+
     public function index(Request $request, Site $monitor): JsonResponse
     {
         Gate::authorize('view', $monitor);
@@ -64,7 +67,7 @@ final class MaintenancePeriodController extends Controller
                 $end->format('Y-m-d H:i:s.uP'),
             ]);
         }
-        $query->getQuery()->orderByDesc('maintenance_periods.starts_at')->orderByDesc('maintenance_periods.id');
+        $query->getQuery()->orderByDesc('maintenance_periods.starts_at')->orderByDesc('maintenance_periods.id')->limit(self::MaxPeriods);
 
         return response()->json(['data' => array_map(static function (MaintenancePeriod $period) use ($monitor): array {
             $siteEndAt = $period->getAttribute('site_ended_at');

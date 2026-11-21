@@ -22,6 +22,7 @@ use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Testing\ApiSpec;
 use Heptapod\Testing\FakeOutboundHttp;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Spectator\Exceptions\ResponseValidationException;
 
@@ -197,4 +198,50 @@ it('trims opted-in string lists and stores no blank patterns through monitor upd
         ->assertJsonPath('broken_links_check_settings.exclude_patterns', ['/excluded/*'])
         ->assertJsonPath('broken_links_check_settings.whitelisted_urls', ['https://allowed.example/path', '*/news/sample?edition=*']);
     expect($check->refresh()->executionConfig()['do_not_crawl_urls'])->toBe([]);
+});
+
+it('enforces heavy-queue admission and manual-run budgets on the request-run endpoint', function (): void {
+    $crawlChecks = Check::factory()->count(3)->create(['type' => CheckKey::BrokenLinks]);
+    $this->postJson('/api/checks/'.$crawlChecks[0]->id.'/request-run')->assertOk();
+    $this->postJson('/api/checks/'.$crawlChecks[1]->id.'/request-run')->assertOk();
+    $this->postJson('/api/checks/'.$crawlChecks[2]->id.'/request-run')
+        ->assertStatus(429)
+        ->assertJsonPath('code', 'queue_admission_limited');
+
+    // Token budget (5 runs/min) applies across request-run calls as well (2 already consumed above).
+    $fastChecks = Check::factory()->count(4)->create(['type' => CheckKey::Uptime]);
+    $this->postJson('/api/checks/'.$fastChecks[0]->id.'/request-run')->assertOk();
+    $this->postJson('/api/checks/'.$fastChecks[1]->id.'/request-run')->assertOk();
+    $this->postJson('/api/checks/'.$fastChecks[2]->id.'/request-run')->assertOk();
+    $this->postJson('/api/checks/'.$fastChecks[3]->id.'/request-run')
+        ->assertStatus(429)
+        ->assertJsonPath('code', 'manual_run_budget');
+});
+
+it('bounds downtime responses to the configured maximum period count', function (): void {
+    $check = Check::factory()->create(['type' => CheckKey::Uptime]);
+    $start = now()->subDays(5);
+    $rows = [];
+    for ($i = 0; $i < 1005; $i++) {
+        $at = $start->addMinutes($i * 2);
+        $rows[] = [
+            'site_id' => $check->site_id,
+            'check_id' => $check->id,
+            'cause' => IncidentCause::Failed->value,
+            'opened_at' => $at,
+            'first_failure_at' => $at,
+            'resolved_at' => $at->addMinute(),
+            'evidence' => '{}',
+            'created_at' => $at,
+            'updated_at' => $at,
+        ];
+    }
+    foreach (array_chunk($rows, 500) as $chunk) {
+        DB::table('incidents')->insert($chunk);
+    }
+
+    $response = $this->getJson('/api/monitors/'.$check->site_id.'/downtime?filter[started_at]='.$start->subHour()->format('YmdHis').'&filter[ended_at]='.now()->addHour()->format('YmdHis'))
+        ->assertOk();
+
+    expect($response->json('data'))->toHaveCount(1000);
 });

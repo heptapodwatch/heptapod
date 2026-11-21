@@ -1449,3 +1449,49 @@ it('strips legacy sitemap queries on exact complete URLs at write time without c
         ->and($run->evidence['sitemaps'][0]['url'])->toBe('http://fixtures.test/sitemap.xml')
         ->and($run->evidence['issues'][0]['url'])->toBe($nestedUrl);
 });
+
+it('enforces cumulative sitemap byte limits and bounds sitemap change event diffs', function (): void {
+    // 1) Cumulative URL byte budget stops multi-sitemap amplification with sitemap.issue.size_limit.
+    $context = sitemapContext(['speed' => 'fastest', 'urls_per_run' => '0']);
+    $longPath = str_repeat('a', 1900);
+    $childUrls = array_map(static fn (int $child): string => 'http://fixtures.test/child-'.$child.'.xml', range(1, 20));
+    $indexXml = '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        .implode('', array_map(static fn (string $url): string => '<sitemap><loc>'.$url.'</loc></sitemap>', $childUrls))
+        .'</sitemapindex>';
+    $childBodies = [];
+    foreach ($childUrls as $index => $childUrl) {
+        $entries = array_map(static fn (int $n): string => 'http://fixtures.test/'.$longPath.'/'.$index.'-'.$n, range(1, 150));
+        $childBodies[$childUrl] = sitemapXml($entries);
+    }
+    $fake = (new FakeOutboundHttp)->respondUsing(static function (FetchRequest $request) use ($indexXml, $childBodies): FetchResult {
+        if ($request->url === 'http://fixtures.test/sitemap.xml') {
+            return new FetchResult(200, $indexXml);
+        }
+
+        return new FetchResult(200, $childBodies[$request->url] ?? sitemapXml([]));
+    });
+    app()->instance(OutboundHttp::class, $fake);
+
+    $limitedRun = runSitemap($context);
+
+    expect($limitedRun->result)->toBe(RunResult::Failed)
+        ->and(array_column($limitedRun->evidence['issues'], 'type'))->toContain('sitemap.issue.size_limit')
+        ->and(count($fake->requests))->toBeLessThan(count($childUrls) + 1);
+});
+
+it('bounds sitemap change event diffs when many issues appear at once', function (): void {
+    $diffContext = sitemapContext(['speed' => 'fastest']);
+    $urls = array_map(static fn (int $i): string => 'http://fixtures.test/page-'.$i, range(1, 130));
+    app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static fn (FetchRequest $request): FetchResult => $request->url === 'http://fixtures.test/sitemap.xml'
+        ? new FetchResult(200, sitemapXml($urls)) : new FetchResult(200)));
+    expect(runSitemap($diffContext)->result)->toBe(RunResult::Succeeded);
+
+    app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static fn (FetchRequest $request): FetchResult => $request->url === 'http://fixtures.test/sitemap.xml'
+        ? new FetchResult(200, sitemapXml($urls)) : new FetchResult(404, failure: new FetchFailure(FetchFailureKind::HttpStatus, 404))));
+    expect(runSitemap($diffContext)->result)->toBe(RunResult::Failed);
+
+    $event = Event::query()->where('type', 'sitemap.issues_changed')->sole();
+    expect($event->payload['truncated'] ?? false)->toBeTrue()
+        ->and(count($event->payload['new']))->toBeLessThanOrEqual(100)
+        ->and($event->payload['new_count'])->toBe(130);
+});

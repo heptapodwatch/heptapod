@@ -39,5 +39,6 @@
     "dns.guidance.nameserver_unreachable": "Check its availability and DNS configuration.",
     "dns.guidance.nameservers_unreachable": "Check their availability and DNS configuration.",
     "dns.guidance.nameservers_missing": "Check the domain’s nameserver configuration.",
-    "dns.guidance.resolves_to_nothing": "Add DNS records or stop monitoring this hostname."
+    "dns.guidance.resolves_to_nothing": "Add DNS records or stop monitoring this hostname.",
+    "dns.response_limit_exceeded": "DNS responses exceeded the size or query limit."
 }

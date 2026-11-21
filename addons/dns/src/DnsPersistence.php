@@ -20,9 +20,9 @@ final class DnsPersistence implements RunPersistence
             throw new \InvalidArgumentException('DNS persistence requires one snapshot row.');
         }
         $data = Validator::make($rows[0], [
-            'dns_records' => ['present', 'array', 'list', 'max:154000'],
+            'dns_records' => ['present', 'array', 'list', 'max:'.DnsCheck::MaxTotalRecords],
             'raw_dns_records' => ['present', 'array:'.implode(',', DnsCheck::Types)],
-            'raw_dns_records.*' => ['array', 'list', 'max:22000'],
+            'raw_dns_records.*' => ['array', 'list', 'max:'.DnsCheck::MaxTotalRecords],
             'raw_dns_records.*.*' => ['string', 'max:65535'],
             'normalized_records' => ['present', 'array', 'max:154'],
             'normalized_records.*' => ['array', 'list', 'max:1000'],
@@ -33,7 +33,7 @@ final class DnsPersistence implements RunPersistence
             'issues.*.record_type' => ['present', 'nullable', 'in:'.implode(',', DnsCheck::Types)],
             'issues.*.nameserver' => ['sometimes', 'required', 'string', 'max:253'],
             'issues.*.reason' => ['sometimes', 'required', 'in:timeout,servfail,private_target'],
-            'authoritative_nameservers' => ['present', 'array', 'list', 'max:1000'],
+            'authoritative_nameservers' => ['present', 'array', 'list', 'max:'.(DnsCheck::MaxNameserversPerTarget * 22)],
             'authoritative_nameservers.*' => ['required', 'string', 'max:253'],
             'baseline_generation' => ['required', 'integer:strict', 'min:0'],
             'auto_accept_changes' => ['sometimes', 'boolean:strict'],
