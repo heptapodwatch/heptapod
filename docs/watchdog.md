@@ -23,7 +23,9 @@ Heptapod gives a watchdog two signals: a heartbeat it sends and a health URL the
 Set `INSTANCE_HEARTBEAT_URL` in the server environment, then recreate the scheduler and app containers. The scheduler then sends a `GET` request to that URL every minute.
 
 - The request adds one query parameter, `check_age_seconds`. Keep a secret token in the path or query of the URL.
-- The request follows redirects and times out after 10 seconds. A final response other than 2xx counts as a failed heartbeat.
+- The URL must use `https://`. Plain `http://` works only for a host that the instance Owner lists in `HEPTAPOD_DELIVERY_PRIVATE_HOSTS`, because the URL itself is the secret.
+- The request goes only to a public address, unless `HEPTAPOD_DELIVERY_PRIVATE_HOSTS` lists the host: a watchdog on a private network needs that entry, also with `https://`.
+- The request does not follow redirects and times out after 10 seconds. A response other than 2xx, including a redirect, counts as a failed heartbeat.
 - An empty value turns the heartbeat off.
 - Heptapod needs its database to build the request. When the database is down, no heartbeat is sent.
 - During an upgrade or a rollback, the scheduler stops and sends no heartbeat. Expect a watchdog alert when the upgrade takes longer than the watchdog's grace time.

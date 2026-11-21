@@ -43,3 +43,33 @@ it('rejects a missing or invalid heartbeat endpoint', function (?string $url): v
 
     $this->artisan('instance:heartbeat');
 })->with([null, '', 'file:///etc/passwd'])->throws(RuntimeException::class);
+
+it('sends the heartbeat over plain HTTP only to a listed private host', function (): void {
+    config(['instance.heartbeat_url' => 'http://watchdog.lan/instance-token']);
+    Http::preventStrayRequests();
+    Http::fake(['http://watchdog.lan/instance-token*' => Http::response('', 204)]);
+    $key = 'heartbeat-test:'.Str::uuid();
+    config(['heptapod.health.external_ping_cache_key' => $key]);
+    try {
+        expect(fn () => $this->artisan('instance:heartbeat')->run())
+            ->toThrow(RuntimeException::class, 'INSTANCE_HEARTBEAT_URL must use HTTPS; plain HTTP works only for a host listed in HEPTAPOD_DELIVERY_PRIVATE_HOSTS.');
+        Http::assertNothingSent();
+        config(['heptapod.outbound.delivery_private_hosts' => ['watchdog.lan']]);
+        $this->artisan('instance:heartbeat')->assertSuccessful();
+        Http::assertSentCount(1);
+    } finally {
+        Cache::store('redis')->forget($key);
+    }
+});
+
+it('does not follow a heartbeat redirect or count it as a ping', function (): void {
+    config(['heptapod.outbound.delivery_private_hosts' => ['fixtures.test'], 'instance.heartbeat_url' => 'http://fixtures.test/redirect/start']);
+    $key = 'heartbeat-test:'.Str::uuid();
+    config(['heptapod.health.external_ping_cache_key' => $key]);
+    try {
+        expect(fn () => $this->artisan('instance:heartbeat')->run())->toThrow(RequestException::class, 'HTTP request returned status code 301');
+        expect(app(ReadSystemHealth::class)()->lastExternalPing)->toBeNull();
+    } finally {
+        Cache::store('redis')->forget($key);
+    }
+});
