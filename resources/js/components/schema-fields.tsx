@@ -382,7 +382,7 @@ export function SchemaFields({
                                         {field.properties.map((property) => (
                                             <div
                                                 key={property.name}
-                                                className="min-w-36 flex-1 space-y-1"
+                                                className="min-w-28 flex-1 space-y-1"
                                             >
                                                 <Label
                                                     id={`${id}-${property.name}-${index}-label`}
@@ -683,8 +683,8 @@ export function SchemaFields({
                         key={field.name}
                         className={
                             field.type === 'object-list' && columns === 2
-                                ? 'space-y-2 sm:col-span-2'
-                                : 'space-y-2'
+                                ? 'min-w-0 space-y-2 sm:col-span-2'
+                                : 'min-w-0 space-y-2'
                         }
                     >
                         {field.type === 'object-list' ||
