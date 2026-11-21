@@ -31,16 +31,7 @@ final class NativeTargetResolver implements TimedTargetResolver
             if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
                 return new TargetResolution([$host], 0.0);
             }
-            // The parent must never block inside libc getaddrinfo beyond the HTTP budget.
-            // A separate PHP process preserves NSS (/etc/hosts and DNS) and is killed at the deadline.
-            // Embedded SAPIs do not identify the PHP CLI through PHP_BINARY.
-            $php = (new PhpExecutableFinder)->find(false);
-            if ($php === false || ! is_file($php) || ! is_executable($php)) {
-                throw new \RuntimeException('Target resolver requires an executable PHP CLI binary.');
-            }
-            // The child only needs NSS; loading Composer adds unrelated startup work to every lookup.
-            $process = new Process([$php, '-r', 'require $argv[1]."/app/Contracts/Http/TargetResolver.php"; require $argv[1]."/app/Contracts/EngineFailure.php"; require $argv[1]."/app/Contracts/Http/TargetResolutionException.php"; require $argv[1]."/app/Contracts/Http/TargetResolution.php"; require $argv[1]."/app/Contracts/Http/TimedTargetResolver.php"; require $argv[1]."/app/Http/Outbound/NativeTargetResolver.php"; try { echo json_encode((new \\Heptapod\\Http\\Outbound\\NativeTargetResolver)->resolveTimed($argv[2]), JSON_THROW_ON_ERROR); } catch (\\Heptapod\\Contracts\\Http\\TargetResolutionException) { exit(2); }', dirname(__DIR__, 3), $host]);
-            $process->setTimeout($remaining);
+            $process = $this->lookupProcess($host, $remaining);
             try {
                 $process->run();
             } catch (ProcessTimedOutException) {
@@ -84,5 +75,20 @@ final class NativeTargetResolver implements TimedTargetResolver
         }
 
         return new TargetResolution(array_values(array_unique($ips)), $dnsSeconds);
+    }
+
+    /** Builds a bounded system resolver child process so callers can resolve hosts concurrently without blocking. */
+    public function lookupProcess(string $host, float $timeout): Process
+    {
+        // Embedded SAPIs do not identify the PHP CLI through PHP_BINARY.
+        $php = (new PhpExecutableFinder)->find(false);
+        if ($php === false || ! is_file($php) || ! is_executable($php)) {
+            throw new \RuntimeException('Target resolver requires an executable PHP CLI binary.');
+        }
+        // The child only needs NSS; loading Composer adds unrelated startup work to every lookup.
+        $process = new Process([$php, '-r', 'require $argv[1]."/app/Contracts/Http/TargetResolver.php"; require $argv[1]."/app/Contracts/EngineFailure.php"; require $argv[1]."/app/Contracts/Http/TargetResolutionException.php"; require $argv[1]."/app/Contracts/Http/TargetResolution.php"; require $argv[1]."/app/Contracts/Http/TimedTargetResolver.php"; require $argv[1]."/app/Http/Outbound/NativeTargetResolver.php"; try { echo json_encode((new \\Heptapod\\Http\\Outbound\\NativeTargetResolver)->resolveTimed($argv[2]), JSON_THROW_ON_ERROR); } catch (\\Heptapod\\Contracts\\Http\\TargetResolutionException) { exit(2); }', dirname(__DIR__, 3), $host]);
+        $process->setTimeout($timeout);
+
+        return $process;
     }
 }

@@ -9,18 +9,17 @@ use Heptapod\Contracts\ControlProbeResult;
 use Heptapod\Contracts\Http\FetchException;
 use Heptapod\Contracts\Http\TargetResolutionException;
 use Heptapod\Contracts\Http\TargetResolver;
+use Heptapod\Http\Outbound\NativeTargetResolver;
+use Symfony\Component\Process\Exception\ProcessTimedOutException;
+use Symfony\Component\Process\Process;
 
 /**
- * Checks whether this monitor can resolve two outside DNS names and open two direct-IP TCP connections.
+ * Checks whether this monitor can resolve outside DNS names and open direct-IP TCP connections concurrently.
  * Carries no HTTP request, TLS handshake, telemetry or instance identifiers.
- * Bounds the whole probe batch below RunControlProbe's timeout so unfinished batches return incomplete.
+ * All targets run in parallel inside one per-target timeout window, well below RunControlProbe's job timeout.
  */
 final readonly class NativeControlProbe implements ControlProbe
 {
-    public const float MaxBatchSeconds = 60.0;
-
-    private const float MinimumTargetTimeoutSeconds = 0.1;
-
     public function __construct(private TargetResolver $resolver) {}
 
     public function probe(): ControlProbeResult
@@ -29,51 +28,116 @@ final readonly class NativeControlProbe implements ControlProbe
         $dnsHosts = config()->array('heptapod.control_probe.dns_hosts', []);
         /** @var list<string> $ipTargets */
         $ipTargets = config()->array('heptapod.control_probe.ip_targets', []);
-        $perTargetTimeout = (float) config()->integer('heptapod.control_probe.timeout_seconds', 3);
-        $batchDeadline = microtime(true) + self::MaxBatchSeconds;
+        $timeout = (float) config()->integer('heptapod.control_probe.timeout_seconds', 5);
 
         $dnsPassed = 0;
-        foreach ($dnsHosts as $host) {
-            $timeout = $this->targetTimeout($perTargetTimeout, $batchDeadline);
-            if ($timeout === null) {
-                return new ControlProbeResult($dnsPassed, count($dnsHosts), 0, count($ipTargets), complete: false);
-            }
-            try {
-                $this->resolver->resolve($host, microtime(true) + $timeout);
-                $dnsPassed++;
-            } catch (TargetResolutionException|FetchException) {
-                // Failed control lookup counts as 0 passed; never leaks into uptime check errors.
-            }
-        }
-
         $ipPassed = 0;
-        foreach ($ipTargets as $target) {
-            $timeout = $this->targetTimeout($perTargetTimeout, $batchDeadline);
-            if ($timeout === null) {
-                return new ControlProbeResult($dnsPassed, count($dnsHosts), $ipPassed, count($ipTargets), complete: false);
+        /** @var array<int, resource> $pendingSockets */
+        $pendingSockets = [];
+        /** @var array<int, Process> $pendingProcesses */
+        $pendingProcesses = [];
+
+        try {
+            // Start all non-blocking direct-IP connects simultaneously.
+            foreach ($ipTargets as $index => $target) {
+                $errno = 0;
+                $errstr = '';
+                $socket = @stream_socket_client('tcp://'.$target, $errno, $errstr, $timeout, STREAM_CLIENT_CONNECT | STREAM_CLIENT_ASYNC_CONNECT);
+                if ($socket !== false) {
+                    stream_set_blocking($socket, false);
+                    $pendingSockets[$index] = $socket;
+                }
             }
-            $errno = 0;
-            $errstr = '';
-            $socket = @stream_socket_client('tcp://'.$target, $errno, $errstr, $timeout);
-            if ($socket !== false) {
-                fclose($socket);
-                $ipPassed++;
+
+            // Start all DNS lookups concurrently alongside the IP connects.
+            if ($this->resolver instanceof NativeTargetResolver) {
+                foreach ($dnsHosts as $index => $host) {
+                    $process = $this->resolver->lookupProcess($host, $timeout);
+                    $process->start();
+                    $pendingProcesses[$index] = $process;
+                }
+            } else {
+                $deadline = microtime(true) + $timeout;
+                foreach ($dnsHosts as $host) {
+                    try {
+                        $this->resolver->resolve($host, $deadline);
+                        $dnsPassed++;
+                    } catch (TargetResolutionException|FetchException) {
+                        // Failed control lookup counts as 0 passed.
+                    }
+                }
+            }
+
+            $batchDeadline = microtime(true) + $timeout + 0.5;
+            while ($pendingSockets !== [] || $pendingProcesses !== []) {
+                $remaining = $batchDeadline - microtime(true);
+                if ($remaining <= 0) {
+                    break;
+                }
+
+                if ($pendingSockets !== []) {
+                    $read = null;
+                    $write = array_values($pendingSockets);
+                    $except = null;
+                    $slice = $pendingProcesses === [] ? $remaining : min($remaining, 0.05);
+                    $sec = (int) floor($slice);
+                    $usec = (int) (($slice - $sec) * 1_000_000);
+                    $ready = @stream_select($read, $write, $except, $sec, $usec);
+                    if ($ready !== false && $ready > 0) {
+                        foreach ($write as $socket) {
+                            $key = array_search($socket, $pendingSockets, true);
+                            if ($key === false) {
+                                continue;
+                            }
+                            if ($this->socketConnected($socket)) {
+                                $ipPassed++;
+                            }
+                            @fclose($socket);
+                            unset($pendingSockets[$key]);
+                        }
+                    }
+                } elseif ($pendingProcesses !== []) {
+                    usleep(min(25_000, max(1_000, (int) ($remaining * 1_000_000))));
+                }
+
+                foreach ($pendingProcesses as $index => $process) {
+                    try {
+                        $process->checkTimeout();
+                    } catch (ProcessTimedOutException) {
+                        unset($pendingProcesses[$index]);
+
+                        continue;
+                    }
+                    if (! $process->isRunning()) {
+                        if ($process->isSuccessful()) {
+                            $dnsPassed++;
+                        }
+                        unset($pendingProcesses[$index]);
+                    }
+                }
+            }
+        } finally {
+            foreach ($pendingSockets as $socket) {
+                @fclose($socket);
+            }
+            foreach ($pendingProcesses as $process) {
+                if ($process->isRunning()) {
+                    $process->stop(0);
+                }
             }
         }
 
-        $complete = microtime(true) < $batchDeadline
-            || (($dnsHosts === [] || $dnsPassed > 0) && ($ipTargets === [] || $ipPassed > 0));
-
-        return new ControlProbeResult($dnsPassed, count($dnsHosts), $ipPassed, count($ipTargets), complete: $complete);
+        return new ControlProbeResult($dnsPassed, count($dnsHosts), $ipPassed, count($ipTargets), complete: true);
     }
 
-    private function targetTimeout(float $perTargetTimeout, float $batchDeadline): ?float
+    /** @param resource $socket */
+    private function socketConnected(mixed $socket): bool
     {
-        $remaining = $batchDeadline - microtime(true);
-        if ($remaining < self::MinimumTargetTimeoutSeconds) {
-            return null;
+        if (@stream_socket_get_name($socket, true) === false) {
+            return false;
         }
+        $native = @socket_import_stream($socket);
 
-        return min($perTargetTimeout, $remaining);
+        return $native !== false && socket_get_option($native, SOL_SOCKET, SO_ERROR) === 0;
     }
 }

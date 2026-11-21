@@ -20,6 +20,8 @@ use Heptapod\Contracts\ReclassifiedCheckError;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Enums\IncidentCause;
 use Heptapod\Enums\NotificationCategory;
+use Heptapod\Jobs\BroadcastLiveSignal;
+use Heptapod\Jobs\DispatchNotifications;
 use Heptapod\Jobs\RunCheck;
 use Heptapod\Jobs\RunControlProbe;
 use Heptapod\Models\Check;
@@ -33,7 +35,9 @@ use Heptapod\SystemHealth\MonitorOutageDetector;
 use Heptapod\SystemHealth\SystemIssueKind;
 use Heptapod\Testing\FakeControlProbe;
 use Heptapod\Testing\FakeOutboundHttp;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Mail\Transport\ArrayTransport;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -153,9 +157,9 @@ it('reclassifies a DNS burst using the cached failing verdict, opens one system 
     $dnsFailure = new FetchResult(null, '', [], failure: new FetchFailure(FetchFailureKind::Dns));
 
     // Wave 1 crosses the burst threshold on check 3 and dispatches RunControlProbe (which runs on sync queue and caches failing);
-    // wave 2 sees the cached failing verdict across all 4 checks, leaving zero Down incidents and zero per-site alerts.
+    // wave 2 (inside the 60 s soft age) sees the cached failing verdict across all 4 checks without re-probing.
     executeUptimeWave($checks, $dnsFailure, CarbonImmutable::parse('2026-11-20T23:21:00Z'));
-    executeUptimeWave($checks, $dnsFailure, CarbonImmutable::parse('2026-11-20T23:22:00Z'));
+    executeUptimeWave($checks, $dnsFailure, CarbonImmutable::parse('2026-11-20T23:21:45Z'));
 
     expect($probe->calls)->toBe(1);
     expect(Incident::query()->count())->toBe(0);
@@ -209,7 +213,7 @@ it('keeps normal Down incidents during a burst when control probes are healthy',
     $dnsFailure = new FetchResult(null, '', [], failure: new FetchFailure(FetchFailureKind::Dns));
 
     executeUptimeWave($checks, $dnsFailure, CarbonImmutable::parse('2026-11-20T23:21:00Z'));
-    executeUptimeWave($checks, $dnsFailure, CarbonImmutable::parse('2026-11-20T23:22:00Z'));
+    executeUptimeWave($checks, $dnsFailure, CarbonImmutable::parse('2026-11-20T23:21:45Z'));
 
     expect($probe->calls)->toBe(1);
     expect(Incident::query()->where('cause', IncidentCause::Failed->value)->count())->toBe(4);
@@ -319,4 +323,97 @@ it('counts only matching failure kinds in affected_sites during a DNS-only monit
     expect($issue->details['affected_sites'])->toBe(1)
         ->and(CheckRun::query()->where('check_id', $checks[2]->id)->sole()->result)->toBe(RunResult::Errored)
         ->and(CheckRun::query()->where('check_id', $checks[0]->id)->sole()->result)->toBe(RunResult::Failed);
+});
+
+it('refreshes ahead past the soft age while keeping protection until hard TTL, then resolves on hard expiry', function (): void {
+    $probe = FakeControlProbe::dnsFailing();
+    app()->instance(ControlProbe::class, $probe);
+    $t0 = CarbonImmutable::parse('2026-11-20T23:21:00Z');
+    runControlProbeJob($t0);
+
+    $checks = uptimeBurstChecks(3, 'refresh');
+    $dnsFailure = new FetchResult(null, '', [], failure: new FetchFailure(FetchFailureKind::Dns));
+    executeUptimeWave($checks, $dnsFailure, $t0->addSeconds(5));
+    $this->artisan('heptapod:evaluate-system-issues')->assertSuccessful();
+    $issue = SystemIssue::open()->where('kind', SystemIssueKind::MonitorOutage->value)->sole();
+
+    // At soft age (65 s): dispatches refresh-ahead RunControlProbe AND still reclassifies using the cached verdict.
+    executeUptimeWave($checks, $dnsFailure, $t0->addSeconds(65), fakeControlProbeJob: true);
+    Bus::assertDispatched(RunControlProbe::class);
+    expect(Incident::query()->count())->toBe(0);
+    foreach ($checks as $check) {
+        expect(CheckRun::query()->where('check_id', $check->id)->latest('id')->firstOrFail()->result)->toBe(RunResult::Errored);
+    }
+
+    // Past hard TTL (185 s) without a refreshed verdict: open issue resolves instead of staying pinned by connect failures.
+    $tExpired = $t0->addSeconds(185);
+    executeUptimeWave($checks, new FetchResult(null, '', [], failure: new FetchFailure(FetchFailureKind::Connect)), $tExpired, fakeControlProbeJob: true);
+    Cache::store('redis')->forever(config('heptapod.health.scheduler_cache_key'), now()->toIso8601String());
+    DispatcherHeartbeat::query()->update(['last_seen_at' => now()]);
+    $this->artisan('heptapod:evaluate-system-issues')->assertSuccessful();
+
+    expect($issue->refresh()->resolved_at)->not->toBeNull();
+});
+
+it('reports guard enqueue errors without replacing the uptime result or aborting system evaluation', function (): void {
+    $reported = [];
+    app(ExceptionHandler::class)->reportable(static function (Throwable $exception) use (&$reported): false {
+        $reported[] = $exception;
+
+        return false;
+    });
+
+    $checks = uptimeBurstChecks(3, 'enqueue-fail');
+    $dnsFailure = new FetchResult(null, '', [], failure: new FetchFailure(FetchFailureKind::Dns));
+    $t0 = CarbonImmutable::parse('2026-11-20T23:21:00Z');
+
+    // Make queue dispatch throw during burst evaluation: the uptime check still records its real Failed outcome.
+    test()->travelTo($t0);
+    $http = new FakeOutboundHttp;
+    foreach ($checks as $check) {
+        $http->respondWith(new FetchRequest(
+            $check->site->url, 'GET', [], null,
+            10485760, 10485760, RedirectPolicy::Operator, 5,
+            timeoutSeconds: 30.0, acceptedStatuses: range(100, 599), strictRedirects: false,
+        ), $dnsFailure);
+    }
+    app()->instance(OutboundHttp::class, $http);
+    Bus::fake([RunCheck::class, DispatchNotifications::class, BroadcastLiveSignal::class]);
+    foreach ($checks as $check) {
+        $claim = app(ClaimService::class)->runNow($check->id, RunOrigin::System);
+        expect($claim)->not->toBeNull();
+        config(['queue.default' => 'broken-guard-queue']);
+        app(CheckExecutor::class)->execute($check->id, $check->refresh()->claim_token, 60);
+    }
+
+    // Check 3 crossed the burst threshold, hit the broken queue on dispatch, reported it, and kept its real Failed result.
+    expect($reported)->not->toBeEmpty();
+    $thirdRun = CheckRun::query()->where('check_id', $checks[2]->id)->sole();
+    expect($thirdRun->result)->toBe(RunResult::Failed)
+        ->and($thirdRun->summary)->toBe('causes.connection');
+
+    // System evaluation with an aging open monitor_outage also reports an enqueue error without aborting.
+    $probe = FakeControlProbe::dnsFailing();
+    app()->instance(ControlProbe::class, $probe);
+    runControlProbeJob($t0);
+    SystemIssue::query()->create([
+        'kind' => SystemIssueKind::MonitorOutage,
+        'scope' => '',
+        'details' => ['mode' => 'dns', 'affected_sites' => 3, 'dns_probes' => '0 / 2', 'ip_probes' => '2 / 2'],
+        'opened_at' => $t0,
+    ]);
+    $before = count($reported);
+    $this->travelTo($t0->addSeconds(65));
+    Cache::store('redis')->forever(config('heptapod.health.scheduler_cache_key'), now()->toIso8601String());
+    DispatcherHeartbeat::query()->update(['last_seen_at' => now()]);
+    $this->artisan('heptapod:evaluate-system-issues')->assertSuccessful();
+
+    expect(count($reported))->toBeGreaterThan($before);
+});
+
+it('guards RunControlProbe against overlapping execution with WithoutOverlapping middleware', function (): void {
+    $middleware = (new RunControlProbe)->middleware();
+
+    expect($middleware)->toHaveCount(1)
+        ->and($middleware[0])->toBeInstanceOf(WithoutOverlapping::class);
 });

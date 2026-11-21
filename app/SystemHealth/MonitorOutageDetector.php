@@ -11,12 +11,14 @@ use Heptapod\Contracts\MonitorOutageGuard;
 use Heptapod\Jobs\RunControlProbe;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
+use Throwable;
 
 /**
- * Coordinates the monitor outage guard from one short-lived cached probe verdict and lock-free Redis burst windows.
+ * Coordinates the monitor outage guard from one short-lived cached probe verdict and atomic Redis burst windows.
  *
- * Uptime checks never run probes and never wait: during a burst they read the cached verdict, reclassify matching
- * failures when a fresh failing verdict exists, or dispatch RunControlProbe and record normally when none exists.
+ * Uptime checks never run probes and never wait: during a burst they read the cached verdict, trigger a background
+ * refresh-ahead once the verdict passes its soft age while continuing to use it until its hard TTL, or dispatch
+ * RunControlProbe and record normally on a miss. Guard cache/queue failures are reported without altering the check result.
  * EvaluateSystemIssues opens and resolves monitor_outage from the same cached verdict.
  */
 final readonly class MonitorOutageDetector implements MonitorOutageGuard
@@ -33,8 +35,24 @@ final readonly class MonitorOutageDetector implements MonitorOutageGuard
     /** Covers two standard 60-second uptime intervals so concurrent failures in one wave overlap. */
     public const int WindowSeconds = 120;
 
-    /** Short TTL for the single cached verdict published by RunControlProbe. */
-    public const int VerdictTtlSeconds = 120;
+    /** Soft age after which a continuing burst dispatches a refresh-ahead probe while still using the cached verdict. */
+    public const int VerdictSoftAgeSeconds = 60;
+
+    /** Hard TTL after which an unrefreshed verdict expires and stops guarding or keeping an issue open. */
+    public const int VerdictHardTtlSeconds = 180;
+
+    /** Atomic burst update: trim expired members, record this check with TTL, and return the active burst count. */
+    private const string RecordBurstScript = <<<'LUA'
+        redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', tonumber(ARGV[2]) - 1)
+        redis.call('ZADD', KEYS[1], ARGV[1], ARGV[3])
+        redis.call('EXPIRE', KEYS[1], ARGV[4])
+        if #KEYS > 1 then
+            redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', tonumber(ARGV[2]) - 1)
+            redis.call('ZADD', KEYS[2], ARGV[1], ARGV[3])
+            redis.call('EXPIRE', KEYS[2], ARGV[4])
+        end
+        return redis.call('ZCOUNT', KEYS[1], ARGV[2], '+inf')
+        LUA;
 
     public function evaluateFailure(int $checkId, FetchFailureKind $kind, CarbonImmutable $now): ?string
     {
@@ -45,24 +63,31 @@ final readonly class MonitorOutageDetector implements MonitorOutageGuard
             return null;
         }
 
-        $burstCount = $this->recordBurstFailure($checkId, $kind, $now);
-        if ($burstCount < self::BurstMinChecks) {
+        try {
+            $burstCount = $this->recordBurstFailure($checkId, $kind, $now);
+            if ($burstCount < self::BurstMinChecks) {
+                return null;
+            }
+
+            $verdict = $this->readVerdict($now);
+            if ($verdict === null) {
+                $this->dispatchProbe();
+
+                return null;
+            }
+            if ($verdict['ageSeconds'] >= self::VerdictSoftAgeSeconds) {
+                $this->dispatchProbe();
+            }
+
+            $result = $verdict['result'];
+
+            return $result->covers($kind) ? $result->mode() : null;
+        } catch (Throwable $exception) {
+            // A cache or queue failure inside the guard must never replace the site's real uptime outcome.
+            report($exception);
+
             return null;
         }
-
-        $verdict = $this->freshVerdict($now);
-        if ($verdict === null) {
-            RunControlProbe::dispatch();
-
-            return null;
-        }
-        if ($verdict['status'] !== 'failing') {
-            return null;
-        }
-
-        $result = new ControlProbeResult($verdict['dns_passed'], $verdict['dns_total'], $verdict['ip_passed'], $verdict['ip_total']);
-
-        return $result->covers($kind) ? $verdict['mode'] : null;
     }
 
     /** Called only by RunControlProbe with a complete control probe batch. */
@@ -71,20 +96,17 @@ final readonly class MonitorOutageDetector implements MonitorOutageGuard
         if (! $result->complete) {
             return;
         }
-        $mode = $result->mode();
         Cache::store('redis')->put(self::VerdictKey, [
-            'status' => $mode === null ? 'healthy' : 'failing',
-            'mode' => $mode,
             'dns_passed' => $result->dnsPassed,
             'dns_total' => $result->dnsTotal,
             'ip_passed' => $result->ipPassed,
             'ip_total' => $result->ipTotal,
             'probed_at' => $probedAt->utc()->toIso8601String(),
-        ], self::VerdictTtlSeconds);
+        ], self::VerdictHardTtlSeconds);
     }
 
     /**
-     * Current monitor outage details for EvaluateSystemIssues, or null when healthy.
+     * Current monitor outage details for EvaluateSystemIssues, or null when healthy or expired.
      * Reads only the cached verdict published by RunControlProbe (no separate probing path).
      *
      * @param  array<string, int|string|null>|null  $openDetails
@@ -96,32 +118,31 @@ final readonly class MonitorOutageDetector implements MonitorOutageGuard
             return null;
         }
 
-        $verdict = $this->freshVerdict($now);
+        $verdict = $this->readVerdict($now);
         if ($verdict === null) {
-            if ($openDetails !== null && $this->burstCount(self::BurstKey, $now) >= self::BurstMinChecks) {
-                // Keep open across a brief TTL refresh while the burst is still active; resolve once healthy or quiet.
-                RunControlProbe::dispatch();
-
-                return $openDetails;
-            }
-
             return null;
         }
 
-        if ($verdict['status'] !== 'failing' || $verdict['mode'] === null) {
+        if ($openDetails !== null && $verdict['ageSeconds'] >= self::VerdictSoftAgeSeconds) {
+            $this->dispatchProbe();
+        }
+
+        $result = $verdict['result'];
+        $mode = $result->mode();
+        if ($mode === null) {
             return null;
         }
 
-        $affectedSites = $this->burstCount($verdict['mode'] === 'dns' ? self::DnsBurstKey : self::BurstKey, $now);
+        $affectedSites = $this->burstCount($mode === 'dns' ? self::DnsBurstKey : self::BurstKey, $now);
         if ($openDetails === null && $affectedSites === 0) {
             return null;
         }
 
         return [
-            'mode' => $verdict['mode'],
+            'mode' => $mode,
             'affected_sites' => $affectedSites,
-            'dns_probes' => $verdict['dns_passed'].' / '.$verdict['dns_total'],
-            'ip_probes' => $verdict['ip_passed'].' / '.$verdict['ip_total'],
+            'dns_probes' => $result->dnsPassed.' / '.$result->dnsTotal,
+            'ip_probes' => $result->ipPassed.' / '.$result->ipTotal,
         ];
     }
 
@@ -129,6 +150,15 @@ final readonly class MonitorOutageDetector implements MonitorOutageGuard
     {
         Cache::store('redis')->forget(self::VerdictKey);
         Redis::connection('cache')->command('del', [self::BurstKey, self::DnsBurstKey]);
+    }
+
+    private function dispatchProbe(): void
+    {
+        try {
+            RunControlProbe::dispatch();
+        } catch (Throwable $exception) {
+            report($exception);
+        }
     }
 
     private function isConfigured(): bool
@@ -141,18 +171,14 @@ final readonly class MonitorOutageDetector implements MonitorOutageGuard
     {
         $ts = $now->getTimestamp();
         $cutoff = $ts - self::WindowSeconds;
-        $redis = Redis::connection('cache');
-        $redis->command('zremrangebyscore', [self::BurstKey, '-inf', (string) ($cutoff - 1)]);
-        $redis->command('zadd', [self::BurstKey, $ts, (string) $checkId]);
-        $redis->command('expire', [self::BurstKey, self::WindowSeconds * 2]);
+        $ttl = self::WindowSeconds * 2;
+        $connection = Redis::connection('cache');
 
-        if ($kind === FetchFailureKind::Dns) {
-            $redis->command('zremrangebyscore', [self::DnsBurstKey, '-inf', (string) ($cutoff - 1)]);
-            $redis->command('zadd', [self::DnsBurstKey, $ts, (string) $checkId]);
-            $redis->command('expire', [self::DnsBurstKey, self::WindowSeconds * 2]);
-        }
-
-        $count = $redis->command('zcount', [self::BurstKey, (string) $cutoff, '+inf']);
+        // PhpRedisConnection applies OPT_PREFIX to Lua KEYS automatically, matching zcount and del.
+        $keys = $kind === FetchFailureKind::Dns
+            ? [self::BurstKey, self::DnsBurstKey]
+            : [self::BurstKey];
+        $count = $connection->eval(self::RecordBurstScript, count($keys), ...[...$keys, $ts, $cutoff, (string) $checkId, $ttl]);
 
         return is_numeric($count) ? (int) $count : 0;
     }
@@ -165,40 +191,27 @@ final readonly class MonitorOutageDetector implements MonitorOutageGuard
         return is_numeric($count) ? (int) $count : 0;
     }
 
-    /** @return array{status: 'failing'|'healthy', mode: 'dns'|'network'|null, dns_passed: int, dns_total: int, ip_passed: int, ip_total: int, probed_at: string}|null */
-    private function freshVerdict(CarbonImmutable $now): ?array
+    /** @return array{result: ControlProbeResult, ageSeconds: int}|null */
+    private function readVerdict(CarbonImmutable $now): ?array
     {
         $value = Cache::store('redis')->get(self::VerdictKey);
-        if (! is_array($value) || ! is_string($value['status'] ?? null) || ! is_string($value['probed_at'] ?? null)) {
-            return null;
-        }
-        if (! in_array($value['status'], ['failing', 'healthy'], true)) {
-            return null;
-        }
-        $probedAt = CarbonImmutable::parse($value['probed_at']);
-        if ($probedAt->greaterThan($now) || $probedAt->diffInSeconds($now) >= self::VerdictTtlSeconds) {
+        if (! is_array($value) || ! is_string($value['probed_at'] ?? null)) {
             return null;
         }
         if (! is_int($value['dns_passed'] ?? null) || ! is_int($value['dns_total'] ?? null)
             || ! is_int($value['ip_passed'] ?? null) || ! is_int($value['ip_total'] ?? null)) {
             return null;
         }
-        $mode = $value['mode'] ?? null;
-        if ($mode !== null && ! in_array($mode, ['dns', 'network'], true)) {
+
+        // Positive age measures elapsed time since publication; a verdict published slightly ahead of $now stays fresh (age 0).
+        $age = max(0, (int) CarbonImmutable::parse($value['probed_at'])->diffInSeconds($now, false));
+        if ($age >= self::VerdictHardTtlSeconds) {
             return null;
         }
 
-        /** @var array{status: 'failing'|'healthy', mode: 'dns'|'network'|null, dns_passed: int, dns_total: int, ip_passed: int, ip_total: int, probed_at: string} $verdict */
-        $verdict = [
-            'status' => $value['status'],
-            'mode' => $mode,
-            'dns_passed' => $value['dns_passed'],
-            'dns_total' => $value['dns_total'],
-            'ip_passed' => $value['ip_passed'],
-            'ip_total' => $value['ip_total'],
-            'probed_at' => $value['probed_at'],
+        return [
+            'result' => new ControlProbeResult($value['dns_passed'], $value['dns_total'], $value['ip_passed'], $value['ip_total']),
+            'ageSeconds' => $age,
         ];
-
-        return $verdict;
     }
 }

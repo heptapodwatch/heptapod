@@ -13,9 +13,11 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Attributes\Timeout;
 use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Queue\Attributes\UniqueFor;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 
 /**
  * Runs the monitor's outside control probes off the check path and publishes one short-lived verdict.
+ * ShouldBeUnique prevents duplicate queued dispatches; WithoutOverlapping ensures at most one execution runs at a time.
  * Incomplete batches are discarded rather than published as failing verdicts.
  */
 #[Timeout(self::TimeoutSeconds)]
@@ -25,13 +27,19 @@ final class RunControlProbe implements ShouldBeUnique, ShouldQueue
 {
     use Queueable;
 
-    public const int TimeoutSeconds = 75;
+    public const int TimeoutSeconds = 30;
 
-    public const int UniqueForSeconds = 90;
+    public const int UniqueForSeconds = 60;
 
     public function __construct()
     {
         $this->onQueue('checks-fast');
+    }
+
+    /** @return list<object> */
+    public function middleware(): array
+    {
+        return [new WithoutOverlapping('heptapod:monitor-outage:control-probe')->dontRelease()->expireAfter(self::TimeoutSeconds)];
     }
 
     public function handle(ControlProbe $probe, MonitorOutageDetector $detector): void
