@@ -1,6 +1,7 @@
 <?php
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\DeleteSite;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\NotificationSuppression;
 use Heptapod\Contracts\RunReference;
@@ -181,4 +182,78 @@ it('persists exactly the eleven supported check identities', function (): void {
 
 it('cannot persist a successful run without metric observations', function (): void {
     expect(fn () => CheckRun::factory()->create(['result' => RunResult::Succeeded, 'metrics' => null]))->toThrow(QueryException::class);
+});
+
+function renameRiDeleteTrigger(string $table, string $constraint, string $targetName): void
+{
+    $current = DB::scalar(
+        "SELECT t.tgname FROM pg_trigger t JOIN pg_constraint c ON c.oid = t.tgconstraint JOIN pg_proc p ON p.oid = t.tgfoid
+         WHERE c.conname = ? AND p.proname IN ('RI_FKey_cascade_del', 'RI_FKey_setnull_del')",
+        [$constraint],
+    );
+    expect($current)->toBeString();
+    DB::statement(sprintf('ALTER TRIGGER "%s" ON %s RENAME TO "%s"', $current, $table, $targetName));
+}
+
+it('detaches retained events when deleting a site regardless of foreign key trigger order and preserves surviving links', function (): void {
+    // Force Postgres to fire events' SET NULL RI trigger before the cascading checks/incidents RI triggers.
+    renameRiDeleteTrigger('sites', 'events_site_id_foreign', 'a_01_events_site_setnull');
+    renameRiDeleteTrigger('sites', 'checks_site_id_foreign', 'a_02_checks_site_cascade');
+    renameRiDeleteTrigger('sites', 'incidents_site_id_foreign', 'a_03_incidents_site_cascade');
+
+    $site = Site::factory()->create();
+    $check = Check::factory()->for($site)->create();
+    $incident = Incident::factory()->for($check)->create(['resolved_at' => now()]);
+
+    $otherSite = Site::factory()->create();
+    $otherCheck = Check::factory()->for($otherSite)->create();
+    $otherIncident = Incident::factory()->for($otherCheck)->create(['resolved_at' => now()]);
+
+    $incidentEvent = Event::factory()->for($check)->create(['type' => 'incident.resolved', 'incident_id' => $incident->id, 'notification_routed_at' => now()]);
+    $checkOnlyEvent = Event::factory()->for($check)->create(['incident_id' => null, 'notification_routed_at' => now()]);
+    $survivingLinksEvent = Event::factory()->create(['site_id' => $site->id, 'check_id' => $otherCheck->id, 'incident_id' => $otherIncident->id, 'notification_routed_at' => now()]);
+    $crossSiteEvent = Event::factory()->create(['site_id' => $otherSite->id, 'check_id' => $check->id, 'incident_id' => $incident->id, 'notification_routed_at' => now()]);
+
+    app(DeleteSite::class)($site);
+
+    expect($incidentEvent->fresh()->site_id)->toBeNull()
+        ->and($incidentEvent->fresh()->check_id)->toBeNull()
+        ->and($incidentEvent->fresh()->incident_id)->toBeNull()
+        ->and($checkOnlyEvent->fresh()->site_id)->toBeNull()
+        ->and($checkOnlyEvent->fresh()->check_id)->toBeNull()
+        ->and($checkOnlyEvent->fresh()->incident_id)->toBeNull()
+        ->and($survivingLinksEvent->fresh()->site_id)->toBeNull()
+        ->and($survivingLinksEvent->fresh()->check_id)->toBe($otherCheck->id)
+        ->and($survivingLinksEvent->fresh()->incident_id)->toBe($otherIncident->id)
+        ->and($crossSiteEvent->fresh()->site_id)->toBe($otherSite->id)
+        ->and($crossSiteEvent->fresh()->check_id)->toBeNull()
+        ->and($crossSiteEvent->fresh()->incident_id)->toBeNull();
+});
+
+it('detaches retained events when deleting a check regardless of foreign key trigger order and preserves surviving links', function (): void {
+    // Force Postgres to fire events' SET NULL RI trigger before the cascading incidents RI trigger.
+    renameRiDeleteTrigger('checks', 'events_check_id_foreign', 'a_01_events_check_setnull');
+    renameRiDeleteTrigger('checks', 'incidents_check_id_foreign', 'a_02_incidents_check_cascade');
+
+    $keptSite = Site::factory()->create();
+    $removedCheck = Check::factory()->for($keptSite)->create(['type' => CheckKey::Uptime]);
+    $removedIncident = Incident::factory()->for($removedCheck)->create(['resolved_at' => now()]);
+    $otherCheck = Check::factory()->for($keptSite)->create(['type' => CheckKey::Performance]);
+    $otherIncident = Incident::factory()->for($otherCheck)->create(['resolved_at' => now()]);
+
+    $checkEvent = Event::factory()->for($removedCheck)->create(['type' => 'incident.resolved', 'incident_id' => $removedIncident->id, 'notification_routed_at' => now()]);
+    $survivingIncidentEvent = Event::factory()->for($removedCheck)->create(['incident_id' => $otherIncident->id, 'notification_routed_at' => now()]);
+    $otherCheckEvent = Event::factory()->for($otherCheck)->create(['incident_id' => $removedIncident->id, 'notification_routed_at' => now()]);
+
+    $removedCheck->delete();
+
+    expect($checkEvent->fresh()->site_id)->toBe($keptSite->id)
+        ->and($checkEvent->fresh()->check_id)->toBeNull()
+        ->and($checkEvent->fresh()->incident_id)->toBeNull()
+        ->and($survivingIncidentEvent->fresh()->site_id)->toBe($keptSite->id)
+        ->and($survivingIncidentEvent->fresh()->check_id)->toBeNull()
+        ->and($survivingIncidentEvent->fresh()->incident_id)->toBe($otherIncident->id)
+        ->and($otherCheckEvent->fresh()->site_id)->toBe($keptSite->id)
+        ->and($otherCheckEvent->fresh()->check_id)->toBe($otherCheck->id)
+        ->and($otherCheckEvent->fresh()->incident_id)->toBeNull();
 });
