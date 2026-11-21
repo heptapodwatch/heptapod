@@ -1,6 +1,10 @@
 import { act, cleanup, render, within } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import {
+    useLiveRunBoard,
+    type LiveRunBoardData,
+} from '@/hooks/use-live-run-board';
 import { RunBoard } from './run-board';
 
 vi.mock('@inertiajs/react', () => ({
@@ -394,4 +398,49 @@ it('clears the dwell timer on unmount and shows the new scope without held cards
     expect(vi.getTimerCount()).toBe(baseline + 1);
     unmount();
     expect(vi.getTimerCount()).toBe(0);
+});
+
+it('returns the new scope board with zero pendingCount on the first render after a filter change', () => {
+    const snapshots: {
+        scope: string;
+        currentIds: number[];
+        pendingCount: number;
+    }[] = [];
+    function Probe({ data, scope }: { data: LiveRunBoardData; scope: string }) {
+        const state = useLiveRunBoard(data, scope, (change) => change());
+        snapshots.push({
+            scope,
+            currentIds: state.current.map((row) => row.check_id),
+            pendingCount: state.pendingCount,
+        });
+        return null;
+    }
+    // Open a dialog so incoming changes on scope A buffer behind pendingCount.
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    document.body.appendChild(dialog);
+    try {
+        const scopeAData = board([active(1, 'running')], []);
+        const scopeAUpdated = board(
+            [active(1, 'running'), active(2, 'queued')],
+            [],
+        );
+        const scopeBData = board([active(9, 'running')], []);
+        const { rerender } = render(
+            <Probe data={scopeAData} scope="client:1" />,
+        );
+        rerender(<Probe data={scopeAUpdated} scope="client:1" />);
+        expect(snapshots.at(-1)?.pendingCount).toBe(1);
+
+        snapshots.length = 0;
+        rerender(<Probe data={scopeBData} scope="client:2" />);
+        // Every render under scope client:2 must already show scope B with pendingCount 0.
+        expect(snapshots.length).toBeGreaterThan(0);
+        for (const entry of snapshots) {
+            expect(entry.currentIds).toEqual([9]);
+            expect(entry.pendingCount).toBe(0);
+        }
+    } finally {
+        dialog.remove();
+    }
 });

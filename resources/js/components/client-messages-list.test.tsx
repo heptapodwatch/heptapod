@@ -228,3 +228,54 @@ it('says why an automatic alert was not sent', async () => {
     expect(await screen.findByText('Outage · API')).toBeTruthy();
     expect(screen.getByText('Monitoring stopped')).toBeTruthy();
 });
+
+it('prevents concurrent older-page loads from duplicating rows', async () => {
+    let resolvePage2!: (value: unknown) => void;
+    const page2Promise = new Promise((resolve) => {
+        resolvePage2 = resolve;
+    });
+    const fetchMock = vi.fn((url: string) => {
+        if (url.includes('before=11')) {
+            return page2Promise;
+        }
+        return Promise.resolve({
+            ok: true,
+            json: async () => ({
+                rows: [{ ...row, id: 11, subject: 'First message' }],
+                next_before: 11,
+                can_send: false,
+            }),
+        });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<ClientMessagesList client={{ id: 3, name: 'Müller GmbH' }} />);
+    const olderButton = (await screen.findByRole('button', {
+        name: 'client_messages.list.older',
+    })) as HTMLButtonElement;
+
+    fireEvent.click(olderButton);
+    expect(olderButton.disabled).toBe(true);
+    fireEvent.click(olderButton);
+    expect(
+        fetchMock.mock.calls.filter(([url]) =>
+            String(url).includes('before=11'),
+        ),
+    ).toHaveLength(1);
+
+    resolvePage2({
+        ok: true,
+        json: async () => ({
+            rows: [
+                { ...row, id: 11, subject: 'First message' },
+                { ...row, id: 10, subject: 'Older message' },
+            ],
+            next_before: null,
+            can_send: false,
+        }),
+    });
+    expect(await screen.findByText('Older message')).toBeTruthy();
+    expect(screen.getAllByText('First message')).toHaveLength(1);
+    expect(
+        screen.getByText('client_messages.list.count({"count":2})'),
+    ).toBeTruthy();
+});

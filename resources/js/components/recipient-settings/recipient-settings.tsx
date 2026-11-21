@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { BellRing, ChevronRight, Plus } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -72,12 +72,14 @@ export function RecipientSettings({
     notice?: ReactNode;
 }) {
     const { t } = useTranslation();
+    const { url } = usePage();
     // `?channel=<id>` opens a channel sheet directly (links from repair notices and explanations).
     const [openId, setOpenId] = useState<number | null>(() => {
-        const requested = new URLSearchParams(window.location.search).get(
-            'channel',
-        );
-        return requested === null ? null : Number(requested);
+        const search = url?.split('#')[0]?.split('?')[1] ?? '';
+        const requested = new URLSearchParams(search).get('channel');
+        return requested !== null && /^\d+$/.test(requested)
+            ? Number(requested)
+            : null;
     });
     const [editing, setEditing] = useState<Channel | 'new' | null>(null);
     const open = page.channels.find((channel) => channel.id === openId);

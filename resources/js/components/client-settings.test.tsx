@@ -386,3 +386,44 @@ it('clears the avatar draft when the saved site icon is chosen again', () => {
     ).toBe(true);
     expect(screen.getByText('No unsaved changes')).toBeTruthy();
 });
+
+it('resets defaults to server-saved client values with null avatar after saving', async () => {
+    const post = vi.spyOn(router, 'post').mockImplementation(() => {});
+    render(page());
+    dropAvatar();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Short name' }), {
+        target: { value: '  SC  ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const visit = post.mock.calls[0]![2]!;
+
+    await act(async () => {
+        await Promise.resolve(
+            visit.onSuccess?.({
+                props: {
+                    client: { ...clients[0]!, short_name: 'SC' },
+                },
+            } as unknown as Parameters<NonNullable<typeof visit.onSuccess>>[0]),
+        );
+        visit.onFinish?.(
+            {} as Parameters<NonNullable<typeof visit.onFinish>>[0],
+        );
+    });
+
+    const shortName = screen.getByRole('textbox', {
+        name: 'Short name',
+    }) as HTMLInputElement;
+    expect(shortName.value).toBe('SC');
+    expect(
+        screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled'),
+    ).toBe(true);
+
+    // Subsequent Discard keeps the saved identity and never restores the uploaded avatar draft.
+    fireEvent.change(shortName, { target: { value: 'TMP' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    expect(shortName.value).toBe('SC');
+    expect(screen.queryByRole('img', { name: 'Avatar preview' })).toBeNull();
+    expect(
+        screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled'),
+    ).toBe(true);
+});

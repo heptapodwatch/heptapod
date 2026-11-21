@@ -151,3 +151,32 @@ it('renders reason badges on pinned options and merges identical pinned zones in
     expect(options[0]?.textContent).toContain("Acme's zone");
     expect(options[0]?.textContent).toContain('Your zone');
 });
+
+it('updates cached offsets across an intra-day DST transition when the picker reopens', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-29T00:55:00Z'));
+    expect(timezoneOffset('Europe/Berlin')).toBe('UTC+01:00');
+
+    render(
+        <TimezoneCombobox
+            id="tz-dst"
+            timezones={['Europe/Berlin', 'UTC']}
+            value="Europe/Berlin"
+            onValueChange={vi.fn()}
+        />,
+    );
+    const trigger = screen.getByRole('combobox');
+    fireEvent.click(trigger);
+    expect(
+        screen.getByRole('option', { name: /Europe\/Berlin/ }).textContent,
+    ).toContain('UTC+01:00');
+    fireEvent.click(trigger);
+
+    vi.setSystemTime(new Date('2026-03-29T01:05:00Z'));
+    expect(timezoneOffset('Europe/Berlin')).toBe('UTC+02:00');
+
+    fireEvent.click(trigger);
+    expect(
+        screen.getByRole('option', { name: /Europe\/Berlin/ }).textContent,
+    ).toContain('UTC+02:00');
+});

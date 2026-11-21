@@ -16,25 +16,29 @@ use Heptapod\Events\Notifications\RoutingContext;
 use Heptapod\Models\Delivery;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\NotificationSchedule;
+use Heptapod\Models\Site;
+use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 /**
- * PUT …/preferences: the channel's grid (design §1.3, §7.1). Cells may change only to the modes their category allows.
- * System is not offered to clients or Members and stays on for an Owner's account channel. Turning on a cell that opens
- * uptime episodes requests reconciliation (§2.2); a Digest cell turned Immediate sends its waiting items on their
- * immediate schedule instead of the next digest.
+ * PUT …/preferences: the channel's grid and site exceptions in one transaction (design §1.3, §7.1). Cells may change
+ * only to the modes their category allows. System is not offered to clients or Members and stays on for an Owner's
+ * account channel. Turning on a cell that opens uptime episodes or removing a site mute requests reconciliation
+ * (§2.2); a Digest cell turned Immediate sends its waiting items on their immediate schedule instead of the next
+ * digest.
  */
 final readonly class UpdateNotificationPreferences
 {
     public function __construct(private RequestRoutingReconciliation $reconcile, private NotificationTiming $timing) {}
 
     /** @param array<string, mixed> $input */
-    public function __invoke(NotificationDestination $destination, array $input): void
+    public function __invoke(NotificationDestination $destination, array $input, ?User $actor = null): void
     {
-        $cells = $input['preferences'] ?? null;
-        if (! is_array($cells) || $cells === []) {
-            throw ValidationException::withMessages(['preferences' => __('validation.required', ['attribute' => __('recipient_settings.grid.title')])]);
+        $cells = $input['preferences'] ?? [];
+        if (! is_array($cells)) {
+            throw ValidationException::withMessages(['preferences' => __('validation.array', ['attribute' => __('recipient_settings.grid.title')])]);
         }
         $requested = [];
         foreach ($cells as $key => $value) {
@@ -49,9 +53,44 @@ final readonly class UpdateNotificationPreferences
             $requested[$category->value] = $mode;
         }
 
-        NotificationLocks::transaction(function () use ($destination, $requested): void {
-            // NotificationLocks: the open episodes a newly opened cell marks (incidents), then the channel.
-            if (array_any(RequestRoutingReconciliation::OpeningCategories, static fn (NotificationCategory $category): bool => ($requested[$category->value] ?? NotificationMode::Off) !== NotificationMode::Off)) {
+        $muteSiteIds = $this->parseSiteIds($input['mute_site_ids'] ?? [], 'mute_site_ids');
+        $unmuteSiteIds = $this->parseSiteIds($input['unmute_site_ids'] ?? [], 'unmute_site_ids');
+        if (array_intersect($muteSiteIds, $unmuteSiteIds) !== []) {
+            throw ValidationException::withMessages(['site' => __('validation.in', ['attribute' => __('recipient_settings.mutes.title')])]);
+        }
+        if ($requested === [] && $muteSiteIds === [] && $unmuteSiteIds === []) {
+            throw ValidationException::withMessages(['preferences' => __('validation.required', ['attribute' => __('recipient_settings.grid.title')])]);
+        }
+        $allSiteIds = array_values(array_unique([...$muteSiteIds, ...$unmuteSiteIds]));
+        $muteActor = null;
+        if ($allSiteIds !== []) {
+            if (! $actor instanceof User) {
+                throw new \LogicException('Updating site mutes requires an authenticated actor.');
+            }
+            $muteActor = $actor;
+        }
+
+        NotificationLocks::transaction(function () use ($destination, $requested, $muteSiteIds, $unmuteSiteIds, $allSiteIds, $muteActor): void {
+            // NotificationLocks: actor (level 1), sites (level 6), open episodes (level 7), channel (level 8), deliveries (level 9).
+            if ($muteActor instanceof User) {
+                NotificationLocks::users([$muteActor->id]);
+                NotificationLocks::sites($allSiteIds);
+                $sites = Site::query()->whereKey($allSiteIds)->get()->keyBy('id');
+                foreach ($allSiteIds as $siteId) {
+                    $site = $sites->get($siteId);
+                    if (! $site instanceof Site || Gate::forUser($muteActor)->denies('view', $site)) {
+                        abort(404);
+                    }
+                    if ($destination->recipient_kind === RecipientKind::Client && $site->client_id !== $destination->client_id) {
+                        throw ValidationException::withMessages(['site' => __('notifications.mute_other_client')]);
+                    }
+                }
+            }
+            $openingRequested = array_any(
+                RequestRoutingReconciliation::OpeningCategories,
+                static fn (NotificationCategory $category): bool => ($requested[$category->value] ?? NotificationMode::Off) !== NotificationMode::Off,
+            );
+            if ($openingRequested || $unmuteSiteIds !== []) {
                 $this->reconcile->lockEpisodes($destination);
             }
             NotificationLocks::channels([$destination->id]);
@@ -63,31 +102,80 @@ final readonly class UpdateNotificationPreferences
             if ($system instanceof NotificationMode && ! $this->systemEditable($locked)) {
                 throw ValidationException::withMessages(['preferences.system' => __('notifications.system_not_editable')]);
             }
-            /** @var array<string, string> $current */
-            $current = DB::table('notification_preferences')->where('destination_id', $locked->id)->pluck('mode', 'category')->all();
+
             $opened = false;
             $nowImmediate = [];
-            foreach ($requested as $category => $mode) {
-                $before = NotificationMode::from($current[$category] ?? throw new \LogicException('Notification grid row missing for channel '.$locked->id.' and '.$category.'.'));
-                if ($before === $mode) {
-                    continue;
+            if ($requested !== []) {
+                /** @var array<string, string> $current */
+                $current = DB::table('notification_preferences')->where('destination_id', $locked->id)->pluck('mode', 'category')->all();
+                foreach ($requested as $category => $mode) {
+                    $before = NotificationMode::from($current[$category] ?? throw new \LogicException('Notification grid row missing for channel '.$locked->id.' and '.$category.'.'));
+                    if ($before === $mode) {
+                        continue;
+                    }
+                    DB::table('notification_preferences')->where('destination_id', $locked->id)->where('category', $category)->update(['mode' => $mode->value]);
+                    $opened = $opened || ($before === NotificationMode::Off && in_array(NotificationCategory::from($category), RequestRoutingReconciliation::OpeningCategories, true));
+                    if ($before === NotificationMode::Digest && $mode === NotificationMode::Immediate) {
+                        $nowImmediate[] = $category;
+                    }
                 }
-                DB::table('notification_preferences')->where('destination_id', $locked->id)->where('category', $category)->update(['mode' => $mode->value]);
-                $opened = $opened || ($before === NotificationMode::Off && in_array(NotificationCategory::from($category), RequestRoutingReconciliation::OpeningCategories, true));
-                if ($before === NotificationMode::Digest && $mode === NotificationMode::Immediate) {
-                    $nowImmediate[] = $category;
+                activity('audit')->performedOn($locked)->event('notification.preferences_updated')
+                    ->withProperties(['before' => $current, 'after' => array_map(static fn (NotificationMode $mode): string => $mode->value, $requested)])
+                    ->log('notification.preferences_updated');
+            }
+
+            $unmutedSiteIds = [];
+            if ($muteActor instanceof User) {
+                foreach ($muteSiteIds as $siteId) {
+                    $changed = DB::table('notification_site_mutes')->insertOrIgnore([
+                        'destination_id' => $locked->id,
+                        'site_id' => $siteId,
+                        'actor_id' => $muteActor->id,
+                        'created_at' => now(),
+                    ]);
+                    if ($changed > 0) {
+                        activity('audit')->causedBy($muteActor)->performedOn($locked)->event('notification.site_muted')
+                            ->withProperties(['site_id' => $siteId])->log('notification.site_muted');
+                    }
+                }
+                foreach ($unmuteSiteIds as $siteId) {
+                    $changed = DB::table('notification_site_mutes')->where('destination_id', $locked->id)->where('site_id', $siteId)->delete();
+                    if ($changed > 0) {
+                        $unmutedSiteIds[] = $siteId;
+                        activity('audit')->causedBy($muteActor)->performedOn($locked)->event('notification.site_unmuted')
+                            ->withProperties(['site_id' => $siteId])->log('notification.site_unmuted');
+                    }
                 }
             }
+
             if ($opened) {
                 $this->reconcile->forChannel($locked);
+            } else {
+                foreach ($unmutedSiteIds as $siteId) {
+                    $this->reconcile->forChannel($locked, $siteId);
+                }
             }
             if ($nowImmediate !== []) {
                 $this->releaseDigestItems($locked, $nowImmediate);
             }
-            activity('audit')->performedOn($locked)->event('notification.preferences_updated')
-                ->withProperties(['before' => $current, 'after' => array_map(static fn (NotificationMode $mode): string => $mode->value, $requested)])
-                ->log('notification.preferences_updated');
         });
+    }
+
+    /** @return list<int> */
+    private function parseSiteIds(mixed $raw, string $field): array
+    {
+        if (! is_array($raw)) {
+            throw ValidationException::withMessages([$field => __('validation.array', ['attribute' => __('recipient_settings.mutes.title')])]);
+        }
+        $ids = [];
+        foreach ($raw as $value) {
+            if (! is_int($value) || $value < 1) {
+                throw ValidationException::withMessages([$field => __('validation.integer', ['attribute' => __('recipient_settings.mutes.title')])]);
+            }
+            $ids[$value] = $value;
+        }
+
+        return array_values($ids);
     }
 
     /** Owners and Admins may hear system issues; an Owner's account channel always does (§3.4). Clients and Members never. */

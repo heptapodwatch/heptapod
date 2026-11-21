@@ -51,10 +51,6 @@ import {
     preferences as savePreferences,
     test as sendTest,
 } from '@/routes/notification-channels';
-import {
-    destroy as unmuteSite,
-    store as muteSite,
-} from '@/routes/notification-channels/site-mutes';
 
 /** The grid's mode columns at sm and above: the header row and every category row share them. */
 const modeColumns =
@@ -90,8 +86,11 @@ export function ChannelSheet({
     const [confirmRemoval, setConfirmRemoval] = useState(false);
     const [error, setError] = useState('');
     const [testDiagnosis, setTestDiagnosis] = useState<string | null>(null);
-    const save = useHttpRequest<{ preferences: Grid }>({ preferences: saved });
-    const mute = useHttpRequest();
+    const save = useHttpRequest<{
+        preferences?: Grid;
+        mute_site_ids?: number[];
+        unmute_site_ids?: number[];
+    }>({});
     const test = useHttpRequest<
         Record<string, never>,
         Heptapod.Contracts.Notifications.DeliveryResult
@@ -105,7 +104,6 @@ export function ChannelSheet({
     >({});
     const busy =
         save.processing ||
-        mute.processing ||
         test.processing ||
         pause.processing ||
         removal.processing;
@@ -128,32 +126,33 @@ export function ChannelSheet({
     const submit = async () => {
         setError('');
         try {
-            if (changedCells.length > 0) {
-                save.transform(() => ({
-                    preferences: Object.fromEntries(
-                        changedCells.map((category) => [
-                            category,
-                            grid[category]!,
-                        ]),
-                    ),
-                }));
-                await save.put(savePreferences.url(channel.id));
-            }
-            for (const site of added)
-                await mute.put(muteSite.url({ channel: channel.id, site }));
-            for (const site of removed)
-                await mute.delete(
-                    unmuteSite.url({ channel: channel.id, site }),
-                );
+            save.transform(() => ({
+                ...(changedCells.length > 0
+                    ? {
+                          preferences: Object.fromEntries(
+                              changedCells.map((category) => [
+                                  category,
+                                  grid[category]!,
+                              ]),
+                          ),
+                      }
+                    : {}),
+                ...(added.length > 0 ? { mute_site_ids: added } : {}),
+                ...(removed.length > 0 ? { unmute_site_ids: removed } : {}),
+            }));
+            await save.put(savePreferences.url(channel.id));
             toast.success(t('recipient_settings.channel_saved'));
             onChanged();
             onClose();
         } catch (failure: unknown) {
-            // A refused change names its reason; anything else is a generic failure. Earlier steps may have saved.
             setError(
                 failure instanceof HttpValidationError
                     ? String(Object.values(failure.errors)[0])
-                    : t('recipient_settings.save_failed'),
+                    : httpErrorMessage(
+                          failure,
+                          t,
+                          'recipient_settings.save_failed',
+                      ),
             );
             onChanged();
         }

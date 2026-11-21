@@ -408,7 +408,7 @@ test.form = testForm
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationPreferencesController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationPreferencesController.php:17
+* @see app/Http/Controllers/Notifications/NotificationPreferencesController.php:18
 * @route '/notification-channels/{channel}/preferences'
 */
 export const preferences = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -423,7 +423,7 @@ preferences.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationPreferencesController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationPreferencesController.php:17
+* @see app/Http/Controllers/Notifications/NotificationPreferencesController.php:18
 * @route '/notification-channels/{channel}/preferences'
 */
 preferences.url = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -456,7 +456,7 @@ preferences.url = (args: { channel: number | { id: number } } | [channel: number
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationPreferencesController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationPreferencesController.php:17
+* @see app/Http/Controllers/Notifications/NotificationPreferencesController.php:18
 * @route '/notification-channels/{channel}/preferences'
 */
 preferences.put = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -466,7 +466,7 @@ preferences.put = (args: { channel: number | { id: number } } | [channel: number
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationPreferencesController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationPreferencesController.php:17
+* @see app/Http/Controllers/Notifications/NotificationPreferencesController.php:18
 * @route '/notification-channels/{channel}/preferences'
 */
 const preferencesForm = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -481,7 +481,7 @@ const preferencesForm = (args: { channel: number | { id: number } } | [channel: 
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationPreferencesController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationPreferencesController.php:17
+* @see app/Http/Controllers/Notifications/NotificationPreferencesController.php:18
 * @route '/notification-channels/{channel}/preferences'
 */
 preferencesForm.put = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

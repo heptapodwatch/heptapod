@@ -249,3 +249,161 @@ it('shortens a long nested zone to its city with spaces, and keeps it whole when
     rerender(field('2026-10-28T14:30'));
     expect(chip().textContent).toBe(zone);
 });
+
+it('clears invalid state on controlled value updates and calendar picks', () => {
+    const timeInvalid: boolean[] = [];
+    const dateInvalid: boolean[] = [];
+    function Controlled() {
+        const [time, setTime] = useState('09:30');
+        const [at, setAt] = useState('2026-10-27T14:30');
+        return (
+            <>
+                <label htmlFor="c-time">Time</label>
+                <TimeField
+                    id="c-time"
+                    value={time}
+                    onValueChange={setTime}
+                    onInvalidChange={(flag) => timeInvalid.push(flag)}
+                />
+                <button type="button" onClick={() => setTime('10:00')}>
+                    Reset time
+                </button>
+                <label htmlFor="c-at">At</label>
+                <DateTimeField
+                    id="c-at"
+                    value={at}
+                    onValueChange={setAt}
+                    timezone="UTC"
+                    onInvalidChange={(flag) => dateInvalid.push(flag)}
+                />
+                <button type="button" onClick={() => setAt('2026-10-28T09:00')}>
+                    Reset date
+                </button>
+            </>
+        );
+    }
+    render(<Controlled />);
+    const time = screen.getByLabelText('Time') as HTMLInputElement;
+    fireEvent.change(time, { target: { value: '25:99' } });
+    fireEvent.blur(time);
+    expect(time.getAttribute('aria-invalid')).toBe('true');
+    expect(timeInvalid.at(-1)).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset time' }));
+    expect(time.value).toBe('10:00');
+    expect(time.getAttribute('aria-invalid')).toBeNull();
+    expect(timeInvalid.at(-1)).toBe(false);
+
+    const at = screen.getByLabelText('At') as HTMLInputElement;
+    fireEvent.change(at, { target: { value: '32.13.2026 25:99' } });
+    fireEvent.blur(at);
+    expect(at.getAttribute('aria-invalid')).toBe('true');
+    expect(dateInvalid.at(-1)).toBe(true);
+
+    // Picking the same already-selected calendar day clears invalid text too.
+    fireEvent.click(screen.getByRole('button', { name: 'Select date' }));
+    fireEvent.click(
+        screen.getByRole('gridcell', { name: 'Tuesday, October 27, 2026' }),
+    );
+    expect(at.value).toBe('2026-10-27 14:30');
+    expect(at.getAttribute('aria-invalid')).toBeNull();
+    expect(dateInvalid.at(-1)).toBe(false);
+
+    fireEvent.change(at, { target: { value: '32.13.2026 25:99' } });
+    fireEvent.blur(at);
+    expect(at.getAttribute('aria-invalid')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Reset date' }));
+    expect(at.value).toBe('2026-10-28 09:00');
+    expect(at.getAttribute('aria-invalid')).toBeNull();
+    expect(dateInvalid.at(-1)).toBe(false);
+});
+
+it('clamps month navigation on month-end dates instead of skipping months', () => {
+    const { rerender } = render(
+        <DateTimeField
+            id="month-end"
+            value="2026-01-31T10:00"
+            onValueChange={vi.fn()}
+            timezone="UTC"
+        />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Select date' }));
+    const jan31 = screen.getByRole('gridcell', {
+        name: 'Saturday, January 31, 2026',
+    });
+    fireEvent.keyDown(jan31, { key: 'PageDown' });
+    expect(document.activeElement).toBe(
+        screen.getByRole('gridcell', { name: 'Saturday, February 28, 2026' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Select date' }));
+
+    rerender(
+        <DateTimeField
+            id="month-end"
+            value="2026-03-31T10:00"
+            onValueChange={vi.fn()}
+            timezone="UTC"
+        />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Select date' }));
+    fireEvent.keyDown(
+        screen.getByRole('gridcell', { name: 'Tuesday, March 31, 2026' }),
+        { key: 'PageUp' },
+    );
+    expect(document.activeElement).toBe(
+        screen.getByRole('gridcell', { name: 'Saturday, February 28, 2026' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Select date' }));
+
+    rerender(
+        <DateTimeField
+            id="month-end"
+            value="2024-01-31T10:00"
+            onValueChange={vi.fn()}
+            timezone="UTC"
+        />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Select date' }));
+    fireEvent.keyDown(
+        screen.getByRole('gridcell', { name: 'Wednesday, January 31, 2024' }),
+        { key: 'PageDown' },
+    );
+    expect(document.activeElement).toBe(
+        screen.getByRole('gridcell', { name: 'Thursday, February 29, 2024' }),
+    );
+});
+
+it('derives today, view month and initial focus in the configured timezone across month boundaries', () => {
+    vi.setSystemTime(new Date('2026-10-31T23:30:00Z'));
+    render(
+        <DateTimeField
+            id="nz"
+            value=""
+            onValueChange={vi.fn()}
+            timezone="Pacific/Auckland"
+        />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Select date' }));
+    const nov1 = screen.getByRole('gridcell', {
+        name: 'Sunday, November 1, 2026',
+    });
+    expect(nov1.getAttribute('aria-current')).toBe('date');
+    expect(document.activeElement).toBe(nov1);
+
+    cleanup();
+    vi.setSystemTime(new Date('2026-11-01T01:30:00Z'));
+    render(
+        <DateTimeField
+            id="ny"
+            value=""
+            onValueChange={vi.fn()}
+            timezone="America/New_York"
+        />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Select date' }));
+    const oct31 = screen.getByRole('gridcell', {
+        name: 'Saturday, October 31, 2026',
+    });
+    expect(oct31.getAttribute('aria-current')).toBe('date');
+    expect(document.activeElement).toBe(oct31);
+});

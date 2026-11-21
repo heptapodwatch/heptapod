@@ -281,5 +281,10 @@ export function useLiveRunBoard(
         { coalesceMs: 2000, pollFallback: false },
     );
 
-    return { ...shown, pendingCount, apply };
+    const scopeChanged = previousScope.current !== scope;
+    return {
+        ...(scopeChanged ? data : shown),
+        pendingCount: scopeChanged ? 0 : pendingCount,
+        apply,
+    };
 }

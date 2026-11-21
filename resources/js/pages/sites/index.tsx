@@ -173,16 +173,29 @@ export default function SitesIndex({
             }
         />
     );
+    const tagValue = filters.tag ? `tag:${filters.tag}` : 'all';
+    const tagOptions = tags.map((tag) => ({
+        value: `tag:${tag.name}`,
+        label: tag.name,
+    }));
     const tagFilter = (
         <FilterCombobox
             ariaLabel={t('Tag')}
             options={[
                 { value: 'all', label: t('All tags') },
-                ...tags.map((tag) => ({ value: tag.name, label: tag.name })),
+                ...tagOptions,
+                ...(filters.tag &&
+                !tagOptions.some((option) => option.value === tagValue)
+                    ? [{ value: tagValue, label: filters.tag }]
+                    : []),
             ]}
-            value={filters.tag ?? 'all'}
+            value={tagValue}
             onValueChange={(value) =>
-                visit({ tag: value === 'all' ? null : value })
+                visit({
+                    tag: value.startsWith('tag:')
+                        ? value.slice('tag:'.length)
+                        : null,
+                })
             }
             onClear={filters.tag ? () => visit({ tag: null }) : null}
         />

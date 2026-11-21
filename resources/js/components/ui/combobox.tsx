@@ -108,6 +108,7 @@ export function Combobox({
     ariaLabel,
     required = false,
     notice,
+    onOpenChange,
 }: {
     id?: string;
     options: ComboboxOption[];
@@ -123,6 +124,7 @@ export function Combobox({
     describedBy?: string;
     ariaLabel?: string;
     required?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }) {
     const { t } = useTranslation();
     const popupId = useId();
@@ -131,18 +133,17 @@ export function Combobox({
     const selected = options.find((option) => option.value === value);
     const name = query.trim();
     const matching = options.filter((option) => matches(option, name));
+    const setOpened = (next: boolean) => {
+        setOpen(next);
+        setQuery('');
+        onOpenChange?.(next);
+    };
     const select = (option: ComboboxOption) => {
         onValueChange(option.value);
-        setOpen(false);
+        setOpened(false);
     };
     return (
-        <Popover.Root
-            open={open}
-            onOpenChange={(next) => {
-                setOpen(next);
-                setQuery('');
-            }}
-        >
+        <Popover.Root open={open} onOpenChange={setOpened}>
             <Popover.Trigger
                 id={id}
                 type="button"
@@ -159,7 +160,7 @@ export function Combobox({
                 onKeyDown={(event) => {
                     if (event.key === 'ArrowDown') {
                         event.preventDefault();
-                        setOpen(true);
+                        setOpened(true);
                     }
                 }}
             >
