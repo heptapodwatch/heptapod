@@ -26,6 +26,6 @@ final class CronPingController
         ])->validate();
         app(RecordCronPing::class)($uuid, $phase, $values);
 
-        return response()->noContent();
+        return response()->noContent(headers: ['Cache-Control' => 'no-store, private']);
     }
 }
