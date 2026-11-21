@@ -56,14 +56,14 @@ export function useCheckRun(
     return useCheckRunOf()(useRunState(checkId), persisted);
 }
 
-/** Why Run check is disabled, directly below it: "Running since 14:02 · 3,214 of 5,000 URLs", "Queued · #2". */
+/** Why Run check is disabled, rendered in ActionNoteSlot: "Running since 14:02 · 3,214 of 5,000 URLs", "Queued · #2". */
 export function RunCheckReason({ run }: { run: CheckRun }) {
     const { t } = useTranslation();
     const format = useFormat();
     const detail = useRunDetail();
     const running = run.lifecycle === 'running';
     return (
-        <span role="status" className="block md:flex md:justify-end">
+        <span role="status" className="block min-w-0">
             <RunLine
                 phase={run.lifecycle}
                 progress={run.progress}
@@ -80,8 +80,7 @@ export function RunCheckReason({ run }: { run: CheckRun }) {
                         : detail(run.state, { narrow: false })
                 }
                 mine={run.mine}
-                wrap
-                className="px-0 py-0.5"
+                className="px-0 py-0"
             />
         </span>
     );

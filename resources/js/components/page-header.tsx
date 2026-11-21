@@ -1,3 +1,4 @@
+import { ActionNoteSlot } from '@/components/action-note-slot';
 import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import type { ComponentProps, ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +36,9 @@ export function PageHeader({
     secondaryActionCount,
     notices,
     refresh,
+    actionNote,
+    actionNoteId,
+    reserveActionNote = false,
 }: {
     title: string;
     titleTooltip?: string;
@@ -61,16 +65,31 @@ export function PageHeader({
         refreshing: boolean;
         disabled?: boolean;
     };
+    /** Single-line note for a header action (CooldownReason, RunCheckReason, refusal InputError), rendered in ActionNoteSlot. */
+    actionNote?: ReactNode;
+    /** Id on the ActionNoteSlot for the action button's aria-describedby. */
+    actionNoteId?: string;
+    /** Reserve the single-line slot even when idle so showing/hiding a note never shifts surrounding layout. */
+    reserveActionNote?: boolean;
 } & PageHeaderActionSlots) {
     const { t } = useTranslation();
     const Heading = headingLevel === 1 ? 'h1' : 'h2';
+    const hasActionNoteSlot =
+        reserveActionNote ||
+        (actionNote !== undefined &&
+            actionNote !== null &&
+            actionNote !== false);
     return (
         <header data-page-header className="flex min-w-0 flex-col gap-4">
             <div
                 className={
                     headingLevel === 1
-                        ? 'flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'
-                        : 'flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between'
+                        ? hasActionNoteSlot
+                            ? 'relative flex min-w-0 flex-col gap-4 sm:min-h-14 sm:flex-row sm:items-start sm:justify-between'
+                            : 'flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'
+                        : hasActionNoteSlot
+                          ? 'relative flex min-w-0 flex-col gap-4 md:min-h-14 md:flex-row md:items-start md:justify-between'
+                          : 'flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between'
                 }
             >
                 <div className="min-w-0 space-y-2">
@@ -126,16 +145,41 @@ export function PageHeader({
                         </TruncatedText>
                     )}
                 </div>
-                {(primaryAction || secondaryActions) && (
-                    <PageHeaderActions
-                        primary={primaryAction}
-                        secondary={secondaryActions}
-                        fullWidthOnMobile={headingLevel === 2}
-                        overflowSecondary={overflowSecondary}
-                        secondaryOpen={secondaryOpen}
-                        onSecondaryOpenChange={onSecondaryOpenChange}
-                        secondaryActionCount={secondaryActionCount}
-                    />
+                {(primaryAction || secondaryActions || hasActionNoteSlot) && (
+                    <div
+                        className={
+                            hasActionNoteSlot
+                                ? headingLevel === 1
+                                    ? 'flex min-w-0 flex-col gap-1.5 sm:contents'
+                                    : 'flex min-w-0 flex-col gap-1.5 md:contents'
+                                : 'contents'
+                        }
+                    >
+                        {(primaryAction || secondaryActions) && (
+                            <PageHeaderActions
+                                primary={primaryAction}
+                                secondary={secondaryActions}
+                                fullWidthOnMobile={headingLevel === 2}
+                                overflowSecondary={overflowSecondary}
+                                secondaryOpen={secondaryOpen}
+                                onSecondaryOpenChange={onSecondaryOpenChange}
+                                secondaryActionCount={secondaryActionCount}
+                            />
+                        )}
+                        {hasActionNoteSlot && (
+                            <ActionNoteSlot
+                                id={actionNoteId}
+                                align={headingLevel === 1 ? 'end-sm' : 'end-md'}
+                                className={
+                                    headingLevel === 1
+                                        ? 'sm:absolute sm:top-9 sm:right-0 sm:max-w-[55%]'
+                                        : 'md:absolute md:top-9 md:right-0 md:max-w-[55%]'
+                                }
+                            >
+                                {actionNote}
+                            </ActionNoteSlot>
+                        )}
+                    </div>
                 )}
                 {(actions || refresh) && (
                     <div className="flex shrink-0 flex-wrap items-center gap-2 sm:ml-auto sm:max-w-[60%] sm:justify-end">

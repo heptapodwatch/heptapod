@@ -3,7 +3,14 @@ import InputError, { fieldErrorProps } from '@/components/input-error';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { PresentationChanges } from '@/components/presentation-changes';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+    Fragment,
+    useEffect,
+    useId,
+    useMemo,
+    useState,
+    type ReactNode,
+} from 'react';
 import {
     ArrowRight,
     ExternalLink,
@@ -141,6 +148,17 @@ export function IncidentEpisode({
     const cooldownUntil = page.cooldown_until ?? null;
     const { active: inCooldown, remainingSeconds: cooldownSeconds } =
         useCooldown(cooldownUntil);
+    const runNoteId = useId();
+    const runActionNote = errors.check ? (
+        <InputError message={errors.check} />
+    ) : canShowRun && activeRun ? (
+        <RunCheckReason run={activeRun} />
+    ) : canShowRun && !activeRun && inCooldown ? (
+        <CooldownReason
+            until={cooldownUntil}
+            remainingSeconds={cooldownSeconds}
+        />
+    ) : null;
     const [runPending, setRunPending] = useState(false);
     const [now, setNow] = useState(Date.now());
     const [actionsOpen, setActionsOpen] = useState(false);
@@ -456,51 +474,44 @@ export function IncidentEpisode({
                 }
                 primaryAction={
                     canShowRun ? (
-                        <div className="space-y-1">
-                            <Button
-                                disabled={
-                                    runPending ||
-                                    activeRun !== null ||
-                                    inCooldown ||
-                                    check.unavailable_reason !== null
-                                }
-                                onClick={() => {
-                                    setRunPending(true);
-                                    requestedRun.request();
-                                    router.post(
-                                        checkRun.url({
-                                            site: page.site.id,
-                                            check: check.id,
-                                        }),
-                                        { incident: incident.id },
-                                        {
-                                            preserveScroll: true,
-                                            onSuccess: requestedRun.accept,
-                                            onError: requestedRun.abandon,
-                                            onHttpException: () => {
-                                                requestedRun.abandon();
-                                            },
-                                            onFinish: () =>
-                                                setRunPending(false),
+                        <Button
+                            aria-describedby={
+                                runActionNote ? runNoteId : undefined
+                            }
+                            disabled={
+                                runPending ||
+                                activeRun !== null ||
+                                inCooldown ||
+                                check.unavailable_reason !== null
+                            }
+                            onClick={() => {
+                                setRunPending(true);
+                                requestedRun.request();
+                                router.post(
+                                    checkRun.url({
+                                        site: page.site.id,
+                                        check: check.id,
+                                    }),
+                                    { incident: incident.id },
+                                    {
+                                        preserveScroll: true,
+                                        onSuccess: requestedRun.accept,
+                                        onError: requestedRun.abandon,
+                                        onHttpException: () => {
+                                            requestedRun.abandon();
                                         },
-                                    );
-                                }}
-                            >
-                                {t(runPending ? 'Running check…' : 'Run check')}
-                            </Button>
-                            {activeRun && <RunCheckReason run={activeRun} />}
-                            {!activeRun && inCooldown && (
-                                <CooldownReason
-                                    until={cooldownUntil}
-                                    remainingSeconds={cooldownSeconds}
-                                />
-                            )}
-                            <InputError message={errors.check} />
-                        </div>
-                    ) : errors.check ? (
-                        <InputError message={errors.check} />
+                                        onFinish: () => setRunPending(false),
+                                    },
+                                );
+                            }}
+                        >
+                            {t(runPending ? 'Running check…' : 'Run check')}
+                        </Button>
                     ) : undefined
                 }
+                actionNote={runActionNote}
+                actionNoteId={runNoteId}
+                reserveActionNote={Boolean(canShowRun || errors.check)}
                 secondaryActions={
                     <>
                         {page.can_snooze &&

@@ -1,3 +1,4 @@
+import { ActionNoteSlot } from '@/components/action-note-slot';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { SectionHeading } from '@/components/section-heading';
@@ -16,7 +17,7 @@ import { Sheet } from '@/components/ui/sheet';
 import { PageHeader } from '@/components/page-header';
 import { Head, router } from '@inertiajs/react';
 import { KeyRound, Copy, Plus } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     EvidenceBlock,
@@ -330,6 +331,7 @@ function SecretDialog({
     const format = useFormat();
     const [copied, copy] = useClipboard();
     const [failed, setFailed] = useState(false);
+    const copyNoteId = useId();
     return (
         <Dialog
             open
@@ -347,9 +349,10 @@ function SecretDialog({
                     </DialogDescription>
                 </DialogHeader>
                 <ShownOnceSecret label={t('Token')} value={secret.value} />
-                <div>
+                <div className="space-y-1.5">
                     <Button
                         size="sm"
+                        aria-describedby={failed ? copyNoteId : undefined}
                         onClick={async () =>
                             setFailed(!(await copy(secret.value)))
                         }
@@ -357,14 +360,11 @@ function SecretDialog({
                         <Copy className="size-4" />
                         {t(copied ? 'Copied' : 'Copy')}
                     </Button>
-                    <InputError
-                        className="pt-2"
-                        message={
-                            failed
-                                ? 'Copy failed. Select the token and copy it manually.'
-                                : null
-                        }
-                    />
+                    <ActionNoteSlot id={copyNoteId}>
+                        {failed && (
+                            <InputError message="Copy failed. Select the token and copy it manually." />
+                        )}
+                    </ActionNoteSlot>
                 </div>
                 <EvidenceBlock
                     wrap

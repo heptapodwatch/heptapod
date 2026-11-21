@@ -19,10 +19,16 @@ import { findings as findingsExport } from '@/routes/sites/checks';
 export function ProductCheckDetail({
     page,
     primaryAction,
+    actionNote,
+    actionNoteId,
+    reserveActionNote = false,
     requestedRun,
 }: {
     page: Heptapod.Data.Ui.CheckTabPageData;
     primaryAction?: ReactNode;
+    actionNote?: ReactNode;
+    actionNoteId?: string;
+    reserveActionNote?: boolean;
     requestedRun: RequestedRun;
 }) {
     const headlineFor = useCheckHeadline();
@@ -117,6 +123,9 @@ export function ProductCheckDetail({
                 page={page}
                 headline={headline}
                 primaryAction={primaryAction}
+                actionNote={actionNote}
+                actionNoteId={actionNoteId}
+                reserveActionNote={reserveActionNote}
                 evidence={evidence}
             />
             {sendable && page.client && sendOpen && (

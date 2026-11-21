@@ -5,7 +5,7 @@ import { isCoalescedStateChange, useLiveReload } from '@/hooks/use-live';
 import { useBufferedChanges } from '@/hooks/use-buffered-changes';
 import { useRequestedRun } from '@/hooks/use-requested-run';
 import { PendingChanges } from '@/components/pending-changes';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import InputError from '@/components/input-error';
 import { SiteHeader } from '@/components/site-header';
 import { SiteRunningStrip } from '@/components/site-running-strip';
@@ -157,85 +157,79 @@ export default function SiteShow(page: SitePage) {
     const cooldownUntil = isCheck ? (page.cooldown_until ?? null) : null;
     const { active: inCooldown, remainingSeconds: cooldownSeconds } =
         useCooldown(cooldownUntil);
+    const runNoteId = useId();
     const checkActionErrors = Object.entries(errors)
         .filter(([key]) => key !== '_refusal')
         .map(([, message]) => message);
-    const runAction =
+    const canShowRunAction =
         isCheck &&
         page.can_run &&
-        (!page.check.enabled || header.state !== 'paused') ? (
-            <div className="space-y-1">
-                <Button
-                    variant={page.check.enabled ? 'outline' : 'default'}
-                    className="w-full md:w-auto"
-                    disabled={
-                        pending ||
-                        enablePending ||
-                        (page.check.enabled && activeRun !== null) ||
-                        (page.check.enabled && inCooldown) ||
-                        (page.check.enabled &&
-                            page.check.unavailable_reason !== null)
-                    }
-                    onClick={() => {
-                        if (page.check.enabled) {
-                            setPending(true);
-                            requestedRun.request();
-                        } else setEnablePending(true);
-                        router.post(
-                            (page.check.enabled ? checkRun : checkEnable).url({
-                                site: site.id,
-                                check: page.check.id,
-                            }),
-                            {},
-                            {
-                                preserveScroll: true,
-                                onSuccess: (response) => {
-                                    if (page.check.enabled) {
-                                        requestedRun.accept(response);
-                                    }
-                                },
-                                onError: requestedRun.abandon,
-                                onHttpException: () => {
-                                    requestedRun.abandon();
-                                },
-                                onFinish: () => {
-                                    setPending(false);
-                                    setEnablePending(false);
-                                },
-                            },
-                        );
-                    }}
-                >
-                    {t(
-                        page.check.enabled
-                            ? pending
-                                ? 'Running check…'
-                                : 'Run check'
-                            : enablePending
-                              ? 'Turning on…'
-                              : 'Turn on',
-                    )}
-                </Button>
-                {checkActionErrors.map((message, index) => (
-                    <InputError key={index} message={message} />
-                ))}
-                {page.check.enabled && activeRun && (
-                    <RunCheckReason run={activeRun} />
-                )}
-                {page.check.enabled && !activeRun && inCooldown && (
-                    <CooldownReason
-                        until={cooldownUntil}
-                        remainingSeconds={cooldownSeconds}
-                    />
-                )}
-            </div>
-        ) : checkActionErrors.length > 0 ? (
-            <div className="space-y-1">
-                {checkActionErrors.map((message, index) => (
-                    <InputError key={index} message={message} />
-                ))}
-            </div>
-        ) : null;
+        (!page.check.enabled || header.state !== 'paused');
+    const runActionNote = isCheck ? (
+        checkActionErrors.length > 0 ? (
+            <InputError message={checkActionErrors[0]} />
+        ) : page.check.enabled && activeRun ? (
+            <RunCheckReason run={activeRun} />
+        ) : page.check.enabled && !activeRun && inCooldown ? (
+            <CooldownReason
+                until={cooldownUntil}
+                remainingSeconds={cooldownSeconds}
+            />
+        ) : null
+    ) : null;
+    const runAction = canShowRunAction ? (
+        <Button
+            variant={page.check.enabled ? 'outline' : 'default'}
+            className="w-full md:w-auto"
+            aria-describedby={runActionNote ? runNoteId : undefined}
+            disabled={
+                pending ||
+                enablePending ||
+                (page.check.enabled && activeRun !== null) ||
+                (page.check.enabled && inCooldown) ||
+                (page.check.enabled && page.check.unavailable_reason !== null)
+            }
+            onClick={() => {
+                if (page.check.enabled) {
+                    setPending(true);
+                    requestedRun.request();
+                } else setEnablePending(true);
+                router.post(
+                    (page.check.enabled ? checkRun : checkEnable).url({
+                        site: site.id,
+                        check: page.check.id,
+                    }),
+                    {},
+                    {
+                        preserveScroll: true,
+                        onSuccess: (response) => {
+                            if (page.check.enabled) {
+                                requestedRun.accept(response);
+                            }
+                        },
+                        onError: requestedRun.abandon,
+                        onHttpException: () => {
+                            requestedRun.abandon();
+                        },
+                        onFinish: () => {
+                            setPending(false);
+                            setEnablePending(false);
+                        },
+                    },
+                );
+            }}
+        >
+            {t(
+                page.check.enabled
+                    ? pending
+                        ? 'Running check…'
+                        : 'Run check'
+                    : enablePending
+                      ? 'Turning on…'
+                      : 'Turn on',
+            )}
+        </Button>
+    ) : null;
     return (
         <>
             <Head title={header.name} />
@@ -350,6 +344,11 @@ export default function SiteShow(page: SitePage) {
                         <ProductCheckDetail
                             requestedRun={requestedRun}
                             primaryAction={runAction}
+                            actionNote={runActionNote}
+                            actionNoteId={runNoteId}
+                            reserveActionNote={
+                                canShowRunAction || checkActionErrors.length > 0
+                            }
                             page={{ ...page, runs: bufferedRuns.rows }}
                         />
                         {page.check.enabled && (

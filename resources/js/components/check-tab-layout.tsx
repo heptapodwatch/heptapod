@@ -19,11 +19,17 @@ export function CheckTabLayout({
     page,
     headline,
     primaryAction,
+    actionNote,
+    actionNoteId,
+    reserveActionNote = false,
     evidence,
 }: {
     page: Heptapod.Data.Ui.CheckTabPageData;
     headline: string;
     primaryAction?: ReactNode;
+    actionNote?: ReactNode;
+    actionNoteId?: string;
+    reserveActionNote?: boolean;
     evidence: ReactNode;
 }) {
     const { t } = useTranslation();
@@ -149,6 +155,9 @@ export function CheckTabLayout({
                     </div>
                 }
                 primaryAction={primaryAction}
+                actionNote={actionNote}
+                actionNoteId={actionNoteId}
+                reserveActionNote={reserveActionNote}
                 secondaryActions={
                     page.check.enabled && page.header.state !== 'paused' ? (
                         <CheckSnoozeActions

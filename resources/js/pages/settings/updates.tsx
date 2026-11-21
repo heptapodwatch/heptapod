@@ -1,3 +1,4 @@
+import { ActionNoteSlot } from '@/components/action-note-slot';
 import { TooltipHint } from '@/components/truncated-text';
 import { Disclosure } from '@/components/ui/disclosure';
 import InputError from '@/components/input-error';
@@ -19,7 +20,7 @@ import {
 import { onLiveSignal } from '@/lib/live-store';
 import { Archive, ExternalLink } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
-import { useEffect, useState, type ComponentProps } from 'react';
+import { useEffect, useId, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InfoTooltip } from '@/components/info-tooltip';
 import { ListFooter } from '@/components/list-footer';
@@ -107,6 +108,24 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
         active: backupInCooldown,
         remainingSeconds: backupCooldownSeconds,
     } = useCooldown(backupCooldownUntil);
+    const toggleNoteId = useId();
+    const backupNoteId = useId();
+    const backupNote = backupError ? (
+        <InputError message={backupError} />
+    ) : backupInCooldown && !active ? (
+        <CooldownReason
+            until={backupCooldownUntil}
+            remainingSeconds={backupCooldownSeconds}
+            messageKey="errors.backup.cooldown_reason"
+        />
+    ) : acceptedId !== null ? (
+        <p role="status" className="text-foreground">
+            {t(
+                'Backup request :id accepted. Read the recorded run state; acceptance does not prove completion.',
+                { id: acceptedId },
+            )}
+        </p>
+    ) : null;
     const timestamp = (value: string | null) =>
         value === null ? t('Unknown') : <AbsoluteTime value={value} />;
     const refresh = async () => {
@@ -312,35 +331,46 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                         'Refresh reads cached release checks; it does not contact the release source or install an update.',
                     )}
                 </p>
-                <div className="flex flex-wrap gap-2">
-                    {auth.canManageInstance && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={busy || !updates.enabled_by_server}
-                            onClick={() => void toggleChecks()}
-                        >
-                            {t(
-                                updates.enabled
-                                    ? 'Disable release checks'
-                                    : 'Enable release checks',
-                            )}
-                        </Button>
-                    )}
-                    {updates.release_url !== null && (
-                        <Button variant="outline" size="sm" asChild>
-                            <a
-                                href={updates.release_url}
-                                target="_blank"
-                                rel="noreferrer"
+                <div className="space-y-1.5">
+                    <div className="flex flex-wrap gap-2">
+                        {auth.canManageInstance && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                aria-describedby={
+                                    toggleError ? toggleNoteId : undefined
+                                }
+                                disabled={busy || !updates.enabled_by_server}
+                                onClick={() => void toggleChecks()}
                             >
-                                <ExternalLink className="size-3.5" />
-                                {t('Last observed release notes')}
-                            </a>
-                        </Button>
+                                {t(
+                                    updates.enabled
+                                        ? 'Disable release checks'
+                                        : 'Enable release checks',
+                                )}
+                            </Button>
+                        )}
+                        {updates.release_url !== null && (
+                            <Button variant="outline" size="sm" asChild>
+                                <a
+                                    href={updates.release_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    <ExternalLink className="size-3.5" />
+                                    {t('Last observed release notes')}
+                                </a>
+                            </Button>
+                        )}
+                    </div>
+                    {auth.canManageInstance && (
+                        <ActionNoteSlot id={toggleNoteId}>
+                            {toggleError && (
+                                <InputError message={toggleError} />
+                            )}
+                        </ActionNoteSlot>
                     )}
                 </div>
-                <InputError message={toggleError} />
             </FormSection>
             <FormSection
                 title={t('Backups')}
@@ -470,47 +500,38 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                                 only={['updatesPage']}
                             />
                         )}
-                        <div className="flex flex-wrap items-center gap-3">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={
-                                    busy ||
-                                    !!active ||
-                                    backupInCooldown ||
-                                    refreshFailed
-                                }
-                                onClick={() => void backUpNow()}
-                            >
-                                {t(
-                                    backup.processing
-                                        ? 'Requesting backup…'
-                                        : 'Back up now',
-                                )}
-                            </Button>
-                            {backupInCooldown && !active ? (
-                                <CooldownReason
-                                    until={backupCooldownUntil}
-                                    remainingSeconds={backupCooldownSeconds}
-                                    messageKey="errors.backup.cooldown_reason"
-                                />
-                            ) : (
-                                <span className="text-xs text-muted-foreground">
-                                    {t(
-                                        'Queued or running is not complete. One request per five minutes.',
-                                    )}
-                                </span>
+                        <p className="text-xs text-muted-foreground">
+                            {t(
+                                'Queued or running is not complete. One request per five minutes.',
                             )}
+                        </p>
+                        <div className="space-y-1.5">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    aria-describedby={
+                                        backupNote ? backupNoteId : undefined
+                                    }
+                                    disabled={
+                                        busy ||
+                                        !!active ||
+                                        backupInCooldown ||
+                                        refreshFailed
+                                    }
+                                    onClick={() => void backUpNow()}
+                                >
+                                    {t(
+                                        backup.processing
+                                            ? 'Requesting backup…'
+                                            : 'Back up now',
+                                    )}
+                                </Button>
+                            </div>
+                            <ActionNoteSlot id={backupNoteId}>
+                                {backupNote}
+                            </ActionNoteSlot>
                         </div>
-                        {acceptedId !== null && (
-                            <p role="status" className="text-cell">
-                                {t(
-                                    'Backup request :id accepted. Read the recorded run state; acceptance does not prove completion.',
-                                    { id: acceptedId },
-                                )}
-                            </p>
-                        )}
-                        <InputError message={backupError} />
                         <section
                             aria-label={t('Archive inventory')}
                             className="space-y-2"
