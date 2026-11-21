@@ -110,6 +110,8 @@ final class MaintenanceController extends Controller
         LocalMaintenanceTime $localTime): RedirectResponse
     {
         $this->writable($request);
+        // Answered before the form is validated, and decided again on the locked window.
+        self::refuseEnded($window);
         $returnContext = MaintenanceReturnContext::parameters($request);
         $data = Validator::make($request->all(), [
             'name' => 'nullable|string|max:255', 'reason' => 'nullable|string|max:255',
