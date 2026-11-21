@@ -88,7 +88,7 @@ export function AppSidebar({
             variant="sidebar"
             // Expanded: left tracks the centred shell and ::before carries bg-sidebar to the left viewport edge.
             // Collapsed: pins flush to left-0 as a 3rem icon rail; border-r is the single consistent 1px hairline.
-            className="left-[max(0px,calc((100%-var(--shell-width))/2))] transition-[left,width] group-data-[collapsible=icon]:left-0 before:absolute before:inset-y-0 before:right-full before:w-screen before:bg-sidebar"
+            className="left-[max(0px,calc((100%-var(--shell-width))/2))] group-data-[collapsible=icon]:left-0 before:absolute before:inset-y-0 before:right-full before:w-screen before:bg-sidebar"
         >
             <SidebarHeader className="group-data-[collapsible=icon]:gap-1">
                 <SidebarMenu>
