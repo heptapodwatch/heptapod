@@ -277,11 +277,27 @@
         @apply border-border;
     }
 
+    html {
+        scrollbar-gutter: stable;
+    }
+
+    @supports not (scrollbar-gutter: stable) {
+        html {
+            overflow-y: scroll;
+        }
+    }
+
     body {
         @apply bg-background font-sans text-sm text-foreground;
         line-height: 1.45;
         -webkit-font-smoothing: antialiased;
     }
+}
+
+/* html reserves the scrollbar gutter (or always scrolls in the fallback), so react-remove-scroll's body compensation would double-shift the layout. */
+html body[data-scroll-locked] {
+    margin-right: 0 !important;
+    padding-right: 0 !important;
 }
 
 /* Scope legacy content colours to the dark panel without changing the page theme. */
