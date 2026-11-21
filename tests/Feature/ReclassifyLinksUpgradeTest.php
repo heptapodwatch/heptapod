@@ -219,7 +219,7 @@ it('streams reclassification one check at a time instead of retaining every plan
     app()->instance(FindingReclassifier::class, new class($inner, $trace) implements FindingReclassifier
     {
         /** @param list<string> $trace */
-        public function __construct(private FindingReclassifier $inner, public array &$trace) {}
+        public function __construct(private readonly FindingReclassifier $inner, public array &$trace) {}
 
         public function policyVersion(): int
         {

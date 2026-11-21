@@ -121,7 +121,7 @@ final readonly class ClaimService
             : null;
 
         // A first start has no recorded gap; stale schedules alone can also come from pause/disable.
-        if ($lastHeartbeat !== null && $lastHeartbeat < $at->subSeconds(self::OverdueGapSeconds)) {
+        if ($lastHeartbeat instanceof CarbonImmutable && $lastHeartbeat < $at->subSeconds(self::OverdueGapSeconds)) {
             /** @var int|null $maxId */
             $maxId = DB::table('checks')->max('id');
             $state = [

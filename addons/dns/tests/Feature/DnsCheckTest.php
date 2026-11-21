@@ -756,7 +756,7 @@ it('rejects excessive authoritative nameserver fan-out and bounds DNS change eve
         static fn (int $index): array => ['host' => 'example.com', 'ttl' => 300, 'class' => 'IN', 'type' => 'NS', 'target' => sprintf('ns%02d.example.com', $index)],
         range(1, 20),
     );
-    $fake->respondWith('example.com', 'NS', new DnsLookupResult($manyNs, [], null), null);
+    $fake->respondWith('example.com', 'NS', new DnsLookupResult($manyNs, [], null));
 
     $errored = dnsRun($check);
 

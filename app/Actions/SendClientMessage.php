@@ -152,7 +152,7 @@ final readonly class SendClientMessage
 
     /**
      * Composes message facts and writes the optional CSV attachment only after replay, quota and locks succeed.
-     * Any rollback unlinks the written CSV immediately so concurrent or failed sends leave no orphan files.
+     * Any rollback deletes the written CSV immediately so concurrent or failed sends leave no orphan files.
      *
      * @param  array{kind: string, site: Site, check: Check, incident: Incident|null, note: string, attach: bool, design: MailDesign}  $request
      * @return array{Facts, array{disk: string, path: string, bytes: int, rows: int, sha256: string}|null}
