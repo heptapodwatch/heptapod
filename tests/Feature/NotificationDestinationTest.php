@@ -342,8 +342,8 @@ it('requires HTTPS for ntfy servers and Teams URLs unless the instance lists the
     'ntfy' => ['ntfy', 'server', ['topic' => 'alerts']],
     'Teams' => ['microsoftTeams', 'url', []],
 ])->with([
-    ['en', 'Use an HTTPS address. Plain HTTP works only for a host listed in HEPTAPOD_DELIVERY_PRIVATE_HOSTS: https://github.com/heptapodwatch/heptapod/blob/main/docs/deploy/operations.md#private-notification-targets'],
-    ['de', 'Verwenden Sie eine HTTPS-Adresse. Unverschlüsseltes HTTP ist nur für einen Host möglich, der in HEPTAPOD_DELIVERY_PRIVATE_HOSTS eingetragen ist: https://github.com/heptapodwatch/heptapod/blob/main/docs/deploy/operations.md#private-notification-targets'],
+    ['en', 'Use an HTTPS address. Plain HTTP works only for hosts listed in HEPTAPOD_DELIVERY_PRIVATE_HOSTS.'],
+    ['de', 'Verwenden Sie eine HTTPS-Adresse. Unverschlüsseltes HTTP ist nur für Hosts möglich, die in HEPTAPOD_DELIVERY_PRIVATE_HOSTS eingetragen sind.'],
 ]);
 
 it('requires an explicit boolean opt-in for insecure webhook destinations', function (): void {
