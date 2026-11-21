@@ -100,9 +100,9 @@ if (trim($controlProbeIpValue) !== '') {
     }
 }
 
-$controlProbeTimeoutSeconds = filter_var(env('HEPTAPOD_CONTROL_PROBE_TIMEOUT_SECONDS', 5), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 10]]);
+$controlProbeTimeoutSeconds = filter_var(env('HEPTAPOD_CONTROL_PROBE_TIMEOUT_SECONDS', 5), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 5]]);
 if ($controlProbeTimeoutSeconds === false) {
-    throw new InvalidArgumentException('HEPTAPOD_CONTROL_PROBE_TIMEOUT_SECONDS must be an integer from 1 to 10.');
+    throw new InvalidArgumentException('HEPTAPOD_CONTROL_PROBE_TIMEOUT_SECONDS must be an integer from 1 to 5.');
 }
 
 return [
