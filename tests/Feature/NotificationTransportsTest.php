@@ -43,7 +43,7 @@ function notificationTransports(): array
         'microsoftTeams' => [['url' => 'https://teams.example/private-token'], 'https://teams.example/private-token', ''],
         'telegram' => [['chat_id' => '123', 'token' => 'private-token'], 'https://api.telegram.org/botprivate-token/sendMessage', ['ok' => true, 'result' => ['message_id' => 456]]],
         'pushover' => [['user_key' => str_repeat('u', 30), 'token' => 'private-token'], 'https://api.pushover.net/1/messages.json', ['status' => 1, 'request' => '789']],
-        'ntfy' => [['server' => 'https://ntfy.example', 'topic' => 'private-token', 'token' => 'private-token'], 'https://ntfy.example', ['id' => 'abc']],
+        'ntfy' => [['server' => 'https://ntfy.example', 'topic' => 'private-token', 'token' => 'private-token'], 'https://ntfy.example', ['id' => 'abc', 'time' => 1700000000, 'event' => 'message', 'topic' => 'private-token']],
         'webhook' => [['url' => 'https://hooks.example/private-token', 'secret' => 'private-token'], 'https://hooks.example/private-token', []],
     ];
 }
@@ -369,7 +369,7 @@ it('returns secret-free failure results for HTTP and network rejections', functi
     expect($result->toJson())->not->toContain('private-token');
 })->with(array_map(fn (string $key): array => [$key], array_values(array_diff(array_keys(notificationTransports()), ['mail']))))->with([false, true]);
 
-it('rejects HTTP-200 provider failures rather than claiming delivery', function (string $key, array $reply): void {
+it('rejects HTTP-200 provider failures rather than claiming delivery', function (string $key, array|string $reply): void {
     [$values, $url] = notificationTransports()[$key];
     Http::fake([$url => Http::response($reply)]);
     $channel = app(ChannelRegistry::class)->get($key);
@@ -381,6 +381,8 @@ it('rejects HTTP-200 provider failures rather than claiming delivery', function 
     'Telegram' => ['telegram', ['ok' => false, 'description' => 'private-token']],
     'Pushover' => ['pushover', ['status' => 0, 'errors' => ['private-token']]],
     'Discord' => ['discord', ['code' => 50001, 'message' => 'private-token']],
+    'ntfy captive portal' => ['ntfy', '<html>Sign in to continue</html>'],
+    'ntfy JSON without a message' => ['ntfy', ['status' => 'ok']],
 ]);
 
 it('interprets Microsoft Teams workflow acknowledgements', function (string $body, int $status, string $expectedStatus, ?string $expectedReason): void {

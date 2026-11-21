@@ -56,11 +56,12 @@ final class NtfyChannel extends TransportChannel
             'message' => $alert->details(limit: RenderedAlert::NTFY_LIMIT),
             ...($alert->message->link === null ? [] : ['click' => $alert->message->link]),
         ])->throw();
-        if (! $response->successful()) {
+        $id = $response->json('id');
+        // Only ntfy's published-message JSON proves delivery; a proxy or captive portal also answers 2xx.
+        if (! $response->successful() || ! is_string($id) || $id === '' || $response->json('event') !== 'message') {
             return $this->failure($destination, $response);
         }
-        $id = $response->json('id');
 
-        return new DeliveryResult(DeliveryState::Sent, providerMessageId: is_string($id) ? $id : null);
+        return new DeliveryResult(DeliveryState::Sent, providerMessageId: $id);
     }
 }
