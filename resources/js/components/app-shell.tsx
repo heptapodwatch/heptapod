@@ -17,11 +17,12 @@ export function AppShell({ children, variant = 'sidebar' }: Props) {
         );
     }
 
-    // Sidebar + the 80rem PageContainer form one block, centred once the viewport is wider; AppSidebar offsets its fixed column by the same width.
+    // Expanded: sidebar + the 80rem PageContainer form one centred block on wide screens.
+    // Collapsed: the 3rem icon rail pins to the left viewport edge while PageContainer stays centred inside main.
     return (
         <SidebarProvider
             defaultOpen={isOpen}
-            className="mx-auto max-w-(--shell-width) [--shell-width:calc(var(--sidebar-width)+80rem)] has-data-[collapsible=icon]:[--shell-width:calc(var(--sidebar-width-icon)+80rem)]"
+            className="mx-auto max-w-(--shell-width) [--shell-width:calc(var(--sidebar-width)+80rem)] has-data-[collapsible=icon]:max-w-none"
         >
             {children}
         </SidebarProvider>
