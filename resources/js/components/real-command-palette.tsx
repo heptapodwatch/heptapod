@@ -26,6 +26,11 @@ import {
     CommandShortcut,
 } from '@/components/ui/command';
 import { Kbd } from '@/components/ui/kbd';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useAppearance, type Appearance } from '@/hooks/use-appearance';
 import { useFormat } from '@/hooks/use-format';
@@ -44,20 +49,22 @@ const empty: Heptapod.Data.Ui.SearchResultsData = {
 export function CommandPaletteTrigger({
     onClick,
     compact = false,
+    collapsedTooltip = false,
     className,
 }: {
     onClick: (trigger: HTMLButtonElement) => void;
     compact?: boolean;
+    collapsedTooltip?: boolean;
     className?: string;
 }) {
     const { t } = useTranslation();
-    return (
+    const button = (
         <Button
             variant="outline"
             size={compact ? 'icon' : 'default'}
             className={cn(
                 !compact &&
-                    'w-full justify-start gap-2 px-3 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0',
+                    'w-full justify-start gap-2 px-3 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:shadow-none group-data-[collapsible=icon]:hover:bg-sidebar-accent group-data-[collapsible=icon]:hover:text-sidebar-accent-foreground dark:group-data-[collapsible=icon]:bg-transparent dark:group-data-[collapsible=icon]:hover:bg-sidebar-accent',
                 className,
             )}
             aria-label={t(compact ? 'Open command palette' : 'Search')}
@@ -77,6 +84,19 @@ export function CommandPaletteTrigger({
                 </>
             )}
         </Button>
+    );
+    if (compact) return button;
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>{button}</TooltipTrigger>
+            <TooltipContent
+                side="right"
+                align="center"
+                hidden={!collapsedTooltip}
+            >
+                {t('Search')} <Kbd>⌘K</Kbd>
+            </TooltipContent>
+        </Tooltip>
     );
 }
 

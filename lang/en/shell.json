@@ -4,6 +4,8 @@
     "Displays the mobile sidebar.": "Displays the mobile sidebar.",
     "Sidebar": "Sidebar",
     "Toggle sidebar": "Toggle sidebar",
+    "Collapse sidebar": "Collapse sidebar",
+    "Expand sidebar": "Expand sidebar",
     "Search from sidebar": "Search from sidebar",
     "brand.down_sites_one": "{{count}} site down",
     "brand.down_sites_other": "{{count}} sites down",

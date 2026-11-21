@@ -77,7 +77,11 @@ export function NavMain({
                                         asChild
                                         className="min-h-10 sm:min-h-0"
                                         isActive={active?.href === item.href}
-                                        tooltip={item.title}
+                                        tooltip={
+                                            item.count !== undefined
+                                                ? `${item.title} · ${format.number(item.count)}`
+                                                : item.title
+                                        }
                                     >
                                         <Link
                                             href={item.href}

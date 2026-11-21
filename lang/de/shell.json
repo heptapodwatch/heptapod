@@ -4,6 +4,8 @@
     "Displays the mobile sidebar.": "Zeigt die mobile Seitenleiste.",
     "Sidebar": "Seitenleiste",
     "Toggle sidebar": "Seitenleiste umschalten",
+    "Collapse sidebar": "Seitenleiste einklappen",
+    "Expand sidebar": "Seitenleiste ausklappen",
     "Search from sidebar": "Suche in der Seitenleiste",
     "brand.down_sites_one": "{{count}} Website ausgefallen",
     "brand.down_sites_other": "{{count}} Websites ausgefallen",

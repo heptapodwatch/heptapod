@@ -102,3 +102,50 @@ it('opens the keyboard shortcuts dialog from the help button in the logo row', (
         screen.getByRole('dialog', { name: 'Keyboard shortcuts' }),
     ).toBeTruthy();
 });
+
+it('collapses and expands via the visible toggle button, persists sidebar_state, and omits the border rail', () => {
+    document.cookie = 'sidebar_state=; max-age=0; path=/';
+    const { container } = render(
+        <SidebarProvider defaultOpen>
+            <AppSidebar onOpenSearch={vi.fn()} onOpenShortcuts={vi.fn()} />
+        </SidebarProvider>,
+    );
+
+    const sidebar = container.querySelector('[data-slot="sidebar"]');
+    expect(sidebar?.getAttribute('data-state')).toBe('expanded');
+    expect(container.querySelector('[data-slot="sidebar-rail"]')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }));
+
+    expect(sidebar?.getAttribute('data-state')).toBe('collapsed');
+    expect(document.cookie).toContain('sidebar_state=false');
+    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }));
+
+    expect(sidebar?.getAttribute('data-state')).toBe('expanded');
+    expect(document.cookie).toContain('sidebar_state=true');
+});
+
+it('starts collapsed when defaultOpen is false and toggles with Cmd/Ctrl+B', () => {
+    document.cookie = 'sidebar_state=; max-age=0; path=/';
+    const { container } = render(
+        <SidebarProvider defaultOpen={false}>
+            <AppSidebar onOpenSearch={vi.fn()} onOpenShortcuts={vi.fn()} />
+        </SidebarProvider>,
+    );
+
+    const sidebar = container.querySelector('[data-slot="sidebar"]');
+    expect(sidebar?.getAttribute('data-state')).toBe('collapsed');
+    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: 'b', metaKey: true });
+
+    expect(sidebar?.getAttribute('data-state')).toBe('expanded');
+    expect(document.cookie).toContain('sidebar_state=true');
+
+    fireEvent.keyDown(window, { key: 'b', ctrlKey: true });
+
+    expect(sidebar?.getAttribute('data-state')).toBe('collapsed');
+    expect(document.cookie).toContain('sidebar_state=false');
+});

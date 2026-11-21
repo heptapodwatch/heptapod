@@ -33,9 +33,9 @@ import { edit as systemHealth } from '@/routes/settings/system';
 /** At most three run rows; the rest is one "N more · Runs" row (UI rules, Sidebar footer). */
 const RUN_ROWS = 3;
 
-/** Quiet status rows: information, not destinations. No hover surface; hover underlines the label. */
+/** Quiet status rows: information, not destinations. No hover surface when expanded; hover matches nav icons in the collapsed rail. */
 const quietRow =
-    'group/status text-xs text-muted-foreground hover:bg-transparent hover:text-foreground active:bg-transparent';
+    'group/status text-xs text-muted-foreground hover:bg-transparent hover:text-foreground active:bg-transparent group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:hover:bg-sidebar-accent group-data-[collapsible=icon]:active:bg-sidebar-accent';
 
 function StatusRow({
     leading,
@@ -45,6 +45,7 @@ function StatusRow({
     href,
     tooltip,
     className,
+    buttonClassName,
 }: {
     leading: ReactNode;
     label: string;
@@ -54,24 +55,39 @@ function StatusRow({
     /** The collapsed rail's tooltip; an object keeps it visible when expanded too. */
     tooltip: string | { children: ReactNode; hidden?: boolean };
     className?: string;
+    buttonClassName?: string;
 }) {
     const body = (
         <>
             <span className="flex size-4 shrink-0 items-center justify-center">
                 {leading}
             </span>
-            <span className="min-w-0 flex-1 truncate underline-offset-2 group-hover/status:underline">
+            <span className="min-w-0 flex-1 truncate underline-offset-2 group-hover/status:underline group-data-[collapsible=icon]:sr-only">
                 {label}
             </span>
             {secondary !== undefined && (
-                <span className="shrink-0 tabular-nums">{secondary}</span>
+                <span className="shrink-0 tabular-nums group-data-[collapsible=icon]:hidden">
+                    {secondary}
+                </span>
             )}
-            {trailing}
+            {trailing && (
+                <span className="shrink-0 group-data-[collapsible=icon]:hidden">
+                    {trailing}
+                </span>
+            )}
         </>
     );
     return (
         <SidebarMenuItem className={className}>
-            <SidebarMenuButton asChild tooltip={tooltip} className={quietRow}>
+            <SidebarMenuButton
+                asChild
+                tooltip={tooltip}
+                className={
+                    buttonClassName
+                        ? `${quietRow} ${buttonClassName}`
+                        : quietRow
+                }
+            >
                 {href ? (
                     <Link href={href}>{body}</Link>
                 ) : (
@@ -176,6 +192,7 @@ function RunRows({ rows, total }: { rows: FooterRun[]; total: number }) {
             {lead && (
                 <StatusRow
                     className="hidden group-data-[collapsible=icon]:block"
+                    buttonClassName="group-data-[collapsible=icon]:overflow-visible!"
                     leading={
                         <span className="relative inline-flex">
                             <RunGlyph
