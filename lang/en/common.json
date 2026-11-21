@@ -408,6 +408,7 @@
     "api.secrets_host_change": "Re-enter this secret before changing the target origin.",
     "api.url_credentials_unsupported": "Credentials in the URL are not supported; use an Authorization header.",
     "validation.secret_minimum": "Secrets require at least 4 characters after trimming surrounding whitespace.",
+    "validation.secret_reentry_rows_changed": "Re-enter this value; the saved one cannot be matched after the rows changed.",
     "import.description": "Import monitors from an Oh Dear account",
     "import.token_required": "Provide an Oh Dear read-only token via OH_DEAR_API_TOKEN, --token-stdin, or an interactive prompt.",
     "import.token_option_deprecated": "Passing --token on the command line is deprecated because it is visible in the process list. Use OH_DEAR_API_TOKEN, --token-stdin, or the interactive prompt instead.",

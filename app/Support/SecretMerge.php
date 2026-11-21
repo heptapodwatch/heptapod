@@ -11,12 +11,14 @@ use Illuminate\Validation\ValidationException;
 
 final class SecretMerge
 {
-    public static function preserve(Field $field, mixed $value, mixed $previous, string $path, bool $nullClearsNullable = false): mixed
+    public static function preserve(Field $field, mixed $value, mixed $previous, string $path, bool $nullClearsNullable = false, bool $inList = false): mixed
     {
         if ($field->type === FieldType::Secret && ($value === '********' || ($value === null && (! $nullClearsNullable || ! in_array('nullable', $field->rules, true))))) {
             if ($previous === null && $value === '********') {
-                $attribute = $field->presentation instanceof FieldPresentation ? __($field->presentation->labelKey) : $path;
-                throw ValidationException::withMessages([$path => __('validation.required', ['attribute' => $attribute])]);
+                $message = $inList
+                    ? __('validation.secret_reentry_rows_changed')
+                    : __('validation.required', ['attribute' => $field->presentation instanceof FieldPresentation ? __($field->presentation->labelKey) : $path]);
+                throw ValidationException::withMessages([$path => $message]);
             }
 
             return $previous;
@@ -33,17 +35,18 @@ final class SecretMerge
         }
         foreach ($field->properties as $name => $child) {
             if (array_key_exists($name, $value)) {
-                $value[$name] = self::preserve($child, $value[$name], $previous[$name] ?? null, $path.'.'.$name, $nullClearsNullable);
+                $value[$name] = self::preserve($child, $value[$name], $previous[$name] ?? null, $path.'.'.$name, $nullClearsNullable, $inList);
             } elseif ($child->type === FieldType::Secret && array_key_exists($name, $previous)) {
                 $value[$name] = $previous[$name];
             }
         }
         if ($field->items instanceof Field) {
-            // Case-insensitively unique names identify rows across reordering; other lists use position and require re-entry if a duplicate name's count changes.
+            // Case-insensitively unique names identify rows across reordering; other lists use position, and duplicate-name groups accept masks only when unchanged and all-masked.
             $uniqueNames = self::hasCaseInsensitiveNames($field->items);
             $previousByName = $uniqueNames ? array_change_key_case(array_column($previous, null, 'name')) : [];
             $previousCounts = [];
             $incomingCounts = [];
+            $incomingAllMasked = [];
             if (! $uniqueNames && isset($field->items->properties['name'])) {
                 foreach ($previous as $item) {
                     if (is_array($item) && is_string($item['name'] ?? null)) {
@@ -53,6 +56,7 @@ final class SecretMerge
                 foreach ($value as $item) {
                     if (is_array($item) && is_string($item['name'] ?? null)) {
                         $incomingCounts[$item['name']] = ($incomingCounts[$item['name']] ?? 0) + 1;
+                        $incomingAllMasked[$item['name']] = ($incomingAllMasked[$item['name']] ?? true) && ($item['value'] ?? null) === '********';
                     }
                 }
             }
@@ -65,10 +69,10 @@ final class SecretMerge
                     $previousCount = is_string($name) ? ($previousCounts[$name] ?? 0) : 0;
                     $ambiguousDuplicate = is_string($name)
                         && $previousCount > 1
-                        && ($incomingCounts[$name] ?? 0) !== $previousCount;
+                        && (($incomingCounts[$name] ?? 0) !== $previousCount || ! ($incomingAllMasked[$name] ?? false));
                     $oldItem = $ambiguousDuplicate ? null : $candidate;
                 }
-                $value[$index] = self::preserve($field->items, $item, $oldItem, $path.'.'.$index, $nullClearsNullable);
+                $value[$index] = self::preserve($field->items, $item, $oldItem, $path.'.'.$index, $nullClearsNullable, inList: true);
             }
         }
 

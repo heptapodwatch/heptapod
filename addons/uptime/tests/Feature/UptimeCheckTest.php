@@ -548,10 +548,34 @@ it('requires re-entry when removing a payload row shifts or makes a masked row a
         ['name' => 'tag', 'value' => 'secret-two'],
     ]);
 
-    // Removing one of two duplicate-name rows while leaving the surviving row masked must fail loudly, not swap secrets.
-    $this->actingAs($owner)->patchJson($url, [
+    // Sol's same-count case: removing the first of two duplicate-name rows and adding a new same-name row in one edit must refuse the mask.
+    $mixedDuplicate = $this->actingAs($owner)->patchJson($url, [
+        'payload' => [
+            ['name' => 'tag', 'value' => '********'],
+            ['name' => 'tag', 'value' => 'secret-new'],
+        ],
+    ])->assertUnprocessable()->assertJsonValidationErrors('payload.0.value');
+    expect($mixedDuplicate->json('errors')['payload.0.value'][0] ?? '')
+        ->toBe(__('validation.secret_reentry_rows_changed', locale: 'en'))
+        ->not->toContain('payload.0.value');
+
+    // Removing one of two duplicate-name rows while leaving the surviving row masked must fail loudly with a clear message, not swap secrets.
+    $removedDuplicate = $this->actingAs($owner)->patchJson($url, [
         'payload' => [['name' => 'tag', 'value' => '********']],
     ])->assertUnprocessable()->assertJsonValidationErrors('payload.0.value');
+    expect($removedDuplicate->json('errors')['payload.0.value'][0] ?? '')
+        ->toBe(__('validation.secret_reentry_rows_changed', locale: 'en'))
+        ->not->toContain('payload.0.value');
+
+    $owner->update(['locale' => 'de']);
+    $deRefusal = $this->actingAs($owner)->patchJson($url, [
+        'payload' => [['name' => 'tag', 'value' => '********']],
+    ])->assertUnprocessable()->assertJsonValidationErrors('payload.0.value');
+    expect($deRefusal->json('errors')['payload.0.value'][0] ?? '')
+        ->toBe(__('validation.secret_reentry_rows_changed', locale: 'de'))
+        ->not->toContain('payload.0.value');
+    $owner->update(['locale' => 'en']);
+
     expect($check->refresh()->executionConfig()['payload'])->toBe([
         ['name' => 'tag', 'value' => 'secret-one'],
         ['name' => 'tag', 'value' => 'secret-two'],
