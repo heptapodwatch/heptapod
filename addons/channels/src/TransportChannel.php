@@ -75,6 +75,10 @@ abstract class TransportChannel implements ChannelType
                         'destination_id' => $destination->destinationId, 'channel' => $this->key(),
                         'target_class' => $failure->targetClass, 'target_address' => $failure->targetAddress,
                     ]);
+                    if ($failure->targetClass === 'unsupported_scheme') {
+                        // Plain HTTP to a listed host that resolved to a public address.
+                        return new DeliveryResult(DeliveryState::Failed, 'notifications.needs_https', diagnosis: __('notifications.needs_https', locale: $destination->locale));
+                    }
 
                     return new DeliveryResult(DeliveryState::Failed, 'notifications.destination_refused', diagnosis: __(
                         $failure->targetAddress === null ? 'notifications.destination_refused' : 'notifications.destination_refused_address',

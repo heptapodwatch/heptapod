@@ -48,6 +48,11 @@ final readonly class GuardedDeliveryHttp implements DeliveryHttp
             $options['connect_timeout'] = min(5.0, $remaining);
             /** @var array<int, mixed> $curl */
             $curl = $options['curl'] ?? [];
+            $publicAddress = $request->getUri()->getScheme() === 'http' ? self::publicAddress($request, $curl) : null;
+            if ($publicAddress !== null) {
+                // A listed host may use plain HTTP only on the private network the listing vouches for.
+                return Create::rejectionFor(new FetchException(new FetchFailure(FetchFailureKind::PrivateTarget, targetAddress: $publicAddress, targetClass: 'unsupported_scheme')));
+            }
             $options['curl'] = $curl + [
                 CURLOPT_MAXFILESIZE_LARGE => $maxResponseBytes,
                 CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
@@ -100,5 +105,20 @@ final readonly class GuardedDeliveryHttp implements DeliveryHttp
         }, 'delivery_dns_failure');
 
         return $stack;
+    }
+
+    /**
+     * The first public address curl would connect to: the guard's pins for a name, the host itself for an IP literal.
+     *
+     * @param  array<int, mixed>  $curl
+     */
+    private static function publicAddress(RequestInterface $request, array $curl): ?string
+    {
+        /** @var list<string> $pins */
+        $pins = $curl[CURLOPT_RESOLVE] ?? [];
+        $addresses = $pins === [] ? [TargetHost::normalize($request->getUri()->getHost())]
+            : array_map(static fn (string $ip): string => trim($ip, '[]'), explode(',', explode(':', $pins[0], 3)[2]));
+
+        return array_find($addresses, static fn (string $ip): bool => filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE | FILTER_FLAG_GLOBAL_RANGE) !== false);
     }
 }

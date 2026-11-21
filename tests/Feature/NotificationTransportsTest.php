@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckResult;
+use Heptapod\Contracts\Http\TargetResolver;
 use Heptapod\Contracts\Notifications\AlertMessage;
 use Heptapod\Contracts\Notifications\AlertNotification;
 use Heptapod\Contracts\Notifications\AlertSeverity;
@@ -19,6 +20,7 @@ use Heptapod\Models\Delivery;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
+use Heptapod\Testing\FakeTargetResolver;
 use Illuminate\Http\Client\Request;
 use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Support\Facades\Http;
@@ -403,6 +405,22 @@ it('refuses a stored plain-HTTP address once its host is no longer a listed priv
 })->with([
     'ntfy' => ['ntfy', ['server' => 'http://alerts.lan', 'topic' => 'private-token']],
     'Teams' => ['microsoftTeams', ['url' => 'http://alerts.lan/workflow']],
+]);
+
+it('refuses plain HTTP to a listed host that resolves to a public address', function (string $key, array $values): void {
+    config(['heptapod.outbound.delivery_private_hosts' => ['fixtures.test']]);
+    // The listing vouches for a private host; this answer is public, so nothing may be sent in plain text to it.
+    app()->forgetExtenders(TargetResolver::class);
+    app()->instance(TargetResolver::class, (new FakeTargetResolver)->respondWith('fixtures.test', ['10.0.0.8', '93.184.216.34']));
+    $channel = app(ChannelRegistry::class)->get($key);
+    $config = new DestinationConfig(9, 'en', $channel->configSchema()->validateConfig($values), 'UTC', 'Heptapod', 'https://heptapod.example');
+
+    $result = transportSend($channel, transportAlert('failed'), $config, '42:9');
+
+    expect($result->status)->toBe(DeliveryState::Failed)->and($result->reason)->toBe('notifications.needs_https');
+})->with([
+    'ntfy' => ['ntfy', ['server' => 'http://fixtures.test/', 'topic' => 'private-token']],
+    'Teams' => ['microsoftTeams', ['url' => 'http://fixtures.test/workflow']],
 ]);
 
 it('fails a delivery whose compressed reply decodes past the response cap', function (string $encoding): void {
