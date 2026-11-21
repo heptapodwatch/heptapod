@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Addons\Channels;
 
 use Heptapod\Contracts\AlertPreviewRenderer;
+use Heptapod\Contracts\Http\DeliveryPrivateHosts;
 use Heptapod\Contracts\Mail\MailRenderer;
 use Heptapod\Contracts\Notifications\AlertMailRenderer;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
@@ -41,6 +42,8 @@ final class ChannelsServiceProvider extends ServiceProvider
             return is_string($value) && (strtolower((string) parse_url($value, PHP_URL_SCHEME)) === 'https' || (is_array($values) && ($values['allow_insecure_http'] ?? false) === true));
         });
         Validator::replacer('webhook_scheme', static fn (string $message, string $attribute, string $rule, array $parameters, ConfigValidator $validator): string => __('validation.url', ['attribute' => $validator->getDisplayableAttribute($attribute)]));
+        Validator::extend('delivery_https', static fn (string $attribute, mixed $value): bool => is_string($value) && DeliveryPrivateHosts::allowsScheme($value));
+        Validator::replacer('delivery_https', static fn (): string => __('notifications.needs_https'));
         Validator::extend('webhook_provider_url', static function (string $attribute, mixed $value, array $parameters): bool {
             $url = is_string($value) ? parse_url($value) : false;
             if (! is_array($url) || isset($url['fragment']) || ($url['port'] ?? 443) !== 443) {

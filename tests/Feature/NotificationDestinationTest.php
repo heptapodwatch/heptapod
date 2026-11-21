@@ -325,6 +325,25 @@ it('requires 32 characters for a newly entered webhook secret while a stored sho
     ['de', 'Der Signaturschlüssel muss mindestens 32 Zeichen lang sein.'],
 ]);
 
+it('requires HTTPS for ntfy servers and Teams URLs unless the instance lists the private host', function (string $channel, string $field, array $extra, string $locale, string $message): void {
+    $this->actingAs(User::factory()->owner()->create(['locale' => $locale]));
+    app()->setLocale($locale);
+    $store = fn (string $url) => $this->postJson(route('notification-channels.store'), [
+        'channel' => $channel, 'label' => 'Alerts', 'recipient_kind' => 'team', 'locale' => 'en', 'config' => [$field => $url, ...$extra],
+    ]);
+    $store('http://alerts.lan/hook')->assertUnprocessable()->assertJsonValidationErrors(['values.'.$field => $message]);
+    config(['heptapod.outbound.delivery_private_hosts' => ['alerts.lan']]);
+    $store('http://alerts.example/hook')->assertUnprocessable()->assertJsonValidationErrors('values.'.$field);
+    $store('http://alerts.lan/hook')->assertCreated();
+    $store('https://alerts.example/hook')->assertCreated();
+})->with([
+    'ntfy' => ['ntfy', 'server', ['topic' => 'alerts']],
+    'Teams' => ['microsoftTeams', 'url', []],
+])->with([
+    ['en', 'Use an HTTPS address. Plain HTTP works only for a host listed in HEPTAPOD_DELIVERY_PRIVATE_HOSTS: https://github.com/heptapodwatch/heptapod/blob/main/docs/deploy/operations.md#private-notification-targets'],
+    ['de', 'Verwenden Sie eine HTTPS-Adresse. Unverschlüsseltes HTTP ist nur für einen Host möglich, der in HEPTAPOD_DELIVERY_PRIVATE_HOSTS eingetragen ist: https://github.com/heptapodwatch/heptapod/blob/main/docs/deploy/operations.md#private-notification-targets'],
+]);
+
 it('requires an explicit boolean opt-in for insecure webhook destinations', function (): void {
     $schema = app(ChannelRegistry::class)->get('webhook')->configSchema();
     expect(fn () => NotificationDestination::factory()->create(['channel' => 'webhook', 'config' => $schema->validateConfig(['url' => 'http://hooks.example/receiver', 'secret' => 'private-signing-secret'])]))->toThrow(ValidationException::class);

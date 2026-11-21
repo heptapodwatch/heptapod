@@ -402,7 +402,11 @@ dc exec app php artisan heptapod:user:access-link person@example.com --type=rese
 
 Run this command only as the instance Owner. Share the printed URL through a private channel: it grants access by itself. It replaces earlier links for that invitation or account, expires after 7 days for invitations or the configured password-reset lifetime (60 minutes by default), and works once. Issuance is audited without the URL or token. Email-verification links still require a real mail transport.
 
+### Private notification targets
+
 Notification HTTP transports permit only public targets by default. To reach a self-hosted webhook or ntfy server on a private network, the instance Owner can set `HEPTAPOD_DELIVERY_PRIVATE_HOSTS=ntfy,webhook.example.com` in the production environment. Entries are exact host names (including Docker service names) or IP literals, comma-separated; URLs, wildcards and CIDR ranges are rejected at configuration load. The default is empty. System health lists the configured exception hosts. Only the listed host can use private addresses, pinned to its first DNS resolution for that attempt. Metadata, link-local and translation addresses remain blocked, even for a listed host. Redirects are not followed. Notification HTTP requests bypass egress proxies, as checks do. A listed host is open on every port and path: any user who can create a notification channel can then reach any service on that host (for example `http://ntfy:6379/`). List only hosts that run nothing else you need to protect.
+
+ntfy servers and Microsoft Teams URLs need HTTPS: their requests carry access tokens and alert content. Plain HTTP is accepted only when `HEPTAPOD_DELIVERY_PRIVATE_HOSTS` lists the URL's host; the list is the instance Owner's statement that the host is on a private network. Saving any other `http://` address is refused. An ntfy or Teams channel saved with such an address before this rule is paused and marked as needing attention when the upgrade migrates; its address is kept. Save an `https://` address, or list the host and save the channel again, to resume it. If a listed host is removed later, its plain-HTTP channels fail each delivery with the same message. Webhook channels keep their own `allow_insecure_http` setting.
 
 ## Retained worker diagnostics
 

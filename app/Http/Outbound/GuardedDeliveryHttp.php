@@ -11,6 +11,7 @@ use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Psr7\FnStream;
 use GuzzleHttp\Psr7\Utils;
 use Heptapod\Contracts\Http\DeliveryHttp;
+use Heptapod\Contracts\Http\DeliveryPrivateHosts;
 use Heptapod\Contracts\Http\FetchException;
 use Heptapod\Contracts\Http\FetchFailure;
 use Heptapod\Contracts\Http\FetchFailureKind;
@@ -32,7 +33,7 @@ final readonly class GuardedDeliveryHttp implements DeliveryHttp
             throw new \InvalidArgumentException('Delivery HTTP requires a positive finite timeout and response limit.');
         }
         $host = TargetHost::fromUrl($destinationUrl);
-        $privateAllowed = in_array($host, config()->array('heptapod.outbound.delivery_private_hosts'), true);
+        $privateAllowed = DeliveryPrivateHosts::lists($host);
         $deadline = microtime(true) + $timeoutSeconds;
         $config = $this->guard->clientConfig($privateAllowed ? $host : null, ! $privateAllowed, $deadline, null, new TargetAddressScope);
         /** @var HandlerStack $stack */

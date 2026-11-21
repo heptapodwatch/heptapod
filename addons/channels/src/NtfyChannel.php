@@ -35,7 +35,7 @@ final class NtfyChannel extends TransportChannel
     public function configSchema(): Schema
     {
         return new Schema([
-            'server' => $this->textField('channels.field.server', rules: ['url:http,https']),
+            'server' => $this->textField('channels.field.server', rules: ['bail', 'url:http,https', 'delivery_https']),
             'topic' => $this->textField('channels.field.topic', true, ['regex:/^[a-zA-Z0-9_-]{1,64}$/']),
             'token' => $this->headerSecretField('channels.field.token', false),
         ]);

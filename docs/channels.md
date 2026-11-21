@@ -69,6 +69,7 @@ Heptapod needs a Workflows webhook URL. Office 365 connector URLs do not work.
 
 | Heptapod shows                      | Fix                                                                                                              |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| "Use an HTTPS address. …"           | Teams workflow URLs use `https://`. Copy the URL again from the workflow's details page.                         |
 | `HTTP 429 — RequestException`       | Teams is throttling requests. Wait a minute and send the test again.                                             |
 | Other `HTTP 4xx — RequestException` | Check the URL. In Workflows, turn the workflow on and repair its connection; if it was deleted, create it again. |
 | Test sent, but nothing in Teams     | Open the workflow's run history in Workflows.                                                                    |
@@ -126,8 +127,9 @@ Heptapod needs a server URL and a topic, plus an access token for protected topi
 | Topic  | Topic name              | letters, digits, `_`, `-`; up to 64  |
 | Token  | Access token (optional) | `tk_…`                               |
 
-| Heptapod shows                                | Fix                                                                                                      |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `HTTP 403 — RequestException — forbidden`     | Add a token that may write to the topic.                                                                 |
-| `HTTP 401 — RequestException — unauthorized`  | Create a new token and paste it.                                                                         |
-| "Not sent: … private, loopback, link-local …" | The server is on a private network; the instance Owner allows it with `HEPTAPOD_DELIVERY_PRIVATE_HOSTS`. |
+| Heptapod shows                                | Fix                                                                                                                                     |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `HTTP 403 — RequestException — forbidden`     | Add a token that may write to the topic.                                                                                                |
+| `HTTP 401 — RequestException — unauthorized`  | Create a new token and paste it.                                                                                                        |
+| "Not sent: … private, loopback, link-local …" | The server is on a private network; the instance Owner allows it with `HEPTAPOD_DELIVERY_PRIVATE_HOSTS`.                                |
+| "Use an HTTPS address. …"                     | Enter an `https://` server URL. Plain HTTP works only for a private host the instance Owner lists in `HEPTAPOD_DELIVERY_PRIVATE_HOSTS`. |

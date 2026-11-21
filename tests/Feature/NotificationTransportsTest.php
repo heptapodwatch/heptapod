@@ -385,6 +385,24 @@ it('rejects HTTP-200 provider failures rather than claiming delivery', function 
     'ntfy JSON without a message' => ['ntfy', ['status' => 'ok']],
 ]);
 
+it('refuses a stored plain-HTTP address once its host is no longer a listed private host', function (string $key, array $values): void {
+    Http::preventStrayRequests();
+    Http::fake();
+    config(['heptapod.outbound.delivery_private_hosts' => ['alerts.lan']]);
+    $channel = app(ChannelRegistry::class)->get($key);
+    $config = new DestinationConfig(9, 'de', $channel->configSchema()->validateConfig($values), 'UTC', 'Heptapod', 'https://heptapod.example');
+    config(['heptapod.outbound.delivery_private_hosts' => []]);
+
+    $result = transportSend($channel, transportAlert('failed'), $config, '42:9');
+
+    expect($result->status)->toBe(DeliveryState::Failed)->and($result->reason)->toBe('notifications.needs_https')
+        ->and($result->diagnosis)->toStartWith('Verwenden Sie eine HTTPS-Adresse.');
+    Http::assertNothingSent();
+})->with([
+    'ntfy' => ['ntfy', ['server' => 'http://alerts.lan', 'topic' => 'private-token']],
+    'Teams' => ['microsoftTeams', ['url' => 'http://alerts.lan/workflow']],
+]);
+
 it('fails a delivery whose compressed reply decodes past the response cap', function (string $encoding): void {
     config(['heptapod.outbound.delivery_private_hosts' => ['fixtures.test']]);
     $channel = app(ChannelRegistry::class)->get('webhook');

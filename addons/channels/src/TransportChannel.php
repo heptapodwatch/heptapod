@@ -8,6 +8,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\RequestException as GuzzleRequestException;
 use Heptapod\Contracts\Http\DeliveryHttp;
+use Heptapod\Contracts\Http\DeliveryPrivateHosts;
 use Heptapod\Contracts\Http\FetchException;
 use Heptapod\Contracts\Http\FetchFailure;
 use Heptapod\Contracts\Http\FetchFailureKind;
@@ -54,6 +55,13 @@ abstract class TransportChannel implements ChannelType
         $secrets = (array) new Field(FieldType::Object, properties: $schema->fields)->split($destination->values())[1];
         if (array_any(Arr::flatten($secrets), SecretMinimum::tooShort(...))) {
             return new DeliveryResult(DeliveryState::Failed, 'notifications.secret_too_short', diagnosis: __('notifications.secret_too_short', locale: $destination->locale));
+        }
+        foreach ($schema->fields as $name => $field) {
+            $url = $destination->values()[$name] ?? null;
+            // A stored plain-HTTP URL whose host the Owner no longer lists is refused here instead of failing validation.
+            if (in_array('delivery_https', $field->rules, true) && is_string($url) && ! DeliveryPrivateHosts::allowsScheme($url)) {
+                return new DeliveryResult(DeliveryState::Failed, 'notifications.needs_https', diagnosis: __('notifications.needs_https', locale: $destination->locale));
+            }
         }
         $schema->validateConfig($destination->values());
         try {
