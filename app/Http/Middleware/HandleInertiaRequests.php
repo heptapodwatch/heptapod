@@ -61,8 +61,8 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'csrfToken' => Inertia::always(static fn (): string => $request->session()->token()),
             'locale' => app()->getLocale(),
-            // The viewer's zone: their own, else the instance's (guests too).
-            'timezone' => $user instanceof User ? $user->resolvedTimezone() : app(InstanceSettings::class)->timezone,
+            // The viewer's zone: their own, else the instance's (guests too); lazy so non-Inertia responses stay zero-DB.
+            'timezone' => static fn (): string => $user instanceof User ? $user->resolvedTimezone() : app(InstanceSettings::class)->timezone,
             'exportRowLimit' => Table::RowLimit,
             'mailLogOnly' => MailDeliveryMode::logOnly(),
             'mailConfigurationAction' => SystemIssueKind::MailLogOnly->navigationAction($user instanceof User ? $user : null),

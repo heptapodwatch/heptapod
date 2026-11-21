@@ -182,6 +182,55 @@ it('lets a Member test their own account channel only, with the rate limit and t
     $this->postJson(route('notification-channels.test', $own))->assertTooManyRequests();
 });
 
+it('limits notification test sends per user across multiple channels', function (): void {
+    Http::preventStrayRequests();
+    Http::fake();
+    $member = recipientUser('Member');
+    $this->actingAs($member);
+
+    $channels = [];
+    for ($index = 0; $index < 4; $index++) {
+        $channels[] = $this->postJson(route('notification-channels.store'), [
+            'recipient_kind' => 'user',
+            ...recipientWebhook(),
+            'label' => 'Hook '.$index,
+        ])->assertCreated()->json('id');
+    }
+
+    for ($attempt = 0; $attempt < 12; $attempt++) {
+        $this->postJson(route('notification-channels.test', $channels[$attempt % 3]))
+            ->assertOk()
+            ->assertJsonPath('status', 'sent');
+    }
+
+    $this->postJson(route('notification-channels.test', $channels[3]))
+        ->assertTooManyRequests()
+        ->assertHeader('Retry-After')
+        ->assertJsonPath('code', 'rate_limited');
+});
+
+it('canonicalizes leading-zero channel IDs for the per-channel notification test limit', function (): void {
+    Http::preventStrayRequests();
+    Http::fake();
+    $member = recipientUser('Member');
+    $this->actingAs($member);
+    $id = $this->postJson(route('notification-channels.store'), [
+        'recipient_kind' => 'user',
+        ...recipientWebhook(),
+        'label' => 'Canonical hook',
+    ])->assertCreated()->json('id');
+
+    for ($zeros = 0; $zeros < 6; $zeros++) {
+        $this->postJson('/notification-channels/'.str_repeat('0', $zeros).$id.'/test')
+            ->assertOk()
+            ->assertJsonPath('status', 'sent');
+    }
+
+    $this->postJson('/notification-channels/'.str_repeat('0', 6).$id.'/test')
+        ->assertTooManyRequests()
+        ->assertJsonPath('code', 'rate_limited');
+});
+
 it('edits a channel without echoing secrets and asks for the secret again before the target origin changes', function (): void {
     Http::preventStrayRequests();
     Http::fake();

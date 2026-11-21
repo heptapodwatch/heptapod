@@ -220,16 +220,57 @@ class AppServiceProvider extends ServiceProvider
             return [Limit::perMinute(60)->by('user:'.$user->id),
                 Limit::perMinute(60)->by('token:'.$user->currentAccessToken()->id)];
         });
-        RateLimiter::for('cron-pings', static fn (Request $request): Limit => Limit::perMinute(120)->by(strtolower((string) $request->route('uuid'))));
+        // Budget: up to 500 every-minute cron jobs reporting start+finish behind one NAT IP (1,000/min) plus burst headroom.
+        RateLimiter::for('cron-pings', static fn (Request $request): array => [
+            Limit::perMinute(1200)->by('ip:'.($request->ip() ?? 'unknown')),
+            Limit::perMinute(120)->by('uuid:'.strtolower((string) $request->route('uuid'))),
+        ]);
         RateLimiter::for('site-probe', fn (Request $request): Limit => Limit::perMinute(6)->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         RateLimiter::for('backup-now', fn (Request $request): Limit => Limit::perMinutes(5, 1)->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
-        RateLimiter::for('notification-test', static function (Request $request): Limit {
-            $channel = $request->route('channel');
-            $id = $channel instanceof NotificationDestination ? $channel->id : (is_string($channel) ? $channel : 'unknown');
+        $canonicalId = static function (mixed $value): string {
+            if ($value instanceof NotificationDestination || $value instanceof Invitation) {
+                return (string) $value->id;
+            }
+            if (is_int($value)) {
+                return (string) $value;
+            }
+            if (is_string($value) && ctype_digit($value)) {
+                $trimmed = ltrim($value, '0');
+
+                return $trimmed === '' ? '0' : $trimmed;
+            }
+
+            return 'unknown';
+        };
+        RateLimiter::for('notification-test', static function (Request $request) use ($canonicalId): array {
+            $id = $canonicalId($request->route('channel'));
             $user = $request->user();
             $identity = $user instanceof User ? $user->id : ($request->ip() ?? 'unknown');
 
-            return Limit::perMinute(6)->by($identity.'|'.$id);
+            return [
+                Limit::perMinute(12)->by('user:'.$identity),
+                Limit::perMinute(6)->by('channel:'.$identity.'|'.$id),
+            ];
+        });
+        RateLimiter::for('invitation-resend', static function (Request $request) use ($canonicalId): array {
+            $invitationId = $canonicalId($request->route('invitation'));
+            $user = $request->user();
+            $actor = $user instanceof User ? $user->id : ($request->ip() ?? 'unknown');
+
+            return [
+                Limit::perMinute(10)->by('actor:'.$actor),
+                Limit::perMinutes(5, 3)->by('invitation:'.$invitationId),
+            ];
+        });
+        RateLimiter::for('profile-delete', static function (Request $request): array {
+            $user = $request->user();
+            $actor = $user instanceof User ? (string) $user->id : 'guest';
+            $ip = $request->ip() ?? 'unknown';
+
+            return [
+                Limit::perMinute(5)->by('user-ip:'.$actor.'|'.$ip),
+                Limit::perMinute(10)->by('user:'.$actor),
+            ];
         });
         Inertia::handleExceptionsUsing(ErrorResponses::respond(...));
     }
