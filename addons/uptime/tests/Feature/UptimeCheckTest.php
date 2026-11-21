@@ -483,7 +483,7 @@ it('stores uptime payload, raw_payload and expected_final_redirect_url as secret
     ])->and($rolledBackSecrets)->toBe(['http_client_headers' => [['value' => 'Bearer keep-header-secret']]]);
 });
 
-it('preserves shifted distinct-name payload rows and refuses ambiguous masked duplicate-name edits', function (): void {
+it('requires re-entry when removing a payload row shifts or makes a masked row ambiguous', function (): void {
     $owner = User::factory()->owner()->create();
     $schema = app(CheckRegistry::class)->get(CheckKey::Uptime)->definition()->configSchema;
     $check = Check::factory()->create([
@@ -498,13 +498,30 @@ it('preserves shifted distinct-name payload rows and refuses ambiguous masked du
     ]);
     $url = '/sites/'.$check->site_id.'/checks/'.$check->id;
 
-    // Removing the first distinct-name row keeps the surviving row's secret intact despite position shift.
+    // Removing the first distinct-name row shifts position and requires re-entry, matching header lists.
     $this->actingAs($owner)->patchJson($url, [
         'payload' => [['name' => 'second', 'value' => '********']],
-    ])->assertRedirect();
+    ])->assertUnprocessable()->assertJsonValidationErrors('payload.0.value');
+    expect($check->refresh()->executionConfig()['payload'])->toBe([
+        ['name' => 'first', 'value' => 'secret-first'],
+        ['name' => 'second', 'value' => 'secret-second'],
+    ]);
+
+    // Clearing the first row in place through the API drops it while preserving the second row at its existing position.
+    $writeToken = $owner->createToken('payload-write', ['monitors:write'])->plainTextToken;
+    $this->app['auth']->forgetGuards();
+    $this->withToken($writeToken)->putJson('/api/monitors/'.$check->site_id, [
+        'uptime_check_settings' => [
+            'payload' => [
+                ['name' => 'first', 'value' => ''],
+                ['name' => 'second', 'value' => '********'],
+            ],
+        ],
+    ])->assertOk();
     expect($check->refresh()->executionConfig()['payload'])->toBe([
         ['name' => 'second', 'value' => 'secret-second'],
     ]);
+    $this->app['auth']->forgetGuards();
 
     // Store two duplicate-name rows.
     $this->actingAs($owner)->patchJson($url, [
