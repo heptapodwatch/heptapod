@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CronTaskStore;
 use Heptapod\Models\Check;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 function createCronTaskForPing(): string
 {
@@ -63,4 +65,39 @@ it('normalizes valid numeric cron ping strings to numbers before storing', funct
         ->and($meta['runtime'])->toBe(12.5)
         ->and($meta['exit_code'])->toBe(0)
         ->and($meta['memory'])->toBe(65536);
+});
+
+it('throttles random unknown UUID sprays per IP on the cron ping endpoint', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-31T12:00:00Z'));
+
+    for ($attempt = 1; $attempt <= 300; $attempt++) {
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.10'])
+            ->get(route('cron.ping', ['uuid' => (string) Str::uuid()]))
+            ->assertNotFound();
+    }
+
+    $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.10'])
+        ->get(route('cron.ping', ['uuid' => (string) Str::uuid()]))
+        ->assertTooManyRequests();
+
+    // Another IP is unaffected.
+    $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.11'])
+        ->get(route('cron.ping', ['uuid' => (string) Str::uuid()]))
+        ->assertNotFound();
+});
+
+it('still enforces the per-UUID cron ping limit across different IPs', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-31T12:00:00Z'));
+    $uuid = createCronTaskForPing();
+
+    for ($attempt = 1; $attempt <= 120; $attempt++) {
+        $ip = '198.51.100.'.(($attempt % 200) + 1);
+        $this->withServerVariables(['REMOTE_ADDR' => $ip])
+            ->get(route('cron.ping', ['uuid' => $uuid]))
+            ->assertNoContent();
+    }
+
+    $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.250'])
+        ->get(route('cron.ping', ['uuid' => $uuid]))
+        ->assertTooManyRequests();
 });

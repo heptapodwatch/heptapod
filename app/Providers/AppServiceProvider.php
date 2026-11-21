@@ -220,7 +220,10 @@ class AppServiceProvider extends ServiceProvider
             return [Limit::perMinute(60)->by('user:'.$user->id),
                 Limit::perMinute(60)->by('token:'.$user->currentAccessToken()->id)];
         });
-        RateLimiter::for('cron-pings', static fn (Request $request): Limit => Limit::perMinute(120)->by(strtolower((string) $request->route('uuid'))));
+        RateLimiter::for('cron-pings', static fn (Request $request): array => [
+            Limit::perMinute(300)->by('ip:'.($request->ip() ?? 'unknown')),
+            Limit::perMinute(120)->by('uuid:'.strtolower((string) $request->route('uuid'))),
+        ]);
         RateLimiter::for('site-probe', fn (Request $request): Limit => Limit::perMinute(6)->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         RateLimiter::for('backup-now', fn (Request $request): Limit => Limit::perMinutes(5, 1)->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         RateLimiter::for('notification-test', static function (Request $request): Limit {
