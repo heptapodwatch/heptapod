@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -8,13 +8,23 @@ import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { emptySelectValue } from '@/components/ui/select';
 import { browserTimezone } from '@/lib/date-time';
 
+/** 15-minute buckets match the finest IANA offset/DST step so intra-day switches are never cached stale. */
+const OFFSET_BUCKET_MS = 15 * 60 * 1000;
+let cachedBucket = -1;
 const offsetCache = new Map<string, string>();
+
+function currentOffsetBucket(): number {
+    return Math.floor(Date.now() / OFFSET_BUCKET_MS);
+}
 
 /** "UTC+01:00" for a zone right now, via the platform's IANA data (no server round-trip). */
 export function timezoneOffset(zone: string): string {
-    // Cached per day so a DST switch within a session is picked up.
-    const cacheKey = `${zone}@${new Date().toISOString().slice(0, 10)}`;
-    const cached = offsetCache.get(cacheKey);
+    const bucket = currentOffsetBucket();
+    if (bucket !== cachedBucket) {
+        offsetCache.clear();
+        cachedBucket = bucket;
+    }
+    const cached = offsetCache.get(zone);
     if (cached) return cached;
     let offset = 'UTC';
     try {
@@ -38,7 +48,7 @@ export function timezoneOffset(zone: string): string {
     } catch {
         offset = 'UTC';
     }
-    offsetCache.set(cacheKey, offset);
+    offsetCache.set(zone, offset);
     return offset;
 }
 
@@ -146,7 +156,10 @@ type TimezoneComboboxProps = {
 export function TimezoneCombobox(props: TimezoneComboboxProps) {
     const { t } = useTranslation();
     const { id, value, timezones, pinned, defaultZone } = props;
+    const [offsetBucket, setOffsetBucket] = useState(currentOffsetBucket);
     const options = useMemo(() => {
+        // Re-evaluate offsets when the picker opens in a new 15-minute bucket.
+        void offsetBucket;
         // A stored legacy zone stays selectable even when the list omits it.
         const withValue =
             value && !timezones.includes(value)
@@ -167,12 +180,15 @@ export function TimezoneCombobox(props: TimezoneComboboxProps) {
                   },
                   ...zones,
               ];
-    }, [timezones, pinned, value, defaultZone, t]);
+    }, [timezones, pinned, value, defaultZone, t, offsetBucket]);
     return (
         <Combobox
             id={id}
             options={options}
             value={value ?? emptySelectValue}
+            onOpenChange={(open) => {
+                if (open) setOffsetBucket(currentOffsetBucket());
+            }}
             onValueChange={(next) => {
                 if (props.defaultZone === undefined) props.onValueChange(next);
                 else

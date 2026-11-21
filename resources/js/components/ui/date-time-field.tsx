@@ -46,7 +46,10 @@ export function TimeField({
 }: TimeFieldProps) {
     const [text, setText] = useState(value);
     const [invalidText, setInvalidText] = useState(false);
-    useEffect(() => setText(value), [value]);
+    useEffect(() => {
+        setText(value);
+        setInvalidText(false);
+    }, [value]);
     useEffect(() => {
         onInvalidChange?.(invalidText);
     }, [invalidText, onInvalidChange]);
@@ -196,6 +199,32 @@ type DateTimeFieldProps = {
     className?: string;
 };
 
+function todayInZone(timezone?: string): string {
+    const now = new Date();
+    if (timezone) {
+        try {
+            const parts = new Intl.DateTimeFormat('en-US', {
+                timeZone: timezone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+            }).formatToParts(now);
+            const year = parts.find((part) => part.type === 'year')?.value;
+            const month = parts.find((part) => part.type === 'month')?.value;
+            const day = parts.find((part) => part.type === 'day')?.value;
+            if (year && month && day) return `${year}-${month}-${day}`;
+        } catch {
+            // Fall back to browser local date when no recognized IANA zone is available.
+        }
+    }
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+function dateToView(isoDate: string): { year: number; month: number } {
+    const base = new Date(`${isoDate}T00:00:00Z`);
+    return { year: base.getUTCFullYear(), month: base.getUTCMonth() };
+}
+
 /**
  * One branded date+time entry app-wide: direct 24-hour keyboard entry in
  * `YYYY-MM-DD HH:MM`, plus a calendar popover with a TimeField. The wall
@@ -221,12 +250,8 @@ export function DateTimeField({
     const [open, setOpen] = useState(false);
     const parsed = parseDateTime(value);
     const zone = useZoneChip(timezone, text || (locale.startsWith('de') ? 'TT.MM.JJJJ HH:MM' : 'YYYY-MM-DD HH:MM'));
-    const todayDate = new Date();
-    const today = `${todayDate.getFullYear()}-${pad(todayDate.getMonth() + 1)}-${pad(todayDate.getDate())}`;
-    const [view, setView] = useState(() => {
-        const base = parsed ? new Date(`${parsed.date}T00:00:00Z`) : todayDate;
-        return { year: base.getUTCFullYear(), month: base.getUTCMonth() };
-    });
+    const today = todayInZone(timezone);
+    const [view, setView] = useState(() => dateToView(parsed?.date ?? today));
     const [invalidText, setInvalidText] = useState(false);
     useEffect(() => {
         onInvalidChange?.(invalidText);
@@ -234,17 +259,18 @@ export function DateTimeField({
     const [focusedDate, setFocusedDate] = useState(parsed?.date ?? today);
     const [draftTime, setDraftTime] = useState(parsed?.time ?? '');
     const gridRef = useRef<HTMLDivElement>(null);
-    useEffect(() => setText(value.replace('T', ' ')), [value]);
+    useEffect(() => {
+        setText(value.replace('T', ' '));
+        setInvalidText(false);
+    }, [value]);
     useEffect(() => {
         if (!open) return;
-        const base = parseDateTime(value)
-            ? new Date(`${parseDateTime(value)!.date}T00:00:00Z`)
-            : new Date();
-        setView({ year: base.getUTCFullYear(), month: base.getUTCMonth() });
-        setFocusedDate(parseDateTime(value)?.date ?? today);
+        const anchor = parseDateTime(value)?.date ?? todayInZone(timezone);
+        setView(dateToView(anchor));
+        setFocusedDate(anchor);
         // View and focus reset only when the popover opens.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open ]);
+    }, [open]);
     useEffect(() => {
         if (open)
             gridRef.current
@@ -280,8 +306,16 @@ export function DateTimeField({
     };
     const shiftDate = (date: string, daysDelta: number, monthsDelta = 0) => {
         const next = new Date(`${date}T00:00:00Z`);
-        next.setUTCDate(next.getUTCDate() + daysDelta);
-        next.setUTCMonth(next.getUTCMonth() + monthsDelta);
+        if (daysDelta !== 0) next.setUTCDate(next.getUTCDate() + daysDelta);
+        if (monthsDelta !== 0) {
+            const day = next.getUTCDate();
+            const targetYear = next.getUTCFullYear();
+            const targetMonth = next.getUTCMonth() + monthsDelta;
+            const lastDay = new Date(
+                Date.UTC(targetYear, targetMonth + 1, 0),
+            ).getUTCDate();
+            next.setUTCFullYear(targetYear, targetMonth, Math.min(day, lastDay));
+        }
         return `${next.getUTCFullYear()}-${pad(next.getUTCMonth() + 1)}-${pad(next.getUTCDate())}`;
     };
     const onGridKeyDown = (event: React.KeyboardEvent) => {
@@ -462,14 +496,15 @@ export function DateTimeField({
                                                         'ring-1 ring-ring',
                                                 )}
                                                 onClick={() => {
-                                                    setFocusedDate(date);
-                                                    emit(
-                                                        date,
+                                                    const time =
                                                         parsed?.time ??
-                                                            (timePattern.test(draftTime)
-                                                                ? draftTime
-                                                                : '00:00'),
-                                                    );
+                                                        (timePattern.test(draftTime)
+                                                            ? draftTime
+                                                            : '00:00');
+                                                    setFocusedDate(date);
+                                                    setText(`${date} ${time}`);
+                                                    setInvalidText(false);
+                                                    emit(date, time);
                                                 }}
                                             >
                                                 {day}
@@ -485,7 +520,11 @@ export function DateTimeField({
                                 value={parsed?.time ?? draftTime}
                                 onValueChange={(time) => {
                                     setDraftTime(time);
-                                    if (parsed && time) emit(parsed.date, time);
+                                    if (parsed && time) {
+                                        setText(`${parsed.date} ${time}`);
+                                        setInvalidText(false);
+                                        emit(parsed.date, time);
+                                    }
                                 }}
                             />
                             {!required && value && (
@@ -494,6 +533,8 @@ export function DateTimeField({
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => {
+                                        setText('');
+                                        setInvalidText(false);
                                         onValueChange('');
                                         setOpen(false);
                                     }}

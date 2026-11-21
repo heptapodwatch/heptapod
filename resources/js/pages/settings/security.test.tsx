@@ -1,12 +1,16 @@
+import { http, HttpResponseError } from '@inertiajs/core';
+import type { HttpRequestConfig, HttpResponse } from '@inertiajs/core';
 import { router } from '@inertiajs/react';
 import {
     act,
     cleanup,
     fireEvent,
     render,
+    renderHook,
     screen,
 } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
+import { useTwoFactorAuth } from '@/hooks/use-two-factor-auth';
 import Security from '@/pages/settings/security';
 
 vi.mock('@inertiajs/react', async (importOriginal) => ({
@@ -98,4 +102,55 @@ it('clears the passwords after a successful save and disables both actions again
     expect(screen.getByText('No unsaved changes')).not.toBeNull();
     expect(save.disabled).toBe(true);
     expect(discard.disabled).toBe(true);
+});
+
+it('clears partial 2FA setup data when one setup request fails so retrying succeeds', async () => {
+    let failKey = true;
+    http.setClient({
+        request(config: HttpRequestConfig): Promise<HttpResponse> {
+            if (config.url.includes('qr-code')) {
+                return Promise.resolve({
+                    status: 200,
+                    data: JSON.stringify({
+                        svg: '<svg />',
+                        url: 'otpauth://test',
+                    }),
+                    headers: {},
+                });
+            }
+            if (failKey) {
+                return Promise.reject(
+                    new HttpResponseError(
+                        'fail',
+                        { status: 500, data: '{}', headers: {} },
+                        config.url,
+                    ),
+                );
+            }
+            return Promise.resolve({
+                status: 200,
+                data: JSON.stringify({ secretKey: 'SECRET123' }),
+                headers: {},
+            });
+        },
+    });
+
+    const { result } = renderHook(() => useTwoFactorAuth());
+
+    await act(async () => {
+        await result.current.fetchSetupData();
+    });
+    expect(result.current.qrCodeSvg).toBeNull();
+    expect(result.current.manualSetupKey).toBeNull();
+    expect(result.current.hasSetupData).toBe(false);
+    expect(result.current.errors).toHaveLength(1);
+
+    failKey = false;
+    await act(async () => {
+        await result.current.fetchSetupData();
+    });
+    expect(result.current.qrCodeSvg).toBe('<svg />');
+    expect(result.current.manualSetupKey).toBe('SECRET123');
+    expect(result.current.hasSetupData).toBe(true);
+    expect(result.current.errors).toEqual([]);
 });

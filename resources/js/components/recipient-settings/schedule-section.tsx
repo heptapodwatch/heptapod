@@ -65,9 +65,12 @@ export function ScheduleSection({
     const saved = scheduleOf(page);
     const form = useHttpRequest<Schedule>(saved);
     const [failure, setFailure] = useState('');
-    const dirty = JSON.stringify(form.data) !== JSON.stringify(saved);
+    const [draftKey, setDraftKey] = useState(0);
     // Typed text that is not a time keeps the previous value in the draft, so Save waits until every field parses.
     const [invalidFields, setInvalidFields] = useState<Set<string>>(new Set());
+    const dirty =
+        JSON.stringify(form.data) !== JSON.stringify(saved) ||
+        invalidFields.size > 0;
     const setInvalid = useCallback(
         (field: string, invalid: boolean) =>
             setInvalidFields((current) => {
@@ -146,6 +149,7 @@ export function ScheduleSection({
                 </p>
                 <div className="grid gap-4 sm:grid-cols-2">
                     <ScheduleTimeField
+                        key={`${draftKey}-from`}
                         id={`${id}-from`}
                         label={t('recipient_settings.schedule.quiet_from')}
                         value={form.data.quiet_start ?? ''}
@@ -157,6 +161,7 @@ export function ScheduleSection({
                         onInvalidChange={setInvalid}
                     />
                     <ScheduleTimeField
+                        key={`${draftKey}-until`}
                         id={`${id}-until`}
                         label={t('recipient_settings.schedule.quiet_until')}
                         value={form.data.quiet_end ?? ''}
@@ -182,6 +187,7 @@ export function ScheduleSection({
                 </CheckboxField>
                 <div className="grid gap-4 sm:grid-cols-2">
                     <ScheduleTimeField
+                        key={`${draftKey}-digest`}
                         id={`${id}-digest`}
                         label={t('recipient_settings.schedule.digest_time')}
                         value={form.data.digest_time}
@@ -236,6 +242,9 @@ export function ScheduleSection({
                     onClick={() => {
                         form.setData(saved);
                         form.clearErrors();
+                        setFailure('');
+                        setInvalidFields(new Set());
+                        setDraftKey((count) => count + 1);
                     }}
                 >
                     {t('Discard')}

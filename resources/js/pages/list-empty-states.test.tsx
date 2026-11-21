@@ -197,12 +197,13 @@ const siteFilters: Heptapod.Data.Ui.SitesFilterData = {
 function sites(
     filters: Partial<Heptapod.Data.Ui.SitesFilterData>,
     canCreate: boolean,
+    tags: Heptapod.Data.Ui.TagData[] = [],
 ) {
     render(
         <SitesIndex
             sites={[]}
             clients={[]}
-            tags={[]}
+            tags={tags}
             summary={{ total: 0, attention: 0, paused: 0, clients: 0 }}
             can_create={canCreate}
             filters={{ ...siteFilters, ...filters }}
@@ -258,6 +259,33 @@ it('Sites: a filter change reloads the rows with their history and replaces firs
                 'lateRunsCount',
             ]),
         }),
+    );
+});
+
+it('Sites: filters by a tag named "all" without colliding with the "All tags" sentinel', () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    const allTag: Heptapod.Data.Ui.TagData = { id: 1, name: 'all' };
+    sites({}, true, [allTag]);
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Tag' }));
+    fireEvent.click(screen.getByRole('option', { name: 'all' }));
+    expect(routerGet).toHaveBeenLastCalledWith(
+        expect.any(String),
+        expect.objectContaining({ filter: { tag: 'all' } }),
+        expect.anything(),
+    );
+
+    cleanup();
+    sites({ tag: 'all' }, true, [allTag]);
+    const trigger = screen.getByRole('combobox', { name: 'Tag' });
+    expect(trigger.textContent).toBe('all');
+
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('option', { name: 'All tags' }));
+    expect(routerGet).toHaveBeenLastCalledWith(
+        expect.any(String),
+        expect.objectContaining({ filter: {} }),
+        expect.anything(),
     );
 });
 

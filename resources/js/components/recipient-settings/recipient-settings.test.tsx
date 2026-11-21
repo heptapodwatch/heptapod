@@ -26,9 +26,11 @@ vi.hoisted(() => {
 const requests: { method: string; url: string; body: unknown }[] = [];
 /** What the server answers a write: 200, or a 422 refusal with its field messages. */
 let writeResponse: HttpResponse;
+let mockedPageUrl: string | null = null;
 vi.mock('@inertiajs/react', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@inertiajs/react')>()),
     usePage: () => ({
+        url: mockedPageUrl ?? window.location.pathname + window.location.search,
         props: { auth: { canManageInstance: true }, timezone: 'UTC' },
     }),
     router: { on: () => () => {}, reload: vi.fn(), flushAll: vi.fn() },
@@ -69,6 +71,7 @@ vi.mock('sonner', () => ({ toast }));
 
 beforeEach(() => {
     requests.length = 0;
+    mockedPageUrl = null;
     writeResponse = json(200, { id: 1, enabled: true, suppressed_count: 0 });
     http.setClient({ request: fakeTransport });
     toast.mockClear();
@@ -618,4 +621,104 @@ it('uses server identities for mixed-stage collisions in chips and picker detail
     expect(
         await screen.findByRole('option', { name: /Kestrel · literal\.test/ }),
     ).toBeTruthy();
+});
+
+it('saves channel preference and site-mute changes in a single atomic request', async () => {
+    render(
+        <RecipientSettings
+            page={{
+                ...page([channel({ muted_site_ids: [3] })]),
+                sites: [
+                    ...page([]).sites,
+                    {
+                        id: 4,
+                        name: 'shop.example',
+                        identity: {
+                            label: 'shop.example',
+                            detail: 'Studio · shop.example',
+                        },
+                        client_id: 1,
+                        client_name: 'Studio',
+                        host: 'shop.example',
+                        url: 'https://shop.example',
+                        icon_url: null,
+                        icon_backing: 'none',
+                    },
+                ],
+            }}
+            scopeDescription="scope"
+        />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Slack #alerts' }));
+    const sheet = await screen.findByRole('dialog');
+    fireEvent.click(
+        within(sheet).getByRole('button', {
+            name: 'recipient_settings.reset_defaults',
+        }),
+    );
+    fireEvent.click(
+        within(sheet).getByRole('combobox', {
+            name: 'recipient_settings.mutes.picker',
+        }),
+    );
+    fireEvent.click(
+        await screen.findByRole('option', { name: /shop\.example/ }),
+    );
+    fireEvent.click(
+        await screen.findByRole('option', { name: /staging\.example/ }),
+    );
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0]).toEqual({
+        method: 'put',
+        url: '/notification-channels/7/preferences',
+        body: {
+            preferences: { warning: now },
+            mute_site_ids: [4],
+            unmute_site_ids: [3],
+        },
+    });
+});
+
+it('reads ?channel= from the Inertia page URL rather than window.location.search', async () => {
+    window.history.replaceState(null, '', '/settings/notifications/team');
+    mockedPageUrl = '/settings/notifications/team?channel=7';
+    show([channel()]);
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+});
+
+it('clears invalid schedule time drafts and unblocks saving on Discard', () => {
+    show([channel()]);
+    const quietFrom = () =>
+        screen.getByLabelText(
+            'recipient_settings.schedule.quiet_from',
+        ) as HTMLInputElement;
+    const discard = () =>
+        screen.getByRole('button', { name: 'Discard' }) as HTMLButtonElement;
+    const save = () =>
+        screen
+            .getAllByRole('button', { name: 'Save' })
+            .at(-1) as HTMLButtonElement;
+
+    fireEvent.change(quietFrom(), { target: { value: '2561' } });
+    fireEvent.blur(quietFrom());
+    expect(quietFrom().getAttribute('aria-invalid')).toBe('true');
+    expect(discard().disabled).toBe(false);
+    expect(save().disabled).toBe(true);
+
+    fireEvent.click(discard());
+    expect(quietFrom().value).toBe('');
+    expect(quietFrom().getAttribute('aria-invalid')).toBeNull();
+    expect(
+        screen.queryByText('Enter the time in 24-hour format (HH:MM).'),
+    ).toBeNull();
+    expect(discard().disabled).toBe(true);
+
+    fireEvent.click(
+        screen.getByRole('checkbox', {
+            name: 'recipient_settings.schedule.weekends',
+        }),
+    );
+    expect(save().disabled).toBe(false);
 });

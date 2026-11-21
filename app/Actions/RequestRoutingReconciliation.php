@@ -33,11 +33,16 @@ final readonly class RequestRoutingReconciliation
      * Locks, in ascending id, every open uptime episode that {@see self::forChannel()} may mark for this channel. Called
      * before the channel lock, so it reads only what never changes: a client channel's client. A team scope can change
      * while the caller waits for the channel, so team and user channels lock the episodes of every client.
+     *
+     * @param  int|list<int>|null  $siteIds
      */
-    public function lockEpisodes(NotificationDestination $channel, ?int $siteId = null): void
+    public function lockEpisodes(NotificationDestination $channel, int|array|null $siteIds = null): void
     {
+        if ($siteIds === []) {
+            return;
+        }
         $clientId = $channel->recipient_kind === RecipientKind::Client ? $channel->client_id : null;
-        NotificationLocks::incidents($this->openEpisodes($clientId, $siteId)->getQuery()->pluck('id'));
+        NotificationLocks::incidents($this->openEpisodes($clientId, $siteIds)->getQuery()->pluck('id'));
     }
 
     public function forChannel(NotificationDestination $channel, ?int $siteId = null): void
@@ -53,12 +58,17 @@ final readonly class RequestRoutingReconciliation
             ->update(['routing_reconcile_requested_at' => DB::raw('clock_timestamp()')]);
     }
 
-    /** @return Builder<Incident> */
-    private function openEpisodes(?int $clientId, ?int $siteId): Builder
+    /**
+     * @param  int|list<int>|null  $siteIds
+     * @return Builder<Incident>
+     */
+    private function openEpisodes(?int $clientId, int|array|null $siteIds): Builder
     {
         $sites = DB::table('sites')->select('id');
-        if ($siteId !== null) {
-            $sites->where('id', $siteId);
+        if (is_int($siteIds)) {
+            $sites->where('id', $siteIds);
+        } elseif (is_array($siteIds)) {
+            $sites->whereIntegerInRaw('id', $siteIds);
         }
         if ($clientId !== null) {
             $sites->where('client_id', $clientId);

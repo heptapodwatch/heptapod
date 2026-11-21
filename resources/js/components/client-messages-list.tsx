@@ -1,5 +1,5 @@
 import { Mail, Paperclip } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { EmptyState } from '@/components/empty-state';
@@ -58,7 +58,9 @@ export function ClientMessagesList({
     const [rows, setRows] = useState<ClientMessageRow[] | null>(null);
     const [next, setNext] = useState<number | null>(null);
     const [canSend, setCanSend] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [failed, setFailed] = useState(false);
+    const controllerRef = useRef<AbortController | null>(null);
     const [opened, setOpened] = useState<ClientMessageRow | null>(null);
     const [resend, setResend] = useState<{
         subject: ClientMessageSubject;
@@ -68,6 +70,14 @@ export function ClientMessagesList({
 
     const load = useCallback(
         async (before: number | null) => {
+            if (before !== null && controllerRef.current !== null) return;
+            if (before === null) {
+                controllerRef.current?.abort();
+                setLoadingMore(false);
+            }
+            const controller = new AbortController();
+            controllerRef.current = controller;
+            if (before !== null) setLoadingMore(true);
             setFailed(false);
             try {
                 const response = await fetch(
@@ -77,6 +87,7 @@ export function ClientMessagesList({
                     {
                         headers: { Accept: 'application/json' },
                         credentials: 'same-origin',
+                        signal: controller.signal,
                     },
                 );
                 if (!response.ok)
@@ -84,22 +95,37 @@ export function ClientMessagesList({
                         `Client messages failed: ${response.status}`,
                     );
                 const page = (await response.json()) as Page;
-                setRows((current) =>
-                    before === null
-                        ? page.rows
-                        : [...(current ?? []), ...page.rows],
-                );
+                if (controller.signal.aborted) return;
+                setRows((current) => {
+                    if (before === null) return page.rows;
+                    const existing = current ?? [];
+                    const seen = new Set(existing.map((item) => item.id));
+                    return [
+                        ...existing,
+                        ...page.rows.filter((item) => !seen.has(item.id)),
+                    ];
+                });
                 setNext(page.next_before);
                 setCanSend(page.can_send);
             } catch (error) {
+                if (controller.signal.aborted) return;
                 console.error(error);
                 setFailed(true);
+            } finally {
+                if (controllerRef.current === controller) {
+                    controllerRef.current = null;
+                    setLoadingMore(false);
+                }
             }
         },
         [client.id],
     );
     useEffect(() => {
         void load(null);
+        return () => {
+            controllerRef.current?.abort();
+            controllerRef.current = null;
+        };
     }, [load]);
 
     const resendRow = (row: ClientMessageRow) => {
@@ -237,6 +263,7 @@ export function ClientMessagesList({
                     next !== null ? (
                         <Button
                             variant="outline"
+                            disabled={loadingMore}
                             onClick={() => void load(next)}
                         >
                             {t('client_messages.list.older')}

@@ -336,10 +336,10 @@ export default function TwoFactorSetupModal({
     }, [fetchSetupData]);
 
     useEffect(() => {
-        if (isOpen && !qrCodeSvg) {
+        if (isOpen && (!qrCodeSvg || !manualSetupKey)) {
             void fetchSetupDataRef.current();
         }
-    }, [isOpen, qrCodeSvg]);
+    }, [isOpen, qrCodeSvg, manualSetupKey]);
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Carbon\CarbonImmutable;
 use Heptapod\Actions\CreateOwner;
 use Heptapod\Actions\EnsureAccountChannel;
+use Heptapod\Actions\Notifications\UpdateNotificationPreferences;
 use Heptapod\Actions\SetNotificationDestinationEnabled;
 use Heptapod\Addons\Channels\CommunityChannel;
 use Heptapod\Contracts\CheckKey;
@@ -626,4 +627,61 @@ it('supplies distinct site labels and picker details across disambiguation stage
         ->and($sites[$second->id]['identity'] ?? null)->toBe(['label' => 'A (bar.test)', 'detail' => 'Kestrel · bar.test'])
         ->and($sites[$literal->id]['identity'] ?? null)->toBe(['label' => 'A (foo.test) (literal.test)', 'detail' => 'Kestrel · literal.test'])
         ->and($sites[$cascade->id]['identity'] ?? null)->toBe(['label' => 'A (Kestrel · foo.test) (cascade.test)', 'detail' => 'Kestrel · cascade.test']);
+});
+
+it('commits preferences and site mutes atomically and rolls both back on refusal', function (): void {
+    $admin = recipientUser('Admin');
+    $client = Client::factory()->create();
+    $otherClient = Client::factory()->create();
+    $ownSite = Site::factory()->for($client)->create();
+    $otherSite = Site::factory()->for($otherClient)->create();
+    $clientChannel = NotificationDestination::factory()->create([
+        'recipient_kind' => RecipientKind::Client,
+        'client_id' => $client->id,
+        'locale' => null,
+    ]);
+    $before = recipientGrid($clientChannel->id);
+
+    $this->actingAs($admin)->putJson(route('notification-channels.preferences', $clientChannel), [
+        'preferences' => ['outage' => 'immediate', 'warning' => 'digest'],
+        'mute_site_ids' => [$ownSite->id, $otherSite->id],
+    ])->assertUnprocessable();
+
+    expect(recipientGrid($clientChannel->id))->toBe($before)
+        ->and(DB::table('notification_site_mutes')->where('destination_id', $clientChannel->id)->count())->toBe(0);
+
+    $this->actingAs($admin)->putJson(route('notification-channels.preferences', $clientChannel), [
+        'preferences' => ['outage' => 'immediate', 'warning' => 'digest'],
+        'mute_site_ids' => [$ownSite->id],
+    ])->assertNoContent();
+
+    expect(recipientGrid($clientChannel->id))->toMatchArray(['outage' => 'immediate', 'warning' => 'digest'])
+        ->and(DB::table('notification_site_mutes')->where('destination_id', $clientChannel->id)->pluck('site_id')->all())->toBe([$ownSite->id]);
+
+    $this->actingAs($admin)->putJson(route('notification-channels.preferences', $clientChannel), [
+        'unmute_site_ids' => [$ownSite->id],
+    ])->assertNoContent();
+
+    expect(DB::table('notification_site_mutes')->where('destination_id', $clientChannel->id)->count())->toBe(0);
+
+    $member = recipientUser('Member', ['client_scope' => ClientScope::Restricted]);
+    $memberChannel = NotificationDestination::factory()->create([
+        'recipient_kind' => RecipientKind::User,
+        'user_id' => $member->id,
+        'locale' => null,
+        'channel' => 'webhook',
+        'config' => app(ChannelRegistry::class)->get('webhook')->configSchema()->validateConfig(recipientWebhook()['config']),
+    ]);
+    $memberBefore = recipientGrid($memberChannel->id);
+    $this->actingAs($member)->putJson(route('notification-channels.preferences', $memberChannel), [
+        'preferences' => ['warning' => 'digest'],
+        'mute_site_ids' => [$otherSite->id],
+    ])->assertNotFound();
+    expect(recipientGrid($memberChannel->id))->toBe($memberBefore)
+        ->and(DB::table('notification_site_mutes')->where('destination_id', $memberChannel->id)->count())->toBe(0);
+
+    $this->actingAs($admin)->putJson(route('notification-channels.preferences', $clientChannel), [
+        'preferences' => ['warning' => 'digest'],
+        'mute_site_ids' => range(1, UpdateNotificationPreferences::MaxSiteMutesBatch + 1),
+    ])->assertUnprocessable()->assertJsonValidationErrors(['mute_site_ids']);
 });

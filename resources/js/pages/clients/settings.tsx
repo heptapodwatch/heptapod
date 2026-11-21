@@ -135,9 +135,20 @@ export default function ClientSettings({
         }));
         form.post(client ? update.url(client.id) : store.url(), {
             preserveScroll: true,
-            onSuccess: () => {
-                form.setData('avatar', null);
-                form.setDefaults();
+            onSuccess: (response) => {
+                const savedClient = (
+                    response?.props as
+                        | Partial<Heptapod.Data.Ui.ClientSettingsPageData>
+                        | undefined
+                )?.client;
+                const saved = {
+                    ...(savedClient
+                        ? clientFormValues(savedClient)
+                        : form.data),
+                    avatar: null as ClientAvatarDraft,
+                };
+                form.setDefaults(saved);
+                form.setData(saved);
             },
         });
     };

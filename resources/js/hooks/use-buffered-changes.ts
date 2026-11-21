@@ -1,6 +1,158 @@
 import { router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 
+function countDifferences<T>(
+    shown: T[],
+    fresh: T[],
+    getKey: (row: T) => number | string,
+    contentKey?: (row: T) => string,
+): number {
+    const oldKeys = shown.map(getKey);
+    const newKeys = fresh.map(getKey);
+    const removedKeys = oldKeys.filter((id) => !newKeys.includes(id));
+    const addedKeys = newKeys.filter((id) => !oldKeys.includes(id));
+    const orderChanged = oldKeys.some((id, index) => id !== newKeys[index]);
+    const shownByKey = new Map(shown.map((row) => [getKey(row), row]));
+    const contentChangedKeys = contentKey
+        ? fresh
+              .filter((row) => {
+                  const current = shownByKey.get(getKey(row));
+                  return (
+                      current !== undefined &&
+                      contentKey(current) !== contentKey(row)
+                  );
+              })
+              .map(getKey)
+        : [];
+    // With content buffering each changed row counts once, so the count never grows across updates of one row.
+    return contentKey
+        ? new Set([...removedKeys, ...addedKeys, ...contentChangedKeys]).size ||
+              (orderChanged ? 1 : 0)
+        : Math.max(removedKeys.length, addedKeys.length, orderChanged ? 1 : 0);
+}
+
+/**
+ * Applies only the rows this tab's own mutation added, removed or modified (comparing `accepted` against the latest
+ * server snapshot seen before the mutation), leaving previously buffered foreign changes behind `pendingCount`.
+ */
+function mergeOwnMutation<T>(
+    shown: T[],
+    previousLatest: T[],
+    accepted: T[],
+    getKey: (row: T) => number | string,
+    contentKey?: (row: T) => string,
+): { rows: T[]; pendingCount: number } {
+    if (countDifferences(shown, previousLatest, getKey, contentKey) === 0) {
+        return { rows: accepted, pendingCount: 0 };
+    }
+    const prevByKey = new Map(previousLatest.map((row) => [getKey(row), row]));
+    const acceptedByKey = new Map(accepted.map((row) => [getKey(row), row]));
+    const ownRemoved = new Set(
+        [...prevByKey.keys()].filter((id) => !acceptedByKey.has(id)),
+    );
+    const ownAdded = new Set(
+        [...acceptedByKey.keys()].filter((id) => !prevByKey.has(id)),
+    );
+    const ownModified = contentKey
+        ? new Set(
+              [...acceptedByKey.entries()]
+                  .filter(([id, row]) => {
+                      const before = prevByKey.get(id);
+                      return (
+                          before !== undefined &&
+                          contentKey(before) !== contentKey(row)
+                      );
+                  })
+                  .map(([id]) => id),
+          )
+        : new Set<number | string>();
+
+    const sharedKeys = new Set(
+        [...prevByKey.keys()].filter((id) => acceptedByKey.has(id)),
+    );
+    const hasUntouchedShared = [...sharedKeys].some(
+        (id) => !ownModified.has(id),
+    );
+    const orderContext = (list: T[], targetId: number | string): string => {
+        const preceding: (number | string)[] = [];
+        for (const row of list) {
+            const id = getKey(row);
+            if (id === targetId) {
+                break;
+            }
+            if (
+                sharedKeys.has(id) &&
+                (!hasUntouchedShared || !ownModified.has(id))
+            ) {
+                preceding.push(id);
+            }
+        }
+        return JSON.stringify(preceding);
+    };
+    const ownMoved = new Set(
+        [...ownModified].filter(
+            (id) =>
+                orderContext(previousLatest, id) !== orderContext(accepted, id),
+        ),
+    );
+
+    // Keep content-only edits in place; remove only deleted and own-reordered rows so a save
+    // repositions rows it actually moved without revealing a buffered foreign reorder.
+    const nextVisible = shown
+        .filter((row) => {
+            const id = getKey(row);
+            return !ownRemoved.has(id) && !ownMoved.has(id);
+        })
+        .map((row) => {
+            const id = getKey(row);
+            if (ownModified.has(id)) {
+                return acceptedByKey.get(id)!;
+            }
+            return contentKey === undefined && acceptedByKey.has(id)
+                ? acceptedByKey.get(id)!
+                : row;
+        });
+
+    for (let index = 0; index < accepted.length; index++) {
+        const row = accepted[index]!;
+        const id = getKey(row);
+        if (!ownAdded.has(id) && !ownMoved.has(id)) {
+            continue;
+        }
+        if (nextVisible.some((item) => getKey(item) === id)) {
+            continue;
+        }
+        // Insert before the earliest visible row that appears after `row` in `accepted`, preserving
+        // the new server position of own rows while leaving any buffered foreign reorder untouched.
+        const visibleIndexByKey = new Map(
+            nextVisible.map((item, visibleIndex) => [
+                getKey(item),
+                visibleIndex,
+            ]),
+        );
+        let position = nextVisible.length;
+        for (let after = index + 1; after < accepted.length; after++) {
+            const followingIndex = visibleIndexByKey.get(
+                getKey(accepted[after]!),
+            );
+            if (followingIndex !== undefined && followingIndex < position) {
+                position = followingIndex;
+            }
+        }
+        nextVisible.splice(position, 0, row);
+    }
+
+    const differences = countDifferences(
+        nextVisible,
+        accepted,
+        getKey,
+        contentKey,
+    );
+    return differences === 0
+        ? { rows: accepted, pendingCount: 0 }
+        : { rows: nextVisible, pendingCount: differences };
+}
+
 export function useBufferedChanges<T>(
     // Must keep its identity between renders (a prop, or memoized); a fresh array each render loops the effect.
     rows: T[],
@@ -9,7 +161,8 @@ export function useBufferedChanges<T>(
     // Opt-in: a row whose content changed keeps its shown object until apply, so filters and text stay as shown.
     contentKey?: (row: T) => string,
     // Opt-in for lists this tab's own mutations change: names the response prop holding the rows. While such a
-    // mutation is in flight, incoming rows wait; its successful response is shown directly and never counted as pending.
+    // mutation is in flight, incoming rows wait; its successful response shows only this mutation's changes directly
+    // while keeping previously buffered foreign changes pending.
     ownResponseProp?: string,
     // The result of a run this tab requested, for one commit: rows it accepts are shown directly and never counted
     // as pending; every other change keeps buffering. `token` (the attempt id) re-evaluates the rows once per result.
@@ -21,25 +174,37 @@ export function useBufferedChanges<T>(
     const previousScope = useRef(scope);
     const getKey = useRef(key);
     getKey.current = key;
+    const contentKeyRef = useRef(contentKey);
+    contentKeyRef.current = contentKey;
     const ownRunAccepts = useRef(ownRun?.accepts);
     ownRunAccepts.current = ownRun?.accepts;
     const [visible, setVisible] = useState(rows);
+    const visibleRef = useRef(visible);
+    visibleRef.current = visible;
     const [pendingCount, setPendingCount] = useState(0);
     const [ownMutationsInFlight, setOwnMutationsInFlight] = useState(0);
+    const mutationsInFlightRef = useRef(0);
     const holdRows = ownResponseProp !== undefined && ownMutationsInFlight > 0;
 
     useEffect(() => {
-        latest.current = rows;
         if (previousUrl.current !== url || previousScope.current !== scope) {
             previousUrl.current = url;
             previousScope.current = scope;
+            latest.current = rows;
+            visibleRef.current = rows;
             setVisible(rows);
             setPendingCount(0);
             return;
         }
-        if (holdRows) {
+        // Inertia commits response props via flushSync before firing `success`: keep `latest.current` at the
+        // pre-response snapshot until `success` diffs the own mutation against it (or `finish` releases on error).
+        if (
+            holdRows ||
+            (ownResponseProp !== undefined && mutationsInFlightRef.current > 0)
+        ) {
             return;
         }
+        latest.current = rows;
         let base = visible;
         const accepts = ownRunAccepts.current;
         if (accepts) {
@@ -73,52 +238,31 @@ export function useBufferedChanges<T>(
                 })
                 .toReversed();
         }
-        const oldKeys = base.map(getKey.current);
-        const newKeys = rows.map(getKey.current);
-        const removedKeys = oldKeys.filter((id) => !newKeys.includes(id));
-        const addedKeys = newKeys.filter((id) => !oldKeys.includes(id));
-        const orderChanged = oldKeys.some((id, index) => id !== newKeys[index]);
-        const shownByKey = new Map(
-            base.map((row) => [getKey.current(row), row]),
+        const differences = countDifferences(
+            base,
+            rows,
+            getKey.current,
+            contentKey,
         );
-        const contentChangedKeys = contentKey
-            ? rows
-                  .filter((row) => {
-                      const shown = shownByKey.get(getKey.current(row));
-                      return (
-                          shown !== undefined &&
-                          contentKey(shown) !== contentKey(row)
-                      );
-                  })
-                  .map((row) => getKey.current(row))
-            : [];
-        // With content buffering each changed row counts once, so the count never grows across updates of one row.
-        const differences = contentKey
-            ? new Set([...removedKeys, ...addedKeys, ...contentChangedKeys])
-                  .size || (orderChanged ? 1 : 0)
-            : Math.max(
-                  removedKeys.length,
-                  addedKeys.length,
-                  orderChanged ? 1 : 0,
-              );
         if (differences > 0) {
             const freshByKey = new Map(
                 rows.map((row) => [getKey.current(row), row]),
             );
-            setVisible(
-                base.map((row) => {
-                    const fresh = freshByKey.get(getKey.current(row));
-                    if (fresh === undefined) {
-                        return row;
-                    }
-                    return contentKey !== undefined &&
-                        contentKey(row) !== contentKey(fresh)
-                        ? row
-                        : fresh;
-                }),
-            );
+            const nextVisible = base.map((row) => {
+                const fresh = freshByKey.get(getKey.current(row));
+                if (fresh === undefined) {
+                    return row;
+                }
+                return contentKey !== undefined &&
+                    contentKey(row) !== contentKey(fresh)
+                    ? row
+                    : fresh;
+            });
+            visibleRef.current = nextVisible;
+            setVisible(nextVisible);
             setPendingCount(differences);
         } else {
+            visibleRef.current = rows;
             setVisible(rows);
             setPendingCount(0);
         }
@@ -134,6 +278,7 @@ export function useBufferedChanges<T>(
                 return;
             }
             mutationVisitIds.add(detail.visit.id);
+            mutationsInFlightRef.current++;
             setOwnMutationsInFlight((count) => count + 1);
         });
         const removeSuccess = router.on('success', ({ detail }) => {
@@ -155,14 +300,26 @@ export function useBufferedChanges<T>(
                     `Own mutation response is missing the ${ownResponseProp} prop`,
                 );
             }
+            const merged = mergeOwnMutation(
+                visibleRef.current,
+                latest.current,
+                acceptedRows as T[],
+                getKey.current,
+                contentKeyRef.current,
+            );
             latest.current = acceptedRows as T[];
-            setVisible(acceptedRows as T[]);
-            setPendingCount(0);
+            visibleRef.current = merged.rows;
+            setVisible(merged.rows);
+            setPendingCount(merged.pendingCount);
         });
         const removeFinish = router.on('finish', ({ detail }) => {
             if (!mutationVisitIds.delete(detail.visit.id)) {
                 return;
             }
+            mutationsInFlightRef.current = Math.max(
+                0,
+                mutationsInFlightRef.current - 1,
+            );
             setOwnMutationsInFlight((count) => count - 1);
         });
         return () => {
@@ -176,6 +333,7 @@ export function useBufferedChanges<T>(
         rows: previousScope.current !== scope ? rows : visible,
         pendingCount: previousScope.current !== scope ? 0 : pendingCount,
         apply: () => {
+            visibleRef.current = latest.current;
             setVisible(latest.current);
             setPendingCount(0);
         },
