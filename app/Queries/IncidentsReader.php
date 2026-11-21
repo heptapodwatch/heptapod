@@ -40,7 +40,6 @@ use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
-use Heptapod\Settings\InstanceSettings;
 use Heptapod\Support\RedactionContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilderBase;
@@ -58,7 +57,7 @@ final readonly class IncidentsReader
     /** The Incidents list and its export show open incidents unless the URL asks for resolved or all. */
     public const string DefaultStatus = 'open';
 
-    public function __construct(private SitePolicy $policy, private SitesReader $sites, private InstanceSettings $settings, private NotificationEventTypes $notificationTypes, private CheckRunPresentations $presentations, private EventPresenter $eventPresenter, private ListPaging $paging) {}
+    public function __construct(private SitePolicy $policy, private SitesReader $sites, private NotificationEventTypes $notificationTypes, private CheckRunPresentations $presentations, private EventPresenter $eventPresenter, private ListPaging $paging) {}
 
     /** @return Builder<Incident> */
     public function scoped(User $user, bool $includeArchived = false): Builder
@@ -138,7 +137,7 @@ final readonly class IncidentsReader
     /** @return QueryBuilder<Incident> */
     public function filtered(User $user, Request $request): QueryBuilder
     {
-        $timezone = $this->settings->timezone;
+        $timezone = $user->resolvedTimezone();
         $query = QueryBuilder::for($this->scoped($user), $request)->allowedFilters(
             AllowedFilter::callback('status', static function (Builder $query, mixed $value): void {
                 match ($value) {
@@ -583,7 +582,7 @@ final readonly class IncidentsReader
             };
             if (! $delivery->suppressed && in_array($delivery->last_reason, ['deferred_by_maintenance', 'deferred_by_snooze'], true)) {
                 $diagnosis = __('notifications.'.$delivery->last_reason, [
-                    'time' => $delivery->next_attempt_at->setTimezone($user->timezone ?? app(InstanceSettings::class)->timezone)->format('Y-m-d H:i T'),
+                    'time' => $delivery->next_attempt_at->setTimezone($user->resolvedTimezone())->format('Y-m-d H:i T'),
                 ]);
             } elseif (! $delivery->suppressed && $delivery->last_reason === UptimeAlertEpisode::WaitingReason) {
                 $diagnosis = __('notifications.recovery_checks_pending');
@@ -591,7 +590,7 @@ final readonly class IncidentsReader
                 && UptimeAlertEpisode::isOpeningEvent($event)
                 && $event->incident !== null && UptimeAlertEpisode::appliesTo($event->incident) && $delivery->next_attempt_at->isFuture()) {
                 $diagnosis = __('notifications.alert_delay_due', [
-                    'time' => $delivery->next_attempt_at->setTimezone($user->timezone ?? app(InstanceSettings::class)->timezone)->format('Y-m-d H:i T'),
+                    'time' => $delivery->next_attempt_at->setTimezone($user->resolvedTimezone())->format('Y-m-d H:i T'),
                     'minutes' => UptimeAlertEpisode::alertAfterMinutes($event->incident),
                 ]);
             }

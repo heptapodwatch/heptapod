@@ -515,21 +515,39 @@ it('renders only actual incident mail for operators using the mail renderer', fu
     }
 });
 
-it('filters whole instance-local days with a half-open end across DST', function (): void {
+it('filters whole viewer-local days with a half-open end across DST and per viewer timezone', function (): void {
     $this->withoutVite();
     $settings = app(InstanceSettings::class);
-    $settings->timezone = 'Europe/Berlin';
+    $settings->timezone = 'UTC';
     $settings->save();
-    $user = User::factory()->create();
-    $user->assignRole('Owner');
+    $berlin = User::factory()->create(['timezone' => 'Europe/Berlin']);
+    $berlin->assignRole('Owner');
+    $newYork = User::factory()->create(['timezone' => 'America/New_York']);
+    $newYork->assignRole('Owner');
     $check = Check::factory()->create();
-    $times = ['2026-10-24T21:59:59Z', '2026-10-24T22:00:00Z', '2026-10-25T22:59:59Z', '2026-10-25T23:00:00Z'];
+    // 2026-10-25 in Europe/Berlin (fall-back DST day) is [2026-10-24T22:00:00Z, 2026-10-25T23:00:00Z).
+    // 2026-10-25T03:30:00Z is 2026-10-24 23:30 in America/New_York and 2026-10-25 05:30 in Europe/Berlin.
+    $times = ['2026-10-24T21:59:59Z', '2026-10-24T22:00:00Z', '2026-10-25T03:30:00Z', '2026-10-25T22:59:59Z', '2026-10-25T23:00:00Z'];
     $incidents = [];
     foreach ($times as $time) {
         $incidents[] = Incident::factory()->for($check)->create(['first_failure_at' => $time, 'opened_at' => $time, 'resolved_at' => CarbonImmutable::parse($time)->addSecond()]);
     }
 
-    $response = $this->actingAs($user)->get('/incidents?filter[status]=all&filter[started_after]=2026-10-25&filter[started_before]=2026-10-25')->assertInertia(fn (Assert $page): Assert => $page
-        ->has('incidents', 2)->where('incidents.0.id', $incidents[2]->id)->where('incidents.1.id', $incidents[1]->id));
-    $this->get('/incidents?filter[status]=all&filter[started_before]=2026-10-25')->assertInertia(fn (Assert $page): Assert => $page->has('incidents', 3));
+    $this->actingAs($berlin)->get('/incidents?filter[status]=all&filter[started_after]=2026-10-25&filter[started_before]=2026-10-25')->assertInertia(fn (Assert $page): Assert => $page
+        ->has('incidents', 3)
+        ->where('incidents.0.id', $incidents[3]->id)
+        ->where('incidents.1.id', $incidents[2]->id)
+        ->where('incidents.2.id', $incidents[1]->id));
+    $this->get('/incidents?filter[status]=all&filter[started_before]=2026-10-25')->assertInertia(fn (Assert $page): Assert => $page->has('incidents', 4));
+
+    // For a New York viewer, 2026-10-25T03:30:00Z belongs to 2026-10-24, not 2026-10-25.
+    $this->actingAs($newYork)->get('/incidents?filter[status]=all&filter[started_after]=2026-10-24&filter[started_before]=2026-10-24')->assertInertia(fn (Assert $page): Assert => $page
+        ->has('incidents', 3)
+        ->where('incidents.0.id', $incidents[2]->id)
+        ->where('incidents.1.id', $incidents[1]->id)
+        ->where('incidents.2.id', $incidents[0]->id));
+    $this->get('/incidents?filter[status]=all&filter[started_after]=2026-10-25&filter[started_before]=2026-10-25')->assertInertia(fn (Assert $page): Assert => $page
+        ->has('incidents', 2)
+        ->where('incidents.0.id', $incidents[4]->id)
+        ->where('incidents.1.id', $incidents[3]->id));
 });

@@ -641,7 +641,7 @@
     "Configure": "Konfigurieren",
     "Until": "Bis",
     "1 hour": "1 Stunde",
-    "Tomorrow 08:00 (instance time)": "Morgen 08:00 Uhr (Instanzzeit)",
+    "Tomorrow 08:00": "Morgen 08:00 Uhr",
     "Delete {{name}}?": "{{name}} löschen?",
     "Counting stored results…": "Gespeicherte Ergebnisse werden gezählt…",
     "Stored results could not be counted.": "Gespeicherte Ergebnisse konnten nicht gezählt werden.",

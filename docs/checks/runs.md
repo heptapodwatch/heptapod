@@ -46,7 +46,7 @@ Only Broken links, Mixed content and Lighthouse runs can be cancelled, with **Ca
 
 ## Pause a site
 
-**Pause site** under **More actions** in the site header stops checks and alerts and keeps history. **Resume site** starts them again. A scheduled resume in one hour or tomorrow at 08:00 uses the instance time zone.
+**Pause site** under **More actions** in the site header stops checks and alerts and keeps history. **Resume site** starts them again. A scheduled resume in one hour or tomorrow at 08:00 uses your time zone.
 
 ## Queues and retention
 

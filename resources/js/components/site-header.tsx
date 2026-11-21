@@ -114,7 +114,7 @@ export function SitePauseAction({
                                             ? 'I resume it'
                                             : option === 'hour'
                                               ? '1 hour'
-                                              : 'Tomorrow 08:00 (instance time)',
+                                              : 'Tomorrow 08:00',
                                     )}
                                 </RadioGroupItem>
                             ),
