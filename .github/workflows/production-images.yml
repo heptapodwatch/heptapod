@@ -182,8 +182,9 @@ jobs:
           architecture: ${{ matrix.architecture }}
 
   publish:
-    # Only main advances deployment tags.
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    # Only main advances deployment tags. Explicit !cancelled() prevents the skipped changes
+    # ancestor of runtime-report from skipping publish (actions/runner#2205).
+    if: ${{ !cancelled() && needs.architectures.result == 'success' && needs.image.result == 'success' && needs.runtime-report.result == 'success' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
     needs: [architectures, image, runtime-report]
     env:
       HEPTAPOD_IMAGE_ARCHES: ${{ needs.architectures.outputs.value }}

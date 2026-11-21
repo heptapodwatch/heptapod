@@ -121,6 +121,11 @@ prepare
 change_json php-base-record.json '.run.attempt = 2'
 reject 'stale run attempt'
 prepare
-change_json run.json '.head_branch = "feature/other"'
-change_json php-base-record.json '.run.branch = "feature/other" | .build.branch = "feature/other"'
-reject 'non-main branch'
+change_json run.json '.event = "push" | .head_branch = "ci/candidate"'
+change_json php-base-record.json '.run.event = "push" | .run.branch = "ci/candidate" | .build = .run'
+zip -q -j "$PHP_BASE_FIXTURE_RESPONSE/record.zip" "$PHP_BASE_FIXTURE_RESPONSE/php-base-record.json"
+if bash "$RETENTION_TEST_TEMP/repo/scripts/php-base-record.sh" 202 "$RETENTION_TEST_TEMP/legacy-record"; then
+    echo 'FAIL: php-base-record.sh accepted a ci/* branch record' >&2
+    exit 1
+fi
+echo 'PASS: php-base-record.sh rejects a ci/* branch record'
