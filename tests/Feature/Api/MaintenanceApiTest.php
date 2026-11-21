@@ -186,3 +186,19 @@ it('projects shared client windows without granting shared writes and excludes o
     $this->travel(1)->day();
     expect(app(SiteState::class)->derive($sites[0]))->toBe(SiteStatus::Maintenance);
 });
+
+it('answers a monitor outside a client-scoped token like a missing one when scheduling maintenance', function (): void {
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $client = Client::factory()->create();
+    $visible = Site::factory()->for($client)->create();
+    $hidden = Site::factory()->create();
+    $this->withToken(app(CreateApiToken::class)($owner, 'scoped', ['maintenance:write'], $client->id));
+    $window = ['starts_at' => '2026-10-05 10:00', 'ends_at' => '2026-10-05 11:00'];
+    $missing = $this->postJson('/api/maintenance-periods', ['monitor_id' => $hidden->id + 1000, ...$window])->assertUnprocessable();
+    $outOfScope = $this->postJson('/api/maintenance-periods', ['monitor_id' => $hidden->id, ...$window]);
+
+    expect([$outOfScope->status(), $outOfScope->json()])->toBe([422, $missing->json()])
+        ->and(MaintenancePeriod::query()->count())->toBe(0);
+    $this->postJson('/api/maintenance-periods', ['monitor_id' => $visible->id, ...$window])->assertCreated();
+});

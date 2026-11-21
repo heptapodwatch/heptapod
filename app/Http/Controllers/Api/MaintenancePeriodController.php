@@ -15,6 +15,7 @@ use Heptapod\Http\Resources\OhDear\MaintenancePeriodResource;
 use Heptapod\Maintenance\LocalMaintenanceTime;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\Site;
+use Heptapod\Policies\SitePolicy;
 use Heptapod\Support\Api\Idempotency;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\JsonResponse;
@@ -71,16 +72,16 @@ final class MaintenancePeriodController extends Controller
         }, $query->get()->all())]);
     }
 
-    public function store(Request $request, CreateMaintenanceWindow $create, Idempotency $idempotency): JsonResponse
+    public function store(Request $request, CreateMaintenanceWindow $create, Idempotency $idempotency, SitePolicy $sites): JsonResponse
     {
+        $user = $this->principal($request);
         /** @var array{monitor_id: int, starts_at: string, ends_at: string, name?: string|null} $data */
         $data = Validator::make($request->all(), [
-            'monitor_id' => 'required|integer|exists:sites,id', 'starts_at' => 'required|date_format:Y-m-d H:i',
+            'monitor_id' => ['required', 'integer', $sites->visibleSiteRule($user)], 'starts_at' => 'required|date_format:Y-m-d H:i',
             'ends_at' => 'required|date_format:Y-m-d H:i', 'name' => 'nullable|string|max:255',
         ])->validate();
         $site = Site::query()->findOrFail($data['monitor_id']);
         Gate::authorize('update', $site);
-        $user = $this->principal($request);
         $window = ['target_type' => 'site', 'target_id' => $site->id,
             'starts_local' => $data['starts_at'], 'ends_local' => $data['ends_at'], 'timezone' => 'UTC',
             'recurrence_type' => 'once', 'name' => $data['name'] ?? null];
