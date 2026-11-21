@@ -26,12 +26,26 @@ final class SecretRedactor
         if (is_string($value)) {
             return self::redact($value, $secrets, $urls);
         }
+        if (is_int($value) || is_float($value)) {
+            $text = (string) $value;
+            $redacted = self::redact($text, $secrets, $urls);
+
+            return $redacted !== $text ? $redacted : $value;
+        }
         if (! is_array($value)) {
             return $value;
         }
         $redacted = [];
         foreach ($value as $key => $child) {
-            $key = is_string($key) ? self::redact($key, $secrets, $urls) : $key;
+            if (is_string($key)) {
+                $key = self::redact($key, $secrets, $urls);
+            } else {
+                $text = (string) $key;
+                $maskedKey = self::redact($text, $secrets, $urls);
+                if ($maskedKey !== $text) {
+                    $key = $maskedKey;
+                }
+            }
             $redacted[$key] = self::redactValues($child, $secrets, $urls);
         }
 
