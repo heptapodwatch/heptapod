@@ -35,7 +35,7 @@ final readonly class NativeTargetAddressPolicy implements TargetAddressPolicy
     public function assertAddressAllowed(string $ip, bool $permitsPrivate): void
     {
         $packed = inet_pton($ip);
-        $validatedIp = self::classifiable($ip);
+        $validatedIp = $this->classifiable($ip);
         // Translation/tunnel prefixes can conceal private IPv4 destinations.
         $translated = $packed !== false && strlen($packed) === 16 && (
             substr($packed, 0, 12) === hex2bin('0064ff9b0000000000000000')
@@ -48,7 +48,7 @@ final readonly class NativeTargetAddressPolicy implements TargetAddressPolicy
             || (strlen($validatedPacked) === 16 && ord($validatedPacked[0]) === 0xFE && (ord($validatedPacked[1]) & 0xC0) === 0x80)
         );
         if ($linkLocal || $translated || in_array($validatedPacked, $this->metadataPacked, true)
-            || (! $permitsPrivate && ! self::isPublic($validatedIp))) {
+            || (! $permitsPrivate && ! $this->isPublic($validatedIp))) {
             $metadata = $validatedIp === '169.254.169.254' || in_array($validatedPacked, $this->metadataPacked, true);
             $class = $metadata ? 'cloud_metadata' : ($linkLocal ? 'link_local' : ($translated ? 'translation' : 'private_network'));
             throw new FetchException(new FetchFailure(FetchFailureKind::PrivateTarget, targetAddress: is_string($validatedIp) ? $validatedIp : $ip, targetClass: $class));
@@ -57,14 +57,14 @@ final readonly class NativeTargetAddressPolicy implements TargetAddressPolicy
 
     public function assertPrivateAddress(string $ip): void
     {
-        $validatedIp = self::classifiable($ip);
-        if (self::isPublic($validatedIp)) {
+        $validatedIp = $this->classifiable($ip);
+        if ($this->isPublic($validatedIp)) {
             throw new FetchException(new FetchFailure(FetchFailureKind::PrivateTarget, targetAddress: is_string($validatedIp) ? $validatedIp : $ip, targetClass: 'unsupported_scheme'));
         }
     }
 
     // Native flags do not classify mapped IPv6 by its embedded IPv4 range, so classify that IPv4 address.
-    private static function classifiable(string $ip): string|false
+    private function classifiable(string $ip): string|false
     {
         $packed = inet_pton($ip);
 
@@ -72,7 +72,7 @@ final readonly class NativeTargetAddressPolicy implements TargetAddressPolicy
             ? inet_ntop(substr($packed, 12)) : $ip;
     }
 
-    private static function isPublic(string|false $ip): bool
+    private function isPublic(string|false $ip): bool
     {
         return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE | FILTER_FLAG_GLOBAL_RANGE) !== false;
     }

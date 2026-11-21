@@ -46,7 +46,7 @@ final class InstanceHeartbeatCommand extends Command
         } catch (FetchException $exception) {
             // A listed host that resolved to a public address gets the same instruction as an unlisted one.
             if ($exception->failure->targetClass === 'unsupported_scheme') {
-                throw new RuntimeException(self::NeedsHttps, previous: $exception);
+                throw new RuntimeException(self::NeedsHttps, $exception->getCode(), previous: $exception);
             }
             throw $exception;
         }
