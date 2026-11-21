@@ -23,6 +23,7 @@ test('profile information can be updated', function (): void {
         ->patch(route('profile.update'), [
             'name' => 'Test User',
             'email' => 'test@example.com',
+            'current_password' => 'password',
         ]);
 
     $response
@@ -34,6 +35,38 @@ test('profile information can be updated', function (): void {
     $this->assertSame('Test User', $user->name);
     $this->assertSame('test@example.com', $user->email);
     $this->assertNull($user->email_verified_at);
+});
+
+test('changing the email address requires the current password', function (?string $currentPassword): void {
+    $user = User::factory()->create();
+    $original = $user->email;
+
+    $this->actingAs($user)->from(route('profile.edit'))
+        ->patch(route('profile.update'), array_filter(['name' => $user->name, 'email' => 'taken-over@example.test',
+            'current_password' => $currentPassword]))
+        ->assertSessionHasErrors('current_password')
+        ->assertRedirect(route('profile.edit'));
+
+    expect($user->refresh()->email)->toBe($original)->and($user->email_verified_at)->not->toBeNull();
+})->with([
+    'missing' => [null],
+    'wrong' => ['not-the-password'],
+]);
+
+test('a saved email address is stored the way sign-in resolves it and stays unique regardless of case', function (): void {
+    User::factory()->create(['email' => 'taken@example.test']);
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->from(route('profile.edit'))
+        ->patch(route('profile.update'), ['name' => $user->name, 'email' => 'Taken@Example.test', 'current_password' => 'password'])
+        ->assertSessionHasErrors('email');
+    $this->patch(route('profile.update'), ['name' => $user->name, 'email' => '  New.Address@Example.TEST ', 'current_password' => 'password'])
+        ->assertSessionHasNoErrors();
+
+    expect($user->refresh()->email)->toBe('new.address@example.test');
+    $this->post(route('logout'));
+    $this->post(route('login'), ['email' => 'New.Address@Example.test', 'password' => 'password']);
+    $this->assertAuthenticatedAs($user);
 });
 
 test('email verification status is unchanged when the email address is unchanged', function (): void {

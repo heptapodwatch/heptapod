@@ -4,14 +4,13 @@ namespace Heptapod\Concerns;
 
 use Heptapod\Models\User;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Validation\Rule;
 
 trait ProfileValidationRules
 {
     /**
      * Get the validation rules used to validate user profiles.
      *
-     * @return array<string, array<int, ValidationRule|array<mixed>|string>>
+     * @return array<string, array<int, ValidationRule|\Closure|array<mixed>|string>>
      */
     protected function profileRules(?int $userId = null): array
     {
@@ -34,7 +33,7 @@ trait ProfileValidationRules
     /**
      * Get the validation rules used to validate user emails.
      *
-     * @return array<int, ValidationRule|array<mixed>|string>
+     * @return array<int, ValidationRule|\Closure|array<mixed>|string>
      */
     protected function emailRules(?int $userId = null): array
     {
@@ -43,9 +42,16 @@ trait ProfileValidationRules
             'string',
             'email',
             'max:255',
-            $userId === null
-                ? Rule::unique(User::class)
-                : Rule::unique(User::class)->ignore($userId),
+            // Sign-in resolves an address in lower case, so addresses that differ only in case are the same account.
+            static function (string $attribute, mixed $value, \Closure $fail) use ($userId): void {
+                $taken = User::query()->getQuery()->whereRaw('lower(email) = lower(?)', [$value]);
+                if ($userId !== null) {
+                    $taken->where('id', '<>', $userId);
+                }
+                if ($taken->exists()) {
+                    $fail(__('validation.unique', ['attribute' => __('validation.attributes.'.$attribute)]));
+                }
+            },
         ];
     }
 }

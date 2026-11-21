@@ -148,7 +148,7 @@ update.form = updateForm
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ProfileController::destroy
-* @see app/Http/Controllers/Settings/ProfileController.php:63
+* @see app/Http/Controllers/Settings/ProfileController.php:65
 * @route '/settings/profile'
 */
 export const destroy = (options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -163,7 +163,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ProfileController::destroy
-* @see app/Http/Controllers/Settings/ProfileController.php:63
+* @see app/Http/Controllers/Settings/ProfileController.php:65
 * @route '/settings/profile'
 */
 destroy.url = (options?: RouteQueryOptions) => {
@@ -172,7 +172,7 @@ destroy.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ProfileController::destroy
-* @see app/Http/Controllers/Settings/ProfileController.php:63
+* @see app/Http/Controllers/Settings/ProfileController.php:65
 * @route '/settings/profile'
 */
 destroy.delete = (options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -182,7 +182,7 @@ destroy.delete = (options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ProfileController::destroy
-* @see app/Http/Controllers/Settings/ProfileController.php:63
+* @see app/Http/Controllers/Settings/ProfileController.php:65
 * @route '/settings/profile'
 */
 const destroyForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -197,7 +197,7 @@ const destroyForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ProfileController::destroy
-* @see app/Http/Controllers/Settings/ProfileController.php:63
+* @see app/Http/Controllers/Settings/ProfileController.php:65
 * @route '/settings/profile'
 */
 destroyForm.delete = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
