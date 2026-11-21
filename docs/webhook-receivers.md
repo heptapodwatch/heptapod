@@ -5,6 +5,8 @@ description: Verify the signature, timestamp and payload of a webhook delivery.
 
 Every webhook delivery is signed with the channel secret. Verify the signature and timestamp before you act on the payload.
 
+The signing secret needs at least 32 characters, for example a random hex string from `openssl rand -hex 32`. A channel saved earlier with a shorter secret keeps working until you enter a new secret.
+
 ## Headers
 
 | Header                                   | Value                                                                                           | Signed |

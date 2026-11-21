@@ -25,6 +25,7 @@
     "notifications.component_info_title": ":site — :component geändert",
     "notifications.component_summary": ":component geändert um :at.",
     "notifications.secret_too_short": "Das Geheimnis ist kürzer als 4 Zeichen. Bitte erneuern.",
+    "notifications.webhook_secret_minimum": "Der Signaturschlüssel muss mindestens 32 Zeichen lang sein.",
     "notifications.needs_attention_warning": "Benachrichtigungskanäle erfordern Aufmerksamkeit. Ersetzen Sie kurze Geheimnisse, bevor Sie sie wieder einschalten.",
     "Channels": "Kanäle",
     "Channels need attention": "Kanäle prüfen",
