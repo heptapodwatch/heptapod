@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use DOMDocument;
 use Heptapod\Contracts\AddonEvent;
 use Heptapod\Contracts\AvailabilityFailure;
+use Heptapod\Contracts\CheckConfigAttention;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\CheckDefinition;
 use Heptapod\Contracts\CheckDetailProvider;
@@ -52,9 +53,16 @@ use Illuminate\Support\Facades\Config;
 use League\Uri\Uri;
 use Spatie\Crawler\UrlParsers\SitemapUrlParser;
 
-final readonly class SitemapCheck implements CheckDetailProvider, CheckRunPresenter, CheckType, MailEvidenceProvider
+final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailProvider, CheckRunPresenter, CheckType, MailEvidenceProvider
 {
     public function __construct(private OutboundHttp $http, private SitemapPersistence $store, private SitemapDocumentReader $documents) {}
+
+    public function configAttentionReason(#[\SensitiveParameter] array $config): ?string
+    {
+        return is_string($config['path'] ?? null) && str_contains($config['path'], '?')
+            ? 'sitemap.path_no_query'
+            : null;
+    }
 
     public function mailEventPhrases(): array
     {

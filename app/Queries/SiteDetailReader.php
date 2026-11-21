@@ -13,6 +13,7 @@ use Heptapod\Checks\FreshnessSuppressionState;
 use Heptapod\Checks\History\RollupReader;
 use Heptapod\Checks\NoResultFreshness;
 use Heptapod\Checks\PerformanceAvailability;
+use Heptapod\Contracts\CheckConfigAttention;
 use Heptapod\Contracts\CheckDetailData;
 use Heptapod\Contracts\CheckDetailProvider;
 use Heptapod\Contracts\CheckHistoryData;
@@ -165,10 +166,8 @@ final readonly class SiteDetailReader
                 continue;
             }
             $type = in_array($check->type, $this->registry->keys(), true) ? $this->registry->get($check->type) : null;
-            $attentionReason = $check->type === CheckKey::Sitemap
-                && is_string($check->executionConfig()['path'] ?? null)
-                && str_contains($check->executionConfig()['path'], '?')
-                ? 'sitemap.path_no_query'
+            $attentionReason = $type instanceof CheckConfigAttention
+                ? $type->configAttentionReason($check->executionConfig())
                 : null;
             $settings[] = new CheckSettingsData($site->id, $check->id, $check->type, $strip->label_key, $check->enabled,
                 $check->interval_seconds, $type?->definition()->configSchema ?? new Schema([]),
