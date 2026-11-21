@@ -43,7 +43,8 @@ final readonly class StreamCertificateFetcher implements CertificateFetcher
         foreach ($addresses as $address) {
             $this->policy->assertAddressAllowed($address, $permitsPrivate);
         }
-        $ssl = ['verify_peer' => true, 'verify_peer_name' => true, 'peer_name' => trim($hostname, '[]'), 'SNI_enabled' => true];
+        $ssl = ['verify_peer' => true, 'verify_peer_name' => true, 'peer_name' => trim($hostname, '[]'), 'SNI_enabled' => true,
+            'capture_peer_cert' => true, 'capture_peer_cert_chain' => true];
         // An operator PEM bundle adds roots; it must not replace the system trust directory.
         $ssl['capath'] = openssl_get_cert_locations()['default_cert_dir'];
         $caFile = Config::get('certificate_health.ca_file');
@@ -74,43 +75,56 @@ final readonly class StreamCertificateFetcher implements CertificateFetcher
             if (stream_get_meta_data($socket)['timed_out']) {
                 throw new ExternalTimeoutException('TLS verification timed out.');
             }
+            // A verified verdict describes exactly the chain this handshake presented, never one from a later connection.
+            $chain = $verified ? $this->capturedChain($socket) : null;
         } finally {
             fclose($socket);
         }
-        // This second handshake is display-only, including for certificates rejected above.
-        $capture = stream_context_create(['ssl' => [
-            'capture_peer_cert' => true, 'capture_peer_cert_chain' => true,
-            'verify_peer' => false, 'verify_peer_name' => false,
-            'peer_name' => trim($hostname, '[]'), 'SNI_enabled' => true,
-        ]]);
-        $socket = $this->connect('ssl', $address, $port, $capture, $deadline);
-        try {
-            /** @var array{ssl: array{peer_certificate_chain?: list<\OpenSSLCertificate>}} $options */
-            $options = stream_context_get_options($socket);
-            $chain = [];
-            // Bounds constrain display work, not the native verification result. The fake uses the same limit in the check.
-            foreach (array_slice($options['ssl']['peer_certificate_chain'] ?? [], 0, 20) as $certificate) {
-                $pem = '';
-                if (! openssl_x509_export($certificate, $pem) || ! is_string($pem)) {
-                    throw new ExternalNetworkException('TLS certificate export failed.');
-                }
-                if (strlen($pem) > 65536) {
-                    break;
-                }
-                $chain[] = $pem;
+        if ($chain === null) {
+            // OpenSSL captures nothing from a rejected handshake; this second one only displays the rejected certificate.
+            $capture = stream_context_create(['ssl' => [
+                'capture_peer_cert' => true, 'capture_peer_cert_chain' => true,
+                'verify_peer' => false, 'verify_peer_name' => false,
+                'peer_name' => trim($hostname, '[]'), 'SNI_enabled' => true,
+            ]]);
+            $socket = $this->connect('ssl', $address, $port, $capture, $deadline);
+            try {
+                $chain = $this->capturedChain($socket);
+            } finally {
+                fclose($socket);
             }
-
-            /** @var array<string, mixed>|false $leaf */
-            $leaf = isset($chain[0]) ? openssl_x509_parse($chain[0]) : false;
-            if (! $verified && is_array($leaf) && $chain !== []) {
-                $failureReason = TlsFailureReason::forRejectedCertificate($leaf, $failureReason ?? TlsFailureReason::Handshake,
-                    $this->chainTrusted($chain, $ssl), time());
-            }
-
-            return new CertificateFetchResult($chain, $hostname, $port, $verified, $failureReason);
-        } finally {
-            fclose($socket);
         }
+        /** @var array<string, mixed>|false $leaf */
+        $leaf = isset($chain[0]) ? openssl_x509_parse($chain[0]) : false;
+        if (! $verified && is_array($leaf) && $chain !== []) {
+            $failureReason = TlsFailureReason::forRejectedCertificate($leaf, $failureReason ?? TlsFailureReason::Handshake,
+                $this->chainTrusted($chain, $ssl), time());
+        }
+
+        return new CertificateFetchResult($chain, $hostname, $port, $verified, $failureReason);
+    }
+
+    /** @param resource $socket
+     * @return list<string>
+     */
+    private function capturedChain(mixed $socket): array
+    {
+        /** @var array{ssl: array{peer_certificate_chain?: list<\OpenSSLCertificate>}} $options */
+        $options = stream_context_get_options($socket);
+        $chain = [];
+        // Bounds constrain display work, not the native verification result. The fake uses the same limit in the check.
+        foreach (array_slice($options['ssl']['peer_certificate_chain'] ?? [], 0, 20) as $certificate) {
+            $pem = '';
+            if (! openssl_x509_export($certificate, $pem) || ! is_string($pem)) {
+                throw new ExternalNetworkException('TLS certificate export failed.');
+            }
+            if (strlen($pem) > 65536) {
+                break;
+            }
+            $chain[] = $pem;
+        }
+
+        return $chain;
     }
 
     /** @param non-empty-list<string> $chain

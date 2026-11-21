@@ -52,6 +52,6 @@ runs:
       shell: bash
       run: |
         docker volume create heptapod-heavy-locks >/dev/null
-        FIXTURES_HTTP_PORT=80 FIXTURES_HTTPS_PORT=443 FIXTURES_HTTPS_ALT_PORT=444 FIXTURES_ALT_HTTP_PORT=80 DNS_FIXTURES_PORT=53 docker compose --profile fixtures up -d --wait fixtures fixtures-alt dns-fixtures
+        FIXTURES_HTTP_PORT=80 FIXTURES_HTTPS_PORT=443 FIXTURES_HTTPS_ALT_PORT=444 FIXTURES_TLS_ROTATION_PORT=447 FIXTURES_ALT_HTTP_PORT=80 DNS_FIXTURES_PORT=53 docker compose --profile fixtures up -d --wait fixtures fixtures-alt dns-fixtures
         echo '127.0.0.1 dns-fixtures ns.dns.fixture.test ns.provider.test fixtures.test external.fixtures.test expired.fixtures.test wrong-host.fixtures.test names.fixtures.test wildcard.fixtures.test www.wildcard.fixtures.test nested.www.wildcard.fixtures.test alt.fixtures.test self-signed.fixtures.test' | sudo tee -a /etc/hosts
         echo '127.0.0.2 second.fixtures.test' | sudo tee -a /etc/hosts

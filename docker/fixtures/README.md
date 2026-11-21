@@ -93,7 +93,7 @@ docker run --rm -v "$PWD/docker/fixtures:/fixtures" --entrypoint sh \
     alpine/openssl /fixtures/generate-tls.sh
 ```
 
-Native TLS security cases use https://names.fixtures.test (CN conflicts with SAN), https://www.wildcard.fixtures.test, https://wildcard.fixtures.test, https://nested.www.wildcard.fixtures.test, https://alt.fixtures.test and https://self-signed.fixtures.test. Only name-matching tests trust `tls/names.crt` as an operator PEM bundle. The separate self-signed certificate stays untrusted. https://fixtures.test:444 serves a 21-certificate chain to test bounded display capture without overriding native verification.
+Native TLS security cases use https://names.fixtures.test (CN conflicts with SAN), https://www.wildcard.fixtures.test, https://wildcard.fixtures.test, https://nested.www.wildcard.fixtures.test, https://alt.fixtures.test and https://self-signed.fixtures.test. Only name-matching tests trust `tls/names.crt` as an operator PEM bundle. The separate self-signed certificate stays untrusted. https://fixtures.test:444 serves a 21-certificate chain to test bounded display capture without overriding native verification. https://fixtures.test:447 rotates certificates per handshake (valid, then self-signed) after `GET http://fixtures.test/tls-rotation/reset`, so a test can prove that a verdict and its certificate details come from the same handshake; CI publishes it with `FIXTURES_TLS_ROTATION_PORT=447`.
 
 Regenerate these additional fixtures after the base certificates, inside this checkout's app container:
 

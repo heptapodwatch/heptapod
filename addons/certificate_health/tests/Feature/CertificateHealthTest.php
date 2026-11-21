@@ -28,8 +28,10 @@ use Heptapod\Testing\ClaimedRun;
 use Heptapod\Testing\FakeCertificateFetcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Spatie\SslCertificate\SslCertificate;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
@@ -126,6 +128,17 @@ it('fetches and evaluates the real offline TLS variants through the registered c
     ['expired.fixtures.test', RunResult::Failed, 'native_verification'],
     ['wrong-host.fixtures.test', RunResult::Failed, 'native_verification'],
 ]);
+
+it('reports the certificate of the verified handshake when the server rotates certificates between connections', function (): void {
+    // fixtures.test:447 alternates valid.crt and the untrusted self-signed.crt per handshake, starting after this reset.
+    Http::get('http://fixtures.test/tls-rotation/reset')->throw();
+    $outcome = app(CheckRegistry::class)->get(CheckKey::CertificateHealth)->execute(certificateContext('https://fixtures.test:447'));
+
+    $details = $outcome->evidence->toArray()['certificate_details'];
+    expect($outcome->result)->toBe(RunResult::Succeeded)
+        ->and($details['fingerprint'])->toBe(SslCertificate::createFromString((string) file_get_contents(base_path('docker/fixtures/tls/valid.crt')))->getFingerprintSha256())
+        ->and($details['domain'])->toBe('fixtures.test');
+});
 
 it('publishes only the specified attempt and rolls back all certificate writes with the recorder transaction', function (): void {
     $pem = file_get_contents(base_path('docker/fixtures/tls/valid.crt'));

@@ -76,6 +76,7 @@ services:
             - '127.0.0.1:${FIXTURES_HTTP_PORT:-8480}:80'
             - '127.0.0.1:${FIXTURES_HTTPS_PORT:-8481}:443'
             - '127.0.0.1:${FIXTURES_HTTPS_ALT_PORT:-444}:444'
+            - '127.0.0.1:${FIXTURES_TLS_ROTATION_PORT:-0}:447'
         healthcheck:
             test:
                 [
