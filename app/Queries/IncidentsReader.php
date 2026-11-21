@@ -449,11 +449,13 @@ final readonly class IncidentsReader
         $check = $incident->check ?? throw new \LogicException('Incident check missing.');
         $snapshot = $incident->evidence;
         $context = RedactionContext::forSite($site, $check, $snapshot);
-        $facts = SecretRedactor::redactValues($snapshot, $context->secrets, $context->urls);
-        if (! is_array($facts)) {
-            throw new \LogicException('Incident evidence must be an object.');
+        $facts = [];
+        foreach ($snapshot as $field => $value) {
+            // Preserve protocol keys and uptime reason/failure codes; redact diagnostic text.
+            $facts[$field] = ($check->type === CheckKey::Uptime && in_array($field, ['issues', 'failure_kind', 'availability_failure'], true))
+                ? $value
+                : SecretRedactor::redactValues($value, $context->secrets, $context->urls);
         }
-        /** @var array<string, mixed> $facts */
         $recoveryQuery = Event::query();
         $recoveryQuery->getQuery()->where('site_id', $incident->site_id)
             ->where('occurred_at', '>=', $incident->opened_at->format('Y-m-d H:i:s.uP'))

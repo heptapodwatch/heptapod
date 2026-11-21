@@ -20,13 +20,13 @@ final class SecretRedactor
      * @param  array<array-key, mixed>  $secrets
      * @param  array<array-key, mixed>  $urls
      */
-    public static function redactValues(mixed $value, #[\SensitiveParameter] array $secrets, array $urls = []): mixed
+    public static function redactValues(mixed $value, #[\SensitiveParameter] array $secrets, array $urls = [], bool $redactNumeric = false): mixed
     {
         $secrets = self::secretValues($secrets);
         if (is_string($value)) {
             return self::redact($value, $secrets, $urls);
         }
-        if (is_int($value) || is_float($value)) {
+        if ($redactNumeric && (is_int($value) || is_float($value))) {
             $text = (string) $value;
             $redacted = self::redact($text, $secrets, $urls);
 
@@ -39,14 +39,14 @@ final class SecretRedactor
         foreach ($value as $key => $child) {
             if (is_string($key)) {
                 $key = self::redact($key, $secrets, $urls);
-            } else {
+            } elseif ($redactNumeric) {
                 $text = (string) $key;
                 $maskedKey = self::redact($text, $secrets, $urls);
                 if ($maskedKey !== $text) {
                     $key = $maskedKey;
                 }
             }
-            $redacted[$key] = self::redactValues($child, $secrets, $urls);
+            $redacted[$key] = self::redactValues($child, $secrets, $urls, $redactNumeric);
         }
 
         return $redacted;

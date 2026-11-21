@@ -300,7 +300,7 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
             }
             $identity = hash('sha256', json_encode([$source->status, $source->notificationMessage, $source->shortSummary], JSON_THROW_ON_ERROR));
             /** @var array<int|string, mixed> $meta */
-            $meta = SecretRedactor::redactValues($source->meta, $secrets, $urls);
+            $meta = SecretRedactor::redactValues($source->meta, $secrets, $urls, redactNumeric: true);
             $component = new ApplicationHealthComponent($baseline['id'], $this->redactText($source->name, $secrets, $urls),
                 $this->redactText($source->label, $secrets, $urls), $this->redactText($source->status, $secrets, $urls),
                 $this->redactText($source->notificationMessage, $secrets, $urls), $this->redactText($source->shortSummary, $secrets, $urls), $meta, $result->value);

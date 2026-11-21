@@ -22,10 +22,13 @@ use Heptapod\Contracts\RunResult;
 use Heptapod\Jobs\RunCheck;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
+use Heptapod\Models\Incident;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
+use Heptapod\Queries\IncidentsReader;
 use Heptapod\Testing\FakeOutboundHttp;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Tests\Support\ClosedGuardedHttp;
@@ -436,25 +439,142 @@ it('stores uptime payload, raw_payload and expected_final_redirect_url as secret
     // Short non-credential request bodies still work through validation and real engine execution.
     expect(runUptimeAddon(['http_verb' => 'POST', 'raw_payload' => '{}'], response: new FetchResult(200))->result)->toBe(RunResult::Succeeded);
 
-    // Migration moves legacy plaintext values into encrypted config_secrets idempotently.
+    // Migration moves legacy plaintext values into encrypted config_secrets idempotently and down() restores them without disturbing existing encrypted headers.
+    $existingHeaders = Crypt::encryptString(json_encode(['http_client_headers' => [['value' => 'Bearer keep-header-secret']]], JSON_THROW_ON_ERROR));
     DB::table('checks')->where('id', $check->id)->update([
         'config' => json_encode([
             'http_verb' => 'POST',
-            'payload' => [['name' => 'k', 'value' => 'legacy-form-secret']],
+            'http_client_headers' => [['name' => 'Authorization', 'value' => null]],
+            'payload' => [
+                ['name' => 'k1', 'value' => 'legacy-form-secret-1'],
+                ['name' => 'k2', 'value' => 'legacy-form-secret-2'],
+            ],
             'raw_payload' => '{"k":"legacy-raw-secret"}',
             'expected_final_redirect_url' => 'https://payload-secret.example.test/legacy?token=legacy-redir',
         ], JSON_THROW_ON_ERROR),
-        'config_secrets' => null,
+        'config_secrets' => $existingHeaders,
     ]);
     $migration = require database_path('migrations/2026_11_21_130000_move_uptime_request_secrets_to_config_secrets.php');
     $migration->up();
     $migration->up();
 
     $migratedRaw = (string) DB::table('checks')->where('id', $check->id)->value('config');
-    expect($migratedRaw)->not->toContain('legacy-form-secret', 'legacy-raw-secret', 'legacy-redir');
+    expect($migratedRaw)->not->toContain('legacy-form-secret-1', 'legacy-form-secret-2', 'legacy-raw-secret', 'legacy-redir');
     expect($check->refresh()->executionConfig())->toMatchArray([
-        'payload' => [['name' => 'k', 'value' => 'legacy-form-secret']],
+        'http_client_headers' => [['name' => 'Authorization', 'value' => 'Bearer keep-header-secret']],
+        'payload' => [
+            ['name' => 'k1', 'value' => 'legacy-form-secret-1'],
+            ['name' => 'k2', 'value' => 'legacy-form-secret-2'],
+        ],
         'raw_payload' => '{"k":"legacy-raw-secret"}',
         'expected_final_redirect_url' => 'https://payload-secret.example.test/legacy?token=legacy-redir',
     ]);
+
+    $migration->down();
+    $rolledBackConfig = json_decode((string) DB::table('checks')->where('id', $check->id)->value('config'), true, flags: JSON_THROW_ON_ERROR);
+    $rolledBackSecrets = json_decode(Crypt::decryptString((string) DB::table('checks')->where('id', $check->id)->value('config_secrets')), true, flags: JSON_THROW_ON_ERROR);
+    expect($rolledBackConfig)->toMatchArray([
+        'payload' => [
+            ['name' => 'k1', 'value' => 'legacy-form-secret-1'],
+            ['name' => 'k2', 'value' => 'legacy-form-secret-2'],
+        ],
+        'raw_payload' => '{"k":"legacy-raw-secret"}',
+        'expected_final_redirect_url' => 'https://payload-secret.example.test/legacy?token=legacy-redir',
+    ])->and($rolledBackSecrets)->toBe(['http_client_headers' => [['value' => 'Bearer keep-header-secret']]]);
+});
+
+it('preserves shifted distinct-name payload rows and refuses ambiguous masked duplicate-name edits', function (): void {
+    $owner = User::factory()->owner()->create();
+    $schema = app(CheckRegistry::class)->get(CheckKey::Uptime)->definition()->configSchema;
+    $check = Check::factory()->create([
+        'type' => CheckKey::Uptime,
+        'config' => $schema->validateConfig([
+            'http_verb' => 'POST',
+            'payload' => [
+                ['name' => 'first', 'value' => 'secret-first'],
+                ['name' => 'second', 'value' => 'secret-second'],
+            ],
+        ]),
+    ]);
+    $url = '/sites/'.$check->site_id.'/checks/'.$check->id;
+
+    // Removing the first distinct-name row keeps the surviving row's secret intact despite position shift.
+    $this->actingAs($owner)->patchJson($url, [
+        'payload' => [['name' => 'second', 'value' => '********']],
+    ])->assertRedirect();
+    expect($check->refresh()->executionConfig()['payload'])->toBe([
+        ['name' => 'second', 'value' => 'secret-second'],
+    ]);
+
+    // Store two duplicate-name rows.
+    $this->actingAs($owner)->patchJson($url, [
+        'payload' => [
+            ['name' => 'tag', 'value' => 'secret-one'],
+            ['name' => 'tag', 'value' => 'secret-two'],
+        ],
+    ])->assertRedirect();
+    expect($check->refresh()->executionConfig()['payload'])->toBe([
+        ['name' => 'tag', 'value' => 'secret-one'],
+        ['name' => 'tag', 'value' => 'secret-two'],
+    ]);
+
+    // Editing another field with both duplicate-name rows masked preserves order.
+    $this->actingAs($owner)->patchJson($url, [
+        'timeout' => 20,
+        'payload' => [
+            ['name' => 'tag', 'value' => '********'],
+            ['name' => 'tag', 'value' => '********'],
+        ],
+    ])->assertRedirect();
+    expect($check->refresh()->executionConfig()['payload'])->toBe([
+        ['name' => 'tag', 'value' => 'secret-one'],
+        ['name' => 'tag', 'value' => 'secret-two'],
+    ]);
+
+    // Removing one of two duplicate-name rows while leaving the surviving row masked must fail loudly, not swap secrets.
+    $this->actingAs($owner)->patchJson($url, [
+        'payload' => [['name' => 'tag', 'value' => '********']],
+    ])->assertUnprocessable()->assertJsonValidationErrors('payload.0.value');
+    expect($check->refresh()->executionConfig()['payload'])->toBe([
+        ['name' => 'tag', 'value' => 'secret-one'],
+        ['name' => 'tag', 'value' => 'secret-two'],
+    ]);
+
+    // Re-entering the surviving value succeeds.
+    $this->actingAs($owner)->patchJson($url, [
+        'payload' => [['name' => 'tag', 'value' => 'secret-two']],
+    ])->assertRedirect();
+    expect($check->refresh()->executionConfig()['payload'])->toBe([
+        ['name' => 'tag', 'value' => 'secret-two'],
+    ]);
+});
+
+it('redacts uptime diagnostic URLs without rewriting protocol keys, issue codes or numeric facts', function (): void {
+    $run = runUptimeAddon([
+        'http_verb' => 'POST',
+        'timeout' => 1234,
+        'payload' => [
+            ['name' => 'a', 'value' => 'issues'],
+            ['name' => 'b', 'value' => 'status'],
+            ['name' => 'c', 'value' => 'timeout'],
+            ['name' => 'd', 'value' => '1234'],
+            ['name' => 'e', 'value' => 'secret-echo-99'],
+        ],
+    ], response: new FetchResult(503, effectiveUrl: 'http://fixtures.test/fail?echo=secret-echo-99'));
+
+    expect($run->result)->toBe(RunResult::Failed)
+        ->and($run->evidence['status_code'])->toBe(503)
+        ->and($run->evidence['issues'])->toBe(['status'])
+        ->and($run->evidence['timeout_seconds'])->toBe(1234)
+        ->and($run->evidence['effective_url'])->toBe('http://fixtures.test/fail?[redacted]');
+
+    $history = app(CheckRegistry::class)->get(CheckKey::Uptime)->history($run->check_id);
+    expect($history->runs[0]['reasons'])->toBe(['uptime.status']);
+
+    $check = Check::query()->findOrFail($run->check_id);
+    $incident = Incident::factory()->for($check)->create(['evidence' => $run->evidence]);
+    $incidentEvidence = app(IncidentsReader::class)->evidence($incident);
+    expect($incidentEvidence->facts['issues'])->toBe(['status'])
+        ->and($incidentEvidence->facts['timeout_seconds'])->toBe(1234)
+        ->and($incidentEvidence->facts['effective_url'])->toBe('http://fixtures.test/fail?[redacted]');
 });

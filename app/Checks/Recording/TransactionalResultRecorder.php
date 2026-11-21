@@ -20,6 +20,7 @@ use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\CheckType;
 use Heptapod\Contracts\GuardsAcceptance;
 use Heptapod\Contracts\NoResultReason;
+use Heptapod\Contracts\RedactsEvidence;
 use Heptapod\Contracts\RunPhase;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Contracts\SecretRedactor;
@@ -172,8 +173,19 @@ final readonly class TransactionalResultRecorder implements ResultRecorder
             $stored->summary = $summary['key'] ?? throw new \LogicException('A run must have a summary.');
             $stored->summary_params = $summary['params'];
             $redaction = RedactionContext::forSite($site, $check, $attributes['evidence']);
-            /** @var array<string, mixed> $redactedEvidence Redaction preserves the input array shape. */
-            $redactedEvidence = SecretRedactor::redactValues($attributes['evidence'], $redaction->secrets, $redaction->urls);
+            if ($outcome->evidence instanceof RedactsEvidence) {
+                $redactedEvidence = $outcome->evidence->redactedEvidence($redaction->secrets, $redaction->urls);
+                if ($presentationEvents !== []) {
+                    $redactedEvidence['presentation_events'] = SecretRedactor::redactValues($presentationEvents, $redaction->secrets, $redaction->urls);
+                }
+            } else {
+                /** @var array<string, mixed> $redactedEvidence */
+                $redactedEvidence = [];
+                foreach ($attributes['evidence'] as $field => $value) {
+                    // Preserve top-level evidence DTO keys; redact only nested values.
+                    $redactedEvidence[(string) $field] = SecretRedactor::redactValues($value, $redaction->secrets, $redaction->urls);
+                }
+            }
             // The availability class is a protocol fact, not target-supplied display text.
             if ($outcome->availabilityFailure instanceof AvailabilityFailure) {
                 $redactedEvidence['availability_failure'] = $outcome->availabilityFailure->value;

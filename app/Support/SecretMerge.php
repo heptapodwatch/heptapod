@@ -39,13 +39,41 @@ final class SecretMerge
             }
         }
         if ($field->items instanceof Field) {
-            // Case-insensitively unique names identify rows across reordering; other lists use position.
-            $uniqueNames = self::hasCaseInsensitiveNames($field->items);
-            $previousByName = $uniqueNames ? array_change_key_case(array_column($previous, null, 'name')) : [];
-            foreach ($value as $index => $item) {
-                $name = is_array($item) ? $item['name'] ?? null : null;
-                $oldItem = $uniqueNames ? (is_string($name) ? $previousByName[strtolower($name)] ?? null : null) : ($previous[$index] ?? null);
-                $value[$index] = self::preserve($field->items, $item, $oldItem, $path.'.'.$index, $nullClearsNullable);
+            if (isset($field->items->properties['name'])) {
+                $caseInsensitive = self::hasCaseInsensitiveNames($field->items);
+                $previousGroups = [];
+                foreach ($previous as $item) {
+                    if (is_array($item) && is_string($item['name'] ?? null)) {
+                        $key = $caseInsensitive ? strtolower($item['name']) : $item['name'];
+                        $previousGroups[$key][] = $item;
+                    }
+                }
+                $incomingCounts = [];
+                foreach ($value as $item) {
+                    if (is_array($item) && is_string($item['name'] ?? null)) {
+                        $key = $caseInsensitive ? strtolower($item['name']) : $item['name'];
+                        $incomingCounts[$key] = ($incomingCounts[$key] ?? 0) + 1;
+                    }
+                }
+                $seen = [];
+                foreach ($value as $index => $item) {
+                    $oldItem = null;
+                    if (is_array($item) && is_string($item['name'] ?? null)) {
+                        $key = $caseInsensitive ? strtolower($item['name']) : $item['name'];
+                        $occurrence = $seen[$key] ?? 0;
+                        $seen[$key] = $occurrence + 1;
+                        $group = $previousGroups[$key] ?? [];
+                        // Match uniquely named rows across removals/reordering, and duplicate-name rows only when their count is unchanged.
+                        if ($group !== [] && ($incomingCounts[$key] ?? 0) === count($group)) {
+                            $oldItem = $group[$occurrence];
+                        }
+                    }
+                    $value[$index] = self::preserve($field->items, $item, $oldItem, $path.'.'.$index, $nullClearsNullable);
+                }
+            } else {
+                foreach ($value as $index => $item) {
+                    $value[$index] = self::preserve($field->items, $item, $previous[$index] ?? null, $path.'.'.$index, $nullClearsNullable);
+                }
             }
         }
 
