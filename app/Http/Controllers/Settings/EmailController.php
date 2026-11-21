@@ -11,7 +11,6 @@ use Heptapod\Data\Ui\InstanceSettingsData;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
-use Heptapod\SystemHealth\ReadSystemHealth;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -20,13 +19,13 @@ use Inertia\Response;
 /** Settings → Email (Owner): the email appearance with its live preview, and the read-only delivery facts. */
 final class EmailController extends Controller
 {
-    public function edit(Request $request, InstanceSettings $settings, ReadSystemHealth $health): Response
+    public function edit(Request $request, InstanceSettings $settings): Response
     {
         $this->owner($request);
         $logoUrl = static fn (string $variant, ?string $path): ?string => $path === null ? null
             : route('settings.email.logo', ['variant' => $variant, 'file' => basename($path)]);
 
-        return Inertia::render('settings/email', new EmailPageData(InstanceSettingsData::current($settings, $health), new EmailSettingsData(
+        return Inertia::render('settings/email', new EmailPageData(InstanceSettingsData::current($settings), new EmailSettingsData(
             $settings->mail_sender_name, $settings->mail_accent, $settings->mail_footer,
             $logoUrl('light', $settings->mail_logo_path), $logoUrl('dark', $settings->mail_logo_dark_path),
             SaveEmailSettings::SenderNameMax, SaveEmailSettings::FooterMax, SaveEmailSettings::LogoMaxKilobytes)));

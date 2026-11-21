@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Heptapod\Addons\Crawl;
 
+use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\FindingReclassificationPlan;
 use Heptapod\Contracts\FindingReclassifier;
+use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\RunResult;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -40,7 +42,8 @@ final class CrawlReclassifier implements FindingReclassifier
             return null;
         }
         // Raw retention may have dropped the run of a still retained baseline (e.g. a paused check): relabel the snapshot only.
-        $run = DB::table('check_runs')->where('id', $snapshot['run_id'])->first(['result', 'summary', 'metrics', 'evidence']);
+        $run = DB::table('check_runs')->where('check_id', $checkId)->where('id', $snapshot['run']->id)
+            ->where('ended_at', $snapshot['run']->endedAt->format('Y-m-d H:i:s.uP'))->first(['result', 'summary', 'metrics', 'evidence']);
         /** @var (\stdClass&object{result: string, summary: string, metrics: string|null, evidence: string|null})|null $run */
         /** @var array<string, mixed> $metrics */
         $metrics = $run?->metrics === null ? [] : json_decode($run->metrics, true, flags: JSON_THROW_ON_ERROR);
@@ -63,7 +66,7 @@ final class CrawlReclassifier implements FindingReclassifier
             $findings[] = new CrawlFinding($row->crawled_url, $row->crawled_url, $row->status_code, null, null, null, $row->type, $label, $row->internal);
         }
         if (DB::table('checks')->where('id', $checkId)->value('type') !== CheckKey::BrokenLinks->value) {
-            return new FindingReclassificationPlan($checkId, $snapshot['id'], $snapshot['run_id'], LinkClassificationPolicy::VERSION, [], $evaluated, $labels, false, $before, $before, null, $metrics, [], false);
+            return new FindingReclassificationPlan($checkId, $snapshot['id'], $snapshot['run'], LinkClassificationPolicy::VERSION, [], $evaluated, $labels, false, $before, $before, null, $metrics, [], false);
         }
         $counted = array_fill_keys($evaluated, true);
         $stillBroken = [];
@@ -101,7 +104,7 @@ final class CrawlReclassifier implements FindingReclassifier
         ];
         $metrics = [...$metrics, 'broken_internal' => $brokenInternal, 'broken_external' => count($remainingFindings) - $brokenInternal];
 
-        return new FindingReclassificationPlan($checkId, $snapshot['id'], $snapshot['run_id'], LinkClassificationPolicy::VERSION, $relabeled, $remaining, $labels, $nothingRemains,
+        return new FindingReclassificationPlan($checkId, $snapshot['id'], $snapshot['run'], LinkClassificationPolicy::VERSION, $relabeled, $remaining, $labels, $nothingRemains,
             $before, $after, $after !== $before && $run?->summary === 'broken_links.'.$before?->value ? 'broken_links.'.$after?->value : null, $metrics, $evidencePatch, $complete);
     }
 
@@ -118,9 +121,13 @@ final class CrawlReclassifier implements FindingReclassifier
         }
     }
 
-    public function explainedByRelabeling(int $checkId, int $runId, ?array $findingIds, array $relabeledFindingIds): bool
+    public function explainedByRelabeling(int $checkId, int $runId, ?array $findingIds, array $relabeledFindingIds, ?CarbonImmutable $runEndedAt = null): bool
     {
-        $snapshot = $this->snapshot(DB::table('crawl_snapshots')->where('check_id', $checkId)->where('run_id', $runId)->whereNotNull('run_ended_at'));
+        $query = DB::table('crawl_snapshots')->where('check_id', $checkId)->where('run_id', $runId)->whereNotNull('run_ended_at');
+        if ($runEndedAt instanceof CarbonImmutable) {
+            $query->where('run_ended_at', $runEndedAt->format('Y-m-d H:i:s.uP'));
+        }
+        $snapshot = $this->snapshot($query, requireUnique: true);
         if ($snapshot === null) {
             return false;
         }
@@ -146,21 +153,30 @@ final class CrawlReclassifier implements FindingReclassifier
         return count($seen) === count($ids);
     }
 
-    /** @return array{id: int, run_id: int, evaluated: list<string>, policy_version: int|null}|null */
-    private function snapshot(Builder $query): ?array
+    /** @return array{id: int, run: RunReference, evaluated: list<string>, policy_version: int|null}|null */
+    private function snapshot(Builder $query, bool $requireUnique = false): ?array
     {
         // Before the upgrade migration the column is missing and every snapshot is legacy (read-only preflight on the old schema).
-        $row = $query->first(['id', 'run_id', 'evaluated_finding_ids', ...($this->versioned() ? ['classification_policy_version'] : [])]);
+        $columns = ['id', 'run_id', 'run_ended_at', 'evaluated_finding_ids', ...($this->versioned() ? ['classification_policy_version'] : [])];
+        if ($requireUnique) {
+            $rows = $query->limit(2)->get($columns);
+            if ($rows->count() !== 1) {
+                return null;
+            }
+            $row = $rows->first();
+        } else {
+            $row = $query->first($columns);
+        }
         if ($row === null) {
             return null;
         }
         $version = $this->versioned() ? $row->classification_policy_version : null;
         $evaluated = is_string($row->evaluated_finding_ids) ? json_decode($row->evaluated_finding_ids, true, flags: JSON_THROW_ON_ERROR) : null;
-        if (! is_int($row->id) || ! is_int($row->run_id) || ($version !== null && ! is_int($version)) || ! is_array($evaluated) || ! array_is_list($evaluated) || ! array_all($evaluated, static fn (mixed $id): bool => is_string($id))) {
+        if (! is_int($row->id) || ! is_int($row->run_id) || ! is_string($row->run_ended_at) || ($version !== null && ! is_int($version)) || ! is_array($evaluated) || ! array_is_list($evaluated) || ! array_all($evaluated, static fn (mixed $id): bool => is_string($id))) {
             throw new \LogicException('Malformed crawl snapshot row.');
         }
 
-        return ['id' => $row->id, 'run_id' => $row->run_id, 'evaluated' => array_values(array_filter($evaluated, is_string(...))), 'policy_version' => $version];
+        return ['id' => $row->id, 'run' => new RunReference($row->run_id, CarbonImmutable::parse($row->run_ended_at)), 'evaluated' => array_values(array_filter($evaluated, is_string(...))), 'policy_version' => $version];
     }
 
     /** @return array{string, string|null, bool} Identity, label under the current policy, internal. */

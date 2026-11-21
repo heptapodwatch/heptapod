@@ -13,11 +13,17 @@ use Heptapod\Models\Invitation;
 use Heptapod\Models\User;
 use Heptapod\Notifications\PasswordReset;
 use Heptapod\Notifications\TeamInvitation;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Passkeys\Passkeys;
+use Symfony\Component\Mailer\Exception\TransportException;
+use Symfony\Component\Mailer\SentMessage;
+use Symfony\Component\Mailer\Transport\AbstractTransport;
+use Symfony\Component\Mailer\Transport\TransportInterface;
 
 require_once __DIR__.'/../Support/NotificationChannels.php';
 
@@ -262,6 +268,41 @@ it('invalidates the old bearer link on resend', function (): void {
     $this->postJson(route('settings.members.resend', $invitation->id))->assertNoContent();
     expect($invitation->refresh()->token_hash)->not->toBe($previousHash);
     Notification::assertSentOnDemand(TeamInvitation::class, 2);
+});
+
+it('keeps the existing invitation link valid when resend mail delivery fails', function (): void {
+    $owner = User::factory()->owner()->create();
+    $token = bin2hex(random_bytes(32));
+    $previousExpires = CarbonImmutable::now()->startOfSecond()->addDays(2);
+    $invitation = Invitation::query()->create([
+        'email' => 'invitee@example.test',
+        'token_hash' => hash('sha256', $token),
+        'role' => 'Admin',
+        'client_scope' => ClientScope::All->value,
+        'client_ids' => [],
+        'inviter_id' => $owner->id,
+        'expires_at' => $previousExpires,
+    ]);
+    Mail::extend('failing-resend', static fn (): TransportInterface => new class extends AbstractTransport
+    {
+        protected function doSend(SentMessage $message): void
+        {
+            throw new TransportException('SMTP unreachable');
+        }
+
+        public function __toString(): string
+        {
+            return 'failing-resend';
+        }
+    });
+    config(['mail.default' => 'failing-resend', 'mail.mailers.failing-resend' => ['transport' => 'failing-resend']]);
+
+    $this->actingAs($owner)->postJson(route('settings.members.resend', $invitation->id))->assertServerError();
+
+    expect($invitation->refresh()->token_hash)->toBe(hash('sha256', $token))
+        ->and($invitation->expires_at->equalTo($previousExpires))->toBeTrue();
+    Auth::logout();
+    $this->getJson(route('invitations.show', $token))->assertOk();
 });
 
 it('rate-limits invitation resends per invitation and per actor', function (): void {

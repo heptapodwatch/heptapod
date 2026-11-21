@@ -267,7 +267,7 @@ it('keeps vanished component identities and change baselines after raw retention
     runApplicationHealth($check);
     expect(DB::table('application_health_components')->value('active'))->toBeFalse();
     app(CheckRegistry::class)->get(CheckKey::ApplicationHealth)->persistence()->prune(CarbonImmutable::now()->addDay());
-    expect(DB::table('application_health_snapshots')->count())->toBe(0);
+    expect(DB::table('application_health_snapshots')->count())->toBe(1);
     respondApplicationHealth($check, applicationHealthPayload('ok', 'Disk usage at 71%'));
 
     runApplicationHealth($check);

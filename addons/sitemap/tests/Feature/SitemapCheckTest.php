@@ -1606,3 +1606,47 @@ it('bounds sitemap change event diffs when many issues appear at once', function
         ->and(count($event->payload['new']))->toBeLessThanOrEqual(100)
         ->and($event->payload['new_count'])->toBe(130);
 });
+
+it('exports carried-forward broken issues, unchecked URLs and all not-verifiable rows from sitemap_findings', function (): void {
+    $context = sitemapContext(['speed' => 'fastest', 'urls_per_run' => '100']);
+    $blockedUrls = array_map(static fn (int $index): string => 'http://fixtures.test/blocked-'.$index, range(1, 55));
+    $okUrls = array_map(static fn (int $index): string => 'http://fixtures.test/ok-'.$index, range(1, 45));
+    $uncheckedUrls = ['http://fixtures.test/unchecked-1', 'http://fixtures.test/unchecked-2'];
+    $phase = 'baseline';
+    app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static function (FetchRequest $request) use (&$phase, $blockedUrls, $okUrls, $uncheckedUrls): FetchResult {
+        if ($request->url === 'http://fixtures.test/sitemap.xml') {
+            return new FetchResult(200, sitemapXml($phase === 'baseline'
+                ? ['http://fixtures.test/carried-broken']
+                : [...$blockedUrls, ...$okUrls, ...$uncheckedUrls, 'http://fixtures.test/carried-broken']));
+        }
+        if ($request->url === 'http://fixtures.test/carried-broken') {
+            return new FetchResult(404, failure: new FetchFailure(FetchFailureKind::HttpStatus, 404));
+        }
+        if (str_contains($request->url, '/blocked-')) {
+            return new FetchResult(403, headers: ['cf-mitigated' => ['challenge']]);
+        }
+
+        return new FetchResult(200);
+    }));
+
+    runSitemap($context);
+    $phase = 'rotated';
+    $partial = runSitemap($context);
+
+    $user = User::factory()->owner()->create();
+    $csv = $this->actingAs($user)->get(route('sites.checks.findings', [
+        'site' => $context->siteId, 'check' => $context->checkId, 'format' => 'csv',
+        'run' => $partial->id, 'observed_at' => $partial->ended_at->format('Y-m-d\TH:i:s.uP'),
+    ]))->assertOk()->streamedContent();
+    $rows = array_map(
+        static fn (string $line): array => str_getcsv($line, escape: '\\'),
+        array_slice(explode("\r\n", rtrim(substr($csv, 3), "\r\n")), 1),
+    );
+    $urls = array_column($rows, 0);
+    $byUrlAndResult = array_map(static fn (array $row): string => $row[0].'|'.$row[1], $rows);
+
+    expect($byUrlAndResult)->toContain('http://fixtures.test/carried-broken|404 · URL did not return HTTP 200.')
+        ->and($byUrlAndResult)->toContain('http://fixtures.test/unchecked-1|Not checked')
+        ->and($byUrlAndResult)->toContain('http://fixtures.test/unchecked-2|Not checked')
+        ->and(array_values(array_filter($urls, static fn (string $url): bool => str_contains($url, '/blocked-'))))->toHaveCount(55);
+});

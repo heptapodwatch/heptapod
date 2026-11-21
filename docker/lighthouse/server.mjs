@@ -310,7 +310,9 @@ const server = http.createServer(async (request, response) => {
                 ? /net::(ERR_[A-Z_]+)/.exec(lhr.runtimeError.message)?.[1]
                 : null;
             const error = normalizeError(lhr.runtimeError, diagnosticSecrets(url, options, proxyToken), nativeCode);
-            return send(200, { runtimeError: error, target_status_code: lhr.target_status_code, target_host: lhr.target_host });
+            if (Object.hasOwn(lhr, 'target_port') && lhr.target_port !== null && (!Number.isInteger(lhr.target_port) || lhr.target_port < 1 || lhr.target_port > 65535))
+                throw new Error('Invalid worker navigation port');
+            return send(200, { runtimeError: error, target_status_code: lhr.target_status_code, target_host: lhr.target_host, ...(Object.hasOwn(lhr, 'target_port') ? { target_port: lhr.target_port } : {}) });
         }
         if (typeof lhr.lighthouseVersion !== 'string' || !lhr.audits)
             throw new Error('Invalid LHR');

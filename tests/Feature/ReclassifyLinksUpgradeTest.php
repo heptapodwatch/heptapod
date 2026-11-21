@@ -230,3 +230,35 @@ it('streams reclassification one check at a time without loading every snapshot 
 
     expect($milestones)->toBe(['read:first', 'update:first', 'read:second', 'update:second']);
 });
+
+it('uses the partition-safe run reference when another partition holds the same check_run id', function (): void {
+    // Place the colliding foreign run in the earlier partition (2026-10) so an unpartitioned id lookup reads it first.
+    $this->travelTo(CarbonImmutable::parse('2026-11-05T12:00:00Z'));
+    $legacy = legacyLinkUpgrade();
+    $foreign = Check::factory()->create(['type' => CheckKey::Uptime, 'latest_run_result' => CheckResult::Failed]);
+    $earlierAt = CarbonImmutable::parse('2026-10-05T12:00:00Z');
+    DB::table('check_runs')->insert([
+        'id' => $legacy['run']->id,
+        'check_id' => $foreign->id,
+        'check_type' => CheckKey::Uptime->value,
+        'result' => RunResult::Failed->value,
+        'started_at' => $earlierAt,
+        'ended_at' => $earlierAt,
+        'summary' => 'uptime.down',
+        'summary_params' => '{}',
+        'metrics' => json_encode(['response_time_in_seconds' => 0.5], JSON_THROW_ON_ERROR),
+        'evidence' => json_encode(['status_code' => 500], JSON_THROW_ON_ERROR),
+    ]);
+    $alert = legacyLinkAlert($legacy, ['run_ended_at' => $legacy['run']->ended_at->format('Y-m-d\TH:i:s.uP')]);
+
+    $this->artisan('heptapod:reclassify-links', ['--policy' => '1', '--no-interaction' => true])->assertSuccessful();
+
+    $crawlRun = CheckRun::query()->where('check_id', $legacy['check']->id)->forRun($legacy['run']->reference())->firstOrFail();
+    $foreignRun = CheckRun::query()->where('check_id', $foreign->id)->where('id', $legacy['run']->id)->where('ended_at', $earlierAt)->firstOrFail();
+    expect($legacy['check']->refresh()->latest_run_result)->toBe(CheckResult::Succeeded)
+        ->and($crawlRun->result)->toBe(RunResult::Succeeded)
+        ->and($crawlRun->summary)->toBe('broken_links.succeeded')
+        ->and($foreignRun->result)->toBe(RunResult::Failed)
+        ->and($foreignRun->summary)->toBe('uptime.down')
+        ->and($alert->refresh()->suppressed)->toBeTrue();
+});

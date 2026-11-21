@@ -2145,3 +2145,47 @@ it('routes final staging payload byte overflow through the same typed storage-li
         ->and($run->evidence['notes'][0]['key'])->toBe('crawl.coverage.storage_limit')
         ->and(DB::table('crawl_snapshots')->where('check_id', $check->id)->exists())->toBeFalse();
 });
+
+it('bounds first-seen history to the exported historical crawl snapshot', function (): void {
+    $check = Check::factory()->create(['type' => CheckKey::BrokenLinks]);
+    $earlier = CarbonImmutable::parse('2026-10-28T11:00:00Z');
+    $later = CarbonImmutable::parse('2026-10-29T12:00:00Z');
+    $run1 = CheckRun::factory()->for($check)->create(['result' => RunResult::Warning, 'summary' => 'broken_links.warning',
+        'started_at' => $earlier->subMinute(), 'ended_at' => $earlier]);
+    $run2 = CheckRun::factory()->for($check)->create(['result' => RunResult::Failed, 'summary' => 'broken_links.failed',
+        'started_at' => $later->subMinute(), 'ended_at' => $later]);
+    $check->update(['latest_run_id' => $run2->id, 'latest_run_ended_at' => $run2->ended_at]);
+
+    $snapshot1 = DB::table('crawl_snapshots')->insertGetId(['site_id' => $check->site_id, 'check_id' => $check->id, 'run_id' => $run1->id,
+        'claim_token' => (string) Str::uuid(), 'run_ended_at' => $run1->ended_at, 'collected_at' => $run1->ended_at, 'settings' => '{}', 'truncated' => true,
+        'observed_urls' => '[]', 'observed_pages' => '[]', 'discovered_urls' => '[]', 'discovery_complete' => false, 'evaluated_finding_ids' => '[]',
+        'site_url' => 'https://export.example.test', 'target_fingerprint' => str_repeat('a', 64), 'classification_policy_version' => 1]);
+    DB::table('crawl_findings')->insert([
+        'snapshot_id' => $snapshot1, 'crawled_url' => 'https://export.example.test/later-broken', 'relative_crawled_url' => '/later-broken',
+        'status_code' => null, 'error_message' => 'unchecked (timeout)', 'type' => 'link', 'internal' => true,
+    ]);
+
+    $snapshot2 = DB::table('crawl_snapshots')->insertGetId(['site_id' => $check->site_id, 'check_id' => $check->id, 'run_id' => $run2->id,
+        'claim_token' => (string) Str::uuid(), 'run_ended_at' => $run2->ended_at, 'collected_at' => $run2->ended_at, 'settings' => '{}', 'truncated' => false,
+        'observed_urls' => '[]', 'observed_pages' => '[]', 'discovered_urls' => '[]', 'discovery_complete' => true, 'evaluated_finding_ids' => '[]',
+        'site_url' => 'https://export.example.test', 'target_fingerprint' => str_repeat('a', 64), 'classification_policy_version' => 1]);
+    DB::table('crawl_findings')->insert([
+        'snapshot_id' => $snapshot2, 'crawled_url' => 'https://export.example.test/later-broken', 'relative_crawled_url' => '/later-broken',
+        'status_code' => 404, 'error_message' => null, 'type' => 'link', 'internal' => true,
+    ]);
+
+    $owner = User::factory()->owner()->create();
+    $csv = $this->actingAs($owner)->get(route('sites.checks.findings', [
+        'site' => $check->site_id, 'check' => $check->id, 'format' => 'csv',
+        'run' => $run1->id, 'observed_at' => $run1->ended_at->format('Y-m-d\TH:i:s.uP'),
+    ]))->assertOk()->streamedContent();
+    $rows = array_map(
+        static fn (string $line): array => str_getcsv($line, escape: '\\'),
+        array_slice(explode("\r\n", rtrim(substr($csv, 3), "\r\n")), 1),
+    );
+
+    expect($rows)->toHaveCount(1)
+        ->and($rows[0][0])->toBe('https://export.example.test/later-broken')
+        ->and($rows[0][4])->toBe('Not retained')
+        ->and($rows[0][5])->toBe('No');
+});

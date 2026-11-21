@@ -42,7 +42,8 @@ final readonly class CertificateHealthCheck implements CheckDetailProvider, Chec
 
     public function detail(int $checkId, ?LatestRunEvidence $latestRun = null): ?CertificateSnapshot
     {
-        return $this->store->detail($checkId);
+        return ! $latestRun instanceof LatestRunEvidence || $latestRun->observationEvidence() === []
+            ? null : CertificateSnapshot::from($latestRun->observationEvidence());
     }
 
     public function history(int $checkId, bool $canViewCapabilities = false): CertificateTimelineData

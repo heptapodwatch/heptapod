@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Heptapod\Actions\ReconcileQueuedWork;
 use Heptapod\Actions\RecordScheduledBackupExit;
 use Heptapod\Actions\RecordSchedulerTick;
 use Heptapod\Jobs\DispatchNotifications;
@@ -23,6 +24,7 @@ Schedule::command('heptapod:client-messages:sweep')->daily()->withoutOverlapping
 Schedule::command('heptapod:resume-due-sites')->everyMinute()->withoutOverlapping(10);
 // No overlap mutex: the claim's FOR UPDATE SKIP LOCKED already serializes concurrent ticks, and a killed run must not hold a mutex.
 Schedule::command('heptapod:announce-maintenance-boundaries')->everyMinute();
+Schedule::call(app(ReconcileQueuedWork::class))->name('reconcile-queued-work')->everyMinute()->withoutOverlapping(10);
 Schedule::call(app(RecordSchedulerTick::class))->everyMinute();
 // The dispatcher also runs this evaluation while the scheduler heartbeat is stale (DispatchChecksCommand).
 Schedule::command('heptapod:evaluate-system-issues')->everyFiveMinutes()->withoutOverlapping(15);

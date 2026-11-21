@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function (): void {
@@ -74,3 +76,25 @@ it('rejects invalid instance names without changing persisted identity', functio
         ->assertRedirect('/settings/instance')->assertSessionHasErrors('name');
     expect(app(InstanceSettings::class)->name)->toBe($original);
 })->with(['empty' => '', 'whitespace' => '   ', 'too long' => str_repeat('a', 121), 'not a string' => [['name']]]);
+
+it('renders general and email settings from the cached external ping without running the system health probe', function (): void {
+    config(['heptapod.health.browser_urls' => ['lighthouse' => 'http://lighthouse-probe.invalid/health']]);
+    Http::fake();
+    Http::preventStrayRequests();
+    $pingAt = '2026-10-20T12:00:00+00:00';
+    $cacheKey = config()->string('heptapod.health.external_ping_cache_key');
+    Cache::store('redis')->forever($cacheKey, $pingAt);
+    $owner = User::factory()->owner()->create();
+
+    try {
+        $this->actingAs($owner)->get('/settings/instance')->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page->where('instancePage.last_external_ping', $pingAt));
+        $this->getJson(route('settings.instance.data'))->assertOk()
+            ->assertJsonPath('last_external_ping', $pingAt);
+        $this->get('/settings/email')->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page->where('instancePage.last_external_ping', $pingAt));
+        Http::assertNothingSent();
+    } finally {
+        Cache::store('redis')->forget($cacheKey);
+    }
+});

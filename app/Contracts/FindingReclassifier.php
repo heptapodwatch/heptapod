@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Heptapod\Contracts;
 
+use Carbon\CarbonImmutable;
+
 /**
  * Relabels stored findings under a newer classification policy once, at upgrade time (heptapod:reclassify-links),
  * so ordinary evaluations only ever compare findings labeled by the same policy.
@@ -25,7 +27,7 @@ interface FindingReclassifier
      * @param  list<string>|null  $findingIds
      * @param  list<string>  $relabeledFindingIds
      */
-    public function explainedByRelabeling(int $checkId, int $runId, ?array $findingIds, array $relabeledFindingIds): bool;
+    public function explainedByRelabeling(int $checkId, int $runId, ?array $findingIds, array $relabeledFindingIds, ?CarbonImmutable $runEndedAt = null): bool;
 
     /** Writes the plan's labels and stamps the snapshot; the caller holds the check lock and the transaction. */
     public function apply(FindingReclassificationPlan $plan): void;

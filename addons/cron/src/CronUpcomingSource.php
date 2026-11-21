@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Addons\Cron;
 
 use Carbon\CarbonImmutable;
+use Cron\CronExpression;
 use Heptapod\Contracts\UpcomingEventSource;
 use Heptapod\Contracts\UpcomingOccurrence;
 use Heptapod\Contracts\UpcomingOccurrencePage;
@@ -65,6 +66,16 @@ final readonly class CronUpcomingSource implements UpcomingEventSource
 
     private function isRare(CronCheck $task): bool
     {
-        return $task->type !== 'cron' || $task->next_due_at->diffInMinutes($task->nextDueAt($task->next_due_at)) >= 1440;
+        if ($task->type !== 'cron') {
+            return true;
+        }
+        $expression = new CronExpression($task->cron_expression ?? throw new \LogicException('Cron check requires an expression.'));
+        $timezone = $task->server_timezone ?? throw new \LogicException('Cron check requires a timezone.');
+        // Compare consecutive schedule slots in UTC from the local wall clock so DST shifts do not shrink a daily slot below 1440 minutes.
+        $wallClock = CarbonImmutable::parse($task->next_due_at->setTimezone($timezone)->format('Y-m-d H:i:s'), 'UTC');
+        $first = CarbonImmutable::instance($expression->getNextRunDate($wallClock, allowCurrentDate: true, timeZone: 'UTC'));
+        $second = CarbonImmutable::instance($expression->getNextRunDate($first, timeZone: 'UTC'));
+
+        return $first->diffInMinutes($second) >= 1440;
     }
 }

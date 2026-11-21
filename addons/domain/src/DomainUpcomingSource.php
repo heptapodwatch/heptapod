@@ -64,12 +64,22 @@ final readonly class DomainUpcomingSource implements UpcomingEventSource
     /** @param list<int> $visibleCheckIds */
     private function datedSnapshots(array $visibleCheckIds, CarbonImmutable $from, CarbonImmutable $until): Builder
     {
-        $latest = DB::table('domain_snapshots')->selectRaw('DISTINCT ON (check_id) check_id, snapshot')
-            ->whereIntegerInRaw('check_id', $visibleCheckIds)->whereNotNull('run_ended_at')->whereNotNull('snapshot->expires_at')
-            ->orderBy('check_id')->orderByDesc('run_ended_at')->orderByDesc('run_id');
+        $ids = '{'.implode(',', array_map(intval(...), array_values(array_unique($visibleCheckIds)))).'}';
+        $probe = DB::table('domain_snapshots as s')
+            ->select(['s.check_id', 's.snapshot'])
+            ->whereColumn('s.check_id', 'visible.id')
+            ->whereNotNull('s.run_ended_at')
+            ->orderByDesc('s.run_ended_at')
+            ->orderByDesc('s.run_id')
+            ->limit(1);
 
-        return DB::query()->fromSub($latest, 'latest')->whereRaw(self::Expiry.' BETWEEN ? AND ?', [
-            $from->format('Y-m-d H:i:s.uP'), $until->format('Y-m-d H:i:s.uP'),
-        ]);
+        return DB::query()
+            ->fromRaw('unnest(?::bigint[]) AS visible(id)', [$ids])
+            ->joinLateral($probe, 'latest')
+            ->select(['latest.check_id', 'latest.snapshot'])
+            ->whereNotNull('latest.snapshot->expires_at')
+            ->whereRaw(self::Expiry.' BETWEEN ? AND ?', [
+                $from->format('Y-m-d H:i:s.uP'), $until->format('Y-m-d H:i:s.uP'),
+            ]);
     }
 }

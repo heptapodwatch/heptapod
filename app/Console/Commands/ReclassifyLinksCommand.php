@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Console\Commands;
 
+use Carbon\CarbonImmutable;
 use Heptapod\Checks\CauseSummary;
 use Heptapod\Checks\DatabaseClock;
 use Heptapod\Contracts\CheckResult;
@@ -125,7 +126,7 @@ final class ReclassifyLinksCommand extends Command
                 }
                 $reclassifier->apply($locked);
                 $resultBefore = $check->latest_run_result;
-                $run = $locked->runResultBefore instanceof RunResult ? CheckRun::query()->findOrFail($locked->runId) : null;
+                $run = $locked->runResultBefore instanceof RunResult ? CheckRun::forRun($locked->run)->where('check_id', $check->id)->firstOrFail() : null;
                 $run?->update(['result' => $locked->runResultAfter, 'metrics' => $locked->metrics, 'evidence' => [...$run->evidence ?? [], ...$locked->evidence],
                     'summary' => $locked->summaryAfter ?? $run->summary]);
                 if ($run instanceof CheckRun && $locked->runResultAfter !== $locked->runResultBefore) {
@@ -149,7 +150,7 @@ final class ReclassifyLinksCommand extends Command
                 }
                 if ($locked->relabeledFindingIds !== []) {
                     $outbox->record($check, $at, 'check.findings_reclassified', $resultBefore, $check->latest_run_result,
-                        ['run_id' => $locked->runId, 'policy_version' => $locked->policyVersion, 'count' => count($locked->relabeledFindingIds)],
+                        ['run_id' => $locked->run->id, 'run_ended_at' => $locked->run->endedAt->format('Y-m-d\TH:i:s.uP'), 'policy_version' => $locked->policyVersion, 'count' => count($locked->relabeledFindingIds)],
                         suppressionReason: self::SuppressionReason);
                 }
 
@@ -192,13 +193,14 @@ final class ReclassifyLinksCommand extends Command
                 continue;
             }
             $runId = $event->payload['run_id'] ?? null;
+            $runEndedAt = is_string($event->payload['run_ended_at'] ?? null) ? CarbonImmutable::parse($event->payload['run_ended_at']) : null;
             $named = $event->payload['finding_ids'] ?? null;
             $ids = is_array($named) && array_is_list($named) && array_all($named, static fn (mixed $id): bool => is_string($id)) ? array_values(array_filter($named, is_string(...))) : null;
             // A warning names no findings: all counted findings of its run must be relabeled ones. A new-broken alert names its findings.
             $explained = is_int($runId) && ($event->type === 'check.result_changed'
-                ? $reclassifier->explainedByRelabeling($check->id, $runId, null, $plan->relabeledFindingIds)
+                ? $reclassifier->explainedByRelabeling($check->id, $runId, null, $plan->relabeledFindingIds, $runEndedAt)
                 : $ids !== null && ($event->payload['truncated'] ?? true) === false
-                    && $reclassifier->explainedByRelabeling($check->id, $runId, $ids, $plan->relabeledFindingIds));
+                    && $reclassifier->explainedByRelabeling($check->id, $runId, $ids, $plan->relabeledFindingIds, $runEndedAt));
             if (! $explained) {
                 continue;
             }
@@ -222,7 +224,14 @@ final class ReclassifyLinksCommand extends Command
     /** The check accepted this run's result (not a deferred incomplete observation or a later run), so the policy change may update it. */
     private function acceptsRun(Check $check, FindingReclassificationPlan $plan): bool
     {
-        return $plan->runResultBefore instanceof RunResult && $check->latest_run_id === $plan->runId && $check->latest_run_result === CheckResult::from($plan->runResultBefore->value);
+        return $plan->runResultBefore instanceof RunResult && $this->matchesLatestRun($check, $plan) && $check->latest_run_result === CheckResult::from($plan->runResultBefore->value);
+    }
+
+    private function matchesLatestRun(Check $check, FindingReclassificationPlan $plan): bool
+    {
+        return $check->latest_run_id === $plan->run->id
+            && $check->latest_run_ended_at instanceof CarbonImmutable
+            && $check->latest_run_ended_at->equalTo($plan->run->endedAt);
     }
 
     /** @param array{list<Event>, list<Delivery>} $alerts
@@ -232,7 +241,7 @@ final class ReclassifyLinksCommand extends Command
     {
         $before ??= $check->latest_run_result;
         $accepted = $plan->runResultBefore instanceof RunResult && $plan->runResultAfter instanceof RunResult
-            && ($this->acceptsRun($check, $plan) || ($check->latest_run_id === $plan->runId && $before === CheckResult::from($plan->runResultBefore->value)));
+            && ($this->acceptsRun($check, $plan) || ($this->matchesLatestRun($check, $plan) && $before === CheckResult::from($plan->runResultBefore->value)));
         $after = $accepted ? CheckResult::from($plan->runResultAfter->value) : $before;
         $note = $plan->runResultBefore instanceof RunResult ? $accepted ? null : 'reclassify_links.latest_run_not_crawl' : ('reclassify_links.run_pruned');
         $marker = $plan->relabeledFindingIds !== [] && $after === CheckResult::Warning && (! $plan->baselineComplete || ! $accepted);

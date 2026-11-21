@@ -6,6 +6,8 @@ namespace Heptapod\Jobs;
 
 use Heptapod\Actions\CreateClient;
 use Heptapod\Actions\ImportOhDearAccount;
+use Heptapod\Actions\ReconcileQueuedWork;
+use Heptapod\Checks\Execution\ExecutionBudget;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Data\Import\ImportChannelRowData;
@@ -23,6 +25,7 @@ use Heptapod\Support\ImportTokenStore;
 use Heptapod\Support\OhDearImportNotices;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Attributes\Timeout;
 use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Context;
@@ -31,6 +34,7 @@ use Illuminate\Support\Traits\Localizable;
 use Throwable;
 
 /** Imports one Oh Dear account for a queued import run. The payload carries only the run id, never the token. */
+#[Timeout(ExecutionBudget::HorizonTimeout)]
 #[Tries(1)]
 final class RunOhDearImport implements ShouldQueue
 {
@@ -145,10 +149,7 @@ final class RunOhDearImport implements ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        $run = ImportRun::query()->find($this->runId);
-        if ($run instanceof ImportRun && $run->status === ImportRunStatus::Running) {
-            $this->finish($run, ImportRunStatus::Failed, 'unexpected');
-        }
+        app(ReconcileQueuedWork::class)->failImport($this->runId);
     }
 
     /**

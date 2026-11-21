@@ -26,7 +26,6 @@ final class IncidentExportController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
-        $query = $reader->filtered($user, $request);
         $present = static function (Collection $incidents) use ($reader): \Generator {
             /** @var Collection<int, Incident> $typed */
             $typed = $incidents;
@@ -40,33 +39,55 @@ final class IncidentExportController extends Controller
                     $row->started_at, $row->resolved_at ?? '', (string) $row->duration_seconds];
             }
         };
-        if ($request->filled('page') || $request->filled('per_page')) {
-            $perPage = $request->filled('per_page') ? $request->integer('per_page') : ListPageSize::Default;
-            $page = max(1, $request->integer('page', 1));
-            $builder = $query->getEloquentBuilder()->with('site.client');
-            $builder->getQuery()->limit($perPage)->offset(($page - 1) * $perPage);
-            $pageRows = $builder->get()->values();
-            $total = $pageRows->count();
-            $rows = $present($pageRows);
-        } else {
-            $total = $query->getEloquentBuilder()->getQuery()->count();
-            $rows = (static function () use ($query, $present): \Generator {
-                // One presented batch per chunk keeps the export's queries per chunk, not per row; the writer stops at the row limit.
-                foreach ($query->getEloquentBuilder()->with('site.client')->lazy(500)->chunk(500) as $chunk) {
-                    yield from $present($chunk->values()->collect());
-                }
-            })();
-        }
         $number = ['ID', 'Duration (seconds)'];
 
-        return ExportResponse::make(new Table(
-            (string) __('Incidents'),
-            [],
-            array_map(static fn (string $label): Column => new Column((string) __($label), in_array($label, $number, true) ? ColumnType::Number : ColumnType::Text),
-                ['ID', 'State', 'Site', 'Client', 'Check', 'Cause', 'Summary', 'Started', 'Resolved', 'Duration (seconds)']),
-            $rows,
-            Str::slug(__('Incidents').' '.now($user->resolvedTimezone())->format('Y-m-d'), language: app()->getLocale()),
-            $total,
-        ), $format, recoveryRoute: 'incidents.index', recoveryLabelKey: 'Back to Incidents');
+        return ExportResponse::make(static function () use ($request, $format, $reader, $user, $present, $number): Table {
+            $query = $reader->filtered($user, $request);
+            if ($request->filled('page') || $request->filled('per_page')) {
+                $perPage = $request->filled('per_page') ? $request->integer('per_page') : ListPageSize::Default;
+                $page = max(1, $request->integer('page', 1));
+                $builder = $query->getEloquentBuilder()->with('site.client');
+                $builder->getQuery()->limit($perPage)->offset(($page - 1) * $perPage);
+                $pageRows = $builder->get()->values();
+                $total = $pageRows->count();
+                $rows = $present($pageRows);
+            } else {
+                // Snapshot ordered incident IDs inside the export's REPEATABLE READ transaction so cap decision, count and chunk reads share one snapshot.
+                /** @var list<int> $ids */
+                $ids = array_values(array_map(
+                    static fn (mixed $id): int => is_numeric($id) ? (int) $id : throw new \LogicException('Incident id must be numeric.'),
+                    (clone $query->getEloquentBuilder()->getQuery())->limit(Table::RowLimit + 1)->pluck('incidents.id')->all(),
+                ));
+                if (count($ids) > Table::RowLimit) {
+                    $total = $format === ExportFormat::Csv ? count($ids) : $query->getEloquentBuilder()->getQuery()->count();
+                } else {
+                    $total = count($ids);
+                }
+                $rows = (static function () use ($ids, $present): \Generator {
+                    foreach (array_chunk($ids, 500) as $chunkIds) {
+                        $chunkQuery = Incident::query()->with(['site.client', 'check']);
+                        $chunkQuery->getQuery()->whereIntegerInRaw('id', $chunkIds);
+                        $byId = $chunkQuery->get()->keyBy('id');
+                        $ordered = collect($chunkIds)
+                            ->map(static fn (int $id): ?Incident => $byId->get($id))
+                            ->filter(static fn (?Incident $incident): bool => $incident instanceof Incident)
+                            ->values();
+                        if ($ordered->isNotEmpty()) {
+                            yield from $present($ordered);
+                        }
+                    }
+                })();
+            }
+
+            return new Table(
+                (string) __('Incidents'),
+                [],
+                array_map(static fn (string $label): Column => new Column((string) __($label), in_array($label, $number, true) ? ColumnType::Number : ColumnType::Text),
+                    ['ID', 'State', 'Site', 'Client', 'Check', 'Cause', 'Summary', 'Started', 'Resolved', 'Duration (seconds)']),
+                $rows,
+                Str::slug(__('Incidents').' '.now($user->resolvedTimezone())->format('Y-m-d'), language: app()->getLocale()),
+                $total,
+            );
+        }, $format, recoveryRoute: 'incidents.index', recoveryLabelKey: 'Back to Incidents', repeatableRead: true);
     }
 }

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Heptapod\Actions;
 
+use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\Invitation;
 use Heptapod\Models\User;
 use Heptapod\Notifications\TeamInvitation;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
 final readonly class ResendInvitation
@@ -16,6 +18,13 @@ final readonly class ResendInvitation
     public function __invoke(User $actor, Invitation $invitation): void
     {
         abort_unless($actor->hasRole('Owner') || ($actor->hasRole('Admin') && $invitation->role === 'Member'), 403);
-        Notification::route('mail', $invitation->email)->notify(new TeamInvitation($invitation, ($this->renewLink)($invitation)));
+        DB::transaction(function () use ($actor, $invitation): void {
+            $locked = Invitation::query()->whereKey($invitation->id);
+            NotificationLocks::forUpdate($locked->getQuery());
+            $current = $locked->firstOrFail();
+            abort_unless($actor->hasRole('Owner') || ($actor->hasRole('Admin') && $current->role === 'Member'), 403);
+            $url = ($this->renewLink)($current);
+            Notification::route('mail', $current->email)->notify(new TeamInvitation($current, $url));
+        });
     }
 }

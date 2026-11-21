@@ -14,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 final readonly class StartOhDearImport
 {
+    public function __construct(private ReconcileQueuedWork $reconcile) {}
+
     /** @param array<string, array{client_id: int|null, new_client: string|null}> $assignments */
     public function __invoke(ImportRun $importRun, array $assignments): void
     {
@@ -30,7 +32,10 @@ final readonly class StartOhDearImport
                 errorCode: 'import_already_started',
             );
         }
-        RunOhDearImport::dispatch($importRun->id);
+        $this->reconcile->dispatchOrFail(
+            static fn () => RunOhDearImport::dispatch($importRun->id),
+            fn (): bool => $this->reconcile->failImport($importRun->id, onlyQueued: true),
+        );
         LiveSignal::forImportChange();
     }
 }

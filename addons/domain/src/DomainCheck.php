@@ -52,9 +52,8 @@ final readonly class DomainCheck implements CheckDetailProvider, CheckRunPresent
 
     public function detail(int $checkId, ?LatestRunEvidence $latestRun = null): ?DomainSnapshot
     {
-        $latest = $this->store->latest($checkId);
-
-        return $latest === null ? null : DomainSnapshot::from($latest['snapshot']);
+        return ! $latestRun instanceof LatestRunEvidence || $latestRun->observationEvidence() === []
+            ? null : DomainSnapshot::from($latestRun->observationEvidence());
     }
 
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData

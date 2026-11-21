@@ -18,7 +18,7 @@ final readonly class FindingReclassificationPlan
     public function __construct(
         public int $checkId,
         public int $snapshotId,
-        public int $runId,
+        public RunReference $run,
         public int $policyVersion,
         public array $relabeledFindingIds,
         public array $remainingFindingIds,
