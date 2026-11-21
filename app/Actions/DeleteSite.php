@@ -19,6 +19,8 @@ final readonly class DeleteSite
     public function __invoke(Site $site): void
     {
         NotificationLocks::transaction(function () use ($site): void {
+            // NotificationLocks level 0: a change of who may write what holds the access-structure lock exclusive, first.
+            NotificationLocks::accessExclusive();
             // NotificationLocks: the site's maintenance recurrences (exclusive: the cascade deletes them, and generation holds
             // one while it inserts a window that takes this site's key), the checks (deleted by the cascade), the site, then
             // every incident the cascade deletes, open and closed (a profile deletion holds a closed incident its user noted

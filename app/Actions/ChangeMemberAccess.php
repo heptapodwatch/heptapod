@@ -30,6 +30,8 @@ final readonly class ChangeMemberAccess
             'role' => __('Role'), 'client_ids' => __('Client selection'), 'client_ids.*' => __('Client'),
         ])->validate();
         DB::transaction(function () use ($actor, $member, $data): void {
+            // NotificationLocks level 0: a change of who may write what holds the access-structure lock exclusive, first.
+            NotificationLocks::accessExclusive();
             $this->guard->lockOwners();
             $currentActor = User::query()->findOrFail($actor->id);
             $query = User::query()->whereKey($member->id);

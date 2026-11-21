@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\EndSiteMaintenanceController::__invoke
-* @see app/Http/Controllers/EndSiteMaintenanceController.php:14
+* @see app/Http/Controllers/EndSiteMaintenanceController.php:15
 * @route '/sites/{site}/maintenance/end'
 */
 export const end = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ end.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\EndSiteMaintenanceController::__invoke
-* @see app/Http/Controllers/EndSiteMaintenanceController.php:14
+* @see app/Http/Controllers/EndSiteMaintenanceController.php:15
 * @route '/sites/{site}/maintenance/end'
 */
 end.url = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ end.url = (args: { site: number | { id: number } } | [site: number | { id: numbe
 
 /**
 * @see \Heptapod\Http\Controllers\EndSiteMaintenanceController::__invoke
-* @see app/Http/Controllers/EndSiteMaintenanceController.php:14
+* @see app/Http/Controllers/EndSiteMaintenanceController.php:15
 * @route '/sites/{site}/maintenance/end'
 */
 end.post = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ end.post = (args: { site: number | { id: number } } | [site: number | { id: numb
 
 /**
 * @see \Heptapod\Http\Controllers\EndSiteMaintenanceController::__invoke
-* @see app/Http/Controllers/EndSiteMaintenanceController.php:14
+* @see app/Http/Controllers/EndSiteMaintenanceController.php:15
 * @route '/sites/{site}/maintenance/end'
 */
 const endForm = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const endForm = (args: { site: number | { id: number } } | [site: number | { id:
 
 /**
 * @see \Heptapod\Http\Controllers\EndSiteMaintenanceController::__invoke
-* @see app/Http/Controllers/EndSiteMaintenanceController.php:14
+* @see app/Http/Controllers/EndSiteMaintenanceController.php:15
 * @route '/sites/{site}/maintenance/end'
 */
 endForm.post = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

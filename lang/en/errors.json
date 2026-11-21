@@ -52,6 +52,7 @@
     "errors.check_cooldown_wait_minutes_other": "in {{count}} min",
     "errors.maintenance.already_ended": "This maintenance window has already ended. The list has been refreshed.",
     "errors.maintenance.already_started": "This maintenance window has already started and cannot be deleted. End it instead.",
+    "errors.busy_try_again": "Another change is being saved. Please try again in a moment.",
     "errors.backup.already_running": "A backup is already queued or running. Wait until it finishes.",
     "errors.backup.cooldown": "A backup was requested recently. You can start another one :wait.",
     "errors.backup.cooldown_reason": "Can run again at :time · :wait",

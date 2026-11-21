@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers;
 
+use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\UpdateCheckConfig;
 use Heptapod\Checks\HealthSettingsProbe;
 use Heptapod\Contracts\CheckKey;
@@ -18,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 
 final class UpdateCheckSettingsController extends Controller
 {
-    public function __invoke(Request $request, int $site, int $check, SitePolicy $policy, UpdateCheckConfig $update, HealthSettingsProbe $probe): RedirectResponse
+    public function __invoke(Request $request, int $site, int $check, SitePolicy $policy, UpdateCheckConfig $update, HealthSettingsProbe $probe, AuthorizeSiteWrite $authorize): RedirectResponse
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
@@ -39,7 +40,9 @@ final class UpdateCheckSettingsController extends Controller
                 throw ValidationException::withMessages(['result_url' => __('checks.health_probe_required')]);
             }
         }
-        $update($target, $settings, $expectedPreviousConfig);
+        // The probe (an outbound request) stays outside the lock; the save is decided again under the shared access lock with
+        // the actor as the account is now, and refuses a configuration that changed since the probe ($expectedPreviousConfig).
+        $authorize($user, 'update', static fn () => $update($target, $settings, $expectedPreviousConfig), $target);
 
         return back();
     }

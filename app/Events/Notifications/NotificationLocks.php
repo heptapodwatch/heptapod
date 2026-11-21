@@ -5,15 +5,23 @@ declare(strict_types=1);
 namespace Heptapod\Events\Notifications;
 
 use Heptapod\Actions\ResolveInactiveCheckIncidents;
+use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Incidents\UptimeDependencies;
 use Heptapod\Models\Check;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /**
  * The one lock hierarchy of the notification engine. A transaction takes row locks only downwards through these levels
  * (skipping levels is fine) and several rows of one level in ascending id:
  *
+ *   0. access structure     (one advisory key, {@see self::accessShared()} / {@see self::accessExclusive()}): the first lock
+ *                              of its transaction, before everything below. A write authorized against a site and its actor
+ *                              (AuthorizeSiteWrite) holds it shared, so the site cannot move, vanish or lose the actor's
+ *                              access while it writes; a change of who may write what holds it exclusive (moving, archiving,
+ *                              restoring, deleting a site or client, member access and roles, deactivation, invitation
+ *                              acceptance, profile deletion, password reset, API token issue and revocation)
  *   1. users                (users, FOR KEY SHARE: what a row naming its actor takes; profile deletion and access
  *                              changes hold FOR UPDATE)
  *   2. maintenance recurrences (recurring_maintenance_periods, FOR NO KEY UPDATE; deletion FOR UPDATE)
@@ -98,10 +106,11 @@ use Illuminate\Support\Facades\DB;
  * deletion are written by the cascade, not locked up front.
  *
  * Locks the schema inventory cannot see, and why they do not cycle with the engine row locks:
- *   - advisory locks: SendClientMessage takes its replay key and its sender's quota key first in its transaction, before
- *     the client and every level, so they act as levels above the client and no other engine path takes them; the manual
- *     run budget (RunController) and heavy admission (ClaimService) keys come before the check and no engine path takes
- *     them; the session locks of check data maintenance and history pruning only serialize those scheduled commands;
+ *   - advisory locks: the access-structure key is level 0, always the first lock of its transaction, so no holder of a
+ *     row lock waits for it; SendClientMessage takes its replay key and its sender's quota key first in its transaction,
+ *     before the client and every level, so they act as levels above the client and no other engine path takes them; the
+ *     manual run budget (RunController) and heavy admission (ClaimService) keys come after level 0 and before the check
+ *     and no engine path takes them; the session locks of check data maintenance and history pruning only serialize those scheduled commands;
  *   - explicit table locks: check data maintenance takes check_runs ACCESS EXCLUSIVE before it drops an expired
  *     partition and repairs check_run_attempts rows of those finished runs; it holds no engine row lock first and no
  *     recorder holds those attempts, so a recorder only waits on it;
@@ -131,6 +140,37 @@ use Illuminate\Support\Facades\DB;
  */
 final class NotificationLocks
 {
+    /** The access-structure advisory key (two-int form, its own key space apart from the single-key advisory locks). */
+    private const string AccessStructureKey = '7341, 1';
+
+    /** How long a guarded write waits for a structural change before it refuses (below the 10 s web statement timeout). */
+    private const string AccessSharedTimeout = '5s';
+
+    /**
+     * Level 0 shared, as the first lock in the transaction of a guarded write. A structural change that holds it longer than
+     * AccessSharedTimeout refuses the write as busy (409, try again); the timeout covers only this acquisition.
+     */
+    public static function accessShared(): void
+    {
+        $previous = DB::scalar("SELECT current_setting('lock_timeout')");
+        DB::select("SELECT set_config('lock_timeout', ?, true)", [self::AccessSharedTimeout]);
+        try {
+            DB::select('SELECT pg_advisory_xact_lock_shared('.self::AccessStructureKey.')');
+        } catch (QueryException $exception) {
+            if ($exception->getCode() === '55P03') {
+                throw new ExpectedRefusal(status: 409, messageKey: 'errors.busy_try_again', errorCode: 'busy_try_again', retryAfterSeconds: 5, tone: 'info');
+            }
+            throw $exception;
+        }
+        DB::select("SELECT set_config('lock_timeout', ?, true)", [$previous]);
+    }
+
+    /** Level 0 exclusive, as the first lock of a structural change's transaction; it waits as long as the statement may. */
+    public static function accessExclusive(): void
+    {
+        DB::select('SELECT pg_advisory_xact_lock('.self::AccessStructureKey.')');
+    }
+
     /** One retry: a request whose first attempt Postgres aborts as a deadlock victim runs once more, a second deadlock surfaces. */
     public const int RequestAttempts = 2;
 

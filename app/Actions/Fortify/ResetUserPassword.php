@@ -33,6 +33,8 @@ class ResetUserPassword implements ResetsUserPasswords
         ])->validate();
 
         DB::transaction(function () use ($user, $input): void {
+            // NotificationLocks level 0: a change of who may write what holds the access-structure lock exclusive, first.
+            NotificationLocks::accessExclusive();
             // The same exclusive user lock as removal and reactivation: a token issued concurrently either exists before the
             // revocation deletes it or waits and is refused (CreateApiToken).
             NotificationLocks::forUpdate(User::query()->whereKey($user->id)->getQuery())->first(['id']);

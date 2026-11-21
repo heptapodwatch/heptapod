@@ -6,6 +6,7 @@ namespace Heptapod\Http\Controllers\Api;
 
 use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Attributes\Group;
+use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\CreateMaintenanceWindow;
 use Heptapod\Actions\DeleteMaintenancePeriod;
 use Heptapod\Actions\UpdateMaintenancePeriod;
@@ -16,6 +17,7 @@ use Heptapod\Maintenance\LocalMaintenanceTime;
 use Heptapod\Maintenance\MaintenanceTargets;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\Site;
+use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 use Heptapod\Support\Api\Idempotency;
 use Illuminate\Database\Eloquent\Builder;
@@ -75,7 +77,7 @@ final class MaintenancePeriodController extends Controller
         }, $query->get()->all())]);
     }
 
-    public function store(Request $request, CreateMaintenanceWindow $create, Idempotency $idempotency, SitePolicy $sites): JsonResponse
+    public function store(Request $request, CreateMaintenanceWindow $create, Idempotency $idempotency, SitePolicy $sites, AuthorizeSiteWrite $authorize): JsonResponse
     {
         $user = $this->principal($request);
         /** @var array{monitor_id: int, starts_at: string, ends_at: string, name?: string|null} $data */
@@ -89,43 +91,50 @@ final class MaintenancePeriodController extends Controller
             'starts_local' => $data['starts_at'], 'ends_local' => $data['ends_at'], 'timezone' => 'UTC',
             'recurrence_type' => 'once', 'name' => $data['name'] ?? null];
 
-        return $idempotency->run($request, 'maintenance_period.create', 'site:'.$site->id, $window, function () use ($create, $user, $window): JsonResponse {
-            $period = $create($user, $window);
-            if (! $period instanceof MaintenancePeriod) {
-                throw new \LogicException('Scheduled one-time maintenance must create a window.');
-            }
+        // The site lock comes first, before the idempotency record (it names the user), and a replay is authorized too.
+        return $authorize($user, 'update', static fn (): JsonResponse => $idempotency->run($request, 'maintenance_period.create', 'site:'.$site->id, $window,
+            static function () use ($create, $user, $window): JsonResponse {
+                $period = $create($user, $window);
+                if (! $period instanceof MaintenancePeriod) {
+                    throw new \LogicException('Scheduled one-time maintenance must create a window.');
+                }
 
-            return new MaintenancePeriodResource($period)->response()->setStatusCode(201);
-        });
+                return new MaintenancePeriodResource($period)->response()->setStatusCode(201);
+            }), $site);
     }
 
     public function update(Request $request, int $maintenancePeriod, UpdateMaintenancePeriod $update,
-        LocalMaintenanceTime $localTime, SitePolicy $sites): MaintenancePeriodResource
+        LocalMaintenanceTime $localTime, SitePolicy $sites, AuthorizeSiteWrite $authorize): MaintenancePeriodResource
     {
         $period = $this->reachable($request, $sites)->findOrFail($maintenancePeriod);
-        $this->writable($request, $period);
+        [$user, $site] = $this->writable($request, $period);
         /** @var array{starts_at: string, ends_at: string, name?: string|null} $data */
         $data = Validator::make($request->all(), [
             'starts_at' => 'required|date_format:Y-m-d H:i', 'ends_at' => 'required|date_format:Y-m-d H:i',
             'name' => 'nullable|string|max:255',
         ])->validate();
-        if ($period->ends_at <= CarbonImmutable::now('UTC')) {
-            throw ValidationException::withMessages(['starts_at' => __('maintenance.completed_window_web_only')]);
-        }
         $start = $localTime->resolve(substr($data['starts_at'], 0, 10), substr($data['starts_at'], 11), 'UTC');
         $end = $localTime->resolve(substr($data['ends_at'], 0, 10), substr($data['ends_at'], 11), 'UTC');
 
-        return new MaintenancePeriodResource($update($period, $data['name'] ?? $period->name, $start, $end));
+        return new MaintenancePeriodResource($authorize($user, 'update', static fn (): MaintenancePeriod => $update($period, $data['name'] ?? $period->name, $start, $end,
+            authorize: static function (MaintenancePeriod $locked, CarbonImmutable $now) use ($site): void {
+                self::sameSiteWindow($locked, $site);
+                if ($locked->ends_at <= $now) {
+                    throw ValidationException::withMessages(['starts_at' => __('maintenance.completed_window_web_only')]);
+                }
+            }), $site));
     }
 
-    public function destroy(Request $request, int $maintenancePeriod, DeleteMaintenancePeriod $delete, SitePolicy $sites): Response
+    public function destroy(Request $request, int $maintenancePeriod, DeleteMaintenancePeriod $delete, SitePolicy $sites, AuthorizeSiteWrite $authorize): Response
     {
         $period = $this->reachable($request, $sites)->findOrFail($maintenancePeriod);
-        $this->writable($request, $period);
-        if ($period->starts_at <= CarbonImmutable::now('UTC')) {
-            throw ValidationException::withMessages(['starts_at' => __('maintenance.completed_window_web_only')]);
-        }
-        $delete($period);
+        [$user, $site] = $this->writable($request, $period);
+        $authorize($user, 'update', static fn () => $delete($period, static function (MaintenancePeriod $locked, CarbonImmutable $now) use ($site): void {
+            self::sameSiteWindow($locked, $site);
+            if ($locked->starts_at <= $now) {
+                throw ValidationException::withMessages(['starts_at' => __('maintenance.completed_window_web_only')]);
+            }
+        }), $site);
 
         return response()->noContent();
     }
@@ -149,12 +158,26 @@ final class MaintenancePeriodController extends Controller
         return $query;
     }
 
-    private function writable(Request $request, MaintenancePeriod $period): void
+    /** @return array{User, Site} */
+    private function writable(Request $request, MaintenancePeriod $period): array
     {
-        abort_unless($this->principal($request, 403)->hasAnyRole(['Owner', 'Admin']), 403);
+        $user = $this->principal($request, 403);
+        abort_unless($user->hasAnyRole(['Owner', 'Admin']), 403);
         if ($period->target_type !== 'site') {
             throw ValidationException::withMessages(['maintenance_period_id' => __('maintenance.shared_window_web_only')]);
         }
-        Gate::authorize('update', Site::query()->findOrFail($period->site_id));
+        $site = Site::query()->findOrFail($period->site_id);
+        Gate::authorize('update', $site);
+
+        return [$user, $site];
+    }
+
+    /** The locked window must still be the one-site window of the site authorized under the lock. */
+    private static function sameSiteWindow(MaintenancePeriod $locked, Site $site): void
+    {
+        if ($locked->target_type !== 'site') {
+            throw ValidationException::withMessages(['maintenance_period_id' => __('maintenance.shared_window_web_only')]);
+        }
+        abort_unless($locked->site_id === $site->id, 404);
     }
 }

@@ -6,6 +6,7 @@ namespace Heptapod\Http\Controllers;
 
 use Heptapod\Actions\RestoreClient;
 use Heptapod\Models\Client;
+use Heptapod\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -17,7 +18,9 @@ final class RestoreClientController extends Controller
     {
         Gate::authorize('restore', $client);
         Validator::make($request->all(), ['resume_sites' => ['sometimes', 'boolean']])->validate();
-        $restore($client, $request->boolean('resume_sites', true));
+        $user = $request->user();
+        abort_unless($user instanceof User, 401);
+        $restore($client, $request->boolean('resume_sites', true), $user);
 
         return back();
     }

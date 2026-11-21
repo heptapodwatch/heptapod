@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers;
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\CreateMaintenanceWindow;
 use Heptapod\Actions\DeleteMaintenancePeriod;
 use Heptapod\Actions\ResolveClientAvatar;
@@ -17,6 +18,7 @@ use Heptapod\Http\MaintenanceReturnContext;
 use Heptapod\Maintenance\LocalMaintenanceTime;
 use Heptapod\Models\Client;
 use Heptapod\Models\MaintenancePeriod;
+use Heptapod\Models\RecurringMaintenancePeriod;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
@@ -95,29 +97,24 @@ final class MaintenanceController extends Controller
         return response()->json(['window' => $reader->siteHeader($this->user($request), $site)?->toArray()]);
     }
 
-    public function store(Request $request, CreateMaintenanceWindow $create): RedirectResponse
+    public function store(Request $request, CreateMaintenanceWindow $create, AuthorizeSiteWrite $authorize): RedirectResponse
     {
         $this->writable($request);
         $returnContext = MaintenanceReturnContext::parameters($request);
         /** @var array<string, mixed> $input */
         $input = $request->all();
-        $create($this->user($request), $input);
+        $user = $this->user($request);
+        $authorize->asManager($user, static fn (User $current): MaintenancePeriod|RecurringMaintenancePeriod => $create($current, $input));
 
         return to_route('maintenance.index', $returnContext);
     }
 
     public function update(Request $request, MaintenancePeriod $window, UpdateMaintenancePeriod $update,
-        LocalMaintenanceTime $localTime): RedirectResponse
+        LocalMaintenanceTime $localTime, AuthorizeSiteWrite $authorize): RedirectResponse
     {
         $this->writable($request);
-        if ($window->ends_at <= CarbonImmutable::now('UTC')) {
-            throw new ExpectedRefusal(
-                status: 409,
-                messageKey: 'errors.maintenance.already_ended',
-                errorCode: 'maintenance_already_ended',
-                tone: 'info',
-            );
-        }
+        // Answered before the form is validated, and decided again on the locked window.
+        $this->refuseEnded($window, CarbonImmutable::now('UTC'));
         $returnContext = MaintenanceReturnContext::parameters($request);
         $data = Validator::make($request->all(), [
             'name' => 'nullable|string|max:255', 'reason' => 'nullable|string|max:255',
@@ -128,28 +125,50 @@ final class MaintenanceController extends Controller
         /** @var array{target_type: 'site'|'client'|'tag', target_id: int, starts_local: string, ends_local: string,
          * timezone: string, name?: string|null, reason?: string|null, mute_alerts: bool, catch_up_at_end: bool} $data
          */
-        $this->validTarget($data['target_type'], $data['target_id']);
         $start = $localTime->resolve(substr($data['starts_local'], 0, 10), substr($data['starts_local'], 11), $data['timezone']);
         $end = $localTime->resolve(substr($data['ends_local'], 0, 10), substr($data['ends_local'], 11), $data['timezone']);
-        $update($window, $data['name'] ?? null, $start, $end, $data);
+        // The replacement target is validated under the access lock: a site deleted while the edit waited is gone by then.
+        $authorize->asManager($this->user($request), function () use ($update, $window, $data, $start, $end): MaintenancePeriod {
+            $this->validTarget($data['target_type'], $data['target_id']);
+
+            return $update($window, $data['name'] ?? null, $start, $end, $data, $this->refuseEnded(...));
+        });
 
         return to_route('maintenance.index', $returnContext);
     }
 
-    public function destroy(Request $request, MaintenancePeriod $window, DeleteMaintenancePeriod $delete): RedirectResponse
+    public function destroy(Request $request, MaintenancePeriod $window, DeleteMaintenancePeriod $delete, AuthorizeSiteWrite $authorize): RedirectResponse
     {
         $this->writable($request);
-        if ($window->starts_at <= CarbonImmutable::now('UTC')) {
+        $returnContext = MaintenanceReturnContext::parameters($request);
+        $authorize->asManager($this->user($request), fn () => $delete($window, $this->refuseStarted(...)));
+
+        return to_route('maintenance.index', $returnContext);
+    }
+
+    /** Decided on the locked window (UpdateMaintenancePeriod): a window ended meanwhile is not reopened by an older form. */
+    private function refuseEnded(MaintenancePeriod $window, CarbonImmutable $now): void
+    {
+        if ($window->ends_at <= $now) {
+            throw new ExpectedRefusal(
+                status: 409,
+                messageKey: 'errors.maintenance.already_ended',
+                errorCode: 'maintenance_already_ended',
+                tone: 'info',
+            );
+        }
+    }
+
+    /** Decided on the locked window (DeleteMaintenancePeriod): a window that has started meanwhile is not deleted. */
+    private function refuseStarted(MaintenancePeriod $window, CarbonImmutable $now): void
+    {
+        if ($window->starts_at <= $now) {
             throw new ExpectedRefusal(
                 status: 409,
                 messageKey: 'errors.maintenance.already_started',
                 errorCode: 'maintenance_already_started',
             );
         }
-        $returnContext = MaintenanceReturnContext::parameters($request);
-        $delete($window);
-
-        return to_route('maintenance.index', $returnContext);
     }
 
     private function user(Request $request): User

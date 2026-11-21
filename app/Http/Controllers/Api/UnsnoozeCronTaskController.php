@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers\Api;
 
 use Dedoc\Scramble\Attributes\Group;
+use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\UnsnoozeCronTask;
 use Heptapod\Concerns\AuthorizesCronTasks;
 use Heptapod\Concerns\ResolvesApiPrincipal;
@@ -18,11 +19,11 @@ final class UnsnoozeCronTaskController extends Controller
     use AuthorizesCronTasks;
     use ResolvesApiPrincipal;
 
-    public function __invoke(Request $request, int $cronTask): CronTaskResource
+    public function __invoke(Request $request, int $cronTask, AuthorizeSiteWrite $authorize): CronTaskResource
     {
         [$task, $check] = $this->task($cronTask, 'snooze');
         $user = $this->principal($request);
-        app(UnsnoozeCronTask::class)($check, $task->id, $user);
+        $authorize($user, 'snooze', static fn () => app(UnsnoozeCronTask::class)($check, $task->id, $user), $check);
 
         return new CronTaskResource($task);
     }

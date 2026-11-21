@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers;
 
+use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\DeleteSite;
 use Heptapod\Actions\UpdateSiteSettings;
 use Heptapod\Exceptions\CheckConfigurationValidationException;
@@ -49,11 +50,14 @@ final class SiteSettingsController extends Controller
         return back();
     }
 
-    public function destroy(Request $request, Site $site, DeleteSite $delete): RedirectResponse
+    public function destroy(Request $request, Site $site, DeleteSite $delete, AuthorizeSiteWrite $authorize): RedirectResponse
     {
         Gate::authorize('delete', $site);
         Validator::make($request->all(), ['name' => ['required', 'string', Rule::in([$site->displayName()])]])->validate();
-        $delete($site);
+        $user = $request->user();
+        abort_unless($user instanceof User, 401);
+        // Decided again under the exclusive access lock the deletion takes, with the actor as the account is now.
+        $authorize->exclusively($user, 'delete', static fn () => $delete($site), $site);
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Site deleted')]);
 
         return redirect()->route('sites.index');

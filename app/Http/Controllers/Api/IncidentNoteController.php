@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers\Api;
 
 use Dedoc\Scramble\Attributes\Group;
+use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\SaveIncidentNote;
 use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Http\Controllers\Controller;
@@ -27,7 +28,7 @@ final class IncidentNoteController extends Controller
         return $this->note($incident);
     }
 
-    public function update(Request $request, int $incident, IncidentsReader $reader, SaveIncidentNote $save): JsonResponse
+    public function update(Request $request, int $incident, IncidentsReader $reader, SaveIncidentNote $save, AuthorizeSiteWrite $authorize): JsonResponse
     {
         $user = $this->principal($request);
         $data = Validator::make($request->all(), ['note' => ['present', 'nullable', 'string', 'max:10000']])->validate();
@@ -35,9 +36,8 @@ final class IncidentNoteController extends Controller
         if ($note !== null && ! is_string($note)) {
             throw new \LogicException('Validated incident note must be text.');
         }
-        $incident = $save($reader->scoped($user)->findOrFail($incident), $user, $note);
 
-        return $this->note($incident);
+        return $this->note($authorize->incident($user, $reader->scoped($user)->findOrFail($incident), static fn (Incident $visible): Incident => $save($visible, $user, $note)));
     }
 
     private function note(Incident $incident): JsonResponse

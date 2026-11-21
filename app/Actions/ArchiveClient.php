@@ -9,11 +9,12 @@ use Heptapod\Models\Client;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 final readonly class ArchiveClient
 {
-    public function __construct(private PauseSite $pause, private MoveSiteToClient $move) {}
+    public function __construct(private PauseSite $pause, private MoveSiteToClient $move, private AuthorizeSiteWrite $authorize) {}
 
     public function __invoke(Client $client, ?User $user = null, ?int $targetClientId = null): void
     {
@@ -22,9 +23,12 @@ final readonly class ArchiveClient
 
             return;
         }
-        NotificationLocks::transaction(function () use ($client): void {
+        NotificationLocks::transaction(function () use ($client, $user): void {
+            // NotificationLocks level 0: a change of who may write what holds the access-structure lock exclusive, first.
+            NotificationLocks::accessExclusive();
             NotificationLocks::clients([$client->id]);
             $locked = Client::query()->findOrFail($client->id);
+            $this->authorizeLocked($locked, $user);
             if ($locked->is_internal) {
                 throw new \LogicException('Internal client cannot be archived.');
             }
@@ -78,13 +82,24 @@ final readonly class ArchiveClient
             }
             $moved++;
         }
-        NotificationLocks::transaction(function () use ($client): void {
+        NotificationLocks::transaction(function () use ($client, $user): void {
+            // NotificationLocks level 0: a change of who may write what holds the access-structure lock exclusive, first.
+            NotificationLocks::accessExclusive();
             NotificationLocks::clients([$client->id]);
             $locked = Client::query()->findOrFail($client->id);
+            $this->authorizeLocked($locked, $user);
             if (DB::table('sites')->where('client_id', $locked->id)->exists()) {
                 throw ValidationException::withMessages(['site_action' => __('Sites were added while archiving; try again.')]);
             }
             $locked->update(['archived_at' => now()]);
         });
+    }
+
+    /** With an actor the archive is authorized again under the lock, with the actor as the account is now. */
+    private function authorizeLocked(Client $locked, ?User $actor): void
+    {
+        if ($actor instanceof User) {
+            Gate::forUser($this->authorize->currentActor($actor))->authorize('archive', $locked);
+        }
     }
 }

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::index
-* @see app/Http/Controllers/MaintenanceController.php:38
+* @see app/Http/Controllers/MaintenanceController.php:40
 * @route '/maintenance'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::index
-* @see app/Http/Controllers/MaintenanceController.php:38
+* @see app/Http/Controllers/MaintenanceController.php:40
 * @route '/maintenance'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::index
-* @see app/Http/Controllers/MaintenanceController.php:38
+* @see app/Http/Controllers/MaintenanceController.php:40
 * @route '/maintenance'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::index
-* @see app/Http/Controllers/MaintenanceController.php:38
+* @see app/Http/Controllers/MaintenanceController.php:40
 * @route '/maintenance'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::index
-* @see app/Http/Controllers/MaintenanceController.php:38
+* @see app/Http/Controllers/MaintenanceController.php:40
 * @route '/maintenance'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::index
-* @see app/Http/Controllers/MaintenanceController.php:38
+* @see app/Http/Controllers/MaintenanceController.php:40
 * @route '/maintenance'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::index
-* @see app/Http/Controllers/MaintenanceController.php:38
+* @see app/Http/Controllers/MaintenanceController.php:40
 * @route '/maintenance'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ index.form = indexForm
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::store
-* @see app/Http/Controllers/MaintenanceController.php:98
+* @see app/Http/Controllers/MaintenanceController.php:100
 * @route '/maintenance'
 */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -97,7 +97,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::store
-* @see app/Http/Controllers/MaintenanceController.php:98
+* @see app/Http/Controllers/MaintenanceController.php:100
 * @route '/maintenance'
 */
 store.url = (options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::store
-* @see app/Http/Controllers/MaintenanceController.php:98
+* @see app/Http/Controllers/MaintenanceController.php:100
 * @route '/maintenance'
 */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -116,7 +116,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::store
-* @see app/Http/Controllers/MaintenanceController.php:98
+* @see app/Http/Controllers/MaintenanceController.php:100
 * @route '/maintenance'
 */
 const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -126,7 +126,7 @@ const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::store
-* @see app/Http/Controllers/MaintenanceController.php:98
+* @see app/Http/Controllers/MaintenanceController.php:100
 * @route '/maintenance'
 */
 storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -138,7 +138,7 @@ store.form = storeForm
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::update
-* @see app/Http/Controllers/MaintenanceController.php:109
+* @see app/Http/Controllers/MaintenanceController.php:112
 * @route '/maintenance/{window}'
 */
 export const update = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -153,7 +153,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::update
-* @see app/Http/Controllers/MaintenanceController.php:109
+* @see app/Http/Controllers/MaintenanceController.php:112
 * @route '/maintenance/{window}'
 */
 update.url = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -186,7 +186,7 @@ update.url = (args: { window: number | { id: number } } | [window: number | { id
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::update
-* @see app/Http/Controllers/MaintenanceController.php:109
+* @see app/Http/Controllers/MaintenanceController.php:112
 * @route '/maintenance/{window}'
 */
 update.put = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -196,7 +196,7 @@ update.put = (args: { window: number | { id: number } } | [window: number | { id
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::update
-* @see app/Http/Controllers/MaintenanceController.php:109
+* @see app/Http/Controllers/MaintenanceController.php:112
 * @route '/maintenance/{window}'
 */
 const updateForm = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -211,7 +211,7 @@ const updateForm = (args: { window: number | { id: number } } | [window: number 
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::update
-* @see app/Http/Controllers/MaintenanceController.php:109
+* @see app/Http/Controllers/MaintenanceController.php:112
 * @route '/maintenance/{window}'
 */
 updateForm.put = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -228,7 +228,7 @@ update.form = updateForm
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::destroy
-* @see app/Http/Controllers/MaintenanceController.php:139
+* @see app/Http/Controllers/MaintenanceController.php:140
 * @route '/maintenance/{window}'
 */
 export const destroy = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -243,7 +243,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::destroy
-* @see app/Http/Controllers/MaintenanceController.php:139
+* @see app/Http/Controllers/MaintenanceController.php:140
 * @route '/maintenance/{window}'
 */
 destroy.url = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -276,7 +276,7 @@ destroy.url = (args: { window: number | { id: number } } | [window: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::destroy
-* @see app/Http/Controllers/MaintenanceController.php:139
+* @see app/Http/Controllers/MaintenanceController.php:140
 * @route '/maintenance/{window}'
 */
 destroy.delete = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -286,7 +286,7 @@ destroy.delete = (args: { window: number | { id: number } } | [window: number | 
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::destroy
-* @see app/Http/Controllers/MaintenanceController.php:139
+* @see app/Http/Controllers/MaintenanceController.php:140
 * @route '/maintenance/{window}'
 */
 const destroyForm = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -301,7 +301,7 @@ const destroyForm = (args: { window: number | { id: number } } | [window: number
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::destroy
-* @see app/Http/Controllers/MaintenanceController.php:139
+* @see app/Http/Controllers/MaintenanceController.php:140
 * @route '/maintenance/{window}'
 */
 destroyForm.delete = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -318,7 +318,7 @@ destroy.form = destroyForm
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::show
-* @see app/Http/Controllers/MaintenanceController.php:93
+* @see app/Http/Controllers/MaintenanceController.php:95
 * @route '/sites/{site}/maintenance'
 */
 export const show = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -333,7 +333,7 @@ show.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::show
-* @see app/Http/Controllers/MaintenanceController.php:93
+* @see app/Http/Controllers/MaintenanceController.php:95
 * @route '/sites/{site}/maintenance'
 */
 show.url = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -366,7 +366,7 @@ show.url = (args: { site: number | { id: number } } | [site: number | { id: numb
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::show
-* @see app/Http/Controllers/MaintenanceController.php:93
+* @see app/Http/Controllers/MaintenanceController.php:95
 * @route '/sites/{site}/maintenance'
 */
 show.get = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -376,7 +376,7 @@ show.get = (args: { site: number | { id: number } } | [site: number | { id: numb
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::show
-* @see app/Http/Controllers/MaintenanceController.php:93
+* @see app/Http/Controllers/MaintenanceController.php:95
 * @route '/sites/{site}/maintenance'
 */
 show.head = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -386,7 +386,7 @@ show.head = (args: { site: number | { id: number } } | [site: number | { id: num
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::show
-* @see app/Http/Controllers/MaintenanceController.php:93
+* @see app/Http/Controllers/MaintenanceController.php:95
 * @route '/sites/{site}/maintenance'
 */
 const showForm = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -396,7 +396,7 @@ const showForm = (args: { site: number | { id: number } } | [site: number | { id
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::show
-* @see app/Http/Controllers/MaintenanceController.php:93
+* @see app/Http/Controllers/MaintenanceController.php:95
 * @route '/sites/{site}/maintenance'
 */
 showForm.get = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -406,7 +406,7 @@ showForm.get = (args: { site: number | { id: number } } | [site: number | { id: 
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::show
-* @see app/Http/Controllers/MaintenanceController.php:93
+* @see app/Http/Controllers/MaintenanceController.php:95
 * @route '/sites/{site}/maintenance'
 */
 showForm.head = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

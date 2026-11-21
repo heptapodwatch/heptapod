@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers\Api;
 
 use Dedoc\Scramble\Attributes\Group;
+use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\SnoozeCronTask;
 use Heptapod\Concerns\AuthorizesCronTasks;
 use Heptapod\Concerns\ResolvesApiPrincipal;
@@ -19,7 +20,7 @@ final class SnoozeCronTaskController extends Controller
     use AuthorizesCronTasks;
     use ResolvesApiPrincipal;
 
-    public function __invoke(Request $request, int $cronTask): CronTaskResource
+    public function __invoke(Request $request, int $cronTask, AuthorizeSiteWrite $authorize): CronTaskResource
     {
         [$task, $check] = $this->task($cronTask, 'snooze');
         Validator::make($request->all(), ['minutes' => ['required', function (string $attribute, mixed $value, \Closure $fail): void {
@@ -28,7 +29,8 @@ final class SnoozeCronTaskController extends Controller
             }
         }]])->validate();
         $user = $this->principal($request);
-        app(SnoozeCronTask::class)($check, $task->id, $user, $request->integer('minutes'));
+        $minutes = $request->integer('minutes');
+        $authorize($user, 'snooze', static fn () => app(SnoozeCronTask::class)($check, $task->id, $user, $minutes), $check);
 
         return new CronTaskResource($task);
     }

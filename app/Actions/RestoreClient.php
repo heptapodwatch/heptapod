@@ -7,17 +7,25 @@ namespace Heptapod\Actions;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\Client;
 use Heptapod\Models\Site;
+use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 final readonly class RestoreClient
 {
-    public function __construct(private ResumeSite $resume) {}
+    public function __construct(private ResumeSite $resume, private AuthorizeSiteWrite $authorize) {}
 
-    public function __invoke(Client $client, bool $resumeSites = true): void
+    /** With an $actor the restore is authorized again under the lock, with the actor as the account is now. */
+    public function __invoke(Client $client, bool $resumeSites = true, ?User $actor = null): void
     {
-        NotificationLocks::transaction(function () use ($client, $resumeSites): void {
+        NotificationLocks::transaction(function () use ($client, $resumeSites, $actor): void {
+            // NotificationLocks level 0: a change of who may write what holds the access-structure lock exclusive, first.
+            NotificationLocks::accessExclusive();
             NotificationLocks::clients([$client->id]);
             $locked = Client::query()->findOrFail($client->id);
+            if ($actor instanceof User) {
+                Gate::forUser($this->authorize->currentActor($actor))->authorize('restore', $locked);
+            }
             if ($locked->archived_at === null) {
                 return;
             }

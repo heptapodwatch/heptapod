@@ -19,6 +19,8 @@ final class UnsnoozeCheck
             // woken deliveries in ascending id.
             NotificationLocks::users([$actor->id]);
             NotificationLocks::checks([], exclusive: [$check->id]);
+            // A site deletion that held the check deleted it meanwhile: 404, not a write on a check that is gone.
+            Check::query()->findOrFail($check->id);
             $check->snoozes()->getQuery()->getQuery()->whereNull('component_type')->whereNull('unsnoozed_at')->where('starts_at', '<=', now()->format('Y-m-d H:i:s.uP'))->where('ends_at', '>', now()->format('Y-m-d H:i:s.uP'))
                 ->update(['unsnoozed_at' => now()->format('Y-m-d H:i:s.uP'), 'unsnoozed_by' => $actor->name, 'unsnoozed_by_user_id' => $actor->id]);
             $deferred = DB::table('deliveries')->whereIn('event_id', DB::table('events')->select('id')->where('check_id', $check->id))

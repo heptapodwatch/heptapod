@@ -52,6 +52,7 @@
     "errors.check_cooldown_wait_minutes_other": "in {{count}} Min.",
     "errors.maintenance.already_ended": "Dieses Wartungsfenster ist bereits beendet. Die Liste wurde aktualisiert.",
     "errors.maintenance.already_started": "Dieses Wartungsfenster hat bereits begonnen und kann nicht gelöscht werden. Beenden Sie es stattdessen.",
+    "errors.busy_try_again": "Eine andere Änderung wird gerade gespeichert. Bitte versuchen Sie es gleich noch einmal.",
     "errors.backup.already_running": "Eine Sicherung ist bereits eingereiht oder läuft. Warten Sie, bis sie abgeschlossen ist.",
     "errors.backup.cooldown": "Eine Sicherung wurde vor Kurzem gestartet. Sie können :wait erneut eine Sicherung starten.",
     "errors.backup.cooldown_reason": "Erneut ausführbar um :time · :wait",

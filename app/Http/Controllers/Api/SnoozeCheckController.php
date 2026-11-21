@@ -6,6 +6,7 @@ namespace Heptapod\Http\Controllers\Api;
 
 use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Attributes\Group;
+use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\SnoozeCheck;
 use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Http\Controllers\Controller;
@@ -20,7 +21,7 @@ final class SnoozeCheckController extends Controller
 {
     use ResolvesApiPrincipal;
 
-    public function __invoke(Request $request, Check $check, SnoozeCheck $snooze): CheckResource
+    public function __invoke(Request $request, Check $check, SnoozeCheck $snooze, AuthorizeSiteWrite $authorize): CheckResource
     {
         Gate::authorize('snooze', $check);
         $absolute = $request->has('snooze_until');
@@ -31,8 +32,13 @@ final class SnoozeCheckController extends Controller
         }]])->validate();
         $user = $this->principal($request);
         // The minutes form stays for compatibility; snooze_until is the retry-safe form.
-        $snooze($check, $user, $absolute ? CarbonImmutable::parse($request->string('snooze_until')->toString())->utc() : CarbonImmutable::now('UTC')->addMinutes($request->integer('minutes')));
+        $until = $absolute ? CarbonImmutable::parse($request->string('snooze_until')->toString())->utc() : CarbonImmutable::now('UTC')->addMinutes($request->integer('minutes'));
+        // The resource reads the site loaded under the lock: a site deleted after the commit must not fail the response.
+        $authorize($user, 'snooze', static function () use ($snooze, $check, $user, $until): void {
+            $snooze($check, $user, $until);
+            $check->load(['snoozes', 'site.checks']);
+        }, $check);
 
-        return new CheckResource($check->load('snoozes'));
+        return new CheckResource($check);
     }
 }

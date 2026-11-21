@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::store
-* @see app/Http/Controllers/SiteMonitoringController.php:19
+* @see app/Http/Controllers/SiteMonitoringController.php:21
 * @route '/sites/{site}/pause'
 */
 export const store = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::store
-* @see app/Http/Controllers/SiteMonitoringController.php:19
+* @see app/Http/Controllers/SiteMonitoringController.php:21
 * @route '/sites/{site}/pause'
 */
 store.url = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ store.url = (args: { site: number | { id: number } } | [site: number | { id: num
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::store
-* @see app/Http/Controllers/SiteMonitoringController.php:19
+* @see app/Http/Controllers/SiteMonitoringController.php:21
 * @route '/sites/{site}/pause'
 */
 store.post = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ store.post = (args: { site: number | { id: number } } | [site: number | { id: nu
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::store
-* @see app/Http/Controllers/SiteMonitoringController.php:19
+* @see app/Http/Controllers/SiteMonitoringController.php:21
 * @route '/sites/{site}/pause'
 */
 const storeForm = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const storeForm = (args: { site: number | { id: number } } | [site: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::store
-* @see app/Http/Controllers/SiteMonitoringController.php:19
+* @see app/Http/Controllers/SiteMonitoringController.php:21
 * @route '/sites/{site}/pause'
 */
 storeForm.post = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -81,7 +81,7 @@ store.form = storeForm
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::destroy
-* @see app/Http/Controllers/SiteMonitoringController.php:35
+* @see app/Http/Controllers/SiteMonitoringController.php:38
 * @route '/sites/{site}/resume'
 */
 export const destroy = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -96,7 +96,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::destroy
-* @see app/Http/Controllers/SiteMonitoringController.php:35
+* @see app/Http/Controllers/SiteMonitoringController.php:38
 * @route '/sites/{site}/resume'
 */
 destroy.url = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -129,7 +129,7 @@ destroy.url = (args: { site: number | { id: number } } | [site: number | { id: n
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::destroy
-* @see app/Http/Controllers/SiteMonitoringController.php:35
+* @see app/Http/Controllers/SiteMonitoringController.php:38
 * @route '/sites/{site}/resume'
 */
 destroy.post = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -139,7 +139,7 @@ destroy.post = (args: { site: number | { id: number } } | [site: number | { id: 
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::destroy
-* @see app/Http/Controllers/SiteMonitoringController.php:35
+* @see app/Http/Controllers/SiteMonitoringController.php:38
 * @route '/sites/{site}/resume'
 */
 const destroyForm = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -149,7 +149,7 @@ const destroyForm = (args: { site: number | { id: number } } | [site: number | {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::destroy
-* @see app/Http/Controllers/SiteMonitoringController.php:35
+* @see app/Http/Controllers/SiteMonitoringController.php:38
 * @route '/sites/{site}/resume'
 */
 destroyForm.post = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

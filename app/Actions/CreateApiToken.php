@@ -42,6 +42,8 @@ final class CreateApiToken
         $authenticated = $user;
 
         return DB::transaction(function () use ($authenticated, $name, $abilities, $clientId, $expiresAt): string {
+            // NotificationLocks level 0: a change of who may write what holds the access-structure lock exclusive, first.
+            NotificationLocks::accessExclusive();
             // Removal, access changes and password resets hold the user FOR UPDATE while they delete its tokens: a token is
             // issued only under the access the account has once they committed, and only to a caller whose sign-in still
             // holds (a changed password means the caller authenticated before the reset).
