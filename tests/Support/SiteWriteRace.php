@@ -17,6 +17,9 @@ use Symfony\Component\Process\Process;
  * commit makes the next test start from a freshly migrated database (Tests\TestCase).
  */
 
+/** The advisory key a paused request (site-write-request.php) waits for; a change that pauses it takes the key first. */
+const SiteWriteRacePause = 7_314_001;
+
 /** @return array{owner: User, site: Site, from: Client, to: Client, token: string} the site belongs to $from; the token is scoped to it */
 function siteWriteRaceFixture(): array
 {
@@ -30,23 +33,31 @@ function siteWriteRaceFixture(): array
         'token' => app(CreateApiToken::class)($owner, 'scoped-to-source', ['*'], $from->id)];
 }
 
-/** The move from $fixture['from'] to $fixture['to'], as the change a write races. */
+/**
+ * The move from $fixture['from'] to $fixture['to'], as the change a write races.
+ *
+ * @param  array{owner: User, site: Site, from: Client, to: Client, token: string}  $fixture
+ */
 function siteWriteRaceMove(array $fixture): Closure
 {
-    return static fn (): Site => app(MoveSiteToClient::class)($fixture['owner'], $fixture['site'], $fixture['to']->id);
+    return static function () use ($fixture): void {
+        DB::select('SELECT pg_advisory_xact_lock(?)', [SiteWriteRacePause]);
+        app(MoveSiteToClient::class)($fixture['owner'], $fixture['site'], $fixture['to']->id);
+    };
 }
 
 /**
  * Commits the fixtures, then sends $method $uri (with a bearer token or as a signed-in web user) while $change is open.
+ * With $pauseAfter the request waits after its first query containing that SQL fragment until $change commits.
  *
  * @param  array<string, mixed>  $body
  * @return array{status: int, body: mixed}
  */
-function siteWriteRace(Closure $change, string $method, string $uri, array $body = [], string $token = '', ?User $webUser = null): array
+function siteWriteRace(Closure $change, string $method, string $uri, array $body = [], string $token = '', ?User $webUser = null, string $pauseAfter = ''): array
 {
     DB::commit();
     $request = new Process([PHP_BINARY, __DIR__.'/site-write-request.php', $method, $uri, json_encode($body === [] ? new stdClass : $body, JSON_THROW_ON_ERROR),
-        $token, $webUser === null ? '' : (string) $webUser->id], base_path(), [
+        $token, $webUser === null ? '' : (string) $webUser->id, $pauseAfter], base_path(), [
             'APP_ENV' => 'testing', 'DB_DATABASE' => config('database.connections.pgsql.database'), 'DB_URL' => '',
             'CACHE_STORE' => 'array', 'SESSION_DRIVER' => 'array', 'QUEUE_CONNECTION' => 'database', 'BROADCAST_CONNECTION' => 'null',
         ], timeout: 30);

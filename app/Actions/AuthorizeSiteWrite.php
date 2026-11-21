@@ -6,8 +6,10 @@ namespace Heptapod\Actions;
 
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\Check;
+use Heptapod\Models\Incident;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
+use Heptapod\Queries\IncidentsReader;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -20,6 +22,8 @@ use Illuminate\Support\Facades\Gate;
  */
 final readonly class AuthorizeSiteWrite
 {
+    public function __construct(private IncidentsReader $incidents) {}
+
     /**
      * @template TReturn
      *
@@ -46,5 +50,21 @@ final readonly class AuthorizeSiteWrite
 
             return $write();
         });
+    }
+
+    /**
+     * A write on an incident the actor sees in the incident lists: the incident's site authorized as above, then the
+     * incident read again through the same visibility for $write.
+     *
+     * @template TReturn
+     *
+     * @param  \Closure(Incident): TReturn  $write
+     * @return TReturn
+     */
+    public function incident(User $actor, int $incidentId, \Closure $write): mixed
+    {
+        $site = $this->incidents->scoped($actor)->findOrFail($incidentId)->site ?? throw new \LogicException('An incident belongs to a site.');
+
+        return $this($actor, 'view', fn (): mixed => $write($this->incidents->scoped($actor)->findOrFail($incidentId)), $site);
     }
 }

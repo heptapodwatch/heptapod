@@ -174,12 +174,19 @@ final readonly class EventsReader
         return $query->firstOrFail();
     }
 
-    /** @param list<int> $eventIds
+    /**
+     * The head events of activity rows, read after the rows and again limited to what $user sees: a site that moved out of
+     * the user's scope in between must not show its new client. Callers drop the rows whose head is missing.
+     *
+     * @param  list<int>  $eventIds
      * @return EloquentCollection<int, Event>
      */
-    public function activityHeadEvents(array $eventIds): EloquentCollection
+    public function activityHeadEvents(User $user, array $eventIds): EloquentCollection
     {
-        return Event::query()->with(['site.client', 'check', 'incident'])->whereKey($eventIds)->get()->keyBy('id');
+        $query = $this->filtered($user, null, null, null, null);
+        $query->getQuery()->whereIn('events.id', $eventIds);
+
+        return $query->get()->keyBy('id');
     }
 
     /**
@@ -192,7 +199,7 @@ final readonly class EventsReader
      *
      * @return array{groups: list<ActivityGroupData>, older: int|null}
      */
-    public function activityBatch(QueryBuilder $groups, ?Event $cursor, int $limit): array
+    public function activityBatch(User $user, QueryBuilder $groups, ?Event $cursor, int $limit): array
     {
         $query = DB::query()->fromSub($groups, 'groups');
         if ($cursor instanceof Event) {
@@ -200,7 +207,8 @@ final readonly class EventsReader
         }
         /** @var list<ActivityGroupRow> $rows */
         $rows = $query->orderByDesc('ended_at')->orderByDesc('latest_id')->limit($limit + 2)->get()->all();
-        $models = $this->activityHeadEvents(array_map(static fn (object $row): int => $row->latest_id, $rows));
+        $models = $this->activityHeadEvents($user, array_map(static fn (object $row): int => $row->latest_id, $rows));
+        $rows = array_values(array_filter($rows, static fn (object $row): bool => $models->has($row->latest_id)));
         $events = $this->present($models->values());
         $byId = [];
         foreach ($events as $event) {

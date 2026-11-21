@@ -52,7 +52,7 @@ final class ActivityController extends Controller
         $rows = $events->activityGroups($user, $since, null, $clientId, null, cursor: $cursor, limit: $limit + 1)->get()->all();
         $hasMore = count($rows) > $limit;
         $rows = array_slice($rows, 0, $limit);
-        $latest = $events->activityHeadEvents(array_map(static fn (object $row): int => $row->latest_id, $rows));
+        $latest = $events->activityHeadEvents($user, array_map(static fn (object $row): int => $row->latest_id, $rows));
         $clientNames = Client::query()->whereKey($latest->pluck('client_id')->filter()->unique()->values()->all())->pluck('name', 'id');
         // The app's activity feed renders each group head through the same event presenter.
         $messages = [];
@@ -61,7 +61,10 @@ final class ActivityController extends Controller
         }
         $data = [];
         foreach ($rows as $row) {
-            $event = $latest->get($row->latest_id) ?? throw new \LogicException('Activity head event missing.');
+            $event = $latest->get($row->latest_id);
+            if ($event === null) {
+                continue; // its site left the user's scope after the rows were read
+            }
             $payload = $event->payload;
             $data[] = ['group_ref' => 'activity:'.$row->id, 'latest_event_ref' => 'event:'.$event->id, 'event_type' => $event->type,
                 'check_ref' => $row->check_id === null ? null : 'check:'.$row->check_id, 'site_ref' => $event->site_id === null ? null : 'site:'.$event->site_id,

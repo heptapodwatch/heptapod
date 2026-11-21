@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers\Api;
 
 use Dedoc\Scramble\Attributes\Group;
+use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\CreateTag;
 use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Http\Controllers\Controller;
@@ -15,7 +16,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Spatie\Tags\Tag;
@@ -44,7 +44,7 @@ final class TagController extends Controller
         return response()->json(['data' => $tags->map(fn (Tag $tag): array => new TagResource($tag, $sitesByTag[$tag->id] ?? [])->resolve($request))->all()]);
     }
 
-    public function store(Request $request, CreateTag $create): JsonResponse
+    public function store(Request $request, CreateTag $create, AuthorizeSiteWrite $authorize): JsonResponse
     {
         $user = $this->principal($request, 403);
         abort_unless($user->hasAnyRole(['Owner', 'Admin']), 403);
@@ -54,10 +54,7 @@ final class TagController extends Controller
             throw ValidationException::withMessages(['monitors' => __('api.conflicting_aliases')]);
         }
         $ids = $data['monitors'] ?? $data['sites'] ?? [];
-        foreach (Site::query()->whereKey($ids)->get() as $site) {
-            Gate::authorize('update', $site);
-        }
-        $tag = $create($data['name'], $ids);
+        $tag = $authorize($user, 'update', static fn (): Tag => $create($data['name'], $ids), ...Site::query()->whereKey($ids)->get()->all());
 
         return new TagResource($tag)->response()->setStatusCode(201);
     }

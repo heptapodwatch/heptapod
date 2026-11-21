@@ -54,7 +54,7 @@ final class ActivityController extends Controller
         $batch = static function (?int $before) use ($reader, $user, $since, $search, $client, $check): array {
             $cursor = $before === null ? null : $reader->activityCursor($user, $before, $since, $search, $client, $check?->value);
 
-            return $reader->activityBatch($reader->activityGroups($user, $since, $search, $client, $check?->value, cursor: $cursor, limit: self::BatchSize + 2), $cursor, self::BatchSize);
+            return $reader->activityBatch($user, $reader->activityGroups($user, $since, $search, $client, $check?->value, cursor: $cursor, limit: self::BatchSize + 2), $cursor, self::BatchSize);
         };
         $groupId = $request->filled('group') ? $request->integer('group') : null;
         $expanded = $groupId === null ? null : $reader->activityDetails($user, $groupId, $since, $search, $client, $check?->value);
