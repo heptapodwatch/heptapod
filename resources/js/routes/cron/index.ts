@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\CronPingController::__invoke
-* @see app/Http/Controllers/CronPingController.php:17
+* @see app/Http/Controllers/CronPingController.php:24
 * @route '/cron/{uuid}/{phase?}'
 */
 export const ping = (args: { uuid: string | number, phase?: string | number } | [uuid: string | number, phase: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ ping.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\CronPingController::__invoke
-* @see app/Http/Controllers/CronPingController.php:17
+* @see app/Http/Controllers/CronPingController.php:24
 * @route '/cron/{uuid}/{phase?}'
 */
 ping.url = (args: { uuid: string | number, phase?: string | number } | [uuid: string | number, phase: string | number ], options?: RouteQueryOptions) => {
@@ -46,7 +46,7 @@ ping.url = (args: { uuid: string | number, phase?: string | number } | [uuid: st
 
 /**
 * @see \Heptapod\Http\Controllers\CronPingController::__invoke
-* @see app/Http/Controllers/CronPingController.php:17
+* @see app/Http/Controllers/CronPingController.php:24
 * @route '/cron/{uuid}/{phase?}'
 */
 ping.get = (args: { uuid: string | number, phase?: string | number } | [uuid: string | number, phase: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -56,7 +56,7 @@ ping.get = (args: { uuid: string | number, phase?: string | number } | [uuid: st
 
 /**
 * @see \Heptapod\Http\Controllers\CronPingController::__invoke
-* @see app/Http/Controllers/CronPingController.php:17
+* @see app/Http/Controllers/CronPingController.php:24
 * @route '/cron/{uuid}/{phase?}'
 */
 ping.post = (args: { uuid: string | number, phase?: string | number } | [uuid: string | number, phase: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -66,7 +66,7 @@ ping.post = (args: { uuid: string | number, phase?: string | number } | [uuid: s
 
 /**
 * @see \Heptapod\Http\Controllers\CronPingController::__invoke
-* @see app/Http/Controllers/CronPingController.php:17
+* @see app/Http/Controllers/CronPingController.php:24
 * @route '/cron/{uuid}/{phase?}'
 */
 ping.head = (args: { uuid: string | number, phase?: string | number } | [uuid: string | number, phase: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -76,7 +76,7 @@ ping.head = (args: { uuid: string | number, phase?: string | number } | [uuid: s
 
 /**
 * @see \Heptapod\Http\Controllers\CronPingController::__invoke
-* @see app/Http/Controllers/CronPingController.php:17
+* @see app/Http/Controllers/CronPingController.php:24
 * @route '/cron/{uuid}/{phase?}'
 */
 const pingForm = (args: { uuid: string | number, phase?: string | number } | [uuid: string | number, phase: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -86,7 +86,7 @@ const pingForm = (args: { uuid: string | number, phase?: string | number } | [uu
 
 /**
 * @see \Heptapod\Http\Controllers\CronPingController::__invoke
-* @see app/Http/Controllers/CronPingController.php:17
+* @see app/Http/Controllers/CronPingController.php:24
 * @route '/cron/{uuid}/{phase?}'
 */
 pingForm.get = (args: { uuid: string | number, phase?: string | number } | [uuid: string | number, phase: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -96,7 +96,7 @@ pingForm.get = (args: { uuid: string | number, phase?: string | number } | [uuid
 
 /**
 * @see \Heptapod\Http\Controllers\CronPingController::__invoke
-* @see app/Http/Controllers/CronPingController.php:17
+* @see app/Http/Controllers/CronPingController.php:24
 * @route '/cron/{uuid}/{phase?}'
 */
 pingForm.post = (args: { uuid: string | number, phase?: string | number } | [uuid: string | number, phase: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -106,7 +106,7 @@ pingForm.post = (args: { uuid: string | number, phase?: string | number } | [uui
 
 /**
 * @see \Heptapod\Http\Controllers\CronPingController::__invoke
-* @see app/Http/Controllers/CronPingController.php:17
+* @see app/Http/Controllers/CronPingController.php:24
 * @route '/cron/{uuid}/{phase?}'
 */
 pingForm.head = (args: { uuid: string | number, phase?: string | number } | [uuid: string | number, phase: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
