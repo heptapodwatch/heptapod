@@ -6,11 +6,8 @@ namespace Heptapod\SystemHealth;
 
 use Heptapod\Contracts\ControlProbe;
 use Heptapod\Contracts\ControlProbeResult;
-use Heptapod\Contracts\Http\FetchException;
-use Heptapod\Contracts\Http\TargetResolutionException;
-use Heptapod\Contracts\Http\TargetResolver;
-use Heptapod\Http\Outbound\NativeTargetResolver;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
+use Symfony\Component\Process\PhpExecutableFinder;
 use Symfony\Component\Process\Process;
 
 /**
@@ -20,8 +17,6 @@ use Symfony\Component\Process\Process;
  */
 final readonly class NativeControlProbe implements ControlProbe
 {
-    public function __construct(private TargetResolver $resolver) {}
-
     public function probe(): ControlProbeResult
     {
         /** @var list<string> $dnsHosts */
@@ -49,22 +44,17 @@ final readonly class NativeControlProbe implements ControlProbe
                 }
             }
 
-            // Start all DNS lookups concurrently alongside the IP connects.
-            if ($this->resolver instanceof NativeTargetResolver) {
+            // Start all bounded DNS child processes concurrently alongside the IP connects.
+            if ($dnsHosts !== []) {
+                $php = (new PhpExecutableFinder)->find(false);
+                if ($php === false || ! is_file($php) || ! is_executable($php)) {
+                    throw new \RuntimeException('Control probe requires an executable PHP CLI binary.');
+                }
                 foreach ($dnsHosts as $index => $host) {
-                    $process = $this->resolver->lookupProcess($host, $timeout);
+                    $process = new Process([$php, '-r', '$r = @socket_addrinfo_lookup($argv[1], null, ["ai_socktype" => SOCK_STREAM]); exit($r === false || $r === [] ? 2 : 0);', $host]);
+                    $process->setTimeout($timeout);
                     $process->start();
                     $pendingProcesses[$index] = $process;
-                }
-            } else {
-                $deadline = microtime(true) + $timeout;
-                foreach ($dnsHosts as $host) {
-                    try {
-                        $this->resolver->resolve($host, $deadline);
-                        $dnsPassed++;
-                    } catch (TargetResolutionException|FetchException) {
-                        // Failed control lookup counts as 0 passed.
-                    }
                 }
             }
 
