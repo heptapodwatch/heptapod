@@ -1,5 +1,5 @@
-FROM node:26-bookworm-slim AS node
-FROM composer:2 AS composer
+FROM node:26-bookworm-slim@sha256:5df79989ed685e09f0a98019db4cebfb22fb9df1a53c0161664a011f7ff6b0f1 AS node
+FROM composer:2@sha256:50ea4d33fdcde1adb0f045547295faa1548b33872e5f789dae5b02ce2fb5de93 AS composer
 FROM dunglas/frankenphp:1.13.6-php8.5.13@sha256:17ff6554ba6de527d17aa5ec37e2a3bc3b182d7dbea9362f9a02eb5b4a1c4b95
 
 COPY docker/php-extensions.txt /usr/local/etc/php/extensions.txt

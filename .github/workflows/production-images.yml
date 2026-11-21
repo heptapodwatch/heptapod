@@ -145,7 +145,7 @@ jobs:
           docker pull "$reference"
           test "$(bash scripts/image-config-digest.sh "$reference")" = "$SCANNED_CONFIG"
           docker tag "$reference" heptapod-app:ci
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: matrix.suite == 'ops'
         with:
           node-version: '24'

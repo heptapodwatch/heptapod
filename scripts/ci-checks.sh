@@ -32,6 +32,7 @@ case "${1:-all}" in
         php scripts/check-clock-ownership.php
         php scripts/check-ui-primitives.php
         php scripts/check-docs.php
+        php scripts/check-ci-pins.php
         composer normalize:check
         composer validate --strict
         composer deps:check
