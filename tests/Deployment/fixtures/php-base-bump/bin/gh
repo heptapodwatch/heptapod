@@ -2,8 +2,7 @@
 # shellcheck source=tests/Deployment/fixtures/gh-offline-validate.sh
 source "$(dirname -- "$0")/../../gh-offline-validate.sh"
 case "$endpoint" in
-    "repos/$GITHUB_REPOSITORY/actions/workflows/php-base.yml/runs?branch=main&event=schedule&status=success&per_page=100"|\
-    "repos/$GITHUB_REPOSITORY/actions/workflows/php-base.yml/runs?head_sha=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&event=push&per_page=100") file=runs.json ;;
+    "repos/$GITHUB_REPOSITORY/actions/workflows/php-base.yml/runs?branch=main&event=schedule&status=success&per_page=100") file=runs.json ;;
     "repos/$GITHUB_REPOSITORY/actions/runs/202") file=run.json ;;
     "repos/$GITHUB_REPOSITORY/actions/runs/202/artifacts?per_page=100") file=artifacts.json ;;
     "repos/$GITHUB_REPOSITORY/actions/runs/202/attempts/1/jobs?per_page=100") file=jobs.json ;;

@@ -2,55 +2,18 @@ name: CI
 
 on:
   push:
-    branches: [main, 'ci/**']
+    branches: [main]
   pull_request:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') && 'ci-trains' || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  candidate:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-    outputs:
-      tested: ${{ steps.lookup.outputs.tested }}
-    steps:
-      - name: Find a successful CI gate for this exact commit
-        id: lookup
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            core.setOutput('tested', 'false');
-            if (context.eventName !== 'push' || context.ref !== 'refs/heads/main') return;
-            try {
-              const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
-                ...context.repo,
-                workflow_id: 'ci.yml',
-                head_sha: context.sha,
-                event: 'push',
-                status: 'success',
-                per_page: 100,
-              });
-              const gate = runs.find(run => run.head_sha === context.sha &&
-                run.head_branch?.startsWith('ci/') && run.conclusion === 'success');
-              if (gate) {
-                core.info(`Reusing successful candidate CI: ${gate.html_url}`);
-                core.setOutput('tested', 'true');
-              }
-            } catch (error) {
-              // Lookup failure is a documented run-tests state, never a skipped gate.
-              core.warning(`Candidate lookup failed; running CI: ${error.message}`);
-            }
-
   changes:
-    needs: candidate
-    if: always() && needs.candidate.outputs.tested != 'true'
     runs-on: ubuntu-latest
     outputs:
       dev-image: ${{ steps.paths.outputs.dev-image }}
@@ -71,25 +34,8 @@ jobs:
             base=$(git merge-base "$PR_BASE" "$HEAD")
           elif [ "$GITHUB_REF" = refs/heads/main ]; then
             base=$BEFORE
-          elif git rev-parse --verify --quiet refs/remotes/origin/main >/dev/null; then
-            # Revalidate the whole candidate delta. A candidate without history in common with main (a fresh history) runs every gate; any other merge-base failure stays fatal.
-            status=0
-            base=$(git merge-base origin/main "$HEAD") || status=$?
-            if [ "$status" -eq 1 ]; then
-              base=$(git hash-object -t tree /dev/null)
-              echo 'Candidate shares no history with origin/main; comparing against the empty tree so every gate runs.' >> "$GITHUB_STEP_SUMMARY"
-            elif [ "$status" -ne 0 ]; then
-              exit "$status"
-            fi
           else
-            ref_status=0
-            git show-ref --exists refs/remotes/origin/main || ref_status=$?
-            if [ "$ref_status" -ne 2 ]; then
-              echo 'Cannot resolve origin/main; refusing an invalid comparison base.' >&2
-              exit 1
-            fi
-            base=$(git hash-object -t tree /dev/null)
-            echo 'No origin/main ref yet; comparing the initial candidate against the empty tree so every gate runs.' >> "$GITHUB_STEP_SUMMARY"
+            base=
           fi
           if [ -z "$base" ] || ! git cat-file -e "$base^{tree}" 2>/dev/null; then
             dev_image=true
@@ -124,8 +70,6 @@ jobs:
           fi
 
   checks:
-    needs: candidate
-    if: always() && needs.candidate.outputs.tested != 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -192,8 +136,6 @@ jobs:
         run: node scripts/npm-audit-gate.mjs
 
   vitest:
-    needs: candidate
-    if: always() && needs.candidate.outputs.tested != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -221,8 +163,6 @@ jobs:
 
   # Blocking since the 20x seeded proof on f1cd861c (2026-10-20). No retries: a failure without a code cause is quarantined.
   php-gate:
-    needs: candidate
-    if: always() && needs.candidate.outputs.tested != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:
@@ -317,8 +257,6 @@ jobs:
   # Blocking since test-hygiene T1 (2026-10-29): Feature+Unit minus tests/Quarantine.php, plus the Arch suite on shard 1.
   # No retries: a failure without a code cause is quarantined in its own commit.
   php-tests:
-    needs: candidate
-    if: always() && needs.candidate.outputs.tested != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -401,9 +339,8 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # Test-free trial: disabled, not deleted. Original condition: always() && needs.candidate.outputs.tested != 'true'
+  # Test-free trial: disabled, not deleted.
   browser-tests:
-    needs: candidate
     if: false
     runs-on: ubuntu-latest
     services:
@@ -464,8 +401,8 @@ jobs:
           if-no-files-found: error
 
   dev-image:
-    needs: [candidate, changes]
-    if: always() && needs.candidate.outputs.tested != 'true' && needs.changes.result == 'success' && needs.changes.outputs.dev-image == 'true'
+    needs: [changes]
+    if: needs.changes.outputs.dev-image == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -513,23 +450,16 @@ jobs:
 
   gate:
     if: always()
-    needs: [candidate, changes, checks, dev-image, php-gate, php-tests, vitest]
+    needs: [changes, checks, dev-image, php-gate, php-tests, vitest]
     runs-on: ubuntu-latest
     steps:
-      - name: Require every gate or exact-SHA candidate reuse
+      - name: Require every gate
         env:
           NEEDS: ${{ toJSON(needs) }}
         run: |
-          jq -e --arg event "$GITHUB_EVENT_NAME" --arg ref "$GITHUB_REF" '
-            if .candidate.outputs.tested == "true" then
-              $event == "push" and $ref == "refs/heads/main" and
-              .candidate.result == "success" and
-              ([.changes, .checks, .["dev-image"], .["php-gate"], .["php-tests"], .vitest] | all(.result == "skipped"))
-            else
-              (.candidate.result == "success" or .candidate.result == "skipped") and
-              ([.changes, .checks, .["php-gate"], .["php-tests"], .vitest] | all(.result == "success")) and
-              (if .changes.outputs["dev-image"] == "true" then .["dev-image"].result == "success"
-               elif .changes.outputs["dev-image"] == "false" then .["dev-image"].result == "skipped"
-               else false end)
-            end
+          jq -e '
+            ([.changes, .checks, .["php-gate"], .["php-tests"], .vitest] | all(.result == "success")) and
+            (if .changes.outputs["dev-image"] == "true" then .["dev-image"].result == "success"
+             elif .changes.outputs["dev-image"] == "false" then .["dev-image"].result == "skipped"
+             else false end)
           ' <<< "$NEEDS"
