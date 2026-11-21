@@ -1,3 +1,7 @@
+import {
+    hasActionNote,
+    type ActionNoteDescriptor,
+} from '@/components/action-note-slot';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { PageContainer } from '@/components/page-container';
 import { Head, router, usePage } from '@inertiajs/react';
@@ -6,7 +10,6 @@ import { useBufferedChanges } from '@/hooks/use-buffered-changes';
 import { useRequestedRun } from '@/hooks/use-requested-run';
 import { PendingChanges } from '@/components/pending-changes';
 import { useEffect, useId, useState } from 'react';
-import InputError from '@/components/input-error';
 import { SiteHeader } from '@/components/site-header';
 import { SiteRunningStrip } from '@/components/site-running-strip';
 import { Button } from '@/components/ui/button';
@@ -165,23 +168,39 @@ export default function SiteShow(page: SitePage) {
         isCheck &&
         page.can_run &&
         (!page.check.enabled || header.state !== 'paused');
-    const runActionNote = isCheck ? (
-        checkActionErrors.length > 0 ? (
-            <InputError message={checkActionErrors[0]} />
-        ) : page.check.enabled && activeRun ? (
+    const canProduceRunNote =
+        isCheck &&
+        ((canShowRunAction &&
+            (!page.check.enabled || page.check.unavailable_reason === null)) ||
+            checkActionErrors.length > 0);
+    const runStandingNote =
+        isCheck && page.check.enabled && activeRun ? (
             <RunCheckReason run={activeRun} />
-        ) : page.check.enabled && !activeRun && inCooldown ? (
+        ) : isCheck && page.check.enabled && !activeRun && inCooldown ? (
             <CooldownReason
                 until={cooldownUntil}
                 remainingSeconds={cooldownSeconds}
             />
-        ) : null
-    ) : null;
+        ) : null;
+    const runStandingKey =
+        isCheck && page.check.enabled && activeRun
+            ? `${activeRun.state.attempt_id}:${activeRun.lifecycle}`
+            : cooldownUntil;
+    const runActionNote: ActionNoteDescriptor | undefined = canProduceRunNote
+        ? {
+              id: runNoteId,
+              content: runStandingNote,
+              refusal: checkActionErrors,
+              standingKey: runStandingKey,
+          }
+        : undefined;
     const runAction = canShowRunAction ? (
         <Button
             variant={page.check.enabled ? 'outline' : 'default'}
             className="w-full md:w-auto"
-            aria-describedby={runActionNote ? runNoteId : undefined}
+            aria-describedby={
+                hasActionNote(runActionNote) ? runNoteId : undefined
+            }
             disabled={
                 pending ||
                 enablePending ||
@@ -345,10 +364,6 @@ export default function SiteShow(page: SitePage) {
                             requestedRun={requestedRun}
                             primaryAction={runAction}
                             actionNote={runActionNote}
-                            actionNoteId={runNoteId}
-                            reserveActionNote={
-                                canShowRunAction || checkActionErrors.length > 0
-                            }
                             page={{ ...page, runs: bufferedRuns.rows }}
                         />
                         {page.check.enabled && (

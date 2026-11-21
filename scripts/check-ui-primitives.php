@@ -83,8 +83,6 @@ $rawButtonOwners = [
 ];
 /** Per file: the one error key a button action returns (no form field holds it), and why it has no field link. */
 $actionErrorKeys = [
-    'resources/js/components/incident-episode.tsx' => 'check', // Run check refused (api.run_unavailable): the header action's result.
-    'resources/js/pages/sites/settings.tsx' => 'icon', // Refresh icon refused (unavailable / throttled): the Refresh button's result.
     'resources/js/pages/sites/create.tsx' => '_refusal', // Shared non-field Inertia refusal message from ErrorResponses::flashBack.
     'resources/js/pages/settings/security.tsx' => '_refusal', // Shared non-field Inertia refusal message from ErrorResponses::flashBack.
 ];
@@ -560,18 +558,32 @@ foreach ($files as $path) {
         }
         // Inline action notes (heptapod-ui-rules Errors and refusals): CooldownReason, RunCheckReason and refusal
         // InputErrors belong in ActionNoteSlot (or PageHeader actionNote), never wrapped beside or inside a button row.
-        if (preg_match_all('~\b(?:primaryAction|secondaryActions)=~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
+        // Source-pattern limits (review-only): notes returned from a separate helper component, or separated from a
+        // button by an extra non-slot wrapper element, are not traced across JSX/component boundaries.
+        if (preg_match_all('~\bprimaryAction=~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
             foreach ($matches[0] as [$text, $offset]) {
                 $value = expressionValue($source, $offset + strlen($text));
-                if (preg_match('~<(CooldownReason|RunCheckReason|InputError)\b~', $value, $note) === 1) {
-                    $failures[] = sprintf('%s:%d: %s inside %s; pass action notes through PageHeader actionNote instead of wrapping header buttons', $path, substr_count($source, "\n", 0, $offset) + 1, $note[1], rtrim($text, '='));
+                if (preg_match('~<(CooldownReason|RunCheckReason)\b~', $value, $note) === 1) {
+                    $failures[] = sprintf('%s:%d: %s inside primaryAction; pass action notes through PageHeader actionNote instead of wrapping header buttons', $path, substr_count($source, "\n", 0, $offset) + 1, $note[1]);
+                }
+                if (preg_match_all('~<InputError\b((?:[^<>]|=>)*?)/>~s', $value, $errMatches, PREG_SET_ORDER) > 0) {
+                    foreach ($errMatches as $errMatch) {
+                        if (preg_match('~\b(?:field|id)=~', $errMatch[1]) !== 1) {
+                            $failures[] = sprintf('%s:%d: unfielded InputError inside primaryAction; pass action refusals through PageHeader actionNote', $path, substr_count($source, "\n", 0, $offset) + 1);
+                        }
+                    }
                 }
             }
         }
-        if (preg_match('~<(CooldownReason|RunCheckReason)\b~', $source, $note, PREG_OFFSET_CAPTURE) === 1
-            && ! str_contains($source, '<ActionNoteSlot')
-            && ! str_contains($source, 'actionNote=')) {
-            $failures[] = sprintf('%s:%d: %s rendered outside ActionNoteSlot or PageHeader actionNote', $path, substr_count($source, "\n", 0, $note[0][1]) + 1, $note[1][0]);
+        if (preg_match_all('~<(CooldownReason|RunCheckReason)\b~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
+            foreach ($matches[0] as [$tag, $offset]) {
+                // Per-occurrence check (no file-wide exemption): reject any CooldownReason/RunCheckReason that shares
+                // an immediate JSX element block with a Button or PageHeaderAction instead of sitting in ActionNoteSlot.
+                $before = substr($source, max(0, $offset - 1200), min($offset, 1200));
+                if (preg_match('~</(?:Button|PageHeaderAction)>(?:(?!</(?:div|section|form|Card|FormSection|ActionNoteSlot)>).)*$~s', $before) === 1) {
+                    $failures[] = sprintf('%s:%d: %s rendered in the same block after an action button; place it inside ActionNoteSlot or PageHeader actionNote', $path, substr_count($source, "\n", 0, $offset) + 1, ltrim($tag, '<'));
+                }
+            }
         }
         if (! isset($inlineActionErrorExceptions[$path])
             && preg_match_all('~</(?:Button|PageHeaderAction)>\s*(?:(?:\{[^{}<>]*?(?:\?\s*\(?|&&\s*\(?)\s*)*)<(CooldownReason|RunCheckReason|InputError)\b((?:[^<>]|=>)*?)/>~s', $source, $matches, PREG_OFFSET_CAPTURE | PREG_SET_ORDER) > 0) {

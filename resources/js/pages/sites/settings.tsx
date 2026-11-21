@@ -139,9 +139,7 @@ export default function SiteSettings({
     const iconForm = useForm<{ icon?: string }>({});
     const iconPending = icon_manual_result?.key === 'icons.queued';
     const iconNoteId = useId();
-    const iconNote = iconForm.errors.icon ? (
-        <InputError message={iconForm.errors.icon} />
-    ) : icon_manual_result ? (
+    const iconStandingNote = icon_manual_result ? (
         <p role="status" className="text-foreground">
             {iconRefreshOutcomes.has(icon_manual_result.key)
                 ? t(icon_manual_result.key, icon_manual_result.params)
@@ -157,6 +155,8 @@ export default function SiteSettings({
                   )}`}
         </p>
     ) : null;
+    const iconHasNote = Boolean(iconForm.errors.icon || iconStandingNote);
+    const canRefreshIcon = !archivedClient && site.identity.state !== 'paused';
     const reloadPage = useLiveReload(
         ['state.changed'],
         [
@@ -716,7 +716,7 @@ export default function SiteSettings({
                                 variant="outline"
                                 size="sm"
                                 aria-describedby={
-                                    iconNote ? iconNoteId : undefined
+                                    iconHasNote ? iconNoteId : undefined
                                 }
                                 disabled={
                                     archivedClient ||
@@ -733,9 +733,15 @@ export default function SiteSettings({
                                 {t('icons.refresh')}
                             </Button>
                         </div>
-                        <ActionNoteSlot id={iconNoteId}>
-                            {iconNote}
-                        </ActionNoteSlot>
+                        {(canRefreshIcon || iconHasNote) && (
+                            <ActionNoteSlot
+                                id={iconNoteId}
+                                refusal={iconForm.errors.icon}
+                                standingKey={icon_manual_result?.key ?? null}
+                            >
+                                {iconStandingNote}
+                            </ActionNoteSlot>
+                        )}
                     </div>
                 </FormSection>
                 <FormSection

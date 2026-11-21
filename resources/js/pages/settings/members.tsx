@@ -1,3 +1,4 @@
+import { ActionNoteSlot } from '@/components/action-note-slot';
 import { InfoTooltip } from '@/components/info-tooltip';
 import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import { ClientMark } from '@/components/client-mark';
@@ -14,7 +15,7 @@ import { Sheet } from '@/components/ui/sheet';
 import { PageHeader } from '@/components/page-header';
 import { Head, usePage } from '@inertiajs/react';
 import { Users, Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -346,6 +347,7 @@ function EditMemberSheet({
     const [confirmRestriction, setConfirmRestriction] = useState(false);
     const legacyAll = member.role === 'Member' && member.client_scope === 'all';
     const [error, setError] = useState('');
+    const removeNoteId = useId();
     const [refreshing, setRefreshing] = useState(false);
     const [saved, setSaved] = useState(false);
     const busy = form.processing || removal.processing || refreshing;
@@ -541,9 +543,10 @@ function EditMemberSheet({
                 confirmLabel={t('Remove from team')}
                 confirmTestId="confirm-remove-member"
                 confirmDisabled={saved}
+                confirmDescribedBy={error ? removeNoteId : undefined}
                 onConfirm={() => save(true)}
             >
-                <InputError message={error} />
+                <ActionNoteSlot id={removeNoteId} refusal={error} />
             </ConfirmDialog>
         </Sheet>
     );

@@ -360,11 +360,14 @@ function SecretDialog({
                         <Copy className="size-4" />
                         {t(copied ? 'Copied' : 'Copy')}
                     </Button>
-                    <ActionNoteSlot id={copyNoteId}>
-                        {failed && (
-                            <InputError message="Copy failed. Select the token and copy it manually." />
-                        )}
-                    </ActionNoteSlot>
+                    <ActionNoteSlot
+                        id={copyNoteId}
+                        refusal={
+                            failed
+                                ? 'Copy failed. Select the token and copy it manually.'
+                                : null
+                        }
+                    />
                 </div>
                 <EvidenceBlock
                     wrap
@@ -414,6 +417,7 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
     const [creating, setCreating] = useState(false);
     const [secret, setSecret] = useState<Disclosure | null>(null);
     const [revoking, setRevoking] = useState<Token | null>(null);
+    const revokeNoteId = useId();
     const [failureMessage, setFailureMessage] = useState<string | null>(null);
     const [revoked, setRevoked] = useState(false);
     const query = useHttpRequest<Record<string, never>, TokenPage>();
@@ -705,9 +709,10 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
                 )}
                 confirmLabel={t('Revoke token')}
                 confirmTestId="confirm-revoke-token"
+                confirmDescribedBy={failureMessage ? revokeNoteId : undefined}
                 onConfirm={revokeToken}
             >
-                <InputError message={failureMessage} />
+                <ActionNoteSlot id={revokeNoteId} refusal={failureMessage} />
             </ConfirmDialog>
         </>
     );

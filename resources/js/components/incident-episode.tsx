@@ -1,3 +1,7 @@
+import {
+    hasActionNote,
+    type ActionNoteDescriptor,
+} from '@/components/action-note-slot';
 import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { AbsoluteTime } from '@/components/absolute-time';
@@ -149,16 +153,27 @@ export function IncidentEpisode({
     const { active: inCooldown, remainingSeconds: cooldownSeconds } =
         useCooldown(cooldownUntil);
     const runNoteId = useId();
-    const runActionNote = errors.check ? (
-        <InputError message={errors.check} />
-    ) : canShowRun && activeRun ? (
-        <RunCheckReason run={activeRun} />
-    ) : canShowRun && !activeRun && inCooldown ? (
-        <CooldownReason
-            until={cooldownUntil}
-            remainingSeconds={cooldownSeconds}
-        />
-    ) : null;
+    const runStandingNote =
+        canShowRun && activeRun ? (
+            <RunCheckReason run={activeRun} />
+        ) : canShowRun && !activeRun && inCooldown ? (
+            <CooldownReason
+                until={cooldownUntil}
+                remainingSeconds={cooldownSeconds}
+            />
+        ) : null;
+    const runActionNote: ActionNoteDescriptor | undefined =
+        canShowRun || errors.check
+            ? {
+                  id: runNoteId,
+                  content: runStandingNote,
+                  refusal: errors.check ?? null,
+                  standingKey:
+                      canShowRun && activeRun
+                          ? `${activeRun.state.attempt_id}:${activeRun.lifecycle}`
+                          : cooldownUntil,
+              }
+            : undefined;
     const [runPending, setRunPending] = useState(false);
     const [now, setNow] = useState(Date.now());
     const [actionsOpen, setActionsOpen] = useState(false);
@@ -476,7 +491,9 @@ export function IncidentEpisode({
                     canShowRun ? (
                         <Button
                             aria-describedby={
-                                runActionNote ? runNoteId : undefined
+                                hasActionNote(runActionNote)
+                                    ? runNoteId
+                                    : undefined
                             }
                             disabled={
                                 runPending ||
@@ -510,8 +527,6 @@ export function IncidentEpisode({
                     ) : undefined
                 }
                 actionNote={runActionNote}
-                actionNoteId={runNoteId}
-                reserveActionNote={Boolean(canShowRun || errors.check)}
                 secondaryActions={
                     <>
                         {page.can_snooze &&

@@ -1,3 +1,4 @@
+import type { ActionNoteDescriptor } from '@/components/action-note-slot';
 import { TooltipHint } from '@/components/truncated-text';
 import { PresentationChanges } from '@/components/presentation-changes';
 import { useState, type ReactNode } from 'react';
@@ -20,16 +21,12 @@ export function CheckTabLayout({
     headline,
     primaryAction,
     actionNote,
-    actionNoteId,
-    reserveActionNote = false,
     evidence,
 }: {
     page: Heptapod.Data.Ui.CheckTabPageData;
     headline: string;
     primaryAction?: ReactNode;
-    actionNote?: ReactNode;
-    actionNoteId?: string;
-    reserveActionNote?: boolean;
+    actionNote?: ActionNoteDescriptor;
     evidence: ReactNode;
 }) {
     const { t } = useTranslation();
@@ -156,8 +153,6 @@ export function CheckTabLayout({
                 }
                 primaryAction={primaryAction}
                 actionNote={actionNote}
-                actionNoteId={actionNoteId}
-                reserveActionNote={reserveActionNote}
                 secondaryActions={
                     page.check.enabled && page.header.state !== 'paused' ? (
                         <CheckSnoozeActions

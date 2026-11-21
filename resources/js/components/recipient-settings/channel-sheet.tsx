@@ -2,6 +2,7 @@ import { Lock, Pause, Pencil, Play, RotateCcw, Send } from 'lucide-react';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { ActionNoteSlot } from '@/components/action-note-slot';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { CardToolbarActions } from '@/components/card-toolbar-actions';
 import { PageHeaderAction } from '@/components/page-header-actions';
@@ -213,6 +214,11 @@ export function ChannelSheet({
                                 primary={
                                     <Button
                                         type="button"
+                                        aria-describedby={
+                                            testDiagnosis
+                                                ? `${id}-test-diagnosis`
+                                                : undefined
+                                        }
                                         disabled={
                                             busy ||
                                             channel.status === 'needs_attention'
@@ -348,10 +354,13 @@ export function ChannelSheet({
                         </TruncatedText>
                         <LastOutcome channel={channel} />
                         {/* The provider's own reason, redacted server-side; the toast only says that the test failed. */}
-                        <InputError
-                            message={testDiagnosis}
-                            className="break-words"
-                        />
+                        {(channel.status !== 'needs_attention' ||
+                            testDiagnosis !== null) && (
+                            <ActionNoteSlot
+                                id={`${id}-test-diagnosis`}
+                                refusal={testDiagnosis}
+                            />
+                        )}
                         {channel.account_mail && (
                             <p>{t('recipient_settings.account_address')}</p>
                         )}

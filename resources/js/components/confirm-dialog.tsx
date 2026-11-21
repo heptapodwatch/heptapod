@@ -59,6 +59,7 @@ export function ConfirmDialog({
     onConfirm,
     confirmTestId,
     confirmDisabled = false,
+    confirmDescribedBy,
     children,
 }: {
     open: boolean;
@@ -74,6 +75,8 @@ export function ConfirmDialog({
     confirmTestId?: string;
     /** Blocks confirm until the body is ready (a typed name, a loaded count). */
     confirmDisabled?: boolean;
+    /** Referenced by the confirm button's aria-describedby when an inline error slot is populated. */
+    confirmDescribedBy?: string;
     /** Extra body content: a choice, a preview list or an error message. */
     children?: ReactNode;
 }) {
@@ -121,6 +124,7 @@ export function ConfirmDialog({
                         variant={destructive ? 'destructive' : 'default'}
                         disabled={pending || confirmDisabled}
                         data-test={confirmTestId}
+                        aria-describedby={confirmDescribedBy}
                         aria-busy={pending || undefined}
                         onClick={confirm}
                     >

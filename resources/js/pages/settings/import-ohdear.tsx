@@ -1,3 +1,4 @@
+import { ActionNoteSlot } from '@/components/action-note-slot';
 import { InfoTooltip } from '@/components/info-tooltip';
 import { TruncatedText } from '@/components/truncated-text';
 import { SectionHeading } from '@/components/section-heading';
@@ -409,58 +410,67 @@ export default function ImportOhDear({
                         'It is used for this import only: it is kept encrypted for at most 15 minutes between the plan and the import, then it expires. It is never shown or logged.',
                     )}
                 >
-                    <div className="flex flex-wrap items-end gap-2">
-                        <div className="min-w-0 flex-1 basis-64 space-y-1.5">
-                            <Label htmlFor="ohdear-token">
-                                {t('Oh Dear API token')}
-                            </Label>
-                            <Input
-                                id="ohdear-token"
-                                type="password"
-                                autoComplete="off"
-                                spellCheck={false}
-                                value={http.data.ohdear_token}
-                                onChange={(event) =>
-                                    http.setData(
-                                        'ohdear_token',
-                                        event.target.value,
-                                    )
-                                }
-                                aria-invalid={!!http.errors.ohdear_token}
+                    <div className="space-y-1.5">
+                        <div className="flex flex-wrap items-end gap-2">
+                            <div className="min-w-0 flex-1 basis-64 space-y-1.5">
+                                <Label htmlFor="ohdear-token">
+                                    {t('Oh Dear API token')}
+                                </Label>
+                                <Input
+                                    id="ohdear-token"
+                                    type="password"
+                                    autoComplete="off"
+                                    spellCheck={false}
+                                    value={http.data.ohdear_token}
+                                    onChange={(event) =>
+                                        http.setData(
+                                            'ohdear_token',
+                                            event.target.value,
+                                        )
+                                    }
+                                    aria-invalid={!!http.errors.ohdear_token}
+                                    aria-describedby={
+                                        http.errors.ohdear_token
+                                            ? 'ohdear-token-error'
+                                            : undefined
+                                    }
+                                    className="font-mono"
+                                />
+                            </div>
+                            <Button
+                                type="submit"
                                 aria-describedby={
-                                    http.errors.ohdear_token
+                                    http.errors.ohdear_token ||
+                                    failureMessage ||
+                                    (plan?.remote_error &&
+                                        plan.rows.length === 0)
                                         ? 'ohdear-token-error'
                                         : undefined
                                 }
-                                className="font-mono"
-                            />
+                                disabled={
+                                    http.processing ||
+                                    starting ||
+                                    !http.data.ohdear_token ||
+                                    http.data.sections.length === 0
+                                }
+                            >
+                                {http.processing
+                                    ? t('Loading plan…')
+                                    : t('Show plan')}
+                            </Button>
                         </div>
-                        <Button
-                            type="submit"
-                            disabled={
-                                http.processing ||
-                                starting ||
-                                !http.data.ohdear_token ||
-                                http.data.sections.length === 0
-                            }
-                        >
-                            {http.processing
-                                ? t('Loading plan…')
-                                : t('Show plan')}
-                        </Button>
+                        <ActionNoteSlot
+                            id="ohdear-token-error"
+                            refusal={[
+                                http.errors.ohdear_token ?? '',
+                                failureMessage ??
+                                    (plan?.remote_error &&
+                                    plan.rows.length === 0
+                                        ? plan.remote_error
+                                        : ''),
+                            ]}
+                        />
                     </div>
-                    <InputError
-                        id="ohdear-token-error"
-                        message={http.errors.ohdear_token}
-                    />
-                    <InputError
-                        message={
-                            failureMessage ??
-                            (plan?.remote_error && plan.rows.length === 0
-                                ? plan.remote_error
-                                : null)
-                        }
-                    />
                     <p className="text-xs text-muted-foreground">
                         {t(
                             'This step only reads from Oh Dear. Nothing is imported yet.',

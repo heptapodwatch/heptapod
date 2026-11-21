@@ -60,6 +60,7 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
     const [page, setPage] = useState(updatesPage);
     const [refreshFailed, setRefreshFailed] = useState(false);
     const [backupError, setBackupError] = useState<string | null>(null);
+    const [backupErrorIsCooldown, setBackupErrorIsCooldown] = useState(false);
     const [toggleError, setToggleError] = useState<string | null>(null);
     const [acceptedId, setAcceptedId] = useState<number | null>(null);
     const [cooldownOverrideUntil, setCooldownOverrideUntil] = useState<
@@ -108,24 +109,32 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
         active: backupInCooldown,
         remainingSeconds: backupCooldownSeconds,
     } = useCooldown(backupCooldownUntil);
+    useEffect(() => {
+        if (!backupInCooldown && backupErrorIsCooldown) {
+            setBackupError(null);
+            setBackupErrorIsCooldown(false);
+        }
+    }, [backupInCooldown, backupErrorIsCooldown]);
     const toggleNoteId = useId();
     const backupNoteId = useId();
-    const backupNote = backupError ? (
-        <InputError message={backupError} />
-    ) : backupInCooldown && !active ? (
-        <CooldownReason
-            until={backupCooldownUntil}
-            remainingSeconds={backupCooldownSeconds}
-            messageKey="errors.backup.cooldown_reason"
-        />
-    ) : acceptedId !== null ? (
-        <p role="status" className="text-foreground">
-            {t(
-                'Backup request :id accepted. Read the recorded run state; acceptance does not prove completion.',
-                { id: acceptedId },
-            )}
-        </p>
-    ) : null;
+    const backupStandingNote =
+        backupInCooldown && !active ? (
+            <CooldownReason
+                until={backupCooldownUntil}
+                remainingSeconds={backupCooldownSeconds}
+                messageKey="errors.backup.cooldown_reason"
+            />
+        ) : acceptedId !== null ? (
+            <p role="status" className="text-foreground">
+                {t(
+                    'Backup request :id accepted. Read the recorded run state; acceptance does not prove completion.',
+                    { id: acceptedId },
+                )}
+            </p>
+        ) : null;
+    const backupHasNote = Boolean(backupError || backupStandingNote);
+    const canToggleReleaseChecks =
+        auth.canManageInstance && updates.enabled_by_server;
     const timestamp = (value: string | null) =>
         value === null ? t('Unknown') : <AbsoluteTime value={value} />;
     const refresh = async () => {
@@ -165,6 +174,7 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
     }, [backupsShown]);
     const backUpNow = async () => {
         setBackupError(null);
+        setBackupErrorIsCooldown(false);
         try {
             const receipt = await backup.post(requestBackup.url());
             setAcceptedId(receipt.id);
@@ -178,6 +188,7 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                     setCooldownOverrideUntil(
                         new Date(Date.now() + retryAfter * 1000).toISOString(),
                     );
+                    setBackupErrorIsCooldown(true);
                 }
             }
             setBackupError(httpErrorMessage(error, t, 'errors.backup.unknown'));
@@ -363,12 +374,11 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                             </Button>
                         )}
                     </div>
-                    {auth.canManageInstance && (
-                        <ActionNoteSlot id={toggleNoteId}>
-                            {toggleError && (
-                                <InputError message={toggleError} />
-                            )}
-                        </ActionNoteSlot>
+                    {(canToggleReleaseChecks || toggleError !== null) && (
+                        <ActionNoteSlot
+                            id={toggleNoteId}
+                            refusal={toggleError}
+                        />
                     )}
                 </div>
             </FormSection>
@@ -511,7 +521,7 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                                     variant="outline"
                                     size="sm"
                                     aria-describedby={
-                                        backupNote ? backupNoteId : undefined
+                                        backupHasNote ? backupNoteId : undefined
                                     }
                                     disabled={
                                         busy ||
@@ -528,8 +538,18 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                                     )}
                                 </Button>
                             </div>
-                            <ActionNoteSlot id={backupNoteId}>
-                                {backupNote}
+                            <ActionNoteSlot
+                                id={backupNoteId}
+                                refusal={backupError}
+                                standingKey={
+                                    backupInCooldown && !active
+                                        ? `cooldown:${backupCooldownUntil}`
+                                        : active
+                                          ? 'active'
+                                          : acceptedId
+                                }
+                            >
+                                {backupStandingNote}
                             </ActionNoteSlot>
                         </div>
                         <section
