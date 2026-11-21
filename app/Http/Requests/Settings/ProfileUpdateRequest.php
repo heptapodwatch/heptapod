@@ -35,12 +35,17 @@ class ProfileUpdateRequest extends FormRequest
         ];
     }
 
-    /** Sign-in and invitations resolve an address in lower case, so the profile stores it that way. */
+    /**
+     * Sign-in and invitations resolve an address in lower case, so the profile stores it that way. An address saved in
+     * mixed case by an older version stays as it is while the user does not change it, so unrelated edits need no password.
+     */
     protected function prepareForValidation(): void
     {
         $email = $this->input('email');
-        if (is_string($email)) {
-            $this->merge(['email' => Str::lower(trim($email))]);
+        $user = $this->user();
+        if (is_string($email) && $user instanceof User) {
+            $email = Str::lower(trim($email));
+            $this->merge(['email' => $email === Str::lower($user->email) ? $user->email : $email]);
         }
     }
 }

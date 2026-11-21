@@ -69,6 +69,16 @@ test('a saved email address is stored the way sign-in resolves it and stays uniq
     $this->assertAuthenticatedAs($user);
 });
 
+test('an address saved in mixed case by an older version stays as it is on an unrelated profile edit', function (): void {
+    $user = User::factory()->create(['email' => 'Legacy.Address@Example.test', 'locale' => 'en']);
+
+    $this->actingAs($user)->patch(route('profile.update'), ['name' => 'Renamed', 'email' => $user->email, 'locale' => 'de'])
+        ->assertSessionHasNoErrors();
+
+    expect($user->refresh()->only(['name', 'email', 'locale']))->toBe(['name' => 'Renamed', 'email' => 'Legacy.Address@Example.test', 'locale' => 'de'])
+        ->and($user->email_verified_at)->not->toBeNull();
+});
+
 test('email verification status is unchanged when the email address is unchanged', function (): void {
     $user = User::factory()->create();
 
@@ -108,7 +118,7 @@ test('profile preferences persist and replace the browser locale on save', funct
             ->where('auth.user.locale', 'de')->where('auth.user.timezone', 'Europe/Berlin'));
 });
 
-test('invalid profile values leave the entire profile unchanged', function (string $field, string $value): void {
+test('invalid profile values leave the entire profile unchanged', function (string $field, mixed $value): void {
     $user = User::factory()->create(['locale' => 'en', 'timezone' => 'UTC']);
     $original = $user->only(['name', 'email', 'locale', 'timezone']);
 
@@ -126,6 +136,7 @@ test('invalid profile values leave the entire profile unchanged', function (stri
     'unknown timezone' => ['timezone', 'Not/AZone'],
     'empty name' => ['name', ''],
     'invalid email' => ['email', 'invalid'],
+    'email that is not text' => ['email', ['one@example.test', 'two@example.test']],
 ]);
 
 test('guests cannot save profile preferences', function (): void {

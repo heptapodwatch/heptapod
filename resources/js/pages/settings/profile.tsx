@@ -49,8 +49,9 @@ export default function Profile({
         timezone: user.timezone_override,
         current_password: '',
     });
-    // The server stores the address trimmed and in lower case; only a real change asks for the password.
-    const emailChanged = form.data.email.trim().toLowerCase() !== user.email;
+    // The server compares addresses trimmed and case-insensitively; only a real change asks for the password.
+    const emailChanged =
+        form.data.email.trim().toLowerCase() !== user.email.toLowerCase();
     const pendingErrorFocus = useRef<string | undefined>(undefined);
     useEffect(() => {
         if (!form.processing && pendingErrorFocus.current) {

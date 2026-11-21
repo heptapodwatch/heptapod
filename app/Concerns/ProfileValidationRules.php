@@ -38,6 +38,8 @@ trait ProfileValidationRules
     protected function emailRules(?int $userId = null): array
     {
         return [
+            // The uniqueness query below must only see a valid address.
+            'bail',
             'required',
             'string',
             'email',
