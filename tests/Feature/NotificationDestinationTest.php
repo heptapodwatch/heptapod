@@ -307,6 +307,8 @@ it('requires 32 characters for a newly entered webhook secret while a stored sho
         'channel' => 'webhook', 'label' => 'Receiver', 'recipient_kind' => 'team', 'locale' => 'en', 'config' => ['url' => $url, 'secret' => $secret],
     ]);
     $store(str_repeat('s', 31))->assertUnprocessable()->assertJsonValidationErrors(['values.secret' => $message]);
+    // The edit form's mask keeps a stored secret; a new channel has none to keep.
+    $store('********')->assertUnprocessable()->assertJsonValidationErrors(['values.secret' => $message]);
     $store('   '.str_repeat('s', 31).'   ')->assertUnprocessable()->assertJsonValidationErrors('values.secret');
     $store(str_repeat('s', 32))->assertCreated();
 
