@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Console\Commands;
 
+use Heptapod\Support\ConsoleText;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -31,7 +32,7 @@ final class PreviewNotificationMigrationCommand extends Command
         $lines = $migration->preview();
         $this->line('Notification channel conversion (read-only preview):');
         foreach ($lines as $line) {
-            $this->line('- '.$line);
+            $this->line('- '.ConsoleText::sanitize($line));
         }
 
         return self::SUCCESS;

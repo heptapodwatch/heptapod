@@ -18,6 +18,7 @@ use Heptapod\Models\CheckRun;
 use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
 use Heptapod\Models\Site;
+use Heptapod\Support\ConsoleText;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -238,7 +239,7 @@ final class ReclassifyLinksCommand extends Command
         $note = $plan->runResultBefore instanceof RunResult ? $accepted ? null : 'reclassify_links.latest_run_not_crawl' : ('reclassify_links.run_pruned');
         $marker = $plan->relabeledFindingIds !== [] && $after === CheckResult::Warning && (! $plan->baselineComplete || ! $accepted);
 
-        return [$check->id, ($check->site ?? throw new \LogicException('A check must have a site.'))->displayName().' · '.__('checks.'.$check->type->value.'.label'),
+        return [$check->id, ConsoleText::sanitize(($check->site ?? throw new \LogicException('A check must have a site.'))->displayName()).' · '.__('checks.'.$check->type->value.'.label'),
             $before->value.($after === $before ? '' : ' → '.$after->value).($note === null ? '' : ' ('.__($note).')').($marker ? ' · '.__('reclassify_links.marked') : ''),
             count($plan->relabeledFindingIds), count($plan->remainingFindingIds), count($alerts[0]).' / '.count($alerts[1])];
     }
