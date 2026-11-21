@@ -241,39 +241,79 @@ it('keeps an existing windows stored timezone when editing and switching targets
     expect(zoneTrigger.textContent).toContain('UTC');
 });
 
-it('displays maintenance windows in the viewers timezone with the windows wall time when they differ', () => {
-    pageContext.timezone = 'Europe/Berlin';
+it('displays the same maintenance windows in each viewers timezone with source wall time only when differing', () => {
+    const windows = [
+        {
+            ...planned,
+            id: 11,
+            startsAt: '2026-11-21T14:00:00Z',
+            endsAt: '2026-11-21T15:00:00Z',
+            timezone: 'America/New_York',
+        },
+        {
+            ...planned,
+            id: 12,
+            startsAt: '2026-11-21T16:00:00Z',
+            endsAt: '2026-11-21T17:00:00Z',
+            timezone: 'Europe/Berlin',
+        },
+    ];
     window.history.replaceState(null, '', '/maintenance');
-    render(
-        page(
-            true,
-            [
-                {
-                    ...planned,
-                    id: 11,
-                    startsAt: '2026-11-21T14:00:00Z',
-                    endsAt: '2026-11-21T15:00:00Z',
-                    timezone: 'America/New_York',
-                },
-                {
-                    ...planned,
-                    id: 12,
-                    startsAt: '2026-11-21T16:00:00Z',
-                    endsAt: '2026-11-21T17:00:00Z',
-                    timezone: 'Europe/Berlin',
-                },
-            ],
-            { site_id: null, site_name: null },
-        ),
-    );
 
-    // First window: 15:00–16:00 in Berlin, plus (09:00–10:00 New York).
+    // Berlin viewer: NY window shows Berlin time + (09:00–10:00 New York); Berlin window has no duplicate zone hint.
+    pageContext.timezone = 'Europe/Berlin';
+    render(page(true, windows, { site_id: null, site_name: null }));
     expect(screen.getByText('Nov 21, 2026, 15:00')).toBeTruthy();
     expect(screen.getByText('Nov 21, 2026, 16:00')).toBeTruthy();
     expect(screen.getByText('(09:00–10:00 New York)')).toBeTruthy();
-
-    // Second window: already in Berlin, so no duplicate (17:00–18:00 Berlin).
     expect(screen.getByText('Nov 21, 2026, 17:00')).toBeTruthy();
     expect(screen.getByText('Nov 21, 2026, 18:00')).toBeTruthy();
     expect(screen.queryByText(/Berlin\)/)).toBeNull();
+    cleanup();
+
+    // New York viewer: NY window has no duplicate zone hint; Berlin window shows NY time + (17:00–18:00 Berlin).
+    pageContext.timezone = 'America/New_York';
+    render(page(true, windows, { site_id: null, site_name: null }));
+    expect(screen.getByText('Nov 21, 2026, 09:00')).toBeTruthy();
+    expect(screen.getByText('Nov 21, 2026, 10:00')).toBeTruthy();
+    expect(screen.queryByText(/New York\)/)).toBeNull();
+    expect(screen.getByText('Nov 21, 2026, 11:00')).toBeTruthy();
+    expect(screen.getByText('Nov 21, 2026, 12:00')).toBeTruthy();
+    expect(screen.getByText('(17:00–18:00 Berlin)')).toBeTruthy();
+});
+
+it('keeps untouched default times strictly ordered when following a target into a DST fall-back fold', () => {
+    vi.useFakeTimers();
+    try {
+        // 2026-11-01T04:45Z: +1h is 01:45 EDT (05:45Z), +2h is 01:45 EST (06:45Z) in America/New_York.
+        vi.setSystemTime(new Date('2026-11-01T04:45:00Z'));
+        pageContext.timezone = 'Europe/Berlin';
+        window.history.replaceState(null, '', '/maintenance');
+        render(page(true, [], { site_id: null, site_name: null }));
+
+        fireEvent.click(
+            screen.getAllByRole('button', { name: 'New window' })[0]!,
+        );
+        const sheet = screen.getByRole('dialog', {
+            name: 'New maintenance window',
+        });
+        fireEvent.click(within(sheet).getByRole('combobox', { name: 'Sites' }));
+        fireEvent.click(screen.getByRole('option', { name: /API/ }));
+
+        const starts = within(sheet).getByLabelText(
+            'Starts',
+        ) as HTMLInputElement;
+        const ends = within(sheet).getByLabelText('Ends') as HTMLInputElement;
+        expect(starts.value).toBe('2026-11-01 01:45');
+        expect(ends.value).toBe('2026-11-01 02:45');
+
+        // Switching to Daily keeps a 1-hour wall-time window (01:45 → 02:45), not a 24-hour "Next day" window.
+        fireEvent.click(within(sheet).getByRole('radio', { name: 'Daily' }));
+        expect(within(sheet).queryByText('Next day')).toBeNull();
+        expect(
+            (within(sheet).getByLabelText('Ends') as HTMLInputElement).value,
+        ).toBe('02:45');
+    } finally {
+        vi.useRealTimers();
+    }
 });

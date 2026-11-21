@@ -98,16 +98,50 @@ function newWindowRequested(): boolean {
     );
 }
 
+/**
+ * Build a default wall-time window starting at or after `startMs` (minute-aligned) that round-trips cleanly through
+ * `zonedInstant` and stays strictly ordered (including across fall-back DST folds such as 01:45 EDT → 01:45 EST).
+ */
+function defaultWindowWallTimes(
+    startMs: number,
+    timezone: string,
+): { starts_local: string; ends_local: string } {
+    const hourMs = 3_600_000;
+    let alignedStartMs = Math.floor(startMs / 60_000) * 60_000;
+    let starts_local = zonedWallTime(
+        new Date(alignedStartMs).toISOString(),
+        timezone,
+    );
+    let startInstant = zonedInstant(starts_local, timezone);
+    while (startInstant !== null && Date.parse(startInstant) < alignedStartMs) {
+        alignedStartMs += hourMs;
+        starts_local = zonedWallTime(
+            new Date(alignedStartMs).toISOString(),
+            timezone,
+        );
+        startInstant = zonedInstant(starts_local, timezone);
+    }
+    let endMs = alignedStartMs + hourMs;
+    let ends_local = zonedWallTime(new Date(endMs).toISOString(), timezone);
+    let endInstant = zonedInstant(ends_local, timezone);
+    while (
+        ends_local <= starts_local ||
+        (startInstant !== null &&
+            (endInstant === null ||
+                Date.parse(endInstant) <= Date.parse(startInstant)))
+    ) {
+        endMs += hourMs;
+        ends_local = zonedWallTime(new Date(endMs).toISOString(), timezone);
+        endInstant = zonedInstant(ends_local, timezone);
+    }
+    return { starts_local, ends_local };
+}
+
 function freshDraft(timezone: string): Draft {
-    const start = new Date(Date.now() + 3600000);
     return {
         target_type: 'site',
         target_id: '',
-        starts_local: zonedWallTime(start.toISOString(), timezone),
-        ends_local: zonedWallTime(
-            new Date(start.getTime() + 3600000).toISOString(),
-            timezone,
-        ),
+        ...defaultWindowWallTimes(Date.now() + 3_600_000, timezone),
         timezone,
         recurrence_type: 'once',
         interval: 1,
@@ -299,18 +333,13 @@ export default function MaintenanceIndex({
                     current.starts_local,
                     current.timezone,
                 );
-                const endInstant = zonedInstant(
-                    current.ends_local,
-                    current.timezone,
-                );
-                if (startInstant && endInstant) {
-                    updated.starts_local = zonedWallTime(
-                        startInstant,
-                        nextTimezone,
-                    );
-                    updated.ends_local = zonedWallTime(
-                        endInstant,
-                        nextTimezone,
+                if (startInstant) {
+                    Object.assign(
+                        updated,
+                        defaultWindowWallTimes(
+                            Date.parse(startInstant),
+                            nextTimezone,
+                        ),
                     );
                 }
             }

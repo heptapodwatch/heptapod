@@ -12,7 +12,6 @@ use Heptapod\Maintenance\MaintenanceTargets;
 use Heptapod\Models\Check;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Query\Builder;
-use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 
 /** @phpstan-type Snapshot array{EloquentCollection<int, Check>, array<int, int|null>, array<int, list<array{int, int}>>, array<int, list<array{int, int}>>, array<int, list<array{int, int}>>, array<int, list<array{int, int}>>} */
@@ -229,18 +228,29 @@ final class UptimeReader
             $createdAt[$check->id] = $check->first_result_at === null ? null
                 : max($this->milliseconds($siteCreated), $checkCreated->getTimestampMs(), $check->first_result_at->getTimestampMs());
         }
-        $siteIds = $checks->pluck('site_id')->unique()->all();
+        $siteIds = $checks->pluck('site_id')->unique()->values()->all();
         $periods = DB::table('unmonitored_periods')->whereIn('site_id', $siteIds)->where('started_at', '<', $until)
             ->where(function (Builder $query) use ($from): void {
                 $query->whereNull('ended_at')->orWhere('ended_at', '>', $from);
             })->get();
-        $maintenance = DB::table('maintenance_periods as m')->join('sites as s', static fn (JoinClause $join): JoinClause => $join->whereRaw(
-            ...MaintenanceTargets::coversSiteSql('m', 's')))
-            ->leftJoin('maintenance_site_exclusions as ex', static fn (JoinClause $join): JoinClause => $join
-                ->on('ex.maintenance_period_id', '=', 'm.id')->on('ex.site_id', '=', 's.id'))
-            ->whereIn('s.id', $siteIds)->where('m.starts_at', '<', $until)->where('m.ends_at', '>', $from)
-            ->where(static fn (Builder $active): Builder => $active->whereNull('ex.left_at')->orWhere('ex.left_at', '>', $from))
-            ->selectRaw('s.id as site_id, m.starts_at, least(m.ends_at, coalesce(ex.left_at, m.ends_at)) as ends_at')->get();
+        if ($siteIds === []) {
+            $maintenance = [];
+        } else {
+            $sitePlaceholders = implode(',', array_fill(0, count($siteIds), '?'));
+            [$scopedMaintenanceSql, $scopedMaintenanceBindings] = MaintenanceTargets::coveredBySitesCteSql('target_sites', $from, $until);
+            /** @var list<object{site_id: mixed, starts_at: mixed, ends_at: mixed}> $maintenance */
+            $maintenance = DB::select(<<<SQL
+                WITH target_sites AS MATERIALIZED (
+                    SELECT id, client_id FROM sites WHERE id IN ({$sitePlaceholders})
+                ), scoped_maintenance AS (
+                    {$scopedMaintenanceSql}
+                )
+                SELECT m.site_id, m.starts_at, least(m.ends_at, coalesce(ex.left_at, m.ends_at)) AS ends_at
+                FROM scoped_maintenance m
+                LEFT JOIN maintenance_site_exclusions ex ON ex.maintenance_period_id = m.id AND ex.site_id = m.site_id
+                WHERE ex.left_at IS NULL OR ex.left_at > ?::timestamptz
+                SQL, [...$siteIds, ...$scopedMaintenanceBindings, $from->utc()->format('Y-m-d H:i:s.uP')]);
+        }
         $incidents = DB::table('incidents')->selectRaw('check_id, round(extract(epoch from first_failure_at) * 1000)::bigint AS started_ms, round(extract(epoch from resolved_at) * 1000)::bigint AS ended_ms')
             ->whereIn('check_id', $checkIds)->where('cause', IncidentCause::Failed->value)
             ->where('first_failure_at', '<', $until)->where(function (Builder $query) use ($from): void {
