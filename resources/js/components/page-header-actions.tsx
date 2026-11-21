@@ -74,7 +74,7 @@ export function PageHeaderActions({
     return (
         <div
             className={cn(
-                'flex shrink-0 items-center gap-2 md:ml-auto md:max-w-[60%] md:min-w-0 md:flex-wrap md:justify-end',
+                'flex shrink-0 items-start gap-2 md:ml-auto md:max-w-[60%] md:min-w-0 md:flex-wrap md:justify-end',
                 fullWidthOnMobile && 'w-full md:w-auto',
             )}
         >
