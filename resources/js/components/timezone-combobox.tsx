@@ -2,6 +2,7 @@ import { usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { emptySelectValue } from '@/components/ui/select';
@@ -41,26 +42,59 @@ export function timezoneOffset(zone: string): string {
     return offset;
 }
 
+export type PinnedTimezone = string | { zone: string; label: string };
+
 export function timezoneOptions(
     timezones: string[],
-    pinned: string[] = [],
+    pinned: PinnedTimezone[] = [],
 ): ComboboxOption[] {
     const zones = [...new Set(timezones)];
-    const pinnedZones = pinned.filter((zone) => zones.includes(zone));
-    const rest = zones.filter((zone) => !pinnedZones.includes(zone));
-    const toOption = (zone: string, group?: string): ComboboxOption => {
+    // Merge duplicate pinned zones in first-seen order, preserving every distinct reason label on the one option.
+    const pinnedLabels = new Map<string, string[]>();
+    for (const entry of pinned) {
+        const zone = typeof entry === 'string' ? entry : entry.zone;
+        const label = typeof entry === 'string' ? '' : entry.label.trim();
+        if (!zones.includes(zone)) continue;
+        const labels = pinnedLabels.get(zone) ?? [];
+        if (label && !labels.includes(label)) labels.push(label);
+        pinnedLabels.set(zone, labels);
+    }
+    const pinnedZones = [...pinnedLabels.keys()];
+    const rest = zones.filter((zone) => !pinnedLabels.has(zone));
+    const toOption = (
+        zone: string,
+        group?: string,
+        labels: string[] = [],
+    ): ComboboxOption => {
         const offset = timezoneOffset(zone);
         const city = zone.split('/').slice(1).join('/').replaceAll('_', ' ');
         return {
             value: zone,
             label: zone,
             secondary: city ? `${city} · ${offset}` : undefined,
-            searchText: `${city} ${offset} ${offset.replace(':', '')}`,
+            badge:
+                labels.length > 0 ? (
+                    <>
+                        {labels.map((reason) => (
+                            <Badge
+                                key={reason}
+                                variant="outline"
+                                className="bg-background text-muted-foreground"
+                            >
+                                {reason}
+                            </Badge>
+                        ))}
+                    </>
+                ) : undefined,
+            searchText:
+                `${city} ${offset} ${offset.replace(':', '')} ${labels.join(' ')}`.trim(),
             group,
         };
     };
     return [
-        ...pinnedZones.map((zone) => toOption(zone)),
+        ...pinnedZones.map((zone) =>
+            toOption(zone, undefined, pinnedLabels.get(zone)),
+        ),
         ...rest.map((zone) =>
             toOption(
                 zone,
@@ -86,7 +120,7 @@ type TimezoneComboboxProps = {
     id?: string;
     /** Server IANA list (DateTimeZone::listIdentifiers) — the only source; the browser list may name zones the server rejects. */
     timezones: string[];
-    pinned?: string[];
+    pinned?: PinnedTimezone[];
     disabled?: boolean;
     invalid?: boolean;
     describedBy?: string;

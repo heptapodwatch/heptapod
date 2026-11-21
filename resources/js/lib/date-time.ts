@@ -93,6 +93,11 @@ export function formatDateTime(
     }).format(new Date(value));
 }
 
+/** The readable short form of an IANA zone: its city ("Europe/Berlin" → "Berlin", "America/Argentina/Buenos_Aires" → "Buenos Aires"). */
+export function zoneCity(timezone: string): string {
+    return (timezone.split('/').at(-1) ?? timezone).replaceAll('_', ' ');
+}
+
 /** The browser's IANA zone as the platform reports it; the server validates it against its own list. */
 export function browserTimezone(): string {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;

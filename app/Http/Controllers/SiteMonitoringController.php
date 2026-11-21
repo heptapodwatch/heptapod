@@ -10,7 +10,6 @@ use Heptapod\Actions\PauseSite;
 use Heptapod\Actions\ResumeSite;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
-use Heptapod\Settings\InstanceSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -18,19 +17,21 @@ use Illuminate\Support\Facades\Validator;
 
 final class SiteMonitoringController extends Controller
 {
-    public function store(Request $request, Site $site, PauseSite $pause, InstanceSettings $settings, AuthorizeSiteWrite $authorize): RedirectResponse
+    public function store(Request $request, Site $site, PauseSite $pause, AuthorizeSiteWrite $authorize): RedirectResponse
     {
         Gate::authorize('update', $site);
+        $user = $request->user();
+        abort_unless($user instanceof User, 401);
         /** @var array{until?: 'manual'|'hour'|'tomorrow'} $data */
         $data = Validator::make($request->all(), ['until' => ['sometimes', 'in:manual,hour,tomorrow']])->validate();
-        $now = CarbonImmutable::now($settings->timezone);
+        $now = CarbonImmutable::now($user->resolvedTimezone());
         $resumeAt = match ($data['until'] ?? 'manual') {
             'manual' => null,
             'hour' => $now->addHour()->utc(),
             'tomorrow' => $now->addDay()->setTime(8, 0)->utc(),
         };
         // Decided again under the shared access lock, with the actor as the account is now.
-        $authorize($this->user($request), 'update', static fn () => $pause($site, $resumeAt), $site);
+        $authorize($user, 'update', static fn () => $pause($site, $resumeAt), $site);
 
         return back();
     }

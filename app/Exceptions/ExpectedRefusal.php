@@ -70,7 +70,7 @@ final class ExpectedRefusal extends RuntimeException implements HttpExceptionInt
     public static function cooldownParts(int $retryAfterSeconds, ?User $user = null): array
     {
         $seconds = max(1, $retryAfterSeconds);
-        $timezone = $user instanceof User ? $user->resolvedTimezone() : 'UTC';
+        $timezone = User::viewerTimezone($user);
         $at = CarbonImmutable::now('UTC')->addSeconds($seconds)->setTimezone($timezone);
 
         if ($seconds < 60) {

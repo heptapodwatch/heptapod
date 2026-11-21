@@ -23,7 +23,6 @@ use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 use Heptapod\Queries\MaintenanceReader;
-use Heptapod\Settings\InstanceSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -54,12 +53,12 @@ final class MaintenanceController extends Controller
         $canManage = $user->hasAnyRole(['Owner', 'Admin']);
         $siteOptions = Site::query();
         $siteOptions->getQuery()->orderBy('id');
-        $sites = $canManage ? $siteOptions->with('client:id,name,is_internal')->get(['id', 'url', 'friendly_name', 'client_id', 'icon_hash', 'icon_backing'])
-            ->map(static fn (Site $site): MaintenanceTargetOptionData => new MaintenanceTargetOptionData($site->id, $site->displayName(), client_name: $site->client?->displayName(), host: is_string(parse_url($site->url, PHP_URL_HOST)) ? parse_url($site->url, PHP_URL_HOST) : $site->url, icon_url: $site->iconUrl(), icon_backing: $site->icon_backing))->all() : [];
+        $sites = $canManage ? $siteOptions->with('client:id,name,is_internal,timezone')->get(['id', 'url', 'friendly_name', 'client_id', 'icon_hash', 'icon_backing'])
+            ->map(static fn (Site $site): MaintenanceTargetOptionData => new MaintenanceTargetOptionData($site->id, $site->displayName(), is_internal: $site->client !== null && $site->client->is_internal, client_name: $site->client?->displayName(), host: is_string(parse_url($site->url, PHP_URL_HOST)) ? parse_url($site->url, PHP_URL_HOST) : $site->url, icon_url: $site->iconUrl(), icon_backing: $site->icon_backing, timezone: $site->client?->resolvedTimezone()))->all() : [];
         $clientOptions = ($canManage ? Client::query() : $policy->visibleClients($user, includeArchived: true))->with(Client::AvatarRelations);
         $clientOptions->getQuery()->orderBy('name');
-        $loadedClients = $clientOptions->get(['id', 'name', 'short_name', 'accent_color', 'avatar_site_id', 'is_internal']);
-        $identities = $loadedClients->mapWithKeys(static fn (Client $client): array => [$client->id => new MaintenanceTargetOptionData($client->id, $client->displayName(), app(ResolveClientAvatar::class)($client), $client->short_name, $client->accent_color, $client->is_internal)]);
+        $loadedClients = $clientOptions->get(['id', 'name', 'short_name', 'accent_color', 'avatar_site_id', 'is_internal', 'timezone']);
+        $identities = $loadedClients->mapWithKeys(static fn (Client $client): array => [$client->id => new MaintenanceTargetOptionData($client->id, $client->displayName(), app(ResolveClientAvatar::class)($client), $client->short_name, $client->accent_color, $client->is_internal, timezone: $client->resolvedTimezone())]);
         $clients = $canManage ? $identities->values()->all() : [];
         // Reuse the resolved identity; browsing alone hides an empty Internal client.
         $filterClients = $loadedClients->filter(static fn (Client $client): bool => ! $client->is_internal || $client->sites->isNotEmpty())
@@ -69,16 +68,20 @@ final class MaintenanceController extends Controller
         $tags = $canManage ? $tagOptions->get()
             ->map(static fn (Tag $tag): MaintenanceTargetOptionData => new MaintenanceTargetOptionData($tag->id, $tag->name))->all() : [];
 
-        $instanceTimezone = app(InstanceSettings::class)->timezone;
         $timezones = \DateTimeZone::listIdentifiers();
-        $storedTimezones = [$instanceTimezone];
+        $storedTimezones = [$user->resolvedTimezone()];
+        foreach ($clients as $client) {
+            if ($client->timezone !== null) {
+                $storedTimezones[] = $client->timezone;
+            }
+        }
         foreach ($result['windows'] as $window) {
             $storedTimezones[] = $window->timezone;
             if ($window->seriesTimezone !== null) {
                 $storedTimezones[] = $window->seriesTimezone;
             }
         }
-        foreach ($storedTimezones as $timezone) {
+        foreach (array_unique($storedTimezones) as $timezone) {
             if (! in_array($timezone, $timezones, true)
                 && in_array($timezone, \DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC), true)) {
                 $timezones[] = $timezone;
@@ -87,7 +90,7 @@ final class MaintenanceController extends Controller
 
         return Inertia::render('maintenance/index', new MaintenanceIndexPageData($result['windows'], $result['next_page'],
             $canManage, array_values($sites), array_values($clients), array_values($tags),
-            $instanceTimezone, $timezones,
+            $timezones,
             array_values($filterClients), $clientId, $siteId, $result['site_name'], $state,
             $result['previous_page'], $result['total'], $perPage)->toArray());
     }

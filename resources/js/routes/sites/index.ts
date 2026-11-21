@@ -377,7 +377,7 @@ show.form = showForm
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:95
+* @see app/Http/Controllers/MaintenanceController.php:98
 * @route '/sites/{site}/maintenance'
 */
 export const maintenance = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -392,7 +392,7 @@ maintenance.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:95
+* @see app/Http/Controllers/MaintenanceController.php:98
 * @route '/sites/{site}/maintenance'
 */
 maintenance.url = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -425,7 +425,7 @@ maintenance.url = (args: { site: number | { id: number } } | [site: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:95
+* @see app/Http/Controllers/MaintenanceController.php:98
 * @route '/sites/{site}/maintenance'
 */
 maintenance.get = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -435,7 +435,7 @@ maintenance.get = (args: { site: number | { id: number } } | [site: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:95
+* @see app/Http/Controllers/MaintenanceController.php:98
 * @route '/sites/{site}/maintenance'
 */
 maintenance.head = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -445,7 +445,7 @@ maintenance.head = (args: { site: number | { id: number } } | [site: number | { 
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:95
+* @see app/Http/Controllers/MaintenanceController.php:98
 * @route '/sites/{site}/maintenance'
 */
 const maintenanceForm = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -455,7 +455,7 @@ const maintenanceForm = (args: { site: number | { id: number } } | [site: number
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:95
+* @see app/Http/Controllers/MaintenanceController.php:98
 * @route '/sites/{site}/maintenance'
 */
 maintenanceForm.get = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -465,7 +465,7 @@ maintenanceForm.get = (args: { site: number | { id: number } } | [site: number |
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:95
+* @see app/Http/Controllers/MaintenanceController.php:98
 * @route '/sites/{site}/maintenance'
 */
 maintenanceForm.head = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -861,7 +861,7 @@ destroy.form = destroyForm
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::pause
-* @see app/Http/Controllers/SiteMonitoringController.php:21
+* @see app/Http/Controllers/SiteMonitoringController.php:20
 * @route '/sites/{site}/pause'
 */
 export const pause = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -876,7 +876,7 @@ pause.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::pause
-* @see app/Http/Controllers/SiteMonitoringController.php:21
+* @see app/Http/Controllers/SiteMonitoringController.php:20
 * @route '/sites/{site}/pause'
 */
 pause.url = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -909,7 +909,7 @@ pause.url = (args: { site: number | { id: number } } | [site: number | { id: num
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::pause
-* @see app/Http/Controllers/SiteMonitoringController.php:21
+* @see app/Http/Controllers/SiteMonitoringController.php:20
 * @route '/sites/{site}/pause'
 */
 pause.post = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -919,7 +919,7 @@ pause.post = (args: { site: number | { id: number } } | [site: number | { id: nu
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::pause
-* @see app/Http/Controllers/SiteMonitoringController.php:21
+* @see app/Http/Controllers/SiteMonitoringController.php:20
 * @route '/sites/{site}/pause'
 */
 const pauseForm = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -929,7 +929,7 @@ const pauseForm = (args: { site: number | { id: number } } | [site: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::pause
-* @see app/Http/Controllers/SiteMonitoringController.php:21
+* @see app/Http/Controllers/SiteMonitoringController.php:20
 * @route '/sites/{site}/pause'
 */
 pauseForm.post = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -941,7 +941,7 @@ pause.form = pauseForm
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::resume
-* @see app/Http/Controllers/SiteMonitoringController.php:38
+* @see app/Http/Controllers/SiteMonitoringController.php:39
 * @route '/sites/{site}/resume'
 */
 export const resume = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -956,7 +956,7 @@ resume.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::resume
-* @see app/Http/Controllers/SiteMonitoringController.php:38
+* @see app/Http/Controllers/SiteMonitoringController.php:39
 * @route '/sites/{site}/resume'
 */
 resume.url = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -989,7 +989,7 @@ resume.url = (args: { site: number | { id: number } } | [site: number | { id: nu
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::resume
-* @see app/Http/Controllers/SiteMonitoringController.php:38
+* @see app/Http/Controllers/SiteMonitoringController.php:39
 * @route '/sites/{site}/resume'
 */
 resume.post = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -999,7 +999,7 @@ resume.post = (args: { site: number | { id: number } } | [site: number | { id: n
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::resume
-* @see app/Http/Controllers/SiteMonitoringController.php:38
+* @see app/Http/Controllers/SiteMonitoringController.php:39
 * @route '/sites/{site}/resume'
 */
 const resumeForm = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1009,7 +1009,7 @@ const resumeForm = (args: { site: number | { id: number } } | [site: number | { 
 
 /**
 * @see \Heptapod\Http\Controllers\SiteMonitoringController::resume
-* @see app/Http/Controllers/SiteMonitoringController.php:38
+* @see app/Http/Controllers/SiteMonitoringController.php:39
 * @route '/sites/{site}/resume'
 */
 resumeForm.post = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

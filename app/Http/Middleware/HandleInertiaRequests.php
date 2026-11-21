@@ -12,7 +12,6 @@ use Heptapod\Models\User;
 use Heptapod\Queries\RunningNowReader;
 use Heptapod\Queries\RunsReader;
 use Heptapod\Queries\ShellHealthReader;
-use Heptapod\Settings\InstanceSettings;
 use Heptapod\SystemHealth\SystemIssueKind;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -62,7 +61,7 @@ class HandleInertiaRequests extends Middleware
             'csrfToken' => Inertia::always(static fn (): string => $request->session()->token()),
             'locale' => app()->getLocale(),
             // The viewer's zone: their own, else the instance's (guests too); lazy so non-Inertia responses stay zero-DB.
-            'timezone' => static fn (): string => $user instanceof User ? $user->resolvedTimezone() : app(InstanceSettings::class)->timezone,
+            'timezone' => static fn (): string => User::viewerTimezone($user instanceof User ? $user : null),
             'exportRowLimit' => Table::RowLimit,
             'mailLogOnly' => MailDeliveryMode::logOnly(),
             'mailConfigurationAction' => SystemIssueKind::MailLogOnly->navigationAction($user instanceof User ? $user : null),

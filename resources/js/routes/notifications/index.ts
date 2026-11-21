@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationExplanationController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationExplanationController.php:24
+* @see app/Http/Controllers/Notifications/NotificationExplanationController.php:23
 * @route '/notifications/explain'
 */
 export const explain = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ explain.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationExplanationController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationExplanationController.php:24
+* @see app/Http/Controllers/Notifications/NotificationExplanationController.php:23
 * @route '/notifications/explain'
 */
 explain.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ explain.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationExplanationController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationExplanationController.php:24
+* @see app/Http/Controllers/Notifications/NotificationExplanationController.php:23
 * @route '/notifications/explain'
 */
 explain.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ explain.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationExplanationController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationExplanationController.php:24
+* @see app/Http/Controllers/Notifications/NotificationExplanationController.php:23
 * @route '/notifications/explain'
 */
 explain.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ explain.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationExplanationController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationExplanationController.php:24
+* @see app/Http/Controllers/Notifications/NotificationExplanationController.php:23
 * @route '/notifications/explain'
 */
 const explainForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const explainForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =>
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationExplanationController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationExplanationController.php:24
+* @see app/Http/Controllers/Notifications/NotificationExplanationController.php:23
 * @route '/notifications/explain'
 */
 explainForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ explainForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationExplanationController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationExplanationController.php:24
+* @see app/Http/Controllers/Notifications/NotificationExplanationController.php:23
 * @route '/notifications/explain'
 */
 explainForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

@@ -361,3 +361,29 @@ it('explains many channels with a fixed number of queries', function (): void {
 
     expect([$measure(NotificationCategory::Outage), $measure(NotificationCategory::Recovery)])->toBe($few);
 });
+
+it('returns each viewers resolved timezone for explanation due times while keeping due_at in UTC', function (): void {
+    $settings = app(InstanceSettings::class);
+    $settings->timezone = 'Europe/London';
+    $settings->save();
+    $check = Check::factory()->create(['type' => CheckKey::CertificateHealth]);
+    notificationRoute(NotificationDestination::factory()->create(), [NotificationCategory::Expiring], NotificationMode::Digest);
+
+    $berlin = explainUser('Owner', ['timezone' => 'Europe/Berlin']);
+    $newYork = explainUser('Owner', ['timezone' => 'America/New_York']);
+    $inherited = explainUser('Owner', ['timezone' => null]);
+
+    $this->actingAs($berlin);
+    $berlinResponse = explain($check, NotificationCategory::Expiring);
+    $this->actingAs($newYork);
+    $newYorkResponse = explain($check, NotificationCategory::Expiring);
+    $this->actingAs($inherited);
+    $inheritedResponse = explain($check, NotificationCategory::Expiring);
+
+    expect($berlinResponse['timezone'])->toBe('Europe/Berlin')
+        ->and($newYorkResponse['timezone'])->toBe('America/New_York')
+        ->and($inheritedResponse['timezone'])->toBe('Europe/London')
+        ->and($berlinResponse['recipients'][0]['status'])->toBe('digest')
+        ->and($berlinResponse['recipients'][0]['due_at'])->toBe('2026-10-29T08:00:00+00:00')
+        ->and($newYorkResponse['recipients'][0]['due_at'])->toBe('2026-10-29T08:00:00+00:00');
+});

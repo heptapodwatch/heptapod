@@ -21,7 +21,6 @@ use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Queries\HistoryReader;
-use Heptapod\Settings\InstanceSettings;
 use Heptapod\Testing\ClaimedRun;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
@@ -384,11 +383,9 @@ it('returns explicit 422 for API windows past the hourly or uptime history horiz
 ]);
 
 it('keeps the complete oldest of 90 local history days in UTC plus 14 after pruning', function (): void {
-    $owner = User::factory()->owner()->create();
+    $owner = User::factory()->owner()->create(['timezone' => 'Pacific/Kiritimati']);
     $check = Check::factory()->create(['created_at' => '2026-01-01T00:00:00Z']);
     $check->site->update(['created_at' => '2026-01-01T00:00:00Z']);
-    $settings = app(InstanceSettings::class);
-    $settings->timezone = 'Pacific/Kiritimati';
     for ($hour = 0; $hour < 24; $hour++) {
         retentionRollup($check, 'hourly', CarbonImmutable::parse('2026-07-21T10:00:00Z')->addHours($hour)->toIso8601String(), '2026-07-23T00:10:00Z', [
             'succeeded_count' => $hour === 0 ? 0 : 1, 'failed_count' => $hour === 0 ? 1 : 0,

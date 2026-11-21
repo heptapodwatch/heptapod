@@ -18,6 +18,7 @@ use Heptapod\Models\RecurringMaintenancePeriod;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Queries\UptimeReader;
+use Heptapod\Settings\InstanceSettings;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\QueryPlanWork;
@@ -374,4 +375,37 @@ it('does not emit reminders while a muted window covers an already-open incident
     MaintenancePeriod::factory()->create(['site_id' => $check->site_id, 'starts_at' => now()->subHour(), 'ends_at' => now()->addHour()]);
     app(EmitIncidentReminders::class)();
     expect(Event::query()->where('incident_id', $incident->id)->where('type', 'incident.still_down')->count())->toBe(0);
+});
+
+it('supplies each target options resolved client timezone and the viewers own zone on maintenance', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-04T12:00:00Z'));
+    app(InstanceSettings::class)->timezone = 'Europe/London';
+    app(InstanceSettings::class)->save();
+
+    $newYorkClient = Client::factory()->create(['name' => 'NY Studio', 'timezone' => 'America/New_York']);
+    $inheritedClient = Client::factory()->create(['name' => 'Default Studio', 'timezone' => null]);
+    $newYorkSite = Site::factory()->for($newYorkClient)->create(['friendly_name' => 'NY Shop']);
+    $inheritedSite = Site::factory()->for($inheritedClient)->create(['friendly_name' => 'Default Shop']);
+    $newYorkSite->attachTag('Release', 'sites');
+    $tagId = $newYorkSite->tags()->firstOrFail()->id;
+
+    $berlinOwner = User::factory()->create(['timezone' => 'Europe/Berlin']);
+    $berlinOwner->assignRole('Owner');
+    $inheritedOwner = User::factory()->create(['timezone' => null]);
+    $inheritedOwner->assignRole('Owner');
+
+    $berlinProps = $this->actingAs($berlinOwner)->get('/maintenance')->assertOk()->inertiaProps();
+    $sitesById = collect($berlinProps['sites'])->keyBy('id');
+    $clientsById = collect($berlinProps['clients'])->keyBy('id');
+    $tagsById = collect($berlinProps['tags'])->keyBy('id');
+
+    expect($berlinProps['timezone'])->toBe('Europe/Berlin')
+        ->and($sitesById[$newYorkSite->id]['timezone'])->toBe('America/New_York')
+        ->and($sitesById[$inheritedSite->id]['timezone'])->toBe('Europe/London')
+        ->and($clientsById[$newYorkClient->id]['timezone'])->toBe('America/New_York')
+        ->and($clientsById[$inheritedClient->id]['timezone'])->toBe('Europe/London')
+        ->and($tagsById[$tagId]['timezone'])->toBeNull();
+
+    $inheritedProps = $this->actingAs($inheritedOwner)->get('/maintenance')->assertOk()->inertiaProps();
+    expect($inheritedProps['timezone'])->toBe('Europe/London');
 });

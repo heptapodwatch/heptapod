@@ -25,7 +25,6 @@ final class MaintenanceIndexPageData extends Data
         public readonly array $sites,
         public readonly array $clients,
         public readonly array $tags,
-        public readonly string $instance_timezone,
         public readonly array $timezones,
         public readonly array $filter_clients = [],
         public readonly ?int $client_id = null,

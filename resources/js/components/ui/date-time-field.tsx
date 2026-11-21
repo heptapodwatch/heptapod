@@ -4,6 +4,7 @@ import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { zoneCity } from '@/lib/date-time';
 import { cn } from '@/lib/utils';
 
 const pad = (value: number) => String(value).padStart(2, '0');
@@ -140,10 +141,7 @@ const fieldPaddingStart = 12;
 const calendarArea = 40;
 const chipGap = 4;
 
-/** The readable short form of an IANA zone: its city ("Europe/Berlin" → "Berlin", "America/Argentina/Buenos_Aires" → "Buenos Aires"). */
-export function zoneCity(timezone: string): string {
-    return (timezone.split('/').at(-1) ?? timezone).replaceAll('_', ' ');
-}
+export { zoneCity };
 
 /**
  * The timezone chip never truncates: it shows the full zone while it fits beside the typed value (or the placeholder),

@@ -12,7 +12,10 @@ import {
     clientComboboxOptions,
     siteComboboxOptions,
 } from '@/components/entity-combobox';
-import { TimezoneCombobox } from '@/components/timezone-combobox';
+import {
+    TimezoneCombobox,
+    type PinnedTimezone,
+} from '@/components/timezone-combobox';
 import { ListHeader, ListRow } from '@/components/ui/table';
 import { FormSecondaryAction } from '@/components/form-section';
 import { SheetForm } from '@/components/sheet-form';
@@ -34,7 +37,7 @@ import { WeekdayToggleGroup } from '@/components/ui/weekday-toggle-group';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog, confirmVisit } from '@/components/confirm-dialog';
 import { DateTimeField, TimeField } from '@/components/ui/date-time-field';
-import { zonedWallTime } from '@/lib/date-time';
+import { zonedInstant, zonedWallTime } from '@/lib/date-time';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -50,6 +53,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useBufferedChanges } from '@/hooks/use-buffered-changes';
 import { useFormat } from '@/hooks/use-format';
 import { useLiveReload } from '@/hooks/use-live';
+import { useViewerTimezone } from '@/hooks/use-viewer-timezone';
 import {
     destroy as cancelWindow,
     end as endWindow,
@@ -97,16 +101,50 @@ function newWindowRequested(): boolean {
     );
 }
 
+/**
+ * Build a default wall-time window starting at or after `startMs` (minute-aligned) that round-trips cleanly through
+ * `zonedInstant` and stays strictly ordered (including across fall-back DST folds such as 01:45 EDT → 01:45 EST).
+ */
+function defaultWindowWallTimes(
+    startMs: number,
+    timezone: string,
+): { starts_local: string; ends_local: string } {
+    const hourMs = 3_600_000;
+    let alignedStartMs = Math.floor(startMs / 60_000) * 60_000;
+    let starts_local = zonedWallTime(
+        new Date(alignedStartMs).toISOString(),
+        timezone,
+    );
+    let startInstant = zonedInstant(starts_local, timezone);
+    while (startInstant !== null && Date.parse(startInstant) < alignedStartMs) {
+        alignedStartMs += hourMs;
+        starts_local = zonedWallTime(
+            new Date(alignedStartMs).toISOString(),
+            timezone,
+        );
+        startInstant = zonedInstant(starts_local, timezone);
+    }
+    let endMs = alignedStartMs + hourMs;
+    let ends_local = zonedWallTime(new Date(endMs).toISOString(), timezone);
+    let endInstant = zonedInstant(ends_local, timezone);
+    while (
+        ends_local <= starts_local ||
+        (startInstant !== null &&
+            (endInstant === null ||
+                Date.parse(endInstant) <= Date.parse(startInstant)))
+    ) {
+        endMs += hourMs;
+        ends_local = zonedWallTime(new Date(endMs).toISOString(), timezone);
+        endInstant = zonedInstant(ends_local, timezone);
+    }
+    return { starts_local, ends_local };
+}
+
 function freshDraft(timezone: string): Draft {
-    const start = new Date(Date.now() + 3600000);
     return {
         target_type: 'site',
         target_id: '',
-        starts_local: zonedWallTime(start.toISOString(), timezone),
-        ends_local: zonedWallTime(
-            new Date(start.getTime() + 3600000).toISOString(),
-            timezone,
-        ),
+        ...defaultWindowWallTimes(Date.now() + 3_600_000, timezone),
         timezone,
         recurrence_type: 'once',
         interval: 1,
@@ -164,7 +202,6 @@ export default function MaintenanceIndex({
     state,
     site_name,
     can_manage,
-    instance_timezone,
     timezones,
     sites,
     clients,
@@ -175,6 +212,17 @@ export default function MaintenanceIndex({
 }: Heptapod.Data.Ui.MaintenanceIndexPageData) {
     const { t, i18n } = useTranslation();
     const format = useFormat();
+    const viewerTimezone = useViewerTimezone();
+    const targetTimezoneOf = (
+        targetType: Draft['target_type'],
+        targetId: string,
+    ): string | null => {
+        if (!targetId || targetType === 'tag') return null;
+        const pool = targetType === 'site' ? sites : clients;
+        return (
+            pool.find((item) => String(item.id) === targetId)?.timezone ?? null
+        );
+    };
     useLiveReload(
         ['state.changed'],
         ['windows', 'next_page', 'previous_page', 'total'],
@@ -213,11 +261,19 @@ export default function MaintenanceIndex({
         });
     }, []);
     const [editing, setEditing] = useState<Window | null>(null);
-    const [draft, setDraft] = useState<Draft>(() =>
-        sheetOpen && site_id !== null
-            ? { ...freshDraft(instance_timezone), target_id: String(site_id) }
-            : freshDraft(instance_timezone),
-    );
+    const [timezonePicked, setTimezonePicked] = useState(false);
+    const [timesEdited, setTimesEdited] = useState(false);
+    const [draft, setDraft] = useState<Draft>(() => {
+        if (sheetOpen && site_id !== null) {
+            const initialTimezone =
+                targetTimezoneOf('site', String(site_id)) ?? viewerTimezone;
+            return {
+                ...freshDraft(initialTimezone),
+                target_id: String(site_id),
+            };
+        }
+        return freshDraft(viewerTimezone);
+    });
     const [errors, setErrors] = useState<Record<string, string>>({});
     const endError =
         errors.ends_local ??
@@ -259,8 +315,42 @@ export default function MaintenanceIndex({
               : tags;
     const change = <K extends keyof Draft>(key: K, value: Draft[K]) =>
         setDraft((current) => ({ ...current, [key]: value }));
+    const applyTarget = (
+        targetType: Draft['target_type'],
+        targetId: string,
+    ) => {
+        const nextTimezone =
+            targetTimezoneOf(targetType, targetId) ?? viewerTimezone;
+        setDraft((current) => {
+            const updated: Draft = {
+                ...current,
+                target_type: targetType,
+                target_id: targetId,
+            };
+            if (timezonePicked || nextTimezone === current.timezone) {
+                return updated;
+            }
+            updated.timezone = nextTimezone;
+            if (!timesEdited && current.recurrence_type === 'once') {
+                const startInstant = zonedInstant(
+                    current.starts_local,
+                    current.timezone,
+                );
+                if (startInstant) {
+                    Object.assign(
+                        updated,
+                        defaultWindowWallTimes(
+                            Date.parse(startInstant),
+                            nextTimezone,
+                        ),
+                    );
+                }
+            }
+            return updated;
+        });
+    };
     const openSheet = (window: Window | null) => {
-        let formTimezone = window?.timezone ?? instance_timezone;
+        let formTimezone = window?.timezone ?? viewerTimezone;
         if (window?.seriesId) {
             if (
                 !window.startTime ||
@@ -274,6 +364,9 @@ export default function MaintenanceIndex({
             formTimezone = window.seriesTimezone;
         }
         setEditing(window);
+        // Existing windows keep their stored zone even if the target changes; new windows follow the target until picked.
+        setTimezonePicked(window !== null);
+        setTimesEdited(window !== null);
         setDraft(
             window
                 ? {
@@ -302,13 +395,45 @@ export default function MaintenanceIndex({
                       mute_alerts: window.muteAlerts,
                       catch_up_at_end: window.catchUpAtEnd,
                   }
-                : freshDraft(instance_timezone),
+                : freshDraft(viewerTimezone),
         );
         setErrors({});
         setStartsInvalid(false);
         setEndsInvalid(false);
         setSheetOpen(true);
     };
+    const selectedTarget =
+        draft.target_id && draft.target_type !== 'tag'
+            ? ((draft.target_type === 'site' ? sites : clients).find(
+                  (item) => String(item.id) === draft.target_id,
+              ) ?? null)
+            : null;
+    const selectedTargetTimezone = selectedTarget?.timezone ?? null;
+    const selectedClientName =
+        selectedTarget && !selectedTarget.is_internal
+            ? draft.target_type === 'site'
+                ? selectedTarget.client_name
+                : selectedTarget.name
+            : null;
+    const clientPinnedLabel =
+        selectedClientName && selectedClientName.length <= 20
+            ? t('timezone.pinned.client_named', { name: selectedClientName })
+            : t('timezone.pinned.client');
+    const pinnedTimezones: PinnedTimezone[] = [
+        ...(selectedTargetTimezone
+            ? [{ zone: selectedTargetTimezone, label: clientPinnedLabel }]
+            : []),
+        { zone: viewerTimezone, label: t('timezone.pinned.viewer') },
+    ];
+    const timezoneHint = timezonePicked
+        ? null
+        : selectedTargetTimezone
+          ? selectedClientName
+              ? t('maintenance.timezone_hint.client_named', {
+                    name: selectedClientName,
+                })
+              : t('maintenance.timezone_hint.client')
+          : t('maintenance.timezone_hint.viewer');
     const returnOptions = {
         query: {
             return_context: {
@@ -608,157 +733,179 @@ export default function MaintenanceIndex({
                         <span>{t('Effect')}</span>
                         <span className="sr-only">{t('Actions')}</span>
                     </ListHeader>
-                    {rows.map((window) => (
-                        <ListRow
-                            key={window.id}
-                            className="xl:grid-cols-[7rem_minmax(12rem,1fr)_minmax(10rem,1fr)_minmax(12rem,1fr)_auto] xl:items-center"
-                        >
-                            {stateMark(window)}
-                            <div className="min-w-0 space-y-1 font-mono text-xs tabular-nums">
-                                <span className="flex flex-wrap items-center gap-1">
-                                    <AbsoluteTime
-                                        value={window.startsAt}
-                                        timezone={window.timezone}
-                                        label={t('Starts')}
-                                    />
-                                    <span>–</span>
-                                    <AbsoluteTime
-                                        value={window.endsAt}
-                                        timezone={window.timezone}
-                                        label={t('Ends')}
-                                    />
-                                </span>
-                                <span className="block text-muted-foreground">
-                                    {window.timezone} ·{' '}
-                                    {window.recurrenceType === 'monthly'
-                                        ? t('Every {{count}} months', {
-                                              count: window.interval,
-                                              formattedCount: format.number(
-                                                  window.interval,
-                                              ),
-                                          })
-                                        : window.recurrenceType
-                                          ? t('Repeats {{type}}', {
-                                                type: t(window.recurrenceType),
-                                            })
-                                          : t('Once')}
-                                </span>
-                            </div>
-                            <div className="min-w-0">
-                                <TruncatedText
-                                    label={t('Target')}
-                                    content={window.targetLabel ?? undefined}
-                                >
-                                    <span className="flex items-center gap-2 truncate">
-                                        {window.targetType === 'client' &&
-                                            filter_clients
-                                                .filter(
-                                                    (client) =>
-                                                        client.id ===
-                                                        window.targetId,
-                                                )
-                                                .map(
-                                                    (client) =>
-                                                        client.avatar && (
-                                                            <ClientMark
-                                                                key={client.id}
-                                                                client={{
-                                                                    ...client,
-                                                                    avatar: client.avatar,
-                                                                }}
-                                                                small
-                                                            />
-                                                        ),
-                                                )}
-                                        {window.targetLabel ??
-                                            t('Target unavailable')}
+                    {rows.map((window) => {
+                        const sourceTime = format.windowSourceTime(
+                            window.startsAt,
+                            window.endsAt,
+                            window.timezone,
+                        );
+                        return (
+                            <ListRow
+                                key={window.id}
+                                className="xl:grid-cols-[7rem_minmax(12rem,1fr)_minmax(10rem,1fr)_minmax(12rem,1fr)_auto] xl:items-center"
+                            >
+                                {stateMark(window)}
+                                <div className="min-w-0 space-y-1 font-mono text-xs tabular-nums">
+                                    <span className="flex flex-wrap items-center gap-1">
+                                        <AbsoluteTime
+                                            value={window.startsAt}
+                                            label={t('Starts')}
+                                        />
+                                        <span>–</span>
+                                        <AbsoluteTime
+                                            value={window.endsAt}
+                                            label={t('Ends')}
+                                        />
+                                        {sourceTime && (
+                                            <span className="text-muted-foreground">
+                                                {sourceTime}
+                                            </span>
+                                        )}
                                     </span>
-                                </TruncatedText>
-                                <span className="text-xs text-muted-foreground">
-                                    {t('{{count}} sites', {
-                                        count: window.siteCount,
-                                        formattedCount: format.number(
-                                            window.siteCount,
-                                        ),
-                                    })}
-                                </span>
-                            </div>
-                            <div className="min-w-0 text-xs text-muted-foreground">
-                                {window.reason && (
+                                    <span className="block text-muted-foreground">
+                                        {window.timezone} ·{' '}
+                                        {window.recurrenceType === 'monthly'
+                                            ? t('Every {{count}} months', {
+                                                  count: window.interval,
+                                                  formattedCount: format.number(
+                                                      window.interval,
+                                                  ),
+                                              })
+                                            : window.recurrenceType
+                                              ? t('Repeats {{type}}', {
+                                                    type: t(
+                                                        window.recurrenceType,
+                                                    ),
+                                                })
+                                              : t('Once')}
+                                    </span>
+                                </div>
+                                <div className="min-w-0">
                                     <TruncatedText
-                                        label={t('Reason')}
-                                        content={window.reason}
+                                        label={t('Target')}
+                                        content={
+                                            window.targetLabel ?? undefined
+                                        }
                                     >
-                                        <span className="block truncate">
-                                            {window.reason}
+                                        <span className="flex items-center gap-2 truncate">
+                                            {window.targetType === 'client' &&
+                                                filter_clients
+                                                    .filter(
+                                                        (client) =>
+                                                            client.id ===
+                                                            window.targetId,
+                                                    )
+                                                    .map(
+                                                        (client) =>
+                                                            client.avatar && (
+                                                                <ClientMark
+                                                                    key={
+                                                                        client.id
+                                                                    }
+                                                                    client={{
+                                                                        ...client,
+                                                                        avatar: client.avatar,
+                                                                    }}
+                                                                    small
+                                                                />
+                                                            ),
+                                                    )}
+                                            {window.targetLabel ??
+                                                t('Target unavailable')}
                                         </span>
                                     </TruncatedText>
-                                )}
-                                <span>
-                                    {t(
-                                        window.muteAlerts
-                                            ? 'Alerts muted'
-                                            : 'Alerts continue',
-                                    )}
-                                </span>
-                                {window.catchUpAtEnd && (
-                                    <span>
-                                        {' '}
-                                        ·{' '}
-                                        {t('Alert if still failing at the end')}
+                                    <span className="text-xs text-muted-foreground">
+                                        {t('{{count}} sites', {
+                                            count: window.siteCount,
+                                            formattedCount: format.number(
+                                                window.siteCount,
+                                            ),
+                                        })}
                                     </span>
-                                )}
-                            </div>
-                            <div className="flex xl:justify-end">
-                                <RowActions
-                                    label={
-                                        window.name ??
-                                        window.targetLabel ??
-                                        t('Maintenance window')
-                                    }
-                                    actions={[
-                                        ...(liveActionAllowed(window, 'update')
-                                            ? [
-                                                  {
-                                                      label: t('Edit'),
-                                                      onSelect: () =>
-                                                          openSheet(window),
-                                                  },
-                                              ]
-                                            : []),
-                                        ...(
-                                            [
-                                                'end_now',
-                                                'cancel_occurrence',
-                                                'cancel_series',
-                                            ] as const
-                                        )
-                                            .filter((action) =>
-                                                liveActionAllowed(
-                                                    window,
-                                                    action,
-                                                ),
+                                </div>
+                                <div className="min-w-0 text-xs text-muted-foreground">
+                                    {window.reason && (
+                                        <TruncatedText
+                                            label={t('Reason')}
+                                            content={window.reason}
+                                        >
+                                            <span className="block truncate">
+                                                {window.reason}
+                                            </span>
+                                        </TruncatedText>
+                                    )}
+                                    <span>
+                                        {t(
+                                            window.muteAlerts
+                                                ? 'Alerts muted'
+                                                : 'Alerts continue',
+                                        )}
+                                    </span>
+                                    {window.catchUpAtEnd && (
+                                        <span>
+                                            {' '}
+                                            ·{' '}
+                                            {t(
+                                                'Alert if still failing at the end',
+                                            )}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex xl:justify-end">
+                                    <RowActions
+                                        label={
+                                            window.name ??
+                                            window.targetLabel ??
+                                            t('Maintenance window')
+                                        }
+                                        actions={[
+                                            ...(liveActionAllowed(
+                                                window,
+                                                'update',
                                             )
-                                            .map((action) => ({
-                                                label: t(
-                                                    maintenanceActionCopy(
-                                                        action,
-                                                        window.seriesId != null,
-                                                    ).label,
-                                                ),
-                                                destructive:
-                                                    action !== 'end_now',
-                                                onSelect: () =>
-                                                    setConfirmation({
+                                                ? [
+                                                      {
+                                                          label: t('Edit'),
+                                                          onSelect: () =>
+                                                              openSheet(window),
+                                                      },
+                                                  ]
+                                                : []),
+                                            ...(
+                                                [
+                                                    'end_now',
+                                                    'cancel_occurrence',
+                                                    'cancel_series',
+                                                ] as const
+                                            )
+                                                .filter((action) =>
+                                                    liveActionAllowed(
                                                         window,
                                                         action,
-                                                    }),
-                                            })),
-                                    ]}
-                                />
-                            </div>
-                        </ListRow>
-                    ))}
+                                                    ),
+                                                )
+                                                .map((action) => ({
+                                                    label: t(
+                                                        maintenanceActionCopy(
+                                                            action,
+                                                            window.seriesId !=
+                                                                null,
+                                                        ).label,
+                                                    ),
+                                                    destructive:
+                                                        action !== 'end_now',
+                                                    onSelect: () =>
+                                                        setConfirmation({
+                                                            window,
+                                                            action,
+                                                        }),
+                                                })),
+                                        ]}
+                                    />
+                                </div>
+                            </ListRow>
+                        );
+                    })}
                 </div>
             )}
             {total > 0 && (
@@ -824,10 +971,9 @@ export default function MaintenanceIndex({
                                 errors.target_type,
                             )}
                             value={draft.target_type}
-                            onValueChange={(value: Draft['target_type']) => {
-                                change('target_type', value);
-                                change('target_id', '');
-                            }}
+                            onValueChange={(value: Draft['target_type']) =>
+                                applyTarget(value, '')
+                            }
                         >
                             <RadioGroupItem value="site">
                                 {t('Site')}
@@ -876,7 +1022,7 @@ export default function MaintenanceIndex({
                             }
                             value={draft.target_id}
                             onValueChange={(value) =>
-                                change('target_id', value)
+                                applyTarget(draft.target_type, value)
                             }
                         />
                         {draft.target_id && draft.target_type !== 'site' && (
@@ -911,9 +1057,10 @@ export default function MaintenanceIndex({
                                 describedBy="maintenance-start-error"
                                 onInvalidChange={setStartsInvalid}
                                 value={draft.starts_local}
-                                onValueChange={(value) =>
-                                    change('starts_local', value)
-                                }
+                                onValueChange={(value) => {
+                                    setTimesEdited(true);
+                                    change('starts_local', value);
+                                }}
                             />
                             <InputError
                                 id="maintenance-start-error"
@@ -937,9 +1084,10 @@ export default function MaintenanceIndex({
                                     required
                                     timezone={draft.timezone}
                                     value={draft.ends_local}
-                                    onValueChange={(value) =>
-                                        change('ends_local', value)
-                                    }
+                                    onValueChange={(value) => {
+                                        setTimesEdited(true);
+                                        change('ends_local', value);
+                                    }}
                                 />
                             ) : (
                                 <TimeField
@@ -949,9 +1097,10 @@ export default function MaintenanceIndex({
                                     onInvalidChange={setEndsInvalid}
                                     required
                                     value={draft.ends_local}
-                                    onValueChange={(value) =>
-                                        change('ends_local', value)
-                                    }
+                                    onValueChange={(value) => {
+                                        setTimesEdited(true);
+                                        change('ends_local', value);
+                                    }}
                                 />
                             )}
                             {draft.recurrence_type !== 'once' &&
@@ -980,18 +1129,31 @@ export default function MaintenanceIndex({
                         <TimezoneCombobox
                             id="maintenance-timezone"
                             timezones={timezones}
-                            pinned={[instance_timezone]}
+                            pinned={pinnedTimezones}
                             value={String(draft.timezone)}
-                            onValueChange={(value) => change('timezone', value)}
+                            onValueChange={(value) => {
+                                setTimezonePicked(true);
+                                change('timezone', value);
+                            }}
                             invalid={!!errors.timezone}
                             describedBy={
-                                errors.timezone
-                                    ? 'maintenance-timezone-error'
-                                    : undefined
+                                fieldErrorProps(
+                                    'maintenance-timezone',
+                                    errors.timezone,
+                                    timezoneHint && 'maintenance-timezone-hint',
+                                )['aria-describedby']
                             }
                         />
+                        {timezoneHint && (
+                            <p
+                                id="maintenance-timezone-hint"
+                                className="text-xs text-muted-foreground"
+                            >
+                                {timezoneHint}
+                            </p>
+                        )}
                         <InputError
-                            id="maintenance-timezone-error"
+                            field="maintenance-timezone"
                             message={errors.timezone}
                         />
                     </div>

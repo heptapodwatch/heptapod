@@ -641,7 +641,7 @@
     "Configure": "Configure",
     "Until": "Until",
     "1 hour": "1 hour",
-    "Tomorrow 08:00 (instance time)": "Tomorrow 08:00 (instance time)",
+    "Tomorrow 08:00": "Tomorrow 08:00",
     "Delete {{name}}?": "Delete {{name}}?",
     "Counting stored results…": "Counting stored results…",
     "Stored results could not be counted.": "Stored results could not be counted.",
@@ -818,5 +818,12 @@
     "findings.count_one": "{{formattedCount}} finding",
     "findings.count_other": "{{formattedCount}} findings",
     "upcoming.count_one": "{{formattedCount}} date on this page",
-    "upcoming.count_other": "{{formattedCount}} dates on this page"
+    "upcoming.count_other": "{{formattedCount}} dates on this page",
+    "timezone.wall_time": "({{time}} {{zone}})",
+    "timezone.pinned.client": "Client zone",
+    "timezone.pinned.client_named": "{{name}}'s zone",
+    "timezone.pinned.viewer": "Your zone",
+    "maintenance.timezone_hint.client_named": "From the client {{name}}. Pick another zone to override.",
+    "maintenance.timezone_hint.client": "From the client zone. Pick another zone to override.",
+    "maintenance.timezone_hint.viewer": "Your zone. Pick another zone to override."
 }

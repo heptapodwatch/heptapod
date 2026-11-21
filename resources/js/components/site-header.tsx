@@ -114,7 +114,7 @@ export function SitePauseAction({
                                             ? 'I resume it'
                                             : option === 'hour'
                                               ? '1 hour'
-                                              : 'Tomorrow 08:00 (instance time)',
+                                              : 'Tomorrow 08:00',
                                     )}
                                 </RadioGroupItem>
                             ),
@@ -186,6 +186,14 @@ export function SiteHeader({
             <SiteRunAll site={site} plans={runAllChecks} />
         ) : null;
     const primary = runAllAction;
+    const maintenanceSourceTime =
+        maintenance?.startsAt && maintenance.endsAt
+            ? format.windowSourceTime(
+                  maintenance.startsAt,
+                  maintenance.endsAt,
+                  maintenance.timezone,
+              )
+            : null;
     const secondaryActionCount =
         Number(Boolean(canManage || maintenance)) + Number(canManage);
     return (
@@ -292,6 +300,11 @@ export function SiteHeader({
                                                 maintenance.endsAt
                                                     ? [
                                                           `${format.exact(maintenance.startsAt)} – ${format.exact(maintenance.endsAt)}`,
+                                                          ...(maintenanceSourceTime
+                                                              ? [
+                                                                    maintenanceSourceTime,
+                                                                ]
+                                                              : []),
                                                       ]
                                                     : []),
                                             ]}

@@ -44,9 +44,11 @@ function optionContent(option: ComboboxOption): ReactNode {
                     <TruncatedText content={option.label}>
                         <span className="block truncate">{option.label}</span>
                     </TruncatedText>
-                    <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
                         {option.badge}
-                        <span className="truncate">{option.secondary}</span>
+                        {option.secondary && (
+                            <span className="truncate">{option.secondary}</span>
+                        )}
                     </span>
                 </span>
             ) : (
