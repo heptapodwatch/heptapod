@@ -8,6 +8,8 @@ use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;
+use GuzzleHttp\Psr7\FnStream;
+use GuzzleHttp\Psr7\Utils;
 use Heptapod\Contracts\Http\DeliveryHttp;
 use Heptapod\Contracts\Http\FetchException;
 use Heptapod\Contracts\Http\FetchFailure;
@@ -18,6 +20,7 @@ use Heptapod\Contracts\Http\TargetAddressScope;
 use Heptapod\Contracts\Http\TargetHost;
 use Heptapod\Contracts\Http\TargetResolutionException;
 use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 
 final readonly class GuardedDeliveryHttp implements DeliveryHttp
 {
@@ -51,11 +54,34 @@ final readonly class GuardedDeliveryHttp implements DeliveryHttp
             ];
 
             $request = $request->withHeader('User-Agent', PublicRequestProfile::headers()['User-Agent']);
+            // The curl cap counts wire bytes; a compressed body can decode far past it, so bound the decoded sink too.
+            $sink = Utils::streamFor();
+            $overflow = false;
+            $decoded = 0;
+            $options['sink'] = FnStream::decorate($sink, [
+                'write' => static function (string $bytes) use ($sink, &$overflow, &$decoded, $maxResponseBytes): int {
+                    if ($overflow || $decoded + strlen($bytes) > $maxResponseBytes) {
+                        $overflow = true;
+
+                        return 0;
+                    }
+                    $decoded += strlen($bytes);
+
+                    return $sink->write($bytes);
+                },
+            ]);
+            $tooLarge = static fn (): FetchException => new FetchException(new FetchFailure(FetchFailureKind::TooLarge));
 
             /** @var callable(RequestInterface, array<array-key, mixed>): PromiseInterface $next */
-            return $next($request, $options)->otherwise(static function (mixed $reason): PromiseInterface {
-                if ($reason instanceof RequestException && ($reason->getHandlerContext()['errno'] ?? null) === CURLE_FILESIZE_EXCEEDED) {
-                    return Create::rejectionFor(new FetchException(new FetchFailure(FetchFailureKind::TooLarge)));
+            return $next($request, $options)->then(static function (ResponseInterface $response) use (&$overflow, $tooLarge): ResponseInterface {
+                if ($overflow) {
+                    throw $tooLarge();
+                }
+
+                return $response;
+            }, static function (mixed $reason) use (&$overflow, $tooLarge): PromiseInterface {
+                if ($overflow || ($reason instanceof RequestException && ($reason->getHandlerContext()['errno'] ?? null) === CURLE_FILESIZE_EXCEEDED)) {
+                    return Create::rejectionFor($tooLarge());
                 }
 
                 return Create::rejectionFor($reason);

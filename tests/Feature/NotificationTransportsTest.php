@@ -385,6 +385,18 @@ it('rejects HTTP-200 provider failures rather than claiming delivery', function 
     'ntfy JSON without a message' => ['ntfy', ['status' => 'ok']],
 ]);
 
+it('fails a delivery whose compressed reply decodes past the response cap', function (string $encoding): void {
+    config(['heptapod.outbound.delivery_private_hosts' => ['fixtures.test']]);
+    $channel = app(ChannelRegistry::class)->get('webhook');
+    // The fixture sends a small compressed body that decodes to 2 MiB; the delivery cap is 1 MiB.
+    $values = ['url' => 'http://fixtures.test/http-seam/compressed/'.$encoding.'/200', 'secret' => 'private-token', 'allow_insecure_http' => true];
+    $result = transportSend($channel, transportAlert('failed'), new DestinationConfig(9, 'en', $channel->configSchema()->validateConfig($values), 'UTC', 'Heptapod', 'https://heptapod.example'), '42:9');
+
+    expect($result->status)->toBe(DeliveryState::Failed)
+        ->and($result->reason)->toBe('notifications.transport_failed')
+        ->and($result->diagnosis)->toBe('Outbound HTTP failed: too_large.');
+})->with(['gzip', 'deflate', 'br']);
+
 it('interprets Microsoft Teams workflow acknowledgements', function (string $body, int $status, string $expectedStatus, ?string $expectedReason): void {
     [$values, $url] = notificationTransports()['microsoftTeams'];
     Http::preventStrayRequests();
