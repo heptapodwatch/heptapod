@@ -6,11 +6,13 @@ use Database\Seeders\DatabaseSeeder;
 use Heptapod\Actions\Fortify\ResetUserPassword;
 use Heptapod\Contracts\Mail\MailRenderer;
 use Heptapod\Http\Requests\ActiveTwoFactorLoginRequest;
+use Heptapod\Http\Responses\GenericPasswordResetLinkResponse;
 use Heptapod\Models\User;
 use Heptapod\Notifications\AccountMailFactory;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\Auth\PasswordBroker;
 use Illuminate\Http\Request;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\Event;
@@ -20,10 +22,13 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
+use Laravel\Fortify\Contracts\FailedPasswordResetLinkRequestResponse;
+use Laravel\Fortify\Contracts\FailedPasswordResetResponse as FailedPasswordResetResponseContract;
 use Laravel\Fortify\Events\TwoFactorAuthenticationChallenged;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
 use Laravel\Fortify\Http\Requests\TwoFactorLoginRequest;
+use Laravel\Fortify\Http\Responses\FailedPasswordResetResponse;
 use Laravel\Passkeys\Contracts\PasskeyUser;
 use Laravel\Passkeys\Passkey;
 use Laravel\Passkeys\Passkeys;
@@ -50,6 +55,11 @@ class FortifyServiceProvider extends ServiceProvider
             }
             request()->session()->put(ActiveTwoFactorLoginRequest::CredentialsKey, ActiveTwoFactorLoginRequest::credentialsFingerprint($event->user));
         });
+        $this->app->bind(FailedPasswordResetLinkRequestResponse::class, GenericPasswordResetLinkResponse::class);
+        $this->app->bind(
+            FailedPasswordResetResponseContract::class,
+            static fn (): FailedPasswordResetResponse => new FailedPasswordResetResponse(PasswordBroker::INVALID_TOKEN),
+        );
         $this->configureActions();
         $this->configureViews();
         $this->configureRateLimiting();
@@ -165,6 +175,26 @@ class FortifyServiceProvider extends ServiceProvider
             return [
                 Limit::perMinute(5)->by('user-ip:'.$actor.'|'.$ip),
                 Limit::perMinute(10)->by('user:'.$actor),
+            ];
+        });
+
+        RateLimiter::for('password-reset-link', static function (Request $request): array {
+            $email = Str::transliterate(Str::lower($request->string(Fortify::email())->toString()));
+            $ip = $request->ip() ?? 'unknown';
+
+            return [
+                Limit::perMinute(10)->by('ip:'.$ip),
+                Limit::perMinute(3)->by('email:'.$email),
+            ];
+        });
+
+        RateLimiter::for('password-reset', static function (Request $request): array {
+            $email = Str::transliterate(Str::lower($request->string(Fortify::email())->toString()));
+            $ip = $request->ip() ?? 'unknown';
+
+            return [
+                Limit::perMinute(10)->by('ip:'.$ip),
+                Limit::perMinute(5)->by('email-ip:'.$email.'|'.$ip),
             ];
         });
     }

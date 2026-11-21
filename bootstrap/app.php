@@ -46,6 +46,8 @@ return Application::configure(basePath: dirname(__DIR__))
             }
             foreach ([
                 'password.confirm.store' => 'throttle:password-confirm',
+                'password.email' => 'throttle:password-reset-link',
+                'password.update' => 'throttle:password-reset',
             ] as $routeName => $middleware) {
                 $route = $routes->getByName($routeName);
                 if ($route !== null && ! in_array($middleware, $route->middleware(), true)) {

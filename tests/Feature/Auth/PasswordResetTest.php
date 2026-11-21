@@ -1,10 +1,12 @@
 <?php
 
+use Carbon\CarbonImmutable;
 use Heptapod\Jobs\TerminateLiveConnections;
 use Heptapod\Models\User;
 use Heptapod\Notifications\PasswordReset;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Fortify\Features;
 
@@ -109,4 +111,122 @@ test('password cannot be reset with invalid token', function (): void {
     ]);
 
     $response->assertSessionHasErrors('email');
+});
+
+test('forgot password returns identical generic responses for existing and unknown emails', function (): void {
+    Notification::fake();
+    $user = User::factory()->create();
+
+    $existing = $this->from(route('password.request'))
+        ->post(route('password.email'), ['email' => $user->email]);
+    $unknown = $this->from(route('password.request'))
+        ->post(route('password.email'), ['email' => 'nobody@example.test']);
+
+    $existing->assertRedirect(route('password.request'))
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('status', trans(Password::RESET_LINK_SENT));
+    $unknown->assertRedirect(route('password.request'))
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('status', trans(Password::RESET_LINK_SENT));
+
+    $existingJson = $this->postJson(route('password.email'), ['email' => $user->email]);
+    $unknownJson = $this->postJson(route('password.email'), ['email' => 'still-nobody@example.test']);
+
+    $existingJson->assertOk()->assertExactJson(['message' => trans(Password::RESET_LINK_SENT)]);
+    $unknownJson->assertOk()->assertExactJson(['message' => trans(Password::RESET_LINK_SENT)]);
+    Notification::assertSentToTimes($user, PasswordReset::class, 1);
+});
+
+test('reset password returns the same invalid token error for existing and unknown emails', function (): void {
+    $user = User::factory()->create();
+
+    $existing = $this->postJson(route('password.update'), [
+        'token' => 'invalid-token',
+        'email' => $user->email,
+        'password' => 'newpassword123',
+        'password_confirmation' => 'newpassword123',
+    ])->assertUnprocessable();
+
+    $unknown = $this->postJson(route('password.update'), [
+        'token' => 'invalid-token',
+        'email' => 'nobody@example.test',
+        'password' => 'newpassword123',
+        'password_confirmation' => 'newpassword123',
+    ])->assertUnprocessable();
+
+    expect($existing->json('errors.email'))->toBe([trans(Password::INVALID_TOKEN)])
+        ->and($unknown->json('errors.email'))->toBe([trans(Password::INVALID_TOKEN)]);
+});
+
+test('forgot password is rate-limited per email and per IP', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-31T12:00:00Z'));
+    Notification::fake();
+
+    // Per email (3/min) across different IPs.
+    for ($attempt = 1; $attempt <= 3; $attempt++) {
+        $this->withServerVariables(['REMOTE_ADDR' => "198.51.100.{$attempt}"])
+            ->postJson(route('password.email'), ['email' => 'target@example.test'])
+            ->assertOk();
+    }
+    $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.99'])
+        ->postJson(route('password.email'), ['email' => 'target@example.test'])
+        ->assertTooManyRequests()
+        ->assertHeader('Retry-After')
+        ->assertJsonPath('code', 'rate_limited');
+
+    // Per IP (10/min) across distinct emails.
+    for ($attempt = 1; $attempt <= 10; $attempt++) {
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.10'])
+            ->postJson(route('password.email'), ['email' => "user{$attempt}@example.test"])
+            ->assertOk();
+    }
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.10'])
+        ->postJson(route('password.email'), ['email' => 'user11@example.test'])
+        ->assertTooManyRequests()
+        ->assertHeader('Retry-After')
+        ->assertJsonPath('code', 'rate_limited');
+});
+
+test('reset password submission is rate-limited per email and IP', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-31T12:00:00Z'));
+
+    // Per email+IP (5/min).
+    for ($attempt = 1; $attempt <= 5; $attempt++) {
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.20'])
+            ->postJson(route('password.update'), [
+                'token' => 'invalid-token',
+                'email' => 'victim@example.test',
+                'password' => 'newpassword123',
+                'password_confirmation' => 'newpassword123',
+            ])->assertUnprocessable();
+    }
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.20'])
+        ->postJson(route('password.update'), [
+            'token' => 'invalid-token',
+            'email' => 'victim@example.test',
+            'password' => 'newpassword123',
+            'password_confirmation' => 'newpassword123',
+        ])->assertTooManyRequests()
+        ->assertHeader('Retry-After')
+        ->assertJsonPath('code', 'rate_limited');
+
+    // Per IP (10/min) across distinct emails (5 already used on 203.0.113.20).
+    for ($attempt = 1; $attempt <= 5; $attempt++) {
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.20'])
+            ->postJson(route('password.update'), [
+                'token' => 'invalid-token',
+                'email' => "other{$attempt}@example.test",
+                'password' => 'newpassword123',
+                'password_confirmation' => 'newpassword123',
+            ])->assertUnprocessable();
+    }
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.20'])
+        ->postJson(route('password.update'), [
+            'token' => 'invalid-token',
+            'email' => 'other6@example.test',
+            'password' => 'newpassword123',
+            'password_confirmation' => 'newpassword123',
+        ])->assertTooManyRequests()
+        ->assertHeader('Retry-After')
+        ->assertJsonPath('code', 'rate_limited');
 });
