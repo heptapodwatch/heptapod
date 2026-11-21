@@ -7,6 +7,7 @@ namespace Heptapod\Jobs;
 use Heptapod\Actions\CreateClient;
 use Heptapod\Actions\ImportOhDearAccount;
 use Heptapod\Actions\ReconcileQueuedWork;
+use Heptapod\Checks\Execution\ExecutionBudget;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Data\Import\ImportChannelRowData;
@@ -23,8 +24,8 @@ use Heptapod\Models\User;
 use Heptapod\Support\ImportTokenStore;
 use Heptapod\Support\OhDearImportNotices;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Database\Query\Builder;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Attributes\Timeout;
 use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Context;
@@ -33,13 +34,14 @@ use Illuminate\Support\Traits\Localizable;
 use Throwable;
 
 /** Imports one Oh Dear account for a queued import run. The payload carries only the run id, never the token. */
+#[Timeout(ExecutionBudget::HorizonTimeout)]
 #[Tries(1)]
 final class RunOhDearImport implements ShouldQueue
 {
     use Localizable;
     use Queueable;
 
-    public function __construct(public readonly string $runId, public readonly ?int $attempt = null)
+    public function __construct(public readonly string $runId)
     {
         $this->onConnection('redis');
         $this->onQueue('reports');
@@ -47,11 +49,8 @@ final class RunOhDearImport implements ShouldQueue
 
     public function handle(ImportOhDearAccount $import, CreateClient $createClient): void
     {
-        // Claim only the queued run for this attempt generation; a duplicate or late job finds another attempt or state and does nothing.
-        $claimed = ImportRun::query()->getQuery()
-            ->where('id', $this->runId)
-            ->where('status', ImportRunStatus::Queued->value)
-            ->when($this->attempt !== null, fn (Builder $query): Builder => $query->where('attempts', $this->attempt))
+        // Claim the queued run; a duplicate or late job finds a running or terminal run and does nothing.
+        $claimed = ImportRun::query()->getQuery()->where('id', $this->runId)->where('status', ImportRunStatus::Queued->value)
             ->update(['status' => ImportRunStatus::Running->value, 'remote_error' => null, 'error' => null, 'finished_at' => null, 'updated_at' => now()]);
         if ($claimed !== 1) {
             return;
@@ -125,24 +124,9 @@ final class RunOhDearImport implements ShouldQueue
                 $result['details'] = $row->details.' '.__('import.log_reference', ['run' => $run->id]);
             }
             $results[$row->source_id] = $result;
-            $saved = DB::transaction(static function () use ($run, $attempt, $results): bool {
-                $query = ImportRun::query()->whereKey($run->id)
-                    ->where('status', ImportRunStatus::Running->value)
-                    ->where('attempts', $attempt);
-                $query->getQuery()->lockForUpdate();
-                $locked = $query->first();
-                if (! $locked instanceof ImportRun) {
-                    return false;
-                }
-                $locked->results = $results;
-                $locked->save();
-
-                return true;
-            });
-            if ($saved) {
-                $run->results = $results;
-                LiveSignal::forImport();
-            }
+            $run->results = $results;
+            $run->save();
+            LiveSignal::forImport();
         };
         // Stored reasons are text, so they are written in the language of the run's owner, the only user who sees them.
         $locale = User::query()->whereKey($run->user_id)->value('locale');
@@ -165,7 +149,7 @@ final class RunOhDearImport implements ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        app(ReconcileQueuedWork::class)->failImport($this->runId, attempt: $this->attempt);
+        app(ReconcileQueuedWork::class)->failImport($this->runId);
     }
 
     /**
@@ -265,27 +249,10 @@ final class RunOhDearImport implements ShouldQueue
 
     private function finish(ImportRun $run, ImportRunStatus $status, ?string $error): void
     {
-        $expectedAttempt = $this->attempt ?? $run->attempts;
-        $updated = DB::transaction(static function () use ($run, $status, $error, $expectedAttempt): bool {
-            $query = ImportRun::query()->whereKey($run->id)
-                ->where('status', ImportRunStatus::Running->value)
-                ->where('attempts', $expectedAttempt);
-            $query->getQuery()->lockForUpdate();
-            $locked = $query->first();
-            if (! $locked instanceof ImportRun) {
-                return false;
-            }
-            $locked->status = $status;
-            $locked->error = $error;
-            $locked->remote_error = $run->remote_error;
-            $locked->channel_results = $run->channel_results;
-            $locked->finished_at = now()->toImmutable();
-            $locked->save();
-
-            return true;
-        });
-        if ($updated) {
-            LiveSignal::forImportChange();
-        }
+        $run->status = $status;
+        $run->error = $error;
+        $run->finished_at = now()->toImmutable();
+        $run->save();
+        LiveSignal::forImportChange();
     }
 }

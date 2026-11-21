@@ -18,7 +18,8 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class ReconcileQueuedWork
 {
-    public const int StaleTimeout = ExecutionBudget::RetryAfter;
+    /** Hard worker kill limit + Redis retry_after + grace margin: no earlier worker can still be alive once reconciliation expires a row. */
+    public const int StaleTimeout = ExecutionBudget::HorizonTimeout + ExecutionBudget::RetryAfter + ExecutionBudget::Grace;
 
     public function __construct(private FailRequestedBackup $failRequestedBackup) {}
 
@@ -41,7 +42,7 @@ final readonly class ReconcileQueuedWork
         }
     }
 
-    public function failImport(string $runId, bool $onlyQueued = false, string $error = 'unexpected', ?int $attempt = null): bool
+    public function failImport(string $runId, bool $onlyQueued = false, string $error = 'unexpected'): bool
     {
         $states = $onlyQueued
             ? [ImportRunStatus::Queued->value]
@@ -50,7 +51,6 @@ final readonly class ReconcileQueuedWork
         $updated = DB::table('import_runs')
             ->where('id', $runId)
             ->whereIn('status', $states)
-            ->when($attempt !== null, static fn (Builder $query): Builder => $query->where('attempts', $attempt))
             ->update([
                 'status' => ImportRunStatus::Failed->value,
                 'error' => $error,

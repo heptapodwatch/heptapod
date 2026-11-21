@@ -7,8 +7,10 @@ namespace Heptapod\Jobs;
 use Heptapod\Actions\MarkBackupRunning;
 use Heptapod\Actions\ReconcileQueuedWork;
 use Heptapod\Actions\RecordBackupOutcome;
+use Heptapod\Checks\Execution\ExecutionBudget;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Attributes\Timeout;
 use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Context;
@@ -16,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Spatie\Backup\Events\BackupHasFailed;
 use Throwable;
 
+#[Timeout(ExecutionBudget::HorizonTimeout)]
 #[Tries(1)]
 final class RunBackupNow implements ShouldQueue
 {

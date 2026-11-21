@@ -30,6 +30,7 @@ use Heptapod\Settings\InstanceSettings;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Permission\Models\Role;
 use Tests\Support\QueryPlanWork;
 
 beforeEach(function (): void {
@@ -622,4 +623,49 @@ it('decides the CSV row-limit refusal from the same snapshot as the exported IDs
     // Even if 3 rows disappear after the 10,001-ID snapshot, CSV must refuse 413 rather than serving a capped list.
     $this->actingAs($owner)->get('/incidents/export.csv?filter[status]=all')->assertStatus(413);
     expect($trimmed)->toBeTrue();
+});
+
+it('keeps incident export cap, count and chunk reads on one repeatable-read snapshot across a separate writer connection', function (): void {
+    $this->withoutVite();
+    $roleIds = Role::query()->pluck('id')->all();
+    $owner = User::factory()->owner()->create();
+    $check = Check::factory()->create();
+    $site = $check->site;
+    $client = $site->client;
+    $row = ['check_id' => $check->id, 'site_id' => $check->site_id, 'cause' => 'failed',
+        'opened_at' => now(), 'first_failure_at' => now()->subMinute(), 'resolved_at' => now(),
+        'evidence' => '{}', 'created_at' => now(), 'updated_at' => now()];
+    for ($batch = 0; $batch < 10; $batch++) {
+        DB::table('incidents')->insert(array_fill(0, 1000, $row));
+    }
+    DB::table('incidents')->insert([$row, $row]);
+    $firstThreeIds = DB::table('incidents')->where('check_id', $check->id)->orderByDesc('opened_at')->orderByDesc('id')->limit(3)->pluck('id')->all();
+    DB::commit();
+
+    config(['database.connections.pgsql_writer' => config('database.connections.pgsql')]);
+    $deletedByWriter = false;
+    DB::listen(static function (QueryExecuted $query) use (&$deletedByWriter, $firstThreeIds): void {
+        if (! $deletedByWriter && $query->connectionName === 'pgsql' && str_contains($query->sql, 'from "incidents"') && str_contains($query->sql, 'limit 10001')) {
+            $deletedByWriter = true;
+            DB::connection('pgsql_writer')->table('incidents')->whereIn('id', $firstThreeIds)->delete();
+        }
+    });
+
+    try {
+        $text = $this->actingAs($owner)->get('/incidents/export.txt?filter[status]=all')->assertOk()->streamedContent();
+        expect($deletedByWriter)->toBeTrue()
+            ->and(substr_count($text, "\nID "))->toBe(10000)
+            ->and($text)->toContain("\nID {$firstThreeIds[0]}\n")
+            ->and($text)->toEndWith("\nHolds the first 10,000 of 10,002 rows.\n");
+        expect(DB::table('incidents')->where('check_id', $check->id)->count())->toBe(9999);
+    } finally {
+        DB::purge('pgsql_writer');
+        DB::table('incidents')->where('check_id', $check->id)->delete();
+        $check->delete();
+        $site->delete();
+        $client->delete();
+        $owner->delete();
+        Role::query()->whereNotIn('id', $roleIds)->delete();
+        DB::beginTransaction();
+    }
 });

@@ -289,13 +289,15 @@ it('marks a queued import failed when the worker job fails before claiming the r
         ->and($run->finished_at)->not->toBeNull();
 });
 
-it('reconciles stale queued and running imports through the scheduled reconciler without disturbing fresh ones', function (): void {
+it('reconciles stale queued and running imports through the scheduled reconciler only past the hard worker lifetime', function (): void {
     $owner = User::factory()->owner()->create();
     $staleQueued = ImportRun::query()->create(['user_id' => $owner->id, 'source' => 'ohdear', 'status' => 'queued', 'expected' => 0,
         'attempts' => 1, 'teams' => [], 'plan' => [], 'results' => [], 'created_client_ids' => []]);
-    $freshQueued = ImportRun::query()->create(['user_id' => $owner->id, 'source' => 'ohdear', 'status' => 'queued', 'expected' => 0,
+    $withinLifetime = ImportRun::query()->create(['user_id' => $owner->id, 'source' => 'ohdear', 'status' => 'running', 'expected' => 0,
         'attempts' => 1, 'teams' => [], 'plan' => [], 'results' => [], 'created_client_ids' => []]);
-    DB::table('import_runs')->where('id', $staleQueued->id)->update(['updated_at' => now()->subSeconds(ExecutionBudget::RetryAfter + 1)]);
+    DB::table('import_runs')->where('id', $staleQueued->id)->update(['updated_at' => now()->subSeconds(ReconcileQueuedWork::StaleTimeout + 1)]);
+    // A worker may still be alive up to job timeout + retry_after; it must not be expired early.
+    DB::table('import_runs')->where('id', $withinLifetime->id)->update(['updated_at' => now()->subSeconds(ExecutionBudget::HorizonTimeout + ExecutionBudget::RetryAfter - 1)]);
 
     $event = collect(app(Schedule::class)->events())
         ->first(static fn (Event $scheduled): bool => $scheduled->description === 'reconcile-queued-work');
@@ -305,30 +307,19 @@ it('reconciles stale queued and running imports through the scheduled reconciler
     expect($staleQueued->refresh()->status)->toBe(ImportRunStatus::Failed)
         ->and($staleQueued->error)->toBe('unexpected')
         ->and($staleQueued->finished_at)->not->toBeNull()
-        ->and($freshQueued->refresh()->status)->toBe(ImportRunStatus::Queued);
+        ->and($withinLifetime->refresh()->status)->toBe(ImportRunStatus::Running);
 });
 
-it('fences import claims and failure callbacks by attempt generation and never fails a freshly claimed run during reconciliation', function (): void {
+it('expires stale imports conditionally in one write and refuses retries while active', function (): void {
     $owner = User::factory()->owner()->create();
-    $run = ImportRun::query()->create(['user_id' => $owner->id, 'source' => 'ohdear', 'status' => 'queued', 'expected' => 0,
-        'attempts' => 2, 'teams' => [], 'plan' => [], 'results' => [], 'created_client_ids' => []]);
-    ImportTokenStore::put($run->id, 'fixture-fence-secret');
+    $active = ImportRun::query()->create(['user_id' => $owner->id, 'source' => 'ohdear', 'status' => 'running', 'expected' => 0,
+        'attempts' => 1, 'teams' => [], 'plan' => [], 'results' => [], 'created_client_ids' => []]);
+    ImportTokenStore::put($active->id, 'fixture-active-secret');
+    $this->actingAs($owner)->postJson('/settings/import/ohdear/runs/'.$active->id.'/retry')->assertConflict();
 
-    // A late job from attempt 1 must neither claim nor fail attempt 2.
-    app()->call([new RunOhDearImport($run->id, 1), 'handle']);
-    expect($run->refresh()->status)->toBe(ImportRunStatus::Queued);
-
-    new RunOhDearImport($run->id, 1)->failed(new RuntimeException('late attempt 1 failure'));
-    expect($run->refresh()->status)->toBe(ImportRunStatus::Queued);
-
-    DB::table('import_runs')->where('id', $run->id)->update(['status' => 'running', 'updated_at' => now()]);
-    new RunOhDearImport($run->id, 1)->failed(new RuntimeException('late attempt 1 failure while attempt 2 runs'));
-    expect($run->refresh()->status)->toBe(ImportRunStatus::Running);
-
-    // If a worker claims a stale queued import between a select and an update, reconciliation must not fail the newly running row.
     $raced = ImportRun::query()->create(['user_id' => $owner->id, 'source' => 'ohdear', 'status' => 'queued', 'expected' => 0,
         'attempts' => 1, 'teams' => [], 'plan' => [], 'results' => [], 'created_client_ids' => []]);
-    DB::table('import_runs')->where('id', $raced->id)->update(['updated_at' => now()->subSeconds(ExecutionBudget::RetryAfter + 5)]);
+    DB::table('import_runs')->where('id', $raced->id)->update(['updated_at' => now()->subSeconds(ReconcileQueuedWork::StaleTimeout + 5)]);
     $sawUpdate = false;
     $claimedDuringSelect = false;
     DB::listen(static function (QueryExecuted $query) use (&$sawUpdate, &$claimedDuringSelect, $raced): void {

@@ -51,7 +51,7 @@ it('releases a backup slot on worker failure and after an abandoned running time
     $this->travel(6)->minutes();
     $second = $this->postJson(route('settings.backups.store'))->assertAccepted()->json('id');
     app(MarkBackupRunning::class)($second);
-    DB::table('backup_runs')->where('id', $second)->update(['started_at' => now()->subSeconds(1261)]);
+    DB::table('backup_runs')->where('id', $second)->update(['started_at' => now()->subSeconds(ReconcileQueuedWork::StaleTimeout + 1)]);
     $this->travel(6)->minutes();
     $this->postJson(route('settings.backups.store'))->assertAccepted();
     expect(DB::table('backup_runs')->where('id', $second)->value('state'))->toBe('failed');
@@ -101,9 +101,14 @@ it('does not leave a manual backup stuck in queued after a dispatch failure or a
     $this->travel(6)->minutes();
     $second = $this->actingAs($owner)->postJson(route('settings.backups.store'))->assertAccepted()->json('id');
 
-    // A lost queued job expires after the queued timeout and unblocks future manual backups.
-    DB::table('backup_runs')->where('id', $second)->update(['requested_at' => now('UTC')->subSeconds(ExecutionBudget::RetryAfter + 1)]);
+    // A lost queued job is kept while a worker could still be alive, then expires past the hard cutoff and unblocks future backups.
     $this->travel(6)->minutes();
+    DB::table('backup_runs')->where('id', $second)->update(['requested_at' => now('UTC')->subSeconds(ExecutionBudget::HorizonTimeout + ExecutionBudget::RetryAfter - 1)]);
+    $this->actingAs($owner)->postJson(route('settings.backups.store'))->assertConflict();
+    expect(DB::table('backup_runs')->where('id', $second)->value('state'))->toBe('queued');
+
+    $this->travel(6)->minutes();
+    DB::table('backup_runs')->where('id', $second)->update(['requested_at' => now('UTC')->subSeconds(ReconcileQueuedWork::StaleTimeout + 1)]);
     $third = $this->actingAs($owner)->postJson(route('settings.backups.store'))->assertAccepted()->json('id');
 
     expect(DB::table('backup_runs')->where('id', $second)->value('state'))->toBe('failed')
@@ -115,12 +120,12 @@ it('expires stale backups conditionally in one write so a freshly claimed backup
     $staleId = DB::table('backup_runs')->insertGetId([
         'requested_by' => $owner->id,
         'state' => 'queued',
-        'requested_at' => now('UTC')->subSeconds(ExecutionBudget::RetryAfter + 5),
+        'requested_at' => now('UTC')->subSeconds(ReconcileQueuedWork::StaleTimeout + 5),
     ]);
     $claimedId = DB::table('backup_runs')->insertGetId([
         'requested_by' => $owner->id,
         'state' => 'queued',
-        'requested_at' => now('UTC')->subSeconds(ExecutionBudget::RetryAfter + 5),
+        'requested_at' => now('UTC')->subSeconds(ReconcileQueuedWork::StaleTimeout + 5),
     ]);
     app(MarkBackupRunning::class)($claimedId);
 
