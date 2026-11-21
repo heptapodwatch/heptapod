@@ -805,3 +805,84 @@ searchForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 search.form = searchForm
+
+/**
+* @see \Heptapod\Http\Controllers\HealthController::__invoke
+* @see app/Http/Controllers/HealthController.php:16
+* @route '/up'
+*/
+export const health = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: health.url(options),
+    method: 'get',
+})
+
+health.definition = {
+    methods: ["get","head"],
+    url: '/up',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \Heptapod\Http\Controllers\HealthController::__invoke
+* @see app/Http/Controllers/HealthController.php:16
+* @route '/up'
+*/
+health.url = (options?: RouteQueryOptions) => {
+    return health.definition.url + queryParams(options)
+}
+
+/**
+* @see \Heptapod\Http\Controllers\HealthController::__invoke
+* @see app/Http/Controllers/HealthController.php:16
+* @route '/up'
+*/
+health.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: health.url(options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\HealthController::__invoke
+* @see app/Http/Controllers/HealthController.php:16
+* @route '/up'
+*/
+health.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: health.url(options),
+    method: 'head',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\HealthController::__invoke
+* @see app/Http/Controllers/HealthController.php:16
+* @route '/up'
+*/
+const healthForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: health.url(options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\HealthController::__invoke
+* @see app/Http/Controllers/HealthController.php:16
+* @route '/up'
+*/
+healthForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: health.url(options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\HealthController::__invoke
+* @see app/Http/Controllers/HealthController.php:16
+* @route '/up'
+*/
+healthForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: health.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+health.form = healthForm

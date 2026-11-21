@@ -47,6 +47,7 @@ import CancelCheckRunController from './CancelCheckRunController'
 import RequestSiteChecksController from './RequestSiteChecksController'
 import Notifications from './Notifications'
 import Settings from './Settings'
+import HealthController from './HealthController'
 import CronPingController from './CronPingController'
 
 const Controllers = {
@@ -99,6 +100,7 @@ const Controllers = {
     RequestSiteChecksController: Object.assign(RequestSiteChecksController, RequestSiteChecksController),
     Notifications: Object.assign(Notifications, Notifications),
     Settings: Object.assign(Settings, Settings),
+    HealthController: Object.assign(HealthController, HealthController),
     CronPingController: Object.assign(CronPingController, CronPingController),
 }
 

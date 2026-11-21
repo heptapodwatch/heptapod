@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Heptapod\Http\Controllers\CronPingController;
+use Heptapod\Http\Controllers\HealthController;
 use Heptapod\Http\ErrorResponses;
 use Heptapod\Http\Middleware\HandleAppearance;
 use Heptapod\Http\Middleware\HandleInertiaRequests;
@@ -31,8 +32,8 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         channels: __DIR__.'/../routes/channels.php',
-        health: '/up',
         then: static function (): void {
+            Route::get('/up', HealthController::class)->name('health');
             // Machine-to-machine bearer pings bypass browser sessions and CSRF.
             Route::match(['GET', 'POST'], 'cron/{uuid}/{phase?}', CronPingController::class)
                 ->whereUuid('uuid')->where('phase', 'starting|finished|failed')
@@ -40,6 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->preventRequestsDuringMaintenance(except: ['/up']);
         $middleware->trustProxies(headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO);
         // Global entry throttle runs before route authentication, so invalid tokens are bounded too.
         $middleware->append(ThrottleApiEntry::class);
