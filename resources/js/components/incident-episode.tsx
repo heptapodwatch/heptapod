@@ -423,6 +423,17 @@ export function IncidentEpisode({
                                             <AbsoluteTime
                                                 value={page.maintenance.endsAt}
                                             />
+                                            {(() => {
+                                                const sourceTime =
+                                                    format.instantSourceTime(
+                                                        page.maintenance.endsAt,
+                                                        page.maintenance
+                                                            .timezone,
+                                                    );
+                                                return sourceTime
+                                                    ? ` ${sourceTime}`
+                                                    : null;
+                                            })()}
                                             {' · '}
                                         </>
                                     )}

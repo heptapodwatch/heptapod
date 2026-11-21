@@ -21,7 +21,10 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
     usePage: () => ({ props: { timezone: pageContext.timezone } }),
 }));
 vi.mock('react-i18next', () => {
-    const t = (key: string) => key;
+    const t = (key: string, params?: Record<string, unknown>) =>
+        key === 'timezone.wall_time' && params
+            ? `(${String(params.time)} ${String(params.zone)})`
+            : key;
     return { useTranslation: () => ({ t, i18n: { language: 'en', t } }) };
 });
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }));
@@ -236,4 +239,41 @@ it('keeps an existing windows stored timezone when editing and switching targets
     fireEvent.click(within(sheet).getByRole('combobox', { name: 'Sites' }));
     fireEvent.click(screen.getByRole('option', { name: /API/ }));
     expect(zoneTrigger.textContent).toContain('UTC');
+});
+
+it('displays maintenance windows in the viewers timezone with the windows wall time when they differ', () => {
+    pageContext.timezone = 'Europe/Berlin';
+    window.history.replaceState(null, '', '/maintenance');
+    render(
+        page(
+            true,
+            [
+                {
+                    ...planned,
+                    id: 11,
+                    startsAt: '2026-11-21T14:00:00Z',
+                    endsAt: '2026-11-21T15:00:00Z',
+                    timezone: 'America/New_York',
+                },
+                {
+                    ...planned,
+                    id: 12,
+                    startsAt: '2026-11-21T16:00:00Z',
+                    endsAt: '2026-11-21T17:00:00Z',
+                    timezone: 'Europe/Berlin',
+                },
+            ],
+            { site_id: null, site_name: null },
+        ),
+    );
+
+    // First window: 15:00–16:00 in Berlin, plus (09:00–10:00 New York).
+    expect(screen.getByText('Nov 21, 2026, 15:00')).toBeTruthy();
+    expect(screen.getByText('Nov 21, 2026, 16:00')).toBeTruthy();
+    expect(screen.getByText('(09:00–10:00 New York)')).toBeTruthy();
+
+    // Second window: already in Berlin, so no duplicate (17:00–18:00 Berlin).
+    expect(screen.getByText('Nov 21, 2026, 17:00')).toBeTruthy();
+    expect(screen.getByText('Nov 21, 2026, 18:00')).toBeTruthy();
+    expect(screen.queryByText(/Berlin\)/)).toBeNull();
 });

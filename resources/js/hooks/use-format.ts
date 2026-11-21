@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useViewerTimezone } from '@/hooks/use-viewer-timezone';
-import { formatDateTime } from '@/lib/date-time';
+import { formatDateTime, zoneCity } from '@/lib/date-time';
 import {
     dateTimeFormat,
     durationFormat,
@@ -307,6 +307,68 @@ export function useFormat() {
                 displayTimezone,
                 'eventTimestamp',
             ),
+        /** Wall time of an instant in its own zone when that zone differs from the viewer's ("(09:00 New York)"). */
+        instantSourceTime: (
+            value: string,
+            sourceTimezone: string | null | undefined,
+        ): string | null => {
+            if (!sourceTimezone || sourceTimezone === timezone) return null;
+            const sameDay =
+                formatDateTime(value, i18n.language, timezone, 'date') ===
+                formatDateTime(value, i18n.language, sourceTimezone, 'date');
+            return i18n.t('timezone.wall_time', {
+                time: formatDateTime(
+                    value,
+                    i18n.language,
+                    sourceTimezone,
+                    sameDay ? 'time' : 'timestamp',
+                ),
+                zone: zoneCity(sourceTimezone),
+            });
+        },
+        /** Wall time of a window range in its own zone when that zone differs from the viewer's ("(09:00–10:00 New York)"). */
+        windowSourceTime: (
+            startsAt: string,
+            endsAt: string,
+            windowTimezone: string | null | undefined,
+        ): string | null => {
+            if (!windowTimezone || windowTimezone === timezone) return null;
+            const viewerStartDay = formatDateTime(
+                startsAt,
+                i18n.language,
+                timezone,
+                'date',
+            );
+            const viewerEndDay = formatDateTime(
+                endsAt,
+                i18n.language,
+                timezone,
+                'date',
+            );
+            const windowStartDay = formatDateTime(
+                startsAt,
+                i18n.language,
+                windowTimezone,
+                'date',
+            );
+            const windowEndDay = formatDateTime(
+                endsAt,
+                i18n.language,
+                windowTimezone,
+                'date',
+            );
+            const range =
+                windowStartDay === windowEndDay
+                    ? windowStartDay === viewerStartDay &&
+                      windowEndDay === viewerEndDay
+                        ? `${formatDateTime(startsAt, i18n.language, windowTimezone, 'time')}–${formatDateTime(endsAt, i18n.language, windowTimezone, 'time')}`
+                        : `${formatDateTime(startsAt, i18n.language, windowTimezone, 'timestamp')}–${formatDateTime(endsAt, i18n.language, windowTimezone, 'time')}`
+                    : `${formatDateTime(startsAt, i18n.language, windowTimezone, 'timestamp')} – ${formatDateTime(endsAt, i18n.language, windowTimezone, 'timestamp')}`;
+            return i18n.t('timezone.wall_time', {
+                time: range,
+                zone: zoneCity(windowTimezone),
+            });
+        },
         dateRange,
         historyRange: (from: string, to: string) => {
             const day = (value: string) =>

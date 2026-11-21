@@ -680,157 +680,179 @@ export default function MaintenanceIndex({
                         <span>{t('Effect')}</span>
                         <span className="sr-only">{t('Actions')}</span>
                     </ListHeader>
-                    {rows.map((window) => (
-                        <ListRow
-                            key={window.id}
-                            className="xl:grid-cols-[7rem_minmax(12rem,1fr)_minmax(10rem,1fr)_minmax(12rem,1fr)_auto] xl:items-center"
-                        >
-                            {stateMark(window)}
-                            <div className="min-w-0 space-y-1 font-mono text-xs tabular-nums">
-                                <span className="flex flex-wrap items-center gap-1">
-                                    <AbsoluteTime
-                                        value={window.startsAt}
-                                        timezone={window.timezone}
-                                        label={t('Starts')}
-                                    />
-                                    <span>–</span>
-                                    <AbsoluteTime
-                                        value={window.endsAt}
-                                        timezone={window.timezone}
-                                        label={t('Ends')}
-                                    />
-                                </span>
-                                <span className="block text-muted-foreground">
-                                    {window.timezone} ·{' '}
-                                    {window.recurrenceType === 'monthly'
-                                        ? t('Every {{count}} months', {
-                                              count: window.interval,
-                                              formattedCount: format.number(
-                                                  window.interval,
-                                              ),
-                                          })
-                                        : window.recurrenceType
-                                          ? t('Repeats {{type}}', {
-                                                type: t(window.recurrenceType),
-                                            })
-                                          : t('Once')}
-                                </span>
-                            </div>
-                            <div className="min-w-0">
-                                <TruncatedText
-                                    label={t('Target')}
-                                    content={window.targetLabel ?? undefined}
-                                >
-                                    <span className="flex items-center gap-2 truncate">
-                                        {window.targetType === 'client' &&
-                                            filter_clients
-                                                .filter(
-                                                    (client) =>
-                                                        client.id ===
-                                                        window.targetId,
-                                                )
-                                                .map(
-                                                    (client) =>
-                                                        client.avatar && (
-                                                            <ClientMark
-                                                                key={client.id}
-                                                                client={{
-                                                                    ...client,
-                                                                    avatar: client.avatar,
-                                                                }}
-                                                                small
-                                                            />
-                                                        ),
-                                                )}
-                                        {window.targetLabel ??
-                                            t('Target unavailable')}
+                    {rows.map((window) => {
+                        const sourceTime = format.windowSourceTime(
+                            window.startsAt,
+                            window.endsAt,
+                            window.timezone,
+                        );
+                        return (
+                            <ListRow
+                                key={window.id}
+                                className="xl:grid-cols-[7rem_minmax(12rem,1fr)_minmax(10rem,1fr)_minmax(12rem,1fr)_auto] xl:items-center"
+                            >
+                                {stateMark(window)}
+                                <div className="min-w-0 space-y-1 font-mono text-xs tabular-nums">
+                                    <span className="flex flex-wrap items-center gap-1">
+                                        <AbsoluteTime
+                                            value={window.startsAt}
+                                            label={t('Starts')}
+                                        />
+                                        <span>–</span>
+                                        <AbsoluteTime
+                                            value={window.endsAt}
+                                            label={t('Ends')}
+                                        />
+                                        {sourceTime && (
+                                            <span className="text-muted-foreground">
+                                                {sourceTime}
+                                            </span>
+                                        )}
                                     </span>
-                                </TruncatedText>
-                                <span className="text-xs text-muted-foreground">
-                                    {t('{{count}} sites', {
-                                        count: window.siteCount,
-                                        formattedCount: format.number(
-                                            window.siteCount,
-                                        ),
-                                    })}
-                                </span>
-                            </div>
-                            <div className="min-w-0 text-xs text-muted-foreground">
-                                {window.reason && (
+                                    <span className="block text-muted-foreground">
+                                        {window.timezone} ·{' '}
+                                        {window.recurrenceType === 'monthly'
+                                            ? t('Every {{count}} months', {
+                                                  count: window.interval,
+                                                  formattedCount: format.number(
+                                                      window.interval,
+                                                  ),
+                                              })
+                                            : window.recurrenceType
+                                              ? t('Repeats {{type}}', {
+                                                    type: t(
+                                                        window.recurrenceType,
+                                                    ),
+                                                })
+                                              : t('Once')}
+                                    </span>
+                                </div>
+                                <div className="min-w-0">
                                     <TruncatedText
-                                        label={t('Reason')}
-                                        content={window.reason}
+                                        label={t('Target')}
+                                        content={
+                                            window.targetLabel ?? undefined
+                                        }
                                     >
-                                        <span className="block truncate">
-                                            {window.reason}
+                                        <span className="flex items-center gap-2 truncate">
+                                            {window.targetType === 'client' &&
+                                                filter_clients
+                                                    .filter(
+                                                        (client) =>
+                                                            client.id ===
+                                                            window.targetId,
+                                                    )
+                                                    .map(
+                                                        (client) =>
+                                                            client.avatar && (
+                                                                <ClientMark
+                                                                    key={
+                                                                        client.id
+                                                                    }
+                                                                    client={{
+                                                                        ...client,
+                                                                        avatar: client.avatar,
+                                                                    }}
+                                                                    small
+                                                                />
+                                                            ),
+                                                    )}
+                                            {window.targetLabel ??
+                                                t('Target unavailable')}
                                         </span>
                                     </TruncatedText>
-                                )}
-                                <span>
-                                    {t(
-                                        window.muteAlerts
-                                            ? 'Alerts muted'
-                                            : 'Alerts continue',
-                                    )}
-                                </span>
-                                {window.catchUpAtEnd && (
-                                    <span>
-                                        {' '}
-                                        ·{' '}
-                                        {t('Alert if still failing at the end')}
+                                    <span className="text-xs text-muted-foreground">
+                                        {t('{{count}} sites', {
+                                            count: window.siteCount,
+                                            formattedCount: format.number(
+                                                window.siteCount,
+                                            ),
+                                        })}
                                     </span>
-                                )}
-                            </div>
-                            <div className="flex xl:justify-end">
-                                <RowActions
-                                    label={
-                                        window.name ??
-                                        window.targetLabel ??
-                                        t('Maintenance window')
-                                    }
-                                    actions={[
-                                        ...(liveActionAllowed(window, 'update')
-                                            ? [
-                                                  {
-                                                      label: t('Edit'),
-                                                      onSelect: () =>
-                                                          openSheet(window),
-                                                  },
-                                              ]
-                                            : []),
-                                        ...(
-                                            [
-                                                'end_now',
-                                                'cancel_occurrence',
-                                                'cancel_series',
-                                            ] as const
-                                        )
-                                            .filter((action) =>
-                                                liveActionAllowed(
-                                                    window,
-                                                    action,
-                                                ),
+                                </div>
+                                <div className="min-w-0 text-xs text-muted-foreground">
+                                    {window.reason && (
+                                        <TruncatedText
+                                            label={t('Reason')}
+                                            content={window.reason}
+                                        >
+                                            <span className="block truncate">
+                                                {window.reason}
+                                            </span>
+                                        </TruncatedText>
+                                    )}
+                                    <span>
+                                        {t(
+                                            window.muteAlerts
+                                                ? 'Alerts muted'
+                                                : 'Alerts continue',
+                                        )}
+                                    </span>
+                                    {window.catchUpAtEnd && (
+                                        <span>
+                                            {' '}
+                                            ·{' '}
+                                            {t(
+                                                'Alert if still failing at the end',
+                                            )}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex xl:justify-end">
+                                    <RowActions
+                                        label={
+                                            window.name ??
+                                            window.targetLabel ??
+                                            t('Maintenance window')
+                                        }
+                                        actions={[
+                                            ...(liveActionAllowed(
+                                                window,
+                                                'update',
                                             )
-                                            .map((action) => ({
-                                                label: t(
-                                                    maintenanceActionCopy(
-                                                        action,
-                                                        window.seriesId != null,
-                                                    ).label,
-                                                ),
-                                                destructive:
-                                                    action !== 'end_now',
-                                                onSelect: () =>
-                                                    setConfirmation({
+                                                ? [
+                                                      {
+                                                          label: t('Edit'),
+                                                          onSelect: () =>
+                                                              openSheet(window),
+                                                      },
+                                                  ]
+                                                : []),
+                                            ...(
+                                                [
+                                                    'end_now',
+                                                    'cancel_occurrence',
+                                                    'cancel_series',
+                                                ] as const
+                                            )
+                                                .filter((action) =>
+                                                    liveActionAllowed(
                                                         window,
                                                         action,
-                                                    }),
-                                            })),
-                                    ]}
-                                />
-                            </div>
-                        </ListRow>
-                    ))}
+                                                    ),
+                                                )
+                                                .map((action) => ({
+                                                    label: t(
+                                                        maintenanceActionCopy(
+                                                            action,
+                                                            window.seriesId !=
+                                                                null,
+                                                        ).label,
+                                                    ),
+                                                    destructive:
+                                                        action !== 'end_now',
+                                                    onSelect: () =>
+                                                        setConfirmation({
+                                                            window,
+                                                            action,
+                                                        }),
+                                                })),
+                                        ]}
+                                    />
+                                </div>
+                            </ListRow>
+                        );
+                    })}
                 </div>
             )}
             {total > 0 && (

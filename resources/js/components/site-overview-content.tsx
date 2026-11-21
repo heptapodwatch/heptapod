@@ -128,6 +128,18 @@ export function SiteOverviewContent({ page }: { page: Page }) {
                           <span>
                               {t('Until')}{' '}
                               <AbsoluteTime value={maintenance.endsAt} />
+                              {(() => {
+                                  const sourceTime = format.instantSourceTime(
+                                      maintenance.endsAt,
+                                      maintenance.timezone,
+                                  );
+                                  return sourceTime ? (
+                                      <span className="text-muted-foreground">
+                                          {' '}
+                                          {sourceTime}
+                                      </span>
+                                  ) : null;
+                              })()}
                           </span>
                       ),
                       href: maintenanceIndex.url({

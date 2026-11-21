@@ -817,5 +817,6 @@
     "findings.count_one": "{{formattedCount}} finding",
     "findings.count_other": "{{formattedCount}} findings",
     "upcoming.count_one": "{{formattedCount}} date on this page",
-    "upcoming.count_other": "{{formattedCount}} dates on this page"
+    "upcoming.count_other": "{{formattedCount}} dates on this page",
+    "timezone.wall_time": "({{time}} {{zone}})"
 }
