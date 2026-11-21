@@ -585,6 +585,7 @@ final class ApiContract
             'client_id' => 'Only rows of this client.',
             'cursor' => 'The `next_cursor` of the previous page. Send it with otherwise identical parameters.',
             'cronTask' => 'The scheduled task ID.',
+            'maintenancePeriod' => 'The maintenance period ID',
             'incident' => 'The incident ID.',
             'checkType' => 'The check type key, for example `uptime` or `broken_links`.',
             'url' => 'The monitored URL, URL-encoded.',

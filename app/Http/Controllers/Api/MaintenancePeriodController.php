@@ -18,6 +18,7 @@ use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\Site;
 use Heptapod\Policies\SitePolicy;
 use Heptapod\Support\Api\Idempotency;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\JsonResponse;
@@ -101,7 +102,8 @@ final class MaintenancePeriodController extends Controller
     public function update(Request $request, int $maintenancePeriod, UpdateMaintenancePeriod $update,
         LocalMaintenanceTime $localTime, SitePolicy $sites): MaintenancePeriodResource
     {
-        $period = $this->writable($request, $maintenancePeriod, $sites);
+        $period = $this->reachable($request, $sites)->findOrFail($maintenancePeriod);
+        $this->writable($request, $period);
         /** @var array{starts_at: string, ends_at: string, name?: string|null} $data */
         $data = Validator::make($request->all(), [
             'starts_at' => 'required|date_format:Y-m-d H:i', 'ends_at' => 'required|date_format:Y-m-d H:i',
@@ -118,7 +120,8 @@ final class MaintenancePeriodController extends Controller
 
     public function destroy(Request $request, int $maintenancePeriod, DeleteMaintenancePeriod $delete, SitePolicy $sites): Response
     {
-        $period = $this->writable($request, $maintenancePeriod, $sites);
+        $period = $this->reachable($request, $sites)->findOrFail($maintenancePeriod);
+        $this->writable($request, $period);
         if ($period->starts_at <= CarbonImmutable::now('UTC')) {
             throw ValidationException::withMessages(['starts_at' => __('maintenance.completed_window_web_only')]);
         }
@@ -128,26 +131,30 @@ final class MaintenancePeriodController extends Controller
     }
 
     /**
-     * One lookup inside the caller's reach, so a hidden window answers exactly like a missing one: a window is visible
-     * when it covers a monitor the caller can see, the windows index() lists (Restricted Members never see tag windows).
+     * The windows the caller can see, so a hidden window answers exactly like a missing one in one lookup: a window
+     * is visible when it covers a monitor the caller can see, the windows index() lists (Restricted Members never see tag windows).
+     *
+     * @return Builder<MaintenancePeriod>
      */
-    private function writable(Request $request, int $id, SitePolicy $sites): MaintenancePeriod
+    private function reachable(Request $request, SitePolicy $sites): Builder
     {
         $user = $this->principal($request, 403);
         [$covers, $bindings] = MaintenanceTargets::coversSiteSql('maintenance_periods', 'visible_site');
         $visibleSites = $sites->visibleSites($user, includeArchived: true)->getQuery()->select('sites.id', 'sites.client_id');
         $query = MaintenancePeriod::query();
-        $query->getQuery()->where('maintenance_periods.id', $id)
-            ->whereExists(static fn (QueryBuilder $covering): QueryBuilder => $covering->selectRaw('1')
-                ->fromSub($visibleSites, 'visible_site')->whereRaw($covers, $bindings))
+        $query->getQuery()->whereExists(static fn (QueryBuilder $covering): QueryBuilder => $covering->selectRaw('1')
+            ->fromSub($visibleSites, 'visible_site')->whereRaw($covers, $bindings))
             ->when($user->isRestrictedMember(), static fn (QueryBuilder $reach): QueryBuilder => $reach->where('maintenance_periods.target_type', '!=', 'tag'));
-        $period = $query->firstOrFail();
-        abort_unless($user->hasAnyRole(['Owner', 'Admin']), 403);
+
+        return $query;
+    }
+
+    private function writable(Request $request, MaintenancePeriod $period): void
+    {
+        abort_unless($this->principal($request, 403)->hasAnyRole(['Owner', 'Admin']), 403);
         if ($period->target_type !== 'site') {
             throw ValidationException::withMessages(['maintenance_period_id' => __('maintenance.shared_window_web_only')]);
         }
         Gate::authorize('update', Site::query()->findOrFail($period->site_id));
-
-        return $period;
     }
 }

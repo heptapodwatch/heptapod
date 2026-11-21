@@ -231,7 +231,7 @@ it('answers a maintenance window outside a client-scoped token like a missing on
         $response = $method === 'put' ? $this->putJson('/api/maintenance-periods/'.$id, $body) : $this->deleteJson('/api/maintenance-periods/'.$id);
         DB::disableQueryLog();
 
-        return [$response->status(), $response->json('message'), count(DB::getQueryLog())];
+        return [$response->status(), str_replace((string) $id, '{id}', (string) $response->json('message')), count(DB::getQueryLog())];
     };
 
     foreach (['put', 'delete'] as $method) {
