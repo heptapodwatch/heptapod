@@ -145,7 +145,8 @@ it('has no registration entry point in a separately booted production applicatio
             $kernel->terminate($request, $response);
         }
         PHP;
-    $process = new Process([PHP_BINARY, '-r', $script], base_path(), ['APP_ENV' => 'production', 'APP_DEBUG' => 'false']);
+    // Use an unavailable database name so a guest 404 cannot secretly depend on a migrated DB (e.g. parallel workers leave heptapod_test unmigrated).
+    $process = new Process([PHP_BINARY, '-r', $script], base_path(), ['APP_ENV' => 'production', 'APP_DEBUG' => 'false', 'DB_DATABASE' => 'heptapod_unavailable_for_404']);
     $process->mustRun();
     expect($process->getOutput())->toBe("GET:404\nPOST:404\n");
 });
