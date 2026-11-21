@@ -33,7 +33,8 @@ When at least three uptime checks fail with network errors inside two minutes, H
 
 - If both DNS control probes fail, DNS-resolution uptime failures are recorded as **Check error** instead of **Down**.
 - If both direct-IP control probes fail, connection, timeout and DNS uptime failures are recorded as **Check error** instead of **Down**.
-- Affected runs open no site incidents, send no per-site alerts and count as no site downtime.
+- Reclassified runs open no site incidents, send no per-site alerts and count as no site downtime.
+- The first one or two failing checks run before the three-check threshold activates. With a failure threshold of one, or a prior failure, those leading checks can still open **Down**.
 - One System alert reports the monitor outage and its recovery.
 - HTTP errors (such as 5xx), TLS failures and content failures stay **Down**.
 - If the control probes succeed, normal **Down** handling stands. This covers a partial monitor fault.

@@ -16,5 +16,5 @@ interface MonitorOutageGuard
      *
      * @return 'dns'|'network'|null
      */
-    public function evaluateFailure(int $checkId, FetchFailureKind $kind, CarbonImmutable $now): ?string;
+    public function evaluateFailure(int $checkId, FetchFailureKind $kind, CarbonImmutable $now, ?CarbonImmutable $deadline = null): ?string;
 }

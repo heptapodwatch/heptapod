@@ -14,6 +14,7 @@ final readonly class ControlProbeResult
         public int $dnsTotal,
         public int $ipPassed,
         public int $ipTotal,
+        public bool $complete = true,
     ) {
         if ($dnsTotal < 0 || $dnsPassed < 0 || $dnsPassed > $dnsTotal
             || $ipTotal < 0 || $ipPassed < 0 || $ipPassed > $ipTotal) {
@@ -23,16 +24,16 @@ final readonly class ControlProbeResult
 
     public function dnsFailed(): bool
     {
-        return $this->dnsTotal > 0 && $this->dnsPassed === 0;
+        return $this->complete && $this->dnsTotal > 0 && $this->dnsPassed === 0;
     }
 
     public function ipFailed(): bool
     {
-        return $this->ipTotal > 0 && $this->ipPassed === 0;
+        return $this->complete && $this->ipTotal > 0 && $this->ipPassed === 0;
     }
 
     /**
-     * 'network' when all direct-IP probes failed, 'dns' when all DNS probes failed, or null when healthy/off.
+     * 'network' when all direct-IP probes failed, 'dns' when all DNS probes failed, or null when healthy, off or incomplete.
      *
      * @return 'dns'|'network'|null
      */

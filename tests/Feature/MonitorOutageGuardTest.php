@@ -10,6 +10,7 @@ use Heptapod\Checks\Execution\RunOrigin;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\ControlProbe;
+use Heptapod\Contracts\ControlProbeResult;
 use Heptapod\Contracts\Http\FetchFailure;
 use Heptapod\Contracts\Http\FetchFailureKind;
 use Heptapod\Contracts\Http\FetchRequest;
@@ -29,9 +30,11 @@ use Heptapod\Models\Site;
 use Heptapod\Models\SystemIssue;
 use Heptapod\SystemHealth\EvaluateSystemIssues;
 use Heptapod\SystemHealth\MonitorOutageDetector;
+use Heptapod\SystemHealth\NativeControlProbe;
 use Heptapod\SystemHealth\SystemIssueKind;
 use Heptapod\Testing\FakeControlProbe;
 use Heptapod\Testing\FakeOutboundHttp;
+use Heptapod\Testing\FakeTargetResolver;
 use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
@@ -249,4 +252,74 @@ it('stays out when control probes are disabled by empty config', function (): vo
 
     expect($probe->calls)->toBe(0);
     expect(Incident::query()->where('cause', IncidentCause::Failed->value)->count())->toBe(3);
+});
+
+it('treats an incomplete or budget-exhausted probe batch as non-failing without opening a monitor outage', function (): void {
+    $resolver = new FakeTargetResolver;
+    $native = new NativeControlProbe($resolver);
+    // Remaining budget under the 2-second recording margin returns incomplete immediately without touching the network.
+    $exhausted = $native->probe(CarbonImmutable::now('UTC')->addSecond());
+    expect($exhausted->complete)->toBeFalse()
+        ->and($exhausted->dnsFailed())->toBeFalse()
+        ->and($exhausted->ipFailed())->toBeFalse()
+        ->and($exhausted->mode())->toBeNull();
+
+    $probe = FakeControlProbe::incomplete();
+    app()->instance(ControlProbe::class, $probe);
+
+    $checks = uptimeBurstChecks(3, 'budget');
+    $dnsFailure = new FetchResult(null, '', [], failure: new FetchFailure(FetchFailureKind::Dns));
+    executeUptimeWave($checks, $dnsFailure, CarbonImmutable::parse('2026-11-20T23:21:00Z'));
+    executeUptimeWave($checks, $dnsFailure, CarbonImmutable::parse('2026-11-20T23:22:00Z'));
+
+    expect($probe->calls)->toBeGreaterThanOrEqual(1)
+        ->and($probe->lastDeadline)->toBeInstanceOf(CarbonImmutable::class)
+        ->and(Incident::query()->where('cause', IncidentCause::Failed->value)->count())->toBe(3);
+    $this->artisan('heptapod:evaluate-system-issues')->assertSuccessful();
+    expect(SystemIssue::open()->where('kind', SystemIssueKind::MonitorOutage->value)->exists())->toBeFalse();
+});
+
+it('counts only matching failure kinds in affected_sites during a DNS-only monitor outage', function (): void {
+    $probe = FakeControlProbe::dnsFailing();
+    app()->instance(ControlProbe::class, $probe);
+
+    $checks = uptimeBurstChecks(3, 'mixed');
+    $at = CarbonImmutable::parse('2026-11-20T23:21:00Z');
+    // First two checks fail with Connect (not covered by DNS-only probe failure); third fails with DNS.
+    executeUptimeWave([$checks[0], $checks[1]], new FetchResult(null, '', [], failure: new FetchFailure(FetchFailureKind::Connect)), $at);
+    executeUptimeWave([$checks[2]], new FetchResult(null, '', [], failure: new FetchFailure(FetchFailureKind::Dns)), $at->addSeconds(5));
+
+    $this->artisan('heptapod:evaluate-system-issues')->assertSuccessful();
+    $issue = SystemIssue::open()->where('kind', SystemIssueKind::MonitorOutage->value)->sole();
+    expect($issue->details['affected_sites'])->toBe(1)
+        ->and(CheckRun::query()->where('check_id', $checks[2]->id)->sole()->result)->toBe(RunResult::Errored)
+        ->and(CheckRun::query()->where('check_id', $checks[0]->id)->sole()->result)->toBe(RunResult::Failed);
+});
+
+it('prevents an older failing probe from overwriting a newer healthy verdict', function (): void {
+    $probe = FakeControlProbe::healthy();
+    app()->instance(ControlProbe::class, $probe);
+    $detector = app(MonitorOutageDetector::class);
+
+    $t0 = CarbonImmutable::parse('2026-11-20T23:21:00Z');
+    $checks = uptimeBurstChecks(3, 'stale');
+    // Seed 2 failures in the window, then check 3 triggers a slow failing probe at T0 during which a newer healthy
+    // verdict is published at T0 + 2s.
+    $detector->evaluateFailure($checks[0]->id, FetchFailureKind::Dns, $t0);
+    $detector->evaluateFailure($checks[1]->id, FetchFailureKind::Dns, $t0);
+
+    $probe->handler = static function () use ($t0): ControlProbeResult {
+        // Simulate a newer healthy system evaluation finishing at T0 + 2s before this slow failing probe completes.
+        $healthy = FakeControlProbe::healthy();
+        app()->instance(ControlProbe::class, $healthy);
+        new MonitorOutageDetector($healthy)->evaluateSystemIssue($t0->addSeconds(2), true);
+
+        return FakeControlProbe::dnsFailing()->result;
+    };
+
+    $verdict = $detector->evaluateFailure($checks[2]->id, FetchFailureKind::Dns, $t0, $t0->addSeconds(30));
+
+    expect($verdict)->toBeNull();
+    $this->artisan('heptapod:evaluate-system-issues')->assertSuccessful();
+    expect(SystemIssue::open()->where('kind', SystemIssueKind::MonitorOutage->value)->exists())->toBeFalse();
 });

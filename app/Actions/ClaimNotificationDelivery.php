@@ -178,7 +178,10 @@ final readonly class ClaimNotificationDelivery
 
                     return null;
                 }
-                if ($event->cause !== IncidentCause::Errored && $episode->resolved_at !== null) {
+                // Keep an already-attempted opener's format fixed so a receiver that accepted Down and deduplicates
+                // retries never loses its separate Recovered alert; fold only before the first attempt (or on retry of an already-folded opener).
+                if ($event->cause !== IncidentCause::Errored && $episode->resolved_at !== null
+                    && ($delivery->attempts === 0 || $delivery->folded_with_recovery)) {
                     $check = $episode->check ?? throw new \LogicException('An episode opener requires its check.');
                     $site = $event->site ?? throw new \LogicException('An episode opener requires its site.');
                     if (IncidentResolutionReason::forCheck($check, $site) instanceof IncidentResolutionReason) {

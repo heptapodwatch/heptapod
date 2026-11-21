@@ -84,6 +84,8 @@ Setting both `HEPTAPOD_CONTROL_PROBE_DNS_HOSTS=` and `HEPTAPOD_CONTROL_PROBE_IP_
 
 - If all configured DNS probes fail, uptime runs failing with DNS resolution errors are recorded as **Check error** (`ReclassifiedCheckError`) without opening site incidents, sending per-site alerts or counting site downtime.
 - If all configured direct-IP probes fail, uptime runs failing with connection, timeout or DNS errors are reclassified the same way.
+- **Leading edge:** the first one or two failing checks in a burst run before the three-check threshold is crossed. With the default failure threshold of two, healthy sites do not open incidents on the first wave and are reclassified on the second. A site with a failure threshold of one, or one that already had a prior failure, can still open a **Down** incident on the leading edge before the guard activates.
+- **Job budget and concurrency:** at most one control probe batch runs in flight across workers, bounded by the check's remaining deadline (leaving a 2-second margin for recording). An unfinished batch does not count as a failed control verdict, and an older probe result cannot overwrite a newer verdict.
 - HTTP status failures (such as 5xx), TLS failures, keyword failures and redirects always stay **Down**.
 - One `monitor_outage` system issue opens on the next system evaluation (alerting Owners, opted-in Admins and team System channels) and resolves once a fresh control probe passes again.
 - **False negative (partial monitor breakage):** if any control probe for that layer succeeds, the guard stays out and normal **Down** handling stands.

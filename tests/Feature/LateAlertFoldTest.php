@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\ClaimNotificationDelivery;
 use Heptapod\Addons\Uptime\UptimeEvidence;
 use Heptapod\Addons\Uptime\UptimeMetrics;
 use Heptapod\Checks\Recording\RecordableRun;
@@ -10,6 +11,7 @@ use Heptapod\Checks\Recording\TransactionalResultRecorder;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckOutcome;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
+use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Events\Notifications\UptimeAlertEpisode;
@@ -143,29 +145,31 @@ it('folds a late Down opener sent after confirmed recovery into one message per 
     }
 });
 
-it('still sends a normal Recovered alert to a channel that already received Down before recovery', function (): void {
+it('keeps Down and separate Recovered once an opener attempt started, including an expired webhook send lease', function (): void {
     config(['mail.default' => 'smtp']);
     Http::preventStrayRequests();
+    Http::fake(['https://receiver.test/alerts' => Http::response([], 200)]);
 
-    $earlyChannel = NotificationDestination::factory()->create(['label' => 'Early', 'locale' => 'en', 'timezone' => 'UTC']);
-    $lateChannel = NotificationDestination::factory()->create(['label' => 'Late', 'locale' => 'en', 'timezone' => 'UTC']);
-    notificationRoute($earlyChannel, [NotificationCategory::Outage, NotificationCategory::Recovery]);
-    notificationRoute($lateChannel, [NotificationCategory::Outage, NotificationCategory::Recovery]);
+    $webhook = notificationWebhook();
+    $webhook->update(['locale' => 'en', 'timezone' => 'UTC']);
+    $failedMail = NotificationDestination::factory()->create(['label' => 'Transient Fail', 'locale' => 'en', 'timezone' => 'UTC']);
+    notificationRoute($webhook, [NotificationCategory::Outage, NotificationCategory::Recovery]);
+    notificationRoute($failedMail, [NotificationCategory::Outage, NotificationCategory::Recovery]);
 
-    $transport = new class($lateChannel->config['email']) implements TransportInterface
+    $transport = new class($failedMail->config['email']) implements TransportInterface
     {
-        public bool $failLate = true;
+        public bool $fail = true;
 
         /** @var array<string, list<string>> */
         public array $subjectsByRecipient = [];
 
-        public function __construct(private readonly string $lateEmail) {}
+        public function __construct(private readonly string $email) {}
 
         public function send(RawMessage $message, ?Envelope $envelope = null): SentMessage
         {
             $envelope ??= Envelope::create($message);
             $to = $envelope->getRecipients()[0]->getAddress();
-            if ($this->failLate && $to === $this->lateEmail) {
+            if ($this->fail && $to === $this->email) {
                 throw new TransportException('Temporary 421 failure');
             }
             if ($message instanceof Email) {
@@ -177,14 +181,14 @@ it('still sends a normal Recovered alert to a channel that already received Down
 
         public function __toString(): string
         {
-            return 'smtp://split-test';
+            return 'smtp://p0-retry-test';
         }
     };
     Mail::mailer()->setSymfonyTransport($transport);
 
     $site = Site::factory()->create([
-        'friendly_name' => 'Split Channel Site',
-        'url' => 'https://split.example.test',
+        'friendly_name' => 'Retry Guard Site',
+        'url' => 'https://retry-guard.example.test',
         'alert_after_minutes' => 2,
         'alert_recovery_checks' => 1,
         'alert_confirms_other_checks' => false,
@@ -192,28 +196,43 @@ it('still sends a normal Recovered alert to a channel that already received Down
     ]);
     $check = Check::factory()->for($site)->create(['type' => CheckKey::Uptime, 'failure_threshold' => 1]);
 
-    // Outage opens at 10:00; at 10:02 early channel delivers Down while late channel hits a transient failure.
+    // Outage opens at 10:00; alert due at 10:01.
     recordFoldUptimeRun($check, RunResult::Failed, CarbonImmutable::parse('2026-11-21T10:00:01Z'));
+    $openedEvent = Event::query()->where('type', 'incident.opened')->sole();
+    $webhookOpener = Delivery::query()->where('event_id', $openedEvent->id)->where('destination_id', $webhook->id)->sole();
+
+    // At 10:02: webhook opener is claimed (simulating worker crash after receiver accepted Down, leaving Sending lease),
+    // while mail opener hits a transient transport failure (attempts = 1, state = Failed).
     $this->travelTo(CarbonImmutable::parse('2026-11-21T10:02:00Z'));
+    $claimedWebhook = app(ClaimNotificationDelivery::class)($webhookOpener->id);
+    expect($claimedWebhook?->state)->toBe(DeliveryState::Sending)->and($claimedWebhook?->attempts)->toBe(1);
     dispatchNotifications();
-    expect($transport->subjectsByRecipient[$earlyChannel->config['email']] ?? [])->toBe([
-        '[Down] Split Channel Site — HTTP 503 since 10:00 UTC',
-    ])->and($transport->subjectsByRecipient[$lateChannel->config['email']] ?? [])->toBe([]);
+    expect($transport->subjectsByRecipient[$failedMail->config['email']] ?? [])->toBe([]);
 
-    // Site recovers at 10:02:30 before the late channel's 1-minute retry at 10:03; transport works again.
+    // Site recovers at 10:02:30; webhook lease expires and mail transport recovers by 10:06.
     recordFoldUptimeRun($check, RunResult::Succeeded, CarbonImmutable::parse('2026-11-21T10:02:30Z'));
-    $transport->failLate = false;
-    $this->travelTo(CarbonImmutable::parse('2026-11-21T10:05:00Z'));
+    $transport->fail = false;
+    $this->travelTo(CarbonImmutable::parse('2026-11-21T10:06:00Z'));
     dispatchNotifications();
-    $this->travelTo(CarbonImmutable::parse('2026-11-21T10:07:00Z'));
+    $this->travelTo(CarbonImmutable::parse('2026-11-21T10:08:00Z'));
     dispatchNotifications();
 
-    expect($transport->subjectsByRecipient[$earlyChannel->config['email']])->toBe([
-        '[Down] Split Channel Site — HTTP 503 since 10:00 UTC',
-        '[Recovered] Split Channel Site after 3 min',
-    ]);
-    expect($transport->subjectsByRecipient[$lateChannel->config['email']])->toBe([
-        '[Recovered] Split Channel Site was down 10:00–10:02 (3 min)',
+    // Webhook: retry kept its original Down payload (never mutated into a fold), and separate Recovered followed.
+    $webhookPayloads = Http::recorded(fn (HttpRequest $request): bool => $request->url() === 'https://receiver.test/alerts')
+        ->values()
+        ->map(static fn (array $pair): array => json_decode($pair[0]->body(), true, flags: JSON_THROW_ON_ERROR))
+        ->all();
+    expect($webhookPayloads)->toHaveCount(2)
+        ->and($webhookPayloads[0]['severity'])->toBe('down')
+        ->and($webhookPayloads[0]['title'])->toBe('Retry Guard Site is down')
+        ->and($webhookPayloads[1]['severity'])->toBe('recovered')
+        ->and($webhookPayloads[1]['title'])->toBe('Retry Guard Site has recovered')
+        ->and($webhookOpener->refresh()->folded_with_recovery)->toBeFalse();
+
+    // Mail: failed attempt kept Down format on retry, followed by separate Recovered.
+    expect($transport->subjectsByRecipient[$failedMail->config['email']])->toBe([
+        '[Down] Retry Guard Site — HTTP 503 since 10:00 UTC',
+        '[Recovered] Retry Guard Site after 3 min',
     ]);
 });
 
