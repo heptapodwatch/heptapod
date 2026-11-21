@@ -9,6 +9,7 @@ use Heptapod\Models\Client;
 use Heptapod\Models\Incident;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function (): void {
@@ -19,13 +20,16 @@ it('reads only selected sites props during a live partial reload', function (): 
     $user = User::factory()->create();
     $user->assignRole('Owner');
     Check::factory()->create();
-    $version = $this->actingAs($user)->get('/sites')->inertiaPage()['version'];
+    $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])->assertRedirect();
+    $version = $this->get('/sites')->inertiaPage()['version'];
+    // The reload is a new request of the same browser: it signs in from the session alone.
+    Auth::forgetGuards();
     $queries = [];
     DB::listen(static function ($query) use (&$queries): void {
         $queries[] = $query->sql;
     });
 
-    $response = $this->actingAs($user)->get('/sites', [
+    $response = $this->get('/sites', [
         'X-Inertia' => 'true', 'X-Inertia-Version' => $version, 'X-Inertia-Partial-Component' => 'sites/index', 'X-Inertia-Partial-Data' => 'tiles',
     ])->assertOk();
 

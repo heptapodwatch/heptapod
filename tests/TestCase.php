@@ -18,6 +18,8 @@ use Heptapod\Testing\FixtureOnlyDnsResolver;
 use Heptapod\Testing\FixtureOnlyNetwork;
 use Heptapod\Testing\FixtureOnlyTargetResolver;
 use Heptapod\Testing\OffsetDatabaseClock;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Events\MigrationsEnded;
@@ -41,6 +43,9 @@ abstract class TestCase extends BaseTestCase
      */
     public const array CheckRunPartitionEpochMonths = ['2026-09', '2026-10', '2026-11'];
 
+    /** The user actingAs() signed in on the web guard, until a real sign-in or sign-out replaces it. */
+    protected ?Authenticatable $actingWebUser = null;
+
     public function createApplication(): Application
     {
         $app = parent::createApplication();
@@ -61,6 +66,9 @@ abstract class TestCase extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Event::listen([Login::class, Logout::class], function (): void {
+            $this->actingWebUser = null;
+        });
         // Tests that commit fixtures for independent processes leave audit, event and role rows outside the
         // RefreshDatabase transaction; the next test in this worker must start from a freshly migrated database.
         Event::listen(TransactionCommitted::class, static function (TransactionCommitted $event): void {
@@ -105,6 +113,9 @@ abstract class TestCase extends BaseTestCase
         $sessionGuard = $this->app['auth']->guard($guard);
         if ($sessionGuard instanceof SessionGuard) {
             $this->app['session']->put('password_hash_'.$guard, $sessionGuard->hashPasswordForCookie((string) $user->getAuthPassword()));
+        }
+        if ($guard === 'web') {
+            $this->actingWebUser = $user;
         }
 
         return parent::be($user, $guard);
