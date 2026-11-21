@@ -127,7 +127,7 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
                 Validator::make([$key => array_slice($values[$key], $offset, 1000, true)], $itemRules)->validate();
             }
         }
-        if (self::artifactBytes($values) > self::MAX_ARTIFACT_BYTES) {
+        if (strlen(json_encode($values, JSON_THROW_ON_ERROR)) > self::MAX_ARTIFACT_BYTES) {
             throw ValidationException::withMessages(['artifact' => 'Crawl artifact exceeds the maximum byte limit.']);
         }
         DB::transaction(function () use ($context, $values): void {
@@ -511,54 +511,6 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
 
         /** @var (\stdClass&object{id: int, site_url: string, target_fingerprint: string, config_fingerprint: string|null, collected_at: string, truncated: bool, page_cap_reached: bool, time_limit_reached: bool, resource_cap_reached: bool, observed_urls: string, observed_pages: string, discovered_urls: string, discovery_complete: bool, settings: string, classification_policy_version: int|null})|null $row */
         return $row === null ? null : $this->artifact($row);
-    }
-
-    /**
-     * Approximate serialized byte weight of a crawl artifact without allocating a full JSON string.
-     *
-     * @param  array<array-key, mixed>  $artifact
-     */
-    public static function artifactBytes(array $artifact): int
-    {
-        $bytes = 0;
-        foreach (['observed_urls', 'observed_pages', 'discovered_urls', 'evaluated_finding_ids', 'reclassified_finding_ids'] as $listKey) {
-            if (! is_array($artifact[$listKey] ?? null)) {
-                continue;
-            }
-            foreach ($artifact[$listKey] as $entry) {
-                if (is_string($entry)) {
-                    $bytes += strlen($entry) + 3;
-                }
-            }
-        }
-        if (is_array($artifact['urls'] ?? null)) {
-            foreach ($artifact['urls'] as $row) {
-                if (! is_array($row)) {
-                    continue;
-                }
-                foreach (['crawled_url', 'relative_crawled_url', 'found_on_url', 'relative_found_on_url', 'link_text', 'type', 'error_message', 'current_error_message'] as $field) {
-                    if (is_string($row[$field] ?? null)) {
-                        $bytes += strlen($row[$field]) + 16;
-                    }
-                }
-                $bytes += 64;
-            }
-        }
-        if (is_array($artifact['mixed_content'] ?? null)) {
-            foreach ($artifact['mixed_content'] as $row) {
-                if (! is_array($row)) {
-                    continue;
-                }
-                foreach (['element_name', 'mixed_content_url', 'found_on_url', 'source_url'] as $field) {
-                    if (is_string($row[$field] ?? null)) {
-                        $bytes += strlen($row[$field]) + 16;
-                    }
-                }
-                $bytes += 32;
-            }
-        }
-
-        return $bytes;
     }
 
     /** @param \stdClass&object{id: int, site_url: string, target_fingerprint: string, config_fingerprint: string|null, collected_at: string, truncated: bool, page_cap_reached: bool, time_limit_reached: bool, resource_cap_reached: bool, observed_urls: string, observed_pages: string, discovered_urls: string, discovery_complete: bool, settings: string, classification_policy_version: int|null} $row */

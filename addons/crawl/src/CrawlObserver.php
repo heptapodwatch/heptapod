@@ -40,9 +40,7 @@ final class CrawlObserver extends SpatieObserver
 
     public bool $invalidTruncated = false;
 
-    public bool $artifactByteLimitReached = false;
-
-    private int $artifactBytes = 0;
+    public bool $mixedCapReached = false;
 
     /** @var array<string, CrawlDiscoveryReason> Oversized responses whose links could not be extracted, by URL. */
     public array $unreadablePages = [];
@@ -97,15 +95,7 @@ final class CrawlObserver extends SpatieObserver
             return;
         }
         // Observation is recovery evidence, so publish it only after the content scan completes.
-        $observed = [$this->boundedUrl($this->safeUrl($url)), $this->boundedUrl($this->safeUrl($pageUrl))];
-        foreach (array_unique($observed) as $candidate) {
-            if (! in_array($candidate, $this->observedPages, true)) {
-                if (! $this->consumeArtifactBytes((strlen($candidate) + 3) * 2)) {
-                    return;
-                }
-                $this->observedPages[] = $candidate;
-            }
-        }
+        $this->observedPages = array_values(array_unique([...$this->observedPages, $this->boundedUrl($this->safeUrl($url)), $this->boundedUrl($this->safeUrl($pageUrl))]));
         $this->context->runProgress?->report(min(count($this->observedPages), $this->pageCap), $this->pageCap, 'crawl');
     }
 
@@ -155,18 +145,11 @@ final class CrawlObserver extends SpatieObserver
                 }
                 if (parse_url($resolved, PHP_URL_SCHEME) === 'http') {
                     if (count($this->mixed) >= CrawlPersistence::COMPARISON_LIMIT) {
-                        $this->artifactByteLimitReached = true;
+                        $this->mixedCapReached = true;
 
                         return false;
                     }
-                    $mixedUrl = $this->boundedUrl($this->safeUrl($resolved));
-                    $foundOn = $this->boundedUrl($this->safeUrl($pageUrl));
-                    $sourceUrl = $this->boundedUrl($this->safeUrl($url));
-                    $weight = strlen($element->tagName) + strlen($mixedUrl) + strlen($foundOn) + strlen($sourceUrl) + 96;
-                    if (! $this->consumeArtifactBytes($weight)) {
-                        return false;
-                    }
-                    $this->mixed[] = new MixedContentFinding($element->tagName, $mixedUrl, $foundOn, $sourceUrl);
+                    $this->mixed[] = new MixedContentFinding($element->tagName, $this->boundedUrl($this->safeUrl($resolved)), $this->boundedUrl($this->safeUrl($pageUrl)), $this->boundedUrl($this->safeUrl($url)));
                 }
             }
         }
@@ -253,14 +236,7 @@ final class CrawlObserver extends SpatieObserver
             return;
         }
         $this->invalidOnPage[$source][$label] = true;
-        $boundedText = $this->boundLinkText($text);
-        $relativeSource = $this->relative($source);
-        // Include observed_urls copy weight so total stays within CrawlPersistence::artifactBytes().
-        $weight = (strlen($label) * 3) + strlen($source) + strlen($relativeSource) + strlen($boundedText ?? '') + 200;
-        if (! $this->consumeArtifactBytes($weight)) {
-            return;
-        }
-        $this->urls[] = new CrawlFinding($label, $label, null, $source, $relativeSource, $boundedText, $type === ResourceType::OpenGraphImage ? 'og:image' : $type->value, 'invalid URL', false);
+        $this->urls[] = new CrawlFinding($label, $label, null, $source, $this->relative($source), $this->boundLinkText($text), $type === ResourceType::OpenGraphImage ? 'og:image' : $type->value, 'invalid URL', false);
     }
 
     private function record(string $url, ?int $status, ?string $foundOn, ?string $text, ResourceType $type, ?string $error): void
@@ -272,15 +248,7 @@ final class CrawlObserver extends SpatieObserver
         if (! $internal && $error === null && $status !== null && $status >= 400) {
             $error = LinkClassificationPolicy::responseLabel(false, $status, [], '');
         }
-        $boundedText = $this->boundLinkText($text);
-        $relativeUrl = $this->boundedUrl($this->relative($url));
-        $relativeFoundOn = $foundOn === null ? null : $this->boundedUrl($this->relative($foundOn));
-        // Include observed_urls copy weight so total stays within CrawlPersistence::artifactBytes().
-        $weight = (strlen($url) * 2) + strlen($relativeUrl) + strlen($foundOn ?? '') + strlen($relativeFoundOn ?? '') + strlen($boundedText ?? '') + 200;
-        if (! $this->consumeArtifactBytes($weight)) {
-            return;
-        }
-        $this->urls[] = new CrawlFinding($url, $relativeUrl, $status, $foundOn, $relativeFoundOn, $boundedText, $type === ResourceType::OpenGraphImage ? 'og:image' : $type->value, $error, $internal);
+        $this->urls[] = new CrawlFinding($url, $this->boundedUrl($this->relative($url)), $status, $foundOn, $foundOn === null ? null : $this->boundedUrl($this->relative($foundOn)), $this->boundLinkText($text), $type === ResourceType::OpenGraphImage ? 'og:image' : $type->value, $error, $internal);
     }
 
     public function boundLinkText(?string $text): ?string
@@ -295,18 +263,6 @@ final class CrawlObserver extends SpatieObserver
     private function boundedUrl(string $url): string
     {
         return strlen($url) <= CrawlPersistence::MAX_URL_BYTES ? $url : BrowserUrl::boundedEvidenceUrl($url);
-    }
-
-    public function consumeArtifactBytes(int $bytes): bool
-    {
-        if ($this->artifactBytes + $bytes > CrawlPersistence::MAX_ARTIFACT_BYTES) {
-            $this->artifactByteLimitReached = true;
-
-            return false;
-        }
-        $this->artifactBytes += $bytes;
-
-        return true;
     }
 
     private function safeUrl(string $url): string

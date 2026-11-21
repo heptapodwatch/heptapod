@@ -8,6 +8,9 @@ final class OutboundTransferState
 {
     public ?int $status = null;
 
+    /** @var array<array<string>> */
+    public array $headers = [];
+
     public ?int $errno = null;
 
     public ?string $tlsTarget = null;

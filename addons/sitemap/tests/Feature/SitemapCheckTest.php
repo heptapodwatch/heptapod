@@ -19,6 +19,8 @@ use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\ExternalTimeoutException;
+use Heptapod\Contracts\Http\AutomatedCheckBlock;
+use Heptapod\Contracts\Http\AutomatedCheckBlockReason;
 use Heptapod\Contracts\Http\FetchFailure;
 use Heptapod\Contracts\Http\FetchFailureKind;
 use Heptapod\Contracts\Http\FetchRequest;
@@ -98,10 +100,12 @@ function sitemapXml(array $urls, bool $index = false): string
 
 function sitemapRequest(string $path = '/sitemap.xml', string $method = 'GET', bool $operator = true, ?int $maxBytes = null): FetchRequest
 {
-    $bytes = $maxBytes ?? (! $operator && ! str_ends_with($path, '.xml') ? SitemapCheck::MaxReachabilityProbeBytes : 2097152);
+    $isProbe = ! $operator && ! str_ends_with($path, '.xml');
+    $bytes = $maxBytes ?? ($isProbe ? SitemapCheck::MaxReachabilityProbeBytes : 2097152);
 
     return sitemapLibraryRequest(new FetchRequest('http://fixtures.test'.$path, $method, maxWireBytes: $bytes, maxDecodedBytes: $bytes,
-        redirects: $operator ? RedirectPolicy::Operator : RedirectPolicy::Untrusted, siteHost: 'fixtures.test', timeoutSeconds: 10.0, acceptedStatuses: range(200, 599)));
+        redirects: $operator ? RedirectPolicy::Operator : RedirectPolicy::Untrusted, siteHost: 'fixtures.test', timeoutSeconds: 10.0, acceptedStatuses: range(200, 599),
+        truncateAtLimit: $isProbe && $method === 'GET'));
 }
 
 /** Library integration fakes observe the public request profile, PSR-generated Host and an empty stream body. */
@@ -1526,8 +1530,33 @@ it('bounds reachability HEAD and fallback GET probe byte requests separately fro
     expect($probeRequests)->toHaveCount(2);
     foreach ($probeRequests as $entry) {
         expect($entry['request']->maxWireBytes)->toBe(SitemapCheck::MaxReachabilityProbeBytes)
-            ->and($entry['request']->maxDecodedBytes)->toBe(SitemapCheck::MaxReachabilityProbeBytes);
+            ->and($entry['request']->maxDecodedBytes)->toBe(SitemapCheck::MaxReachabilityProbeBytes)
+            ->and($entry['request']->truncateAtLimit)->toBe($entry['request']->method === 'GET');
     }
+});
+
+it('preserves status, headers and block prefix on capped fallback GETs through real outbound transport', function (): void {
+    $this->travelBack();
+    $context = sitemapContext(['speed' => 'fastest', 'urls_per_run' => '100']);
+    $client = app(OutboundHttp::class)->pacedClient($context, 0);
+
+    // Real 2 MiB 200 and 503 responses + real Cloudflare 403 WAF page truncated mid-body via cURL.
+    $results = $client->fetchMany([
+        'large200' => new FetchRequest('http://fixtures.test/http-seam/large/200', 'GET', maxWireBytes: SitemapCheck::MaxReachabilityProbeBytes, maxDecodedBytes: SitemapCheck::MaxReachabilityProbeBytes, redirects: RedirectPolicy::Untrusted, siteHost: 'fixtures.test', timeoutSeconds: 10.0, acceptedStatuses: range(200, 599), refusalIsFinding: true, truncateAtLimit: true),
+        'large503' => new FetchRequest('http://fixtures.test/http-seam/large/503', 'GET', maxWireBytes: SitemapCheck::MaxReachabilityProbeBytes, maxDecodedBytes: SitemapCheck::MaxReachabilityProbeBytes, redirects: RedirectPolicy::Untrusted, siteHost: 'fixtures.test', timeoutSeconds: 10.0, acceptedStatuses: range(200, 599), refusalIsFinding: true, truncateAtLimit: true),
+        'waf403' => new FetchRequest('http://fixtures.test/bot-protection/waf', 'GET', maxWireBytes: 64, maxDecodedBytes: 64, redirects: RedirectPolicy::Untrusted, siteHost: 'fixtures.test', timeoutSeconds: 10.0, acceptedStatuses: range(200, 599), refusalIsFinding: true, truncateAtLimit: true),
+    ]);
+
+    expect($results['large200']->failure)->toBeNull()
+        ->and($results['large200']->status)->toBe(200)
+        ->and(strlen($results['large200']->body))->toBeLessThanOrEqual(SitemapCheck::MaxReachabilityProbeBytes);
+    expect($results['large503']->failure)->toBeNull()
+        ->and($results['large503']->status)->toBe(503)
+        ->and(strlen($results['large503']->body))->toBeLessThanOrEqual(SitemapCheck::MaxReachabilityProbeBytes);
+    expect($results['waf403']->failure)->toBeNull()
+        ->and($results['waf403']->status)->toBe(403)
+        ->and(AutomatedCheckBlock::reason($results['waf403']->status, $results['waf403']->headers, $results['waf403']->body))
+        ->toBe(AutomatedCheckBlockReason::BotProtection);
 });
 
 it('bounds sitemap change event diffs when many issues appear at once', function (): void {

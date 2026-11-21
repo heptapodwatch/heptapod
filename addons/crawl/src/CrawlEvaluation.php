@@ -26,6 +26,17 @@ final readonly class CrawlEvaluation
         $secrets = array_column($context->crawlerHeaders, 'value');
         try {
             $artifact = CrawlArtifact::from($this->collector->ensureFresh($context)->privateStorage())->redact($secrets, [$context->url])->underCurrentPolicy();
+        } catch (CrawlArtifactTooLarge $exception) {
+            return new CheckOutcome(
+                RunResult::Errored,
+                ($mixed ? 'mixed_content.' : 'broken_links.').'incomplete_resources',
+                [],
+                null,
+                evidence: new CrawlEvidence([], false, 0, false, true, $exception->pageCap, 0, 0, 0, resource_cap_reached: true, notes: [CrawlDiscoveryReason::ResourceLimit->note()]),
+                error: new CheckError($exception::class, $exception->getMessage()),
+                incomplete: true,
+                verifiedNothing: true,
+            );
         } catch (CrawlStartRedirectOffSite|CrawlStartRedirectOriginChanged $exception) {
             $target = BrowserUrl::boundedEvidenceUrl(SecretRedactor::redact($exception->targetUrl, $secrets, [$context->url]));
             $summary = $exception instanceof CrawlStartRedirectOriginChanged ? 'crawl.start_redirect_credentials_origin' : 'crawl.start_redirect_off_site';
@@ -141,7 +152,7 @@ final readonly class CrawlEvaluation
             $previous['finding_ids'] = array_keys($acceptedIds);
         }
         $overflow = max(array_map(count(...), [$artifact->urls, $artifact->mixed_content, $artifact->observed_urls, $artifact->observed_pages, $artifact->discovered_urls])) > CrawlPersistence::COMPARISON_LIMIT
-            || CrawlPersistence::artifactBytes($artifact->privateStorage()) > CrawlPersistence::MAX_ARTIFACT_BYTES;
+            || strlen(json_encode($artifact->privateStorage(), JSON_THROW_ON_ERROR)) > CrawlPersistence::MAX_ARTIFACT_BYTES;
         if ($overflow) {
             $artifact = $visible;
             $artifact->urls = array_slice($artifact->urls, 0, CrawlPersistence::COMPARISON_LIMIT);

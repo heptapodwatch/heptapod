@@ -226,4 +226,9 @@ it('caps deep upcoming page requests at the server ceiling without scanning unbo
     expect($response->inertiaProps()['items'])->toBe([])
         ->and($response->inertiaProps()['next_page_url'])->toBeNull();
     expect(array_filter($queries, static fn (array $q): bool => str_contains($q['query'], 'cron_checks')))->toBe([]);
+
+    // Extreme integer page numbers must check the ceiling before multiplying so offset arithmetic cannot overflow to float.
+    $extreme = $this->get('/upcoming?type=task&per_page=100&page='.PHP_INT_MAX)->assertOk();
+    expect($extreme->inertiaProps()['items'])->toBe([])
+        ->and($extreme->inertiaProps()['next_page_url'])->toBeNull();
 });

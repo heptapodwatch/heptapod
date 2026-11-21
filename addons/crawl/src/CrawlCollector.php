@@ -116,10 +116,10 @@ final readonly class CrawlCollector
                     ->depth($config['max_depth'])->limit($config['max_pages'])
                     ->concurrency(Config::integer('heptapod.crawl.concurrency'))
                     ->timeLimit(max(1, (int) floor($context->deadline->getTimestampMs() / 1000 - microtime(true))))
-                    ->shouldStopCallback(static function (Crawler $crawler) use ($context, $observer): bool {
+                    ->shouldStopCallback(static function (Crawler $crawler) use ($context): bool {
                         $context->runControl?->assertActive();
 
-                        return $observer->artifactByteLimitReached || CarbonImmutable::now()->greaterThanOrEqualTo($context->deadline);
+                        return CarbonImmutable::now()->greaterThanOrEqualTo($context->deadline);
                     })
                     ->maxResponseSizeInBytes(Config::integer('heptapod.crawl.max_response_bytes'))
                     ->neverCrawl([...$config['exclude_patterns'], ...$config['do_not_crawl_urls']])
@@ -143,12 +143,6 @@ final readonly class CrawlCollector
                 $responseLabels = [];
                 $requests = function () use ($candidates, $crawler, $targetUrl, $headers, $context, $parser, $observer, &$checkedUrls, &$pending): \Generator {
                     foreach ($candidates as $index => $candidate) {
-                        if ($observer->artifactByteLimitReached) {
-                            $parser->truncated = true;
-                            $parser->resourceCapReached = true;
-                            $parser->incomplete(CrawlDiscoveryReason::ResourceLimit);
-                            break;
-                        }
                         $url = $candidate['url'];
                         if (isset($checkedUrls[$url->url])) {
                             continue;
@@ -220,8 +214,8 @@ final readonly class CrawlCollector
                 $pageCapReached = $reason === FinishReason::CrawlLimitReached && $crawler->getCrawlProgress()->urlsPending > 0;
                 $timeLimitReached = $timeLimitReached || microtime(true) >= $context->deadline->getTimestampMs() / 1000;
                 $rateLimited = array_any($observer->urls, static fn (CrawlFinding $finding): bool => $finding->error_message === AutomatedCheckBlockReason::RateLimited->value);
-                $resourceCapReached = $parser->resourceCapReached || $observer->artifactByteLimitReached;
-                $truncated = $rateLimited || $timeLimitReached || $pageCapReached || $parser->truncated || $observer->invalidTruncated || $observer->artifactByteLimitReached || ! in_array($targetUrl, $observer->observedPages, true);
+                $resourceCapReached = $parser->resourceCapReached || $observer->mixedCapReached;
+                $truncated = $rateLimited || $timeLimitReached || $pageCapReached || $parser->truncated || $observer->invalidTruncated || $observer->mixedCapReached || ! in_array($targetUrl, $observer->observedPages, true);
                 foreach ([
                     CrawlDiscoveryReason::PageLimit->value => $pageCapReached,
                     CrawlDiscoveryReason::TimeLimit->value => $timeLimitReached,
@@ -250,11 +244,12 @@ final readonly class CrawlCollector
                     $notes[] = new CheckRunPresentationPartData('crawl.coverage.depth_limit', ['count' => $depthExcluded, 'depth' => $config['max_depth']]);
                 }
                 $artifact = new CrawlArtifact($targetUrl, CarbonImmutable::now()->toIso8601String(), $config, $observer->urls, $observer->mixed, $this->targetFingerprint($context->url), $truncated, $observedUrls, $observer->observedPages, array_keys($parser->discovered), ! $truncated && $parser->discoveryReasons === [], $pageCapReached, $timeLimitReached, $resourceCapReached, $fingerprint, $observer->notCrawlableReason, $observer->nofollowPages, $notes, LinkClassificationPolicy::VERSION, $observer->startPageFinalUrl, $observer->startPageTooLarge)->redact(array_column($context->crawlerHeaders, 'value'));
-                $storage = $artifact->privateStorage();
-                // Never serialize or cache an oversized artifact in crawl_collections; evaluation will treat it as overflow.
-                if (CrawlPersistence::artifactBytes($storage) <= CrawlPersistence::MAX_ARTIFACT_BYTES) {
-                    DB::table('crawl_collections')->updateOrInsert(['site_id' => $context->siteId], ['artifact' => json_encode($storage, JSON_THROW_ON_ERROR), 'collected_at' => $artifact->collected_at]);
+                // Hard write limit on the complete encoded payload (including nofollow_pages) before persisting crawl_collections.
+                $encoded = json_encode($artifact->privateStorage(), JSON_THROW_ON_ERROR);
+                if (strlen($encoded) > CrawlPersistence::MAX_ARTIFACT_BYTES) {
+                    throw new CrawlArtifactTooLarge(strlen($encoded), $config['max_pages']);
                 }
+                DB::table('crawl_collections')->updateOrInsert(['site_id' => $context->siteId], ['artifact' => $encoded, 'collected_at' => $artifact->collected_at]);
 
                 return $artifact;
             });

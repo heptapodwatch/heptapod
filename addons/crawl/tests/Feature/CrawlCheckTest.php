@@ -2030,12 +2030,11 @@ it('bounds collected link text and rejects oversized crawl artifacts at the pers
         ->toThrow(ValidationException::class);
 });
 
-it('withholds page coverage when a mixed-content scan stops early at the artifact budget', function (): void {
+it('withholds page coverage when a mixed-content scan stops early at the comparison cap', function (): void {
     $site = Site::factory()->create(['url' => 'https://mixed-cap.example.test']);
     $check = Check::factory()->for($site)->create(['type' => CheckKey::MixedContent]);
     $observer = new CrawlObserver($site->url, new FakeOutboundHttp, crawlContext($check), 100);
-    // Exhaust nearly the entire artifact byte budget before inspecting a page with insecure resources.
-    expect($observer->consumeArtifactBytes(CrawlPersistence::MAX_ARTIFACT_BYTES - 10))->toBeTrue();
+    $observer->mixed = array_fill(0, CrawlPersistence::COMPARISON_LIMIT, new MixedContentFinding('img', 'http://cdn.example.test/existing.png', $site->url, $site->url));
     $response = new CrawlResponse(
         new Response(200, ['Content-Type' => 'text/html'], '<html lang="en"><body><img src="http://cdn.example.test/insecure.png"></body></html>'),
         foundOnUrl: $site->url,
@@ -2043,7 +2042,48 @@ it('withholds page coverage when a mixed-content scan stops early at the artifac
 
     $observer->inspectPage($site->url, $response);
 
-    expect($observer->artifactByteLimitReached)->toBeTrue()
+    expect($observer->mixedCapReached)->toBeTrue()
         ->and($observer->observedPages)->toBe([])
-        ->and($observer->mixed)->toBe([]);
+        ->and($observer->mixed)->toHaveCount(CrawlPersistence::COMPARISON_LIMIT);
+});
+
+it('fails with the typed resource-cap result without writing oversized crawl collections', function (): void {
+    $site = Site::factory()->create(['url' => 'https://oversized-artifact.example.test']);
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::BrokenLinks]);
+    $longSegment = str_repeat('a', 7000);
+    $pageLinks = [];
+    for ($page = 1; $page <= 10; $page++) {
+        $links = [];
+        for ($i = 1; $i <= 140; $i++) {
+            $links[] = '<a href="/p'.$page.'/'.$i.'/'.$longSegment.'">x</a>';
+        }
+        $pageLinks['https://oversized-artifact.example.test/page-'.$page] = '<html lang="en"><body>'.implode('', $links).'</body></html>';
+    }
+    $rootHtml = '<html lang="en"><body>'.implode('', array_map(
+        static fn (int $page): string => '<a href="/page-'.$page.'">p'.$page.'</a>',
+        range(1, 10),
+    )).'</body></html>';
+    $fake = (new FakeOutboundHttp)->respondUsing(static function (FetchRequest $request) use ($rootHtml, $pageLinks): FetchResult {
+        if (str_ends_with($request->url, '/robots.txt')) {
+            return new FetchResult(404, '');
+        }
+        if ($request->url === 'https://oversized-artifact.example.test' || $request->url === 'https://oversized-artifact.example.test/') {
+            return new FetchResult(200, $rootHtml, ['Content-Type' => ['text/html']]);
+        }
+        if (isset($pageLinks[$request->url])) {
+            return new FetchResult(200, $pageLinks[$request->url], ['Content-Type' => ['text/html']]);
+        }
+
+        return new FetchResult(404, 'missing', ['Content-Type' => ['text/html']]);
+    });
+    app()->instance(OutboundHttp::class, $fake);
+
+    recordCrawl(crawlContext($check));
+
+    $run = CheckRun::query()->where('check_id', $check->id)->sole();
+    expect($run->result)->toBe(RunResult::Errored)
+        ->and($run->summary)->toBe('broken_links.incomplete_resources')
+        ->and($run->evidence['resource_cap_reached'])->toBeTrue()
+        ->and(DB::table('crawl_collections')->where('site_id', $site->id)->exists())->toBeFalse()
+        ->and(DB::table('crawl_snapshots')->where('check_id', $check->id)->exists())->toBeFalse();
 });

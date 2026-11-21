@@ -559,7 +559,7 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
                 $fallback = [];
                 foreach ($results as $target => $result) {
                     if ($result?->failure?->kind === FetchFailureKind::HttpStatus) {
-                        $fallback[$target] = $this->request($context, 'GET', $target, $probeMaxBytes);
+                        $fallback[$target] = $this->request($context, 'GET', $target, $probeMaxBytes, truncateAtLimit: true);
                     }
                 }
                 $results = array_replace($results, $this->fetchBatches($client, $fallback));
@@ -786,7 +786,7 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
         return new FetchResult($response->status, failure: new FetchFailure(FetchFailureKind::HttpStatus, $response->status));
     }
 
-    private function request(CheckContext $context, string $method, string $url, int $maxBytes, bool $operator = false): FetchRequest
+    private function request(CheckContext $context, string $method, string $url, int $maxBytes, bool $operator = false, bool $truncateAtLimit = false): FetchRequest
     {
         $site = Uri::new($context->url);
         $siteHost = TargetHost::normalize($site->getHost() ?? throw new \InvalidArgumentException('Sitemap site URL needs a host.'));
@@ -802,7 +802,7 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
         return new FetchRequest($url, $method, $headers, maxWireBytes: $maxBytes, maxDecodedBytes: $maxBytes,
             redirects: $operator ? RedirectPolicy::Operator : RedirectPolicy::Untrusted, siteHost: $siteHost, timeoutSeconds: 10.0, acceptedStatuses: range(200, 599),
             // A listed URL or child sitemap that the guard refuses is a per-item issue; the configured sitemap URL still errors the run.
-            refusalIsFinding: ! $operator);
+            refusalIsFinding: ! $operator, truncateAtLimit: $truncateAtLimit);
     }
 
     /**

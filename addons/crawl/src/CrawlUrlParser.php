@@ -59,11 +59,6 @@ final class CrawlUrlParser implements UrlParser
         }
         $internal = [];
         foreach ($this->parser->extractUrls($html, $baseUrl) as $url) {
-            if ($this->observer->artifactByteLimitReached) {
-                $this->truncated = true;
-                $this->resourceCapReached = true;
-                break;
-            }
             $boundedLinkText = $this->observer->boundLinkText($url->linkText);
             if ($url->isMalformed()) {
                 $this->observer->invalid($url->url, $baseUrl, $boundedLinkText, $url->resourceType);
@@ -84,14 +79,8 @@ final class CrawlUrlParser implements UrlParser
             if (BrowserUrl::isEmailProtection($normalized, $this->origin->toString())) {
                 continue;
             }
-            $discoveredUrl = Uri::new($url->url)->withUserInfo(null)->withFragment(null)->toString();
-            if (! isset($this->discovered[$discoveredUrl]) && count($this->discovered) <= CrawlPersistence::COMPARISON_LIMIT) {
-                if (! $this->observer->consumeArtifactBytes(strlen($discoveredUrl) + 3)) {
-                    $this->truncated = true;
-                    $this->resourceCapReached = true;
-                    break;
-                }
-                $this->discovered[$discoveredUrl] = true;
+            if (count($this->discovered) <= CrawlPersistence::COMPARISON_LIMIT) {
+                $this->discovered[Uri::new($url->url)->withUserInfo(null)->withFragment(null)->toString()] = true;
             }
             if ($sameSite && $url->resourceType !== ResourceType::Link) {
                 if (! isset($this->resources[$url->url]) && count($this->resources) >= $this->resourceLimit) {
@@ -102,12 +91,7 @@ final class CrawlUrlParser implements UrlParser
                 }
                 $this->resources[$url->url] = ['url' => $url, 'found_on_url' => $baseUrl];
             } elseif ($sameSite) {
-                if ($this->depth >= $this->maximumDepth && ! isset($this->depthExcluded[$url->url]) && count($this->depthExcluded) <= CrawlPersistence::COMPARISON_LIMIT) {
-                    if (! $this->observer->consumeArtifactBytes(strlen($url->url) + 3)) {
-                        $this->truncated = true;
-                        $this->resourceCapReached = true;
-                        break;
-                    }
+                if ($this->depth >= $this->maximumDepth && count($this->depthExcluded) <= CrawlPersistence::COMPARISON_LIMIT) {
                     $this->depthExcluded[$url->url] = true;
                 }
                 $internal[] = $url;

@@ -145,7 +145,7 @@ final class GuzzlePacedHttpClient implements PacedHttpClient
     private function client(#[\SensitiveParameter] FetchRequest $request): Client
     {
         // Different header/origin policies and response bounds never share a template's middleware closure.
-        $key = hash('sha256', serialize([$request->headers, $request->body, $request->maxWireBytes, $request->maxDecodedBytes, $request->redirects, $request->maxRedirects, $request->siteHost, $request->timeoutSeconds, $request->acceptedStatuses, $request->strictRedirects, $request->withCertificateInfo, $request->publicTargetsOnly, $request->refusalIsFinding]));
+        $key = hash('sha256', serialize([$request->headers, $request->body, $request->maxWireBytes, $request->maxDecodedBytes, $request->redirects, $request->maxRedirects, $request->siteHost, $request->timeoutSeconds, $request->acceptedStatuses, $request->strictRedirects, $request->withCertificateInfo, $request->publicTargetsOnly, $request->refusalIsFinding, $request->truncateAtLimit]));
         if (isset($this->clients[$key])) {
             return $this->clients[$key];
         }

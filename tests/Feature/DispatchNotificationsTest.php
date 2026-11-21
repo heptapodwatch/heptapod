@@ -5,7 +5,6 @@ declare(strict_types=1);
 use Carbon\CarbonImmutable;
 use Heptapod\Actions\ClaimNotificationDelivery;
 use Heptapod\Actions\CompleteNotificationDelivery;
-use Heptapod\Actions\EmitMaintenanceCatchUps;
 use Heptapod\Actions\PlanNotificationEvent;
 use Heptapod\Addons\Channels\TemplateMail;
 use Heptapod\Addons\Cron\CronDefinitions;
@@ -33,7 +32,6 @@ use Heptapod\Models\Client;
 use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
-use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
@@ -1170,42 +1168,4 @@ it('dispatches due alerts before bounded housekeeping and bounds overlap expiry 
     ));
     expect($scheduled)->toHaveCount(1)
         ->and($scheduled[0]->expiresAt)->toBe(10);
-});
-
-it('bounds maintenance catch-up work per window across continuation passes', function (): void {
-    $this->freezeTime();
-    $client = Client::factory()->create();
-    $window = MaintenancePeriod::factory()->create([
-        'target_type' => 'client',
-        'target_id' => $client->id,
-        'site_id' => null,
-        'starts_at' => now()->subHours(2),
-        'ends_at' => now()->subMinute(),
-        'mute_alerts' => true,
-        'catch_up_at_end' => true,
-    ]);
-    // 55 sites with open incidents inside one ended window exceeds SitesPerWindow (50).
-    for ($i = 0; $i < 55; $i++) {
-        $site = Site::factory()->for($client)->create();
-        $check = Check::factory()->for($site)->create(['type' => CheckKey::Uptime, 'latest_run_result' => CheckResult::Failed]);
-        $incident = Incident::factory()->for($site)->for($check)->create([
-            'opened_during_maintenance_window_id' => $window->id,
-            'resolved_at' => null,
-        ]);
-        Event::factory()->for($site)->for($check)->for($incident)->create([
-            'type' => 'incident.opened',
-            'suppressed' => true,
-            'suppression_reason' => 'maintenance',
-            'notification_routed_at' => now()->subHour(),
-        ]);
-    }
-
-    $catchUps = app(EmitMaintenanceCatchUps::class);
-    expect($catchUps())->toBeTrue()
-        ->and(DB::table('maintenance_catch_up_sites')->where('maintenance_period_id', $window->id)->count())->toBe(EmitMaintenanceCatchUps::SitesPerWindow)
-        ->and($window->refresh()->catch_up_processed_at)->toBeNull();
-
-    expect($catchUps())->toBeFalse()
-        ->and(DB::table('maintenance_catch_up_sites')->where('maintenance_period_id', $window->id)->count())->toBe(55)
-        ->and($window->refresh()->catch_up_processed_at)->not->toBeNull();
 });

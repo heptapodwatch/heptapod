@@ -31,6 +31,7 @@ final readonly class FetchRequest
         public bool $withCertificateInfo = false,
         public bool $publicTargetsOnly = false,
         public bool $refusalIsFinding = false,
+        public bool $truncateAtLimit = false,
     ) {
         $parts = parse_url($url);
         $scheme = strtolower($parts['scheme'] ?? '');
