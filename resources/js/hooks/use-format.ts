@@ -1,5 +1,5 @@
-import { usePage } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
+import { useViewerTimezone } from '@/hooks/use-viewer-timezone';
 import { formatDateTime } from '@/lib/date-time';
 import {
     dateTimeFormat,
@@ -11,7 +11,7 @@ import { formatUptimePercentage } from '@/lib/uptime-percentage';
 
 export function useFormat() {
     const { i18n } = useTranslation();
-    const { timezone } = usePage().props;
+    const timezone = useViewerTimezone();
     const number = (value: number, options?: Intl.NumberFormatOptions) =>
         numberFormat(i18n.language, options).format(value);
     const milliseconds = (value: number) =>

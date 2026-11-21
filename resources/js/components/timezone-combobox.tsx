@@ -46,7 +46,9 @@ export function timezoneOptions(
     pinned: string[] = [],
 ): ComboboxOption[] {
     const zones = [...new Set(timezones)];
-    const pinnedZones = pinned.filter((zone) => zones.includes(zone));
+    const pinnedZones = [...new Set(pinned)].filter((zone) =>
+        zones.includes(zone),
+    );
     const rest = zones.filter((zone) => !pinnedZones.includes(zone));
     const toOption = (zone: string, group?: string): ComboboxOption => {
         const offset = timezoneOffset(zone);

@@ -13,7 +13,7 @@ Owners and Admins schedule windows.
 
 1. Open **Maintenance** and select **New window**. On a site, **Schedule maintenance** in the header opens the same sheet for that site.
 2. Choose the **Target**: **Site**, **Client** or **Tag**, then the record.
-3. Enter **Starts** and **Ends** in 24-hour format and choose the **Timezone**.
+3. Enter **Starts** and **Ends** in 24-hour format and choose the **Timezone**. Site and client windows default to the client's time zone; tag windows default to your time zone.
 4. Choose **Repeats**: **Once**, **Daily**, **Weekly** or **Monthly**.
 5. Set **Mute alerts during the window** and **Alert if still failing at the end**. Both are on by default.
 6. Select **Schedule maintenance**.

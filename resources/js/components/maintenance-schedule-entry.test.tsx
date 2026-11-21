@@ -10,6 +10,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { router } from '@inertiajs/react';
 import MaintenanceIndex from '@/pages/maintenance/index';
 
+const pageContext = vi.hoisted(() => ({ timezone: 'Europe/Berlin' }));
 vi.mock('@inertiajs/react', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@inertiajs/react')>()),
     Head: () => null,
@@ -17,7 +18,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
         prefetch: _prefetch,
         ...props
     }: ComponentProps<'a'> & { prefetch?: boolean }) => <a {...props} />,
-    usePage: () => ({ props: { timezone: 'UTC' } }),
+    usePage: () => ({ props: { timezone: pageContext.timezone } }),
 }));
 vi.mock('react-i18next', () => {
     const t = (key: string) => key;
@@ -43,10 +44,11 @@ afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    pageContext.timezone = 'Europe/Berlin';
     window.history.replaceState(null, '', '/');
 });
 
-const target = (id: number, name: string) => ({
+const target = (id: number, name: string, timezone: string | null = null) => ({
     id,
     name,
     avatar: null,
@@ -57,6 +59,7 @@ const target = (id: number, name: string) => ({
     host: null,
     icon_url: null,
     icon_backing: 'none' as const,
+    timezone,
 });
 
 const planned: Heptapod.Data.Ui.MaintenanceWindowData = {
@@ -90,6 +93,7 @@ const planned: Heptapod.Data.Ui.MaintenanceWindowData = {
 function page(
     canManage: boolean,
     windows: Heptapod.Data.Ui.MaintenanceWindowData[] = [],
+    overrides: Partial<Heptapod.Data.Ui.MaintenanceIndexPageData> = {},
 ) {
     return (
         <MaintenanceIndex
@@ -101,14 +105,26 @@ function page(
             state="all"
             site_name="API"
             can_manage={canManage}
-            instance_timezone="UTC"
-            timezones={['UTC']}
-            sites={[target(7, 'Website'), target(8, 'API')]}
-            clients={[]}
-            tags={[]}
+            timezones={[
+                'UTC',
+                'America/New_York',
+                'Asia/Tokyo',
+                'Europe/Berlin',
+                'Europe/London',
+            ]}
+            sites={[
+                target(7, 'Website', 'Europe/Berlin'),
+                target(8, 'API', 'America/New_York'),
+            ]}
+            clients={[
+                target(1, 'NY Client', 'America/New_York'),
+                target(2, 'Tokyo Client', 'Asia/Tokyo'),
+            ]}
+            tags={[target(10, 'Release', null)]}
             filter_clients={[]}
             client_id={null}
             site_id={8}
+            {...overrides}
         />
     );
 }
@@ -156,4 +172,68 @@ it('explains why Repeats is locked when editing a window', () => {
     ).toBe(
         "A window's repeat type cannot change; create a new window instead.",
     );
+});
+
+it('defaults the timezone from the target, follows target changes until picked, and pins target and viewer zones', () => {
+    pageContext.timezone = 'Europe/Berlin';
+    window.history.replaceState(null, '', '/maintenance?site_id=8&new=1');
+    render(page(true));
+
+    const sheet = screen.getByRole('dialog', {
+        name: 'New maintenance window',
+    });
+    const zoneTrigger = () =>
+        within(sheet).getByRole('combobox', { name: 'Timezone' });
+
+    // Preselected New York client's site starts in America/New_York.
+    expect(zoneTrigger().textContent).toContain('America/New_York');
+
+    // Opening the timezone picker lists the target zone and the viewer zone first.
+    fireEvent.click(zoneTrigger());
+    const options = screen
+        .getAllByRole('option')
+        .map((option) => option.textContent ?? '');
+    expect(options[0]).toContain('America/New_York');
+    expect(options[1]).toContain('Europe/Berlin');
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+        key: 'Escape',
+    });
+
+    // Switching to Tag defaults to the viewer's zone (Europe/Berlin).
+    fireEvent.click(within(sheet).getByRole('radio', { name: 'Tag' }));
+    expect(zoneTrigger().textContent).toContain('Europe/Berlin');
+
+    // Switching to Client and picking Tokyo Client follows to Asia/Tokyo.
+    fireEvent.click(within(sheet).getByRole('radio', { name: 'Client' }));
+    fireEvent.click(within(sheet).getByRole('combobox', { name: 'Clients' }));
+    fireEvent.click(screen.getByRole('option', { name: /Tokyo Client/ }));
+    expect(zoneTrigger().textContent).toContain('Asia/Tokyo');
+
+    // Explicitly picking a timezone locks it against further target changes.
+    fireEvent.click(zoneTrigger());
+    fireEvent.click(screen.getByRole('option', { name: /Europe\/London/ }));
+    expect(zoneTrigger().textContent).toContain('Europe/London');
+
+    fireEvent.click(within(sheet).getByRole('combobox', { name: 'Clients' }));
+    fireEvent.click(screen.getByRole('option', { name: /NY Client/ }));
+    expect(zoneTrigger().textContent).toContain('Europe/London');
+});
+
+it('keeps an existing windows stored timezone when editing and switching targets', () => {
+    pageContext.timezone = 'Europe/Berlin';
+    window.history.replaceState(null, '', '/maintenance?site_id=8');
+    render(page(true, [{ ...planned, timezone: 'UTC' }]));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+
+    const sheet = screen.getByRole('dialog', {
+        name: 'Edit maintenance window',
+    });
+    const zoneTrigger = within(sheet).getByRole('combobox', {
+        name: 'Timezone',
+    });
+    expect(zoneTrigger.textContent).toContain('UTC');
+
+    fireEvent.click(within(sheet).getByRole('combobox', { name: 'Sites' }));
+    fireEvent.click(screen.getByRole('option', { name: /API/ }));
+    expect(zoneTrigger.textContent).toContain('UTC');
 });

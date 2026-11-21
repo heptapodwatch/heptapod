@@ -34,7 +34,7 @@ import { WeekdayToggleGroup } from '@/components/ui/weekday-toggle-group';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog, confirmVisit } from '@/components/confirm-dialog';
 import { DateTimeField, TimeField } from '@/components/ui/date-time-field';
-import { zonedWallTime } from '@/lib/date-time';
+import { zonedInstant, zonedWallTime } from '@/lib/date-time';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -50,6 +50,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useBufferedChanges } from '@/hooks/use-buffered-changes';
 import { useFormat } from '@/hooks/use-format';
 import { useLiveReload } from '@/hooks/use-live';
+import { useViewerTimezone } from '@/hooks/use-viewer-timezone';
 import {
     destroy as cancelWindow,
     end as endWindow,
@@ -164,7 +165,6 @@ export default function MaintenanceIndex({
     state,
     site_name,
     can_manage,
-    instance_timezone,
     timezones,
     sites,
     clients,
@@ -175,6 +175,17 @@ export default function MaintenanceIndex({
 }: Heptapod.Data.Ui.MaintenanceIndexPageData) {
     const { t, i18n } = useTranslation();
     const format = useFormat();
+    const viewerTimezone = useViewerTimezone();
+    const targetTimezoneOf = (
+        targetType: Draft['target_type'],
+        targetId: string,
+    ): string | null => {
+        if (!targetId || targetType === 'tag') return null;
+        const pool = targetType === 'site' ? sites : clients;
+        return (
+            pool.find((item) => String(item.id) === targetId)?.timezone ?? null
+        );
+    };
     useLiveReload(
         ['state.changed'],
         ['windows', 'next_page', 'previous_page', 'total'],
@@ -213,11 +224,19 @@ export default function MaintenanceIndex({
         });
     }, []);
     const [editing, setEditing] = useState<Window | null>(null);
-    const [draft, setDraft] = useState<Draft>(() =>
-        sheetOpen && site_id !== null
-            ? { ...freshDraft(instance_timezone), target_id: String(site_id) }
-            : freshDraft(instance_timezone),
-    );
+    const [timezonePicked, setTimezonePicked] = useState(false);
+    const [timesEdited, setTimesEdited] = useState(false);
+    const [draft, setDraft] = useState<Draft>(() => {
+        if (sheetOpen && site_id !== null) {
+            const initialTimezone =
+                targetTimezoneOf('site', String(site_id)) ?? viewerTimezone;
+            return {
+                ...freshDraft(initialTimezone),
+                target_id: String(site_id),
+            };
+        }
+        return freshDraft(viewerTimezone);
+    });
     const [errors, setErrors] = useState<Record<string, string>>({});
     const endError =
         errors.ends_local ??
@@ -259,8 +278,47 @@ export default function MaintenanceIndex({
               : tags;
     const change = <K extends keyof Draft>(key: K, value: Draft[K]) =>
         setDraft((current) => ({ ...current, [key]: value }));
+    const applyTarget = (
+        targetType: Draft['target_type'],
+        targetId: string,
+    ) => {
+        const nextTimezone =
+            targetTimezoneOf(targetType, targetId) ?? viewerTimezone;
+        setDraft((current) => {
+            const updated: Draft = {
+                ...current,
+                target_type: targetType,
+                target_id: targetId,
+            };
+            if (timezonePicked || nextTimezone === current.timezone) {
+                return updated;
+            }
+            updated.timezone = nextTimezone;
+            if (!timesEdited && current.recurrence_type === 'once') {
+                const startInstant = zonedInstant(
+                    current.starts_local,
+                    current.timezone,
+                );
+                const endInstant = zonedInstant(
+                    current.ends_local,
+                    current.timezone,
+                );
+                if (startInstant && endInstant) {
+                    updated.starts_local = zonedWallTime(
+                        startInstant,
+                        nextTimezone,
+                    );
+                    updated.ends_local = zonedWallTime(
+                        endInstant,
+                        nextTimezone,
+                    );
+                }
+            }
+            return updated;
+        });
+    };
     const openSheet = (window: Window | null) => {
-        let formTimezone = window?.timezone ?? instance_timezone;
+        let formTimezone = window?.timezone ?? viewerTimezone;
         if (window?.seriesId) {
             if (
                 !window.startTime ||
@@ -274,6 +332,9 @@ export default function MaintenanceIndex({
             formTimezone = window.seriesTimezone;
         }
         setEditing(window);
+        // Existing windows keep their stored zone even if the target changes; new windows follow the target until picked.
+        setTimezonePicked(window !== null);
+        setTimesEdited(window !== null);
         setDraft(
             window
                 ? {
@@ -302,13 +363,24 @@ export default function MaintenanceIndex({
                       mute_alerts: window.muteAlerts,
                       catch_up_at_end: window.catchUpAtEnd,
                   }
-                : freshDraft(instance_timezone),
+                : freshDraft(viewerTimezone),
         );
         setErrors({});
         setStartsInvalid(false);
         setEndsInvalid(false);
         setSheetOpen(true);
     };
+    const selectedTargetTimezone = targetTimezoneOf(
+        draft.target_type,
+        draft.target_id,
+    );
+    const pinnedTimezones = [
+        ...new Set(
+            [selectedTargetTimezone, viewerTimezone].filter(
+                (zone): zone is string => zone !== null,
+            ),
+        ),
+    ];
     const returnOptions = {
         query: {
             return_context: {
@@ -824,10 +896,9 @@ export default function MaintenanceIndex({
                                 errors.target_type,
                             )}
                             value={draft.target_type}
-                            onValueChange={(value: Draft['target_type']) => {
-                                change('target_type', value);
-                                change('target_id', '');
-                            }}
+                            onValueChange={(value: Draft['target_type']) =>
+                                applyTarget(value, '')
+                            }
                         >
                             <RadioGroupItem value="site">
                                 {t('Site')}
@@ -876,7 +947,7 @@ export default function MaintenanceIndex({
                             }
                             value={draft.target_id}
                             onValueChange={(value) =>
-                                change('target_id', value)
+                                applyTarget(draft.target_type, value)
                             }
                         />
                         {draft.target_id && draft.target_type !== 'site' && (
@@ -911,9 +982,10 @@ export default function MaintenanceIndex({
                                 describedBy="maintenance-start-error"
                                 onInvalidChange={setStartsInvalid}
                                 value={draft.starts_local}
-                                onValueChange={(value) =>
-                                    change('starts_local', value)
-                                }
+                                onValueChange={(value) => {
+                                    setTimesEdited(true);
+                                    change('starts_local', value);
+                                }}
                             />
                             <InputError
                                 id="maintenance-start-error"
@@ -937,9 +1009,10 @@ export default function MaintenanceIndex({
                                     required
                                     timezone={draft.timezone}
                                     value={draft.ends_local}
-                                    onValueChange={(value) =>
-                                        change('ends_local', value)
-                                    }
+                                    onValueChange={(value) => {
+                                        setTimesEdited(true);
+                                        change('ends_local', value);
+                                    }}
                                 />
                             ) : (
                                 <TimeField
@@ -949,9 +1022,10 @@ export default function MaintenanceIndex({
                                     onInvalidChange={setEndsInvalid}
                                     required
                                     value={draft.ends_local}
-                                    onValueChange={(value) =>
-                                        change('ends_local', value)
-                                    }
+                                    onValueChange={(value) => {
+                                        setTimesEdited(true);
+                                        change('ends_local', value);
+                                    }}
                                 />
                             )}
                             {draft.recurrence_type !== 'once' &&
@@ -980,9 +1054,12 @@ export default function MaintenanceIndex({
                         <TimezoneCombobox
                             id="maintenance-timezone"
                             timezones={timezones}
-                            pinned={[instance_timezone]}
+                            pinned={pinnedTimezones}
                             value={String(draft.timezone)}
-                            onValueChange={(value) => change('timezone', value)}
+                            onValueChange={(value) => {
+                                setTimezonePicked(true);
+                                change('timezone', value);
+                            }}
                             invalid={!!errors.timezone}
                             describedBy={
                                 errors.timezone

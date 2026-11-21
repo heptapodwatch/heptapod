@@ -396,7 +396,6 @@ function maintenance(
             state="all"
             site_name={null}
             can_manage={true}
-            instance_timezone="UTC"
             timezones={['UTC']}
             sites={[]}
             clients={[]}

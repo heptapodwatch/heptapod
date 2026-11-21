@@ -74,6 +74,12 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return $this->timezone ?? app(InstanceSettings::class)->timezone;
     }
 
+    /** The viewer's resolved zone, or the instance zone for guests. */
+    public static function viewerTimezone(?self $user): string
+    {
+        return $user instanceof self ? $user->resolvedTimezone() : app(InstanceSettings::class)->timezone;
+    }
+
     public function sendPasswordResetNotification(#[\SensitiveParameter] mixed $token): void
     {
         $this->notify(new PasswordReset($token));
