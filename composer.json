@@ -77,6 +77,7 @@
     "symfony/http-foundation": "^8.1",
     "symfony/http-kernel": "^8.1",
     "symfony/mailer": "^8.1",
+    "symfony/mime": "^8.1",
     "symfony/process": "^8.0"
   },
   "require-dev": {
@@ -109,7 +110,6 @@
     "shipmonk/composer-dependency-analyser": "^1.8",
     "spatie/laravel-login-link": "^1.6",
     "spatie/laravel-schedule-monitor": "^4.0",
-    "symfony/mime": "^8.1",
     "symfony/yaml": "^8.1"
   },
   "repositories": [
