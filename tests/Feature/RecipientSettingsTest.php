@@ -192,7 +192,8 @@ it('limits notification test sends per user across multiple channels', function 
     for ($index = 0; $index < 4; $index++) {
         $channels[] = $this->postJson(route('notification-channels.store'), [
             'recipient_kind' => 'user',
-            ...recipientWebhook(['label' => 'Hook '.$index]),
+            ...recipientWebhook(),
+            'label' => 'Hook '.$index,
         ])->assertCreated()->json('id');
     }
 
