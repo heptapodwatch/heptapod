@@ -62,7 +62,10 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('settings/members', [MembersController::class, 'edit'])->name('settings.members.index');
     Route::get('settings/members/data', [MembersController::class, 'index'])->name('settings.members.data');
     Route::post('settings/members/invitations', [MembersController::class, 'store'])->name('settings.members.invite');
-    Route::post('settings/members/invitations/{invitation}/resend', InvitationResendController::class)->whereNumber('invitation')->name('settings.members.resend');
+    Route::post('settings/members/invitations/{invitation}/resend', InvitationResendController::class)
+        ->whereNumber('invitation')
+        ->middleware('throttle:invitation-resend')
+        ->name('settings.members.resend');
     Route::delete('settings/members/invitations/{invitation}', InvitationRevokeController::class)->whereNumber('invitation')->name('settings.members.revoke');
     Route::patch('settings/members/{member}', [MembersController::class, 'update'])->whereNumber('member')->name('settings.members.update');
     Route::delete('settings/members/{member}', [MembersController::class, 'destroy'])->whereNumber('member')->name('settings.members.remove');

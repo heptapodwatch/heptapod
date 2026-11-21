@@ -264,6 +264,48 @@ it('invalidates the old bearer link on resend', function (): void {
     Notification::assertSentOnDemand(TeamInvitation::class, 2);
 });
 
+it('rate-limits invitation resends per invitation and per actor', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-31T12:00:00Z'));
+    Notification::fake();
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $client = Client::factory()->create();
+    $this->actingAs($owner);
+
+    $invitations = [];
+    for ($index = 1; $index <= 5; $index++) {
+        $this->postJson(route('settings.members.invite'), [
+            'email' => "invitee-{$index}@example.test",
+            'role' => 'Member',
+            'client_ids' => [$client->id],
+        ])->assertCreated();
+        $invitations[] = Invitation::query()->where('email', "invitee-{$index}@example.test")->sole();
+    }
+
+    // Per-invitation cap: 3 resends per 5 minutes for the same invitation.
+    for ($attempt = 1; $attempt <= 3; $attempt++) {
+        $this->postJson(route('settings.members.resend', $invitations[0]->id))->assertNoContent();
+    }
+    $hashBeforeThrottle = $invitations[0]->refresh()->token_hash;
+    $this->postJson(route('settings.members.resend', $invitations[0]->id))
+        ->assertTooManyRequests()
+        ->assertHeader('Retry-After')
+        ->assertJsonPath('code', 'rate_limited');
+    expect($invitations[0]->refresh()->token_hash)->toBe($hashBeforeThrottle);
+
+    // Per-actor cap: 10 resends per minute across distinct invitations (3 already used above).
+    for ($index = 1; $index <= 2; $index++) {
+        for ($attempt = 1; $attempt <= 3; $attempt++) {
+            $this->postJson(route('settings.members.resend', $invitations[$index]->id))->assertNoContent();
+        }
+    }
+    $this->postJson(route('settings.members.resend', $invitations[3]->id))->assertNoContent();
+    $this->postJson(route('settings.members.resend', $invitations[4]->id))
+        ->assertTooManyRequests()
+        ->assertHeader('Retry-After')
+        ->assertJsonPath('code', 'rate_limited');
+});
+
 it('rejects expired and revoked invites and prevents Admin from inviting Admin', function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-05T00:30:00Z'));
     Notification::fake();

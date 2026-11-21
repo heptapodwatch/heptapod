@@ -237,6 +237,17 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perMinute(6)->by('channel:'.$identity.'|'.$id),
             ];
         });
+        RateLimiter::for('invitation-resend', static function (Request $request): array {
+            $invitation = $request->route('invitation');
+            $invitationId = $invitation instanceof Invitation ? $invitation->id : (is_string($invitation) ? $invitation : 'unknown');
+            $user = $request->user();
+            $actor = $user instanceof User ? $user->id : ($request->ip() ?? 'unknown');
+
+            return [
+                Limit::perMinute(10)->by('actor:'.$actor),
+                Limit::perMinutes(5, 3)->by('invitation:'.$invitationId),
+            ];
+        });
         Inertia::handleExceptionsUsing(ErrorResponses::respond(...));
     }
 
