@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Gate;
 use Laravel\Sanctum\PersonalAccessToken;
 
 /**
- * Authorizes a write against the state it writes into. An authorization read before the write's own locks can go stale
+ * Authorizes a write against the state it writes into. An authorization read taken before the locks of the write can go stale
  * while the write waits: a site moves to another client or is deleted, its client is archived, the actor or the token
  * loses access. So the write runs in one transaction that first takes the access-structure lock shared (level 0 of
  * NotificationLocks; every such change holds it exclusive), then reads the sites, the actor and the API token afresh, asks

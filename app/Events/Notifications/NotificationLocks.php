@@ -147,7 +147,7 @@ final class NotificationLocks
     private const string AccessSharedTimeout = '5s';
 
     /**
-     * Level 0 shared, as the first lock of a guarded write's transaction. A structural change that holds it longer than
+     * Level 0 shared, as the first lock in the transaction of a guarded write. A structural change that holds it longer than
      * AccessSharedTimeout refuses the write as busy (409, try again); the timeout covers only this acquisition.
      */
     public static function accessShared(): void
