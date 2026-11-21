@@ -354,6 +354,8 @@ it('lists what the client was sent, newest first, with sender, address, outcome 
     $rows = $response->json();
     expect($rows['can_send'])->toBeFalse()->and(array_column($rows['rows'], 'address'))->toBe([null, null])
         ->and(array_column($rows['rows'], 'channel'))->toBe(['Hidden recipient', 'Hidden recipient'])
+        // The raw transport error names the recipient's mail hosts; Members get only the generic reason.
+        ->and($rows['rows'][0]['reason'])->not->toBeNull()->not->toBe($page['rows'][0]['reason'])
         ->and($response->getContent())->not->toContain('office@client.test')->not->toContain('boss@client.test')
         ->and(array_column($rows['rows'], 'resend'))->toBe([null, null]);
     $this->actingAs($member)->postJson(route('clients.messages.preview', $client), ['kind' => 'findings', 'design' => 'branded', 'check_id' => $check->id, 'channel_ids' => []])->assertForbidden();
