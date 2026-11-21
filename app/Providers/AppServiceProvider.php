@@ -55,6 +55,7 @@ use Heptapod\Jobs\DispatchNotifications;
 use Heptapod\Live\LiveChannels;
 use Heptapod\Live\ReverbConnectionTerminator;
 use Heptapod\Mail\CapabilityRedactingMailLogger;
+use Heptapod\Mail\MarkedLogTransport;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckSnooze;
 use Heptapod\Models\Client;
@@ -90,7 +91,6 @@ use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Log\LogManager;
 use Illuminate\Mail\Events\MessageSent;
-use Illuminate\Mail\Transport\LogTransport;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Date;
@@ -159,7 +159,7 @@ class AppServiceProvider extends ServiceProvider
     {
         RetentionPolicy::fromConfig();
         $this->app->booted(static fn () => app(CheckFreshnessIssues::class)->validateConfiguration());
-        Mail::extend('log', function (array $config): LogTransport {
+        Mail::extend('log', function (array $config): MarkedLogTransport {
             /** @var LoggerInterface $logger */
             $logger = $this->app->get(LoggerInterface::class);
             if ($logger instanceof LogManager) {
@@ -168,7 +168,7 @@ class AppServiceProvider extends ServiceProvider
                 $logger = $logger->channel($channel);
             }
 
-            return new LogTransport(new CapabilityRedactingMailLogger($logger));
+            return new MarkedLogTransport(new CapabilityRedactingMailLogger($logger));
         });
         $rootUrl = config()->string('app.url');
         if (parse_url($rootUrl, PHP_URL_SCHEME) === 'https') {
@@ -197,8 +197,8 @@ class AppServiceProvider extends ServiceProvider
         Event::listen([RoleAttachedEvent::class, RoleDetachedEvent::class], RecordRoleChange::class.'@__invoke');
         Event::listen([BackupHasFailed::class, BackupWasSuccessful::class], RecordBackupOutcome::class.'@__invoke');
         Event::listen(MasterSupervisorLooped::class, PublishWorkerMemory::class.'@__invoke');
-        Event::listen(MessageSent::class, static function (): void {
-            if (! MailDeliveryMode::logOnly()) {
+        Event::listen(MessageSent::class, static function (MessageSent $event): void {
+            if (! MailDeliveryMode::stayedLocal($event->sent)) {
                 app(MailTransportRecord::class)->recordSuccess(CarbonImmutable::now('UTC'));
             }
         });
