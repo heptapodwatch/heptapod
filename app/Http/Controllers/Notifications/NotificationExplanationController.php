@@ -11,7 +11,6 @@ use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\Check;
 use Heptapod\Models\User;
 use Heptapod\Queries\NotificationExplanationReader;
-use Heptapod\Settings\InstanceSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -21,7 +20,7 @@ use Illuminate\Validation\Rule;
 /** GET /notifications/explain (design §2.3): who would get one category of this check's alerts at a moment, and why. */
 final class NotificationExplanationController extends Controller
 {
-    public function __invoke(Request $request, NotificationExplanationReader $reader, InstanceSettings $settings): JsonResponse
+    public function __invoke(Request $request, NotificationExplanationReader $reader): JsonResponse
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
@@ -39,6 +38,6 @@ final class NotificationExplanationController extends Controller
         Gate::forUser($user)->authorize('view', $check->site);
 
         return response()->json([...$reader->explain($user, $check, NotificationCategory::from($data['category']), CarbonImmutable::parse($data['at'])->utc(),
-            isset($data['recovery_origin']) ? CheckResult::from($data['recovery_origin']) : null), 'timezone' => $settings->timezone]);
+            isset($data['recovery_origin']) ? CheckResult::from($data['recovery_origin']) : null), 'timezone' => $user->resolvedTimezone()]);
     }
 }
