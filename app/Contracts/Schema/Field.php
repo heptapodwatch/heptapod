@@ -12,6 +12,7 @@ final class Field extends Data
 {
     /** @param list<string> $rules
      * @param  array<string, Field>  $properties
+     * @param  array<string, string>  $ruleMessages  Rule name => translation key for custom validation messages.
      */
     public function __construct(
         public readonly FieldType $type,
@@ -25,6 +26,7 @@ final class Field extends Data
         public readonly array|string|int|float|bool|null|Optional $default = new Optional,
         public readonly bool $uppercase = false,
         public readonly bool $trimmedStrings = false,
+        private readonly array $ruleMessages = [],
     ) {
         if ($trimmedStrings && ($type !== FieldType::List || $items?->type !== FieldType::String)) {
             throw new \InvalidArgumentException('Only lists of non-secret strings may trim and drop blank items.');
@@ -102,6 +104,23 @@ final class Field extends Data
         }
 
         return $rules;
+    }
+
+    /** @return array<string, string> */
+    public function validationMessages(string $path): array
+    {
+        $messages = [];
+        foreach ($this->ruleMessages as $rule => $translationKey) {
+            $messages[$path.'.'.$rule] = (string) __($translationKey);
+        }
+        foreach ($this->properties as $name => $field) {
+            $messages += $field->validationMessages($path.'.'.$name);
+        }
+        if ($this->items instanceof Field) {
+            $messages += $this->items->validationMessages($path.'.*');
+        }
+
+        return $messages;
     }
 
     /**

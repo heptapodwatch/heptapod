@@ -165,9 +165,14 @@ final readonly class SiteDetailReader
                 continue;
             }
             $type = in_array($check->type, $this->registry->keys(), true) ? $this->registry->get($check->type) : null;
+            $attentionReason = $check->type === CheckKey::Sitemap
+                && is_string($check->executionConfig()['path'] ?? null)
+                && str_contains($check->executionConfig()['path'], '?')
+                ? 'sitemap.path_no_query'
+                : null;
             $settings[] = new CheckSettingsData($site->id, $check->id, $check->type, $strip->label_key, $check->enabled,
                 $check->interval_seconds, $type?->definition()->configSchema ?? new Schema([]),
-                (object) CheckSettingsProjection::masked($check), $canUpdate);
+                (object) CheckSettingsProjection::masked($check), $canUpdate, $attentionReason);
         }
 
         return $settings;

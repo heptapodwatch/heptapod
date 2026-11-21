@@ -123,7 +123,13 @@ final readonly class SitemapCheck implements CheckDetailProvider, CheckRunPresen
         return new CheckDefinition(
             CheckKey::Sitemap, 'checks.sitemap.label', 'map', 'checks-crawl', 300, 86400, 1, ExecutionMode::Poll,
             new Schema([
-                'path' => new Field(FieldType::String, ['sometimes', 'max:2048', 'regex:~^/(?!/)[^#\r\n]*$~'], presentation: new FieldPresentation('sitemap.path'), default: '/sitemap.xml'),
+                'path' => new Field(
+                    FieldType::String,
+                    ['sometimes', 'max:2048', 'not_regex:/\?/', 'regex:~^/(?!/)[^#\r\n]*$~'],
+                    presentation: new FieldPresentation('sitemap.path'),
+                    default: '/sitemap.xml',
+                    ruleMessages: ['not_regex' => 'sitemap.path_no_query'],
+                ),
                 'speed' => new Field(FieldType::String, ['sometimes', 'in:default,fast,slow,slowest,fastest'], presentation: new FieldPresentation('sitemap.speed', options: [
                     'default' => 'sitemap.speed.default', 'fast' => 'sitemap.speed.fast', 'slow' => 'sitemap.speed.slow', 'slowest' => 'sitemap.speed.slowest', 'fastest' => 'sitemap.speed.fastest',
                 ]), default: 'default'),
@@ -267,6 +273,17 @@ final readonly class SitemapCheck implements CheckDetailProvider, CheckRunPresen
         $client = $this->http->pacedClient($context, $delay);
         $secrets = array_column($context->crawlerHeaders, 'value');
         $checkUrl = Uri::new($context->url)->resolve($config['path'] ?? '/sitemap.xml')->toString();
+        // Legacy sitemap paths with query strings keep running until cleaned up, but their query values stay redacted.
+        $checkQuery = parse_url($checkUrl, PHP_URL_QUERY);
+        if (is_string($checkQuery) && $checkQuery !== '') {
+            $secrets[] = $checkQuery;
+            foreach (explode('&', $checkQuery) as $parameter) {
+                $value = explode('=', $parameter, 2)[1] ?? '';
+                if ($value !== '') {
+                    $secrets[] = $value;
+                }
+            }
+        }
         // Only the conventional default may be absent; a configured path that 404s is a real failure.
         $checksDefaultPath = $checkUrl === Uri::new($context->url)->resolve('/sitemap.xml')->toString();
         /** @var list<array{string, int}> $queue */

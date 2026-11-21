@@ -12,6 +12,7 @@ import {
     addSiteFieldViews,
 } from '@/components/schema-fields';
 import { FormSecondaryAction } from '@/components/form-section';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
 import { checkSettingLabels } from '@/lib/check-types';
@@ -461,6 +462,14 @@ function SavedCheckSettingsSheet({
                         </>
                     }
                 >
+                    {check.attention_reason && (
+                        <Alert tone="warning">
+                            <AlertTitle>{t('Needs attention')}</AlertTitle>
+                            <AlertDescription>
+                                {t(check.attention_reason)}
+                            </AlertDescription>
+                        </Alert>
+                    )}
                     <div className="grid gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                             <Label htmlFor="check-interval">

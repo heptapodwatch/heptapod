@@ -9116,6 +9116,9 @@
                                             "path": {
                                                 "default": "/sitemap.xml",
                                                 "maxLength": 2048,
+                                                "not": {
+                                                    "pattern": "\\?"
+                                                },
                                                 "pattern": "^/(?!/)[^#\\r\\n]*$",
                                                 "type": "string"
                                             },
@@ -11088,6 +11091,9 @@
                                             "path": {
                                                 "default": "/sitemap.xml",
                                                 "maxLength": 2048,
+                                                "not": {
+                                                    "pattern": "\\?"
+                                                },
                                                 "pattern": "^/(?!/)[^#\\r\\n]*$",
                                                 "type": "string"
                                             },

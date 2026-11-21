@@ -73,7 +73,7 @@ final class Schema extends Data
             }
         }
         /** @var array<string, mixed> $validated */
-        $validated = Validator::make(['values' => $values], $root->validationRules('values'), attributes: $root->attributeNames('values'))->validate()['values'];
+        $validated = Validator::make(['values' => $values], $root->validationRules('values'), messages: $root->validationMessages('values'), attributes: $root->attributeNames('values'))->validate()['values'];
 
         return $validated;
     }

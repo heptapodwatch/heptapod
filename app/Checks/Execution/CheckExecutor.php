@@ -99,7 +99,12 @@ final readonly class CheckExecutor
             if ($short !== []) {
                 throw ValidationException::withMessages(['secrets' => __('checks.secret_too_short')]);
             }
-            $schema->validateConfig($context->config);
+            $validationConfig = $context->config;
+            // Legacy sitemap paths with a query string keep running until cleaned up; write paths still refuse `?`.
+            if ($check->type === CheckKey::Sitemap && is_string($validationConfig['path'] ?? null) && str_contains($validationConfig['path'], '?')) {
+                $validationConfig['path'] = strstr($validationConfig['path'], '?', true);
+            }
+            $schema->validateConfig($validationConfig);
             $configValidated = true;
             $control->assertActive();
             // Push addons evaluate deadlines here; derived addons read history instead of polling.

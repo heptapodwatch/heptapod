@@ -342,18 +342,18 @@ Add `--only=sites,maintenance,cron,channels` (any subset) to read and write only
 
 ### Setting mapping
 
-| Source setting                                           | Imported as                                                                                                                  |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Optional setting absent or `null`                        | The check's default, also on reruns after local edits. The health URL and secret have none and need setup.                   |
-| HTTP verb                                                | Uppercase.                                                                                                                   |
-| Empty `look_for_string`, empty or `null` `absent_string` | No keyword rule.                                                                                                             |
-| `valid_status_codes`                                     | Unchanged, including patterns such as `2*` and `30*`.                                                                        |
-| `failed_notification_threshold: 0`                       | Uptime: alert delay of 1 minute, opening threshold unchanged. Other checks: `failure_threshold: 1`.                          |
-| `failed_notification_threshold` 2, `null` or absent      | Uptime uses the team's alert timing. Other values keep their minutes.                                                        |
-| Frequency value and unit                                 | Values 1–60 in minutes, hours or days, as `interval_seconds`. Without a value, the check's default. Without a unit, minutes. |
-| Domain expiry threshold                                  | Reported as unsupported when it cannot apply.                                                                                |
-| DNS ignored types                                        | Uppercase names known to `spatie/dns`. Unknown names are invalid.                                                            |
-| `broken_links_check_settings.whitelisted_urls`           | **Allowed broken URLs**. Invalid entries are skipped with a notice.                                                          |
-| `sitemap_check_settings` `path` and `speed`              | Relative paths gain a leading `/`. Absolute URLs and `..` are invalid. Default: `/sitemap.xml` and `default`.                |
+| Source setting                                           | Imported as                                                                                                                                                                          |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Optional setting absent or `null`                        | The check's default, also on reruns after local edits. The health URL and secret have none and need setup.                                                                           |
+| HTTP verb                                                | Uppercase.                                                                                                                                                                           |
+| Empty `look_for_string`, empty or `null` `absent_string` | No keyword rule.                                                                                                                                                                     |
+| `valid_status_codes`                                     | Unchanged, including patterns such as `2*` and `30*`.                                                                                                                                |
+| `failed_notification_threshold: 0`                       | Uptime: alert delay of 1 minute, opening threshold unchanged. Other checks: `failure_threshold: 1`.                                                                                  |
+| `failed_notification_threshold` 2, `null` or absent      | Uptime uses the team's alert timing. Other values keep their minutes.                                                                                                                |
+| Frequency value and unit                                 | Values 1–60 in minutes, hours or days, as `interval_seconds`. Without a value, the check's default. Without a unit, minutes.                                                         |
+| Domain expiry threshold                                  | Reported as unsupported when it cannot apply.                                                                                                                                        |
+| DNS ignored types                                        | Uppercase names known to `spatie/dns`. Unknown names are invalid.                                                                                                                    |
+| `broken_links_check_settings.whitelisted_urls`           | **Allowed broken URLs**. Invalid entries are skipped with a notice.                                                                                                                  |
+| `sitemap_check_settings` `path` and `speed`              | Relative paths gain a leading `/`. Absolute URLs, `..` and query strings (`?`) are invalid; send credentials through crawler headers instead. Default: `/sitemap.xml` and `default`. |
 
 Lighthouse, ports, DNS blocklist and AI checks are reported when no addon can map them.

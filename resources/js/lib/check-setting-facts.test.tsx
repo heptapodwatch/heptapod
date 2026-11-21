@@ -99,6 +99,7 @@ function summary(
             config_schema: { fields: schemas[key] ?? {} },
             settings,
             can_update: true,
+            attention_reason: null,
         },
         i18n.t,
         result.current,
