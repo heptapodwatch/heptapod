@@ -31,10 +31,11 @@ A late check shows **Late by** the time since its due time. Read the check type,
 
 When at least three uptime checks fail with network errors inside two minutes, Heptapod checks two outside DNS names and two direct-IP targets on independent providers.
 
+- If a burst has no fresh control verdict yet, Heptapod queues one background probe job and records the check normally without waiting.
 - If both DNS control probes fail, DNS-resolution uptime failures are recorded as **Check error** instead of **Down**.
 - If both direct-IP control probes fail, connection, timeout and DNS uptime failures are recorded as **Check error** instead of **Down**.
 - Reclassified runs open no site incidents, send no per-site alerts and count as no site downtime.
-- The first one or two failing checks run before the three-check threshold activates. With a failure threshold of one, or a prior failure, those leading checks can still open **Down**.
+- The first wave can still record normal failures before the probe verdict is cached. With a failure threshold of one, or a prior failure, those checks can still open **Down**.
 - One System alert reports the monitor outage and its recovery.
 - HTTP errors (such as 5xx), TLS failures and content failures stay **Down**.
 - If the control probes succeed, normal **Down** handling stands. This covers a partial monitor fault.

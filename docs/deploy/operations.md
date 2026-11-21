@@ -72,7 +72,7 @@ Operators can evaluate [Docker live restore](https://docs.docker.com/engine/daem
 
 ## Monitor outage guard
 
-When at least three distinct active uptime checks fail with network-level errors (DNS resolution, connection failure or timeout) within 120 seconds, Heptapod runs outside control probes (cached for 60 seconds) before attributing the burst to the monitored sites.
+When at least three distinct active uptime checks fail with network-level errors (DNS resolution, connection failure or timeout) within 120 seconds, Heptapod checks a single short-lived cached control verdict (120-second TTL) published by a unique queued job (`RunControlProbe` on `checks-fast`). Uptime checks never run control probes or wait on them.
 
 | Variable                                 | Default                      | Meaning                                                                                                                                                                             |
 | ---------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -80,14 +80,14 @@ When at least three distinct active uptime checks fail with network-level errors
 | `HEPTAPOD_CONTROL_PROBE_IP_TARGETS`      | `1.1.1.1:443,8.8.8.8:443`    | Comma-separated `ip:port` or `[ipv6]:port` targets (at least two on independent providers) checked with a plain TCP connect and immediate close. Empty disables IP control probing. |
 | `HEPTAPOD_CONTROL_PROBE_TIMEOUT_SECONDS` | `3`                          | Per-target timeout in seconds (`1`–`15`).                                                                                                                                           |
 
-Setting both `HEPTAPOD_CONTROL_PROBE_DNS_HOSTS=` and `HEPTAPOD_CONTROL_PROBE_IP_TARGETS=` to empty strings turns the guard off. Control probes send no HTTP request, no TLS SNI, no telemetry and no instance identifiers.
+Setting both `HEPTAPOD_CONTROL_PROBE_DNS_HOSTS=` and `HEPTAPOD_CONTROL_PROBE_IP_TARGETS=` to empty strings turns the guard off. Control probes send no HTTP request, no TLS handshake, no telemetry and no instance identifiers.
 
+- **No fresh verdict yet:** the uptime check dispatches `RunControlProbe` (unique via `ShouldBeUnique`) and records its failure normally without waiting. `RunControlProbe` bounds its whole batch inside its job timeout and publishes only a complete verdict (`failing` or `healthy`).
 - If all configured DNS probes fail, uptime runs failing with DNS resolution errors are recorded as **Check error** (`ReclassifiedCheckError`) without opening site incidents, sending per-site alerts or counting site downtime.
 - If all configured direct-IP probes fail, uptime runs failing with connection, timeout or DNS errors are reclassified the same way.
-- **Leading edge:** the first one or two failing checks in a burst run before the three-check threshold is crossed. With the default failure threshold of two, healthy sites do not open incidents on the first wave and are reclassified on the second. A site with a failure threshold of one, or one that already had a prior failure, can still open a **Down** incident on the leading edge before the guard activates.
-- **Job budget and concurrency:** at most one control probe batch runs in flight across workers, bounded by the check's remaining deadline (leaving a 2-second margin for recording). An unfinished batch does not count as a failed control verdict, and an older probe result cannot overwrite a newer verdict.
+- **Leading edge:** checks that fail before the three-check threshold is crossed or before the first `RunControlProbe` publishes its verdict record normally. With the default failure threshold of two, healthy sites do not open incidents on the first wave and are reclassified on the second. A site with a failure threshold of one, or one that already had a prior failure, can still open a **Down** incident on the leading edge.
 - HTTP status failures (such as 5xx), TLS failures, keyword failures and redirects always stay **Down**.
-- One `monitor_outage` system issue opens on the next system evaluation (alerting Owners, opted-in Admins and team System channels) and resolves once a fresh control probe passes again.
+- One `monitor_outage` system issue opens and resolves from the same cached verdict on system evaluation (alerting Owners, opted-in Admins and team System channels), with no separate probing path.
 - **False negative (partial monitor breakage):** if any control probe for that layer succeeds, the guard stays out and normal **Down** handling stands.
 - **False positive (control targets unreachable during a real wide outage):** affected runs are recorded as **Check error**, and the `monitor_outage` system issue explains that the control probes failed.
 

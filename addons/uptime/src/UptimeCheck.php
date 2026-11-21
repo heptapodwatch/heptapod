@@ -317,7 +317,7 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
         ), $context);
         $transfers = $response->transfers;
         if ($response->failure instanceof FetchFailure) {
-            $monitorOutage = $this->outageGuard?->evaluateFailure($context->checkId, $response->failure->kind, CarbonImmutable::now('UTC'), $context->deadline);
+            $monitorOutage = $this->outageGuard?->evaluateFailure($context->checkId, $response->failure->kind, CarbonImmutable::now('UTC'));
             if ($monitorOutage !== null) {
                 return $this->outcome($context, $transfers, $response->status, ['monitor_outage'], $response->failure->kind, $response->effectiveUrl, monitorOutage: $monitorOutage);
             }

@@ -186,7 +186,7 @@ final readonly class EvaluateSystemIssues
     private function apply(SystemIssueKind $kind, CarbonImmutable $now): void
     {
         $open = SystemIssue::open()->where('kind', $kind->value)->where('scope', '')->first();
-        $this->transition($kind, $now, $open, $this->detect($kind, $now, $open instanceof SystemIssue));
+        $this->transition($kind, $now, $open, $this->detect($kind, $now, $open));
     }
 
     /**
@@ -235,7 +235,7 @@ final readonly class EvaluateSystemIssues
     }
 
     /** @return array<string, int|string|null>|null the facts of an unhealthy condition, or null when healthy */
-    private function detect(SystemIssueKind $kind, CarbonImmutable $now, bool $isOpen): ?array
+    private function detect(SystemIssueKind $kind, CarbonImmutable $now, ?SystemIssue $open): ?array
     {
         return match ($kind) {
             SystemIssueKind::CheckNotFresh, SystemIssueKind::DiskSpaceLow, SystemIssueKind::ChannelFailing => throw new \LogicException('Scoped issues require a scope.'),
@@ -245,9 +245,9 @@ final readonly class EvaluateSystemIssues
             SystemIssueKind::SchedulerStale => $this->schedulerStale($now),
             SystemIssueKind::ChecksNotRunning => $this->checksNotRunning($now),
             SystemIssueKind::MailLogOnly => MailDeliveryMode::includesLocalTransport() ? ['mailer' => config()->string('mail.default'), 'mode' => MailDeliveryMode::logOnly() ? 'local' : 'mixed'] : null,
-            SystemIssueKind::MailTransportDead => $this->mailTransportDead($now, $isOpen),
+            SystemIssueKind::MailTransportDead => $this->mailTransportDead($now, $open instanceof SystemIssue),
             SystemIssueKind::NotificationsStalled => $this->notificationsStalled($now),
-            SystemIssueKind::MonitorOutage => $this->monitorOutage->evaluateSystemIssue($now, $isOpen),
+            SystemIssueKind::MonitorOutage => $this->monitorOutage->evaluateSystemIssue($now, $open?->details),
         };
     }
 
