@@ -51,7 +51,7 @@ final readonly class StopMaintenance
             return $periods->pluck('id')->all();
         };
         /** @var list<int> $windowIds */
-        $windowIds = $actor === null ? NotificationLocks::transaction($end) : ($this->authorize)($actor, 'update', $end, $site);
+        $windowIds = $actor instanceof User ? ($this->authorize)($actor, 'update', $end, $site) : NotificationLocks::transaction($end);
         if ($delaySeconds === 0) {
             foreach ($windowIds as $windowId) {
                 ($this->catchUps)($windowId);

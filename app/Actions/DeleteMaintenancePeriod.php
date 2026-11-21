@@ -24,7 +24,7 @@ final readonly class DeleteMaintenancePeriod
     public function __invoke(MaintenancePeriod $period, ?\Closure $authorize = null): void
     {
         NotificationLocks::transaction(function () use ($period, $authorize): void {
-            if ($authorize !== null) {
+            if ($authorize instanceof \Closure) {
                 NotificationLocks::maintenanceWindows([$period->id], exclusive: true);
                 $period = MaintenancePeriod::query()->findOrFail($period->id);
                 $authorize($period);

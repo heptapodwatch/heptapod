@@ -111,7 +111,7 @@ final class MaintenanceController extends Controller
     {
         $this->writable($request);
         // Answered before the form is validated, and decided again on the locked window.
-        self::refuseEnded($window);
+        $this->refuseEnded($window);
         $returnContext = MaintenanceReturnContext::parameters($request);
         $data = Validator::make($request->all(), [
             'name' => 'nullable|string|max:255', 'reason' => 'nullable|string|max:255',
@@ -125,7 +125,7 @@ final class MaintenanceController extends Controller
         $this->validTarget($data['target_type'], $data['target_id']);
         $start = $localTime->resolve(substr($data['starts_local'], 0, 10), substr($data['starts_local'], 11), $data['timezone']);
         $end = $localTime->resolve(substr($data['ends_local'], 0, 10), substr($data['ends_local'], 11), $data['timezone']);
-        $update($window, $data['name'] ?? null, $start, $end, $data, self::refuseEnded(...));
+        $update($window, $data['name'] ?? null, $start, $end, $data, $this->refuseEnded(...));
 
         return to_route('maintenance.index', $returnContext);
     }
@@ -134,13 +134,13 @@ final class MaintenanceController extends Controller
     {
         $this->writable($request);
         $returnContext = MaintenanceReturnContext::parameters($request);
-        $delete($window, self::refuseStarted(...));
+        $delete($window, $this->refuseStarted(...));
 
         return to_route('maintenance.index', $returnContext);
     }
 
     /** Decided on the locked window (UpdateMaintenancePeriod): a window ended meanwhile is not reopened by an older form. */
-    private static function refuseEnded(MaintenancePeriod $window): void
+    private function refuseEnded(MaintenancePeriod $window): void
     {
         if ($window->ends_at <= CarbonImmutable::now('UTC')) {
             throw new ExpectedRefusal(
@@ -153,7 +153,7 @@ final class MaintenanceController extends Controller
     }
 
     /** Decided on the locked window (DeleteMaintenancePeriod): a window that has started meanwhile is not deleted. */
-    private static function refuseStarted(MaintenancePeriod $window): void
+    private function refuseStarted(MaintenancePeriod $window): void
     {
         if ($window->starts_at <= CarbonImmutable::now('UTC')) {
             throw new ExpectedRefusal(

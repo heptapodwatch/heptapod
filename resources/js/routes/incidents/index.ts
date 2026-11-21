@@ -378,7 +378,7 @@ show.form = showForm
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::note
-* @see app/Http/Controllers/IncidentActionsController.php:17
+* @see app/Http/Controllers/IncidentActionsController.php:19
 * @route '/incidents/{incident}/note'
 */
 export const note = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -393,7 +393,7 @@ note.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::note
-* @see app/Http/Controllers/IncidentActionsController.php:17
+* @see app/Http/Controllers/IncidentActionsController.php:19
 * @route '/incidents/{incident}/note'
 */
 note.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -420,7 +420,7 @@ note.url = (args: { incident: string | number } | [incident: string | number ] |
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::note
-* @see app/Http/Controllers/IncidentActionsController.php:17
+* @see app/Http/Controllers/IncidentActionsController.php:19
 * @route '/incidents/{incident}/note'
 */
 note.put = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -430,7 +430,7 @@ note.put = (args: { incident: string | number } | [incident: string | number ] |
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::note
-* @see app/Http/Controllers/IncidentActionsController.php:17
+* @see app/Http/Controllers/IncidentActionsController.php:19
 * @route '/incidents/{incident}/note'
 */
 const noteForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -445,7 +445,7 @@ const noteForm = (args: { incident: string | number } | [incident: string | numb
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::note
-* @see app/Http/Controllers/IncidentActionsController.php:17
+* @see app/Http/Controllers/IncidentActionsController.php:19
 * @route '/incidents/{incident}/note'
 */
 noteForm.put = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -462,7 +462,7 @@ note.form = noteForm
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::snooze
-* @see app/Http/Controllers/IncidentActionsController.php:31
+* @see app/Http/Controllers/IncidentActionsController.php:33
 * @route '/incidents/{incident}/snooze'
 */
 export const snooze = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -477,7 +477,7 @@ snooze.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::snooze
-* @see app/Http/Controllers/IncidentActionsController.php:31
+* @see app/Http/Controllers/IncidentActionsController.php:33
 * @route '/incidents/{incident}/snooze'
 */
 snooze.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -504,7 +504,7 @@ snooze.url = (args: { incident: string | number } | [incident: string | number ]
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::snooze
-* @see app/Http/Controllers/IncidentActionsController.php:31
+* @see app/Http/Controllers/IncidentActionsController.php:33
 * @route '/incidents/{incident}/snooze'
 */
 snooze.post = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -514,7 +514,7 @@ snooze.post = (args: { incident: string | number } | [incident: string | number 
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::snooze
-* @see app/Http/Controllers/IncidentActionsController.php:31
+* @see app/Http/Controllers/IncidentActionsController.php:33
 * @route '/incidents/{incident}/snooze'
 */
 const snoozeForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -524,7 +524,7 @@ const snoozeForm = (args: { incident: string | number } | [incident: string | nu
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::snooze
-* @see app/Http/Controllers/IncidentActionsController.php:31
+* @see app/Http/Controllers/IncidentActionsController.php:33
 * @route '/incidents/{incident}/snooze'
 */
 snoozeForm.post = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -536,7 +536,7 @@ snooze.form = snoozeForm
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::unsnooze
-* @see app/Http/Controllers/IncidentActionsController.php:41
+* @see app/Http/Controllers/IncidentActionsController.php:43
 * @route '/incidents/{incident}/snooze'
 */
 export const unsnooze = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -551,7 +551,7 @@ unsnooze.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::unsnooze
-* @see app/Http/Controllers/IncidentActionsController.php:41
+* @see app/Http/Controllers/IncidentActionsController.php:43
 * @route '/incidents/{incident}/snooze'
 */
 unsnooze.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -578,7 +578,7 @@ unsnooze.url = (args: { incident: string | number } | [incident: string | number
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::unsnooze
-* @see app/Http/Controllers/IncidentActionsController.php:41
+* @see app/Http/Controllers/IncidentActionsController.php:43
 * @route '/incidents/{incident}/snooze'
 */
 unsnooze.delete = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -588,7 +588,7 @@ unsnooze.delete = (args: { incident: string | number } | [incident: string | num
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::unsnooze
-* @see app/Http/Controllers/IncidentActionsController.php:41
+* @see app/Http/Controllers/IncidentActionsController.php:43
 * @route '/incidents/{incident}/snooze'
 */
 const unsnoozeForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -603,7 +603,7 @@ const unsnoozeForm = (args: { incident: string | number } | [incident: string | 
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::unsnooze
-* @see app/Http/Controllers/IncidentActionsController.php:41
+* @see app/Http/Controllers/IncidentActionsController.php:43
 * @route '/incidents/{incident}/snooze'
 */
 unsnoozeForm.delete = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

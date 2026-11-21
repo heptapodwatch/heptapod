@@ -28,7 +28,7 @@ final class IncidentNoteController extends Controller
         return $this->note($incident);
     }
 
-    public function update(Request $request, int $incident, SaveIncidentNote $save, AuthorizeSiteWrite $authorize): JsonResponse
+    public function update(Request $request, int $incident, IncidentsReader $reader, SaveIncidentNote $save, AuthorizeSiteWrite $authorize): JsonResponse
     {
         $user = $this->principal($request);
         $data = Validator::make($request->all(), ['note' => ['present', 'nullable', 'string', 'max:10000']])->validate();
@@ -37,7 +37,7 @@ final class IncidentNoteController extends Controller
             throw new \LogicException('Validated incident note must be text.');
         }
 
-        return $this->note($authorize->incident($user, $incident, static fn (Incident $visible): Incident => $save($visible, $user, $note)));
+        return $this->note($authorize->incident($user, $reader->scoped($user)->findOrFail($incident), static fn (Incident $visible): Incident => $save($visible, $user, $note)));
     }
 
     private function note(Incident $incident): JsonResponse

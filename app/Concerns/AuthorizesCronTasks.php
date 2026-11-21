@@ -29,15 +29,13 @@ trait AuthorizesCronTasks
         return $monitor->checks()->getQuery()->where('type', CheckKey::Cron)->first();
     }
 
-    /**
-     * The task and its check, not yet authorized: writes authorize the check under its site's lock (AuthorizeSiteWrite).
-     *
-     * @return array{CronTaskData, Check}
-     */
-    private function task(int $id): array
+    /** @return array{CronTaskData, Check} */
+    private function task(int $id, string $ability): array
     {
         $task = $this->store()->find($id);
+        $check = Check::query()->findOrFail($task->checkId);
+        Gate::authorize($ability, $check);
 
-        return [$task, Check::query()->findOrFail($task->checkId)];
+        return [$task, $check];
     }
 }

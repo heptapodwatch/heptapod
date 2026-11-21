@@ -35,7 +35,7 @@ final class CronTaskController extends Controller
 
     public function create(Request $request, Site $monitor, AuthorizeSiteWrite $authorize): JsonResponse
     {
-        $this->store();
+        $this->parent($monitor, 'update');
         /** @var array<string, mixed> $values */
         $values = $request->all();
         $task = $authorize($this->principal($request), 'update', static fn (): CronTaskData => app(CreateCronTask::class)($monitor, $values), $monitor);
@@ -45,7 +45,7 @@ final class CronTaskController extends Controller
 
     public function update(Request $request, int $cronTask, AuthorizeSiteWrite $authorize): CronTaskResource
     {
-        [$task, $check] = $this->task($cronTask);
+        [$task, $check] = $this->task($cronTask, 'update');
         /** @var array<string, mixed> $values */
         $values = $request->all();
 
@@ -55,7 +55,7 @@ final class CronTaskController extends Controller
 
     public function destroy(Request $request, int $cronTask, AuthorizeSiteWrite $authorize): Response
     {
-        [$task, $check] = $this->task($cronTask);
+        [$task, $check] = $this->task($cronTask, 'update');
         $authorize($this->principal($request), 'update', static fn () => app(DeleteCronTask::class)($check, $task->id), $check);
 
         return response()->noContent();

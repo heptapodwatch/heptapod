@@ -78,7 +78,7 @@ it('refuses a scoped token write once the site has moved to another client', fun
     'maintenance stop' => [static function (Site $site): array {
         $window = app(StartMaintenance::class)($site);
 
-        return ['POST', '/api/monitors/'.$site->id.'/stop-maintenance', [], static fn (): string => MaintenancePeriod::query()->findOrFail($window->id)->ends_at->toIso8601String()];
+        return ['POST', '/api/monitors/'.$site->id.'/stop-maintenance', [], MaintenancePeriod::query()->findOrFail($window->id)->ends_at->toIso8601String(...)];
     }],
     'maintenance window create' => [static fn (Site $site): array => ['POST', '/api/maintenance-periods', ['monitor_id' => $site->id,
         'starts_at' => CarbonImmutable::now('UTC')->addDay()->format('Y-m-d H:i'), 'ends_at' => CarbonImmutable::now('UTC')->addDay()->addHour()->format('Y-m-d H:i')],

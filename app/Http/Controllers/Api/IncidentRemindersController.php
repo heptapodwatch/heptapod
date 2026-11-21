@@ -10,6 +10,7 @@ use Heptapod\Actions\SnoozeIncidentReminders;
 use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\Incident;
+use Heptapod\Queries\IncidentsReader;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -19,19 +20,25 @@ final class IncidentRemindersController extends Controller
 {
     use ResolvesApiPrincipal;
 
-    public function store(Request $request, int $incident, SnoozeIncidentReminders $snooze, AuthorizeSiteWrite $authorize): JsonResponse
+    public function store(Request $request, int $incident, IncidentsReader $reader, SnoozeIncidentReminders $snooze, AuthorizeSiteWrite $authorize): JsonResponse
     {
         $user = $this->principal($request);
         Validator::make($request->all(), ['minutes' => ['required', 'integer', 'between:1,525600']])->validate();
-        $snoozed = $authorize->incident($user, $incident, static fn (Incident $visible): Incident => $snooze($visible, $request->integer('minutes')));
+        $snoozed = $authorize->incident($user, $reader->scoped($user)->findOrFail($incident), static fn (Incident $visible): Incident => $snooze($visible, $request->integer('minutes')));
 
-        return response()->json(['snoozed_until' => $snoozed->snoozed_until?->toIso8601String()]);
+        return response()->json(['snoozed_until' => $this->snoozedUntil($snoozed)]);
     }
 
-    public function destroy(Request $request, int $incident, SnoozeIncidentReminders $snooze, AuthorizeSiteWrite $authorize): JsonResponse
+    /** Typed here: the OpenAPI export cannot infer the incident through the locked write. */
+    private function snoozedUntil(Incident $incident): ?string
+    {
+        return $incident->snoozed_until?->toIso8601String();
+    }
+
+    public function destroy(Request $request, int $incident, IncidentsReader $reader, SnoozeIncidentReminders $snooze, AuthorizeSiteWrite $authorize): JsonResponse
     {
         $user = $this->principal($request);
-        $authorize->incident($user, $incident, static fn (Incident $visible): Incident => $snooze($visible, null));
+        $authorize->incident($user, $reader->scoped($user)->findOrFail($incident), static fn (Incident $visible): Incident => $snooze($visible, null));
 
         return response()->json(['snoozed_until' => null]);
     }

@@ -25,14 +25,11 @@ final class SyncCronTasksController extends Controller
 
     public function __invoke(Request $request, Site $monitor, AuthorizeSiteWrite $authorize): JsonResponse
     {
-        $this->store();
-        $tasks = $authorize($this->principal($request), 'update', static function () use ($request, $monitor): array {
-            /** @var array{cron_checks: list<array<string, mixed>>} $values */
-            $values = Validator::make($request->all(), ['cron_checks' => ['present', 'array', 'list', 'max:1000'], 'cron_checks.*' => ['required', 'array']])->validate();
-
-            /** @var list<CronTaskData> */
-            return app(SyncCronTasks::class)($monitor, $values['cron_checks']);
-        }, $monitor);
+        $this->parent($monitor, 'update');
+        /** @var array{cron_checks: list<array<string, mixed>>} $values */
+        $values = Validator::make($request->all(), ['cron_checks' => ['present', 'array', 'list', 'max:1000'], 'cron_checks.*' => ['required', 'array']])->validate();
+        /** @var list<CronTaskData> $tasks */
+        $tasks = $authorize($this->principal($request), 'update', static fn (): array => app(SyncCronTasks::class)($monitor, $values['cron_checks']), $monitor);
 
         return response()->json(CronTaskResource::collection($tasks)->resolve());
     }

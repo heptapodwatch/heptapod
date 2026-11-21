@@ -57,7 +57,7 @@ function siteWriteRace(Closure $change, string $method, string $uri, array $body
 {
     DB::commit();
     $request = new Process([PHP_BINARY, __DIR__.'/site-write-request.php', $method, $uri, json_encode($body === [] ? new stdClass : $body, JSON_THROW_ON_ERROR),
-        $token, $webUser === null ? '' : (string) $webUser->id, $pauseAfter], base_path(), [
+        $token, $webUser instanceof User ? (string) $webUser->id : '', $pauseAfter], base_path(), [
             'APP_ENV' => 'testing', 'DB_DATABASE' => config('database.connections.pgsql.database'), 'DB_URL' => '',
             'CACHE_STORE' => 'array', 'SESSION_DRIVER' => 'array', 'QUEUE_CONNECTION' => 'database', 'BROADCAST_CONNECTION' => 'null',
         ], timeout: 30);

@@ -21,7 +21,7 @@ final class UnsnoozeCronTaskController extends Controller
 
     public function __invoke(Request $request, int $cronTask, AuthorizeSiteWrite $authorize): CronTaskResource
     {
-        [$task, $check] = $this->task($cronTask);
+        [$task, $check] = $this->task($cronTask, 'snooze');
         $user = $this->principal($request);
         $authorize($user, 'snooze', static fn () => app(UnsnoozeCronTask::class)($check, $task->id, $user), $check);
 

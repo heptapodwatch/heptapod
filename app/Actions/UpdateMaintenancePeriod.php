@@ -26,7 +26,7 @@ final readonly class UpdateMaintenancePeriod
             // NotificationLocks: the window (exclusive), then (wakeWindow, on an ends_at or mute change) the deliveries it blocks.
             NotificationLocks::maintenanceWindows([$period->id], exclusive: true);
             $period = MaintenancePeriod::query()->findOrFail($period->id);
-            if ($authorize !== null) {
+            if ($authorize instanceof \Closure) {
                 $authorize($period);
             }
             $startsAt = $period->starts_at <= CarbonImmutable::now() ? $period->starts_at : $startsAt;
