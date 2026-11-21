@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\CreateApiToken;
 use Heptapod\Actions\RequestCheckRun;
 use Heptapod\Addons\Cron\CronCheck;
 use Heptapod\Checks\Execution\CheckExecutor;
@@ -95,6 +96,48 @@ it('enforces independent abilities while Admin sees all task IDs', function (): 
     $this->withToken($member->createToken('member-write', ['*'])->plainTextToken);
     $this->postJson($this->url, $this->definition)->assertForbidden();
     $this->postJson($this->url.'/sync', ['cron_checks' => [$this->definition]])->assertForbidden();
+});
+
+it('masks cron uuid and ping_url unless the actor is an Owner or Admin with checks:write', function (): void {
+    $task = $this->postJson($this->url, $this->definition)->assertCreated()->json();
+    $nullUuid = '00000000-0000-0000-0000-000000000000';
+
+    foreach ([
+        'checks:read' => ['checks:read'],
+        'agent-read' => CreateApiToken::AgentReadPreset,
+    ] as $label => $abilities) {
+        $response = $this->withToken($this->owner->createToken($label, $abilities)->plainTextToken)
+            ->getJson($this->url)->assertOk();
+        $response->assertJsonPath('data.0.uuid', '********')
+            ->assertDontSee($task['uuid']);
+        expect($response->json('data.0.ping_url'))->toContain($nullUuid);
+    }
+
+    $snoozeToken = $this->owner->createToken('snooze-only', ['checks:snooze'])->plainTextToken;
+    $snoozed = $this->withToken($snoozeToken)
+        ->postJson('/api/cron-checks/'.$task['id'].'/snooze', ['minutes' => 10])->assertOk();
+    $snoozed->assertJsonPath('uuid', '********')->assertDontSee($task['uuid']);
+    expect($snoozed->json('ping_url'))->toContain($nullUuid);
+
+    $unsnoozed = $this->withToken($snoozeToken)
+        ->postJson('/api/cron-checks/'.$task['id'].'/unsnooze')->assertOk();
+    $unsnoozed->assertJsonPath('uuid', '********')->assertDontSee($task['uuid']);
+    expect($unsnoozed->json('ping_url'))->toContain($nullUuid);
+
+    $readWrite = $this->owner->createToken('read-write', ['checks:read', 'checks:write'])->plainTextToken;
+    $this->withToken($readWrite)->getJson($this->url)->assertOk()
+        ->assertJsonPath('data.0.uuid', $task['uuid'])
+        ->assertJsonPath('data.0.ping_url', $task['ping_url']);
+    $this->withToken($readWrite)->postJson('/api/cron-checks/'.$task['id'].'/snooze', ['minutes' => 10])->assertOk()
+        ->assertJsonPath('uuid', $task['uuid'])
+        ->assertJsonPath('ping_url', $task['ping_url']);
+
+    $memberWrite = User::factory()->create();
+    $memberWrite->assignRole('Member');
+    $this->withToken($memberWrite->createToken('member-all', ['*'])->plainTextToken)
+        ->getJson($this->url)->assertOk()
+        ->assertJsonPath('data.0.uuid', '********')
+        ->assertDontSee($task['uuid']);
 });
 
 it('returns not found for an uninstalled cron addon without resolving the unbound store', function (): void {

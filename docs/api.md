@@ -182,7 +182,7 @@ Scheduled tasks are created, changed and deleted only through the API.
 - Writes need the Owner or Admin role. Members read the tasks they can see.
 - Snooze and unsnooze take `checks:snooze` or `checks:write` and apply to one task.
 - A hidden task, or an uninstalled cron addon, returns 404.
-- Member responses mask the task UUID and show a ping URL that does not work.
+- Responses reveal the task UUID and working ping URL only to Owners and Admins using a token with `checks:write`. Members and tokens without `checks:write` (including `checks:read`, `agent-read` and `checks:snooze`) receive a masked UUID and a non-working ping URL.
 
 ### Use spatie/laravel-schedule-monitor
 

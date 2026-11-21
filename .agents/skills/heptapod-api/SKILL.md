@@ -48,7 +48,7 @@ Rate budget: 60 requests per minute per token, plus 60 per minute per user acros
 | **Check error** | The app could not check. It says nothing about the site.                                                       | result `errored-or-timed-out`, incident `cause: errored` |
 | **Down**        | An uptime outage. Use it only for uptime; never call another failure "Down".                                   | `cause: failed` on an `uptime` check                     |
 
-Do not state a cause the API does not return. Example: incidents and activity say that a cron check failed, not whether a ping was missed or the task reported a failure. Say the cause is unknown, or read `GET /api/monitors/{id}/cron-checks` (needs `checks:read`).
+Do not state a cause the API does not return. Example: incidents and activity say that a cron check failed, not whether a ping was missed or the task reported a failure. Say the cause is unknown, or read `GET /api/monitors/{id}/cron-checks` (needs `checks:read`; tokens without `checks:write` receive a masked `uuid` and a non-working `ping_url`).
 
 ## Triage
 
