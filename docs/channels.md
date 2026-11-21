@@ -11,6 +11,8 @@ If a test fails, the channel sheet shows the provider's reason, as listed in the
 
 Email: see [Email setup](./notifications.md#email-setup). Webhook: see [Verify webhook deliveries](./webhook-receivers.md).
 
+ntfy and Microsoft Teams channels need an `https://` address. Plain `http://` works only for a private host that the instance Owner lists in `HEPTAPOD_DELIVERY_PRIVATE_HOSTS`. After the upgrade that introduced this rule, a channel that was on with another `http://` address is paused and shown as needing attention. Its address is kept. Save an `https://` address, or ask the Owner to list the host and then save the channel again, to resume it.
+
 ### Slack
 
 Heptapod needs a bot token and a channel ID.
