@@ -5,55 +5,68 @@ declare(strict_types=1);
 namespace Heptapod\Checks\History;
 
 use Carbon\CarbonImmutable;
-use Closure;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 final class HistoryRetention
 {
-    public function hourlyCandidates(CarbonImmutable $at, RetentionPolicy $policy, bool $covered = true): Builder
-    {
-        $cutoff = $at->utc()->subDays($policy->hourlyDays);
-
-        return DB::table('check_run_rollups_hourly as hourly')
-            ->where('hourly.bucket_start', '<', $cutoff)
-            ->whereExists(function (Builder $query) use ($cutoff): void {
-                $query->selectRaw('1')->from('check_run_rollups_daily as daily')
-                    ->whereColumn('daily.check_id', 'hourly.check_id')
-                    ->where('daily.bucket_start', '<', $cutoff)
-                    ->whereRaw("daily.bucket_start = date_trunc('day', hourly.bucket_start, 'UTC')")
-                    ->whereRaw("daily.computed_at >= daily.bucket_start + interval '1 day 10 minutes'");
-            }, not: ! $covered);
-    }
+    private const int HourlyWindowSize = 10000;
 
     /** @return array{deleted: int, uncovered: int} */
     public function pruneHourly(CarbonImmutable $at, RetentionPolicy $policy): array
     {
-        $deleted = 0;
-        if ($policy->hourlyDeletionEnabled) {
-            do {
-                $limit = min(10000, RetentionPolicy::PerTableCap - $deleted);
-                /** @var list<int> $ids */
-                $ids = $this->withHashJoin(fn (): array => $this->hourlyCandidates($at, $policy)
-                    ->orderBy('hourly.bucket_start')
-                    ->limit($limit)
-                    ->pluck('hourly.id')
-                    ->all());
-                if ($ids === []) {
-                    break;
-                }
-                // Run each batch delete inside a savepoint/transaction so a failure rolls back cleanly before
-                // CheckDataMaintenance unlocks its advisory lock instead of masking the error with 25P02.
-                $batch = DB::transaction(static fn (): int => DB::affectingStatement(
-                    'DELETE FROM check_run_rollups_hourly WHERE id = ANY(?::bigint[])',
-                    ['{'.implode(',', $ids).'}'],
-                ));
-                $deleted += $batch;
-            } while ($batch > 0 && count($ids) === $limit && $deleted < RetentionPolicy::PerTableCap);
+        $cutoff = $at->utc()->subDays($policy->hourlyDays)->format('Y-m-d H:i:s.uP');
+        if (! $policy->hourlyDeletionEnabled) {
+            return ['deleted' => 0, 'uncovered' => $this->summarizeExpiredHourly($cutoff)['uncovered']];
         }
 
-        $uncovered = $this->withHashJoin(fn (): int => $this->hourlyCandidates($at, $policy, covered: false)->count());
+        $deleted = 0;
+        $uncovered = 0;
+        $afterBucketStart = null;
+        $afterId = null;
+        $hasMore = false;
+
+        while ($deleted < RetentionPolicy::PerTableCap) {
+            $rows = $this->readHourlyWindow($cutoff, $afterBucketStart, $afterId);
+            if ($rows === []) {
+                $hasMore = false;
+
+                break;
+            }
+
+            $coveredIds = [];
+            foreach ($rows as $row) {
+                if ($row->covered) {
+                    $coveredIds[] = $row->id;
+                } else {
+                    $uncovered++;
+                }
+            }
+
+            $last = array_last($rows);
+            $afterBucketStart = $last->bucket_start;
+            $afterId = $last->id;
+            $hasMore = count($rows) === self::HourlyWindowSize;
+
+            if ($coveredIds !== []) {
+                $toDelete = array_slice($coveredIds, 0, RetentionPolicy::PerTableCap - $deleted);
+                // Run each batch delete inside a savepoint/transaction so a failure rolls back cleanly before
+                // CheckDataMaintenance unlocks its advisory lock instead of masking the error with 25P02.
+                $deleted += DB::transaction(static fn (): int => DB::affectingStatement(
+                    'DELETE FROM check_run_rollups_hourly WHERE id = ANY(?::bigint[])',
+                    ['{'.implode(',', $toDelete).'}'],
+                ));
+            }
+
+            if (! $hasMore) {
+                break;
+            }
+        }
+
+        if ($hasMore) {
+            $uncovered += $this->summarizeExpiredHourly($cutoff, $afterBucketStart, $afterId)['uncovered'];
+        }
 
         return ['deleted' => $deleted, 'uncovered' => $uncovered];
     }
@@ -85,12 +98,20 @@ final class HistoryRetention
             ->whereNotIn('event.id', (clone $digestEvents)->select('event.id'));
         $deliveries = DB::table('deliveries')->whereIn('event_id', (clone $events)->select('event.id'));
         $exemptDeliveries = DB::table('deliveries')->whereIn('event_id', (clone $oldEvents)->select('event.id'))->count() - $deliveries->count();
-        $uncovered = $this->withHashJoin(fn (): int => $this->hourlyCandidates($at, $policy, covered: false)->count());
+        $hourly = $this->summarizeExpiredHourly($at->utc()->subDays($policy->hourlyDays)->format('Y-m-d H:i:s.uP'));
         $open = DB::table('incidents')->whereNull('resolved_at')->count();
         $episode = DB::table('incidents')->where('resolved_at', '<', $cutoff)->count() - $incidents->count();
 
         return [
-            $this->withHashJoin(fn (): array => $this->reportRow('check_run_rollups_hourly', $this->hourlyCandidates($at, $policy), 'hourly.bucket_start', 'daily coverage missing='.$uncovered, deletionEnabled: $policy->hourlyDeletionEnabled)),
+            [
+                'table' => 'check_run_rollups_hourly',
+                'eligible' => $hourly['eligible'],
+                'oldest' => $hourly['oldest'],
+                'capped' => min($hourly['eligible'], RetentionPolicy::PerTableCap),
+                'cap' => RetentionPolicy::PerTableCap,
+                'exemptions' => 'daily coverage missing='.$hourly['uncovered'],
+                'deletion_enabled' => $policy->hourlyDeletionEnabled,
+            ],
             $this->reportRow('check_run_rollups_daily', DB::table('check_run_rollups_daily')->where('bucket_start', '<', $at->utc()->subDays($policy->dailyDays)), 'bucket_start'),
             $this->reportRow('events', $events, 'event.occurred_at', 'kept incident='.$keptIncidentEvents->count().'; pending/sending='.$pendingEvents->count().'; digest sources retained='.$digestEvents->count()),
             $this->reportRow('deliveries', $deliveries->join('events', 'events.id', '=', 'deliveries.event_id'), 'events.occurred_at', 'retained with exempt events='.$exemptDeliveries),
@@ -120,29 +141,103 @@ final class HistoryRetention
     }
 
     /**
-     * Stale or zero planner statistics on either rollup table make PostgreSQL pick a nested-loop or
-     * check-only merge join for the daily bucket lookup, turning hourly retention quadratic.
+     * Bounds each coverage check to one (bucket_start, id) cursor window and distinct daily keys,
+     * keeping work proportional to the window without planner hints or temp-disk hash spills.
      *
-     * @template T
-     *
-     * @param  Closure(): T  $callback
-     * @return T
+     * @return list<object{id: int, bucket_start: string, covered: bool}>
      */
-    private function withHashJoin(Closure $callback): mixed
+    private function readHourlyWindow(string $cutoff, ?string $afterBucketStart, ?int $afterId): array
     {
-        return DB::transaction(static function () use ($callback): mixed {
-            /** @var object{nestloop: string, mergejoin: string} $settings */
-            $settings = DB::selectOne("SELECT current_setting('enable_nestloop') AS nestloop, current_setting('enable_mergejoin') AS mergejoin");
-            $nestloop = $settings->nestloop === 'on' ? 'on' : 'off';
-            $mergejoin = $settings->mergejoin === 'on' ? 'on' : 'off';
-            DB::statement('SET LOCAL enable_nestloop = off');
-            DB::statement('SET LOCAL enable_mergejoin = off');
-            $result = $callback();
-            // Restore caller settings when nested inside an outer transaction; rollback restores them automatically on error.
-            DB::statement('SET LOCAL enable_nestloop = '.$nestloop);
-            DB::statement('SET LOCAL enable_mergejoin = '.$mergejoin);
+        ['sql' => $windowQuery, 'bindings' => $bindings] = $this->hourlyWindowQuery($cutoff, $afterBucketStart, $afterId);
 
-            return $result;
-        });
+        /** @var list<object{id: int, bucket_start: string, covered: bool}> $rows */
+        $rows = DB::select(<<<SQL
+            {$windowQuery}
+            SELECT w.id, w.bucket_start, (c.check_id IS NOT NULL) AS covered
+            FROM window_rows w
+            LEFT JOIN covered_days c
+              ON c.check_id = w.check_id AND c.day_start = w.day_start
+            ORDER BY w.bucket_start, w.id
+            SQL, $bindings);
+
+        return $rows;
+    }
+
+    /** @return array{eligible: int, uncovered: int, oldest: ?string} */
+    private function summarizeExpiredHourly(string $cutoff, ?string $afterBucketStart = null, ?int $afterId = null): array
+    {
+        $eligible = 0;
+        $uncovered = 0;
+        $oldest = null;
+
+        do {
+            ['sql' => $windowQuery, 'bindings' => $bindings] = $this->hourlyWindowQuery($cutoff, $afterBucketStart, $afterId);
+            /** @var object{scanned: int, eligible: int, uncovered: int, oldest_covered: ?string, last_bucket_start: ?string, last_id: ?int} $window */
+            $window = DB::selectOne(<<<SQL
+                {$windowQuery},
+                classified AS (
+                    SELECT w.id, w.bucket_start, (c.check_id IS NOT NULL) AS covered
+                    FROM window_rows w
+                    LEFT JOIN covered_days c
+                      ON c.check_id = w.check_id AND c.day_start = w.day_start
+                )
+                SELECT
+                    count(*)::int AS scanned,
+                    count(*) FILTER (WHERE covered)::int AS eligible,
+                    count(*) FILTER (WHERE NOT covered)::int AS uncovered,
+                    min(bucket_start) FILTER (WHERE covered) AS oldest_covered,
+                    (SELECT bucket_start FROM window_rows ORDER BY bucket_start DESC, id DESC LIMIT 1) AS last_bucket_start,
+                    (SELECT id FROM window_rows ORDER BY bucket_start DESC, id DESC LIMIT 1) AS last_id
+                FROM classified
+                SQL, $bindings);
+            $eligible += $window->eligible;
+            $uncovered += $window->uncovered;
+            if ($oldest === null && $window->oldest_covered !== null) {
+                $oldest = $window->oldest_covered;
+            }
+            $afterBucketStart = $window->last_bucket_start;
+            $afterId = $window->last_id;
+        } while ($window->scanned === self::HourlyWindowSize);
+
+        return ['eligible' => $eligible, 'uncovered' => $uncovered, 'oldest' => $oldest];
+    }
+
+    /** @return array{sql: string, bindings: list<int|string>} */
+    private function hourlyWindowQuery(string $cutoff, ?string $afterBucketStart, ?int $afterId): array
+    {
+        if ($afterBucketStart !== null && $afterId !== null) {
+            $predicate = 'WHERE bucket_start >= ?::timestamptz AND bucket_start < ?::timestamptz AND (bucket_start > ?::timestamptz OR id > ?)';
+            $bindings = [$afterBucketStart, $cutoff, $afterBucketStart, $afterId, self::HourlyWindowSize];
+        } else {
+            $predicate = 'WHERE bucket_start < ?::timestamptz';
+            $bindings = [$cutoff, self::HourlyWindowSize];
+        }
+
+        $sql = <<<SQL
+            WITH window_rows AS MATERIALIZED (
+                SELECT id, check_id, bucket_start, date_trunc('day', bucket_start, 'UTC') AS day_start
+                FROM check_run_rollups_hourly
+                {$predicate}
+                ORDER BY bucket_start, id
+                LIMIT ?
+            ),
+            days AS MATERIALIZED (
+                SELECT DISTINCT check_id, day_start FROM window_rows
+            ),
+            covered_days AS MATERIALIZED (
+                SELECT d.check_id, d.day_start
+                FROM days d
+                JOIN LATERAL (
+                    SELECT 1
+                    FROM check_run_rollups_daily daily
+                    WHERE daily.check_id = d.check_id
+                      AND daily.bucket_start = d.day_start
+                      AND daily.computed_at >= daily.bucket_start + interval '1 day 10 minutes'
+                    LIMIT 1
+                ) cov ON true
+            )
+            SQL;
+
+        return ['sql' => $sql, 'bindings' => $bindings];
     }
 }

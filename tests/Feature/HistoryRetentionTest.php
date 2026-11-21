@@ -24,6 +24,7 @@ use Heptapod\Queries\HistoryReader;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\Testing\ClaimedRun;
 use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -269,26 +270,36 @@ it('caps hourly deletion at 200000 rows per maintenance run', function (): void 
     expect(DB::table('check_run_rollups_hourly')->count())->toBe(0);
 });
 
-it('prunes and previews hourly rollups without quadratic plans under stale planner statistics', function (): void {
-    $check = Check::factory()->create();
-    // Seed one row and analyze before bulk-inserting to reproduce stale tiny statistics (as autovacuum leaves on empty/uncommitted tables).
-    retentionRollup($check, 'hourly', '2026-07-18T01:00:00Z', '2026-07-19T00:10:00Z');
-    retentionRollup($check, 'daily', '2026-07-18T00:00:00Z', '2026-07-19T00:10:00Z');
-    DB::statement('ANALYZE check_run_rollups_hourly');
-    DB::statement('ANALYZE check_run_rollups_daily');
-    DB::table('check_run_rollups_hourly')->delete();
-    DB::table('check_run_rollups_daily')->delete();
-    DB::statement("INSERT INTO check_run_rollups_hourly (check_id, bucket_start, computed_at) SELECT ?, '2000-01-01'::timestamptz + n * interval '1 hour', '2026-01-01'::timestamptz FROM generate_series(0, 47999) n", [$check->id]);
-    DB::statement("INSERT INTO check_run_rollups_daily (check_id, bucket_start, computed_at) SELECT DISTINCT check_id, date_trunc('day', bucket_start, 'UTC'), '2026-01-01'::timestamptz FROM check_run_rollups_hourly");
-    DB::statement("SET LOCAL statement_timeout = '3s'");
-    config(['monitoring.hourly_rollup_deletion_enabled' => true]);
+it('prunes and previews hourly rollups past uncovered rows under stale planner statistics', function (): void {
+    try {
+        $check = Check::factory()->create();
+        // Seed one row and analyze before bulk-inserting to reproduce stale tiny statistics;
+        // finally resets RefreshDatabaseState so later tests in this worker never inherit them.
+        retentionRollup($check, 'hourly', '2026-07-18T01:00:00Z', '2026-07-19T00:10:00Z');
+        retentionRollup($check, 'daily', '2026-07-18T00:00:00Z', '2026-07-19T00:10:00Z');
+        DB::statement('ANALYZE check_run_rollups_hourly');
+        DB::statement('ANALYZE check_run_rollups_daily');
+        DB::table('check_run_rollups_hourly')->delete();
+        DB::table('check_run_rollups_daily')->delete();
+        // Place 10,500 uncovered rows (> one 10,000-row scan window) before 48,000 covered rows.
+        DB::statement("INSERT INTO check_run_rollups_hourly (check_id, bucket_start, computed_at) SELECT ?, '2000-01-01'::timestamptz + n * interval '1 hour', '2026-01-01'::timestamptz FROM generate_series(0, 10499) n", [$check->id]);
+        DB::statement("INSERT INTO check_run_rollups_hourly (check_id, bucket_start, computed_at) SELECT ?, '2002-01-01'::timestamptz + n * interval '1 hour', '2026-01-01'::timestamptz FROM generate_series(0, 47999) n", [$check->id]);
+        DB::statement("INSERT INTO check_run_rollups_daily (check_id, bucket_start, computed_at) SELECT DISTINCT check_id, date_trunc('day', bucket_start, 'UTC'), '2026-01-01'::timestamptz FROM check_run_rollups_hourly WHERE bucket_start >= '2002-01-01'::timestamptz");
+        // 3s per statement guards against quadratic plans with observed headroom; timing still depends on load and planner.
+        DB::statement("SET LOCAL statement_timeout = '3s'");
+        config(['monitoring.hourly_rollup_deletion_enabled' => true]);
 
-    expect(retentionReport()['check_run_rollups_hourly'][0])->toBe('48000');
-    $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
+        $hourlyRow = retentionReport()['check_run_rollups_hourly'];
+        expect($hourlyRow[0])->toBe('48000')
+            ->and($hourlyRow[1])->toBe('2002-01-01 00:00:00+00')
+            ->and($hourlyRow[4])->toBe('daily coverage missing=10500');
+        $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
 
-    expect(DB::table('check_run_rollups_hourly')->count())->toBe(0);
-    expect(DB::scalar('SHOW enable_nestloop'))->toBe('on');
-    expect(DB::scalar('SHOW enable_mergejoin'))->toBe('on');
+        expect(DB::table('check_run_rollups_hourly')->count())->toBe(10500)
+            ->and(DB::table('check_run_rollups_hourly')->max('bucket_start'))->toBe('2001-03-13 11:00:00+00');
+    } finally {
+        RefreshDatabaseState::$migrated = false;
+    }
 });
 
 it('retains attempts only from the configured cutoff onwards', function (?int $days, bool $keepsTwoDays, bool $keepsEightDays): void {
