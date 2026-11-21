@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Heptapod\Http\Controllers\CronPingController;
+use Heptapod\Http\Controllers\HealthController;
 use Heptapod\Http\ErrorResponses;
 use Heptapod\Http\Middleware\HandleAppearance;
 use Heptapod\Http\Middleware\HandleInertiaRequests;
@@ -10,6 +11,7 @@ use Heptapod\Http\Middleware\RejectDisabledAccount;
 use Heptapod\Http\Middleware\RequireBoundSession;
 use Heptapod\Http\Middleware\SetLocale;
 use Heptapod\Http\Middleware\ThrottleApiEntry;
+use Heptapod\Http\Middleware\ThrottlePasskeyEntry;
 use Heptapod\Http\Middleware\ThrottleRequestsExactly;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -18,6 +20,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Route;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Psr\Http\Client\NetworkExceptionInterface;
@@ -31,18 +34,35 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         channels: __DIR__.'/../routes/channels.php',
-        health: '/up',
         then: static function (): void {
+            Route::get('/up', HealthController::class)->name('health');
             // Machine-to-machine bearer pings bypass browser sessions and CSRF.
             Route::match(['GET', 'POST'], 'cron/{uuid}/{phase?}', CronPingController::class)
                 ->whereUuid('uuid')->where('phase', 'starting|finished|failed')
                 ->middleware('throttle:cron-pings')->name('cron.ping');
+            // Fortify's vendor routes omit throttles on password confirmation and reset endpoints.
+            $routes = Route::getRoutes();
+            if ($routes instanceof RouteCollection) {
+                $routes->refreshNameLookups();
+            }
+            foreach ([
+                'password.confirm.store' => 'throttle:password-confirm',
+                'password.email' => 'throttle:password-reset-link',
+                'password.update' => 'throttle:password-reset',
+            ] as $routeName => $middleware) {
+                $route = $routes->getByName($routeName);
+                if ($route !== null && ! in_array($middleware, $route->middleware(), true)) {
+                    $route->middleware($middleware);
+                }
+            }
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->preventRequestsDuringMaintenance(except: ['/up']);
         $middleware->trustProxies(headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO);
-        // Global entry throttle runs before route authentication, so invalid tokens are bounded too.
+        // Global entry throttles run before route authentication and session startup, so invalid tokens and passkey floods are bounded before DB or Redis session writes.
         $middleware->append(ThrottleApiEntry::class);
+        $middleware->append(ThrottlePasskeyEntry::class);
         $middleware->alias(['throttle' => ThrottleRequestsExactly::class, 'auth.session' => RequireBoundSession::class]);
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state', 'locale', 'list_page_sizes']);
         // Settings → Email refuses a sender name or footer with any line break, also at the edge, so those keep their raw value.

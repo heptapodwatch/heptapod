@@ -30,6 +30,8 @@ use Heptapod\SystemHealth\SystemIssueKind;
 use Heptapod\SystemHealth\SystemIssueMailer;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Mail\Transport\ArrayTransport;
+use Illuminate\Notifications\ChannelManager as NotificationChannelManager;
+use Illuminate\Notifications\SendQueuedNotifications;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
@@ -329,6 +331,9 @@ it('keeps invitation, password reset and verification mail Branded when the inst
     $user = User::factory()->unverified()->create(['email' => 'account@golden.example', 'locale' => 'en']);
 
     $user->sendPasswordResetNotification('reset-token');
+    foreach (Queue::pushed(SendQueuedNotifications::class) as $job) {
+        $job->handle(app(NotificationChannelManager::class));
+    }
     $user->sendEmailVerificationNotification();
     Notification::route('mail', 'invitee@golden.example')->notify(new TeamInvitation(Invitation::factory()->create(['email' => 'invitee@golden.example']), 'https://monitor.example.test/invitations/token'));
 
@@ -471,6 +476,9 @@ it('brands alerts, client messages and account mail with the saved appearance in
     };
 
     $owner->sendPasswordResetNotification('reset-token');
+    foreach (Queue::pushed(SendQueuedNotifications::class) as $job) {
+        $job->handle(app(NotificationChannelManager::class));
+    }
     $reset = mailDesignLast($transport);
     $branded = [$alert(), $clientMessage('branded', 'branding-branded'), $reset];
     // A client message has no button; the alert and the reset carry the accent on theirs.

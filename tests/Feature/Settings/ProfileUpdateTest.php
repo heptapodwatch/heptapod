@@ -1,5 +1,6 @@
 <?php
 
+use Carbon\CarbonImmutable;
 use Heptapod\Jobs\TerminateLiveConnections;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\Queue;
@@ -181,4 +182,32 @@ test('correct password must be provided to delete account', function (): void {
 
     $this->assertNotNull($user->fresh());
     Queue::assertNotPushed(TerminateLiveConnections::class);
+});
+
+test('account deletion password checks are rate-limited per user and IP', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-31T12:00:00Z'));
+    $user = User::factory()->create(['locale' => 'de']);
+    $this->actingAs($user);
+
+    for ($attempt = 1; $attempt <= 5; $attempt++) {
+        $this->deleteJson(route('profile.destroy'), ['password' => 'wrong-password'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('password');
+    }
+
+    // Even the real password is refused once throttled, with localized 429 refusal.
+    $this->deleteJson(route('profile.destroy'), ['password' => 'password'])
+        ->assertTooManyRequests()
+        ->assertHeader('Retry-After', '60')
+        ->assertJsonPath('code', 'rate_limited')
+        ->assertJsonPath('message', 'Zu viele Anfragen. Bitte versuchen Sie es in 1 Min. erneut.');
+
+    // Inertia mutation gets the shared refusal redirect + _refusal error.
+    $this->from(route('profile.edit'))
+        ->withHeader('X-Inertia', 'true')
+        ->delete(route('profile.destroy'), ['password' => 'password'])
+        ->assertStatus(303)
+        ->assertSessionHasErrors('_refusal');
+
+    $this->assertNotNull($user->fresh());
 });

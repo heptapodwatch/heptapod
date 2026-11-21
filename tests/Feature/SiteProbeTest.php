@@ -10,6 +10,7 @@ use Heptapod\Contracts\Http\FetchRequest;
 use Heptapod\Contracts\Http\FetchResult;
 use Heptapod\Contracts\Http\OutboundHttp;
 use Heptapod\Contracts\Http\RedirectPolicy;
+use Heptapod\Models\Client;
 use Heptapod\Models\User;
 use Heptapod\Testing\FakeOutboundHttp;
 
@@ -128,4 +129,39 @@ it('limits outbound probe requests per user', function (): void {
         $this->postJson('/sites/probe', ['url' => 'https://example.test/'])->assertOk();
     }
     $this->postJson('/sites/probe', ['url' => 'https://example.test/'])->assertStatus(429);
+});
+
+it('shares the site-probe rate limit with site creation when checks are omitted', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole('Owner');
+    $client = Client::factory()->create();
+    $fake = new FakeOutboundHttp;
+    $fake->respondUsing(static fn (FetchRequest $request): FetchResult => new FetchResult(200, effectiveUrl: $request->url));
+    app()->instance(OutboundHttp::class, $fake);
+    $this->actingAs($user);
+
+    for ($attempt = 0; $attempt < 5; $attempt++) {
+        $this->postJson('/sites/probe', ['url' => 'https://probe-'.$attempt.'.example.test/'])->assertOk();
+    }
+    $this->postJson(route('sites.store'), [
+        'client_id' => $client->id,
+        'url' => 'https://unprobed-1.example.test',
+    ])->assertRedirect();
+
+    $requestsBeforeLimit = count($fake->requests);
+    $this->postJson(route('sites.store'), [
+        'client_id' => $client->id,
+        'url' => 'https://unprobed-2.example.test',
+    ])->assertTooManyRequests()
+        ->assertHeader('Retry-After')
+        ->assertJsonPath('code', 'rate_limited');
+    expect($fake->requests)->toHaveCount($requestsBeforeLimit);
+
+    // Explicit checks skip probing and remain allowed even when the probe budget is exhausted.
+    $this->postJson(route('sites.store'), [
+        'client_id' => $client->id,
+        'url' => 'https://explicit-checks.example.test',
+        'checks' => ['uptime'],
+    ])->assertRedirect();
+    expect($fake->requests)->toHaveCount($requestsBeforeLimit);
 });

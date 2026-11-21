@@ -6,11 +6,13 @@ use Database\Seeders\DatabaseSeeder;
 use Heptapod\Actions\Fortify\ResetUserPassword;
 use Heptapod\Contracts\Mail\MailRenderer;
 use Heptapod\Http\Requests\ActiveTwoFactorLoginRequest;
+use Heptapod\Http\Responses\GenericPasswordResetLinkResponse;
 use Heptapod\Models\User;
 use Heptapod\Notifications\AccountMailFactory;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\Auth\PasswordBroker;
 use Illuminate\Http\Request;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\Event;
@@ -20,10 +22,13 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
+use Laravel\Fortify\Contracts\FailedPasswordResetLinkRequestResponse;
+use Laravel\Fortify\Contracts\FailedPasswordResetResponse as FailedPasswordResetResponseContract;
 use Laravel\Fortify\Events\TwoFactorAuthenticationChallenged;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
 use Laravel\Fortify\Http\Requests\TwoFactorLoginRequest;
+use Laravel\Fortify\Http\Responses\FailedPasswordResetResponse;
 use Laravel\Passkeys\Contracts\PasskeyUser;
 use Laravel\Passkeys\Passkey;
 use Laravel\Passkeys\Passkeys;
@@ -50,6 +55,11 @@ class FortifyServiceProvider extends ServiceProvider
             }
             request()->session()->put(ActiveTwoFactorLoginRequest::CredentialsKey, ActiveTwoFactorLoginRequest::credentialsFingerprint($event->user));
         });
+        $this->app->bind(FailedPasswordResetLinkRequestResponse::class, GenericPasswordResetLinkResponse::class);
+        $this->app->bind(
+            FailedPasswordResetResponseContract::class,
+            static fn (): FailedPasswordResetResponse => new FailedPasswordResetResponse(PasswordBroker::INVALID_TOKEN),
+        );
         $this->configureActions();
         $this->configureViews();
         $this->configureRateLimiting();
@@ -147,14 +157,67 @@ class FortifyServiceProvider extends ServiceProvider
     {
         RateLimiter::for('two-factor', fn (Request $request) => Limit::perMinute(5)->by($request->session()->get('login.id')));
 
-        RateLimiter::for('login', function (Request $request) {
-            $throttleKey = Str::transliterate(Str::lower($request->string(Fortify::username())->toString()).'|'.$request->ip());
+        RateLimiter::for('login', static function (Request $request): Limit {
+            $rawEmail = $request->input(Fortify::username());
+            $email = is_string($rawEmail) ? Str::transliterate(Str::lower($rawEmail)) : '';
+            $throttleKey = $email.'|'.($request->ip() ?? 'unknown');
 
             return Limit::perMinute(5)->by($throttleKey);
         });
 
-        RateLimiter::for('passkeys', fn (Request $request) => Limit::perMinute(10)->by(
-            ($request->filled('credential.id') ? $request->string('credential.id')->toString() : $request->session()->getId()).'|'.$request->ip(),
-        ));
+        // Pre-session source cap: 60 full passkey sign-ins/min (options + assertion) behind one NAT IP.
+        RateLimiter::for('passkeys-entry', static fn (Request $request): Limit => Limit::perMinute(120)->by('ip:'.($request->ip() ?? 'unknown')));
+
+        RateLimiter::for('passkeys', static function (Request $request): Limit|array {
+            $limits = [];
+            $user = $request->user();
+            if ($user instanceof User) {
+                $limits[] = Limit::perMinute(15)->by('user:'.$user->id);
+            }
+            $credentialId = $request->input('credential.id');
+            if (is_string($credentialId) && $credentialId !== '') {
+                $limits[] = Limit::perMinute(10)->by('cred:'.$credentialId);
+            }
+
+            return $limits === [] ? Limit::none() : $limits;
+        });
+
+        RateLimiter::for('password-confirm', static function (Request $request): array {
+            $user = $request->user();
+            $actor = $user instanceof User ? (string) $user->id : 'guest';
+            $ip = $request->ip() ?? 'unknown';
+
+            return [
+                Limit::perMinute(5)->by('user-ip:'.$actor.'|'.$ip),
+                Limit::perMinute(10)->by('user:'.$actor),
+            ];
+        });
+
+        // Budget: up to 30 distinct addresses/min behind a shared NAT IP, 3/min per normalized email.
+        RateLimiter::for('password-reset-link', static function (Request $request): array {
+            $ip = $request->ip() ?? 'unknown';
+            $limits = [Limit::perMinute(30)->by('ip:'.$ip)];
+            $rawEmail = $request->input(Fortify::email());
+            if (is_string($rawEmail) && $rawEmail !== '') {
+                $email = Str::transliterate(Str::lower($rawEmail));
+                $limits[] = Limit::perMinute(3)->by('email:'.$email);
+            }
+
+            return $limits;
+        });
+
+        // Budget: up to 30 reset attempts/min behind a shared NAT IP, 5/min per email+IP, 10/min per email globally.
+        RateLimiter::for('password-reset', static function (Request $request): array {
+            $ip = $request->ip() ?? 'unknown';
+            $limits = [Limit::perMinute(30)->by('ip:'.$ip)];
+            $rawEmail = $request->input(Fortify::email());
+            if (is_string($rawEmail) && $rawEmail !== '') {
+                $email = Str::transliterate(Str::lower($rawEmail));
+                $limits[] = Limit::perMinute(5)->by('email-ip:'.$email.'|'.$ip);
+                $limits[] = Limit::perMinute(10)->by('email:'.$email);
+            }
+
+            return $limits;
+        });
     }
 }

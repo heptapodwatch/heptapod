@@ -96,7 +96,7 @@ final class ErrorResponses
             ], 429, $exception->getHeaders());
         }
 
-        if (self::isInertia($request) && ! $request->isMethod('GET') && ! $request->isMethod('HEAD')) {
+        if (self::isInertia($request) && $request->hasSession() && ! $request->isMethod('GET') && ! $request->isMethod('HEAD')) {
             return self::flashBack($request, 'warning', $message);
         }
 
@@ -131,6 +131,10 @@ final class ErrorResponses
         $request = $exceptionResponse->request;
         $exception = $exceptionResponse->exception;
         $status = $exceptionResponse->statusCode();
+
+        if ($request->is('cron/*')) {
+            $response->headers->set('Cache-Control', 'no-store, private');
+        }
 
         if (
             $request->is('api/*')

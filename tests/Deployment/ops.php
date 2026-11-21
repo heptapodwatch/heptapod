@@ -54,6 +54,12 @@ $request = function (string $method, string $path, array $options = []) use ($ht
 
     return $response;
 };
+$health = $request('GET', '/up');
+verify($health->getStatusCode() === 200 && $health->getHeader('Location') === [], 'Health endpoint unavailable: '.$health->getStatusCode().' '.$health->getHeaderLine('Location'));
+verify($health->getHeader('Content-Type') === ['text/plain; charset=UTF-8'], 'Health endpoint Content-Type wrong: '.$health->getHeaderLine('Content-Type'));
+verify(str_contains($health->getHeaderLine('Cache-Control'), 'no-store'), 'Health endpoint must not be cacheable: '.$health->getHeaderLine('Cache-Control'));
+verify($health->getHeaderLine('Content-Security-Policy') === "default-src 'none'", 'Health endpoint CSP wrong: '.$health->getHeaderLine('Content-Security-Policy'));
+verify((string) $health->getBody() === 'OK', 'Health endpoint must return plain OK body');
 $response = $request('GET', '/login');
 verify($response->getStatusCode() === 200, 'Login page unavailable: '.$response->getStatusCode().' '.$response->getHeaderLine('Location'));
 verify(str_contains((string) $response->getBody(), 'https://monitor.example.com:8443'), 'Login page missing public origin');

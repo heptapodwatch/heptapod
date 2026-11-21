@@ -8,6 +8,7 @@ use Heptapod\Actions\CreateSite;
 use Heptapod\Actions\NormaliseSiteUrl;
 use Heptapod\Checks\SiteProbe;
 use Heptapod\Exceptions\CheckConfigurationValidationException;
+use Heptapod\Http\Middleware\ThrottleRequestsExactly;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
@@ -15,6 +16,7 @@ use Heptapod\Queries\AddSiteReader;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -34,7 +36,7 @@ final class AddSiteController extends Controller
             ->with('instanceTimezone', app(InstanceSettings::class)->timezone);
     }
 
-    public function store(Request $request, CreateSite $create, SitePolicy $policy, SiteProbe $probe, NormaliseSiteUrl $normalise): RedirectResponse
+    public function store(Request $request, CreateSite $create, SitePolicy $policy, SiteProbe $probe, NormaliseSiteUrl $normalise, ThrottleRequestsExactly $throttle): RedirectResponse
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
@@ -56,6 +58,7 @@ final class AddSiteController extends Controller
         if (! array_key_exists('checks', $attributes)) {
             /** @var array{url: string} $address */
             $address = Validator::make($attributes, ['url' => ['required', 'string', 'max:2048']])->validate();
+            $throttle->handle($request, static fn (): HttpResponse => response()->noContent(), 'site-probe');
             $attributes['url'] = $normalise($address['url']);
             $detection = $probe($attributes['url']);
         }
