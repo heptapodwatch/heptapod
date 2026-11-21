@@ -94,7 +94,7 @@ final class ErrorResponses
             ], 429, $exception->getHeaders());
         }
 
-        if (self::isInertia($request) && ! $request->isMethod('GET') && ! $request->isMethod('HEAD')) {
+        if (self::isInertia($request) && $request->hasSession() && ! $request->isMethod('GET') && ! $request->isMethod('HEAD')) {
             return self::flashBack($request, 'warning', $message);
         }
 

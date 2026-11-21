@@ -220,8 +220,9 @@ class AppServiceProvider extends ServiceProvider
             return [Limit::perMinute(60)->by('user:'.$user->id),
                 Limit::perMinute(60)->by('token:'.$user->currentAccessToken()->id)];
         });
+        // Budget: up to 500 every-minute cron jobs reporting start+finish behind one NAT IP (1,000/min) plus burst headroom.
         RateLimiter::for('cron-pings', static fn (Request $request): array => [
-            Limit::perMinute(300)->by('ip:'.($request->ip() ?? 'unknown')),
+            Limit::perMinute(1200)->by('ip:'.($request->ip() ?? 'unknown')),
             Limit::perMinute(120)->by('uuid:'.strtolower((string) $request->route('uuid'))),
         ]);
         RateLimiter::for('site-probe', fn (Request $request): Limit => Limit::perMinute(6)->by($request->user()?->getAuthIdentifier() ?? $request->ip()));

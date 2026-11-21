@@ -83,16 +83,31 @@ it('normalizes valid numeric cron ping strings to numbers before storing', funct
         ->and($meta['memory'])->toBe(65536);
 });
 
-it('throttles random unknown UUID sprays per IP on the cron ping endpoint', function (): void {
+it('allows large NAT cron bursts up to the per-IP ceiling and throttles unknown UUID sprays beyond it', function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-31T12:00:00Z'));
+    $ip = '198.51.100.10';
 
-    for ($attempt = 1; $attempt <= 300; $attempt++) {
-        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.10'])
-            ->get(route('cron.ping', ['uuid' => (string) Str::uuid()]))
-            ->assertNotFound();
+    // Prove 151 jobs reporting start + finish (302 pings) from one NAT IP stay well within the 1,200/min IP budget.
+    $tasks = [];
+    for ($i = 0; $i < 4; $i++) {
+        $tasks[] = createCronTaskForPing();
+    }
+    for ($i = 0; $i < 302; $i++) {
+        $uuid = $tasks[$i % 4];
+        $phase = $i % 2 === 0 ? 'starting' : 'finished';
+        $this->withServerVariables(['REMOTE_ADDR' => $ip])
+            ->get(route('cron.ping', ['uuid' => $uuid, 'phase' => $phase]))
+            ->assertNoContent();
     }
 
-    $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.10'])
+    // Advance the IP counter to 1,199 and prove unknown UUIDs exhaust the remaining IP budget cleanly.
+    RateLimiter::increment(md5('cron-pingsip:'.$ip), amount: 1199 - 302);
+
+    $this->withServerVariables(['REMOTE_ADDR' => $ip])
+        ->get(route('cron.ping', ['uuid' => (string) Str::uuid()]))
+        ->assertNotFound();
+
+    $this->withServerVariables(['REMOTE_ADDR' => $ip])
         ->get(route('cron.ping', ['uuid' => (string) Str::uuid()]))
         ->assertTooManyRequests();
 

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Fortify\Features;
 use Symfony\Component\Mailer\Exception\TransportException;
 use Symfony\Component\Mailer\SentMessage;
@@ -216,20 +217,24 @@ test('forgot password is rate-limited per email and per IP', function (): void {
         ->assertHeader('Retry-After')
         ->assertJsonPath('code', 'rate_limited');
 
-    // Per IP (10/min) across distinct emails.
-    for ($attempt = 1; $attempt <= 10; $attempt++) {
+    // Per IP (30/min) across distinct emails accommodates shared NAT bursts.
+    for ($attempt = 1; $attempt <= 12; $attempt++) {
         $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.10'])
             ->postJson(route('password.email'), ['email' => "user{$attempt}@example.test"])
             ->assertOk();
     }
+    RateLimiter::increment(md5('password-reset-linkip:203.0.113.10'), amount: 17);
     $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.10'])
-        ->postJson(route('password.email'), ['email' => 'user11@example.test'])
+        ->postJson(route('password.email'), ['email' => 'user30@example.test'])
+        ->assertOk();
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.10'])
+        ->postJson(route('password.email'), ['email' => 'user31@example.test'])
         ->assertTooManyRequests()
         ->assertHeader('Retry-After')
         ->assertJsonPath('code', 'rate_limited');
 });
 
-test('reset password submission is rate-limited per email and IP', function (): void {
+test('reset password submission is rate-limited per email, per email and IP, and per IP', function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-31T12:00:00Z'));
 
     // Per email+IP (5/min).
@@ -252,8 +257,28 @@ test('reset password submission is rate-limited per email and IP', function (): 
         ->assertHeader('Retry-After')
         ->assertJsonPath('code', 'rate_limited');
 
-    // Per IP (10/min) across distinct emails (5 already used on 203.0.113.20).
+    // Per email across rotating IPs (10/min; 5 already spent on 203.0.113.20).
     for ($attempt = 1; $attempt <= 5; $attempt++) {
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.'.(30 + $attempt)])
+            ->postJson(route('password.update'), [
+                'token' => 'invalid-token',
+                'email' => 'victim@example.test',
+                'password' => 'newpassword123',
+                'password_confirmation' => 'newpassword123',
+            ])->assertUnprocessable();
+    }
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.40'])
+        ->postJson(route('password.update'), [
+            'token' => 'invalid-token',
+            'email' => 'victim@example.test',
+            'password' => 'newpassword123',
+            'password_confirmation' => 'newpassword123',
+        ])->assertTooManyRequests()
+        ->assertHeader('Retry-After')
+        ->assertJsonPath('code', 'rate_limited');
+
+    // Per IP (30/min) across distinct emails (5 already spent on 203.0.113.20).
+    for ($attempt = 1; $attempt <= 7; $attempt++) {
         $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.20'])
             ->postJson(route('password.update'), [
                 'token' => 'invalid-token',
@@ -262,13 +287,51 @@ test('reset password submission is rate-limited per email and IP', function (): 
                 'password_confirmation' => 'newpassword123',
             ])->assertUnprocessable();
     }
+    RateLimiter::increment(md5('password-resetip:203.0.113.20'), amount: 18);
     $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.20'])
         ->postJson(route('password.update'), [
             'token' => 'invalid-token',
-            'email' => 'other6@example.test',
+            'email' => 'other31@example.test',
             'password' => 'newpassword123',
             'password_confirmation' => 'newpassword123',
         ])->assertTooManyRequests()
         ->assertHeader('Retry-After')
+        ->assertJsonPath('code', 'rate_limited');
+});
+
+test('malformed non-string email inputs fail validation instead of 500 and still count against IP limits', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-31T12:00:00Z'));
+
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.55'])
+        ->postJson(route('password.email'), ['email' => ['malformed@example.test']])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('email');
+
+    RateLimiter::increment(md5('password-reset-linkip:203.0.113.55'), amount: 29);
+
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.55'])
+        ->postJson(route('password.email'), ['email' => ['malformed@example.test']])
+        ->assertTooManyRequests()
+        ->assertJsonPath('code', 'rate_limited');
+
+    // Limiter must consume the IP bucket for non-string email without throwing, and return 429 once exhausted.
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.56'])
+        ->postJson(route('password.update'), [
+            'token' => 'invalid-token',
+            'email' => ['malformed@example.test'],
+            'password' => 'newpassword123',
+            'password_confirmation' => 'newpassword123',
+        ]);
+    expect(RateLimiter::attempts(md5('password-resetip:203.0.113.56')))->toBe(1);
+
+    RateLimiter::increment(md5('password-resetip:203.0.113.56'), amount: 29);
+
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.56'])
+        ->postJson(route('password.update'), [
+            'token' => 'invalid-token',
+            'email' => ['malformed@example.test'],
+            'password' => 'newpassword123',
+            'password_confirmation' => 'newpassword123',
+        ])->assertTooManyRequests()
         ->assertJsonPath('code', 'rate_limited');
 });

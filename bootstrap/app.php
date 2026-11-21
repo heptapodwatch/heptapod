@@ -11,6 +11,7 @@ use Heptapod\Http\Middleware\RejectDisabledAccount;
 use Heptapod\Http\Middleware\RequireBoundSession;
 use Heptapod\Http\Middleware\SetLocale;
 use Heptapod\Http\Middleware\ThrottleApiEntry;
+use Heptapod\Http\Middleware\ThrottlePasskeyEntry;
 use Heptapod\Http\Middleware\ThrottleRequestsExactly;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -59,8 +60,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->preventRequestsDuringMaintenance(except: ['/up']);
         $middleware->trustProxies(headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO);
-        // Global entry throttle runs before route authentication, so invalid tokens are bounded too.
+        // Global entry throttles run before route authentication and session startup, so invalid tokens and passkey floods are bounded before DB or Redis session writes.
         $middleware->append(ThrottleApiEntry::class);
+        $middleware->append(ThrottlePasskeyEntry::class);
         $middleware->alias(['throttle' => ThrottleRequestsExactly::class, 'auth.session' => RequireBoundSession::class]);
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state', 'locale', 'list_page_sizes']);
         // Settings → Email refuses a sender name or footer with any line break, also at the edge, so those keep their raw value.
