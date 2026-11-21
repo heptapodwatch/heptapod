@@ -237,7 +237,7 @@ final class UptimeReader
             $maintenance = [];
         } else {
             $sitePlaceholders = implode(',', array_fill(0, count($siteIds), '?'));
-            [$scopedMaintenanceSql, $scopedMaintenanceBindings] = MaintenanceTargets::coveredBySitesCteSql('target_sites', $from, $until);
+            [$scopedMaintenanceSql, $scopedMaintenanceBindings] = MaintenanceTargets::coveredBySitesSql('target_sites', $from, $until);
             /** @var list<object{site_id: mixed, starts_at: mixed, ends_at: mixed}> $maintenance */
             $maintenance = DB::select(<<<SQL
                 WITH target_sites AS MATERIALIZED (

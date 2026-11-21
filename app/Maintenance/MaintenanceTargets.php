@@ -40,15 +40,15 @@ final class MaintenanceTargets
     }
 
     /**
-     * Indexed maintenance-window lookup for a materialized sites CTE exposing (id, client_id).
+     * Indexed maintenance-window lookup for a materialized sites relation exposing (id, client_id).
      * Splitting site, legacy site_id, client and tag targets into UNION branches lets PostgreSQL use
      * maintenance_periods_target_type_target_id_index and maintenance_periods_site_id_starts_at_ends_at_index
      * instead of scanning all maintenance_periods under an OR/COALESCE join predicate.
      *
-     * @param  literal-string  $sitesCte
+     * @param  literal-string  $sitesRelation
      * @return array{literal-string, list<string>}
      */
-    public static function coveredBySitesCteSql(string $sitesCte, CarbonImmutable $from, CarbonImmutable $until): array
+    public static function coveredBySitesSql(string $sitesRelation, CarbonImmutable $from, CarbonImmutable $until): array
     {
         $morph = (new Site)->getMorphClass();
         $fromStr = $from->utc()->format('Y-m-d H:i:s.uP');
@@ -56,22 +56,22 @@ final class MaintenanceTargets
 
         $sql = <<<SQL
             SELECT m.id, m.starts_at, m.ends_at, s.id AS site_id
-            FROM {$sitesCte} s
+            FROM {$sitesRelation} s
             JOIN maintenance_periods m ON m.target_type = 'site' AND m.target_id = s.id
             WHERE m.starts_at < ?::timestamptz AND m.ends_at > ?::timestamptz
             UNION
             SELECT m.id, m.starts_at, m.ends_at, s.id AS site_id
-            FROM {$sitesCte} s
+            FROM {$sitesRelation} s
             JOIN maintenance_periods m ON m.target_type = 'site' AND m.target_id IS NULL AND m.site_id = s.id
             WHERE m.starts_at < ?::timestamptz AND m.ends_at > ?::timestamptz
             UNION
             SELECT m.id, m.starts_at, m.ends_at, s.id AS site_id
-            FROM {$sitesCte} s
+            FROM {$sitesRelation} s
             JOIN maintenance_periods m ON m.target_type = 'client' AND m.target_id = s.client_id
             WHERE m.starts_at < ?::timestamptz AND m.ends_at > ?::timestamptz
             UNION
             SELECT m.id, m.starts_at, m.ends_at, s.id AS site_id
-            FROM {$sitesCte} s
+            FROM {$sitesRelation} s
             JOIN taggables mt ON mt.taggable_id = s.id AND mt.taggable_type = ?
             JOIN maintenance_periods m ON m.target_type = 'tag' AND m.target_id = mt.tag_id
             WHERE m.starts_at < ?::timestamptz AND m.ends_at > ?::timestamptz

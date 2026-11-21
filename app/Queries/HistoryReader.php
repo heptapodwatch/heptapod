@@ -72,7 +72,7 @@ final readonly class HistoryReader
         }
         $siteScope = clone $sites;
         $scopeSql = $siteScope->addSelect('sites.client_id')->toSql();
-        [$scopedMaintenanceSql, $scopedMaintenanceBindings] = MaintenanceTargets::coveredBySitesCteSql('visible_sites', $from, $end);
+        [$scopedMaintenanceSql, $scopedMaintenanceBindings] = MaintenanceTargets::coveredBySitesSql('visible_sites', $from, $end);
         /** @var list<object{date: string, maintenance: bool, incident_count: int, outage: bool, failed_seconds: int}> $intervals */
         $intervals = DB::select(<<<SQL
             WITH visible_sites AS MATERIALIZED ({$scopeSql}), visible_checks AS MATERIALIZED ({$checkScopeSql}), buckets AS (
