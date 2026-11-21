@@ -5,10 +5,15 @@ use Heptapod\Jobs\TerminateLiveConnections;
 use Heptapod\Models\User;
 use Heptapod\Notifications\PasswordReset;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Fortify\Features;
+use Symfony\Component\Mailer\Exception\TransportException;
+use Symfony\Component\Mailer\SentMessage;
+use Symfony\Component\Mailer\Transport\AbstractTransport;
 
 beforeEach(function (): void {
     $this->skipUnlessFortifyHas(Features::resetPasswords());
@@ -115,10 +120,11 @@ test('password cannot be reset with invalid token', function (): void {
 
 test('forgot password returns identical generic responses for existing and unknown emails', function (): void {
     Notification::fake();
-    $user = User::factory()->create();
+    $htmlUser = User::factory()->create();
+    $jsonUser = User::factory()->create();
 
     $existing = $this->from(route('password.request'))
-        ->post(route('password.email'), ['email' => $user->email]);
+        ->post(route('password.email'), ['email' => $htmlUser->email]);
     $unknown = $this->from(route('password.request'))
         ->post(route('password.email'), ['email' => 'nobody@example.test']);
 
@@ -129,12 +135,48 @@ test('forgot password returns identical generic responses for existing and unkno
         ->assertSessionHasNoErrors()
         ->assertSessionHas('status', trans(Password::RESET_LINK_SENT));
 
-    $existingJson = $this->postJson(route('password.email'), ['email' => $user->email]);
+    // Separate user so the JSON check exercises a real first request, not the broker cooldown.
+    $existingJson = $this->postJson(route('password.email'), ['email' => $jsonUser->email]);
     $unknownJson = $this->postJson(route('password.email'), ['email' => 'still-nobody@example.test']);
 
     $existingJson->assertOk()->assertExactJson(['message' => trans(Password::RESET_LINK_SENT)]);
     $unknownJson->assertOk()->assertExactJson(['message' => trans(Password::RESET_LINK_SENT)]);
-    Notification::assertSentToTimes($user, PasswordReset::class, 1);
+    Notification::assertSentToTimes($htmlUser, PasswordReset::class, 1);
+    Notification::assertSentToTimes($jsonUser, PasswordReset::class, 1);
+});
+
+test('forgot password queues mail delivery off the request path so failing transports do not diverge responses', function (): void {
+    config(['queue.default' => 'database']);
+    $transportAttempts = 0;
+    $failingTransport = new class($transportAttempts) extends AbstractTransport
+    {
+        public function __construct(private int &$attempts)
+        {
+            parent::__construct();
+        }
+
+        protected function doSend(SentMessage $message): void
+        {
+            $this->attempts++;
+            throw new TransportException('Simulated SMTP outage');
+        }
+
+        public function __toString(): string
+        {
+            return 'failing-test-transport';
+        }
+    };
+    Mail::mailer()->setSymfonyTransport($failingTransport);
+
+    $user = User::factory()->create();
+
+    $known = $this->postJson(route('password.email'), ['email' => $user->email]);
+    $unknown = $this->postJson(route('password.email'), ['email' => 'absent@example.test']);
+
+    $known->assertOk()->assertExactJson(['message' => trans(Password::RESET_LINK_SENT)]);
+    $unknown->assertOk()->assertExactJson(['message' => trans(Password::RESET_LINK_SENT)]);
+    expect($transportAttempts)->toBe(0);
+    expect(DB::table('jobs')->where('queue', 'notifications')->count())->toBe(1);
 });
 
 test('reset password returns the same invalid token error for existing and unknown emails', function (): void {

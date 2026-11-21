@@ -7,10 +7,20 @@ namespace Heptapod\Notifications;
 use Heptapod\Contracts\Mail\MailRenderer;
 use Heptapod\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 
-final class PasswordReset extends ResetPassword
+final class PasswordReset extends ResetPassword implements ShouldQueue
 {
+    use Queueable;
+
+    /** @return array<string, string> */
+    public function viaQueues(): array
+    {
+        return ['mail' => 'notifications'];
+    }
+
     public function toMail(mixed $notifiable): Mailable
     {
         if (! $notifiable instanceof User) {
