@@ -9,6 +9,7 @@ use Heptapod\Actions\CreateMaintenancePeriod;
 use Heptapod\Actions\DeleteSite;
 use Heptapod\Actions\EndMaintenanceWindow;
 use Heptapod\Actions\Fortify\ResetUserPassword;
+use Heptapod\Actions\PauseSite;
 use Heptapod\Actions\RevokeApiToken;
 use Heptapod\Actions\SnoozeCheck;
 use Heptapod\Actions\SnoozeCronTask;
@@ -300,6 +301,20 @@ it('refuses a write by an admin demoted while it waits', function (Closure $prep
         $check = Check::factory()->create(['site_id' => $site->id, 'type' => CheckKey::Uptime]);
 
         return ['POST', '/sites/'.$site->id.'/checks/'.$check->id.'/disable', [], static fn (): bool => Check::query()->findOrFail($check->id)->enabled, 403];
+    }],
+    'site settings' => [static fn (Site $site): array => ['PATCH', '/sites/'.$site->id, ['friendly_name' => 'renamed'],
+        static fn (): ?string => Site::query()->findOrFail($site->id)->friendly_name, 403]],
+    'site pause' => [static fn (Site $site): array => ['POST', '/sites/'.$site->id.'/pause', [],
+        static fn (): mixed => Site::query()->findOrFail($site->id)->paused_at, 403]],
+    'site resume' => [static function (Site $site): array {
+        app(PauseSite::class)($site, null);
+
+        return ['POST', '/sites/'.$site->id.'/resume', [], static fn (): ?string => Site::query()->findOrFail($site->id)->paused_at?->format('Y-m-d H:i:s.u'), 403];
+    }],
+    'check settings' => [static function (Site $site): array {
+        $check = Check::factory()->create(['site_id' => $site->id, 'type' => CheckKey::Uptime]);
+
+        return ['PATCH', '/sites/'.$site->id.'/checks/'.$check->id, ['timeout' => 12], static fn (): mixed => Check::query()->findOrFail($check->id)->config, 403];
     }],
 ]);
 
