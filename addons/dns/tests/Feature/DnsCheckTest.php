@@ -17,6 +17,8 @@ use Heptapod\Contracts\DnsLookupResult;
 use Heptapod\Contracts\DnsResolver;
 use Heptapod\Contracts\ExternalNetworkException;
 use Heptapod\Contracts\ExternalTimeoutException;
+use Heptapod\Contracts\Http\TargetAddressPolicy;
+use Heptapod\Contracts\Http\TargetResolver;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Jobs\RunCheck;
 use Heptapod\Models\Check;
@@ -26,6 +28,8 @@ use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Testing\ClaimedRun;
 use Heptapod\Testing\FakeDnsResolver;
+use Heptapod\Testing\FakeTargetResolver;
+use Heptapod\Testing\FixtureTargetAddressPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\DB;
@@ -67,6 +71,16 @@ function useDigFixtureProcess(): void
     app()->forgetExtenders(DnsResolver::class);
     app()->forgetInstance(DnsResolver::class);
     config(['dns.resolver' => null]);
+    // Discovered nameservers are resolved and checked before dig; the fixture answers for these public addresses.
+    app()->forgetExtenders(TargetResolver::class);
+    app()->instance(TargetResolver::class, (new FakeTargetResolver)->respondWith('ns.parent.example', ['9.9.9.9'])->respondWith('ns.child.example', ['9.9.9.10']));
+}
+
+/** The offline CoreDNS fixture is on a private (Compose) or loopback (CI) address; only these tests may query it as an authority. */
+function allowFixtureNameservers(): void
+{
+    $addresses = app(TargetResolver::class)->resolve('ns.dns.fixture.test');
+    app()->extend(TargetAddressPolicy::class, static fn (TargetAddressPolicy $policy): FixtureTargetAddressPolicy => new FixtureTargetAddressPolicy($policy, $addresses));
 }
 
 /** @return array{host: string, ttl: int, class: string, type: string, ip: string} */
@@ -465,6 +479,7 @@ it('rejects invalid DNS configuration at the schema boundary', function (array $
 ]);
 
 it('treats native SERVFAIL as an error and NXDOMAIN as a negative observation', function (string $host, RunResult $expected): void {
+    allowFixtureNameservers();
     config(['dns.resolver' => getenv('DNS_FIXTURE_SERVER') ?: 'dns-fixtures']);
     $check = dnsCheck(host: $host);
     $run = dnsRun($check);
@@ -483,6 +498,7 @@ it('treats native SERVFAIL as an error and NXDOMAIN as a negative observation', 
 ]);
 
 it('checks the enclosing zone authorities for a native cross-zone CNAME', function (): void {
+    allowFixtureNameservers();
     config(['dns.resolver' => getenv('DNS_FIXTURE_SERVER') ?: 'dns-fixtures']);
     $check = dnsCheck(['check_nameservers_in_sync' => true], 'www.example.test');
     $run = dnsRun($check);
@@ -540,6 +556,7 @@ it('rejects a truncated native DNS reply instead of accepting partial records', 
 });
 
 it('fetches every supported DNS type from the offline authoritative server through real execution', function (): void {
+    allowFixtureNameservers();
     $server = getenv('DNS_FIXTURE_SERVER') ?: 'dns-fixtures';
     config(['dns.resolver' => $server]);
     $check = dnsCheck(['check_nameservers_in_sync' => true, 'extra_cnames' => ['alias.dns.fixture.test']], 'dns.fixture.test');
@@ -551,6 +568,17 @@ it('fetches every supported DNS type from the offline authoritative server throu
     expect(array_column($records, 'type'))->toContain('A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS', 'CAA');
     expect($row->raw_dns_records)->toContain('v=spf1', 'issue', '2001:db8::1');
     expect(json_decode($row->authoritative_nameservers, true, flags: JSON_THROW_ON_ERROR))->toBe(['ns.dns.fixture.test']);
+});
+
+it('does not query a discovered nameserver that resolves to a non-public address', function (): void {
+    config(['dns.resolver' => getenv('DNS_FIXTURE_SERVER') ?: 'dns-fixtures']);
+    // The zone's NS ns.dns.fixture.test is the CoreDNS fixture on a private (Compose) or loopback (CI) address.
+    $check = dnsCheck(['check_nameservers_in_sync' => true], 'dns.fixture.test');
+    $run = dnsRun($check);
+
+    expect($run->result)->toBe(RunResult::Warning)
+        ->and($run->evidence['issues'])->toEqual([['type' => 'dns.issue.nameservers_unreachable',
+            'host' => 'dns.fixture.test', 'record_type' => null, 'nameserver' => 'ns.dns.fixture.test', 'reason' => 'private_target']]);
 });
 
 it('keeps real-shaped anycast authorities in sync and their address union stable across rotations', function (bool $sync): void {

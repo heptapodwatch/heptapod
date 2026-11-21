@@ -37,7 +37,7 @@ use Heptapod\Models\Site;
 use Heptapod\Testing\ExamplePublicSuffixList;
 use Heptapod\Testing\FakeDomainRegistrationLookup;
 use Heptapod\Testing\FakeOutboundHttp;
-use Heptapod\Testing\LoopbackTargetAddressPolicy;
+use Heptapod\Testing\FixtureTargetAddressPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Cache;
@@ -92,7 +92,7 @@ beforeEach(function (): void {
     Queue::fake();
     app()->instance(OutboundHttp::class, new FakeOutboundHttp);
     // WHOIS registries require public addresses; only the local whois-server.php fixture on 127.0.0.1 is exempt.
-    app()->extend(TargetAddressPolicy::class, static fn (TargetAddressPolicy $policy): LoopbackTargetAddressPolicy => new LoopbackTargetAddressPolicy($policy));
+    app()->extend(TargetAddressPolicy::class, static fn (TargetAddressPolicy $policy): FixtureTargetAddressPolicy => new FixtureTargetAddressPolicy($policy, ['127.0.0.1']));
     $this->travelTo(CarbonImmutable::parse(DB::scalar('SELECT clock_timestamp()::text')));
 });
 

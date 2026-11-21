@@ -32,7 +32,7 @@ final class DnsPersistence implements RunPersistence
             'issues.*.host' => ['required', 'string', 'max:253'],
             'issues.*.record_type' => ['present', 'nullable', 'in:'.implode(',', DnsCheck::Types)],
             'issues.*.nameserver' => ['sometimes', 'required', 'string', 'max:253'],
-            'issues.*.reason' => ['sometimes', 'required', 'in:timeout,servfail'],
+            'issues.*.reason' => ['sometimes', 'required', 'in:timeout,servfail,private_target'],
             'authoritative_nameservers' => ['present', 'array', 'list', 'max:1000'],
             'authoritative_nameservers.*' => ['required', 'string', 'max:253'],
             'baseline_generation' => ['required', 'integer:strict', 'min:0'],
