@@ -130,6 +130,10 @@ final class ErrorResponses
         $exception = $exceptionResponse->exception;
         $status = $exceptionResponse->statusCode();
 
+        if ($request->is('cron/*')) {
+            $response->headers->set('Cache-Control', 'no-store, private');
+        }
+
         if (
             $request->is('api/*')
             || ($request->expectsJson() && ! self::isInertia($request))

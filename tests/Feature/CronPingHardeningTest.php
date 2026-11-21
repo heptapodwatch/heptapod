@@ -7,6 +7,7 @@ use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CronTaskStore;
 use Heptapod\Models\Check;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
 function createCronTaskForPing(): string
@@ -31,6 +32,21 @@ it('marks GET and POST cron ping responses as non-cacheable', function (string $
         ->toContain('no-store')
         ->toContain('private');
 })->with(['GET', 'POST']);
+
+it('marks unknown, invalid, and throttled cron ping responses as non-cacheable', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-31T12:00:00Z'));
+    $uuid = createCronTaskForPing();
+
+    $unknown = $this->get(route('cron.ping', ['uuid' => (string) Str::uuid()]))->assertNotFound();
+    expect($unknown->headers->get('Cache-Control'))->toContain('no-store')->toContain('private');
+
+    $invalid = $this->postJson(route('cron.ping', ['uuid' => $uuid]), ['runtime' => 'nope'])->assertUnprocessable();
+    expect($invalid->headers->get('Cache-Control'))->toContain('no-store')->toContain('private');
+
+    RateLimiter::increment(md5('cron-pingsuuid:'.strtolower($uuid)), amount: 120);
+    $throttled = $this->get(route('cron.ping', ['uuid' => $uuid]))->assertTooManyRequests();
+    expect($throttled->headers->get('Cache-Control'))->toContain('no-store')->toContain('private');
+});
 
 it('rejects oversized, unbounded, or non-numeric cron ping metadata without storing it', function (array $payload, string $field): void {
     $uuid = createCronTaskForPing();
