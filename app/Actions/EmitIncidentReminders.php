@@ -22,17 +22,24 @@ use Heptapod\Models\Incident;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 final readonly class EmitIncidentReminders
 {
+    /** Maximum open uptime incidents inspected per pass so reminder scans cannot starve alert dispatch. */
+    public const int Batch = 100;
+
+    private const string CursorCacheKey = 'heptapod:notifications:reminders_after_id';
+
     public function __construct(private EventOutbox $outbox, private CheckRegistry $registry) {}
 
-    public function __invoke(): void
+    /** @return bool whether more open incidents remain after this bounded batch */
+    public function __invoke(): bool
     {
         $standard = config('notifications.renotify_intervals_seconds');
         if ($standard === null) {
-            return;
+            return false;
         }
         if (! is_array($standard) || ! array_is_list($standard) || $standard === []) {
             throw new \LogicException('Re-notify intervals must be a non-empty list of positive seconds or null.');
@@ -42,10 +49,16 @@ final readonly class EmitIncidentReminders
                 throw new \LogicException('Re-notify intervals must be positive seconds.');
             }
         }
+        $after = Cache::get(self::CursorCacheKey);
+        $afterId = is_int($after) ? $after : 0;
         $query = Incident::query();
         $query->whereHas('check', static fn (Builder $checks): Builder => $checks->where('type', CheckKey::Uptime));
-        $query->getQuery()->whereNull('resolved_at')->where('cause', IncidentCause::Failed->value);
-        foreach ($query->lazyById(100) as $candidate) {
+        $query->getQuery()->whereNull('resolved_at')->where('cause', IncidentCause::Failed->value)
+            ->where('incidents.id', '>', $afterId)->orderBy('incidents.id')->limit(self::Batch + 1);
+        $candidates = $query->get();
+        $hasMore = $candidates->count() > self::Batch;
+        $page = $candidates->take(self::Batch);
+        foreach ($page as $candidate) {
             DB::transaction(function () use ($candidate, $standard): void {
                 // Reminders lock the uptime check before its incident; they never acquire the site lock.
                 $checks = Check::query()->whereKey($candidate->check_id);
@@ -106,5 +119,15 @@ final readonly class EmitIncidentReminders
                     [], $incident, $incident->cause, 'reminder:'.$incident->id.':'.$since->format('U.u'));
             });
         }
+        if ($hasMore) {
+            $last = $page->last();
+            if ($last instanceof Incident) {
+                Cache::put(self::CursorCacheKey, $last->id, 3600);
+            }
+        } else {
+            Cache::forget(self::CursorCacheKey);
+        }
+
+        return $hasMore;
     }
 }

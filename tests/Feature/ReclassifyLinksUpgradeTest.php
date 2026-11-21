@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckResult;
+use Heptapod\Contracts\FindingReclassificationPlan;
+use Heptapod\Contracts\FindingReclassifier;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
@@ -207,4 +209,53 @@ it('rejects an unsupported upgrade policy without changing stored data', functio
     $this->artisan('heptapod:reclassify-links', ['--policy' => '999', '--no-interaction' => true])->assertFailed();
 
     expect(linkUpgradeSnapshot())->toBe($before);
+});
+
+it('streams reclassification one check at a time instead of retaining every plan in memory', function (): void {
+    $first = legacyLinkUpgrade();
+    $second = legacyLinkUpgrade();
+    $inner = app(FindingReclassifier::class);
+    $trace = [];
+    app()->instance(FindingReclassifier::class, new class($inner, $trace) implements FindingReclassifier
+    {
+        /** @param list<string> $trace */
+        public function __construct(private FindingReclassifier $inner, public array &$trace) {}
+
+        public function policyVersion(): int
+        {
+            return $this->inner->policyVersion();
+        }
+
+        public function pendingChecks(): array
+        {
+            return $this->inner->pendingChecks();
+        }
+
+        public function plan(int $checkId): ?FindingReclassificationPlan
+        {
+            $this->trace[] = 'plan:'.$checkId;
+
+            return $this->inner->plan($checkId);
+        }
+
+        public function apply(FindingReclassificationPlan $plan): void
+        {
+            $this->trace[] = 'apply:'.$plan->checkId;
+            $this->inner->apply($plan);
+        }
+
+        public function explainedByRelabeling(int $checkId, int $runId, ?array $findingIds, array $relabeledIds): bool
+        {
+            return $this->inner->explainedByRelabeling($checkId, $runId, $findingIds, $relabeledIds);
+        }
+    });
+
+    $this->artisan('heptapod:reclassify-links', ['--policy' => '1', '--no-interaction' => true])->assertSuccessful();
+
+    expect($trace)->toBe([
+        'plan:'.$first['check']->id,
+        'apply:'.$first['check']->id,
+        'plan:'.$second['check']->id,
+        'apply:'.$second['check']->id,
+    ]);
 });

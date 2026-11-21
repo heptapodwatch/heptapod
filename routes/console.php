@@ -42,4 +42,4 @@ if (config('instance.heartbeat_url') !== null && config('instance.heartbeat_url'
     Schedule::command('instance:heartbeat')->everyMinute()->withoutOverlapping(10);
 }
 
-Schedule::job(new DispatchNotifications)->everyMinute()->withoutOverlapping();
+Schedule::job(new DispatchNotifications)->everyMinute()->withoutOverlapping(10);

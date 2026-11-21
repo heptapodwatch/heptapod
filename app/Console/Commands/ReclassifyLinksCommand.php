@@ -76,13 +76,6 @@ final class ReclassifyLinksCommand extends Command
         if ($sending > 0) {
             $blockers[] = trans_choice('reclassify_links.deliveries_sending', $sending, ['count' => $sending]);
         }
-        $plans = [];
-        foreach ($pending as $checkId) {
-            $plan = $reclassifier->plan($checkId);
-            if ($plan instanceof FindingReclassificationPlan) {
-                $plans[] = $plan;
-            }
-        }
         $rows = [];
         if ($blockers !== [] && ! $dryRun) {
             foreach ($blockers as $blocker) {
@@ -91,23 +84,28 @@ final class ReclassifyLinksCommand extends Command
 
             return self::FAILURE;
         }
-        foreach ($plans as $plan) {
+        // Stream one check at a time so large installations never hold every reclassification plan in memory at once.
+        foreach ($pending as $checkId) {
             if ($dryRun) {
+                $plan = $reclassifier->plan($checkId);
+                if (! $plan instanceof FindingReclassificationPlan) {
+                    continue;
+                }
                 $check = Check::query()->with('site')->findOrFail($plan->checkId);
                 $rows[] = $this->row($check, $plan, $this->obsoleteAlerts($check, $plan, $reclassifier));
 
                 continue;
             }
-            $row = DB::transaction(function () use ($plan, $reclassifier, $outbox, $summaries): ?array {
+            $row = DB::transaction(function () use ($checkId, $reclassifier, $outbox, $summaries): ?array {
                 // NotificationLocks: the check and its site (both exclusive, as the recorder holds them), then the deliveries.
-                NotificationLocks::checks([], exclusive: [$plan->checkId]);
-                $check = Check::query()->find($plan->checkId);
+                NotificationLocks::checks([], exclusive: [$checkId]);
+                $check = Check::query()->find($checkId);
                 if (! $check instanceof Check) {
                     return null;
                 }
                 NotificationLocks::sites([$check->site_id], exclusive: true);
                 $check->setRelation('site', Site::query()->findOrFail($check->site_id));
-                // Re-plan under the lock; another process may have accepted a newer snapshot since the scan.
+                // Plan under the lock so concurrent snapshot acceptance is reflected without retaining prior plans.
                 $locked = $reclassifier->plan($check->id);
                 if (! $locked instanceof FindingReclassificationPlan) {
                     return null;
