@@ -13,9 +13,13 @@ use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Http\Resources\OhDear\MaintenancePeriodResource;
 use Heptapod\Maintenance\LocalMaintenanceTime;
+use Heptapod\Maintenance\MaintenanceTargets;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\Site;
+use Heptapod\Policies\SitePolicy;
 use Heptapod\Support\Api\Idempotency;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -71,16 +75,16 @@ final class MaintenancePeriodController extends Controller
         }, $query->get()->all())]);
     }
 
-    public function store(Request $request, CreateMaintenanceWindow $create, Idempotency $idempotency): JsonResponse
+    public function store(Request $request, CreateMaintenanceWindow $create, Idempotency $idempotency, SitePolicy $sites): JsonResponse
     {
+        $user = $this->principal($request);
         /** @var array{monitor_id: int, starts_at: string, ends_at: string, name?: string|null} $data */
         $data = Validator::make($request->all(), [
-            'monitor_id' => 'required|integer|exists:sites,id', 'starts_at' => 'required|date_format:Y-m-d H:i',
+            'monitor_id' => ['required', 'integer', $sites->visibleSiteRule($user)], 'starts_at' => 'required|date_format:Y-m-d H:i',
             'ends_at' => 'required|date_format:Y-m-d H:i', 'name' => 'nullable|string|max:255',
         ])->validate();
         $site = Site::query()->findOrFail($data['monitor_id']);
         Gate::authorize('update', $site);
-        $user = $this->principal($request);
         $window = ['target_type' => 'site', 'target_id' => $site->id,
             'starts_local' => $data['starts_at'], 'ends_local' => $data['ends_at'], 'timezone' => 'UTC',
             'recurrence_type' => 'once', 'name' => $data['name'] ?? null];
@@ -95,43 +99,62 @@ final class MaintenancePeriodController extends Controller
         });
     }
 
-    public function update(Request $request, MaintenancePeriod $maintenancePeriod, UpdateMaintenancePeriod $update,
-        LocalMaintenanceTime $localTime): MaintenancePeriodResource
+    public function update(Request $request, int $maintenancePeriod, UpdateMaintenancePeriod $update,
+        LocalMaintenanceTime $localTime, SitePolicy $sites): MaintenancePeriodResource
     {
-        $this->writable($request, $maintenancePeriod);
+        $period = $this->reachable($request, $sites)->findOrFail($maintenancePeriod);
+        $this->writable($request, $period);
         /** @var array{starts_at: string, ends_at: string, name?: string|null} $data */
         $data = Validator::make($request->all(), [
             'starts_at' => 'required|date_format:Y-m-d H:i', 'ends_at' => 'required|date_format:Y-m-d H:i',
             'name' => 'nullable|string|max:255',
         ])->validate();
-        if ($maintenancePeriod->ends_at <= CarbonImmutable::now('UTC')) {
+        if ($period->ends_at <= CarbonImmutable::now('UTC')) {
             throw ValidationException::withMessages(['starts_at' => __('maintenance.completed_window_web_only')]);
         }
         $start = $localTime->resolve(substr($data['starts_at'], 0, 10), substr($data['starts_at'], 11), 'UTC');
         $end = $localTime->resolve(substr($data['ends_at'], 0, 10), substr($data['ends_at'], 11), 'UTC');
 
-        return new MaintenancePeriodResource($update($maintenancePeriod, $data['name'] ?? $maintenancePeriod->name, $start, $end));
+        return new MaintenancePeriodResource($update($period, $data['name'] ?? $period->name, $start, $end));
     }
 
-    public function destroy(Request $request, MaintenancePeriod $maintenancePeriod, DeleteMaintenancePeriod $delete): Response
+    public function destroy(Request $request, int $maintenancePeriod, DeleteMaintenancePeriod $delete, SitePolicy $sites): Response
     {
-        $this->writable($request, $maintenancePeriod);
-        if ($maintenancePeriod->starts_at <= CarbonImmutable::now('UTC')) {
+        $period = $this->reachable($request, $sites)->findOrFail($maintenancePeriod);
+        $this->writable($request, $period);
+        if ($period->starts_at <= CarbonImmutable::now('UTC')) {
             throw ValidationException::withMessages(['starts_at' => __('maintenance.completed_window_web_only')]);
         }
-        $delete($maintenancePeriod);
+        $delete($period);
 
         return response()->noContent();
     }
 
-    private function writable(Request $request, MaintenancePeriod $period): void
+    /**
+     * The windows the caller can see, so a hidden window answers exactly like a missing one in one lookup: a window
+     * is visible when it covers a monitor the caller can see, the windows index() lists (Restricted Members never see tag windows).
+     *
+     * @return Builder<MaintenancePeriod>
+     */
+    private function reachable(Request $request, SitePolicy $sites): Builder
     {
         $user = $this->principal($request, 403);
-        abort_unless($user->hasAnyRole(['Owner', 'Admin']), 403);
+        [$covers, $bindings] = MaintenanceTargets::coversSiteSql('maintenance_periods', 'visible_site');
+        $visibleSites = $sites->visibleSites($user, includeArchived: true)->getQuery()->select('sites.id', 'sites.client_id');
+        $query = MaintenancePeriod::query();
+        $query->getQuery()->whereExists(static fn (QueryBuilder $covering): QueryBuilder => $covering->selectRaw('1')
+            ->fromSub($visibleSites, 'visible_site')->whereRaw($covers, $bindings))
+            ->when($user->isRestrictedMember(), static fn (QueryBuilder $reach): QueryBuilder => $reach->where('maintenance_periods.target_type', '!=', 'tag'));
+
+        return $query;
+    }
+
+    private function writable(Request $request, MaintenancePeriod $period): void
+    {
+        abort_unless($this->principal($request, 403)->hasAnyRole(['Owner', 'Admin']), 403);
         if ($period->target_type !== 'site') {
             throw ValidationException::withMessages(['maintenance_period_id' => __('maintenance.shared_window_web_only')]);
         }
-        $site = Site::query()->findOrFail($period->site_id);
-        Gate::authorize('update', $site);
+        Gate::authorize('update', Site::query()->findOrFail($period->site_id));
     }
 }

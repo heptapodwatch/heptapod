@@ -186,3 +186,63 @@ it('projects shared client windows without granting shared writes and excludes o
     $this->travel(1)->day();
     expect(app(SiteState::class)->derive($sites[0]))->toBe(SiteStatus::Maintenance);
 });
+
+it('answers a monitor outside a client-scoped token like a missing one when scheduling maintenance', function (): void {
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $client = Client::factory()->create();
+    $visible = Site::factory()->for($client)->create();
+    $hidden = Site::factory()->create();
+    $this->withToken(app(CreateApiToken::class)($owner, 'scoped', ['maintenance:write'], $client->id));
+    $window = ['starts_at' => '2026-10-05 10:00', 'ends_at' => '2026-10-05 11:00'];
+    $missing = $this->postJson('/api/maintenance-periods', ['monitor_id' => $hidden->id + 1000, ...$window])->assertUnprocessable();
+    $outOfScope = $this->postJson('/api/maintenance-periods', ['monitor_id' => $hidden->id, ...$window]);
+
+    expect([$outOfScope->status(), $outOfScope->json()])->toBe([422, $missing->json()])
+        ->and(MaintenancePeriod::query()->count())->toBe(0);
+    $this->postJson('/api/maintenance-periods', ['monitor_id' => $visible->id, ...$window])->assertCreated();
+});
+
+it('answers a maintenance window outside a client-scoped token like a missing one before telling shared from site windows', function (): void {
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $client = Client::factory()->create();
+    $own = Site::factory()->for($client)->create();
+    $foreign = Site::factory()->create();
+    $foreign->attachTag('Foreign target', 'sites');
+    $own->attachTag('Shared target', 'sites');
+    $foreign->attachTag('Shared target', 'sites');
+    $tagId = static fn (string $name): int => $foreign->tags()->where('name->en', $name)->sole()->id;
+    $windows = ['site' => MaintenancePeriod::factory()->create(['site_id' => $foreign->id]),
+        'client' => MaintenancePeriod::factory()->create(['site_id' => null, 'target_type' => 'client', 'target_id' => $foreign->client_id]),
+        'tag' => MaintenancePeriod::factory()->create(['site_id' => null, 'target_type' => 'tag', 'target_id' => $tagId('Foreign target')])];
+    // Shared windows the token's monitor lists stay visible and keep their web-only answer.
+    $visibleShared = ['client' => MaintenancePeriod::factory()->create(['site_id' => null, 'target_type' => 'client', 'target_id' => $client->id]),
+        'tag' => MaintenancePeriod::factory()->create(['site_id' => null, 'target_type' => 'tag', 'target_id' => $tagId('Shared target')])];
+    $missingId = MaintenancePeriod::query()->max('id') + 1000;
+    $this->withToken(app(CreateApiToken::class)($owner, 'scoped', ['maintenance:read', 'maintenance:write'], $client->id));
+    expect(array_column($this->getJson('/api/monitors/'.$own->id.'/maintenance-periods')->assertOk()->json('data'), 'id'))
+        ->toEqualCanonicalizing(array_map(static fn (MaintenancePeriod $window): int => $window->id, array_values($visibleShared)));
+    $body = ['starts_at' => '2026-10-05 10:00', 'ends_at' => '2026-10-05 11:00'];
+    // Status, message and the number of queries it took: a hidden window must not take a longer path than a missing one.
+    $answer = function (string $method, int $id) use ($body): array {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $response = $method === 'put' ? $this->putJson('/api/maintenance-periods/'.$id, $body) : $this->deleteJson('/api/maintenance-periods/'.$id);
+        DB::disableQueryLog();
+
+        return [$response->status(), str_replace((string) $id, '{id}', (string) $response->json('message')), count(DB::getQueryLog())];
+    };
+
+    foreach (['put', 'delete'] as $method) {
+        $missing = $answer($method, $missingId);
+        expect($missing[0])->toBe(404);
+        foreach ($windows as $target => $window) {
+            expect($answer($method, $window->id))->toBe($missing, $method.' '.$target);
+        }
+        foreach ($visibleShared as $target => $window) {
+            expect($answer($method, $window->id)[0])->toBe(422, $method.' visible '.$target);
+        }
+    }
+    expect(MaintenancePeriod::query()->count())->toBe(5);
+});

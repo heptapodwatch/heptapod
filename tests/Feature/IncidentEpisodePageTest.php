@@ -113,6 +113,24 @@ it('lists mail of incident events outside the timeline once, with the event name
         ->where('alert_preview_available', false)->where('other_deliveries.0.address', 'Hidden recipient'));
 });
 
+it('shows raw delivery errors only to viewers who may see the recipient', function (): void {
+    $check = Check::factory()->create(['type' => CheckKey::Cron, 'latest_run_result' => CheckResult::Failed]);
+    $incident = Incident::factory()->for($check)->create(['first_failure_at' => now()->subMinutes(5), 'opened_at' => now()->subMinutes(5)]);
+    $destination = NotificationDestination::factory()->create();
+    $raw = 'SMTP 550 relay mx.internal.example (10.0.0.5) refused';
+    foreach ([[null, 'failed'], ['given_up', 'pending']] as $minute => [$suppression, $state]) {
+        $event = Event::factory()->for($check)->for($incident)->create(['type' => 'cron.task_result_changed', 'component_type' => 'cron', 'component_id' => 1,
+            'occurred_at' => now()->subMinutes(4 - $minute), 'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Failed,
+            'payload' => ['component_name' => 'Nightly backup', 'from_result' => 'succeeded', 'result' => 'failed', 'summary' => 'cron.task_failed', 'summary_params' => ['presentation' => 'direct']]]);
+        Delivery::query()->create(['event_id' => $event->id, 'destination_id' => $destination->id, 'state' => $state, 'last_diagnosis' => $raw,
+            'suppressed' => $suppression !== null, 'suppression_reason' => $suppression, 'next_attempt_at' => $event->occurred_at, 'suppression_evaluated_at' => $event->occurred_at]);
+    }
+    $diagnoses = fn (User $viewer): array => array_column($this->actingAs($viewer)->get('/incidents/'.$incident->id)->inertiaProps()['other_deliveries'], 'diagnosis');
+
+    expect($diagnoses(User::factory()->owner()->create()))->each->toContain($raw)
+        ->and($diagnoses(User::factory()->member()->create()))->toBe([__('notifications.given_up', ['diagnosis' => '—']), null]);
+});
+
 it('names an active maintenance window and an opening during muted maintenance', function (): void {
     $owner = User::factory()->owner()->create();
     $check = Check::factory()->create(['type' => CheckKey::Uptime, 'latest_run_result' => CheckResult::Failed]);

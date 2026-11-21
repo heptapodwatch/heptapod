@@ -12,6 +12,8 @@ use Illuminate\Contracts\Database\Query\Expression;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Exists;
 
 final class SitePolicy
 {
@@ -81,6 +83,14 @@ final class SitePolicy
         }
 
         return $query;
+    }
+
+    /** Validates a site ID inside the caller's reach, so a hidden site fails exactly like a missing one. */
+    public function visibleSiteRule(User $user): Exists
+    {
+        $visible = $this->visibleSites($user, includeArchived: true)->getQuery()->select('sites.id');
+
+        return Rule::exists(Site::class, 'id')->using(static fn (QueryBuilder $query): QueryBuilder => $query->whereIn('id', $visible));
     }
 
     /** @return list<int> */

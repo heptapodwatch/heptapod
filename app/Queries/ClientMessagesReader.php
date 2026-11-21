@@ -78,7 +78,7 @@ final readonly class ClientMessagesReader
                 subject: $manual && is_string($payload['subject'] ?? null) ? $payload['subject'] : $this->alertSubject($row->category, $row->site_name),
                 origin: $row->origin, actor: $row->actor_name, channel: $visible ? $row->label : $hidden,
                 address: $visible ? $address : null,
-                state: $state, reason: in_array($state, [DeliveryOutcome::Failed, DeliveryOutcome::Suppressed], true) ? $this->reason($row->last_diagnosis, $row->suppression_reason) : null,
+                state: $state, reason: in_array($state, [DeliveryOutcome::Failed, DeliveryOutcome::Suppressed], true) ? $this->reason($visible ? $row->last_diagnosis : null, $row->suppression_reason) : null,
                 attachment: $row->has_attachment,
                 resend: $manual && $visible && $state === DeliveryOutcome::Failed ? $this->resend($payload, $row->site_id, $row->check_id, $oneOff ? $address : null) : null);
         }

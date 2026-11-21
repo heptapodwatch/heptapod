@@ -165,6 +165,8 @@ final readonly class MaintenanceReader
      */
     private function limitToReach(EloquentBuilder $query, User $user): void
     {
+        // The same monitoring-role gate as SitePolicy::visibleSites(): without it, an unrestricted read would cover every window.
+        abort_unless($user->disabled_at === null && $user->hasAnyRole(['Owner', 'Admin', 'Member']), 403);
         $constraint = $user->tokenClientConstraint();
         if (! $user->isRestrictedMember() && $constraint === null) {
             return;
