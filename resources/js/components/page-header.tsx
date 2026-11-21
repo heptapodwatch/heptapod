@@ -163,8 +163,6 @@ export function PageHeader({
                             <ActionNoteSlot
                                 id={actionNote.id}
                                 align={headingLevel === 1 ? 'end-sm' : 'end-md'}
-                                refusal={actionNote.refusal}
-                                standingKey={actionNote.standingKey}
                                 className={
                                     headingLevel === 1
                                         ? 'w-full sm:w-0 sm:min-w-full'

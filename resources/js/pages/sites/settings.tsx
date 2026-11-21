@@ -734,12 +734,14 @@ export default function SiteSettings({
                             </Button>
                         </div>
                         {(canRefreshIcon || iconHasNote) && (
-                            <ActionNoteSlot
-                                id={iconNoteId}
-                                refusal={iconForm.errors.icon}
-                                standingKey={icon_manual_result?.key ?? null}
-                            >
-                                {iconStandingNote}
+                            <ActionNoteSlot id={iconNoteId}>
+                                {iconForm.errors.icon ? (
+                                    <InputError
+                                        message={iconForm.errors.icon}
+                                    />
+                                ) : (
+                                    iconStandingNote
+                                )}
                             </ActionNoteSlot>
                         )}
                     </div>

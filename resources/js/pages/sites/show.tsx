@@ -4,7 +4,8 @@ import {
 } from '@/components/action-note-slot';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { PageContainer } from '@/components/page-container';
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
+import { toast } from 'sonner';
 import { isCoalescedStateChange, useLiveReload } from '@/hooks/use-live';
 import { useBufferedChanges } from '@/hooks/use-buffered-changes';
 import { useRequestedRun } from '@/hooks/use-requested-run';
@@ -51,7 +52,6 @@ export default function SiteShow(page: SitePage) {
     const [enablePending, setEnablePending] = useState(false);
     const run = isCheck ? page.schedule.run : null;
     const activeRun = useCheckRun(isCheck ? page.check.id : 0, run);
-    const { errors } = usePage().props;
     useLiveReload(
         ['state.changed'],
         isCheck
@@ -161,18 +161,14 @@ export default function SiteShow(page: SitePage) {
     const { active: inCooldown, remainingSeconds: cooldownSeconds } =
         useCooldown(cooldownUntil);
     const runNoteId = useId();
-    const checkActionErrors = Object.entries(errors)
-        .filter(([key]) => key !== '_refusal')
-        .map(([, message]) => message);
     const canShowRunAction =
         isCheck &&
         page.can_run &&
         (!page.check.enabled || header.state !== 'paused');
     const canProduceRunNote =
         isCheck &&
-        ((canShowRunAction &&
-            (!page.check.enabled || page.check.unavailable_reason === null)) ||
-            checkActionErrors.length > 0);
+        canShowRunAction &&
+        (!page.check.enabled || page.check.unavailable_reason === null);
     const runStandingNote =
         isCheck && page.check.enabled && activeRun ? (
             <RunCheckReason run={activeRun} />
@@ -182,16 +178,10 @@ export default function SiteShow(page: SitePage) {
                 remainingSeconds={cooldownSeconds}
             />
         ) : null;
-    const runStandingKey =
-        isCheck && page.check.enabled && activeRun
-            ? `${activeRun.state.attempt_id}:${activeRun.lifecycle}`
-            : cooldownUntil;
     const runActionNote: ActionNoteDescriptor | undefined = canProduceRunNote
         ? {
               id: runNoteId,
               content: runStandingNote,
-              refusal: checkActionErrors,
-              standingKey: runStandingKey,
           }
         : undefined;
     const runAction = canShowRunAction ? (
@@ -226,7 +216,16 @@ export default function SiteShow(page: SitePage) {
                                 requestedRun.accept(response);
                             }
                         },
-                        onError: requestedRun.abandon,
+                        onError: (errors) => {
+                            requestedRun.abandon();
+                            const messages = Object.entries(errors)
+                                .filter(([key]) => key !== '_refusal')
+                                .map(([, message]) => message);
+                            // `_refusal` already flashed a toast from the server.
+                            if (messages.length > 0) {
+                                toast.error(messages.join(' · '));
+                            }
+                        },
                         onHttpException: () => {
                             requestedRun.abandon();
                         },

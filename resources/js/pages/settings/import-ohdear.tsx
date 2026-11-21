@@ -267,6 +267,16 @@ export default function ImportOhDear({
     };
     const includesSites = plan?.sections.includes('sites') === true;
     const includesChannels = plan?.sections.includes('channels') === true;
+    const hasPartialPlan =
+        plan !== null && (plan.rows.length > 0 || plan.channels.length > 0);
+    const outrightFailure =
+        plan !== null && plan.remote_error !== null && !hasPartialPlan;
+    const showPlanError =
+        http.errors.ohdear_token ??
+        failureMessage ??
+        (outrightFailure
+            ? `${plan.remote_error} ${t('The plan could not be loaded. Try again.')}`
+            : null);
     const channelClient = (tags: string[]): string | null => {
         const target = groups[`tag:${tags[0]}`];
         return target &&
@@ -440,10 +450,7 @@ export default function ImportOhDear({
                             <Button
                                 type="submit"
                                 aria-describedby={
-                                    http.errors.ohdear_token ||
-                                    failureMessage ||
-                                    (plan?.remote_error &&
-                                        plan.rows.length === 0)
+                                    showPlanError
                                         ? 'ohdear-token-error'
                                         : undefined
                                 }
@@ -459,17 +466,11 @@ export default function ImportOhDear({
                                     : t('Show plan')}
                             </Button>
                         </div>
-                        <ActionNoteSlot
-                            id="ohdear-token-error"
-                            refusal={[
-                                http.errors.ohdear_token ?? '',
-                                failureMessage ??
-                                    (plan?.remote_error &&
-                                    plan.rows.length === 0
-                                        ? plan.remote_error
-                                        : ''),
-                            ]}
-                        />
+                        <ActionNoteSlot id="ohdear-token-error">
+                            {showPlanError && (
+                                <InputError message={showPlanError} />
+                            )}
+                        </ActionNoteSlot>
                     </div>
                     <p className="text-xs text-muted-foreground">
                         {t(
@@ -478,442 +479,488 @@ export default function ImportOhDear({
                     </p>
                 </FormSection>
             </form>
-            {plan && <ImportAlertTimingSummary rows={plan.rows} />}
-            {plan && (plan.rows.length > 0 || includesChannels) && (
-                <>
-                    {((includesSites && plan.rows.length > 0) ||
-                        (includesChannels && tags.length > 0)) && (
-                        <FormSection
-                            title={t('Clients')}
-                            description={t(
-                                includesSites
-                                    ? 'Sites without an assigned client go to No client.'
-                                    : 'import.channels.assign_tags',
-                            )}
-                            detail={t(
-                                'A tag assignment wins over the team assignment; a choice per site wins over both.',
-                            )}
-                        >
-                            <div className="@container/table overflow-hidden rounded-[10px] border">
-                                <ListHeader className="@md/table:grid @md/table:grid-cols-[minmax(0,1fr)_minmax(0,16rem)]">
-                                    <span>{t('Oh Dear team or tag')}</span>
-                                    <span>{t('Client')}</span>
-                                </ListHeader>
-                                {includesSites &&
-                                    plan.teams.map((team) => (
+            {plan && !outrightFailure && (
+                <ImportAlertTimingSummary rows={plan.rows} />
+            )}
+            {plan &&
+                !outrightFailure &&
+                (plan.rows.length > 0 || includesChannels) && (
+                    <>
+                        {((includesSites && plan.rows.length > 0) ||
+                            (includesChannels && tags.length > 0)) && (
+                            <FormSection
+                                title={t('Clients')}
+                                description={t(
+                                    includesSites
+                                        ? 'Sites without an assigned client go to No client.'
+                                        : 'import.channels.assign_tags',
+                                )}
+                                detail={t(
+                                    'A tag assignment wins over the team assignment; a choice per site wins over both.',
+                                )}
+                            >
+                                <div className="@container/table overflow-hidden rounded-[10px] border">
+                                    <ListHeader className="@md/table:grid @md/table:grid-cols-[minmax(0,1fr)_minmax(0,16rem)]">
+                                        <span>{t('Oh Dear team or tag')}</span>
+                                        <span>{t('Client')}</span>
+                                    </ListHeader>
+                                    {includesSites &&
+                                        plan.teams.map((team) => (
+                                            <MappingRow
+                                                key={team.id}
+                                                id={`team-${team.id}`}
+                                                label={team.name}
+                                                meta={`${t('Team')} · ${t(
+                                                    ':count sites',
+                                                    {
+                                                        count: rows.filter(
+                                                            (row) =>
+                                                                row.team_id ===
+                                                                team.id,
+                                                        ).length,
+                                                    },
+                                                )}`}
+                                                value={groupTarget(
+                                                    `team:${team.id}`,
+                                                )}
+                                                onChange={setGroup(
+                                                    `team:${team.id}`,
+                                                )}
+                                                onCreateClient={createClientFor(
+                                                    setGroup(`team:${team.id}`),
+                                                )}
+                                                clients={clients}
+                                                disabled={http.processing}
+                                            />
+                                        ))}
+                                    {tags.map((tag) => (
                                         <MappingRow
-                                            key={team.id}
-                                            id={`team-${team.id}`}
-                                            label={team.name}
-                                            meta={`${t('Team')} · ${t(
+                                            key={tag}
+                                            id={`tag-${tag}`}
+                                            label={tag}
+                                            meta={`${t('Tag')} · ${t(
                                                 ':count sites',
                                                 {
-                                                    count: rows.filter(
-                                                        (row) =>
-                                                            row.team_id ===
-                                                            team.id,
+                                                    count: rows.filter((row) =>
+                                                        row.tags.includes(tag),
                                                     ).length,
                                                 },
                                             )}`}
-                                            value={groupTarget(
-                                                `team:${team.id}`,
+                                            value={
+                                                groups[`tag:${tag}`] ?? inherit
+                                            }
+                                            inheritLabel={t(
+                                                includesSites
+                                                    ? 'Use the team assignment'
+                                                    : 'import.channels.no_assignment',
                                             )}
-                                            onChange={setGroup(
-                                                `team:${team.id}`,
-                                            )}
+                                            onChange={setGroup(`tag:${tag}`)}
                                             onCreateClient={createClientFor(
-                                                setGroup(`team:${team.id}`),
+                                                setGroup(`tag:${tag}`),
                                             )}
                                             clients={clients}
                                             disabled={http.processing}
                                         />
                                     ))}
-                                {tags.map((tag) => (
-                                    <MappingRow
-                                        key={tag}
-                                        id={`tag-${tag}`}
-                                        label={tag}
-                                        meta={`${t('Tag')} · ${t(
-                                            ':count sites',
-                                            {
-                                                count: rows.filter((row) =>
-                                                    row.tags.includes(tag),
-                                                ).length,
-                                            },
-                                        )}`}
-                                        value={groups[`tag:${tag}`] ?? inherit}
-                                        inheritLabel={t(
-                                            includesSites
-                                                ? 'Use the team assignment'
-                                                : 'import.channels.no_assignment',
-                                        )}
-                                        onChange={setGroup(`tag:${tag}`)}
-                                        onCreateClient={createClientFor(
-                                            setGroup(`tag:${tag}`),
-                                        )}
-                                        clients={clients}
-                                        disabled={http.processing}
-                                    />
-                                ))}
-                            </div>
-                            {tags.length === 0 && (
-                                <p className="text-xs text-muted-foreground">
-                                    {t(
-                                        'The sites in this account have no tags.',
-                                    )}
-                                </p>
-                            )}
-                        </FormSection>
-                    )}
-                    <div className="space-y-3 py-6">
-                        <div hidden={rows.length === 0} className="space-y-1">
-                            <SectionHeading id="import-plan">
-                                {t('Plan')}
-                            </SectionHeading>
-                            <p className="text-sm text-muted-foreground">
-                                {[
-                                    includesSites
-                                        ? t(':count sites to import', {
-                                              count: imported.length,
-                                          })
-                                        : t(
-                                              'Import into :count existing sites',
-                                              {
-                                                  count: imported.length,
-                                              },
-                                          ),
-                                    t(':count sites skipped', {
-                                        count: skipped.length,
-                                    }),
-                                    t(':count items not imported', {
-                                        count: notImported,
-                                    }),
-                                    t('Nothing has been imported yet.'),
-                                ].join(' · ')}
-                            </p>
-                        </div>
-                        {common.length > 0 && (
-                            <Alert tone="info">
-                                <AlertTitle>
-                                    {t('Not imported for any site')}
-                                </AlertTitle>
-                                <AlertDescription>
-                                    <ul className="list-disc space-y-1 pl-4 text-xs">
-                                        {common
-                                            .map((key) => t(key))
-                                            .sort((a, b) => a.localeCompare(b))
-                                            .map((label) => (
-                                                <li key={label}>{label}</li>
-                                            ))}
-                                    </ul>
-                                </AlertDescription>
-                            </Alert>
-                        )}
-                        {plan.remote_error && (
-                            <Alert tone="danger">
-                                <AlertTitle>{t('Incomplete plan')}</AlertTitle>
-                                <AlertDescription>
-                                    <p>
+                                </div>
+                                {tags.length === 0 && (
+                                    <p className="text-xs text-muted-foreground">
                                         {t(
-                                            'Import stays unavailable until a complete plan loads. Show the plan again to start the import.',
-                                        )}{' '}
-                                        <InfoTooltip>
-                                            {t(
-                                                'Oh Dear stopped answering before all sites were read; only the sites below were read.',
-                                            )}
-                                        </InfoTooltip>
-                                    </p>
-                                    <p className="font-mono text-xs">
-                                        {plan.remote_error}
-                                    </p>
-                                </AlertDescription>
-                            </Alert>
-                        )}
-                        <div
-                            hidden={rows.length === 0}
-                            className="@container/table overflow-hidden rounded-[10px] border"
-                        >
-                            <ListHeader
-                                className={cn('@3xl/table:grid', planColumns)}
-                            >
-                                <span>{t('Site')}</span>
-                                {includesSites && (
-                                    <span>{t('Checks to import')}</span>
-                                )}
-                                <span>{t('Not imported')}</span>
-                                {includesSites && <span>{t('Client')}</span>}
-                            </ListHeader>
-                            {visibleRows.map((row) => {
-                                const isSkipped = [
-                                    'skipped',
-                                    'failed',
-                                ].includes(row.operation);
-                                return (
-                                    <ListRow
-                                        key={row.source_id}
-                                        className={cn(
-                                            'items-start',
-                                            planColumns,
+                                            'The sites in this account have no tags.',
                                         )}
-                                    >
-                                        <div className="min-w-0 space-y-1">
-                                            <TruncatedText
-                                                label={t('Site')}
-                                                content={row.label ?? row.url}
-                                            >
-                                                <p className="truncate font-medium">
-                                                    {row.label ?? row.url}
-                                                </p>
-                                            </TruncatedText>
-                                            <TruncatedText
-                                                label={t('URL')}
-                                                content={row.url ?? undefined}
-                                            >
-                                                <p className="truncate font-mono text-xs text-muted-foreground">
-                                                    {row.url}
-                                                </p>
-                                            </TruncatedText>
-                                            {row.operation === 'skipped' ? (
-                                                <ImportOperationBadge
-                                                    operation={row.operation}
-                                                    label={t(
-                                                        row.notices[0] ??
-                                                            'import.notice.other',
-                                                    )}
-                                                />
-                                            ) : (
-                                                <ImportOperationBadge
-                                                    operation={row.operation}
-                                                    label={t(
-                                                        row.operation ===
-                                                            'update' &&
-                                                            !includesSites
-                                                            ? 'import.update_sections'
-                                                            : `import.${row.operation}`,
-                                                    )}
-                                                />
+                                    </p>
+                                )}
+                            </FormSection>
+                        )}
+                        <div className="space-y-3 py-6">
+                            <div
+                                hidden={rows.length === 0}
+                                className="space-y-1"
+                            >
+                                <SectionHeading id="import-plan">
+                                    {t('Plan')}
+                                </SectionHeading>
+                                <p className="text-sm text-muted-foreground">
+                                    {[
+                                        includesSites
+                                            ? t(':count sites to import', {
+                                                  count: imported.length,
+                                              })
+                                            : t(
+                                                  'Import into :count existing sites',
+                                                  {
+                                                      count: imported.length,
+                                                  },
+                                              ),
+                                        t(':count sites skipped', {
+                                            count: skipped.length,
+                                        }),
+                                        t(':count items not imported', {
+                                            count: notImported,
+                                        }),
+                                        t('Nothing has been imported yet.'),
+                                    ].join(' · ')}
+                                </p>
+                            </div>
+                            {common.length > 0 && (
+                                <Alert tone="info">
+                                    <AlertTitle>
+                                        {t('Not imported for any site')}
+                                    </AlertTitle>
+                                    <AlertDescription>
+                                        <ul className="list-disc space-y-1 pl-4 text-xs">
+                                            {common
+                                                .map((key) => t(key))
+                                                .sort((a, b) =>
+                                                    a.localeCompare(b),
+                                                )
+                                                .map((label) => (
+                                                    <li key={label}>{label}</li>
+                                                ))}
+                                        </ul>
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+                            {plan.remote_error && (
+                                <Alert tone="danger">
+                                    <AlertTitle>
+                                        {t('Incomplete plan')}
+                                    </AlertTitle>
+                                    <AlertDescription>
+                                        <p>
+                                            {t(
+                                                'Import stays unavailable until a complete plan loads. Show the plan again to start the import.',
+                                            )}{' '}
+                                            <InfoTooltip>
+                                                {t(
+                                                    'Oh Dear stopped answering before all sites were read; only the sites below were read.',
+                                                )}
+                                            </InfoTooltip>
+                                        </p>
+                                        <p className="font-mono text-xs">
+                                            {plan.remote_error}
+                                        </p>
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+                            <div
+                                hidden={rows.length === 0}
+                                className="@container/table overflow-hidden rounded-[10px] border"
+                            >
+                                <ListHeader
+                                    className={cn(
+                                        '@3xl/table:grid',
+                                        planColumns,
+                                    )}
+                                >
+                                    <span>{t('Site')}</span>
+                                    {includesSites && (
+                                        <span>{t('Checks to import')}</span>
+                                    )}
+                                    <span>{t('Not imported')}</span>
+                                    {includesSites && (
+                                        <span>{t('Client')}</span>
+                                    )}
+                                </ListHeader>
+                                {visibleRows.map((row) => {
+                                    const isSkipped = [
+                                        'skipped',
+                                        'failed',
+                                    ].includes(row.operation);
+                                    return (
+                                        <ListRow
+                                            key={row.source_id}
+                                            className={cn(
+                                                'items-start',
+                                                planColumns,
                                             )}
-                                            {row.maintenance && (
-                                                <p className="text-xs text-muted-foreground">
-                                                    {t(
-                                                        'import.details.maintenance_source',
-                                                        row.maintenance,
+                                        >
+                                            <div className="min-w-0 space-y-1">
+                                                <TruncatedText
+                                                    label={t('Site')}
+                                                    content={
+                                                        row.label ?? row.url
+                                                    }
+                                                >
+                                                    <p className="truncate font-medium">
+                                                        {row.label ?? row.url}
+                                                    </p>
+                                                </TruncatedText>
+                                                <TruncatedText
+                                                    label={t('URL')}
+                                                    content={
+                                                        row.url ?? undefined
+                                                    }
+                                                >
+                                                    <p className="truncate font-mono text-xs text-muted-foreground">
+                                                        {row.url}
+                                                    </p>
+                                                </TruncatedText>
+                                                {row.operation === 'skipped' ? (
+                                                    <ImportOperationBadge
+                                                        operation={
+                                                            row.operation
+                                                        }
+                                                        label={t(
+                                                            row.notices[0] ??
+                                                                'import.notice.other',
+                                                        )}
+                                                    />
+                                                ) : (
+                                                    <ImportOperationBadge
+                                                        operation={
+                                                            row.operation
+                                                        }
+                                                        label={t(
+                                                            row.operation ===
+                                                                'update' &&
+                                                                !includesSites
+                                                                ? 'import.update_sections'
+                                                                : `import.${row.operation}`,
+                                                        )}
+                                                    />
+                                                )}
+                                                {row.maintenance && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {t(
+                                                            'import.details.maintenance_source',
+                                                            row.maintenance,
+                                                        )}
+                                                    </p>
+                                                )}
+                                                {row.cron_definitions !==
+                                                    null && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {t(
+                                                            'import.details.cron',
+                                                            {
+                                                                cron: row.cron_definitions,
+                                                            },
+                                                        )}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {includesSites && (
+                                                <div className="min-w-0">
+                                                    <p className="text-xs text-muted-foreground @3xl/table:hidden">
+                                                        {t('Checks to import')}
+                                                    </p>
+                                                    {row.checks.length +
+                                                        row.disabled_checks
+                                                            .length ===
+                                                    0 ? (
+                                                        <span className="text-muted-foreground">
+                                                            —
+                                                        </span>
+                                                    ) : (
+                                                        <ul className="flex flex-wrap gap-1">
+                                                            {row.checks.map(
+                                                                (key) => (
+                                                                    <li
+                                                                        key={
+                                                                            key
+                                                                        }
+                                                                    >
+                                                                        <Badge variant="outline">
+                                                                            {checkLabel(
+                                                                                key,
+                                                                            )}
+                                                                        </Badge>
+                                                                    </li>
+                                                                ),
+                                                            )}
+                                                            {row.disabled_checks.map(
+                                                                (key) => (
+                                                                    <li
+                                                                        key={
+                                                                            key
+                                                                        }
+                                                                    >
+                                                                        <Badge
+                                                                            variant="outline"
+                                                                            className="text-muted-foreground"
+                                                                        >
+                                                                            {`${checkLabel(key)} · ${t('Off')}`}
+                                                                        </Badge>
+                                                                    </li>
+                                                                ),
+                                                            )}
+                                                        </ul>
                                                     )}
-                                                </p>
+                                                </div>
                                             )}
-                                            {row.cron_definitions !== null && (
-                                                <p className="text-xs text-muted-foreground">
-                                                    {t('import.details.cron', {
-                                                        cron: row.cron_definitions,
-                                                    })}
-                                                </p>
-                                            )}
-                                        </div>
-                                        {includesSites && (
                                             <div className="min-w-0">
                                                 <p className="text-xs text-muted-foreground @3xl/table:hidden">
-                                                    {t('Checks to import')}
+                                                    {t('Not imported')}
                                                 </p>
-                                                {row.checks.length +
-                                                    row.disabled_checks
-                                                        .length ===
-                                                0 ? (
+                                                {isSkipped ||
+                                                rowNotices(row).length === 0 ? (
                                                     <span className="text-muted-foreground">
                                                         —
                                                     </span>
                                                 ) : (
-                                                    <ul className="flex flex-wrap gap-1">
-                                                        {row.checks.map(
-                                                            (key) => (
-                                                                <li key={key}>
-                                                                    <Badge variant="outline">
-                                                                        {checkLabel(
-                                                                            key,
-                                                                        )}
-                                                                    </Badge>
-                                                                </li>
-                                                            ),
-                                                        )}
-                                                        {row.disabled_checks.map(
-                                                            (key) => (
-                                                                <li key={key}>
-                                                                    <Badge
-                                                                        variant="outline"
-                                                                        className="text-muted-foreground"
-                                                                    >
-                                                                        {`${checkLabel(key)} · ${t('Off')}`}
-                                                                    </Badge>
+                                                    <ul className="list-disc space-y-1 pl-4 text-xs break-words">
+                                                        {rowNotices(row).map(
+                                                            (label) => (
+                                                                <li key={label}>
+                                                                    {label}
                                                                 </li>
                                                             ),
                                                         )}
                                                     </ul>
                                                 )}
                                             </div>
-                                        )}
-                                        <div className="min-w-0">
-                                            <p className="text-xs text-muted-foreground @3xl/table:hidden">
-                                                {t('Not imported')}
-                                            </p>
-                                            {isSkipped ||
-                                            rowNotices(row).length === 0 ? (
-                                                <span className="text-muted-foreground">
-                                                    —
-                                                </span>
-                                            ) : (
-                                                <ul className="list-disc space-y-1 pl-4 text-xs break-words">
-                                                    {rowNotices(row).map(
-                                                        (label) => (
-                                                            <li key={label}>
-                                                                {label}
-                                                            </li>
-                                                        ),
-                                                    )}
-                                                </ul>
-                                            )}
-                                        </div>
-                                        {includesSites && (
-                                            <div className="min-w-0">
-                                                {isSkipped ? (
-                                                    <span className="text-muted-foreground">
-                                                        —
-                                                    </span>
-                                                ) : row.site_id !== null ? (
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {t(
-                                                            'Already exists, client unchanged',
-                                                        )}
-                                                        {': '}
-                                                        <span className="text-foreground">
-                                                            {row.client_name}
+                                            {includesSites && (
+                                                <div className="min-w-0">
+                                                    {isSkipped ? (
+                                                        <span className="text-muted-foreground">
+                                                            —
                                                         </span>
-                                                    </p>
-                                                ) : resolve(row) === null ? (
-                                                    <ConflictSelect
-                                                        id={`site-${row.source_id}-target`}
-                                                        label={t(
-                                                            'Client for :name',
-                                                            {
-                                                                name:
-                                                                    row.label ??
-                                                                    row.url,
-                                                            },
-                                                        )}
-                                                        proposed={tagCandidates(
-                                                            row,
-                                                        ).map(targetName)}
-                                                        clients={clients}
-                                                        onValueChange={setOverride(
-                                                            row.source_id,
-                                                        )}
-                                                        onCreateClient={createClientFor(
-                                                            setOverride(
+                                                    ) : row.site_id !== null ? (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {t(
+                                                                'Already exists, client unchanged',
+                                                            )}
+                                                            {': '}
+                                                            <span className="text-foreground">
+                                                                {
+                                                                    row.client_name
+                                                                }
+                                                            </span>
+                                                        </p>
+                                                    ) : resolve(row) ===
+                                                      null ? (
+                                                        <ConflictSelect
+                                                            id={`site-${row.source_id}-target`}
+                                                            label={t(
+                                                                'Client for :name',
+                                                                {
+                                                                    name:
+                                                                        row.label ??
+                                                                        row.url,
+                                                                },
+                                                            )}
+                                                            proposed={tagCandidates(
+                                                                row,
+                                                            ).map(targetName)}
+                                                            clients={clients}
+                                                            onValueChange={setOverride(
                                                                 row.source_id,
-                                                            ),
-                                                        )}
-                                                        disabled={
-                                                            http.processing
-                                                        }
-                                                    />
-                                                ) : (
-                                                    <ClientField
-                                                        id={`site-${row.source_id}-target`}
-                                                        ariaLabel={t(
-                                                            'Client for :name',
-                                                            {
-                                                                name:
-                                                                    row.label ??
-                                                                    row.url,
-                                                            },
-                                                        )}
-                                                        clients={clients}
-                                                        leadingOptions={[
-                                                            {
-                                                                value: inherit,
-                                                                label: t(
-                                                                    'Automatic: :client',
-                                                                    {
-                                                                        client: automatic(
-                                                                            row,
-                                                                        ),
-                                                                    },
+                                                            )}
+                                                            onCreateClient={createClientFor(
+                                                                setOverride(
+                                                                    row.source_id,
                                                                 ),
-                                                            },
-                                                        ]}
-                                                        value={
-                                                            overrides[
-                                                                row.source_id
-                                                            ] ?? inherit
-                                                        }
-                                                        onValueChange={setOverride(
-                                                            row.source_id,
-                                                        )}
-                                                        onCreateClient={createClientFor(
-                                                            setOverride(
+                                                            )}
+                                                            disabled={
+                                                                http.processing
+                                                            }
+                                                        />
+                                                    ) : (
+                                                        <ClientField
+                                                            id={`site-${row.source_id}-target`}
+                                                            ariaLabel={t(
+                                                                'Client for :name',
+                                                                {
+                                                                    name:
+                                                                        row.label ??
+                                                                        row.url,
+                                                                },
+                                                            )}
+                                                            clients={clients}
+                                                            leadingOptions={[
+                                                                {
+                                                                    value: inherit,
+                                                                    label: t(
+                                                                        'Automatic: :client',
+                                                                        {
+                                                                            client: automatic(
+                                                                                row,
+                                                                            ),
+                                                                        },
+                                                                    ),
+                                                                },
+                                                            ]}
+                                                            value={
+                                                                overrides[
+                                                                    row
+                                                                        .source_id
+                                                                ] ?? inherit
+                                                            }
+                                                            onValueChange={setOverride(
                                                                 row.source_id,
-                                                            ),
-                                                        )}
-                                                        disabled={
-                                                            http.processing
-                                                        }
-                                                    />
-                                                )}
-                                            </div>
-                                        )}
-                                    </ListRow>
-                                );
-                            })}
-                        </div>
-                        {rows.length > 0 && (
-                            <ListFooter
-                                count={t('import.result.count', {
-                                    count: rows.length,
-                                    formattedCount: format.number(rows.length),
+                                                            )}
+                                                            onCreateClient={createClientFor(
+                                                                setOverride(
+                                                                    row.source_id,
+                                                                ),
+                                                            )}
+                                                            disabled={
+                                                                http.processing
+                                                            }
+                                                        />
+                                                    )}
+                                                </div>
+                                            )}
+                                        </ListRow>
+                                    );
                                 })}
-                                pagination={planPagination}
-                                onPageChange={setPlanPage}
-                                onPageSizeChange={changePlanPageSize}
-                            />
-                        )}
-                        {includesChannels && (
-                            <ImportChannelSection
-                                rows={plan.channels}
-                                plannedClient={channelClient}
-                            />
-                        )}
-                        <FormActions
-                            status={
-                                plan.remote_error
-                                    ? t('Incomplete plan')
-                                    : unreadSites
-                                      ? t(
-                                            'Some sites could not be read. Show the plan again.',
-                                        )
-                                      : conflicts.length > 0
-                                        ? t(
-                                              'Choose a client for every site with conflicting tags before the import.',
-                                          )
-                                        : t('Nothing has been imported yet.')
-                            }
-                        >
-                            <Button
-                                type="button"
-                                disabled={
-                                    blocked ||
-                                    starting ||
-                                    http.processing ||
-                                    (imported.length === 0 && !hasChannels)
+                            </div>
+                            {rows.length > 0 && (
+                                <ListFooter
+                                    count={t('import.result.count', {
+                                        count: rows.length,
+                                        formattedCount: format.number(
+                                            rows.length,
+                                        ),
+                                    })}
+                                    pagination={planPagination}
+                                    onPageChange={setPlanPage}
+                                    onPageSizeChange={changePlanPageSize}
+                                />
+                            )}
+                            {includesChannels && (
+                                <ImportChannelSection
+                                    rows={plan.channels}
+                                    plannedClient={channelClient}
+                                />
+                            )}
+                            <FormActions
+                                status={
+                                    plan.remote_error
+                                        ? t('Incomplete plan')
+                                        : unreadSites
+                                          ? t(
+                                                'Some sites could not be read. Show the plan again.',
+                                            )
+                                          : conflicts.length > 0
+                                            ? t(
+                                                  'Choose a client for every site with conflicting tags before the import.',
+                                              )
+                                            : t(
+                                                  'Nothing has been imported yet.',
+                                              )
                                 }
-                                onClick={runImport}
                             >
-                                {t('Start import')}
-                            </Button>
-                        </FormActions>
-                        <InputError
-                            message={Object.values(importHttp.errors)[0]}
-                        />
-                    </div>
-                </>
-            )}
+                                <Button
+                                    type="button"
+                                    disabled={
+                                        blocked ||
+                                        starting ||
+                                        http.processing ||
+                                        (imported.length === 0 && !hasChannels)
+                                    }
+                                    onClick={runImport}
+                                >
+                                    {t('Start import')}
+                                </Button>
+                            </FormActions>
+                            <InputError
+                                message={Object.values(importHttp.errors)[0]}
+                            />
+                        </div>
+                    </>
+                )}
             {creating && (
                 <ClientCreateSheet
                     initialName={creating.name}

@@ -356,10 +356,11 @@ export function ChannelSheet({
                         {/* The provider's own reason, redacted server-side; the toast only says that the test failed. */}
                         {(channel.status !== 'needs_attention' ||
                             testDiagnosis !== null) && (
-                            <ActionNoteSlot
-                                id={`${id}-test-diagnosis`}
-                                refusal={testDiagnosis}
-                            />
+                            <ActionNoteSlot id={`${id}-test-diagnosis`}>
+                                {testDiagnosis && (
+                                    <InputError message={testDiagnosis} />
+                                )}
+                            </ActionNoteSlot>
                         )}
                         {channel.account_mail && (
                             <p>{t('recipient_settings.account_address')}</p>

@@ -612,7 +612,11 @@ function SavedCheckSettingsSheet({
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    aria-describedby={probeNoteId}
+                                    aria-describedby={
+                                        probeMessage || probeResult
+                                            ? probeNoteId
+                                            : undefined
+                                    }
                                     onClick={() => void testHealth()}
                                     disabled={
                                         probing || saving || form.processing
@@ -624,16 +628,10 @@ function SavedCheckSettingsSheet({
                                             : 'Test health endpoint',
                                     )}
                                 </Button>
-                                <ActionNoteSlot
-                                    id={probeNoteId}
-                                    refusal={probeMessage}
-                                    standingKey={
-                                        probeResult
-                                            ? `${probeResult.result}:${probeResult.component_count ?? ''}`
-                                            : 'idle'
-                                    }
-                                >
-                                    {probeResult ? (
+                                <ActionNoteSlot id={probeNoteId}>
+                                    {probeMessage ? (
+                                        <InputError message={probeMessage} />
+                                    ) : probeResult ? (
                                         <p
                                             role="status"
                                             aria-live="polite"
@@ -649,7 +647,10 @@ function SavedCheckSettingsSheet({
                                                       `health.probe.${probeResult.result}`,
                                                   )}
                                         </p>
-                                    ) : (
+                                    ) : null}
+                                </ActionNoteSlot>
+                                <ActionNoteSlot>
+                                    {probeResult?.result !== 'ok' && (
                                         <p className="text-muted-foreground">
                                             {t(
                                                 'Not saved yet. Test successfully before saving.',

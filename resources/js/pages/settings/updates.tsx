@@ -11,6 +11,7 @@ import { FormSection } from '@/components/form-section';
 import { PageHeader } from '@/components/page-header';
 import { HttpError } from '@inertiajs/core';
 import { Head, usePage } from '@inertiajs/react';
+import { toast } from 'sonner';
 import {
     httpErrorMessage,
     httpErrorRetryAfter,
@@ -59,9 +60,6 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
     const { number } = format;
     const [page, setPage] = useState(updatesPage);
     const [refreshFailed, setRefreshFailed] = useState(false);
-    const [backupError, setBackupError] = useState<string | null>(null);
-    const [backupErrorIsCooldown, setBackupErrorIsCooldown] = useState(false);
-    const [toggleError, setToggleError] = useState<string | null>(null);
     const [acceptedId, setAcceptedId] = useState<number | null>(null);
     const [cooldownOverrideUntil, setCooldownOverrideUntil] = useState<
         string | null
@@ -109,13 +107,6 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
         active: backupInCooldown,
         remainingSeconds: backupCooldownSeconds,
     } = useCooldown(backupCooldownUntil);
-    useEffect(() => {
-        if (!backupInCooldown && backupErrorIsCooldown) {
-            setBackupError(null);
-            setBackupErrorIsCooldown(false);
-        }
-    }, [backupInCooldown, backupErrorIsCooldown]);
-    const toggleNoteId = useId();
     const backupNoteId = useId();
     const backupStandingNote =
         backupInCooldown && !active ? (
@@ -132,9 +123,6 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                 )}
             </p>
         ) : null;
-    const backupHasNote = Boolean(backupError || backupStandingNote);
-    const canToggleReleaseChecks =
-        auth.canManageInstance && updates.enabled_by_server;
     const timestamp = (value: string | null) =>
         value === null ? t('Unknown') : <AbsoluteTime value={value} />;
     const refresh = async () => {
@@ -173,8 +161,6 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
         };
     }, [backupsShown]);
     const backUpNow = async () => {
-        setBackupError(null);
-        setBackupErrorIsCooldown(false);
         try {
             const receipt = await backup.post(requestBackup.url());
             setAcceptedId(receipt.id);
@@ -188,22 +174,21 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                     setCooldownOverrideUntil(
                         new Date(Date.now() + retryAfter * 1000).toISOString(),
                     );
-                    setBackupErrorIsCooldown(true);
                 }
+            } else {
+                setRefreshFailed(true);
             }
-            setBackupError(httpErrorMessage(error, t, 'errors.backup.unknown'));
-            if (code !== 429) setRefreshFailed(true);
+            toast.error(httpErrorMessage(error, t, 'errors.backup.unknown'));
         }
     };
     const toggleChecks = async () => {
-        setToggleError(null);
         toggle.transform(() => ({ enabled: !updates.enabled }));
         try {
             const next = await toggle.patch(update.url());
             setPage((current) => ({ ...current, updates: next }));
         } catch (error) {
             if (!(error instanceof HttpError)) throw error;
-            setToggleError(
+            toast.error(
                 httpErrorMessage(
                     error,
                     t,
@@ -342,43 +327,32 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                         'Refresh reads cached release checks; it does not contact the release source or install an update.',
                     )}
                 </p>
-                <div className="space-y-1.5">
-                    <div className="flex flex-wrap gap-2">
-                        {auth.canManageInstance && (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                aria-describedby={
-                                    toggleError ? toggleNoteId : undefined
-                                }
-                                disabled={busy || !updates.enabled_by_server}
-                                onClick={() => void toggleChecks()}
+                <div className="flex flex-wrap gap-2">
+                    {auth.canManageInstance && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={busy || !updates.enabled_by_server}
+                            onClick={() => void toggleChecks()}
+                        >
+                            {t(
+                                updates.enabled
+                                    ? 'Disable release checks'
+                                    : 'Enable release checks',
+                            )}
+                        </Button>
+                    )}
+                    {updates.release_url !== null && (
+                        <Button variant="outline" size="sm" asChild>
+                            <a
+                                href={updates.release_url}
+                                target="_blank"
+                                rel="noreferrer"
                             >
-                                {t(
-                                    updates.enabled
-                                        ? 'Disable release checks'
-                                        : 'Enable release checks',
-                                )}
-                            </Button>
-                        )}
-                        {updates.release_url !== null && (
-                            <Button variant="outline" size="sm" asChild>
-                                <a
-                                    href={updates.release_url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                >
-                                    <ExternalLink className="size-3.5" />
-                                    {t('Last observed release notes')}
-                                </a>
-                            </Button>
-                        )}
-                    </div>
-                    {(canToggleReleaseChecks || toggleError !== null) && (
-                        <ActionNoteSlot
-                            id={toggleNoteId}
-                            refusal={toggleError}
-                        />
+                                <ExternalLink className="size-3.5" />
+                                {t('Last observed release notes')}
+                            </a>
+                        </Button>
                     )}
                 </div>
             </FormSection>
@@ -521,7 +495,9 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                                     variant="outline"
                                     size="sm"
                                     aria-describedby={
-                                        backupHasNote ? backupNoteId : undefined
+                                        backupStandingNote
+                                            ? backupNoteId
+                                            : undefined
                                     }
                                     disabled={
                                         busy ||
@@ -538,17 +514,7 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                                     )}
                                 </Button>
                             </div>
-                            <ActionNoteSlot
-                                id={backupNoteId}
-                                refusal={backupError}
-                                standingKey={
-                                    backupInCooldown && !active
-                                        ? `cooldown:${backupCooldownUntil}`
-                                        : active
-                                          ? 'active'
-                                          : acceptedId
-                                }
-                            >
+                            <ActionNoteSlot id={backupNoteId}>
                                 {backupStandingNote}
                             </ActionNoteSlot>
                         </div>

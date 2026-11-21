@@ -6,7 +6,8 @@ import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { PresentationChanges } from '@/components/presentation-changes';
-import { Link, router, useForm, usePage } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
+import { toast } from 'sonner';
 import {
     Fragment,
     useEffect,
@@ -118,9 +119,6 @@ export function IncidentEpisode({
 }) {
     const { t } = useTranslation();
     const format = useFormat();
-    const {
-        props: { errors },
-    } = usePage();
     const [noteOpen, setNoteOpen] = useState(false);
     // The incident and its current snapshot are single records: after the own run they show the refetched state.
     const ownRunState = ownRun && {
@@ -162,18 +160,12 @@ export function IncidentEpisode({
                 remainingSeconds={cooldownSeconds}
             />
         ) : null;
-    const runActionNote: ActionNoteDescriptor | undefined =
-        canShowRun || errors.check
-            ? {
-                  id: runNoteId,
-                  content: runStandingNote,
-                  refusal: errors.check ?? null,
-                  standingKey:
-                      canShowRun && activeRun
-                          ? `${activeRun.state.attempt_id}:${activeRun.lifecycle}`
-                          : cooldownUntil,
-              }
-            : undefined;
+    const runActionNote: ActionNoteDescriptor | undefined = canShowRun
+        ? {
+              id: runNoteId,
+              content: runStandingNote,
+          }
+        : undefined;
     const [runPending, setRunPending] = useState(false);
     const [now, setNow] = useState(Date.now());
     const [actionsOpen, setActionsOpen] = useState(false);
@@ -513,7 +505,23 @@ export function IncidentEpisode({
                                     {
                                         preserveScroll: true,
                                         onSuccess: requestedRun.accept,
-                                        onError: requestedRun.abandon,
+                                        onError: (errors) => {
+                                            requestedRun.abandon();
+                                            const messages = Object.entries(
+                                                errors,
+                                            )
+                                                .filter(
+                                                    ([key]) =>
+                                                        key !== '_refusal',
+                                                )
+                                                .map(([, message]) => message);
+                                            // `_refusal` already flashed a toast from the server.
+                                            if (messages.length > 0) {
+                                                toast.error(
+                                                    messages.join(' · '),
+                                                );
+                                            }
+                                        },
                                         onHttpException: () => {
                                             requestedRun.abandon();
                                         },

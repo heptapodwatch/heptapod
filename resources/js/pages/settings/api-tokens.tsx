@@ -360,14 +360,11 @@ function SecretDialog({
                         <Copy className="size-4" />
                         {t(copied ? 'Copied' : 'Copy')}
                     </Button>
-                    <ActionNoteSlot
-                        id={copyNoteId}
-                        refusal={
-                            failed
-                                ? 'Copy failed. Select the token and copy it manually.'
-                                : null
-                        }
-                    />
+                    <ActionNoteSlot id={copyNoteId}>
+                        {failed && (
+                            <InputError message="Copy failed. Select the token and copy it manually." />
+                        )}
+                    </ActionNoteSlot>
                 </div>
                 <EvidenceBlock
                     wrap
@@ -417,6 +414,7 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
     const [creating, setCreating] = useState(false);
     const [secret, setSecret] = useState<Disclosure | null>(null);
     const [revoking, setRevoking] = useState<Token | null>(null);
+    const [revokeError, setRevokeError] = useState<string | null>(null);
     const revokeNoteId = useId();
     const [failureMessage, setFailureMessage] = useState<string | null>(null);
     const [revoked, setRevoked] = useState(false);
@@ -488,10 +486,11 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
     };
     const revokeToken = async () => {
         if (!revoking) throw new Error('No token selected for revocation.');
+        setRevokeError(null);
         try {
             await revoke.delete(destroy.url(revoking.id));
         } catch (error: unknown) {
-            setFailureMessage(
+            setRevokeError(
                 httpErrorMessage(
                     error,
                     t,
@@ -505,7 +504,7 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
             tokens: current.tokens.filter((token) => token.id !== revoking.id),
         }));
         setRevoked(true);
-        setFailureMessage(null);
+        setRevokeError(null);
         return true;
     };
     return (
@@ -660,7 +659,7 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
                             className="justify-self-end"
                             onClick={() => {
                                 setRevoking(token);
-                                setFailureMessage(null);
+                                setRevokeError(null);
                             }}
                         >
                             {t('Revoke')}
@@ -699,7 +698,10 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
             <ConfirmDialog
                 open={revoking !== null}
                 onOpenChange={(open) => {
-                    if (!open) setRevoking(null);
+                    if (!open) {
+                        setRevoking(null);
+                        setRevokeError(null);
+                    }
                 }}
                 destructive
                 title={t('Revoke token?')}
@@ -709,10 +711,12 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
                 )}
                 confirmLabel={t('Revoke token')}
                 confirmTestId="confirm-revoke-token"
-                confirmDescribedBy={failureMessage ? revokeNoteId : undefined}
+                confirmDescribedBy={revokeError ? revokeNoteId : undefined}
                 onConfirm={revokeToken}
             >
-                <ActionNoteSlot id={revokeNoteId} refusal={failureMessage} />
+                <ActionNoteSlot id={revokeNoteId}>
+                    {revokeError && <InputError message={revokeError} />}
+                </ActionNoteSlot>
             </ConfirmDialog>
         </>
     );

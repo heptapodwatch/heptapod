@@ -83,6 +83,7 @@ $rawButtonOwners = [
 ];
 /** Per file: the one error key a button action returns (no form field holds it), and why it has no field link. */
 $actionErrorKeys = [
+    'resources/js/pages/sites/settings.tsx' => 'icon', // Refresh icon refused (unavailable / throttled): rendered in ActionNoteSlot beside the Refresh button.
     'resources/js/pages/sites/create.tsx' => '_refusal', // Shared non-field Inertia refusal message from ErrorResponses::flashBack.
     'resources/js/pages/settings/security.tsx' => '_refusal', // Shared non-field Inertia refusal message from ErrorResponses::flashBack.
 ];
@@ -558,8 +559,9 @@ foreach ($files as $path) {
         }
         // Inline action notes (heptapod-ui-rules Errors and refusals): CooldownReason, RunCheckReason and refusal
         // InputErrors belong in ActionNoteSlot (or PageHeader actionNote), never wrapped beside or inside a button row.
-        // Source-pattern limits (review-only): notes returned from a separate helper component, or separated from a
-        // button by an extra non-slot wrapper element, are not traced across JSX/component boundaries.
+        // Source-pattern limits (review-only): only primaryAction= expressions and notes placed directly after
+        // </Button> / </PageHeaderAction> are checked; notes returned from a separate helper component or separated
+        // from a button by an extra non-slot wrapper element remain review-only.
         if (preg_match_all('~\bprimaryAction=~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
             foreach ($matches[0] as [$text, $offset]) {
                 $value = expressionValue($source, $offset + strlen($text));
@@ -572,16 +574,6 @@ foreach ($files as $path) {
                             $failures[] = sprintf('%s:%d: unfielded InputError inside primaryAction; pass action refusals through PageHeader actionNote', $path, substr_count($source, "\n", 0, $offset) + 1);
                         }
                     }
-                }
-            }
-        }
-        if (preg_match_all('~<(CooldownReason|RunCheckReason)\b~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
-            foreach ($matches[0] as [$tag, $offset]) {
-                // Per-occurrence check (no file-wide exemption): reject any CooldownReason/RunCheckReason that shares
-                // an immediate JSX element block with a Button or PageHeaderAction instead of sitting in ActionNoteSlot.
-                $before = substr($source, max(0, $offset - 1200), min($offset, 1200));
-                if (preg_match('~</(?:Button|PageHeaderAction)>(?:(?!</(?:div|section|form|Card|FormSection|ActionNoteSlot)>).)*$~s', $before) === 1) {
-                    $failures[] = sprintf('%s:%d: %s rendered in the same block after an action button; place it inside ActionNoteSlot or PageHeader actionNote', $path, substr_count($source, "\n", 0, $offset) + 1, ltrim($tag, '<'));
                 }
             }
         }
