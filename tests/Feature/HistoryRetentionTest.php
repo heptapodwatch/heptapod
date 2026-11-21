@@ -24,6 +24,7 @@ use Heptapod\Queries\HistoryReader;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\Testing\ClaimedRun;
 use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -256,17 +257,65 @@ it('deletes only expired hours with final daily coverage after explicit enable a
 });
 
 it('caps hourly deletion at 200000 rows per maintenance run', function (): void {
-    $check = Check::factory()->create();
-    DB::statement("INSERT INTO check_run_rollups_hourly (check_id, bucket_start, computed_at) SELECT ?, '2000-01-01'::timestamptz + n * interval '1 hour', '2026-01-01'::timestamptz FROM generate_series(0, 200000) n", [$check->id]);
+    $checks = Check::factory()->count(3)->create()->sortBy('id')->values();
+    // 66,667 hours x 3 checks = 200,001 covered rows: 10,000-row windows split shared hours across boundaries.
+    DB::statement("INSERT INTO check_run_rollups_hourly (check_id, bucket_start, computed_at) SELECT check_id, '2000-01-01'::timestamptz + n * interval '1 hour', '2026-01-01'::timestamptz FROM generate_series(0, 66666) n CROSS JOIN unnest(?::bigint[]) AS check_id", ['{'.$checks->pluck('id')->implode(',').'}']);
     DB::statement("INSERT INTO check_run_rollups_daily (check_id, bucket_start, computed_at) SELECT DISTINCT check_id, date_trunc('day', bucket_start, 'UTC'), '2026-01-01'::timestamptz FROM check_run_rollups_hourly");
-    expect(retentionReport()['check_run_rollups_hourly'][2])->toBe('200000');
+    // Uncovered row beyond the 200,000-row cap exercises the post-cap tail count in pruneHourly().
+    retentionRollup($checks[0], 'hourly', '2008-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+    $newestCovered = CarbonImmutable::parse('2000-01-01T00:00:00Z')->addHours(66666)->format('Y-m-d H:i:s').'+00';
+    expect(retentionReport()['check_run_rollups_hourly'])->toMatchArray([2 => '200000', 4 => 'daily coverage missing=1']);
     config(['monitoring.hourly_rollup_deletion_enabled' => true]);
+    $retentionLogs = [];
+    Log::listen(function (MessageLogged $event) use (&$retentionLogs): void {
+        if ($event->message === 'Hourly rollup retention completed.') {
+            $retentionLogs[] = $event->context;
+        }
+    });
 
     $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
 
-    expect(DB::table('check_run_rollups_hourly')->count())->toBe(1);
+    expect($retentionLogs)->toBe([['deleted' => 200000, 'uncovered' => 1]])
+        ->and(DB::table('check_run_rollups_hourly')->orderBy('bucket_start')->orderBy('id')->get(['check_id', 'bucket_start'])->map(static fn (object $row): array => [$row->check_id, $row->bucket_start])->all())
+        ->toBe([[$checks[2]->id, $newestCovered], [$checks[0]->id, '2008-01-01 00:00:00+00']]);
+
     $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
-    expect(DB::table('check_run_rollups_hourly')->count())->toBe(0);
+
+    expect($retentionLogs)->toBe([['deleted' => 200000, 'uncovered' => 1], ['deleted' => 1, 'uncovered' => 1]])
+        ->and(DB::table('check_run_rollups_hourly')->orderBy('bucket_start')->orderBy('id')->get(['check_id', 'bucket_start'])->map(static fn (object $row): array => [$row->check_id, $row->bucket_start])->all())
+        ->toBe([[$checks[0]->id, '2008-01-01 00:00:00+00']]);
+});
+
+it('prunes and previews hourly rollups past uncovered rows under stale planner statistics', function (): void {
+    try {
+        $check = Check::factory()->create();
+        // Seed one row and analyze before bulk-inserting to reproduce stale tiny statistics;
+        // finally resets RefreshDatabaseState so later tests in this worker never inherit them.
+        retentionRollup($check, 'hourly', '2026-07-18T01:00:00Z', '2026-07-19T00:10:00Z');
+        retentionRollup($check, 'daily', '2026-07-18T00:00:00Z', '2026-07-19T00:10:00Z');
+        DB::statement('ANALYZE check_run_rollups_hourly');
+        DB::statement('ANALYZE check_run_rollups_daily');
+        DB::table('check_run_rollups_hourly')->delete();
+        DB::table('check_run_rollups_daily')->delete();
+        // Place 10,500 uncovered rows (> one 10,000-row scan window) before 48,000 covered rows.
+        DB::statement("INSERT INTO check_run_rollups_hourly (check_id, bucket_start, computed_at) SELECT ?, '2000-01-01'::timestamptz + n * interval '1 hour', '2026-01-01'::timestamptz FROM generate_series(0, 10499) n", [$check->id]);
+        DB::statement("INSERT INTO check_run_rollups_hourly (check_id, bucket_start, computed_at) SELECT ?, '2002-01-01'::timestamptz + n * interval '1 hour', '2026-01-01'::timestamptz FROM generate_series(0, 47999) n", [$check->id]);
+        DB::statement("INSERT INTO check_run_rollups_daily (check_id, bucket_start, computed_at) SELECT DISTINCT check_id, date_trunc('day', bucket_start, 'UTC'), '2026-01-01'::timestamptz FROM check_run_rollups_hourly WHERE bucket_start >= '2002-01-01'::timestamptz");
+        // 3s per statement guards against quadratic plans with observed headroom; timing still depends on load and planner.
+        DB::statement("SET LOCAL statement_timeout = '3s'");
+        config(['monitoring.hourly_rollup_deletion_enabled' => true]);
+
+        $hourlyRow = retentionReport()['check_run_rollups_hourly'];
+        expect($hourlyRow[0])->toBe('48000')
+            ->and($hourlyRow[1])->toBe('2002-01-01 00:00:00+00')
+            ->and($hourlyRow[4])->toBe('daily coverage missing=10500');
+        $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
+
+        expect(DB::table('check_run_rollups_hourly')->count())->toBe(10500)
+            ->and(DB::table('check_run_rollups_hourly')->max('bucket_start'))->toBe('2001-03-13 11:00:00+00');
+    } finally {
+        RefreshDatabaseState::$migrated = false;
+    }
 });
 
 it('retains attempts only from the configured cutoff onwards', function (?int $days, bool $keepsTwoDays, bool $keepsEightDays): void {
@@ -416,10 +465,10 @@ it('logs the original rollup failure before a subsequent hourly prune failure', 
         }
     });
 
-    expect(fn () => DB::transaction(fn (): int => Artisan::call('heptapod:maintain-check-data')))
-        ->toThrow(QueryException::class);
-    // The failed delete aborts the wrapping test transaction before maintenance can unlock; the savepoint is restored here.
-    DB::select('SELECT pg_advisory_unlock(73410201)');
+    expect(fn (): int => Artisan::call('heptapod:maintain-check-data'))
+        ->toThrow(QueryException::class, 'prune fixture failed');
+    // The failed batch delete rolled back its own savepoint, so maintenance unlocked cleanly without 25P02.
+    expect(DB::scalar('SELECT pg_advisory_unlock(73410201)'))->toBeFalse();
 
     expect($errors)->toHaveCount(2);
     expect($errors[0]->message)->toBe('Check run rollup computation failed before retention.');

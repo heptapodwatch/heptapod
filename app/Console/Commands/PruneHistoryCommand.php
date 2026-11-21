@@ -26,9 +26,10 @@ final class PruneHistoryCommand extends Command
             return self::FAILURE;
         }
         $at = CarbonImmutable::now('UTC');
+        // The preview uses READ COMMITTED cursor windows and a separate lock, so counts are best-effort while maintenance runs.
         DB::transaction(function () use ($retention, $maintenance, $policy, $at): void {
             DB::select('SELECT pg_advisory_xact_lock(73410202)');
-            $this->info('DRY RUN at '.$at->toIso8601String().'; deletes nothing. Hourly deletion enabled: '.($policy->hourlyDeletionEnabled ? 'yes' : 'no'));
+            $this->info('DRY RUN at '.$at->toIso8601String().'; deletes nothing (best-effort while maintenance runs). Hourly deletion enabled: '.($policy->hourlyDeletionEnabled ? 'yes' : 'no'));
             $this->table(['Table', 'Eligible', 'Oldest eligible', 'At most/run', 'Cap/table/run', 'Exemptions (may overlap)', 'Deletion enabled'], array_map(
                 static fn (array $row): array => array_values([...$row, 'cap' => $row['cap'] ?? 'none', 'deletion_enabled' => $row['deletion_enabled'] ? 'yes' : 'no']), $retention->report($at, $policy),
             ));
