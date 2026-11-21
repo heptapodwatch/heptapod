@@ -413,7 +413,7 @@ it('completes a site deletion and a membership change for its actor without a de
 
 /*
  * A site that moves again every time the write has locked its client: after three attempts the write is refused, as a
- * retryable conflict when the actor may still write the site, as not found when it left the actor's scope. Each move is
+ * conflict to try again when the actor may still write the site, as not found when it left the actor's scope. Each move is
  * its own process holding both clients FOR UPDATE, as MoveSiteToClient does, until this test lets it commit; the next move
  * already queues for its source client, so it holds that client before the write locks it again.
  */

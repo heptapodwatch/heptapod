@@ -267,7 +267,7 @@ final class NotificationLocks
      * over with the new set. Callers run it as their outermost transaction: an enclosing one would keep the locks of the
      * attempt it starts over. A site that is gone answers 404. When the set has not held still after the last attempt, the
      * sites are read once more without locks: gone answers 404, $refuseUnstable may refuse them (a target out of the actor's
-     * scope, 404), and otherwise the write is refused as a retryable conflict (409).
+     * scope, 404), and otherwise the write is refused as a conflict to try again (409).
      *
      * @template TReturn
      *
