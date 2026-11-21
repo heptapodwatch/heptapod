@@ -21,8 +21,12 @@ final class UnsnoozeCheckController extends Controller
     public function __invoke(Request $request, Check $check, UnsnoozeCheck $unsnooze, AuthorizeSiteWrite $authorize): CheckResource
     {
         $user = $this->principal($request);
-        $authorize($user, 'snooze', static fn () => $unsnooze($check, $user), $check);
+        // The resource reads the site loaded under the lock: a site deleted after the commit must not fail the response.
+        $authorize($user, 'snooze', static function () use ($unsnooze, $check, $user): void {
+            $unsnooze($check, $user);
+            $check->load(['snoozes', 'site.checks']);
+        }, $check);
 
-        return new CheckResource($check->load('snoozes'));
+        return new CheckResource($check);
     }
 }

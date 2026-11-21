@@ -562,6 +562,8 @@ final readonly class IncidentsReader
             $address = $this->recipientName($user, $destination);
             $event = $delivery->event ?? throw new \LogicException('Incident delivery has no event.');
             $previewId = $previewIds->get($event->id);
+            // Transport errors name hosts and addresses of the recipient; only viewers who may see the recipient get them.
+            $transportDiagnosis = $destination->identityVisibleTo($user) ? $delivery->last_diagnosis : null;
             if ($previewId !== null && ! is_int($previewId) && (! is_string($previewId) || preg_match('/^[0-9]+$/D', $previewId) !== 1)) {
                 throw new \LogicException('Preview delivery ID must be numeric.');
             }
@@ -576,8 +578,8 @@ final readonly class IncidentsReader
                 'episode_continued' => __('notifications.suppression.episode_continued'),
                 'superseded_by_maintenance_catch_up' => __('notifications.suppression.superseded_by_maintenance_catch_up'),
                 'reopened_before_recovery_confirmed' => __('notifications.suppression.reopened_before_recovery_confirmed'),
-                CompleteNotificationDelivery::GivenUpReason => __('notifications.given_up', ['diagnosis' => $delivery->last_diagnosis ?? '—']),
-                default => $delivery->last_diagnosis,
+                CompleteNotificationDelivery::GivenUpReason => __('notifications.given_up', ['diagnosis' => $transportDiagnosis ?? '—']),
+                default => $transportDiagnosis,
             };
             if (! $delivery->suppressed && in_array($delivery->last_reason, ['deferred_by_maintenance', 'deferred_by_snooze'], true)) {
                 $diagnosis = __('notifications.'.$delivery->last_reason, [

@@ -14,7 +14,8 @@ import { PageHeader } from '@/components/page-header';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import InputError from '@/components/input-error';
+import InputError, { fieldErrorProps } from '@/components/input-error';
+import PasswordInput from '@/components/password-input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,7 +47,11 @@ export default function Profile({
         email: user.email,
         locale: user.locale,
         timezone: user.timezone_override,
+        current_password: '',
     });
+    // The server compares addresses trimmed and case-insensitively; only a real change asks for the password.
+    const emailChanged =
+        form.data.email.trim().toLowerCase() !== user.email.toLowerCase();
     const pendingErrorFocus = useRef<string | undefined>(undefined);
     useEffect(() => {
         if (!form.processing && pendingErrorFocus.current) {
@@ -70,6 +75,7 @@ export default function Profile({
                     email: savedUser.email,
                     locale: savedUser.locale,
                     timezone: savedUser.timezone_override,
+                    current_password: '',
                 };
                 form.setDefaults(saved);
                 form.setData(saved);
@@ -162,6 +168,45 @@ export default function Profile({
                                         message={form.errors.email}
                                     />
                                 </div>
+                                {emailChanged && (
+                                    <div className="space-y-1.5 sm:col-start-2">
+                                        <Label htmlFor="current_password">
+                                            {t('Current password')}
+                                        </Label>
+                                        <PasswordInput
+                                            id="current_password"
+                                            name="current_password"
+                                            autoComplete="current-password"
+                                            required
+                                            value={form.data.current_password}
+                                            onChange={(event) =>
+                                                form.setData(
+                                                    'current_password',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            {...fieldErrorProps(
+                                                'current_password',
+                                                form.errors.current_password,
+                                                'current_password-hint',
+                                            )}
+                                        />
+                                        <p
+                                            id="current_password-hint"
+                                            className="text-xs text-muted-foreground"
+                                        >
+                                            {t(
+                                                'profile.email_change_password_hint',
+                                            )}
+                                        </p>
+                                        <InputError
+                                            field="current_password"
+                                            message={
+                                                form.errors.current_password
+                                            }
+                                        />
+                                    </div>
+                                )}
                             </div>
                             {mustVerifyEmail &&
                                 user.email_verified_at === null && (

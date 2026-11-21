@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\EndMaintenanceController::__invoke
-* @see app/Http/Controllers/EndMaintenanceController.php:16
+* @see app/Http/Controllers/EndMaintenanceController.php:17
 * @route '/maintenance/{window}/end'
 */
 const EndMaintenanceController = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ EndMaintenanceController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\EndMaintenanceController::__invoke
-* @see app/Http/Controllers/EndMaintenanceController.php:16
+* @see app/Http/Controllers/EndMaintenanceController.php:17
 * @route '/maintenance/{window}/end'
 */
 EndMaintenanceController.url = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ EndMaintenanceController.url = (args: { window: number | { id: number } } | [win
 
 /**
 * @see \Heptapod\Http\Controllers\EndMaintenanceController::__invoke
-* @see app/Http/Controllers/EndMaintenanceController.php:16
+* @see app/Http/Controllers/EndMaintenanceController.php:17
 * @route '/maintenance/{window}/end'
 */
 EndMaintenanceController.post = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ EndMaintenanceController.post = (args: { window: number | { id: number } } | [wi
 
 /**
 * @see \Heptapod\Http\Controllers\EndMaintenanceController::__invoke
-* @see app/Http/Controllers/EndMaintenanceController.php:16
+* @see app/Http/Controllers/EndMaintenanceController.php:17
 * @route '/maintenance/{window}/end'
 */
 const EndMaintenanceControllerForm = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const EndMaintenanceControllerForm = (args: { window: number | { id: number } } 
 
 /**
 * @see \Heptapod\Http\Controllers\EndMaintenanceController::__invoke
-* @see app/Http/Controllers/EndMaintenanceController.php:16
+* @see app/Http/Controllers/EndMaintenanceController.php:17
 * @route '/maintenance/{window}/end'
 */
 EndMaintenanceControllerForm.post = (args: { window: number | { id: number } } | [window: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

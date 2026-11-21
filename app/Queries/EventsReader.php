@@ -186,7 +186,9 @@ final readonly class EventsReader
         $query = $this->filtered($user, null, null, null, null);
         $query->getQuery()->whereIn('events.id', $eventIds);
 
-        return $query->get()->keyBy('id');
+        // The site and its client are eager-loaded by later statements; a site that moved in between no longer matches the
+        // event's client (moves rewrite both in one transaction), so the presented identity stays the one authorized.
+        return $query->get()->filter(static fn (Event $event): bool => $event->site === null || $event->site->client_id === $event->client_id)->keyBy('id');
     }
 
     /**

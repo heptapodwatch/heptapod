@@ -3,6 +3,7 @@
 use Carbon\CarbonImmutable;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Features;
@@ -33,6 +34,32 @@ test('users can authenticate using the login screen', function (): void {
 
     $this->assertAuthenticated();
     $response->assertRedirect(route('sites.index', absolute: false));
+});
+
+test('a signed-in session without a stored password hash signs in again', function (): void {
+    $user = User::factory()->owner()->create();
+    $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password']);
+    $this->get(route('sites.index'))->assertOk();
+
+    // A session from before sign-ins were bound carries no hash; binding it now would let it outlive a password reset.
+    session()->forget('password_hash_web');
+
+    $this->get(route('sites.index'))->assertRedirect(route('login'));
+    $this->assertGuest();
+});
+
+test('a remembered sign-in still works once its session is gone', function (): void {
+    $user = User::factory()->owner()->create();
+    $recaller = Auth::guard('web')->getRecallerName();
+    $remembered = $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password', 'remember' => 'on'])
+        ->getCookie($recaller)?->getValue();
+    expect($remembered)->toBeString();
+
+    Auth::forgetGuards();
+    session()->flush();
+
+    $this->withCookie($recaller, $remembered)->get(route('sites.index'))->assertOk();
+    $this->assertAuthenticatedAs($user);
 });
 
 test('users with two factor enabled are redirected to two factor challenge', function (): void {

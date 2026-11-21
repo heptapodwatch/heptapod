@@ -11,6 +11,7 @@ use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -21,11 +22,9 @@ final readonly class SetNotificationSiteMute
 {
     public function __construct(private RequestRoutingReconciliation $reconcile) {}
 
+    /** The caller holds the site's client key (AuthorizeSiteWrite), so the site's client read here cannot change before commit. */
     public function __invoke(NotificationDestination $destination, Site $site, bool $muted, User $actor): void
     {
-        if ($destination->recipient_kind === RecipientKind::Client && $site->client_id !== $destination->client_id) {
-            throw ValidationException::withMessages(['site' => __('notifications.mute_other_client')]);
-        }
         NotificationLocks::transaction(function () use ($destination, $site, $muted, $actor): void {
             // NotificationLocks: the actor (the mute row's actor_id key; profile deletion holds the user, then archives its
             // channels), the open episodes an unmute marks (incidents), then the channel.
@@ -37,6 +36,10 @@ final readonly class SetNotificationSiteMute
             $locked = NotificationDestination::query()->findOrFail($destination->id);
             if ($locked->removed_at !== null) {
                 throw ValidationException::withMessages(['site' => __('notifications.channel_removed')]);
+            }
+            Gate::forUser($actor)->authorize('update', $locked);
+            if ($locked->recipient_kind === RecipientKind::Client && Site::query()->findOrFail($site->id)->client_id !== $locked->client_id) {
+                throw ValidationException::withMessages(['site' => __('notifications.mute_other_client')]);
             }
             $changed = $muted
                 ? DB::table('notification_site_mutes')->insertOrIgnore(['destination_id' => $locked->id, 'site_id' => $site->id,

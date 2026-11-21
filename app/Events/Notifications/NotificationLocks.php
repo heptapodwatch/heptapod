@@ -8,6 +8,8 @@ use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\ResolveInactiveCheckIncidents;
 use Heptapod\Incidents\UptimeDependencies;
 use Heptapod\Models\Check;
+use Heptapod\Models\Site;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 
@@ -27,8 +29,8 @@ use Illuminate\Support\Facades\DB;
  *   9. deliveries           (deliveries, FOR UPDATE)
  *
  * The Owner role row (MemberAccessGuard::lockOwners), a client and its sender quota (SendClientMessage) come before
- * level 1; a site write takes its sites' client keys there and then its actor's key ({@see AuthorizeSiteWrite}), before it
- * authorizes. Events are locked only by the planner, between its incident and its channels, and written by a digest's claim
+ * level 1; a site write takes its sites' client keys there ({@see self::siteClients()}, DeleteSite takes its client FOR UPDATE
+ * the same way), then its actor's key and the actor's API token key ({@see AuthorizeSiteWrite}), before it authorizes. Events are locked only by the planner, between its incident and its channels, and written by a digest's claim
  * and completion under the digest's channel; an event created in a transaction is a new row nobody else holds.
  *
  * Foreign keys are locks too. Inserting or re-pointing a referencing row takes FOR KEY SHARE on the referenced row; a
@@ -231,17 +233,56 @@ final class NotificationLocks
         }
     }
 
+    /** Attempts of {@see self::siteClients()} before a site that keeps moving fails the request. */
+    private const int SiteClientAttempts = 3;
+
     /**
-     * FOR KEY SHARE on clients, before level 1: what a site write authorized against its client takes
-     * ({@see AuthorizeSiteWrite}). It waits only for moving sites between clients and archiving (FOR UPDATE).
+     * Runs $callback in a request transaction ({@see self::transaction()}) that first takes the clients of these sites in
+     * one ascending pass: their keys (FOR KEY SHARE, which waits only for moving sites, archiving and deleting a site), or
+     * with $exclusive FOR UPDATE (deleting a site, which so waits for every key holder). The clients are read unlocked
+     * first; when a site belongs to another client once the locks are held, the transaction ends without a write and starts
+     * over with the new set. Callers run it as their outermost transaction: an enclosing one would keep the locks of the
+     * attempt it starts over. A site that is gone answers 404.
      *
-     * @param  iterable<mixed>  $ids  integer ids; null entries are skipped
+     * @template TReturn
+     *
+     * @param  list<int>  $siteIds
+     * @param  \Closure(Collection<int, Site>): TReturn  $callback  receives the sites read under the locks, keyed by id
+     * @return TReturn
      */
-    public static function clientKeys(iterable $ids): void
+    public static function siteClients(array $siteIds, bool $exclusive, \Closure $callback): mixed
     {
-        foreach (self::ascending($ids) as $id) {
-            DB::table('clients')->where('id', $id)->lock('FOR KEY SHARE')->first(['id']);
+        for ($attempt = 1; $attempt <= self::SiteClientAttempts; $attempt++) {
+            /** @var list<int> $clientIds */
+            $clientIds = DB::table('sites')->whereIn('id', $siteIds)->distinct()->pluck('client_id')->all();
+            $moved = false;
+            $result = self::transaction(static function () use ($siteIds, $exclusive, $callback, $clientIds, &$moved): mixed {
+                $moved = false;
+                foreach (self::ascending($clientIds) as $id) {
+                    DB::table('clients')->where('id', $id)->lock($exclusive ? 'FOR UPDATE' : 'FOR KEY SHARE')->first(['id']);
+                }
+                $sites = Site::query()->findOrFail($siteIds)->keyBy('id');
+                if ($sites->pluck('client_id')->diff($clientIds)->isNotEmpty()) {
+                    $moved = true;
+
+                    return null;
+                }
+
+                return $callback($sites);
+            });
+            if (! $moved) {
+                /** @var TReturn $result */
+                return $result;
+            }
         }
+
+        throw new \RuntimeException('A site kept moving between clients while a write waited for it.');
+    }
+
+    /** FOR KEY SHARE on the actor's API token, right after the actor's key: revoking a token deletes its row. False when gone. */
+    public static function apiTokenKey(int $id): bool
+    {
+        return DB::table('personal_access_tokens')->where('id', $id)->lock('FOR KEY SHARE')->first(['id']) !== null;
     }
 
     /**

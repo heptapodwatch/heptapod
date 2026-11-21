@@ -18,6 +18,10 @@ use Heptapod\Testing\FixtureOnlyDnsResolver;
 use Heptapod\Testing\FixtureOnlyNetwork;
 use Heptapod\Testing\FixtureOnlyTargetResolver;
 use Heptapod\Testing\OffsetDatabaseClock;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
+use Illuminate\Auth\SessionGuard;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Events\MigrationsEnded;
 use Illuminate\Database\Events\TransactionCommitted;
 use Illuminate\Foundation\Application;
@@ -28,6 +32,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Vite;
+use Illuminate\Testing\TestResponse;
 use Laravel\Fortify\Features;
 
 abstract class TestCase extends BaseTestCase
@@ -37,6 +42,9 @@ abstract class TestCase extends BaseTestCase
      * freezes most tests in October 2026, when the migration created exactly these months.
      */
     public const array CheckRunPartitionEpochMonths = ['2026-09', '2026-10', '2026-11'];
+
+    /** The user actingAs() signed in on the web guard, until a real sign-in or sign-out replaces it. */
+    protected ?Authenticatable $actingWebUser = null;
 
     public function createApplication(): Application
     {
@@ -58,6 +66,9 @@ abstract class TestCase extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Event::listen([Login::class, Logout::class], function (): void {
+            $this->actingWebUser = null;
+        });
         // Tests that commit fixtures for independent processes leave audit, event and role rows outside the
         // RefreshDatabase transaction; the next test in this worker must start from a freshly migrated database.
         Event::listen(TransactionCommitted::class, static function (TransactionCommitted $event): void {
@@ -80,6 +91,34 @@ abstract class TestCase extends BaseTestCase
         // disk_space_low issue that exists only there. Tests about disk space bind their own samples.
         $this->app->instance(DiskSpaceReader::class, FakeDiskSpaceReader::healthy());
         $this->app->instance(LiveConnectionTerminator::class, new FakeLiveConnectionTerminator);
+    }
+
+    public function call(mixed $method, mixed $uri, mixed $parameters = [], mixed $cookies = [], mixed $files = [], mixed $server = [], mixed $content = null): TestResponse
+    {
+        if (! str_starts_with((string) parse_url($uri, PHP_URL_PATH), '/api/')) {
+            // A fresh web request starts on the web guard, also after an API request in this test made Sanctum the default.
+            $this->app['auth']->shouldUse('web');
+        }
+
+        return parent::call($method, $uri, $parameters, $cookies, $files, $server, $content);
+    }
+
+    /**
+     * Every acting user brings their own signed-in session. The web group requires a session bound to its user's password
+     * hash at sign-in, so acting as a user binds the in-memory test session to that user's password. Without a guard it acts on the web guard, as a fresh request does even after an API request switched the default.
+     */
+    public function be(Authenticatable $user, $guard = null)
+    {
+        $guard ??= 'web';
+        $sessionGuard = $this->app['auth']->guard($guard);
+        if ($sessionGuard instanceof SessionGuard) {
+            $this->app['session']->put('password_hash_'.$guard, $sessionGuard->hashPasswordForCookie((string) $user->getAuthPassword()));
+        }
+        if ($guard === 'web') {
+            $this->actingWebUser = $user;
+        }
+
+        return parent::be($user, $guard);
     }
 
     protected function skipUnlessFortifyHas(string $feature, ?string $message = null): void

@@ -43,10 +43,10 @@ final class RunController extends Controller
         $user = $this->principal($request);
         $token = $this->token($user);
         $target = $this->visibleCheck($user, $check);
-        // Also refuses a replay, which answers from its record; a new run authorizes again under the lock.
         Gate::authorize('update', $target);
 
-        return $idempotency->run($request, 'check_run.create', 'check:'.$target->id, [], static fn (): JsonResponse => $authorize($user, 'update', static function () use ($target, $run, $user, $token): JsonResponse {
+        // The site lock comes first, before the idempotency record (it names the user), and a replay is authorized too.
+        return $authorize($user, 'update', static fn (): JsonResponse => $idempotency->run($request, 'check_run.create', 'check:'.$target->id, [], static function () use ($target, $run, $user, $token): JsonResponse {
             // Budgets are per user and per token. One user lock serializes check through consumption, so parallel
             // distinct-key requests and token rotation cannot overshoot. Released at commit.
             DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['manual-runs:user:'.$user->id]);
@@ -68,7 +68,7 @@ final class RunController extends Controller
             return response()->json(['attempt_ref' => 'attempt:'.$attempt->id, 'check_ref' => 'check:'.$target->id, 'phase' => $attempt->phase->value,
                 'requested_at' => $attempt->requested_at->toIso8601ZuluString('microsecond'), 'poll_url' => $location], 202,
                 ['Location' => $location, 'Retry-After' => '5', 'Cache-Control' => 'private, no-store']);
-        }, $target));
+        }), $target);
     }
 
     public function show(Request $request, string $attemptRef, CheckRunPresentations $presentations): JsonResponse

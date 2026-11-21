@@ -44,12 +44,13 @@ final class TagController extends Controller
         return response()->json(['data' => $tags->map(fn (Tag $tag): array => new TagResource($tag, $sitesByTag[$tag->id] ?? [])->resolve($request))->all()]);
     }
 
-    public function store(Request $request, CreateTag $create, AuthorizeSiteWrite $authorize): JsonResponse
+    public function store(Request $request, CreateTag $create, SitePolicy $policy, AuthorizeSiteWrite $authorize): JsonResponse
     {
         $user = $this->principal($request, 403);
         abort_unless($user->hasAnyRole(['Owner', 'Admin']), 403);
+        $visibleSite = $policy->visibleSiteRule($user);
         /** @var array{name: string, monitors?: list<int>, sites?: list<int>} $data */
-        $data = Validator::make($request->all(), ['team_id' => ['required', 'integer', 'in:1'], 'name' => ['required', 'string', 'max:255'], 'monitors' => ['sometimes', 'array'], 'monitors.*' => ['integer', 'exists:sites,id'], 'sites' => ['sometimes', 'array'], 'sites.*' => ['integer', 'exists:sites,id']])->validate();
+        $data = Validator::make($request->all(), ['team_id' => ['required', 'integer', 'in:1'], 'name' => ['required', 'string', 'max:255'], 'monitors' => ['sometimes', 'array'], 'monitors.*' => ['integer', $visibleSite], 'sites' => ['sometimes', 'array'], 'sites.*' => ['integer', $visibleSite]])->validate();
         if (array_key_exists('monitors', $data) && array_key_exists('sites', $data) && $data['monitors'] !== $data['sites']) {
             throw ValidationException::withMessages(['monitors' => __('api.conflicting_aliases')]);
         }

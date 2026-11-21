@@ -1,6 +1,7 @@
 <?php
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\DeactivateMember;
 use Heptapod\Actions\ImportOhDearAccount;
 use Heptapod\Actions\UpdateCheckConfig;
 use Heptapod\Checks\Recording\RecordableRun;
@@ -17,6 +18,7 @@ use Heptapod\Enums\ImportRunStatus;
 use Heptapod\Enums\ImportSection;
 use Heptapod\Exceptions\UndeclaredImportNotice;
 use Heptapod\Jobs\RunOhDearImport;
+use Heptapod\Jobs\TerminateLiveConnections;
 use Heptapod\Models\ImportRun;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\RecurringMaintenancePeriod;
@@ -752,6 +754,36 @@ test('refuses a run when the checks this instance can run changed since the plan
         ->and($run['status'])->toBe('failed')->and($run['error'])->toBe('plan_changed')
         ->and(Site::query()->count())->toBe(0);
 })->with(['browser removed' => [true, false], 'browser installed' => [false, false], 'invalid Lighthouse settings, browser removed' => [true, true]]);
+
+test('stops an import whose starter loses access and keeps the sites already imported', function (bool $whileRunning, int $sitesKept): void {
+    $account = realOhDearAccount();
+    $starter = User::factory()->owner()->create();
+    $otherOwner = User::factory()->owner()->create();
+    app(OhDearAccountTransport::class)->fake($account);
+    // No channel step: the last site is the run's last write.
+    $plan = $this->actingAs($starter)->postJson('/settings/import/ohdear/plan', ['ohdear_token' => 'fake-real-account-token', 'sections' => ['sites', 'maintenance']])->assertOk();
+    Queue::fake([RunOhDearImport::class, TerminateLiveConnections::class]);
+    $this->postJson('/settings/import/ohdear/runs/'.$plan->json('plan_id').'/start', ['expected' => count($plan->json('rows')),
+        'groups' => ['team:42' => ['new_client' => 'Imported']], 'overrides' => []])->assertCreated();
+    $remove = static fn () => app(DeactivateMember::class)($otherOwner, $starter);
+    if ($whileRunning) {
+        // Removed from the team while the last site's maintenance windows are read from Oh Dear, before it is written.
+        app(OhDearAccountTransport::class)->fake($account, onRequest: static function (string $path) use (&$remove): void {
+            if ($path === '/api/monitors/505/maintenance-periods' && $remove !== null) {
+                [$removeNow, $remove] = [$remove, null];
+                $removeNow();
+            }
+        });
+    } else {
+        $remove();
+    }
+
+    app()->call([new RunOhDearImport($plan->json('plan_id')), 'handle']);
+
+    $run = ImportRun::query()->findOrFail($plan->json('plan_id'));
+    expect($run->status)->toBe(ImportRunStatus::Failed)->and($run->error)->toBe('access_revoked')
+        ->and(Site::query()->count())->toBe($sitesKept)->and(Site::query()->where('oh_dear_id', 505)->exists())->toBeFalse();
+})->with(['while the last site is read' => [true, 4], 'while it is queued' => [false, 0]]);
 
 test('never shows or logs a source-supplied validation path', function (string $leakedKey): void {
     $account = realOhDearAccount();

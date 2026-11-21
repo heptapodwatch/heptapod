@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationSiteMutesController::update
-* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:19
+* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:20
 * @route '/notification-channels/{channel}/site-mutes/{site}'
 */
 export const update = (args: { channel: number | { id: number }, site: number | { id: number } } | [channel: number | { id: number }, site: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -16,7 +16,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationSiteMutesController::update
-* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:19
+* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:20
 * @route '/notification-channels/{channel}/site-mutes/{site}'
 */
 update.url = (args: { channel: number | { id: number }, site: number | { id: number } } | [channel: number | { id: number }, site: number | { id: number } ], options?: RouteQueryOptions) => {
@@ -46,7 +46,7 @@ update.url = (args: { channel: number | { id: number }, site: number | { id: num
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationSiteMutesController::update
-* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:19
+* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:20
 * @route '/notification-channels/{channel}/site-mutes/{site}'
 */
 update.put = (args: { channel: number | { id: number }, site: number | { id: number } } | [channel: number | { id: number }, site: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -56,7 +56,7 @@ update.put = (args: { channel: number | { id: number }, site: number | { id: num
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationSiteMutesController::update
-* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:19
+* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:20
 * @route '/notification-channels/{channel}/site-mutes/{site}'
 */
 const updateForm = (args: { channel: number | { id: number }, site: number | { id: number } } | [channel: number | { id: number }, site: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -71,7 +71,7 @@ const updateForm = (args: { channel: number | { id: number }, site: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationSiteMutesController::update
-* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:19
+* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:20
 * @route '/notification-channels/{channel}/site-mutes/{site}'
 */
 updateForm.put = (args: { channel: number | { id: number }, site: number | { id: number } } | [channel: number | { id: number }, site: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -88,7 +88,7 @@ update.form = updateForm
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationSiteMutesController::destroy
-* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:24
+* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:25
 * @route '/notification-channels/{channel}/site-mutes/{site}'
 */
 export const destroy = (args: { channel: number | { id: number }, site: number | { id: number } } | [channel: number | { id: number }, site: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -103,7 +103,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationSiteMutesController::destroy
-* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:24
+* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:25
 * @route '/notification-channels/{channel}/site-mutes/{site}'
 */
 destroy.url = (args: { channel: number | { id: number }, site: number | { id: number } } | [channel: number | { id: number }, site: number | { id: number } ], options?: RouteQueryOptions) => {
@@ -133,7 +133,7 @@ destroy.url = (args: { channel: number | { id: number }, site: number | { id: nu
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationSiteMutesController::destroy
-* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:24
+* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:25
 * @route '/notification-channels/{channel}/site-mutes/{site}'
 */
 destroy.delete = (args: { channel: number | { id: number }, site: number | { id: number } } | [channel: number | { id: number }, site: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -143,7 +143,7 @@ destroy.delete = (args: { channel: number | { id: number }, site: number | { id:
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationSiteMutesController::destroy
-* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:24
+* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:25
 * @route '/notification-channels/{channel}/site-mutes/{site}'
 */
 const destroyForm = (args: { channel: number | { id: number }, site: number | { id: number } } | [channel: number | { id: number }, site: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -158,7 +158,7 @@ const destroyForm = (args: { channel: number | { id: number }, site: number | { 
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationSiteMutesController::destroy
-* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:24
+* @see app/Http/Controllers/Notifications/NotificationSiteMutesController.php:25
 * @route '/notification-channels/{channel}/site-mutes/{site}'
 */
 destroyForm.delete = (args: { channel: number | { id: number }, site: number | { id: number } } | [channel: number | { id: number }, site: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

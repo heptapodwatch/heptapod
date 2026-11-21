@@ -18,7 +18,8 @@ final readonly class UpdateMaintenancePeriod
 
     /**
      * @param  array<string, mixed>  $changes
-     * @param  (\Closure(MaintenancePeriod): void)|null  $authorize  decides on the locked window before anything is written
+     * @param  (\Closure(MaintenancePeriod, CarbonImmutable): void)|null  $authorize  decides on the locked window, at the instant
+     *                                                                                the update uses, before anything is written
      */
     public function __invoke(MaintenancePeriod $period, ?string $name, CarbonImmutable $startsAt, CarbonImmutable $endsAt, array $changes = [], ?\Closure $authorize = null): MaintenancePeriod
     {
@@ -26,16 +27,17 @@ final readonly class UpdateMaintenancePeriod
             // NotificationLocks: the window (exclusive), then (wakeWindow, on an ends_at or mute change) the deliveries it blocks.
             NotificationLocks::maintenanceWindows([$period->id], exclusive: true);
             $period = MaintenancePeriod::query()->findOrFail($period->id);
+            $now = CarbonImmutable::now('UTC');
             if ($authorize instanceof \Closure) {
-                $authorize($period);
+                $authorize($period, $now);
             }
-            $startsAt = $period->starts_at <= CarbonImmutable::now() ? $period->starts_at : $startsAt;
+            $startsAt = $period->starts_at <= $now ? $period->starts_at : $startsAt;
             Validator::make(['name' => $name, 'starts_at' => $startsAt, 'ends_at' => $endsAt], ['name' => 'nullable|string|max:255', 'starts_at' => 'required|date', 'ends_at' => 'required|date|after:starts_at'])->validate();
             /** @var array<string, mixed> $validated */
             $validated = Validator::make($changes, ['reason' => 'nullable|string|max:255', 'mute_alerts' => 'sometimes|boolean',
                 'catch_up_at_end' => 'sometimes|boolean', 'timezone' => 'sometimes|timezone:all',
                 'target_type' => 'sometimes|in:site,client,tag', 'target_id' => 'sometimes|integer|min:1'])->validate();
-            if ($period->starts_at <= CarbonImmutable::now() && isset($validated['target_type'], $validated['target_id'])
+            if ($period->starts_at <= $now && isset($validated['target_type'], $validated['target_id'])
                 && ($validated['target_type'] !== $period->target_type || $validated['target_id'] !== ($period->target_id ?? $period->site_id))) {
                 throw ValidationException::withMessages(['target_id' => 'An active window cannot change target.']);
             }

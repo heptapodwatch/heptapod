@@ -310,7 +310,7 @@ it('sets the initial database-clock schedule through the RunOhDearImport job', f
     $client = Client::factory()->create();
     $run = ImportRun::query()->create([
         'source' => 'ohdear', 'status' => ImportRunStatus::Queued, 'expected' => 1, 'attempts' => 1, 'teams' => [],
-        'plan' => [['source_id' => '101']], 'assignments' => ['101' => ['client_id' => $client->id, 'new_client' => null]],
+        'user_id' => User::factory()->owner()->create()->id, 'plan' => [['source_id' => '101']], 'assignments' => ['101' => ['client_id' => $client->id, 'new_client' => null]],
         'results' => [], 'created_client_ids' => [],
     ]);
     ImportTokenStore::put($run->id, 'clock-fixture-token');

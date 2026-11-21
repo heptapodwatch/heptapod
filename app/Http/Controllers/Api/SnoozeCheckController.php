@@ -33,8 +33,12 @@ final class SnoozeCheckController extends Controller
         $user = $this->principal($request);
         // The minutes form stays for compatibility; snooze_until is the retry-safe form.
         $until = $absolute ? CarbonImmutable::parse($request->string('snooze_until')->toString())->utc() : CarbonImmutable::now('UTC')->addMinutes($request->integer('minutes'));
-        $authorize($user, 'snooze', static fn () => $snooze($check, $user, $until), $check);
+        // The resource reads the site loaded under the lock: a site deleted after the commit must not fail the response.
+        $authorize($user, 'snooze', static function () use ($snooze, $check, $user, $until): void {
+            $snooze($check, $user, $until);
+            $check->load(['snoozes', 'site.checks']);
+        }, $check);
 
-        return new CheckResource($check->load('snoozes'));
+        return new CheckResource($check);
     }
 }

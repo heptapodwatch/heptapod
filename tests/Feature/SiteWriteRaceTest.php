@@ -8,6 +8,7 @@ use Heptapod\Actions\CreateCronTask;
 use Heptapod\Actions\CreateMaintenancePeriod;
 use Heptapod\Actions\DeleteSite;
 use Heptapod\Actions\EndMaintenanceWindow;
+use Heptapod\Actions\RevokeApiToken;
 use Heptapod\Actions\SnoozeCheck;
 use Heptapod\Actions\SnoozeCronTask;
 use Heptapod\Actions\StartMaintenance;
@@ -15,12 +16,15 @@ use Heptapod\Actions\UpdateMaintenancePeriod;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\CronTaskStore;
+use Heptapod\Contracts\Notifications\ChannelRegistry;
 use Heptapod\Enums\ClientScope;
+use Heptapod\Enums\RecipientKind;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRunAttempt;
 use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
 use Heptapod\Models\MaintenancePeriod;
+use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
@@ -46,7 +50,8 @@ it('refuses a scoped token write once the site has moved to another client', fun
 
     expect($response['status'])->toBe(404, json_encode($response['body']))
         ->and($observe())->toEqual($before)
-        ->and(Site::query()->findOrFail($fixture['site']->id)->client_id)->toBe($fixture['to']->id);
+        ->and(Site::query()->findOrFail($fixture['site']->id)->client_id)->toBe($fixture['to']->id)
+        ->and($response['waited'])->toBeTrue();
 })->with([
     'cron task create' => [static fn (Site $site): array => ['POST', '/api/monitors/'.$site->id.'/cron-checks', SiteWriteRaceCron,
         static fn (): bool => Check::query()->where('site_id', $site->id)->where('type', CheckKey::Cron)->exists()]],
@@ -78,7 +83,7 @@ it('refuses a scoped token write once the site has moved to another client', fun
     'maintenance stop' => [static function (Site $site): array {
         $window = app(StartMaintenance::class)($site);
 
-        return ['POST', '/api/monitors/'.$site->id.'/stop-maintenance', [], MaintenancePeriod::query()->findOrFail($window->id)->ends_at->toIso8601String(...)];
+        return ['POST', '/api/monitors/'.$site->id.'/stop-maintenance', [], static fn (): string => MaintenancePeriod::query()->findOrFail($window->id)->ends_at->format('Y-m-d H:i:s.u')];
     }],
     'maintenance window create' => [static fn (Site $site): array => ['POST', '/api/maintenance-periods', ['monitor_id' => $site->id,
         'starts_at' => CarbonImmutable::now('UTC')->addDay()->format('Y-m-d H:i'), 'ends_at' => CarbonImmutable::now('UTC')->addDay()->addHour()->format('Y-m-d H:i')],
@@ -159,7 +164,8 @@ it('leaves out an activity row whose site moved to another client while the feed
     $response = siteWriteRace(siteWriteRaceMove($fixture), 'GET', '/api/activity', token: $fixture['token'], pauseAfter: 'event_flap_groups');
 
     expect($response['status'])->toBe(200, json_encode($response['body']))
-        ->and(json_encode($response['body']))->not->toContain('client:'.$fixture['to']->id)->not->toContain($fixture['to']->name);
+        ->and(json_encode($response['body']))->not->toContain('client:'.$fixture['to']->id)->not->toContain($fixture['to']->name)
+        ->and($response['waited'])->toBeTrue();
 });
 
 /*
@@ -182,19 +188,149 @@ it('refuses a check snooze change by a member whose access to the client is revo
         $method, '/sites/'.$fixture['site']->id.'/checks/'.$check->id.'/snooze', $method === 'POST' ? ['minutes' => 10] : [], webUser: $member);
 
     expect($response['status'])->toBe(404, json_encode($response['body']))
-        ->and($snoozes())->toBe($before);
+        ->and($snoozes())->toBe($before)
+        ->and($response['waited'])->toBeTrue();
 })->with(['snooze' => 'POST', 'unsnooze' => 'DELETE']);
 
-it('answers 404 to an unsnooze whose site is deleted while it waits', function (): void {
+/* DeleteSite takes the site's client FOR UPDATE first, so a write authorized under the client key waits for it. */
+it('answers 404 to a write whose site is deleted while it waits', function (Closure $prepare): void {
     $fixture = siteWriteRaceFixture();
-    $check = Check::factory()->create(['site_id' => $fixture['site']->id, 'type' => CheckKey::Uptime]);
-    app(SnoozeCheck::class)($check, $fixture['owner'], CarbonImmutable::now('UTC')->addHour());
     $token = $fixture['owner']->createToken('owner', ['*'])->plainTextToken;
+    /** @var array{0: string, 1: string, 2: array<string, mixed>, 3?: string} $request */
+    $request = $prepare($fixture['site'], $fixture['owner']);
+    [$method, $uri, $body] = $request;
 
-    $response = siteWriteRace(static fn () => app(DeleteSite::class)($fixture['site']), 'POST', '/api/checks/'.$check->id.'/unsnooze', token: $token);
+    $response = siteWriteRace(static function () use ($fixture): void {
+        DB::select('SELECT pg_advisory_xact_lock(?)', [SiteWriteRacePause]);
+        app(DeleteSite::class)($fixture['site']);
+    }, $method, $uri, $body, $token, pauseAfter: $request[3] ?? '');
 
     expect($response['status'])->toBe(404, json_encode($response['body']))
-        ->and(Check::query()->whereKey($check->id)->exists())->toBeFalse();
+        ->and(Site::query()->whereKey($fixture['site']->id)->exists())->toBeFalse()
+        ->and(MaintenancePeriod::query()->where('site_id', $fixture['site']->id)->exists())->toBeFalse()
+        ->and($response['waited'])->toBeTrue();
+})->with([
+    'check unsnooze' => [static function (Site $site, User $owner): array {
+        $check = Check::factory()->create(['site_id' => $site->id, 'type' => CheckKey::Uptime]);
+        app(SnoozeCheck::class)($check, $owner, CarbonImmutable::now('UTC')->addHour());
+
+        return ['POST', '/api/checks/'.$check->id.'/unsnooze', []];
+    }],
+    'maintenance start' => [static fn (Site $site): array => ['POST', '/api/monitors/'.$site->id.'/start-maintenance', []]],
+    'incident note' => [static function (Site $site): array {
+        $incident = Incident::factory()->create(['check_id' => Check::factory()->create(['site_id' => $site->id])->id, 'resolved_at' => now()]);
+
+        return ['PUT', '/api/internal/incidents/'.$incident->id.'/note', ['note' => 'raced']];
+    }],
+    // The incident is read while its site still exists; the site is gone by the time the incident's site is loaded.
+    'incident note, site gone after the incident was read' => [static function (Site $site): array {
+        $incident = Incident::factory()->create(['check_id' => Check::factory()->create(['site_id' => $site->id])->id, 'resolved_at' => now()]);
+
+        return ['PUT', '/api/internal/incidents/'.$incident->id.'/note', ['note' => 'raced'], 'from "incidents" where'];
+    }],
+]);
+
+/* A move that commits while the write waits: the write starts over under the new client and lands there when allowed. */
+it('lands a write of an unscoped token in the client its site moved to while it waited', function (): void {
+    $fixture = siteWriteRaceFixture();
+    $token = $fixture['owner']->createToken('owner', ['*'])->plainTextToken;
+
+    $response = siteWriteRace(siteWriteRaceMove($fixture), 'POST', '/api/monitors/'.$fixture['site']->id.'/start-maintenance', token: $token);
+
+    expect($response['status'])->toBe(200, json_encode($response['body']))
+        ->and(MaintenancePeriod::query()->where('site_id', $fixture['site']->id)->count())->toBe(1)
+        ->and(Site::query()->findOrFail($fixture['site']->id)->client_id)->toBe($fixture['to']->id)
+        ->and($response['waited'])->toBeTrue();
+});
+
+it('refuses a write whose API token is revoked while it waits', function (): void {
+    $fixture = siteWriteRaceFixture();
+    $created = $fixture['owner']->createToken('revoked', ['*']);
+    $check = Check::factory()->create(['site_id' => $fixture['site']->id, 'type' => CheckKey::Uptime]);
+
+    $response = siteWriteRace(static fn () => app(RevokeApiToken::class)($fixture['owner'], $created->accessToken->id),
+        'POST', '/api/checks/'.$check->id.'/snooze', ['minutes' => 10], $created->plainTextToken);
+
+    expect($response['status'])->toBe(401, json_encode($response['body']))
+        ->and(DB::table('check_snoozes')->where('check_id', $check->id)->count())->toBe(0)
+        ->and($response['waited'])->toBeTrue();
+});
+
+/* Activity was recorded within the minute, so the admin's request takes no lock on the account before it authorizes. */
+it('refuses a write by an admin demoted while it waits', function (Closure $prepare): void {
+    $fixture = siteWriteRaceFixture();
+    $admin = User::factory()->create(['last_active_at' => now()]);
+    $admin->assignRole('Admin');
+    /** @var array{0: string, 1: string, 2: array<string, mixed>, 3: Closure(): mixed, 4: int} $request */
+    $request = $prepare($fixture['site']);
+    [$method, $uri, $body, $observe, $status] = $request;
+    $before = $observe();
+
+    $response = siteWriteRace(static fn (): mixed => app(ChangeMemberAccess::class)($fixture['owner'], $admin, ['role' => 'Member', 'client_ids' => [$fixture['from']->id]]),
+        $method, $uri, $body, webUser: $admin);
+
+    expect($response['status'])->toBe($status, (string) $response['blocked_on'])
+        ->and($observe())->toEqual($before)
+        ->and($response['waited'])->toBeTrue();
+})->with([
+    'maintenance edit' => [static function (Site $site): array {
+        $window = app(CreateMaintenancePeriod::class)($site, 'planned', CarbonImmutable::now()->addHour(), CarbonImmutable::now()->addHours(2));
+
+        return ['PUT', '/maintenance/'.$window->id, ['name' => 'edited', 'starts_local' => CarbonImmutable::now('UTC')->addHour()->format('Y-m-d H:i'),
+            'ends_local' => CarbonImmutable::now('UTC')->addHours(3)->format('Y-m-d H:i'), 'timezone' => 'UTC', 'mute_alerts' => true,
+            'catch_up_at_end' => true, 'target_type' => 'site', 'target_id' => $site->id], static fn (): ?string => MaintenancePeriod::query()->findOrFail($window->id)->name, 403];
+    }],
+    'maintenance end' => [static function (Site $site): array {
+        $window = app(CreateMaintenancePeriod::class)($site, 'running', CarbonImmutable::now()->subMinute(), CarbonImmutable::now()->addHour());
+
+        return ['POST', '/maintenance/'.$window->id.'/end', [], static fn (): string => MaintenancePeriod::query()->findOrFail($window->id)->ends_at->format('Y-m-d H:i:s.u'), 403];
+    }],
+    'maintenance delete' => [static function (Site $site): array {
+        $window = app(CreateMaintenancePeriod::class)($site, 'planned', CarbonImmutable::now()->addHour(), CarbonImmutable::now()->addHours(2));
+
+        return ['DELETE', '/maintenance/'.$window->id, [], static fn (): bool => MaintenancePeriod::query()->whereKey($window->id)->exists(), 403];
+    }],
+    'check disable' => [static function (Site $site): array {
+        $check = Check::factory()->create(['site_id' => $site->id, 'type' => CheckKey::Uptime]);
+
+        return ['POST', '/sites/'.$site->id.'/checks/'.$check->id.'/disable', [], static fn (): bool => Check::query()->findOrFail($check->id)->enabled, 403];
+    }],
+]);
+
+it('refuses a client channel mute once its site has moved to another client', function (): void {
+    $fixture = siteWriteRaceFixture();
+    $fixture['owner']->update(['last_active_at' => now()]);
+    $channel = NotificationDestination::query()->create(['recipient_kind' => RecipientKind::Client, 'client_id' => $fixture['from']->id, 'channel' => 'mail',
+        'label' => 'Office', 'enabled' => true, 'config' => app(ChannelRegistry::class)->get('mail')->configSchema()->validateConfig(['email' => 'office@race.test'])]);
+
+    $response = siteWriteRace(siteWriteRaceMove($fixture), 'PUT', '/notification-channels/'.$channel->id.'/site-mutes/'.$fixture['site']->id, webUser: $fixture['owner']);
+
+    expect($response['status'])->toBe(422, is_string($response['body']) ? 'HTML page' : json_encode($response['body']))
+        ->and(DB::table('notification_site_mutes')->where('destination_id', $channel->id)->count())->toBe(0)
+        ->and($response['waited'])->toBeTrue();
+});
+
+/*
+ * The web feed shows the client of each row's site. The request pauses after its head events query, the site moves, and the
+ * eager-loaded site would show the new client: the row is left out instead.
+ */
+it('leaves out a web activity row whose site moved while its relations were loaded', function (): void {
+    $fixture = siteWriteRaceFixture();
+    $member = User::factory()->create(['client_scope' => ClientScope::Restricted, 'last_active_at' => now()]);
+    $member->assignRole('Member');
+    $member->clients()->sync([$fixture['from']->id]);
+    $fixture['site']->update(['friendly_name' => 'raced-site-'.$fixture['site']->id]);
+    $check = Check::factory()->create(['site_id' => $fixture['site']->id, 'type' => CheckKey::Uptime]);
+    Event::factory()->create(['check_id' => $check->id, 'client_id' => $fixture['from']->id, 'from_result' => CheckResult::Failed,
+        'to_result' => CheckResult::Succeeded, 'occurred_at' => now()->subHour(), 'notification_routed_at' => now()->subHour()]);
+    $this->actingAs($member)->get('/activity')->assertOk()->assertSee('raced-site-'.$fixture['site']->id);
+    app('auth')->forgetGuards();
+
+    $response = siteWriteRace(siteWriteRaceMove($fixture), 'GET', '/activity', webUser: $member, pauseAfter: 'select * from "events" where "type" <>');
+
+    expect($response['status'])->toBe(200)
+        ->and($response['body'])->toBeString()->not->toContain($fixture['to']->name)->not->toContain('raced-site-'.$fixture['site']->id)
+        ->and($response['waited'])->toBeTrue();
 });
 
 /*
@@ -220,5 +356,6 @@ it('refuses a maintenance edit or deletion that a concurrent lifecycle change ma
     $locked = MaintenancePeriod::query()->find($window->id);
     expect($response['status'])->toBe(409, json_encode($response['body']))
         ->and($locked?->name)->toBe($change === 'ended' ? 'running' : 'planned')
-        ->and($change === 'ended' ? $locked?->ends_at->isPast() : $locked?->starts_at->isPast())->toBeTrue();
+        ->and($change === 'ended' ? $locked?->ends_at->isPast() : $locked?->starts_at->isPast())->toBeTrue()
+        ->and($response['waited'])->toBeTrue();
 })->with(['ended', 'started']);

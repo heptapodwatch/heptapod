@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Heptapod\Actions\CreateApiToken;
 use Heptapod\Enums\ClientScope;
 use Heptapod\Models\Check;
 use Heptapod\Models\Client;
@@ -152,3 +153,18 @@ it('throttles unauthenticated token lookups with retry information', function ()
     }
     $this->getJson('/api/me')->assertStatus(429)->assertHeader('Retry-After');
 });
+
+it('answers a monitor outside a client-scoped token like a missing one when creating a tag', function (string $field): void {
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $client = Client::factory()->create();
+    $visible = Site::factory()->for($client)->create();
+    $hidden = Site::factory()->create();
+    $this->withToken(app(CreateApiToken::class)($owner, 'scoped', ['tags:write'], $client->id));
+    $missing = $this->postJson('/api/tags', ['team_id' => 1, 'name' => 'release', $field => [$visible->id, $hidden->id + 1000]])->assertUnprocessable();
+    $outOfScope = $this->postJson('/api/tags', ['team_id' => 1, 'name' => 'release', $field => [$visible->id, $hidden->id]]);
+
+    expect([$outOfScope->status(), $outOfScope->json()])->toBe([422, $missing->json()])
+        ->and($visible->tags()->count())->toBe(0);
+    $this->postJson('/api/tags', ['team_id' => 1, 'name' => 'release', $field => [$visible->id]])->assertCreated();
+})->with(['monitors', 'sites']);

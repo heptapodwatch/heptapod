@@ -42,7 +42,9 @@ final class ProfileController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 401);
 
-        $update($user, $request->validated());
+        /** @var array<string, mixed> $attributes */
+        $attributes = $request->safe()->except('current_password');
+        $update($user, $attributes);
 
         if ($request->has('locale')) {
             app()->setLocale($request->string('locale')->toString());

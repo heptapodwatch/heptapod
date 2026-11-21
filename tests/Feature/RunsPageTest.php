@@ -289,3 +289,22 @@ it('shows every surviving queued run when a site past the board cutoff is delete
         ->where('current', fn ($rows): bool => ! collect($rows)->contains('check_id', $deleted->id)));
     expect($pending)->toBeFalse();
 });
+
+it('pages the history only from a cursor inside the viewer\'s checks', function (): void {
+    $this->freezeTime();
+    $member = User::factory()->create(['client_scope' => ClientScope::Restricted]);
+    $member->assignRole('Member');
+    $visible = Check::factory()->create();
+    $member->clients()->attach($visible->site->client_id);
+    $foreign = Check::factory()->create();
+    $attempt = fn (Check $check, int $minutesAgo): int => CheckRunAttempt::query()->create(['check_id' => $check->id, 'claim_token' => (string) Str::uuid(),
+        'phase' => RunPhase::Queued, 'queue' => 'checks-fast', 'requested_at' => now()->subMinutes($minutesAgo)])->id;
+    $older = $attempt($visible, 30);
+    $own = $attempt($visible, 20);
+    $foreignCursor = $attempt($foreign, 10);
+    $attempt($visible, 5);
+    $runsBefore = fn (int $cursor): array => array_column($this->actingAs($member)->get('/runs?before='.$cursor)->inertiaProps()['runs'], 'id');
+
+    expect($runsBefore($own))->toBe([$older])
+        ->and($runsBefore($foreignCursor))->toBe($runsBefore($foreignCursor + 1000))->toBe([]);
+});

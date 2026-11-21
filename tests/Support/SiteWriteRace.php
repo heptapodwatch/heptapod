@@ -48,10 +48,12 @@ function siteWriteRaceMove(array $fixture): Closure
 
 /**
  * Commits the fixtures, then sends $method $uri (with a bearer token or as a signed-in web user) while $change is open.
- * With $pauseAfter the request waits after its first query containing that SQL fragment until $change commits.
+ * With $pauseAfter the request waits after its first query containing that SQL fragment until $change commits. `waited`
+ * says whether the request was blocked by this connection (the change) before it committed; a request that neither waits
+ * on the change nor answers in time fails the test instead of committing.
  *
  * @param  array<string, mixed>  $body
- * @return array{status: int, body: mixed}
+ * @return array{status: int, body: mixed, waited: bool, blocked_on: string|null} blocked_on: the statement the request waited in
  */
 function siteWriteRace(Closure $change, string $method, string $uri, array $body = [], string $token = '', ?User $webUser = null, string $pauseAfter = ''): array
 {
@@ -64,23 +66,29 @@ function siteWriteRace(Closure $change, string $method, string $uri, array $body
     try {
         DB::beginTransaction();
         $change();
+        $parent = (int) DB::scalar('SELECT pg_backend_pid()');
         $request->start();
         $deadline = hrtime(true) + 20_000_000_000;
         do {
             DB::select('SELECT pg_stat_clear_snapshot()');
-            $waiting = DB::table('pg_stat_activity')->where('application_name', 'site_write_race')->where('wait_event_type', 'Lock')->exists();
-            if ($waiting || ! $request->isRunning()) {
+            $blocked = DB::table('pg_stat_activity')->where('application_name', 'site_write_race')
+                ->whereRaw('? = ANY(pg_blocking_pids(pid))', [$parent])->value('query');
+            $waited = $blocked !== null;
+            if ($waited || ! $request->isRunning()) {
                 break;
             }
             usleep(10000);
         } while (hrtime(true) < $deadline);
+        expect($waited || ! $request->isRunning())->toBeTrue('The request neither waited on the change nor answered: '.$request->getErrorOutput());
         DB::commit();
         $request->wait();
         expect($request->isSuccessful())->toBeTrue($request->getErrorOutput())
             ->and(json_validate($request->getOutput()))->toBeTrue($request->getOutput());
 
-        /** @var array{status: int, body: mixed} */
-        return json_decode($request->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+        /** @var array{status: int, body: mixed} $response */
+        $response = json_decode($request->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+
+        return [...$response, 'waited' => $waited, 'blocked_on' => $blocked];
     } finally {
         $request->stop(1);
         if (DB::transactionLevel() > 0) {

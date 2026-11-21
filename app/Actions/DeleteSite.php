@@ -18,9 +18,10 @@ final readonly class DeleteSite
 
     public function __invoke(Site $site): void
     {
-        NotificationLocks::transaction(function () use ($site): void {
-            // NotificationLocks: the site's maintenance recurrences (exclusive: the cascade deletes them, and generation holds
-            // one while it inserts a window that takes this site's key), the checks (deleted by the cascade), the site, then
+        NotificationLocks::siteClients([$site->id], exclusive: true, callback: function () use ($site): void {
+            // NotificationLocks: the site's client (exclusive: writes authorized under its key, AuthorizeSiteWrite, wait for the
+            // deletion and then find the site gone), the site's maintenance recurrences (exclusive: the cascade deletes them,
+            // and generation holds one while it inserts a window that takes this site's key), the checks (deleted by the cascade), the site, then
             // every incident the cascade deletes, open and closed (a profile deletion holds a closed incident its user noted
             // while it takes that user's actor deliveries), and in one ascending pass every delivery this deletion writes: the
             // queued alerts it suppresses and the history it redacts. The site's own maintenance windows are left to the

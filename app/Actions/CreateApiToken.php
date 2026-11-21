@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Actions;
 
 use DateTimeInterface;
+use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -38,17 +39,24 @@ final class CreateApiToken
     /** @param list<string> $abilities */
     public function __invoke(User $user, string $name, array $abilities, ?int $clientId = null, ?DateTimeInterface $expiresAt = null): string
     {
-        $allowed = $user->hasRole('Owner') ? ['*', ...$this->allowedAbilities($user)] : $this->allowedAbilities($user);
-        Validator::make(['name' => $name, 'abilities' => $abilities], ['name' => ['required', 'string', 'max:255'], 'abilities' => ['required', 'array', 'min:1'], 'abilities.*' => ['string', 'distinct', Rule::in($allowed)]])->validate();
+        $authenticated = $user;
 
-        if ($clientId !== null && ! $user->canAccessClient($clientId)) {
-            throw ValidationException::withMessages(['client_id' => __('validation.exists', ['attribute' => 'client_id'])]);
-        }
-        if ($expiresAt instanceof DateTimeInterface && $expiresAt <= now()) {
-            throw ValidationException::withMessages(['expires_at' => __('validation.after', ['attribute' => 'expires_at', 'date' => 'now'])]);
-        }
+        return DB::transaction(function () use ($authenticated, $name, $abilities, $clientId, $expiresAt): string {
+            // Removal, access changes and password resets hold the user FOR UPDATE while they delete its tokens: a token is
+            // issued only under the access the account has once they committed, and only to a caller whose sign-in still
+            // holds (a changed password means the caller authenticated before the reset).
+            NotificationLocks::users([$authenticated->id]);
+            $user = User::query()->findOrFail($authenticated->id);
+            abort_if($user->disabled_at !== null || $user->getAuthPassword() !== $authenticated->getAuthPassword(), 403);
+            $allowed = $user->hasRole('Owner') ? ['*', ...$this->allowedAbilities($user)] : $this->allowedAbilities($user);
+            Validator::make(['name' => $name, 'abilities' => $abilities], ['name' => ['required', 'string', 'max:255'], 'abilities' => ['required', 'array', 'min:1'], 'abilities.*' => ['string', 'distinct', Rule::in($allowed)]])->validate();
 
-        return DB::transaction(function () use ($user, $name, $abilities, $clientId, $expiresAt): string {
+            if ($clientId !== null && ! $user->canAccessClient($clientId)) {
+                throw ValidationException::withMessages(['client_id' => __('validation.exists', ['attribute' => 'client_id'])]);
+            }
+            if ($expiresAt instanceof DateTimeInterface && $expiresAt <= now()) {
+                throw ValidationException::withMessages(['expires_at' => __('validation.after', ['attribute' => 'expires_at', 'date' => 'now'])]);
+            }
             $created = $user->createToken($name, $abilities, $expiresAt);
             $created->accessToken->forceFill(['client_id' => $clientId])->save();
 
