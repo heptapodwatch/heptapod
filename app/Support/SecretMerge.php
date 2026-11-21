@@ -13,7 +13,7 @@ final class SecretMerge
 {
     public static function preserve(Field $field, mixed $value, mixed $previous, string $path, bool $nullClearsNullable = false): mixed
     {
-        if ($field->type === FieldType::Secret && ($value === '********' || ($value === null && ! ($nullClearsNullable && in_array('nullable', $field->rules, true))))) {
+        if ($field->type === FieldType::Secret && ($value === '********' || ($value === null && (! $nullClearsNullable || ! in_array('nullable', $field->rules, true))))) {
             if ($previous === null && $value === '********') {
                 $attribute = $field->presentation instanceof FieldPresentation ? __($field->presentation->labelKey) : $path;
                 throw ValidationException::withMessages([$path => __('validation.required', ['attribute' => $attribute])]);
