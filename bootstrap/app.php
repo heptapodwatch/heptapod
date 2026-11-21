@@ -19,6 +19,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Route;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Psr\Http\Client\NetworkExceptionInterface;
@@ -38,6 +39,19 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::match(['GET', 'POST'], 'cron/{uuid}/{phase?}', CronPingController::class)
                 ->whereUuid('uuid')->where('phase', 'starting|finished|failed')
                 ->middleware('throttle:cron-pings')->name('cron.ping');
+            // Fortify's vendor routes omit throttles on password confirmation and reset endpoints.
+            $routes = Route::getRoutes();
+            if ($routes instanceof RouteCollection) {
+                $routes->refreshNameLookups();
+            }
+            foreach ([
+                'password.confirm.store' => 'throttle:password-confirm',
+            ] as $routeName => $middleware) {
+                $route = $routes->getByName($routeName);
+                if ($route !== null && ! in_array($middleware, $route->middleware(), true)) {
+                    $route->middleware($middleware);
+                }
+            }
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {

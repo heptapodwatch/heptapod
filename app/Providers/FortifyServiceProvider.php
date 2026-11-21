@@ -156,5 +156,16 @@ class FortifyServiceProvider extends ServiceProvider
         RateLimiter::for('passkeys', fn (Request $request) => Limit::perMinute(10)->by(
             ($request->filled('credential.id') ? $request->string('credential.id')->toString() : $request->session()->getId()).'|'.$request->ip(),
         ));
+
+        RateLimiter::for('password-confirm', static function (Request $request): array {
+            $user = $request->user();
+            $actor = $user instanceof User ? (string) $user->id : 'guest';
+            $ip = $request->ip() ?? 'unknown';
+
+            return [
+                Limit::perMinute(5)->by('user-ip:'.$actor.'|'.$ip),
+                Limit::perMinute(10)->by('user:'.$actor),
+            ];
+        });
     }
 }

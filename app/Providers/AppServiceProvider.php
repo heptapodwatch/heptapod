@@ -248,6 +248,16 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perMinutes(5, 3)->by('invitation:'.$invitationId),
             ];
         });
+        RateLimiter::for('profile-delete', static function (Request $request): array {
+            $user = $request->user();
+            $actor = $user instanceof User ? (string) $user->id : 'guest';
+            $ip = $request->ip() ?? 'unknown';
+
+            return [
+                Limit::perMinute(5)->by('user-ip:'.$actor.'|'.$ip),
+                Limit::perMinute(10)->by('user:'.$actor),
+            ];
+        });
         Inertia::handleExceptionsUsing(ErrorResponses::respond(...));
     }
 
