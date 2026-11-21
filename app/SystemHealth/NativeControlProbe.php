@@ -14,7 +14,7 @@ use Heptapod\Contracts\Http\TimedTargetResolver;
 /**
  * Checks whether this monitor can resolve outside DNS names and open direct-IP TCP connections.
  * Carries no HTTP request, TLS handshake, telemetry or instance identifiers.
- * Delegates DNS resolution to TimedTargetResolver so each lookup is bounded by its own subprocess deadline.
+ * Delegates DNS resolution to TimedTargetResolver so each lookup is bounded by its own process deadline.
  */
 final readonly class NativeControlProbe implements ControlProbe
 {
