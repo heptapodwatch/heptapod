@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { EvidenceFacts } from '@/components/evidence-facts';
 import { CheckSettingsSheet } from '@/components/check-settings-sheet';
 import { AbsoluteTime } from '@/components/absolute-time';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
     Card,
     CardContent,
@@ -82,7 +83,15 @@ export function CheckConfiguration({
                     </CardAction>
                 )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+                {check.attention_reason && (
+                    <Alert tone="warning">
+                        <AlertTitle>{t('Needs attention')}</AlertTitle>
+                        <AlertDescription>
+                            {t(check.attention_reason)}
+                        </AlertDescription>
+                    </Alert>
+                )}
                 <EvidenceFacts
                     stacked
                     rows={[

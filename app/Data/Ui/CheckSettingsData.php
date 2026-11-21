@@ -26,5 +26,6 @@ final class CheckSettingsData extends Data
         #[LiteralTypeScriptType('object')]
         public readonly \stdClass $settings,
         public readonly bool $can_update,
+        public readonly ?string $attention_reason = null,
     ) {}
 }

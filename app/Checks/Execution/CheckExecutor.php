@@ -41,7 +41,6 @@ use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\CheckRunAttempt;
 use Illuminate\Queue\TimeoutExceededException;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -91,15 +90,22 @@ final readonly class CheckExecutor
         $control = new AttemptControl($checkId, $claimToken);
         $context = $context->withRunControl($control, $control);
         $schema = $type->definition()->configSchema;
+        $root = new Field(FieldType::Object, properties: $schema->fields);
         /** @var array<string, mixed> $secrets */
-        $secrets = (array) new Field(FieldType::Object, properties: $schema->fields)->split($context->config)[1];
-        $short = array_filter(Arr::flatten([$secrets, array_column($context->crawlerHeaders, 'value')]), SecretMinimum::tooShort(...));
+        $secrets = (array) $root->split($context->config)[1];
+        $hasShortSecret = $root->hasShortSecrets($context->config)
+            || array_any(array_column($context->crawlerHeaders, 'value'), SecretMinimum::tooShort(...));
         $configValidated = false;
         try {
-            if ($short !== []) {
+            if ($hasShortSecret) {
                 throw ValidationException::withMessages(['secrets' => __('checks.secret_too_short')]);
             }
-            $schema->validateConfig($context->config);
+            $validationConfig = $context->config;
+            // Legacy sitemap paths with a query string keep running until cleaned up; write paths still refuse `?`.
+            if ($check->type === CheckKey::Sitemap && is_string($validationConfig['path'] ?? null) && str_contains($validationConfig['path'], '?')) {
+                $validationConfig['path'] = strstr($validationConfig['path'], '?', true);
+            }
+            $schema->validateConfig($validationConfig);
             $configValidated = true;
             $control->assertActive();
             // Push addons evaluate deadlines here; derived addons read history instead of polling.
@@ -107,11 +113,11 @@ final readonly class CheckExecutor
         } catch (RunCancelled|StaleEvaluation) {
             $outcome = null;
         } catch (ValidationException $exception) {
-            if ($short === [] && ! $configValidated) {
+            if (! $hasShortSecret && ! $configValidated) {
                 // The redacted validation text stays in the run error; the cause is a controlled catalog key.
                 $logged = $this->error($exception, $checkId, $claimToken, $secrets, $context->crawlerHeaders, $timeout + ExecutionBudget::BookkeepingGrace);
                 $outcome = new CheckOutcome(RunResult::Errored, EngineMessage::ConfigInvalid, [], null, error: $logged->error);
-            } elseif ($short === []) {
+            } elseif (! $hasShortSecret) {
                 $outcome = $this->error($exception, $checkId, $claimToken, $secrets, $context->crawlerHeaders, $timeout + ExecutionBudget::BookkeepingGrace);
             } else {
                 $outcome = new CheckOutcome(RunResult::Errored, 'checks.secret_too_short', [], null,

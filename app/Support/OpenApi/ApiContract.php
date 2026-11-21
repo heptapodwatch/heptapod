@@ -276,13 +276,13 @@ final class ApiContract
         }
         $definition['description'] = ['type' => 'string', 'description' => 'Empty string when none is set.'];
         $string = ['type' => 'string'];
-        $properties = ['id' => ['type' => 'integer'], 'uuid' => ['type' => 'string', 'description' => 'Ping capability; `********` for Members.'], ...$definition,
-            'ping_url' => $string, 'created_at' => ['type' => 'string', 'description' => 'UTC, Y-m-d H:i:s.'], 'latest_result' => $string,
+        $properties = ['id' => ['type' => 'integer'], 'uuid' => ['type' => 'string', 'description' => 'Ping capability; `********` for Members and tokens without `checks:write`.'], ...$definition,
+            'ping_url' => ['type' => 'string', 'description' => 'Ping capability URL; a non-working null-UUID URL for Members and tokens without `checks:write`.'], 'created_at' => ['type' => 'string', 'description' => 'UTC, Y-m-d H:i:s.'], 'latest_result' => $string,
             'latest_ping_at' => ['type' => 'string', 'description' => 'Present after the first ping. UTC, Y-m-d H:i:s.'],
             'human_readable_latest_ping_at' => ['type' => 'string', 'description' => 'Present after the first ping.'],
             'active_snooze' => ['$ref' => self::Ref.'ActiveSnooze']];
 
-        return ['type' => 'object', 'additionalProperties' => false, 'description' => 'Members see a masked uuid and a non-working ping URL.',
+        return ['type' => 'object', 'additionalProperties' => false, 'description' => 'Members and tokens without `checks:write` (including `checks:read`, `agent-read` and `checks:snooze`) see a masked uuid and a non-working ping URL.',
             'required' => array_values(array_diff(array_keys($properties), ['latest_ping_at', 'human_readable_latest_ping_at'])), 'properties' => $properties];
     }
 
@@ -567,7 +567,7 @@ final class ApiContract
             'deleteMaintenancePeriod' => 'Cancels a site window that has not started. End an active window with stopMaintenance.',
             'startMaintenance' => 'Starts a window for the monitor now that ends after `stop_maintenance_after_seconds` (default 3600, at least 5). With an `Idempotency-Key`, a retry returns the first window with its original start and end.',
             'stopMaintenance' => 'Ends maintenance for this monitor only, now or after `delay_seconds`. In a shared window the other sites stay in maintenance. Repeats are harmless.',
-            'listCronChecks' => 'The scheduled tasks of the cron check of the monitor. Members see a masked `uuid` and a ping URL that does not work.',
+            'listCronChecks' => 'The scheduled tasks of the cron check of the monitor. Members and tokens without `checks:write` see a masked `uuid` and a ping URL that does not work.',
             'createCronCheck' => 'Adds a scheduled task to the cron check of the monitor.',
             'updateCronCheck' => 'Partial update of one scheduled task: omitted fields keep their value.',
             'deleteCronCheck' => 'Deletes one scheduled task.',

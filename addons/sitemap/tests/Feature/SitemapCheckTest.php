@@ -1017,11 +1017,11 @@ it('blocks real private targets discovered in an otherwise trusted operator site
 it('redacts reflected crawler secrets from accepted snapshots and new and resolved events', function (): void {
     $secret = 'ReflectedToken42';
     $reflected = strtolower($secret);
-    $context = sitemapContext(['path' => '/sitemap.xml?token='.$reflected.'&keep=root-visible', 'speed' => 'fastest']);
+    $context = sitemapContext(['path' => '/sitemap-'.$reflected.'.xml', 'speed' => 'fastest']);
     Site::findOrFail($context->siteId)->update(['crawler_headers' => [['name' => 'X-Crawler-Key', 'value' => $secret]]]);
     $observation = 0;
     $fake = (new FakeOutboundHttp)->respondUsing(function (FetchRequest $request) use (&$observation, $reflected): FetchResult {
-        if (str_contains($request->url, '/sitemap.xml?')) {
+        if (str_contains($request->url, '/sitemap-')) {
             $observation++;
 
             return new FetchResult(200, sitemapXml(['http://fixtures.test/child.xml?token='.$reflected.'&keep=child-visible'], true));
@@ -1045,7 +1045,7 @@ it('redacts reflected crawler secrets from accepted snapshots and new and resolv
     expect(array_keys($event->payload))->toEqualCanonicalizing(['new', 'resolved', 'run_id', 'run_ended_at', 'summary', 'summary_params']);
     $snapshot = json_decode($snapshots->last(), true, flags: JSON_THROW_ON_ERROR);
     expect($snapshot)->not->toHaveKeys(['comparisonIssues', 'comparison_issues']);
-    expect($snapshot['checkUrl'])->toBe('http://fixtures.test/sitemap.xml?token=[redacted]&keep=root-visible');
+    expect($snapshot['checkUrl'])->toBe('http://fixtures.test/sitemap-[redacted].xml');
     expect($snapshot['sitemapIndexes'][0]['url'])->toBe($snapshot['checkUrl']);
     expect($snapshot['sitemaps'][0]['url'])->toBe('http://fixtures.test/child.xml?token=[redacted]&keep=child-visible');
     expect($event->payload['new'][0]['url'])->toBe('http://fixtures.test/page-b?token=[redacted]&keep=page-visible');
@@ -1340,4 +1340,112 @@ it('exports every sitemap not-verifiable row from sitemap_findings past the 50-r
         'not_verifiable_per_page' => 10, 'not_verifiable_page' => 6,
     ]))->assertOk()->streamedContent());
     expect($pageExported)->toBe($expectedPage);
+});
+
+it('refuses query strings in sitemap paths while keeping legacy paths running, masked and flagged for attention', function (): void {
+    $owner = User::factory()->owner()->create(['locale' => 'en']);
+    $member = User::factory()->create();
+    $member->assignRole('Member');
+    $schema = app(CheckRegistry::class)->get(CheckKey::Sitemap)->definition()->configSchema;
+    $check = Check::factory()->create([
+        'type' => CheckKey::Sitemap,
+        'config' => $schema->validateConfig(['path' => '/sitemap.xml']),
+    ]);
+    $url = '/sites/'.$check->site_id.'/checks/'.$check->id;
+
+    // EN + DE refusal on settings update and API update
+    $this->actingAs($owner)->patchJson($url, ['path' => '/sitemap.xml?token=secret-123'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('values.path');
+    $enMessage = $this->actingAs($owner)->patchJson($url, ['path' => '/sitemap.xml?token=secret-123'])
+        ->json('errors')['values.path'][0] ?? '';
+    expect($enMessage)->toBe(__('sitemap.path_no_query', locale: 'en'))
+        ->and(strtolower($enMessage))->toContain('crawler headers');
+
+    $owner->update(['locale' => 'de']);
+    $deMessage = $this->actingAs($owner)->patchJson($url, ['path' => '/sitemap.xml?token=secret-123'])
+        ->json('errors')['values.path'][0] ?? '';
+    expect($deMessage)->toBe(__('sitemap.path_no_query', locale: 'de'))
+        ->and(strtolower($deMessage))->toContain('crawler-header');
+    $owner->update(['locale' => 'en']);
+
+    $writeToken = $owner->createToken('monitors-write', ['monitors:write'])->plainTextToken;
+    $this->app['auth']->forgetGuards();
+    $this->withToken($writeToken)->putJson('/api/monitors/'.$check->site_id, [
+        'sitemap_check_settings' => ['path' => '/sitemap.xml?token=secret-123'],
+    ])->assertUnprocessable();
+
+    // Legacy check stored with a query string: keeps running, masks the query in API/UI, flags needs attention, clears once cleaned.
+    DB::table('checks')->where('id', $check->id)->update([
+        'config' => json_encode(['path' => '/sitemap.xml?custom_auth=legacy-secret-123'], JSON_THROW_ON_ERROR),
+    ]);
+    $check->refresh();
+
+    $readToken = $owner->createToken('monitors-read', ['monitors:read'])->plainTextToken;
+    $this->app['auth']->forgetGuards();
+    $api = $this->withToken($readToken)->getJson('/api/monitors/'.$check->site_id)->assertOk();
+    $api->assertDontSee('legacy-secret-123');
+    $sitemapCheck = collect($api->json('checks'))->firstWhere('type', 'sitemap');
+    expect($sitemapCheck['settings']['sitemap_check_settings']['path'])->toBe('/sitemap.xml?********');
+
+    $this->app['auth']->forgetGuards();
+    $memberProps = $this->actingAs($member)->get($url)->assertOk()->assertDontSee('legacy-secret-123')->inertiaProps();
+    expect($memberProps['check_settings']['settings']['path'])->toBe('/sitemap.xml?********')
+        ->and($memberProps['check_settings']['attention_reason'])->toBe('sitemap.path_no_query');
+
+    // Keeps running with the full legacy query URL and redacts it from stored failure evidence.
+    $fetched = [];
+    app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static function (FetchRequest $request) use (&$fetched): FetchResult {
+        $fetched[] = $request->url;
+
+        return new FetchResult(404, failure: new FetchFailure(FetchFailureKind::HttpStatus, 404));
+    }));
+    $check->site->update(['url' => 'http://fixtures.test']);
+    $run = runSitemap(new CheckContext(
+        $check->site_id, $check->id, 1, '00000000-0000-4000-8000-000000000099',
+        'http://fixtures.test', CarbonImmutable::now(), CarbonImmutable::now()->addSeconds(30),
+        $check->executionConfig(), [], null,
+    ));
+    expect($fetched)->toBe(['http://fixtures.test/sitemap.xml?custom_auth=legacy-secret-123'])
+        ->and(json_encode($run->evidence, JSON_THROW_ON_ERROR))->not->toContain('legacy-secret-123');
+
+    // Saving a clean path clears the attention flag.
+    $this->actingAs($owner)->patchJson($url, ['path' => '/custom-sitemap.xml'])->assertRedirect();
+    $cleanProps = $this->actingAs($owner)->get($url)->assertOk()->inertiaProps();
+    expect($cleanProps['check_settings']['settings']['path'])->toBe('/custom-sitemap.xml')
+        ->and($cleanProps['check_settings']['attention_reason'])->toBeNull();
+});
+
+it('strips legacy sitemap queries on exact complete URLs at write time without changing the outbound request or unrelated URLs', function (): void {
+    $site = Site::factory()->create(['url' => 'http://fixtures.test']);
+    $schema = app(CheckRegistry::class)->get(CheckKey::Sitemap)->definition()->configSchema;
+    $check = Check::factory()->for($site)->create([
+        'type' => CheckKey::Sitemap,
+        'config' => $schema->validateConfig(['path' => '/sitemap.xml']),
+    ]);
+    DB::table('checks')->where('id', $check->id)->update([
+        'config' => json_encode(['path' => '/sitemap.xml?k=1'], JSON_THROW_ON_ERROR),
+    ]);
+    $check->refresh();
+
+    // New run: request keeps ?k=1; complete legacy URL strips its query, while an unrelated nested URL with the same suffix stays intact.
+    $fetched = [];
+    $nestedUrl = 'http://fixtures.test/nested/sitemap.xml?k=1';
+    app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static function (FetchRequest $request) use (&$fetched, $nestedUrl): FetchResult {
+        $fetched[] = $request->url;
+        if ($request->url === 'http://fixtures.test/sitemap.xml?k=1') {
+            return new FetchResult(200, sitemapXml([$nestedUrl]));
+        }
+
+        return new FetchResult(404, failure: new FetchFailure(FetchFailureKind::HttpStatus, 404));
+    }));
+    $run = runSitemap(new CheckContext(
+        $site->id, $check->id, 1, '00000000-0000-4000-8000-000000000088',
+        'http://fixtures.test', CarbonImmutable::now(), CarbonImmutable::now()->addSeconds(30),
+        $check->executionConfig(), [], null,
+    ));
+    expect($fetched)->toContain('http://fixtures.test/sitemap.xml?k=1')
+        ->and($run->evidence['checkUrl'])->toBe('http://fixtures.test/sitemap.xml')
+        ->and($run->evidence['sitemaps'][0]['url'])->toBe('http://fixtures.test/sitemap.xml')
+        ->and($run->evidence['issues'][0]['url'])->toBe($nestedUrl);
 });

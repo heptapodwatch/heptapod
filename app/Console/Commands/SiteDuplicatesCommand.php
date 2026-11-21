@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Console\Commands;
 
 use Heptapod\Actions\NormaliseSiteUrl;
+use Heptapod\Support\ConsoleText;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -25,7 +26,7 @@ final class SiteDuplicatesCommand extends Command
             ->select('sites.id', 'sites.url', 'clients.name as client')->lazyById(500, 'sites.id', 'id') as $site) {
             /** @var \stdClass&object{id: int, url: string, client: string} $site */
             try {
-                $groups[$normalise->key($site->url)][] = [$site->id, $site->url, $site->client];
+                $groups[$normalise->key($site->url)][] = [$site->id, ConsoleText::sanitize($site->url), ConsoleText::sanitize($site->client)];
             } catch (ValidationException) {
                 continue;
             }

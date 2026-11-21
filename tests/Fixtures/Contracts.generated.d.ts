@@ -1,46 +1,3 @@
-declare namespace Illuminate {
-    export type CursorPaginator<TKey, TValue> = {
-        data: TKey extends string ? Record<TKey, TValue> : TValue[];
-        links: {
-            url: string | null;
-            label: string;
-            active: boolean;
-        }[];
-        meta: {
-            path: string;
-            per_page: number;
-            next_cursor: string | null;
-            next_page_url: string | null;
-            prev_cursor: string | null;
-            prev_page_url: string | null;
-        };
-    };
-    export type CursorPaginatorInterface<TKey, TValue> =
-        Illuminate.CursorPaginator<TKey, TValue>;
-    export type LengthAwarePaginator<TKey, TValue> = {
-        data: TKey extends string ? Record<TKey, TValue> : TValue[];
-        links: {
-            url: string | null;
-            label: string;
-            active: boolean;
-        }[];
-        meta: {
-            total: number;
-            current_page: number;
-            first_page_url: string;
-            from: number | null;
-            last_page: number;
-            last_page_url: string;
-            next_page_url: string | null;
-            path: string;
-            per_page: number;
-            prev_page_url: string | null;
-            to: number | null;
-        };
-    };
-    export type LengthAwarePaginatorInterface<TKey, TValue> =
-        Illuminate.LengthAwarePaginator<TKey, TValue>;
-}
 declare namespace Heptapod {
     namespace Contracts {
         export type AddonEvent = {
@@ -122,15 +79,37 @@ declare namespace Heptapod {
             readonly names_check: boolean;
             readonly headline_limit: number;
             readonly changes: Heptapod.Contracts.CheckRunPresentationPartData[];
+            readonly details: Heptapod.Contracts.CheckRunPresentationPartData[];
         };
         export type CheckRunPresentationPartData = {
             readonly key: string;
             readonly params: Record<string, string | number | boolean | null>;
             readonly labels: Record<string, string>;
             readonly shortKey: string | null;
+            readonly untrusted: Record<string, string>;
+            readonly trusted: string[];
+            readonly lists: Record<string, string[]>;
         };
         export type DomainRegistrationSource = 'rdap' | 'whois';
         export type ExecutionMode = 'poll' | 'push' | 'derived';
+        export type ListScore = {
+            readonly label_key: string;
+            readonly score: number;
+        };
+        export type NoResultReason =
+            | 'performance_no_samples'
+            | 'performance_uptime_interval_too_long'
+            | 'mixed_content_start_page_not_scanned'
+            | 'cron_tasks_pending';
+        export type PaginationData = {
+            readonly current_page: number;
+            readonly per_page: number;
+            readonly total: number;
+            readonly last_page: number;
+            readonly next_page_url: string | null;
+            readonly previous_page_url: string | null;
+            readonly page_name: string;
+        };
         export type PreviousResult = {
             readonly run: Heptapod.Contracts.RunReference;
             readonly result: Heptapod.Contracts.RunResult;
@@ -160,11 +139,17 @@ declare namespace Heptapod {
             | 'warning'
             | 'failed'
             | 'errored-or-timed-out';
+        export type SecurityAdvisoryPackageData = {
+            readonly package: string;
+            readonly sites: number;
+            readonly severity: string | null;
+        };
         export type SuppressionComponent = 'cron' | 'application_health';
         export type SuppressionDecision = {
             readonly suppressed: boolean;
             readonly reason: string | null;
             readonly evaluatedAt: string;
+            readonly since: string | null;
         };
         export type SuppressionSubject = {
             readonly checkId: number;
@@ -191,6 +176,26 @@ declare namespace Heptapod {
                 readonly supported_baseline_comparison: boolean;
                 readonly dataset_version: number;
             };
+            export type FindingCause =
+                | 'request_failed'
+                | 'access_refused'
+                | 'login_required'
+                | 'bot_protection'
+                | 'rate_limited'
+                | 'timeout'
+                | 'connect_failed'
+                | 'connection_reset'
+                | 'dns_unresolved'
+                | 'too_many_redirects'
+                | 'tls_expired'
+                | 'tls_not_yet_valid'
+                | 'tls_name_mismatch'
+                | 'tls_untrusted'
+                | 'tls_handshake_failed'
+                | 'private_target'
+                | 'invalid_url'
+                | 'page_too_large'
+                | 'cause_not_recorded';
             export type FindingStatus =
                 | 'broken'
                 | 'not_verifiable'
@@ -238,11 +243,13 @@ declare namespace Heptapod {
                 readonly found_on: string | null;
                 readonly link_text: string | null;
                 readonly error_message: string | null;
+                readonly cause: Heptapod.Contracts.Findings.FindingCause | null;
                 readonly first_seen_at: string | null;
                 readonly new_since_opening: boolean | null;
                 readonly new_since_baseline: boolean | null;
                 readonly carried_forward: boolean | null;
                 readonly source_observed_at: string | null;
+                readonly current_observation_cause: Heptapod.Contracts.Findings.FindingCause | null;
                 readonly field_truncation: string[];
             };
             export type FindingsSourceGroup = 'rows' | 'mixed' | 'verification';
@@ -269,6 +276,7 @@ declare namespace Heptapod {
             export type AutomatedCheckBlockReason =
                 | 'bot_protection'
                 | 'rate_limited';
+            export type ConnectionFailureReason = 'connect_failed' | 'reset';
             export type FetchFailureKind =
                 | 'timeout'
                 | 'too_large'
@@ -291,6 +299,7 @@ declare namespace Heptapod {
                 | 'changed'
                 | 'check-error'
                 | 'incident.cause_changed';
+            export type MailDesign = 'branded' | 'plain';
             export type MailTone =
                 | 'down'
                 | 'failed'
@@ -329,11 +338,17 @@ declare namespace Heptapod {
                 | 'error'
                 | 'info';
             export type DeliveryResult = {
-                readonly status: string;
+                readonly status: Heptapod.Contracts.Notifications.DeliveryState;
                 readonly reason: string | null;
                 readonly providerMessageId: string | null;
                 readonly diagnosis: string | null;
             };
+            export type DeliveryState =
+                | 'pending'
+                | 'sending'
+                | 'sent'
+                | 'failed'
+                | 'logged';
         }
         namespace OhDear {
             export type CheckData = {
@@ -465,6 +480,49 @@ declare namespace Heptapod {
             };
         }
     }
+}
+declare namespace Illuminate {
+    export type CursorPaginator<TKey, TValue> = {
+        data: TKey extends string ? Record<TKey, TValue> : TValue[];
+        links: {
+            url: string | null;
+            label: string;
+            active: boolean;
+        }[];
+        meta: {
+            path: string;
+            per_page: number;
+            next_cursor: string | null;
+            next_page_url: string | null;
+            prev_cursor: string | null;
+            prev_page_url: string | null;
+        };
+    };
+    export type CursorPaginatorInterface<TKey, TValue> =
+        Illuminate.CursorPaginator<TKey, TValue>;
+    export type LengthAwarePaginator<TKey, TValue> = {
+        data: TKey extends string ? Record<TKey, TValue> : TValue[];
+        links: {
+            url: string | null;
+            label: string;
+            active: boolean;
+        }[];
+        meta: {
+            total: number;
+            current_page: number;
+            first_page_url: string;
+            from: number | null;
+            last_page: number;
+            last_page_url: string;
+            next_page_url: string | null;
+            path: string;
+            per_page: number;
+            prev_page_url: string | null;
+            to: number | null;
+        };
+    };
+    export type LengthAwarePaginatorInterface<TKey, TValue> =
+        Illuminate.LengthAwarePaginator<TKey, TValue>;
 }
 declare namespace Spatie {
     namespace LaravelData {

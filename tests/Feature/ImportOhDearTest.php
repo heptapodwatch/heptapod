@@ -13,6 +13,8 @@ use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Saloon\Http\Faking\MockClient;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\BufferedOutput;
 
 beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-05T12:00:00Z'));
@@ -391,4 +393,50 @@ test('late cron identity conflict rolls back this monitor while a previous monit
     expect(Site::query()->where('oh_dear_id', 101)->count())->toBe(1);
     expect(DB::table('cron_checks')->whereIn('oh_dear_id', [201, 202])->count())->toBe(2);
     expect(DB::table('maintenance_periods')->where('oh_dear_id', 301)->count())->toBe(1);
+});
+
+test('reads the Oh Dear token from OH_DEAR_API_TOKEN or --token-stdin and warns when --token is passed', function (): void {
+    app(OhDearAccountTransport::class)->fake($this->account);
+    $previous = getenv('OH_DEAR_API_TOKEN');
+    try {
+        putenv('OH_DEAR_API_TOKEN=env-ohdear-secret-token');
+        expect(Artisan::call('heptapod:import-ohdear', ['--dry-run' => true, '--no-interaction' => true]))->toBe(0);
+        $envOutput = Artisan::output();
+        expect($envOutput)->toContain('101')
+            ->not->toContain('env-ohdear-secret-token')
+            ->not->toContain('--token');
+
+        putenv('OH_DEAR_API_TOKEN');
+        $command = Artisan::all()['heptapod:import-ohdear'];
+        $input = new ArrayInput(['command' => 'heptapod:import-ohdear', '--token-stdin' => true, '--dry-run' => true], $command->getDefinition());
+        $input->setInteractive(false);
+        $stream = fopen('php://temp', 'w+');
+        fwrite($stream, "stdin-ohdear-secret-token\n");
+        rewind($stream);
+        $input->setStream($stream);
+        $output = new BufferedOutput;
+        try {
+            expect($command->run($input, $output))->toBe(0);
+        } finally {
+            fclose($stream);
+        }
+        $stdinOutput = $output->fetch();
+        expect($stdinOutput)->toContain('101')
+            ->not->toContain('stdin-ohdear-secret-token')
+            ->not->toContain('--token');
+
+        expect(Artisan::call('heptapod:import-ohdear', ['--token' => 'argv-ohdear-secret-token', '--dry-run' => true, '--no-interaction' => true]))->toBe(0);
+        $argvOutput = Artisan::output();
+        expect($argvOutput)->toContain(__('import.token_option_deprecated'))
+            ->not->toContain('argv-ohdear-secret-token');
+
+        expect(Artisan::call('heptapod:import-ohdear', ['--dry-run' => true, '--no-interaction' => true]))->toBe(1);
+        expect(Artisan::output())->toContain(__('import.token_required'));
+    } finally {
+        if ($previous === false) {
+            putenv('OH_DEAR_API_TOKEN');
+        } else {
+            putenv('OH_DEAR_API_TOKEN='.$previous);
+        }
+    }
 });

@@ -1076,6 +1076,7 @@ readonly interval_seconds: number,
 readonly config_schema: Heptapod.Contracts.Schema.Schema,
 readonly settings: object,
 readonly can_update: boolean,
+readonly attention_reason: string | null,
 };
 export type CheckStripData = {
 readonly state: Heptapod.Enums.SiteStatus,

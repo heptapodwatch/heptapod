@@ -1496,6 +1496,7 @@ export function checkTabPageFixture(
             config_schema: checkSchemas[check.key],
             settings: checkSettingsFixture(site)[check.key],
             can_update: true,
+            attention_reason: null,
         },
         detail,
         response_times: responseTimeSeries(site),

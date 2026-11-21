@@ -120,14 +120,14 @@ final class ApiExamples
             'createMaintenancePeriod' => [201 => $window],
             'updateMaintenancePeriod' => [200 => [...$window, 'starts_at' => '2026-10-20 22:30:00', 'ends_at' => '2026-10-20 23:30:00']],
             'startMaintenance' => [200 => [...$window, 'id' => 501, 'name' => 'Deploy', 'starts_at' => '2026-10-01 07:50:00', 'ends_at' => '2026-10-01 08:20:00']],
-            'listCronChecks' => [200 => ['data' => [$task]]],
+            'listCronChecks' => [200 => ['data' => [self::maskedCronTask($task)]]],
             'createCronCheck' => [201 => [...$newTask, 'latest_result' => 'pending']],
             'updateCronCheck' => [200 => [...$task, 'grace_time_in_minutes' => 45]],
             'syncCronChecks' => [200 => [$task, [...$newTask, 'id' => 401, 'uuid' => '6f1c2e9a-0b7d-4c55-9a3e-2d4f8b1c7e60', 'name' => 'Hourly import', 'type' => 'simple',
                 'frequency_in_minutes' => 60, 'grace_time_in_minutes' => 10, 'cron_expression' => null, 'server_timezone' => null, 'description' => '',
                 'ping_url' => 'https://monitoring.example.com/cron/6f1c2e9a-0b7d-4c55-9a3e-2d4f8b1c7e60', 'latest_result' => 'pending']]],
-            'snoozeCronCheck' => [200 => [...$task, 'active_snooze' => self::snooze(801, '2026-10-01 07:35:00', '2026-10-01 09:35:00', 'api')]],
-            'unsnoozeCronCheck' => [200 => $task],
+            'snoozeCronCheck' => [200 => [...self::maskedCronTask($task), 'active_snooze' => self::snooze(801, '2026-10-01 07:35:00', '2026-10-01 09:35:00', 'api')]],
+            'unsnoozeCronCheck' => [200 => self::maskedCronTask($task)],
         ];
     }
 
@@ -196,13 +196,21 @@ final class ApiExamples
         return ['id' => $id, 'starts_at' => $startsAt, 'ends_at' => $endsAt, 'snoozed_by' => 'Ada Admin', 'unsnoozed_by' => null, 'source' => $source, 'created_at' => $startsAt];
     }
 
-    /** @return array<string, mixed> task 400 of cron check 102, as an Owner or Admin sees it */
+    /** @return array<string, mixed> task 400 of cron check 102, as an Owner or Admin with checks:write sees it */
     private static function cronTask(): array
     {
         return ['id' => 400, 'uuid' => '3b2f8c1e-7d4a-4e6b-9f20-5c8a1d3e4b70', 'name' => 'Nightly backup', 'type' => 'cron', 'frequency_in_minutes' => null, 'grace_time_in_minutes' => 30,
             'cron_expression' => '0 3 * * *', 'server_timezone' => 'Europe/Berlin', 'description' => 'Database backup',
             'ping_url' => 'https://monitoring.example.com/cron/3b2f8c1e-7d4a-4e6b-9f20-5c8a1d3e4b70', 'created_at' => self::Created, 'latest_result' => 'pingFailed',
             'latest_ping_at' => '2026-10-01 01:02:10', 'human_readable_latest_ping_at' => '6 hours ago', 'active_snooze' => null];
+    }
+
+    /** @param array<string, mixed> $task
+     * @return array<string, mixed>
+     */
+    private static function maskedCronTask(array $task): array
+    {
+        return [...$task, 'uuid' => '********', 'ping_url' => 'https://monitoring.example.com/cron/00000000-0000-0000-0000-000000000000'];
     }
 
     /** @return array<string, mixed> incident 300: cron check 102 failed because task 400 reported a failure */

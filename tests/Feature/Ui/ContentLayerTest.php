@@ -191,7 +191,7 @@ it('uses the same concrete redacted run cause in UI, mail and chat', function (a
     'TLS' => [[], new FetchResult(failure: new FetchFailure(FetchFailureKind::Tls)), 'TLS handshake failed; certificate validation could not complete'],
     'keyword' => [['look_for_string' => 'Welcome'], new FetchResult(200, 'Hello'), "Keyword 'Welcome' not found"],
     'accepted 401 with missing keyword' => [['valid_status_codes' => ['401'], 'look_for_string' => 'Welcome'], new FetchResult(401, 'Hello'), "Keyword 'Welcome' not found"],
-    'redirect query secrets' => [['expected_final_redirect_url' => 'https://cause.example/expected?token=query-private-secret'], new FetchResult(200, effectiveUrl: 'https://cause.example/actual?token=query-private-secret'), 'Redirected to https://cause.example/actual?[redacted] (expected https://cause.example/expected?[redacted])'],
+    'redirect query secrets' => [['expected_final_redirect_url' => 'https://cause.example/expected?token=query-private-secret'], new FetchResult(200, effectiveUrl: 'https://cause.example/actual?token=query-private-secret'), 'Redirected to https://cause.example/actual?[redacted] (expected [redacted])'],
 ]);
 
 it('accepts retained JSON null summary parameters as an empty parameter set', function (): void {

@@ -119,6 +119,10 @@ it('scopes cron capability URLs by role and invalidates the old ping URL when ro
         ->and(DB::table('activity_log')->where('event', 'cron.ping_url_rotated')->where('causer_id', $owner->id)->count())->toBe(1);
     $this->postJson($newUrl)->assertNoContent();
     $this->withToken($owner->createToken('cron-read', ['checks:read'])->plainTextToken)
+        ->getJson('/api/monitors/'.$check->site_id.'/cron-checks')->assertOk()
+        ->assertJsonPath('data.0.uuid', '********')
+        ->assertDontSee($newUrl);
+    $this->withToken($owner->createToken('cron-write', ['checks:read', 'checks:write'])->plainTextToken)
         ->getJson('/api/monitors/'.$check->site_id.'/cron-checks')->assertOk()->assertJsonPath('data.0.ping_url', $newUrl);
 });
 

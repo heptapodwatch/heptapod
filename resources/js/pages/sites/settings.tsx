@@ -493,11 +493,16 @@ export default function SiteSettings({
                                 const summary =
                                     reason ??
                                     (settings &&
-                                        checkSettingsSummary(
-                                            settings,
-                                            t,
-                                            format,
-                                        ).join(' · '));
+                                        [
+                                            ...(settings.attention_reason
+                                                ? [t('Needs attention')]
+                                                : []),
+                                            ...checkSettingsSummary(
+                                                settings,
+                                                t,
+                                                format,
+                                            ),
+                                        ].join(' · '));
                                 return (
                                     <SiteCheckField
                                         key={key}

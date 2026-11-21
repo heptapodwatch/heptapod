@@ -12,9 +12,13 @@ use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
 use Heptapod\Models\NotificationDestination;
+use Heptapod\Models\Site;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+
+require_once __DIR__.'/../Support/NotificationChannels.php';
 
 pest()->use(DatabaseTruncation::class);
 
@@ -154,6 +158,46 @@ it('relabels legacy findings silently and suppresses only fully explained unsent
     $this->artisan('heptapod:reclassify-links', ['--policy' => '1', '--no-interaction' => true])->assertSuccessful();
 
     expect(linkUpgradeSnapshot())->toBe($after);
+});
+
+it('strips terminal escape sequences and control characters from site names in output', function (): void {
+    $legacy = legacyLinkUpgrade();
+    $legacy['check']->site->update(['friendly_name' => "Shop\x1b[31m\x1b]0;title\x07\r\nFakeRow"]);
+
+    expect(Artisan::call('heptapod:reclassify-links', ['--policy' => '1', '--dry-run' => true, '--no-interaction' => true]))->toBe(0);
+    $output = Artisan::output();
+
+    expect($output)->toContain('Shop FakeRow')
+        ->and($output)->not->toContain("\x1b", "\x07", "\r")
+        ->and($output)->not->toMatch('/\nFakeRow/');
+});
+
+it('strips terminal escape sequences and control characters from channel labels in notification migration preview output', function (): void {
+    $siteA = Site::factory()->create();
+    $siteB = Site::factory()->create();
+    restoreRoutingSchema();
+    $team = DB::table('notification_destinations')->insertGetId([
+        'label' => "Alerts\x1b[31m\x1b]0;title\x07\r\nForged",
+        'channel' => 'mail',
+        'locale' => 'en',
+        'enabled' => true,
+        'config' => json_encode(['email' => 'team@example.test'], JSON_THROW_ON_ERROR),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    $ruleA = DB::table('notification_rules')->insertGetId(['event_type' => 'check.warning', 'scope_type' => 'site', 'scope_id' => $siteA->id, 'created_at' => now(), 'updated_at' => now()]);
+    $ruleB = DB::table('notification_rules')->insertGetId(['event_type' => 'check.warning', 'scope_type' => 'site', 'scope_id' => $siteB->id, 'digest' => true, 'created_at' => now(), 'updated_at' => now()]);
+    DB::table('notification_rule_destination')->insert([
+        ['notification_rule_id' => $ruleA, 'notification_destination_id' => $team],
+        ['notification_rule_id' => $ruleB, 'notification_destination_id' => $team],
+    ]);
+
+    expect(Artisan::call('heptapod:notifications:migration-preview', ['--no-interaction' => true]))->toBe(0);
+    $output = Artisan::output();
+
+    expect($output)->toContain('Alerts Forged')
+        ->and($output)->not->toContain("\x1b", "\x07", "\r")
+        ->and($output)->not->toMatch('/\nForged/');
 });
 
 it('rejects an unsupported upgrade policy without changing stored data', function (): void {

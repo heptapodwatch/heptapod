@@ -1,6 +1,7 @@
 {
     "sitemap.label": "Sitemap",
     "sitemap.path": "Sitemap-Pfad",
+    "sitemap.path_no_query": "Der Sitemap-Pfad darf keinen Query-String enthalten; senden Sie Zugangsdaten stattdessen über die Crawler-Header der Website.",
     "sitemap.speed": "Zusätzliche Verzögerung zwischen Anfragen",
     "sitemap.speed.default": "Standard (25 ms)",
     "sitemap.speed.fast": "Schnell (10 ms)",

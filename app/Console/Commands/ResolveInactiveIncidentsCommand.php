@@ -12,6 +12,7 @@ use Heptapod\Models\Check;
 use Heptapod\Models\Incident;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
+use Heptapod\Support\ConsoleText;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
@@ -96,7 +97,7 @@ final class ResolveInactiveIncidentsCommand extends Command
                     }
                 }
                 foreach ($resolved as $closed) {
-                    $rows[] = [$closed->id, $site->displayName(), __('checks.'.$check->type->value.'.label'), __(SiteStatus::forIncident($check->type, $closed->cause)->labelKey()), __($reason->labelKey())];
+                    $rows[] = [$closed->id, ConsoleText::sanitize($site->displayName()), __('checks.'.$check->type->value.'.label'), __(SiteStatus::forIncident($check->type, $closed->cause)->labelKey()), __($reason->labelKey())];
                     $count++;
                 }
             }

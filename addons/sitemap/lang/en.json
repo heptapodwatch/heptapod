@@ -1,6 +1,7 @@
 {
     "sitemap.label": "Sitemap",
     "sitemap.path": "Sitemap path",
+    "sitemap.path_no_query": "Sitemap path cannot include a query string; send credentials through the site's crawler headers instead.",
     "sitemap.speed": "Additional delay between requests",
     "sitemap.speed.default": "Default (25 ms)",
     "sitemap.speed.fast": "Fast (10 ms)",

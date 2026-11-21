@@ -118,7 +118,7 @@ it('records endpoint failures without replacing accepted component baselines', f
         ->and(DB::table('application_health_snapshots')->count())->toBe(1);
     if (str_starts_with($variant, 'redirect') && $variant !== 'redirect_blocked') {
         expect($run->evidence['redirect_host'])->toBe(match ($variant) {
-            'redirect_secret' => '[redacted]', 'redirect_relative' => 'fixtures.test', default => 'external.fixtures.test',
+            'redirect_secret' => '[redacted].test', 'redirect_relative' => 'fixtures.test', default => 'external.fixtures.test',
         });
         foreach (['fixture-secret', 'private-token', '/private'] as $secret) {
             expect(strtolower(json_encode($run->evidence)))->not->toContain($secret);
@@ -210,6 +210,51 @@ it('emits accepted status or message changes once with component suppression and
     }
     foreach (['fixture-secret', 'private-token', '123456'] as $secret) {
         expect(strtolower(json_encode($logs, JSON_THROW_ON_ERROR)))->not->toContain($secret);
+    }
+});
+
+it('redacts URL-encoded, JSON-escaped and control-encoded secret echoes before storing health snapshots', function (): void {
+    $secret = 'top/secret+key';
+    $headerSecret = 'alpha "quoted" beta';
+    $check = applicationHealthCheck([
+        'secret' => $secret,
+        'headers' => [['name' => 'X-Api-Key', 'value' => $headerSecret]],
+    ]);
+    $urlEncoded = rawurlencode($secret);
+    $jsonEscaped = substr(json_encode($secret, JSON_THROW_ON_ERROR), 1, -1);
+    $jsonQuoted = substr(json_encode($headerSecret, JSON_THROW_ON_ERROR), 1, -1);
+    $controlSplit = "top/sec\x07ret+key";
+
+    respondApplicationHealth($check, applicationHealthPayload('ok', 'Initial healthy'));
+    runApplicationHealth($check);
+
+    $echo = applicationHealthPayload('warning', 'Echo '.$urlEncoded.' and '.$jsonQuoted);
+    $echo['checkResults'][0]['label'] = 'Label '.$controlSplit;
+    $echo['checkResults'][0]['shortSummary'] = 'Summary '.$jsonEscaped;
+    $echo['checkResults'][0]['meta'] = [
+        $urlEncoded => $jsonEscaped,
+        'nested' => ['control' => $controlSplit, 'escaped' => $jsonQuoted],
+    ];
+    respondApplicationHealth($check, $echo);
+    runApplicationHealth($check);
+
+    $component = json_decode(DB::table('application_health_components')->value('snapshot'), true, flags: JSON_THROW_ON_ERROR);
+    expect($component['notificationMessage'])->toBe('Echo [redacted] and [redacted]')
+        ->and($component['label'])->toBe('Label [redacted]')
+        ->and($component['shortSummary'])->toBe('Summary [redacted]')
+        ->and($component['meta'])->toEqual([
+            '[redacted]' => '[redacted]',
+            'nested' => ['control' => '[redacted]', 'escaped' => '[redacted]'],
+        ]);
+
+    $event = Event::query()->where('type', 'application_health.component_changed')->sole();
+    expect($event->payload)->not->toHaveKeys(['notificationMessage', 'shortSummary']);
+
+    foreach (['application_health_components', 'application_health_snapshots', 'events', 'check_runs'] as $table) {
+        $stored = strtolower(json_encode(DB::table($table)->get(), JSON_THROW_ON_ERROR));
+        foreach ([$secret, $headerSecret, $urlEncoded, $jsonEscaped, $jsonQuoted, $controlSplit, 'quoted'] as $needle) {
+            expect($stored)->not->toContain(strtolower($needle));
+        }
     }
 });
 

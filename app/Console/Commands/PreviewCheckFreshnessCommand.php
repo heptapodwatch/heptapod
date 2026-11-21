@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Heptapod\Checks\CheckFreshness;
 use Heptapod\Models\Check;
 use Heptapod\Models\SystemIssue;
+use Heptapod\Support\ConsoleText;
 use Heptapod\SystemHealth\CheckFreshnessIssues;
 use Heptapod\SystemHealth\EvaluateSystemIssues;
 use Heptapod\SystemHealth\SystemIssueKind;
@@ -61,7 +62,7 @@ final class PreviewCheckFreshnessCommand extends Command
                         continue;
                     }
                     $reason = $suppressed ? 'instance_alarm' : ($issues->siteDown($check->site_id) ? 'uptime_down' : null);
-                    $rows[] = [$check->id, ($check->site ?? throw new \LogicException('Freshness requires an existing site.'))->displayName(), $check->type->value,
+                    $rows[] = [$check->id, ConsoleText::sanitize(($check->site ?? throw new \LogicException('Freshness requires an existing site.'))->displayName()), $check->type->value,
                         $check->awaiting_result_since?->toIso8601String(), $freshness->threshold($check), $check->lost_attempts,
                         in_array((string) $check->id, $open, true) ? 'ALREADY OPEN' : ($reason === null ? 'WOULD OPEN' : 'SUPPRESSED: '.$reason)];
                 }

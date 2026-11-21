@@ -634,7 +634,7 @@
             },
             "CronTaskResource": {
                 "additionalProperties": false,
-                "description": "Members see a masked uuid and a non-working ping URL.",
+                "description": "Members and tokens without `checks:write` (including `checks:read`, `agent-read` and `checks:snooze`) see a masked uuid and a non-working ping URL.",
                 "properties": {
                     "active_snooze": {
                         "$ref": "#/components/schemas/ActiveSnooze"
@@ -683,6 +683,7 @@
                         "type": "string"
                     },
                     "ping_url": {
+                        "description": "Ping capability URL; a non-working null-UUID URL for Members and tokens without `checks:write`.",
                         "type": "string"
                     },
                     "server_timezone": {
@@ -699,7 +700,7 @@
                         "type": "string"
                     },
                     "uuid": {
-                        "description": "Ping capability; `********` for Members.",
+                        "description": "Ping capability; `********` for Members and tokens without `checks:write`.",
                         "type": "string"
                     }
                 },
@@ -5053,10 +5054,10 @@
                                     "latest_ping_at": "2026-10-01 01:02:10",
                                     "latest_result": "pingFailed",
                                     "name": "Nightly backup",
-                                    "ping_url": "https://monitoring.example.com/cron/3b2f8c1e-7d4a-4e6b-9f20-5c8a1d3e4b70",
+                                    "ping_url": "https://monitoring.example.com/cron/00000000-0000-0000-0000-000000000000",
                                     "server_timezone": "Europe/Berlin",
                                     "type": "cron",
-                                    "uuid": "3b2f8c1e-7d4a-4e6b-9f20-5c8a1d3e4b70"
+                                    "uuid": "********"
                                 },
                                 "schema": {
                                     "$ref": "#/components/schemas/CronTaskResource"
@@ -5216,10 +5217,10 @@
                                     "latest_ping_at": "2026-10-01 01:02:10",
                                     "latest_result": "pingFailed",
                                     "name": "Nightly backup",
-                                    "ping_url": "https://monitoring.example.com/cron/3b2f8c1e-7d4a-4e6b-9f20-5c8a1d3e4b70",
+                                    "ping_url": "https://monitoring.example.com/cron/00000000-0000-0000-0000-000000000000",
                                     "server_timezone": "Europe/Berlin",
                                     "type": "cron",
-                                    "uuid": "3b2f8c1e-7d4a-4e6b-9f20-5c8a1d3e4b70"
+                                    "uuid": "********"
                                 },
                                 "schema": {
                                     "$ref": "#/components/schemas/CronTaskResource"
@@ -9115,6 +9116,9 @@
                                             "path": {
                                                 "default": "/sitemap.xml",
                                                 "maxLength": 2048,
+                                                "not": {
+                                                    "pattern": "\\?"
+                                                },
                                                 "pattern": "^/(?!/)[^#\\r\\n]*$",
                                                 "type": "string"
                                             },
@@ -9172,11 +9176,13 @@
                                             },
                                             "expected_final_redirect_url": {
                                                 "default": null,
+                                                "description": "Secret; responses return `********` or null.",
                                                 "format": "uri",
                                                 "type": [
                                                     "string",
                                                     "null"
-                                                ]
+                                                ],
+                                                "writeOnly": true
                                             },
                                             "expected_response_headers": {
                                                 "default": [],
@@ -9293,7 +9299,9 @@
                                                             "type": "string"
                                                         },
                                                         "value": {
-                                                            "type": "string"
+                                                            "description": "Secret; responses return `********` or null.",
+                                                            "type": "string",
+                                                            "writeOnly": true
                                                         }
                                                     },
                                                     "required": [
@@ -9307,10 +9315,12 @@
                                             "raw_payload": {
                                                 "contentMediaType": "application/json",
                                                 "default": null,
+                                                "description": "Secret; responses return `********` or null.",
                                                 "type": [
                                                     "string",
                                                     "null"
-                                                ]
+                                                ],
+                                                "writeOnly": true
                                             },
                                             "response_body_assertions": {
                                                 "default": [],
@@ -11087,6 +11097,9 @@
                                             "path": {
                                                 "default": "/sitemap.xml",
                                                 "maxLength": 2048,
+                                                "not": {
+                                                    "pattern": "\\?"
+                                                },
                                                 "pattern": "^/(?!/)[^#\\r\\n]*$",
                                                 "type": "string"
                                             },
@@ -11144,11 +11157,13 @@
                                             },
                                             "expected_final_redirect_url": {
                                                 "default": null,
+                                                "description": "Secret; responses return `********` or null.",
                                                 "format": "uri",
                                                 "type": [
                                                     "string",
                                                     "null"
-                                                ]
+                                                ],
+                                                "writeOnly": true
                                             },
                                             "expected_response_headers": {
                                                 "default": [],
@@ -11265,7 +11280,9 @@
                                                             "type": "string"
                                                         },
                                                         "value": {
-                                                            "type": "string"
+                                                            "description": "Secret; responses return `********` or null.",
+                                                            "type": "string",
+                                                            "writeOnly": true
                                                         }
                                                     },
                                                     "required": [
@@ -11279,10 +11296,12 @@
                                             "raw_payload": {
                                                 "contentMediaType": "application/json",
                                                 "default": null,
+                                                "description": "Secret; responses return `********` or null.",
                                                 "type": [
                                                     "string",
                                                     "null"
-                                                ]
+                                                ],
+                                                "writeOnly": true
                                             },
                                             "response_body_assertions": {
                                                 "default": [],
@@ -12074,7 +12093,7 @@
         },
         "/monitors/{monitor}/cron-checks": {
             "get": {
-                "description": "The scheduled tasks of the cron check of the monitor. Members see a masked `uuid` and a ping URL that does not work.\n\nToken abilities: `checks:read`.",
+                "description": "The scheduled tasks of the cron check of the monitor. Members and tokens without `checks:write` see a masked `uuid` and a ping URL that does not work.\n\nToken abilities: `checks:read`.",
                 "operationId": "listCronChecks",
                 "parameters": [
                     {
@@ -12105,10 +12124,10 @@
                                             "latest_ping_at": "2026-10-01 01:02:10",
                                             "latest_result": "pingFailed",
                                             "name": "Nightly backup",
-                                            "ping_url": "https://monitoring.example.com/cron/3b2f8c1e-7d4a-4e6b-9f20-5c8a1d3e4b70",
+                                            "ping_url": "https://monitoring.example.com/cron/00000000-0000-0000-0000-000000000000",
                                             "server_timezone": "Europe/Berlin",
                                             "type": "cron",
-                                            "uuid": "3b2f8c1e-7d4a-4e6b-9f20-5c8a1d3e4b70"
+                                            "uuid": "********"
                                         }
                                     ]
                                 },

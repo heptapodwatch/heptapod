@@ -38,6 +38,7 @@ use Heptapod\Contracts\Schema\Field;
 use Heptapod\Contracts\Schema\FieldPresentation;
 use Heptapod\Contracts\Schema\FieldType;
 use Heptapod\Contracts\Schema\Schema;
+use Heptapod\Contracts\SecretRedactor;
 use Heptapod\Contracts\SuppressionComponent;
 use Heptapod\Contracts\SuppressionSubject;
 use Illuminate\Support\Facades\Config;
@@ -220,6 +221,7 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
             $secrets[] = $header['value'];
         }
         $secrets = array_values(array_filter($secrets, static fn (string $value): bool => $value !== ''));
+        $urls = [$settings['result_url'], $context->url];
         $response = $this->http->fetch(new FetchRequest(
             $settings['result_url'], headers: $headers, maxWireBytes: $maxBytes, maxDecodedBytes: $maxBytes,
             redirects: RedirectPolicy::Off, timeoutSeconds: 30, acceptedStatuses: range(200, 399),
@@ -240,7 +242,7 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
             $host = parse_url(array_change_key_case($response->headers)['location'][0] ?? '', PHP_URL_HOST);
             $host = is_string($host) ? $host : parse_url($settings['result_url'], PHP_URL_HOST);
 
-            return $this->failure('redirect', $time, $response->status, redirectHost: is_string($host) ? $this->safeText($host, $secrets) : null);
+            return $this->failure('redirect', $time, $response->status, redirectHost: is_string($host) ? $this->redactText($host, $secrets, $urls) : null);
         }
         $body = $response->body;
         if (! json_validate($body, 64)) {
@@ -280,7 +282,7 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
             };
             if ($result === null) {
                 return new CheckOutcome(RunResult::Errored, 'application_health.unknown_status',
-                    ['status' => $this->safeText($source->status, $secrets), 'component' => $this->safeText($source->label !== '' ? $source->label : $source->name, $secrets)],
+                    ['status' => $this->redactText($source->status, $secrets, $urls), 'component' => $this->redactText($source->label !== '' ? $source->label : $source->name, $secrets, $urls)],
                     new ApplicationHealthMetrics(0, 0, 0, $finishedAt, $time), new ApplicationHealthEvidence('unknown_status', $response->status, null, []),
                     error: new CheckError(\UnexpectedValueException::class, 'Application health reported an unknown component status.'));
             }
@@ -298,22 +300,22 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
             }
             $identity = hash('sha256', json_encode([$source->status, $source->notificationMessage, $source->shortSummary], JSON_THROW_ON_ERROR));
             /** @var array<int|string, mixed> $meta */
-            $meta = $this->safeMeta($source->meta, $secrets);
-            $component = new ApplicationHealthComponent($baseline['id'], $this->safeText($source->name, $secrets),
-                $this->safeText($source->label, $secrets), $this->safeText($source->status, $secrets),
-                $this->safeText($source->notificationMessage, $secrets), $this->safeText($source->shortSummary, $secrets), $meta, $result->value);
+            $meta = SecretRedactor::redactValues($source->meta, $secrets, $urls, redactNumeric: true);
+            $component = new ApplicationHealthComponent($baseline['id'], $this->redactText($source->name, $secrets, $urls),
+                $this->redactText($source->label, $secrets, $urls), $this->redactText($source->status, $secrets, $urls),
+                $this->redactText($source->notificationMessage, $secrets, $urls), $this->redactText($source->shortSummary, $secrets, $urls), $meta, $result->value);
             $components[] = $component;
             $rows[] = ['snapshot' => [...$component->toArray(), 'unresolved_result' => $unresolved], 'change_identity' => $identity];
             // A component that turned skipped is unverified; it reports no new state to alert on.
             if ($baseline['change_identity'] !== null && $baseline['change_identity'] !== $identity && $result !== CheckResult::Pending) {
                 $payload = [
                     'component_id' => $component->id, 'name' => $component->name,
-                    'old_status' => $this->safeText($baseline['snapshot']['status'] ?? '', $secrets),
+                    'old_status' => $this->redactText($baseline['snapshot']['status'] ?? '', $secrets, $urls),
                     'status' => $component->status, 'change_identity' => $identity,
                     'result' => $result->value, 'from_result' => $baseline['snapshot']['latest_result'] ?? null,
                 ];
                 foreach (['notificationMessage' => $source->notificationMessage, 'shortSummary' => $source->shortSummary] as $key => $message) {
-                    if (! $this->containsSecret($message, $secrets)) {
+                    if (SecretRedactor::redact($message, $secrets, $urls) === $message) {
                         $payload[$key] = mb_substr($message, 0, 255);
                     }
                 }
@@ -387,30 +389,11 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
             error: new CheckError(ReclassifiedCheckError::class, 'Application health result unavailable: '.$reason));
     }
 
-    /** @param list<string> $secrets */
-    private function containsSecret(string $text, array $secrets): bool
-    {
-        return array_any($secrets, fn (string $secret): bool => stripos($text, $secret) !== false);
-    }
-
-    /** @param list<string> $secrets */
-    private function safeText(string $text, array $secrets): string
-    {
-        return $this->containsSecret($text, $secrets) ? '[redacted]' : mb_substr($text, 0, 255);
-    }
-
-    /** @param array<int|string, mixed> $meta
-     * @param  list<string>  $secrets
-     * @return array<int|string, mixed>
+    /** @param list<string> $secrets
+     * @param  list<string>  $urls
      */
-    private function safeMeta(array $meta, array $secrets): array
+    private function redactText(string $text, array $secrets, array $urls): string
     {
-        $safe = [];
-        foreach ($meta as $key => $value) {
-            $key = $this->containsSecret((string) $key, $secrets) ? '[redacted]' : $key;
-            $safe[$key] = is_array($value) ? $this->safeMeta($value, $secrets) : (is_scalar($value) && $this->containsSecret((string) $value, $secrets) ? '[redacted]' : $value);
-        }
-
-        return $safe;
+        return mb_substr(SecretRedactor::redact($text, $secrets, $urls), 0, 255);
     }
 }
