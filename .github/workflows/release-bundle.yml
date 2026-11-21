@@ -86,13 +86,28 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release edit "$TAG" --draft=false --repo "$GITHUB_REPOSITORY"
+
+  dispatch-website:
+    # Separate runner without a checkout so tag-controlled scripts never share a VM with the cross-repo token.
+    # WEBSITE_DISPATCH_TOKEN lives exclusively in the main-restricted GitHub environment `website-dispatch`.
+    needs: bundle
+    runs-on: ubuntu-latest
+    environment: website-dispatch
+    permissions: {}
+    steps:
       # Optional integration: without the secret the website keeps its docs until its next build.
       - name: Trigger the website docs build
+        shell: bash
         env:
+          TAG: ${{ inputs.tag }}
           WEBSITE_DISPATCH_TOKEN: ${{ secrets.WEBSITE_DISPATCH_TOKEN }}
         run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid release tag: $TAG (expected vX.Y.Z)"
+            exit 1
+          fi
           if [ -z "$WEBSITE_DISPATCH_TOKEN" ]; then
-            echo "::notice::WEBSITE_DISPATCH_TOKEN is not set; the website docs build was not triggered for $TAG."
+            echo "::notice::WEBSITE_DISPATCH_TOKEN is not set in environment website-dispatch; the website docs build was not triggered for $TAG."
             exit 0
           fi
-          GH_TOKEN=$WEBSITE_DISPATCH_TOKEN gh api repos/heptapodwatch/heptapod.website/dispatches -f event_type=app-docs -f "client_payload[ref]=$TAG"
+          GH_TOKEN="$WEBSITE_DISPATCH_TOKEN" /usr/bin/gh api repos/heptapodwatch/heptapod.website/dispatches -f event_type=app-docs -f "client_payload[ref]=$TAG"

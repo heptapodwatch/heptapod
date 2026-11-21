@@ -9,9 +9,9 @@ Release images are `ghcr.io/heptapodwatch/heptapod-app` and `ghcr.io/heptapodwat
 
 # Production operations
 
-## Production image promotion
+## Production image publication
 
-A `ci/*` image run publishes the loaded, validated native images under non-release `ci-<full SHA>` tags and records their config IDs, platform digests, index digest, run attempt and hard-job results in run-bound artifacts. Main promotes those indexes by digest only when the latest candidate run for its exact SHA is completed successfully, all native gates are green, and the registry matches the artifacts. Both platform digests and the main tags are verified after promotion; the summary records the source run and index digest. Missing or inconsistent evidence triggers an annotated full build, OPS and security fallback. A source rerun detected immediately before publication fails red without changing that job's tags; use "Re-run all jobs" (not "Re-run failed jobs") to reselect the source. The main-only manual `force_full_build` input exercises the full fallback and records the requesting actor. Upstream vulnerability reports remain report-only.
+Pushes to `main` (and manual `workflow_dispatch` runs on `main`) build, validate and scan native production images for every configured architecture (`HEPTAPOD_IMAGE_ARCHES`), push the scanned platform images without rebuilding, verify both platform digests and scanned config IDs, and publish the multi-architecture `main` and `<full SHA>` indexes with GitHub provenance attestations. Pull requests validate changed images without pushing to the registry; `v*` tag pushes validate both images without pushing. Upstream vulnerability reports remain report-only.
 
 ## Development fixture benchmark
 
@@ -339,7 +339,7 @@ A failed fresh install prints a complete recovery block that resolves/pins the r
 
 The installer persists the ordered `COMPOSE_FILE` list, including extra overrides. An exported value must match it exactly. Missing legacy `COMPOSE_FILE`: rerun the installer with the original flags and original exported list; it appends missing keys without service startup, secret rotation or Owner creation. Then upgrade the running instance. Do not infer deployment mode from `HTTP_PORT`. Keep overrides at their original paths; file lists permit only letters, digits, `_`, `.`, `/`, `:`, `+` and `-`.
 
-Only main advances deployment tags using GITHUB_TOKEN; ci/* publishes candidate SHA indexes. Each ci/* candidate builds/scans both images for every configured architecture, including app OPS checks, regardless of changed paths. Pull requests retain path selection. Main promotes an exact-SHA candidate by digest only after native gates and architecture matching; otherwise it builds through those gates. Loaded native images are scanned/pushed without rebuilding. Matrix-specific caches separate images and architectures. Public publication adds GitHub provenance attestations; private repositories skip them without blocking publication. Docker archive promotion does not retain Buildx SBOM/provenance metadata. TODO: Attach per-architecture SBOM attestations when OCI-artifact promotion is adopted.
+Only `main` builds and advances deployment tags using `GITHUB_TOKEN`. Pull requests retain path selection and validate without pushing; `v*` tag pushes validate both images without pushing. Loaded native images are scanned and pushed without rebuilding. Matrix-specific caches separate images and architectures. Public publication adds GitHub provenance attestations; private repositories skip them without blocking publication.
 
 Before maintenance, upgrade runs `heptapod:notifications:migration-preview` with the candidate image and `RUN_MIGRATIONS=0`: a read-only report of how notification rules, follows and noise settings become channels, printed and saved to `.heptapod/upgrade/notification-migration-preview.txt`. It prints "already converted" once the old tables are gone. A failing preview stops the upgrade before writers are frozen.
 

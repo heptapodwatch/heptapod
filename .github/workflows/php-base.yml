@@ -2,7 +2,7 @@ name: PHP base image
 
 on:
   push:
-    branches: [main, 'ci/**']
+    branches: [main]
     paths: ['docker/php-base/**', 'docker/php-extensions.txt', 'scripts/image-config-digest.sh', '.github/workflows/php-base.yml', '.trivyignore']
   # Pull requests run the native build, module and HARD vulnerability gates without pushing.
   pull_request:
@@ -23,10 +23,7 @@ env:
 
 jobs:
   inputs:
-    # A main push builds through the native gates only when no ci/* candidate for its exact SHA is reusable;
-    # a failed reuse job (for example a failed retag) stays fatal and skips this build.
-    needs: reuse
-    if: ${{ !cancelled() && (github.event_name != 'schedule' || github.ref == 'refs/heads/main') && (needs.reuse.result == 'skipped' || (needs.reuse.result == 'success' && needs.reuse.outputs.reuse == 'false')) }}
+    if: ${{ github.event_name != 'schedule' || github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.inputs.outputs.tag }}
@@ -52,8 +49,6 @@ jobs:
   native:
     name: native (${{ matrix.target }}, ${{ matrix.architecture }})
     needs: inputs
-    # Explicit, because the skipped reuse job would otherwise skip every dependent job.
-    if: ${{ !cancelled() && needs.inputs.result == 'success' }}
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -252,7 +247,6 @@ jobs:
               sources+=("$PHP_BASE_REFERENCE@$digest")
             done
             tags=("$BUILD_TAG$suffix")
-            if [[ "$GITHUB_REF" == refs/heads/ci/* ]]; then tags+=("ci-$GITHUB_SHA$suffix"); fi
             if [ "$GITHUB_REF" = refs/heads/main ]; then tags+=("latest-main$suffix"); fi
             tag_args=()
             for tag in "${tags[@]}"; do tag_args+=(--tag "$PHP_BASE_REFERENCE:$tag"); done
@@ -282,38 +276,6 @@ jobs:
             > "$RUNNER_TEMP/php-base-record.json"
           bash scripts/php-base-verify-index.sh "$RUNNER_TEMP/php-base-record.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: php-base-record
-          path: ${{ runner.temp }}/php-base-record.json
-          if-no-files-found: error
-          overwrite: true
-
-  reuse:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
-      packages: write
-    outputs:
-      reuse: ${{ steps.reuse.outputs.reuse }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-      - name: Reuse the exact green candidate indexes
-        id: reuse
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: bash scripts/php-base-reuse.sh
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: steps.reuse.outputs.reuse == 'true'
         with:
           name: php-base-record
           path: ${{ runner.temp }}/php-base-record.json

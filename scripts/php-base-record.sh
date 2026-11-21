@@ -9,15 +9,15 @@ command -v unzip > /dev/null || { echo 'php-base-record.sh needs unzip (Actions 
 run_id=$1
 output=$2
 root=$(cd -- "$(dirname -- "$0")/.." && pwd)
-# Callers (the bump script, the reuse job) set GITHUB_REPOSITORY; there is no hard-coded fallback.
+# Callers (the bump script) set GITHUB_REPOSITORY; there is no hard-coded fallback.
 repository=${GITHUB_REPOSITORY:?GITHUB_REPOSITORY must be set}
 mkdir -p "$output"
 gh api "repos/$repository/actions/runs/$run_id" > "$output/run.json"
 jq -e --argjson id "$run_id" '
     .id == $id and .status == "completed" and .conclusion == "success" and
     .path == ".github/workflows/php-base.yml" and
-    (.head_branch == "main" or (.head_branch | startswith("ci/")))
-    or error("Expected a completed successful php-base run on main or ci/**")' "$output/run.json" > /dev/null
+    .head_branch == "main"
+    or error("Expected a completed successful php-base run on main")' "$output/run.json" > /dev/null
 # There must be exactly one live record, including across reruns.
 gh api --paginate --slurp "repos/$repository/actions/runs/$run_id/artifacts?per_page=100" > "$output/artifacts.json"
 artifact=$(jq -er '[.[].artifacts[] | select(.name == "php-base-record" and .expired == false)] |

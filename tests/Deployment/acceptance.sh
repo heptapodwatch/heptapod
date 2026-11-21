@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# One entry point per production-image acceptance suite, shared by the inline build job and the
-# parallel image-acceptance jobs, so both paths run exactly the same commands on heptapod-app:ci.
+# One entry point per production-image acceptance suite executed on heptapod-app:ci.
 set -euo pipefail
 case "${1:-}" in
     config)
