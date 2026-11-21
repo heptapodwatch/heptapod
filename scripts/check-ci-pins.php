@@ -84,6 +84,21 @@ if ($workflowFiles === [] || $actionFiles === []) {
     exit(1);
 }
 
+/** @var array<string, true> $scannedLocalTargets */
+$scannedLocalTargets = [];
+foreach ($workflowFiles as $workflowFile) {
+    $resolved = realpath($workflowFile);
+    if ($resolved !== false) {
+        $scannedLocalTargets[$resolved] = true;
+    }
+}
+foreach ($actionFiles as $actionFile) {
+    $resolvedDir = realpath(dirname($actionFile));
+    if ($resolvedDir !== false) {
+        $scannedLocalTargets[$resolvedDir] = true;
+    }
+}
+
 $externalActions = 0;
 foreach ([...$workflowFiles, ...$actionFiles] as $file) {
     $relative = substr($file, strlen($root) + 1);
@@ -97,6 +112,11 @@ foreach ([...$workflowFiles, ...$actionFiles] as $file) {
 
     foreach ($collectUses($parsed, $isWorkflow) as ['location' => $location, 'uses' => $uses]) {
         if (str_starts_with($uses, './')) {
+            $resolvedTarget = realpath($root.'/'.substr($uses, 2));
+            if ($resolvedTarget === false || ! isset($scannedLocalTargets[$resolvedTarget])) {
+                $failures[] = $relative.' ('.$location.'): local reference is not covered by scanned .github/workflows or .github/actions files: '.$uses;
+            }
+
             continue;
         }
 
@@ -148,7 +168,7 @@ foreach ($dockerfiles as $file) {
 
     foreach ($lines as $index => $line) {
         $trimmed = trim($line);
-        if ($buffer === '' && ($trimmed === '' || str_starts_with($trimmed, '#'))) {
+        if ($trimmed === '' || str_starts_with($trimmed, '#')) {
             continue;
         }
 
