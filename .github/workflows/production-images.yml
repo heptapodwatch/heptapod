@@ -2,22 +2,17 @@ name: Production images
 
 on:
   push:
-    branches: [main, 'ci/**']
+    branches: [main]
     tags: ['v*']
   pull_request:
   workflow_dispatch:
-    inputs:
-      force_full_build:
-        description: Exercise the loud full-build fallback on main
-        type: boolean
-        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') && 'ci-trains' || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   architectures:
@@ -25,7 +20,6 @@ jobs:
     outputs:
       value: ${{ steps.matrix.outputs.value }}
       matrix: ${{ steps.matrix.outputs.matrix }}
-      acceptance-matrix: ${{ steps.matrix.outputs.acceptance-matrix }}
       runtime-matrix: ${{ steps.matrix.outputs.runtime-matrix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -46,167 +40,8 @@ jobs:
           {
             echo "value=$(jq -r '.architectures | join(",")' <<< "$configuration")"
             echo "matrix=$(jq -c '.image_matrix' <<< "$configuration")"
-            echo "acceptance-matrix=$(jq -c '.acceptance_matrix' <<< "$configuration")"
             echo "runtime-matrix=$(jq -c '.runtime_matrix' <<< "$configuration")"
           } >> "$GITHUB_OUTPUT"
-
-  candidate:
-    needs: architectures
-    env:
-      HEPTAPOD_IMAGE_ARCHES: ${{ needs.architectures.outputs.value }}
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
-      packages: read
-    outputs:
-      reuse: ${{ steps.registry.outputs.reuse }}
-      source-run: ${{ steps.lookup.outputs.source-run }}
-      source-attempt: ${{ steps.lookup.outputs.source-attempt }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - name: Explain the requested full-build fallback
-        if: github.event_name == 'workflow_dispatch' && inputs.force_full_build
-        run: |
-          echo "::warning::FALLBACK: force_full_build requested by $GITHUB_ACTOR; running all native build, OPS and security gates"
-          echo "FALLBACK: force_full_build requested by $GITHUB_ACTOR; running all native gates." >> "$GITHUB_STEP_SUMMARY"
-      - name: Select the exact SHA's completed candidate run and digest artifacts
-        if: github.event_name != 'workflow_dispatch' || !inputs.force_full_build
-        id: lookup
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: bash .github/actions/image-promotion/select.sh "$RUNNER_TEMP/candidate"
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-        if: steps.lookup.outputs.source-run != ''
-      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        if: steps.lookup.outputs.source-run != ''
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Accept only the recorded indexes and scanned platform configs
-        id: registry
-        if: steps.lookup.outputs.source-run != ''
-        shell: bash
-        run: |
-          for image in app lighthouse; do
-            if ! bash .github/actions/image-promotion/verify-index.sh "$(bash scripts/image-reference.sh "$image")" "$RUNNER_TEMP/candidate/manifest-$image.json"; then
-              reason="FALLBACK: $image candidate index or platform identity cannot be verified; full native gates required"
-              echo "::warning::$reason"
-              echo "$reason" >> "$GITHUB_STEP_SUMMARY"
-              exit 0
-            fi
-          done
-          echo 'reuse=true' >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: steps.registry.outputs.reuse == 'true'
-        with:
-          name: promotion-source
-          path: ${{ runner.temp }}/candidate/manifest-*.json
-          if-no-files-found: error
-
-  image-acceptance:
-    # Candidate pushes split the app's slow suites off the build job: each suite runs on its own
-    # runner against the exact image the build job scanned and pushed, not a rebuild.
-    name: image-acceptance (app, ${{ matrix.architecture }}, ${{ matrix.suite }})
-    needs: [architectures, image-validate]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/')
-    env:
-      HEPTAPOD_IMAGE_ARCHES: ${{ needs.architectures.outputs.value }}
-    permissions:
-      contents: read
-      packages: read
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.architectures.outputs.acceptance-matrix) }}
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/free-runner-disk
-      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Load the scanned candidate image by digest
-        shell: bash
-        env:
-          DIGEST: ${{ needs.image-validate.outputs[format('digest-app-{0}', matrix.architecture)] }}
-          SCANNED_CONFIG: ${{ needs.image-validate.outputs[format('scanned-config-app-{0}', matrix.architecture)] }}
-        run: |
-          : "${DIGEST:?Missing pushed app digest}" "${SCANNED_CONFIG:?Missing scanned app config}"
-          reference="$(bash scripts/image-reference.sh app)@$DIGEST"
-          docker pull "$reference"
-          test "$(bash scripts/image-config-digest.sh "$reference")" = "$SCANNED_CONFIG"
-          docker tag "$reference" heptapod-app:ci
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        if: matrix.suite == 'ops'
-        with:
-          node-version: '24'
-          cache: npm
-      - name: Run the ${{ matrix.suite }} acceptance suite
-        env:
-          SUITE: ${{ matrix.suite }}
-        run: bash tests/Deployment/acceptance.sh "$SUITE"
-
-  candidate-manifest:
-    name: candidate-manifest (${{ matrix.image }})
-    needs: [architectures, image-validate, image-acceptance]
-    env:
-      HEPTAPOD_IMAGE_ARCHES: ${{ needs.architectures.outputs.value }}
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
-      packages: write
-    strategy:
-      matrix:
-        image: [app, lighthouse]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Record the validated index and native gate provenance
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          IMAGE: ${{ matrix.image }}
-          AMD64_DIGEST: ${{ needs.image-validate.outputs[format('digest-{0}-amd64', matrix.image)] }}
-          ARM64_DIGEST: ${{ needs.image-validate.outputs[format('digest-{0}-arm64', matrix.image)] }}
-          AMD64_SCANNED_CONFIG: ${{ needs.image-validate.outputs[format('scanned-config-{0}-amd64', matrix.image)] }}
-          ARM64_SCANNED_CONFIG: ${{ needs.image-validate.outputs[format('scanned-config-{0}-arm64', matrix.image)] }}
-        run: |
-          platforms=$(bash .github/actions/image-promotion/platforms.sh)
-          configuration=$(bash .github/actions/image-promotion/architectures.sh)
-          reference=$(bash scripts/image-reference.sh "$IMAGE")
-          mapfile -t sources < <(jq -r --arg reference "$reference" '.[] | "\($reference)@\(.digest)"' <<< "$platforms")
-          docker buildx imagetools create --prefer-index=true --tag "$reference:ci-$GITHUB_SHA" "${sources[@]}"
-          digest=$(docker buildx imagetools inspect "$reference:ci-$GITHUB_SHA" --format '{{json .Manifest}}' | jq -er '.digest')
-          jobs=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" | jq -c '[.[].jobs[] | select(.name | startswith("image-validate (") or startswith("image-acceptance (")) | {name, conclusion}] | sort_by(.name)')
-          jq -en --arg sha "$GITHUB_SHA" --arg image "$IMAGE" --arg digest "$digest" \
-            --argjson run "$GITHUB_RUN_ID" --argjson attempt "$GITHUB_RUN_ATTEMPT" --argjson jobs "$jobs" \
-            --argjson platforms "$platforms" --argjson required "$(jq -c '.hard_jobs | sort' <<< "$configuration")" \
-            '{sha: $sha, image: $image, run_id: $run, run_attempt: $attempt, index_digest: $digest, hard_jobs: $jobs, platforms: $platforms}
-              | select((.hard_jobs | map(.name)) == $required and all(.hard_jobs[]; .conclusion == "success"))' > "manifest-$IMAGE.json"
-          bash .github/actions/image-promotion/verify-index.sh "$reference" "manifest-$IMAGE.json"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: candidate-image-${{ matrix.image }}-attempt-${{ github.run_attempt }}
-          path: manifest-${{ matrix.image }}.json
-          if-no-files-found: error
 
   changes:
     needs: architectures
@@ -254,8 +89,8 @@ jobs:
           git diff --name-only "$base" "$HEAD" > "$RUNNER_TEMP/changed-paths"
           app=false
           lighthouse=false
-          # Candidate gates must always validate both images, including the nginx ops proof.
-          if [[ "$GITHUB_REF" == refs/heads/ci/* || "$GITHUB_REF" == refs/tags/* ]]; then
+          # Tag pushes always validate both images, including the nginx ops proof.
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             app=true
             lighthouse=true
           fi
@@ -278,15 +113,6 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   image-validate:
-    outputs:
-      digest-app-amd64: ${{ steps.identity.outputs.digest-app-amd64 }}
-      scanned-config-app-amd64: ${{ steps.identity.outputs.scanned-config-app-amd64 }}
-      digest-app-arm64: ${{ steps.identity.outputs.digest-app-arm64 }}
-      scanned-config-app-arm64: ${{ steps.identity.outputs.scanned-config-app-arm64 }}
-      digest-lighthouse-amd64: ${{ steps.identity.outputs.digest-lighthouse-amd64 }}
-      scanned-config-lighthouse-amd64: ${{ steps.identity.outputs.scanned-config-lighthouse-amd64 }}
-      digest-lighthouse-arm64: ${{ steps.identity.outputs.digest-lighthouse-arm64 }}
-      scanned-config-lighthouse-arm64: ${{ steps.identity.outputs.scanned-config-lighthouse-arm64 }}
     name: image-validate (${{ matrix.image }}, ${{ matrix.architecture }})
     needs: [architectures, changes]
     if: github.ref != 'refs/heads/main' && needs.changes.outputs.images == 'true'
@@ -296,7 +122,7 @@ jobs:
       DOCKER_BUILD_RECORD_UPLOAD: 'false'
     permissions:
       contents: read
-      packages: write
+      packages: read
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
@@ -312,16 +138,6 @@ jobs:
           image: ${{ matrix.image }}
           architecture: ${{ matrix.architecture }}
           dockerfile: ${{ matrix.dockerfile }}
-          # Candidate pushes run the app suites in parallel image-acceptance jobs; pull requests keep them inline.
-          acceptance: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/')) && 'separate' || 'inline' }}
-
-      - name: Push the loaded image that passed the native gates
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/')
-        id: identity
-        uses: ./.github/actions/push-scanned-image
-        with:
-          image: ${{ matrix.image }}
-          architecture: ${{ matrix.architecture }}
 
   image:
     outputs:
@@ -333,8 +149,8 @@ jobs:
       scanned-config-lighthouse-amd64: ${{ steps.identity.outputs.scanned-config-lighthouse-amd64 }}
       digest-lighthouse-arm64: ${{ steps.identity.outputs.digest-lighthouse-arm64 }}
       scanned-config-lighthouse-arm64: ${{ steps.identity.outputs.scanned-config-lighthouse-arm64 }}
-    needs: [architectures, candidate]
-    if: ${{ !cancelled() && needs.architectures.result == 'success' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && (needs.candidate.result != 'success' || needs.candidate.outputs.reuse != 'true') }}
+    needs: [architectures]
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     env:
       HEPTAPOD_IMAGE_ARCHES: ${{ needs.architectures.outputs.value }}
       # BuildKit records are not vulnerability or digest reports.
@@ -350,11 +166,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Explain failed promotion lookup before full build
-        if: needs.candidate.result != 'success'
-        run: |
-          echo '::warning::FALLBACK: candidate lookup job failed; running all native build, OPS and security gates'
-          echo 'FALLBACK: candidate lookup job failed; running all native gates.' >> "$GITHUB_STEP_SUMMARY"
       - name: Build and scan native production image
         id: build-scan
         uses: ./.github/actions/build-scan-image
@@ -362,6 +173,7 @@ jobs:
           image: ${{ matrix.image }}
           architecture: ${{ matrix.architecture }}
           dockerfile: ${{ matrix.dockerfile }}
+          push-cache: 'true'
       - name: Push the loaded image that passed the native gates
         id: identity
         uses: ./.github/actions/push-scanned-image
@@ -370,14 +182,13 @@ jobs:
           architecture: ${{ matrix.architecture }}
 
   publish:
-    # Only main advances deployment tags; ci/* publishes non-release SHA tags.
-    if: ${{ !cancelled() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && ((needs.candidate.result == 'success' && needs.candidate.outputs.reuse == 'true') || (needs.image.result == 'success' && needs.runtime-report.result == 'success')) }}
-    needs: [architectures, candidate, image, runtime-report]
+    # Only main advances deployment tags.
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    needs: [architectures, image, runtime-report]
     env:
       HEPTAPOD_IMAGE_ARCHES: ${{ needs.architectures.outputs.value }}
     permissions:
       contents: read
-      actions: read
       packages: write
       id-token: write
       attestations: write
@@ -389,11 +200,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        if: needs.candidate.result == 'success' && needs.candidate.outputs.reuse == 'true'
-        with:
-          name: promotion-source
-          path: ${{ runner.temp }}/candidate
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
@@ -405,51 +211,18 @@ jobs:
         shell: bash
         env:
           IMAGE: ${{ matrix.image }}
-          REUSE: ${{ needs.candidate.result == 'success' && needs.candidate.outputs.reuse == 'true' }}
-          SOURCE_RUN: ${{ needs.candidate.outputs.source-run }}
-          SOURCE_ATTEMPT: ${{ needs.candidate.outputs.source-attempt }}
-          GH_TOKEN: ${{ github.token }}
           AMD64_DIGEST: ${{ needs.image.outputs[format('digest-{0}-amd64', matrix.image)] }}
           ARM64_DIGEST: ${{ needs.image.outputs[format('digest-{0}-arm64', matrix.image)] }}
           AMD64_SCANNED_CONFIG: ${{ needs.image.outputs[format('scanned-config-{0}-amd64', matrix.image)] }}
           ARM64_SCANNED_CONFIG: ${{ needs.image.outputs[format('scanned-config-{0}-arm64', matrix.image)] }}
         run: |
           reference=$(bash scripts/image-reference.sh "$IMAGE")
-          if [[ "$REUSE" == true ]]; then
-            # Fail closed if a rerun starts after selection; no registry write precedes this check.
-            late_failure() {
-              echo "::error::[$IMAGE] $1"
-              echo "[$IMAGE] $1" >> "$GITHUB_STEP_SUMMARY"
-              exit 1
-            }
-            if ! current=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN"); then
-              late_failure "Cannot recheck source run $SOURCE_RUN; no tags were changed; use "Re-run all jobs" (not "Re-run failed jobs") to take the full build path"
-            fi
-            attempt=$(jq -er '.run_attempt' <<< "$current")
-            if [[ "$attempt" != "$SOURCE_ATTEMPT" ]]; then
-              late_failure "Source run $SOURCE_RUN attempt changed from $SOURCE_ATTEMPT to $attempt after selection; no tags were changed; use "Re-run all jobs" (not "Re-run failed jobs") to take the full build path"
-            fi
-            if ! jq -e '.status == "completed" and .conclusion == "success"' <<< "$current" >/dev/null; then
-              late_failure "Source run $SOURCE_RUN attempt $attempt is no longer completed success; no tags were changed; use "Re-run all jobs" (not "Re-run failed jobs") to take the full build path"
-            fi
-            record="$RUNNER_TEMP/candidate/manifest-$IMAGE.json"
-            bash .github/actions/image-promotion/verify-index.sh "$reference" "$record"
-            digest=$(jq -er '.index_digest' "$record")
-            docker buildx imagetools create --tag "$reference:main" --tag "$reference:$GITHUB_SHA" "$reference@$digest"
-            for tag in main "$GITHUB_SHA"; do
-              observed=$(docker buildx imagetools inspect "$reference:$tag" --format '{{json .Manifest}}' | jq -er '.digest')
-              test "$observed" = "$digest"
-            done
-            bash .github/actions/image-promotion/verify-index.sh "$reference" "$record"
-            echo "PROMOTE: source run $SOURCE_RUN successful attempt $SOURCE_ATTEMPT, artifacts from attempt $(jq -r '.run_attempt' "$record"); $IMAGE index $digest (configured platforms $HEPTAPOD_IMAGE_ARCHES verified)" >> "$GITHUB_STEP_SUMMARY"
-          else
-            platforms=$(bash .github/actions/image-promotion/platforms.sh)
-            mapfile -t sources < <(jq -r --arg reference "$reference" '.[] | "\($reference)@\(.digest)"' <<< "$platforms")
-            docker buildx imagetools create --prefer-index=true --tag "$reference:main" --tag "$reference:$GITHUB_SHA" "${sources[@]}"
-            digest=$(docker buildx imagetools inspect "$reference:$GITHUB_SHA" --format '{{json .Manifest}}' | jq -er '.digest')
-            jq -n --arg digest "$digest" --argjson platforms "$platforms" '{index_digest: $digest, platforms: $platforms}' > "$RUNNER_TEMP/published-$IMAGE.json"
-            bash .github/actions/image-promotion/verify-index.sh "$reference" "$RUNNER_TEMP/published-$IMAGE.json"
-          fi
+          platforms=$(bash .github/actions/image-promotion/platforms.sh)
+          mapfile -t sources < <(jq -r --arg reference "$reference" '.[] | "\($reference)@\(.digest)"' <<< "$platforms")
+          docker buildx imagetools create --prefer-index=true --tag "$reference:main" --tag "$reference:$GITHUB_SHA" "${sources[@]}"
+          digest=$(docker buildx imagetools inspect "$reference:$GITHUB_SHA" --format '{{json .Manifest}}' | jq -er '.digest')
+          jq -n --arg digest "$digest" --argjson platforms "$platforms" '{index_digest: $digest, platforms: $platforms}' > "$RUNNER_TEMP/published-$IMAGE.json"
+          bash .github/actions/image-promotion/verify-index.sh "$reference" "$RUNNER_TEMP/published-$IMAGE.json"
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "reference=$reference" >> "$GITHUB_OUTPUT"
       - name: Attest the published manifest
@@ -462,8 +235,8 @@ jobs:
           push-to-registry: true
 
   runtime-report:
-    needs: [architectures, changes, candidate]
-    if: ${{ !cancelled() && needs.architectures.result == 'success' && ((github.ref == 'refs/heads/main' && (needs.candidate.result != 'success' || needs.candidate.outputs.reuse != 'true')) || (needs.changes.result == 'success' && needs.changes.outputs.runtime == 'true')) }}
+    needs: [architectures, changes]
+    if: ${{ !cancelled() && needs.architectures.result == 'success' && (github.ref == 'refs/heads/main' || (needs.changes.result == 'success' && needs.changes.outputs.runtime == 'true')) }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.architectures.outputs.runtime-matrix) }}
@@ -510,29 +283,27 @@ jobs:
     # The stable required check: it runs on every event, accepts path-based skips only when the
     # selector chose them, and fails when any selected production job fails or is cancelled.
     if: always()
-    needs: [architectures, changes, image-validate, image-acceptance, candidate-manifest, runtime-report, candidate, image, publish]
+    needs: [architectures, changes, image-validate, runtime-report, image, publish]
     runs-on: ubuntu-latest
     steps:
       - name: Require every selected production job
         env:
           NEEDS: ${{ toJSON(needs) }}
         run: |
-          jq -e --arg ref "$GITHUB_REF" --arg event "$GITHUB_EVENT_NAME" '
+          jq -e --arg ref "$GITHUB_REF" '
             def selected($job; $flag):
               if $flag == "true" then .[$job].result == "success"
               elif $flag == "false" then .[$job].result == "skipped"
               else false end;
-            # Only ci/* pushes run the split acceptance suites and record the candidate manifests.
-            (($event == "push" and ($ref | startswith("refs/heads/ci/"))) | tostring) as $candidate |
             .architectures.result == "success" and
             if $ref == "refs/heads/main" then
-              # A failed candidate lookup is the annotated full-build fallback, not a failure.
-              .publish.result == "success" and
-              ([.image, .["runtime-report"]] | all(.result == "success" or .result == "skipped"))
+              .changes.result == "skipped" and
+              .["image-validate"].result == "skipped" and
+              ([.image, .["runtime-report"], .publish] | all(.result == "success"))
             else
               .changes.result == "success" and
               selected("image-validate"; .changes.outputs.images) and
               selected("runtime-report"; .changes.outputs.runtime) and
-              selected("image-acceptance"; $candidate) and selected("candidate-manifest"; $candidate)
+              ([.image, .publish] | all(.result == "skipped"))
             end
           ' <<< "$NEEDS"

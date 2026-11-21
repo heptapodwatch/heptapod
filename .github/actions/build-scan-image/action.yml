@@ -10,9 +10,9 @@ inputs:
   dockerfile:
     description: Production Dockerfile path
     required: true
-  acceptance:
-    description: inline runs the app's installer, ops and rollback suites here; separate leaves them to the parallel image-acceptance jobs
-    default: inline
+  push-cache:
+    description: Export BuildKit registry cache (main publication builds only)
+    default: 'false'
 outputs:
   apt-snapshot-date:
     description: Debian security snapshot date used for the Lighthouse build
@@ -94,11 +94,10 @@ runs:
         OCI_SOURCE=https://github.com/${{ github.repository }}
         OCI_REVISION=${{ github.sha }}
         OCI_CREATED=${{ steps.apt-snapshot.outputs.created }}
-      # Registry cache, not gha: main never builds (it promotes the candidate), so a branch-scoped
-      # Actions cache was never shared between ci/* branches and every candidate rebuilt from scratch.
+      # Shared registry cache populated on main and read by PR and main builds alike.
       cache-from: type=registry,ref=${{ steps.cache.outputs.ref }}
       # The cache only saves time: a failed cache upload must not fail the build; the image, scan and tests stay gates.
-      cache-to: type=registry,ref=${{ steps.cache.outputs.ref }},mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true
+      cache-to: ${{ inputs.push-cache == 'true' && format('type=registry,ref={0},mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true', steps.cache.outputs.ref) || '' }}
   - name: Lighthouse stage mapping matches shipped dependencies
     if: inputs.image == 'lighthouse'
     shell: bash
@@ -107,7 +106,7 @@ runs:
       -v "$PWD/docker/lighthouse/audit.test.mjs:/service/audit.test.mjs:ro" -w /service
       heptapod-lighthouse:ci --test audit.test.mjs
   - name: Report build cache export
-    if: always()
+    if: always() && inputs.push-cache == 'true'
     # Cache reporting is advisory; a reporting failure must not fail the image job.
     continue-on-error: true
     shell: bash
@@ -185,22 +184,22 @@ runs:
       docker run --rm --entrypoint sh heptapod-app:ci -c 'dig -v'
       CHECK_BINARIES
   - uses: ./.github/actions/free-runner-disk
-    if: inputs.image == 'app' && inputs.acceptance == 'inline'
+    if: inputs.image == 'app'
   - name: Installer configuration and upgrade mode matrices
-    if: inputs.image == 'app' && inputs.acceptance == 'inline'
+    if: inputs.image == 'app'
     shell: bash
     run: bash tests/Deployment/acceptance.sh config
   - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-    if: inputs.image == 'app' && inputs.acceptance == 'inline'
+    if: inputs.image == 'app'
     with:
       node-version: '24'
       cache: npm
   - name: Cold proxy and PaaS acceptance
-    if: inputs.image == 'app' && inputs.acceptance == 'inline'
+    if: inputs.image == 'app'
     shell: bash
     run: bash tests/Deployment/acceptance.sh ops
   - name: Release pull and rollback acceptance
-    if: inputs.image == 'app' && inputs.acceptance == 'inline'
+    if: inputs.image == 'app'
     shell: bash
     run: bash tests/Deployment/acceptance.sh rollback
   - name: Production vulnerability HARD gate
