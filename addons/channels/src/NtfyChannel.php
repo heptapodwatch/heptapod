@@ -57,8 +57,9 @@ final class NtfyChannel extends TransportChannel
             ...($alert->message->link === null ? [] : ['click' => $alert->message->link]),
         ])->throw();
         $id = $response->json('id');
-        // Only ntfy's published-message JSON proves delivery; a proxy or captive portal also answers 2xx.
-        if (! $response->successful() || ! is_string($id) || $id === '' || $response->json('event') !== 'message') {
+        // Only ntfy's published-message JSON for this topic proves delivery; a proxy or captive portal also answers 2xx.
+        if (! $response->successful() || ! is_string($id) || $id === '' || $response->json('event') !== 'message'
+            || $response->json('topic') !== $destination->string('topic')) {
             return $this->failure($destination, $response);
         }
 

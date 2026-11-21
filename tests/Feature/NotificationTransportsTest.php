@@ -383,6 +383,8 @@ it('rejects HTTP-200 provider failures rather than claiming delivery', function 
     'Discord' => ['discord', ['code' => 50001, 'message' => 'private-token']],
     'ntfy captive portal' => ['ntfy', '<html>Sign in to continue</html>'],
     'ntfy JSON without a message' => ['ntfy', ['status' => 'ok']],
+    'ntfy message for another topic' => ['ntfy', ['id' => 'abc', 'event' => 'message', 'topic' => 'other-topic']],
+    'ntfy message without a topic' => ['ntfy', ['id' => 'abc', 'event' => 'message']],
 ]);
 
 it('refuses a stored plain-HTTP address once its host is no longer a listed private host', function (string $key, array $values): void {
