@@ -34,7 +34,7 @@ final readonly class StartOhDearImport
         }
         $this->reconcile->dispatchOrFail(
             static fn () => RunOhDearImport::dispatch($importRun->id),
-            fn () => $this->reconcile->failImport($importRun->id, onlyQueued: true),
+            fn (): bool => $this->reconcile->failImport($importRun->id, onlyQueued: true),
         );
         LiveSignal::forImportChange();
     }

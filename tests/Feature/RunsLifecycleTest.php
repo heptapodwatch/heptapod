@@ -511,18 +511,18 @@ it('rejects revoked and lease-replaced attempts at addon checkpoints', function 
 
     // 1. Lease replaced by a newer claim (without setting cancel_requested_at on the stale attempt).
     $check->forceFill(['claim_token' => (string) Str::uuid()])->save();
-    expect(fn (): mixed => (new AttemptControl($check->id, $attempt->claim_token))->assertActive())
+    expect(fn (): mixed => new AttemptControl($check->id, $attempt->claim_token)->assertActive())
         ->toThrow(RunCancelled::class);
 
     // 2. Same claim token on check, but attempt phase is no longer running (e.g. marked failed).
     $check->forceFill(['claim_token' => $attempt->claim_token])->save();
     $attempt->update(['phase' => RunPhase::Failed]);
-    expect(fn (): mixed => (new AttemptControl($check->id, $attempt->claim_token))->assertActive())
+    expect(fn (): mixed => new AttemptControl($check->id, $attempt->claim_token)->assertActive())
         ->toThrow(RunCancelled::class);
 
     // 3. Check claim cleared (revoked) while attempt row still says running.
     $attempt->update(['phase' => RunPhase::Running]);
     $check->forceFill(['claim_token' => null])->save();
-    expect(fn (): mixed => (new AttemptControl($check->id, $attempt->claim_token))->assertActive())
+    expect(fn (): mixed => new AttemptControl($check->id, $attempt->claim_token)->assertActive())
         ->toThrow(RunCancelled::class);
 });

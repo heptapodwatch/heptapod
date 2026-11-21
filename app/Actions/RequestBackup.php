@@ -36,7 +36,7 @@ final readonly class RequestBackup
 
         $this->reconcile->dispatchOrFail(
             static fn () => RunBackupNow::dispatch($id),
-            fn () => $this->reconcile->failBackup($id, onlyQueued: true),
+            fn (): bool => $this->reconcile->failBackup($id, onlyQueued: true),
         );
         LiveSignal::forBackup();
 
