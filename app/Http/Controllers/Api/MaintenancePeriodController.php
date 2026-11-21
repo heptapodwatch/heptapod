@@ -16,6 +16,7 @@ use Heptapod\Maintenance\LocalMaintenanceTime;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\Site;
 use Heptapod\Policies\SitePolicy;
+use Heptapod\Queries\MaintenanceReader;
 use Heptapod\Support\Api\Idempotency;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\JsonResponse;
@@ -97,9 +98,9 @@ final class MaintenancePeriodController extends Controller
     }
 
     public function update(Request $request, MaintenancePeriod $maintenancePeriod, UpdateMaintenancePeriod $update,
-        LocalMaintenanceTime $localTime): MaintenancePeriodResource
+        LocalMaintenanceTime $localTime, MaintenanceReader $maintenance): MaintenancePeriodResource
     {
-        $this->writable($request, $maintenancePeriod);
+        $this->writable($request, $maintenancePeriod, $maintenance);
         /** @var array{starts_at: string, ends_at: string, name?: string|null} $data */
         $data = Validator::make($request->all(), [
             'starts_at' => 'required|date_format:Y-m-d H:i', 'ends_at' => 'required|date_format:Y-m-d H:i',
@@ -114,9 +115,9 @@ final class MaintenancePeriodController extends Controller
         return new MaintenancePeriodResource($update($maintenancePeriod, $data['name'] ?? $maintenancePeriod->name, $start, $end));
     }
 
-    public function destroy(Request $request, MaintenancePeriod $maintenancePeriod, DeleteMaintenancePeriod $delete): Response
+    public function destroy(Request $request, MaintenancePeriod $maintenancePeriod, DeleteMaintenancePeriod $delete, MaintenanceReader $maintenance): Response
     {
-        $this->writable($request, $maintenancePeriod);
+        $this->writable($request, $maintenancePeriod, $maintenance);
         if ($maintenancePeriod->starts_at <= CarbonImmutable::now('UTC')) {
             throw ValidationException::withMessages(['starts_at' => __('maintenance.completed_window_web_only')]);
         }
@@ -125,9 +126,13 @@ final class MaintenancePeriodController extends Controller
         return response()->noContent();
     }
 
-    private function writable(Request $request, MaintenancePeriod $period): void
+    private function writable(Request $request, MaintenancePeriod $period, MaintenanceReader $maintenance): void
     {
         $user = $this->principal($request, 403);
+        // A window outside the caller's reach answers like a missing one, before its role check or target type.
+        $visible = MaintenancePeriod::query();
+        $maintenance->visibleTargets($visible, $user);
+        $visible->findOrFail($period->id);
         abort_unless($user->hasAnyRole(['Owner', 'Admin']), 403);
         if ($period->target_type !== 'site') {
             throw ValidationException::withMessages(['maintenance_period_id' => __('maintenance.shared_window_web_only')]);

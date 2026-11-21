@@ -202,3 +202,33 @@ it('answers a monitor outside a client-scoped token like a missing one when sche
         ->and(MaintenancePeriod::query()->count())->toBe(0);
     $this->postJson('/api/maintenance-periods', ['monitor_id' => $visible->id, ...$window])->assertCreated();
 });
+
+it('answers a maintenance window outside a client-scoped token like a missing one before telling shared from site windows', function (): void {
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $client = Client::factory()->create();
+    $foreign = Site::factory()->create();
+    $foreign->attachTag('Foreign target', 'sites');
+    $windows = ['site' => MaintenancePeriod::factory()->create(['site_id' => $foreign->id]),
+        'client' => MaintenancePeriod::factory()->create(['site_id' => null, 'target_type' => 'client', 'target_id' => $foreign->client_id]),
+        'tag' => MaintenancePeriod::factory()->create(['site_id' => null, 'target_type' => 'tag', 'target_id' => $foreign->tags()->sole()->id])];
+    $ownShared = MaintenancePeriod::factory()->create(['site_id' => null, 'target_type' => 'client', 'target_id' => $client->id]);
+    $missingId = MaintenancePeriod::query()->max('id') + 1000;
+    $this->withToken(app(CreateApiToken::class)($owner, 'scoped', ['maintenance:write'], $client->id));
+    $body = ['starts_at' => '2026-10-05 10:00', 'ends_at' => '2026-10-05 11:00'];
+    $answer = function (string $method, int $id) use ($body): array {
+        $response = $method === 'put' ? $this->putJson('/api/maintenance-periods/'.$id, $body) : $this->deleteJson('/api/maintenance-periods/'.$id);
+
+        return [$response->status(), str_replace((string) $id, '{id}', (string) $response->json('message'))];
+    };
+
+    foreach (['put', 'delete'] as $method) {
+        $missing = $answer($method, $missingId);
+        expect($missing[0])->toBe(404);
+        foreach ($windows as $target => $window) {
+            expect($answer($method, $window->id))->toBe($missing, $method.' '.$target);
+        }
+        expect($answer($method, $ownShared->id)[0])->toBe(422);
+    }
+    expect(MaintenancePeriod::query()->count())->toBe(4);
+});
