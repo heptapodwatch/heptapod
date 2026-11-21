@@ -552,3 +552,55 @@ it('projects the current accepted DNS warning or failure instead of its retained
         ['type' => 'dns.issue.resolves_to_nothing', 'host' => 'detail.example', 'record_type' => null],
     ]],
 ]);
+
+it('cuts uptime day bars at midnight in each viewers resolved timezone', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-17T12:00:00Z'));
+    app(InstanceSettings::class)->timezone = 'Europe/London';
+    app(InstanceSettings::class)->save();
+
+    $site = Site::factory()->create(['created_at' => '2026-10-01T00:00:00Z']);
+    $check = Check::factory()->for($site)->create([
+        'type' => CheckKey::Uptime,
+        'interval_seconds' => 60,
+        'created_at' => '2026-10-01T00:00:00Z',
+        'first_result_at' => '2026-10-01T00:00:00Z',
+    ]);
+
+    // 23:30 America/New_York on 2026-10-15 = 2026-10-16T03:30:00Z = 05:30 Europe/Berlin on 2026-10-16.
+    CheckRunRollupHourly::factory()->for($check)->create([
+        'bucket_start' => CarbonImmutable::parse('2026-10-16T03:00:00Z'),
+        'succeeded_count' => 54,
+        'failed_count' => 6,
+    ]);
+    Incident::factory()->for($check)->create([
+        'cause' => IncidentCause::Failed,
+        'opened_at' => CarbonImmutable::parse('2026-10-16T03:30:00Z'),
+        'first_failure_at' => CarbonImmutable::parse('2026-10-16T03:30:00Z'),
+        'resolved_at' => CarbonImmutable::parse('2026-10-16T03:36:00Z'),
+    ]);
+
+    $newYorkViewer = User::factory()->create(['timezone' => 'America/New_York']);
+    $newYorkViewer->assignRole('Owner');
+    $berlinViewer = User::factory()->create(['timezone' => 'Europe/Berlin']);
+    $berlinViewer->assignRole('Owner');
+
+    $nyRaw = $this->actingAs($newYorkViewer)->get('/sites/'.$site->id)->assertOk()->inertiaProps()['history'];
+    $berlinRaw = $this->actingAs($berlinViewer)->get('/sites/'.$site->id)->assertOk()->inertiaProps()['history'];
+
+    $nyHistory = collect($nyRaw)->keyBy(static fn (array $bucket): string => CarbonImmutable::parse($bucket['date'])->setTimezone('America/New_York')->format('Y-m-d H:i'));
+    $berlinHistory = collect($berlinRaw)->keyBy(static fn (array $bucket): string => CarbonImmutable::parse($bucket['date'])->setTimezone('Europe/Berlin')->format('Y-m-d H:i'));
+
+    expect($nyHistory->get('2026-10-15 00:00'))->not->toBeNull()
+        ->and($nyHistory->get('2026-10-15 00:00')['failed_count'])->toBe(6)
+        ->and($nyHistory->get('2026-10-15 00:00')['incident_count'])->toBe(1)
+        ->and($nyHistory->get('2026-10-15 00:00')['status'])->toBe('failed')
+        ->and($nyHistory->get('2026-10-16 00:00')['failed_count'])->toBe(0)
+        ->and($nyHistory->get('2026-10-16 00:00')['incident_count'])->toBe(0);
+
+    expect($berlinHistory->get('2026-10-15 00:00'))->not->toBeNull()
+        ->and($berlinHistory->get('2026-10-15 00:00')['failed_count'])->toBe(0)
+        ->and($berlinHistory->get('2026-10-15 00:00')['incident_count'])->toBe(0)
+        ->and($berlinHistory->get('2026-10-16 00:00')['failed_count'])->toBe(6)
+        ->and($berlinHistory->get('2026-10-16 00:00')['incident_count'])->toBe(1)
+        ->and($berlinHistory->get('2026-10-16 00:00')['status'])->toBe('failed');
+});
