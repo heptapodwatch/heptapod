@@ -147,6 +147,7 @@
     "crawl.discovery.invalid_url_limit": "Das Limit für ungültige URLs beendete die Erfassung entdeckter Links",
     "crawl.discovery.start_page_unavailable": "Die Startseite konnte nicht gelesen werden",
     "crawl.coverage.reason_not_recorded": "Für diesen gespeicherten Lauf wurde kein Grund zur Abdeckung erfasst. Führen Sie die Prüfung für aktuelle Angaben erneut aus.",
+    "crawl.coverage.storage_limit": "Die Crawl-Ergebnisse haben das Speicherlimit überschritten, sodass die Befunde nicht aktualisiert wurden.",
     "crawl.result.unchecked_connection_reset": "Nicht prüfbar: Der Server hat die Verbindung geschlossen",
     "crawl.result.login_required": "Anmeldung erforderlich",
     "crawl.result.access_refused": "Automatische Prüfungen abgelehnt",

@@ -85,82 +85,15 @@ final readonly class SendClientMessage
         // even after a newer run, or after a chosen channel was removed. So it is answered before any state is checked.
         $shape = $this->shape($input);
         $hash = hash('sha256', json_encode(['client' => $client->id, ...$shape], JSON_THROW_ON_ERROR));
-        $replayed = $this->replay($sender, $idempotencyKey, $hash);
-        if ($replayed !== null) {
-            return $replayed;
-        }
-        $request = $this->validated($client, $input, previewing: false);
-        // Fail fast before building a CSV; the reservation inside the transaction is the one that counts.
-        $this->reserveQuota($sender, $client);
-        $path = null;
-        $file = null;
-        $rows = 0;
-        $bytes = 0;
-        $tooLarge = false;
-        if ($request['attach']) {
-            $path = self::Directory.'/'.Str::uuid().'.csv';
-            // php://temp keeps at most 2 MiB in memory and spills the rest to a temporary file.
-            $file = fopen('php://temp', 'w+b');
-            if ($file === false || fwrite($file, Csv::ByteOrderMark) !== strlen(Csv::ByteOrderMark)) {
-                throw new \RuntimeException('Cannot write the client message CSV.');
-            }
-            $bytes = strlen(Csv::ByteOrderMark);
-            $head = array_map(static fn (string $column): string => (string) __('client_messages.column.'.$column, locale: $client->locale), ['url', 'result', 'classification', 'found_on', 'link_text']);
-            $bytes += $this->append($file, Csv::line($head));
-        }
-        $writeRow = null;
-        if (is_resource($file)) {
-            $writeRow = function (array $row) use ($file, &$rows, &$bytes, &$tooLarge): void {
-                /** @var array{url: string, result: string, classification: string, found_on: string, link_text: string} $row */
-                $rows++;
-                $cells = [$row['url'], $row['result'], $row['classification'], $row['found_on'], $row['link_text']];
-                // CSV encoding can only add bytes; reject an oversized raw row without allocating an encoded copy.
-                $rawBytes = 0;
-                foreach ($cells as $field) {
-                    $rawBytes += strlen($field);
-                }
-                $tooLarge = $tooLarge || $rawBytes > ClientMessageComposer::MaxBytes - $bytes;
-                $line = $tooLarge ? '' : Csv::line($cells);
-                // A row that would cross the byte limit is never written. The refusal waits until the composer has counted
-                // every row, so its row limit keeps precedence.
-                if ($tooLarge || $bytes + strlen($line) > ClientMessageComposer::MaxBytes) {
-                    $tooLarge = true;
 
-                    return;
-                }
-                $bytes += $this->append($file, $line);
-            };
-        }
-        $facts = $this->facts($sender, $client, $request, $writeRow);
-        $attachment = null;
-        if (is_resource($file)) {
-            if ($tooLarge) {
-                throw ValidationException::withMessages(['attach' => __('client_messages.too_large')]);
-            }
-            $digest = hash_init('sha256');
-            rewind($file);
-            hash_update_stream($digest, $file);
-            rewind($file);
-            // Written before the transaction; the daily sweep removes it if the transaction does not commit.
-            $disk = Storage::disk(self::Disk);
-            $disk->writeStream($path, $file);
-            fclose($file);
-            $handle = fopen($disk->path($path), 'r');
-            if ($handle === false) {
-                throw new \RuntimeException('Cannot reopen the client message CSV.');
-            }
-            fsync($handle);
-            fclose($handle);
-            $attachment = ['disk' => self::Disk, 'path' => $path, 'bytes' => $bytes, 'rows' => $rows, 'sha256' => hash_final($digest)];
-        }
-
-        return NotificationLocks::transaction(function () use ($sender, $client, $request, $facts, $attachment, $idempotencyKey, $hash): array {
-            // Same-key submits of one sender serialize here; the second replays the first.
+        return NotificationLocks::transaction(function () use ($sender, $client, $input, $idempotencyKey, $hash): array {
+            // Same-key submits of one sender serialize here before any CSV or quota work; the second replays the first.
             DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['client-message:'.$sender->id.':'.$idempotencyKey]);
             $replayed = $this->replay($sender, $idempotencyKey, $hash);
             if ($replayed !== null) {
                 return $replayed;
             }
+            $request = $this->validated($client, $input, previewing: false);
             // Quotas are reserved against committed messages while both counters are locked: the sender (advisory lock) and
             // the client (row lock), always in that order. Concurrent sends with different keys wait here and then count each other.
             DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['client-message-sender:'.$sender->id]);
@@ -183,6 +116,7 @@ final readonly class SendClientMessage
                 throw ValidationException::withMessages(['channel_ids' => __('client_messages.channel_unavailable')]);
             }
             $channels = $channels->all();
+            [$facts, $attachment] = $this->composeWithAttachment($sender, $client, $request);
             if ($request['one_off'] !== null) {
                 $oneOff = NotificationDestination::query()->create(['recipient_kind' => RecipientKind::Client, 'client_id' => $client->id, 'channel' => 'mail',
                     'label' => __(self::OneOffLabel, locale: $client->locale), 'enabled' => true,
@@ -214,6 +148,88 @@ final readonly class SendClientMessage
 
             return ['event_id' => $event->id, 'delivery_ids' => $deliveryIds, 'replayed' => false];
         });
+    }
+
+    /**
+     * Composes message facts and writes the optional CSV attachment only after replay, quota and locks succeed.
+     * Any rollback deletes the written CSV immediately so concurrent or failed sends leave no orphan files.
+     *
+     * @param  array{kind: string, site: Site, check: Check, incident: Incident|null, note: string, attach: bool, design: MailDesign}  $request
+     * @return array{Facts, array{disk: string, path: string, bytes: int, rows: int, sha256: string}|null}
+     */
+    private function composeWithAttachment(User $sender, Client $client, array $request): array
+    {
+        $path = null;
+        $file = null;
+        $rows = 0;
+        $bytes = 0;
+        $tooLarge = false;
+        try {
+            if ($request['attach']) {
+                $path = self::Directory.'/'.Str::uuid().'.csv';
+                // php://temp keeps at most 2 MiB in memory and spills the rest to a temporary file.
+                $file = fopen('php://temp', 'w+b');
+                if ($file === false || fwrite($file, Csv::ByteOrderMark) !== strlen(Csv::ByteOrderMark)) {
+                    throw new \RuntimeException('Cannot write the client message CSV.');
+                }
+                $bytes = strlen(Csv::ByteOrderMark);
+                $head = array_map(static fn (string $column): string => (string) __('client_messages.column.'.$column, locale: $client->locale), ['url', 'result', 'classification', 'found_on', 'link_text']);
+                $bytes += $this->append($file, Csv::line($head));
+            }
+            $writeRow = null;
+            if (is_resource($file)) {
+                $writeRow = function (array $row) use ($file, &$rows, &$bytes, &$tooLarge): void {
+                    /** @var array{url: string, result: string, classification: string, found_on: string, link_text: string} $row */
+                    $rows++;
+                    $cells = [$row['url'], $row['result'], $row['classification'], $row['found_on'], $row['link_text']];
+                    // CSV encoding can only add bytes; reject an oversized raw row without allocating an encoded copy.
+                    $rawBytes = 0;
+                    foreach ($cells as $field) {
+                        $rawBytes += strlen($field);
+                    }
+                    $tooLarge = $tooLarge || $rawBytes > ClientMessageComposer::MaxBytes - $bytes;
+                    $line = $tooLarge ? '' : Csv::line($cells);
+                    // A row that would cross the byte limit is never written. The refusal waits until the composer has counted
+                    // every row, so its row limit keeps precedence.
+                    if ($tooLarge || $bytes + strlen($line) > ClientMessageComposer::MaxBytes) {
+                        $tooLarge = true;
+
+                        return;
+                    }
+                    $bytes += $this->append($file, $line);
+                };
+            }
+            $facts = $this->facts($sender, $client, $request, $writeRow);
+            $attachment = null;
+            if (is_resource($file)) {
+                if ($tooLarge) {
+                    throw ValidationException::withMessages(['attach' => __('client_messages.too_large')]);
+                }
+                $digest = hash_init('sha256');
+                rewind($file);
+                hash_update_stream($digest, $file);
+                rewind($file);
+                $disk = Storage::disk(self::Disk);
+                // Register rollback cleanup before writing so a partial write failure leaves no orphan file.
+                DB::afterRollBack(static fn () => Storage::disk(self::Disk)->delete($path));
+                $disk->writeStream($path, $file);
+                fclose($file);
+                $file = null;
+                $handle = fopen($disk->path($path), 'r');
+                if ($handle === false) {
+                    throw new \RuntimeException('Cannot reopen the client message CSV.');
+                }
+                fsync($handle);
+                fclose($handle);
+                $attachment = ['disk' => self::Disk, 'path' => $path, 'bytes' => $bytes, 'rows' => $rows, 'sha256' => hash_final($digest)];
+            }
+
+            return [$facts, $attachment];
+        } finally {
+            if (is_resource($file)) {
+                fclose($file);
+            }
+        }
     }
 
     /**

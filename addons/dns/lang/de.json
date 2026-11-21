@@ -39,5 +39,6 @@
     "dns.guidance.nameserver_unreachable": "Prüfen Sie seine Verfügbarkeit und DNS-Konfiguration.",
     "dns.guidance.nameservers_unreachable": "Prüfen Sie deren Verfügbarkeit und DNS-Konfiguration.",
     "dns.guidance.nameservers_missing": "Prüfen Sie die Nameserver-Konfiguration der Domain.",
-    "dns.guidance.resolves_to_nothing": "Fügen Sie DNS-Einträge hinzu oder beenden Sie die Überwachung dieses Hostnamens."
+    "dns.guidance.resolves_to_nothing": "Fügen Sie DNS-Einträge hinzu oder beenden Sie die Überwachung dieses Hostnamens.",
+    "dns.response_limit_exceeded": "Die DNS-Antworten haben das Größen- oder Abfragelimit überschritten."
 }

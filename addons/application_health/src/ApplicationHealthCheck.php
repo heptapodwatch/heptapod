@@ -47,6 +47,18 @@ use OhDear\HealthCheckResults\CheckResults;
 
 final readonly class ApplicationHealthCheck implements CheckHistoryProvider, CheckRunPresenter, CheckType, HealthProbeEvaluator, MailEvidenceProvider
 {
+    /** Spatie security advisories v1.2 nests to depth 4; 8 accommodates structured metadata while stopping deep nesting. */
+    public const int MaxMetaDepth = 8;
+
+    /** Total key/element entries across all components' metadata; 100+ advisory packages use ~1,000 entries. */
+    public const int MaxMetaEntries = 4000;
+
+    /** Per-component serialized metadata byte budget; accommodates hundreds of real security advisories. */
+    public const int MaxMetaBytes = 128 * 1024;
+
+    /** Aggregate serialized metadata byte budget across all components in one response. */
+    public const int MaxTotalMetaBytes = 128 * 1024;
+
     public function __construct(private ApplicationHealthPersistence $store, private OutboundHttp $http) {}
 
     public function history(int $checkId, bool $canViewCapabilities = false): ApplicationHealthDetailData
@@ -68,6 +80,13 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
         if ($validated === null || $validated['finishedAt'] > $now->getTimestamp() + $this->limit('clock_skew_seconds', 0)
             || $validated['finishedAt'] < $now->getTimestamp() - $this->limit('stale_after_seconds', 1)) {
             return null;
+        }
+        $metaEntries = 0;
+        $metaBytes = 0;
+        foreach ($validated['checkResults'] as $item) {
+            if (isset($item['meta']) && $this->checkMetaBounds($item['meta'], $metaEntries, $metaBytes) !== null) {
+                return null;
+            }
         }
 
         return count(CheckResults::fromJson(json_encode($validated, JSON_THROW_ON_ERROR))->checkResults());
@@ -269,7 +288,9 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
         $counts = ['succeeded' => 0, 'warning' => 0, 'failed' => 0];
         $skipped = 0;
         $retained = [];
-        $components = $rows = $events = [];
+        $components = $evidenceComponents = $rows = $events = [];
+        $metaEntries = 0;
+        $metaBytes = 0;
         foreach ($reported as $source) {
             $baseline = $baselines[hash('sha256', $source->name)];
             // Only an explicit ok is healthy. Skipped is shown as unverified and never counts as healthy.
@@ -285,6 +306,10 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
                     ['status' => $this->redactText($source->status, $secrets, $urls), 'component' => $this->redactText($source->label !== '' ? $source->label : $source->name, $secrets, $urls)],
                     new ApplicationHealthMetrics(0, 0, 0, $finishedAt, $time), new ApplicationHealthEvidence('unknown_status', $response->status, null, []),
                     error: new CheckError(\UnexpectedValueException::class, 'Application health reported an unknown component status.'));
+            }
+            $metaFailure = $this->checkMetaBounds($source->meta, $metaEntries, $metaBytes);
+            if ($metaFailure !== null) {
+                return $this->failure($metaFailure, $time, $response->status);
             }
             // The last verified non-ok severity survives skipped runs; Check-error runs never replace the stored baseline.
             if ($result === CheckResult::Pending) {
@@ -305,6 +330,9 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
                 $this->redactText($source->label, $secrets, $urls), $this->redactText($source->status, $secrets, $urls),
                 $this->redactText($source->notificationMessage, $secrets, $urls), $this->redactText($source->shortSummary, $secrets, $urls), $meta, $result->value);
             $components[] = $component;
+            // Only failed SecurityAdvisories meta is read from run evidence (presentRun); omit other meta to avoid duplicating snapshots.
+            $evidenceMeta = $component->name === SecurityAdvisoryData::Component && $result === CheckResult::Failed && SecurityAdvisoryData::parseSpatieMeta($meta) !== [] ? $meta : [];
+            $evidenceComponents[] = $evidenceMeta === $meta ? $component : new ApplicationHealthComponent($component->id, $component->name, $component->label, $component->status, $component->notificationMessage, $component->shortSummary, $evidenceMeta, $component->latest_result);
             $rows[] = ['snapshot' => [...$component->toArray(), 'unresolved_result' => $unresolved], 'change_identity' => $identity];
             // A component that turned skipped is unverified; it reports no new state to alert on.
             if ($baseline['change_identity'] !== null && $baseline['change_identity'] !== $identity && $result !== CheckResult::Pending) {
@@ -341,13 +369,13 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
 
         return new CheckOutcome($result, $summary, $summaryParams,
             new ApplicationHealthMetrics(...[...array_values($counts), $finishedAt, $time]),
-            new ApplicationHealthEvidence(null, $response->status, null, $components), $events,
+            new ApplicationHealthEvidence(null, $response->status, null, $evidenceComponents), $events,
             incomplete: $recoveryUnproven, confirmedIncompleteFailure: $recoveryUnproven && ! $verifiedNothing && $result === RunResult::Warning,
             verifiedNothing: $verifiedNothing);
     }
 
     /** @param array<string, mixed> $payload
-     * @return array{finishedAt: int, checkResults: array<int|string, array{name: string}>}|null
+     * @return array{finishedAt: int, checkResults: array<int|string, array{name: string, meta?: array<int|string, mixed>}>}|null
      */
     private function validatedPayload(array $payload): ?array
     {
@@ -365,7 +393,7 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
         if ($validator->fails()) {
             return null;
         }
-        /** @var array{finishedAt: int, checkResults: array<int|string, array{name: string}>} $validated */
+        /** @var array{finishedAt: int, checkResults: array<int|string, array{name: string, meta?: array<int|string, mixed>}>} $validated */
         $validated = $validator->validated();
 
         return $validated;
@@ -387,6 +415,48 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
         return new CheckOutcome(RunResult::Errored, 'application_health.'.$reason, [],
             new ApplicationHealthMetrics(0, 0, 0, $finishedAt, $time), new ApplicationHealthEvidence($reason, $status, $redirectHost, [], $failureKind),
             error: new CheckError(ReclassifiedCheckError::class, 'Application health result unavailable: '.$reason));
+    }
+
+    /** @param array<int|string, mixed> $meta
+     * @return 'invalid_payload'|'response_too_large'|null
+     */
+    private function checkMetaBounds(array $meta, int &$totalEntries, int &$totalBytes): ?string
+    {
+        $reason = $this->walkMetaBounds($meta, 1, $totalEntries);
+        if ($reason !== null) {
+            return $reason;
+        }
+        $bytes = strlen(json_encode($meta, JSON_THROW_ON_ERROR));
+        $totalBytes += $bytes;
+        if ($bytes > self::MaxMetaBytes || $totalBytes > self::MaxTotalMetaBytes) {
+            return 'response_too_large';
+        }
+
+        return null;
+    }
+
+    /** @param array<int|string, mixed> $meta
+     * @return 'invalid_payload'|'response_too_large'|null
+     */
+    private function walkMetaBounds(array $meta, int $depth, int &$totalEntries): ?string
+    {
+        if ($depth > self::MaxMetaDepth) {
+            return 'invalid_payload';
+        }
+        foreach ($meta as $value) {
+            $totalEntries++;
+            if ($totalEntries > self::MaxMetaEntries) {
+                return 'response_too_large';
+            }
+            if (is_array($value)) {
+                $reason = $this->walkMetaBounds($value, $depth + 1, $totalEntries);
+                if ($reason !== null) {
+                    return $reason;
+                }
+            }
+        }
+
+        return null;
     }
 
     /** @param list<string> $secrets

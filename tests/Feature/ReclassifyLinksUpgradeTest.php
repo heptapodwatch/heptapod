@@ -13,6 +13,7 @@ use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\Artisan;
@@ -207,4 +208,25 @@ it('rejects an unsupported upgrade policy without changing stored data', functio
     $this->artisan('heptapod:reclassify-links', ['--policy' => '999', '--no-interaction' => true])->assertFailed();
 
     expect(linkUpgradeSnapshot())->toBe($before);
+});
+
+it('streams reclassification one check at a time without loading every snapshot before the first update', function (): void {
+    $first = legacyLinkUpgrade();
+    $second = legacyLinkUpgrade();
+    $milestones = [];
+    DB::listen(static function (QueryExecuted $query) use (&$milestones, $first, $second): void {
+        if (str_contains($query->sql, 'from "crawl_findings"') && ($query->bindings[0] ?? null) === $first['snapshot']) {
+            $milestones[] = 'read:first';
+        } elseif (str_contains($query->sql, 'from "crawl_findings"') && ($query->bindings[0] ?? null) === $second['snapshot']) {
+            $milestones[] = 'read:second';
+        } elseif (str_starts_with(strtolower($query->sql), 'update "crawl_snapshots"') && ($query->bindings[count($query->bindings) - 1] ?? null) === $first['snapshot']) {
+            $milestones[] = 'update:first';
+        } elseif (str_starts_with(strtolower($query->sql), 'update "crawl_snapshots"') && ($query->bindings[count($query->bindings) - 1] ?? null) === $second['snapshot']) {
+            $milestones[] = 'update:second';
+        }
+    });
+
+    $this->artisan('heptapod:reclassify-links', ['--policy' => '1', '--no-interaction' => true])->assertSuccessful();
+
+    expect($milestones)->toBe(['read:first', 'update:first', 'read:second', 'update:second']);
 });

@@ -29,12 +29,15 @@ final class UpcomingController extends Controller
         $days = $request->string('days', '90')->toString();
         $type = $request->string('type', 'all')->toString();
         $clientId = $request->filled('client_id') ? $request->integer('client_id') : null;
-        // A page reads only the dates up to its end (plus one to know of a next page): a daily window per site would
-        // otherwise read every date of the year. So the agenda pages without a total, like Runs history.
+        // A page reads only the dates up to its end (plus one to know of a next page), capped at UpcomingReader::MaxItems
+        // so an arbitrary page number cannot force an unbounded read or overflow offset arithmetic.
         $perPage = ListPageSize::resolve($request, 'upcoming');
         $page = Paginator::resolveCurrentPage();
-        $read = $reader->read($user, $days === 'all' ? 365 : (int) $days, $type === 'all' ? null : [$type], $clientId, limit: $page * $perPage + 1);
-        $items = new Paginator(array_slice($read, ($page - 1) * $perPage), $perPage, $page, ['path' => Paginator::resolveCurrentPath(), 'query' => $request->query()]);
+        $maxPage = (int) ceil(UpcomingReader::MaxItems / $perPage);
+        $read = $page > $maxPage
+            ? []
+            : $reader->read($user, $days === 'all' ? 365 : (int) $days, $type === 'all' ? null : [$type], $clientId, limit: min($page * $perPage + 1, UpcomingReader::MaxItems));
+        $items = new Paginator($read === [] ? [] : array_slice($read, ($page - 1) * $perPage), $perPage, $page, ['path' => Paginator::resolveCurrentPath(), 'query' => $request->query()]);
 
         return Inertia::render('upcoming/index', new UpcomingIndexPageData(
             items: array_values($items->items()),

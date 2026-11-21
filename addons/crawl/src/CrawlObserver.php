@@ -40,6 +40,8 @@ final class CrawlObserver extends SpatieObserver
 
     public bool $invalidTruncated = false;
 
+    public bool $mixedCapReached = false;
+
     /** @var array<string, CrawlDiscoveryReason> Oversized responses whose links could not be extracted, by URL. */
     public array $unreadablePages = [];
 
@@ -89,16 +91,18 @@ final class CrawlObserver extends SpatieObserver
         if (! BrowserUrl::isSameSite($pageUrl, $this->siteUrl) || ! $response->isSuccessful() || ! in_array($mime, ['text/html', 'application/xhtml+xml'], true)) {
             return;
         }
-        $this->scanMixedContent($url, $pageUrl, $response->body());
+        if (! $this->scanMixedContent($url, $pageUrl, $response->body())) {
+            return;
+        }
         // Observation is recovery evidence, so publish it only after the content scan completes.
-        $this->observedPages = array_values(array_unique([...$this->observedPages, $this->safeUrl($url), $this->safeUrl($pageUrl)]));
+        $this->observedPages = array_values(array_unique([...$this->observedPages, $this->boundedUrl($this->safeUrl($url)), $this->boundedUrl($this->safeUrl($pageUrl))]));
         $this->context->runProgress?->report(min(count($this->observedPages), $this->pageCap), $this->pageCap, 'crawl');
     }
 
-    private function scanMixedContent(string $url, string $pageUrl, string $body): void
+    private function scanMixedContent(string $url, string $pageUrl, string $body): bool
     {
         if (parse_url($pageUrl, PHP_URL_SCHEME) !== 'https' || $body === '') {
-            return;
+            return true;
         }
         $dom = new DomCrawler($body, $pageUrl);
         $base = $dom->filter('base[href]');
@@ -140,10 +144,17 @@ final class CrawlObserver extends SpatieObserver
                     continue;
                 }
                 if (parse_url($resolved, PHP_URL_SCHEME) === 'http') {
-                    $this->mixed[] = new MixedContentFinding($element->tagName, $this->safeUrl($resolved), $this->safeUrl($pageUrl), $this->safeUrl($url));
+                    if (count($this->mixed) >= CrawlPersistence::COMPARISON_LIMIT) {
+                        $this->mixedCapReached = true;
+
+                        return false;
+                    }
+                    $this->mixed[] = new MixedContentFinding($element->tagName, $this->boundedUrl($this->safeUrl($resolved)), $this->boundedUrl($this->safeUrl($pageUrl)), $this->boundedUrl($this->safeUrl($url)));
                 }
             }
         }
+
+        return true;
     }
 
     public function excludePageFromLinkCoverage(string $url, string $finalUrl): void
@@ -225,19 +236,33 @@ final class CrawlObserver extends SpatieObserver
             return;
         }
         $this->invalidOnPage[$source][$label] = true;
-        $this->urls[] = new CrawlFinding($label, $label, null, $source, $this->relative($source), $text, $type === ResourceType::OpenGraphImage ? 'og:image' : $type->value, 'invalid URL', false);
+        $this->urls[] = new CrawlFinding($label, $label, null, $source, $this->relative($source), $this->boundLinkText($text), $type === ResourceType::OpenGraphImage ? 'og:image' : $type->value, 'invalid URL', false);
     }
 
     private function record(string $url, ?int $status, ?string $foundOn, ?string $text, ResourceType $type, ?string $error): void
     {
-        $url = $this->safeUrl($url);
-        $foundOn = $foundOn === null ? null : $this->safeUrl($foundOn);
+        $url = $this->boundedUrl($this->safeUrl($url));
+        $foundOn = $foundOn === null ? null : $this->boundedUrl($this->safeUrl($foundOn));
         $internal = BrowserUrl::isSameSite($url, $this->siteUrl);
         // External responses can also arrive through the crawler queue; they get the same status policy.
         if (! $internal && $error === null && $status !== null && $status >= 400) {
             $error = LinkClassificationPolicy::responseLabel(false, $status, [], '');
         }
-        $this->urls[] = new CrawlFinding($url, $this->relative($url), $status, $foundOn, $foundOn === null ? null : $this->relative($foundOn), $text, $type === ResourceType::OpenGraphImage ? 'og:image' : $type->value, $error, $internal);
+        $this->urls[] = new CrawlFinding($url, $this->boundedUrl($this->relative($url)), $status, $foundOn, $foundOn === null ? null : $this->boundedUrl($this->relative($foundOn)), $this->boundLinkText($text), $type === ResourceType::OpenGraphImage ? 'og:image' : $type->value, $error, $internal);
+    }
+
+    public function boundLinkText(?string $text): ?string
+    {
+        if ($text === null || strlen($text) <= CrawlPersistence::MAX_LINK_TEXT_BYTES) {
+            return $text;
+        }
+
+        return mb_strcut($text, 0, CrawlPersistence::MAX_LINK_TEXT_BYTES, 'UTF-8');
+    }
+
+    private function boundedUrl(string $url): string
+    {
+        return strlen($url) <= CrawlPersistence::MAX_URL_BYTES ? $url : BrowserUrl::boundedEvidenceUrl($url);
     }
 
     private function safeUrl(string $url): string

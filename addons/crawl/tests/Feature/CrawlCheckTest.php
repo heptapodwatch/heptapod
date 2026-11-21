@@ -9,11 +9,15 @@ use GuzzleHttp\Middleware;
 use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Psr7\Request as GuzzleRequest;
 use GuzzleHttp\Psr7\Response;
+use Heptapod\Addons\Crawl\BrokenLinksCheck;
 use Heptapod\Addons\Crawl\CrawlArtifact;
 use Heptapod\Addons\Crawl\CrawlCollector;
+use Heptapod\Addons\Crawl\CrawlFinding;
 use Heptapod\Addons\Crawl\CrawlMetrics;
+use Heptapod\Addons\Crawl\CrawlObserver;
 use Heptapod\Addons\Crawl\CrawlPersistence;
 use Heptapod\Addons\Crawl\CrawlTargetUnavailable;
+use Heptapod\Addons\Crawl\LinkClassificationPolicy;
 use Heptapod\Addons\Crawl\MixedContentFinding;
 use Heptapod\Addons\Crawl\NotCrawlableReason;
 use Heptapod\Checks\Execution\CheckExecutor;
@@ -50,15 +54,18 @@ use Heptapod\Testing\ClaimedRun;
 use Heptapod\Testing\FakeOutboundHttp;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Psr\Http\Message\RequestInterface;
+use Spatie\Crawler\CrawlResponse;
 use Spatie\LaravelData\Exceptions\CannotCastEnum;
 use Symfony\Component\Process\Process;
 use Tests\Support\ClosedGuardedHttp;
+use Uri\WhatWg\Url;
 
 beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-28T12:00:00Z'));
@@ -1981,4 +1988,160 @@ it('names the classification of every exported broken-links and mixed-content ro
             ['http://cdn.example.test/a.png', 'broken'], ['https://export.example.test/blocked', 'not_verifiable'],
         ]);
     });
+});
+
+it('bounds collected link text and rejects oversized crawl artifacts at the persistence boundary', function (): void {
+    $site = Site::factory()->create(['url' => 'https://bounded-crawl.example.test']);
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::BrokenLinks]);
+    $hugeText = str_repeat('word ', 1000);
+    $fake = (new FakeOutboundHttp)->respondUsing(static function (FetchRequest $request) use ($hugeText): FetchResult {
+        if (str_ends_with($request->url, '/robots.txt')) {
+            return new FetchResult(404, '');
+        }
+        if (str_ends_with($request->url, '/broken')) {
+            return new FetchResult(404, 'missing', ['Content-Type' => ['text/html']]);
+        }
+
+        return new FetchResult(200, '<html lang="en"><body><a href="/broken">'.$hugeText.'</a></body></html>', ['Content-Type' => ['text/html']]);
+    });
+    app()->instance(OutboundHttp::class, $fake);
+
+    recordCrawl(crawlContext($check));
+
+    $stored = DB::table('crawl_findings')->where('crawled_url', 'https://bounded-crawl.example.test/broken')->value('link_text');
+    expect(is_string($stored))->toBeTrue()
+        ->and(strlen($stored))->toBeLessThanOrEqual(1000);
+
+    $oversizedUrl = 'https://bounded-crawl.example.test/'.str_repeat('a', 9000);
+    $artifact = [
+        'evaluated_finding_ids' => [],
+        'site_url' => 'https://bounded-crawl.example.test',
+        'target_fingerprint' => str_repeat('a', 64),
+        'config_fingerprint' => str_repeat('b', 64),
+        'classification_policy_version' => LinkClassificationPolicy::VERSION,
+        'collected_at' => now()->toIso8601String(),
+        'truncated' => false,
+        'observed_urls' => [$oversizedUrl],
+        'observed_pages' => [],
+        'discovered_urls' => [],
+        'discovery_complete' => true,
+        'notes' => [],
+        'settings' => ['max_pages' => 100],
+        'urls' => [],
+        'mixed_content' => [],
+    ];
+    expect(fn () => app(CrawlPersistence::class)->stage(crawlContext($check), 'artifact', [$artifact]))
+        ->toThrow(ValidationException::class);
+});
+
+it('withholds page coverage when a mixed-content scan stops early at the comparison cap', function (): void {
+    $site = Site::factory()->create(['url' => 'https://mixed-cap.example.test']);
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::MixedContent]);
+    $observer = new CrawlObserver($site->url, new FakeOutboundHttp, crawlContext($check), 100);
+    $observer->mixed = array_fill(0, CrawlPersistence::COMPARISON_LIMIT, new MixedContentFinding('img', 'http://cdn.example.test/existing.png', $site->url, $site->url));
+    $response = new CrawlResponse(
+        new Response(200, ['Content-Type' => 'text/html'], '<html lang="en"><body><img src="http://cdn.example.test/insecure.png"></body></html>'),
+        foundOnUrl: $site->url,
+    );
+
+    $observer->inspectPage($site->url, $response);
+
+    expect($observer->mixedCapReached)->toBeTrue()
+        ->and($observer->observedPages)->toBe([])
+        ->and($observer->mixed)->toHaveCount(CrawlPersistence::COMPARISON_LIMIT);
+});
+
+it('fails with the typed resource-cap result without writing oversized crawl collections', function (): void {
+    $site = Site::factory()->create(['url' => 'https://oversized-artifact.example.test']);
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::BrokenLinks]);
+    $longSegment = str_repeat('a', 7000);
+    $pageLinks = [];
+    for ($page = 1; $page <= 10; $page++) {
+        $links = [];
+        for ($i = 1; $i <= 140; $i++) {
+            $links[] = '<a href="/p'.$page.'/'.$i.'/'.$longSegment.'">x</a>';
+        }
+        $pageLinks['https://oversized-artifact.example.test/page-'.$page] = '<html lang="en"><body>'.implode('', $links).'</body></html>';
+    }
+    $rootHtml = '<html lang="en"><body>'.implode('', array_map(
+        static fn (int $page): string => '<a href="/page-'.$page.'">p'.$page.'</a>',
+        range(1, 10),
+    )).'</body></html>';
+    $fake = (new FakeOutboundHttp)->respondUsing(static function (FetchRequest $request) use ($rootHtml, $pageLinks): FetchResult {
+        if (str_ends_with($request->url, '/robots.txt')) {
+            return new FetchResult(404, '');
+        }
+        if ($request->url === 'https://oversized-artifact.example.test' || $request->url === 'https://oversized-artifact.example.test/') {
+            return new FetchResult(200, $rootHtml, ['Content-Type' => ['text/html']]);
+        }
+        if (isset($pageLinks[$request->url])) {
+            return new FetchResult(200, $pageLinks[$request->url], ['Content-Type' => ['text/html']]);
+        }
+
+        return new FetchResult(404, 'missing', ['Content-Type' => ['text/html']]);
+    });
+    app()->instance(OutboundHttp::class, $fake);
+
+    recordCrawl(crawlContext($check));
+
+    $run = CheckRun::query()->where('check_id', $check->id)->sole();
+    expect($run->result)->toBe(RunResult::Errored)
+        ->and($run->summary)->toBe('broken_links.incomplete_resources')
+        ->and($run->evidence['resource_cap_reached'])->toBeTrue()
+        ->and($run->evidence['notes'][0]['key'])->toBe('crawl.coverage.storage_limit')
+        ->and(DB::table('crawl_collections')->where('site_id', $site->id)->exists())->toBeFalse()
+        ->and(DB::table('crawl_snapshots')->where('check_id', $check->id)->exists())->toBeFalse();
+    foreach (['en', 'de'] as $locale) {
+        expect(__('crawl.coverage.storage_limit', locale: $locale))->not->toBe('crawl.coverage.storage_limit');
+    }
+});
+
+it('routes final staging payload byte overflow through the same typed storage-limit result', function (): void {
+    $site = Site::factory()->create(['url' => 'https://staging-overflow.example.test']);
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::BrokenLinks]);
+    // Cache a collection that fits just below MAX_ARTIFACT_BYTES before evaluated_finding_ids and comparison_key are appended.
+    $longSegment = str_repeat('b', 7000);
+    $urls = [];
+    $observedUrls = [$site->url];
+    $discoveredUrls = [$site->url];
+    for ($i = 1; $i <= 575; $i++) {
+        $url = $site->url.'/missing-'.$i.'/'.$longSegment;
+        $relative = '/missing-'.$i.'/'.$longSegment;
+        $urls[] = new CrawlFinding($url, $relative, 404, $site->url, '/', null, 'link', null, true);
+        $observedUrls[] = $url;
+        $discoveredUrls[] = $url;
+    }
+    $config = BrokenLinksCheck::configSchema()->defaults();
+    $crawlSettings = array_diff_key($config, array_flip(['whitelisted_urls', 'new_links_only']));
+    $runtimeSettings = array_diff_key(config('heptapod.crawl'), array_flip(['defaults', 'interval_seconds', 'lock_wait_seconds']));
+    $fingerprint = hash_hmac('sha256', json_encode([12, $crawlSettings, [], $runtimeSettings], JSON_THROW_ON_ERROR), Crypt::getKey());
+    $targetFingerprint = hash_hmac('sha256', new Url($site->url)->toAsciiString(), Crypt::getKey());
+    $artifact = new CrawlArtifact(
+        $site->url, now()->toIso8601String(), $config, $urls, [], $targetFingerprint,
+        false, $observedUrls, [$site->url], $discoveredUrls, true, config_fingerprint: $fingerprint,
+        classification_policy_version: LinkClassificationPolicy::VERSION, start_page_final_url: $site->url,
+    );
+    $encoded = json_encode($artifact->privateStorage(), JSON_THROW_ON_ERROR);
+    // Pad discovered_urls to sit within ~10 KiB of MAX_ARTIFACT_BYTES so appending 575 finding hashes (~40 KiB) crosses the cap.
+    $padCount = max(0, (int) floor((CrawlPersistence::MAX_ARTIFACT_BYTES - strlen($encoded) - 10_000) / 7045));
+    for ($p = 1; $p <= $padCount; $p++) {
+        $discoveredUrls[] = $site->url.'/pad-'.$p.'/'.$longSegment;
+    }
+    $artifact = new CrawlArtifact(
+        $site->url, now()->toIso8601String(), $config, $urls, [], $targetFingerprint,
+        false, $observedUrls, [$site->url], $discoveredUrls, true, config_fingerprint: $fingerprint,
+        classification_policy_version: LinkClassificationPolicy::VERSION, start_page_final_url: $site->url,
+    );
+    $encoded = json_encode($artifact->privateStorage(), JSON_THROW_ON_ERROR);
+    expect(strlen($encoded))->toBeLessThanOrEqual(CrawlPersistence::MAX_ARTIFACT_BYTES);
+    DB::table('crawl_collections')->insert(['site_id' => $site->id, 'artifact' => $encoded, 'collected_at' => $artifact->collected_at]);
+
+    recordCrawl(crawlContext($check));
+
+    $run = CheckRun::query()->where('check_id', $check->id)->sole();
+    expect($run->result)->toBe(RunResult::Errored)
+        ->and($run->summary)->toBe('broken_links.incomplete_resources')
+        ->and($run->evidence['resource_cap_reached'])->toBeTrue()
+        ->and($run->evidence['notes'][0]['key'])->toBe('crawl.coverage.storage_limit')
+        ->and(DB::table('crawl_snapshots')->where('check_id', $check->id)->exists())->toBeFalse();
 });

@@ -20,23 +20,46 @@ use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\NotificationSchedule;
 use Heptapod\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 final readonly class EmitNotificationDigests
 {
+    /** Maximum digest destinations inspected per pass so digest scans cannot starve immediate alert delivery. */
+    public const int Batch = 100;
+
+    /** Maximum archived digest source rows suppressed per pass. */
+    public const int ArchivedBatch = 100;
+
+    private const string CursorCacheKey = 'heptapod:notifications:digests_after_id';
+
+    private const string ArchivedMoreCacheKey = 'heptapod:notifications:digests_archived_more';
+
     public function __construct(private NotificationSuppression $suppression, private NotificationTiming $timing,
         private NotificationEventTypes $types) {}
 
-    public function __invoke(): void
+    /** @return bool whether more digest work remains after this bounded pass */
+    public function __invoke(bool $continuation = false): bool
     {
-        $this->suppressArchivedSources();
+        $archivedMore = (! $continuation || Cache::get(self::ArchivedMoreCacheKey) === true)
+            && $this->suppressArchivedSources();
+        $after = Cache::get(self::CursorCacheKey);
+        if ($continuation && ! is_int($after)) {
+            return $archivedMore;
+        }
+        $afterId = is_int($after) ? $after : 0;
         $destinations = NotificationDestination::query()->where('enabled', true)
             ->whereHas('deliveries', function (Builder $query): void {
                 $query->scopes('recurringDigest');
                 $query->getQuery()->whereIn('state', [DeliveryState::Pending->value, DeliveryState::Sent->value]);
             });
-        $destinations->getQuery()->whereNull('removed_at');
-        foreach ($destinations->lazyById(100) as $candidate) {
+        $destinations->getQuery()->whereNull('removed_at')
+            ->where('notification_destinations.id', '>', $afterId)->orderBy('notification_destinations.id')
+            ->limit(self::Batch + 1);
+        $candidates = $destinations->get();
+        $hasMore = $candidates->count() > self::Batch;
+        $page = $candidates->take(self::Batch);
+        foreach ($page as $candidate) {
             DB::transaction(function () use ($candidate): void {
                 // NotificationLocks: this channel, then its source deliveries in ascending id (below).
                 NotificationLocks::channels([$candidate->id]);
@@ -149,18 +172,38 @@ final readonly class EmitNotificationDigests
                     'digest_slot_at' => $at->startOfMinute()]);
             });
         }
+        if ($hasMore) {
+            $last = $page->last();
+            if ($last instanceof NotificationDestination) {
+                Cache::put(self::CursorCacheKey, $last->id, 3600);
+            }
+        } else {
+            Cache::forget(self::CursorCacheKey);
+        }
+
+        return $archivedMore || $hasMore;
     }
 
     /** Digest sources retained on an archived channel never send; the archive action ends recurrence with them. */
-    private function suppressArchivedSources(): void
+    private function suppressArchivedSources(): bool
     {
         $archived = DB::table('notification_destinations')->select('id')->whereNotNull('removed_at');
         $sources = Delivery::recurringDigest()->where('state', DeliveryState::Pending->value);
-        $sources->getQuery()->whereNull('digest_event_id')->whereIn('destination_id', $archived);
-        foreach ($sources->with('destination')->lazyById(100) as $source) {
+        $sources->getQuery()->whereNull('digest_event_id')->whereIn('destination_id', $archived)
+            ->orderBy('deliveries.id')->limit(self::ArchivedBatch + 1);
+        $rows = $sources->with('destination')->get();
+        $hasMore = $rows->count() > self::ArchivedBatch;
+        foreach ($rows->take(self::ArchivedBatch) as $source) {
             $reason = $source->destination?->removed_reason === 'recipient_deleted' ? 'recipient_deleted' : 'destination_archived';
             $source->update(['suppressed' => true, 'suppression_reason' => $reason, 'suppression_evaluated_at' => CarbonImmutable::now('UTC')]);
             $source->announceChanges();
         }
+        if ($hasMore) {
+            Cache::put(self::ArchivedMoreCacheKey, true, 3600);
+        } else {
+            Cache::forget(self::ArchivedMoreCacheKey);
+        }
+
+        return $hasMore;
     }
 }

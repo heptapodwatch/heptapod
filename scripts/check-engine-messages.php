@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Heptapod\Addons\Crawl\CrawlArtifactTooLarge;
 use Heptapod\Addons\Crawl\CrawlStartRedirectOffSite;
 use Heptapod\Addons\Crawl\CrawlStartRedirectOriginChanged;
 use Heptapod\Addons\Crawl\CrawlTargetUnavailable;
@@ -95,6 +96,7 @@ $notEngineText = [
     ApiProblem::class => 'HTTP problem response, not a run',
     ExpectedRefusal::class => 'expected web/Inertia HTTP refusal carrying a translated catalog key, not a check run',
     SitemapSizeExceeded::class => 'caught inside SitemapCheck; recorded as a catalog issue',
+    CrawlArtifactTooLarge::class => 'caught inside CrawlEvaluation; recorded as a catalog resource-cap cause',
     CrawlStartRedirectOffSite::class => 'caught inside CrawlEvaluation; recorded as a catalog cause with its untrusted target',
     CrawlStartRedirectOriginChanged::class => 'caught inside CrawlEvaluation; recorded as a catalog cause with its untrusted target',
     DiskReadException::class => 'system-health filesystem read, not a run; UI and mail show its typed reason',

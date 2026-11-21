@@ -9,6 +9,7 @@ use Heptapod\Contracts\AddonEvent;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\CheckDefinition;
 use Heptapod\Contracts\CheckDetailProvider;
+use Heptapod\Contracts\CheckError;
 use Heptapod\Contracts\CheckHistoryProvider;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckOutcome;
@@ -46,6 +47,27 @@ use Spatie\Dns\Support\Types;
 final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvider, CheckRunPresenter, CheckType, DnsBaselineAcceptance, MailEvidenceProvider
 {
     public const array Types = ['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS', 'CAA'];
+
+    /** Real DNS zones have 2–8 authoritative nameservers; 16 prevents NS fan-out amplification. */
+    public const int MaxNameserversPerTarget = 16;
+
+    /** Accommodates up to 22 targets across several authoritative nameservers while bounding resolver work. */
+    public const int MaxQueriesPerRun = 1000;
+
+    /** Aggregate DNS records accepted across all resolver lookups in one run before retaining replies. */
+    public const int MaxLookupRecords = 10000;
+
+    /** Aggregate raw dig output bytes accepted across all resolver lookups in one run before retaining replies. */
+    public const int MaxLookupRawBytes = 1024 * 1024;
+
+    /** Aggregate DNS records retained in one persisted snapshot across all targets and types. */
+    public const int MaxTotalRecords = 5000;
+
+    /** Aggregate raw dig output bytes retained in one persisted snapshot across all targets and types. */
+    public const int MaxTotalRawBytes = 512 * 1024;
+
+    /** Maximum changed DNS records embedded in one dns.records_changed event payload. */
+    public const int MaxEventChangeRecords = 100;
 
     public function __construct(private DnsResolver $resolver, private DnsPersistence $store, private PublicSuffixList $suffixes) {}
 
@@ -104,8 +126,8 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
                         continue;
                     }
                     $changedTypes[] = $type;
-                    $added += count($difference['added']);
-                    $removed += count($difference['removed']);
+                    $added += is_int($difference['added_count'] ?? null) ? $difference['added_count'] : count($difference['added']);
+                    $removed += is_int($difference['removed_count'] ?? null) ? $difference['removed_count'] : count($difference['removed']);
                 }
                 $types = $changedTypes;
             }
@@ -207,7 +229,8 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
                 }
                 foreach (['removed' => '-', 'added' => '+'] as $side => $sign) {
                     $records = $side === 'removed' ? $change['removed'] : $change['added'];
-                    $total += count($records);
+                    $countKey = $side.'_count';
+                    $total += is_int($change[$countKey] ?? null) ? $change[$countKey] : count($records);
                     foreach (array_slice($records, 0, max(0, 8 - count($lines))) as $record) {
                         if (! is_array($record)) {
                             throw new \LogicException('DNS change record must be structured.');
@@ -331,123 +354,139 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
         $groups = [];
         $records = [];
         $raw = [];
+        $rawBytes = 0;
+        $budget = ['queries' => 0, 'records' => 0, 'raw_bytes' => 0];
         $issues = [];
         $diagnostics = [];
         $authoritative = [];
         $expected = [];
         $publishBaseline = true;
-        foreach ($targets as $target) {
-            [$zone, $servers, $resolverFailure] = $this->authorities($context, $target);
-            $authoritative = [...$authoritative, ...$servers];
-            /** @var array<string, array<string, DnsLookupResult>> $serverAnswers */
-            $serverAnswers = [];
-            $first = null;
-            $outOfSync = false;
-            $sync = ($context->config['check_nameservers_in_sync'] ?? $defaults['check_nameservers_in_sync']) === true;
-            $serverFailures = [];
-            foreach ($servers as $server) {
-                /** @var array<string, DnsLookupResult> $source */
-                $source = [];
-                try {
-                    foreach (array_unique([...$types, 'A', 'AAAA', 'CNAME']) as $type) {
-                        $source[$type] = $this->lookup($context, $target, $type, $server);
+        try {
+            foreach ($targets as $target) {
+                [$zone, $servers, $resolverFailure] = $this->authorities($context, $target, $budget);
+                $authoritative = [...$authoritative, ...$servers];
+                /** @var array<string, array<string, DnsLookupResult>> $serverAnswers */
+                $serverAnswers = [];
+                $first = null;
+                $outOfSync = false;
+                $sync = ($context->config['check_nameservers_in_sync'] ?? $defaults['check_nameservers_in_sync']) === true;
+                $serverFailures = [];
+                foreach ($servers as $server) {
+                    /** @var array<string, DnsLookupResult> $source */
+                    $source = [];
+                    try {
+                        foreach (array_unique([...$types, 'A', 'AAAA', 'CNAME']) as $type) {
+                            $source[$type] = $this->lookup($context, $target, $type, $budget, $server);
+                        }
+                        $serial = $sync ? $this->serial($context, $zone, $server, $budget) : null;
+                    } catch (ExternalNetworkException $exception) {
+                        // A transport failure or a refused non-public NS address invalidates this NS's whole observation, not its records.
+                        $this->ensureBudget($context);
+                        if (! $exception instanceof DnsNameserverRefusedException && ! $this->recoverable($exception)) {
+                            throw $exception;
+                        }
+                        $serverFailures[$server] = $exception;
+
+                        continue;
                     }
-                    $serial = $sync ? $this->serial($context, $zone, $server) : null;
+                    $serverAnswers[$server] = $source;
+                    if ($sync) {
+                        $set = ['serial' => $serial];
+                        // Geo/anycast addresses can differ while the zone's stable records agree.
+                        foreach (array_diff($types, ['A', 'AAAA']) as $type) {
+                            $set[$type] = DnsSnapshot::normalize($serverAnswers[$server][$type]->records);
+                        }
+                        if ($first !== null && $set !== $first) {
+                            $outOfSync = true;
+                        }
+                        $first ??= $set;
+                    }
+                }
+                if ($servers === []) {
+                    $issues[] = ['type' => 'dns.issue.nameservers_unreachable', 'host' => $target, 'record_type' => null];
+                }
+                if ($outOfSync) {
+                    $issues[] = ['type' => 'dns.issue.nameservers_out_of_sync', 'host' => $target, 'record_type' => null];
+                }
+                foreach ($serverFailures as $server => $exception) {
+                    $issues[] = ['type' => $serverAnswers === [] ? 'dns.issue.nameservers_unreachable' : 'dns.issue.nameserver_unreachable',
+                        'host' => $target, 'record_type' => null, 'nameserver' => $server,
+                        'reason' => match (true) {
+                            $exception instanceof DnsNameserverRefusedException => 'private_target',
+                            $exception instanceof ExternalTimeoutException => 'timeout',
+                            default => 'servfail',
+                        }];
+                }
+                $complete = $serverAnswers !== [];
+                $publishBaseline = $publishBaseline && $complete && $serverFailures === [];
+                /** @var array<string, DnsLookupResult> $observed */
+                $observed = [];
+                try {
+                    foreach (array_unique([...$types, 'A', 'AAAA', 'CNAME', 'NS']) as $type) {
+                        $observed[$type] = $this->lookup($context, $target, $type, $budget);
+                    }
                 } catch (ExternalNetworkException $exception) {
-                    // A transport failure or a refused non-public NS address invalidates this NS's whole observation, not its records.
                     $this->ensureBudget($context);
-                    if (! $exception instanceof DnsNameserverRefusedException && ! $this->recoverable($exception)) {
+                    if (! $this->recoverable($exception) || $serverAnswers === []) {
                         throw $exception;
                     }
-                    $serverFailures[$server] = $exception;
-
-                    continue;
+                    // Use one complete authoritative observation rather than mixing partial replies.
+                    $observed = reset($serverAnswers);
+                    $resolverFailure = $exception instanceof ExternalTimeoutException ? 'timeout' : 'servfail';
                 }
-                $serverAnswers[$server] = $source;
-                if ($sync) {
-                    $set = ['serial' => $serial];
-                    // Geo/anycast addresses can differ while the zone's stable records agree.
-                    foreach (array_diff($types, ['A', 'AAAA']) as $type) {
-                        $set[$type] = DnsSnapshot::normalize($serverAnswers[$server][$type]->records);
+                if ($resolverFailure !== null && $serverAnswers !== []) {
+                    $diagnostics[] = ['type' => 'dns.resolver_unavailable', 'host' => $target, 'reason' => $resolverFailure];
+                }
+                $answers = [];
+                foreach (array_unique([...$types, 'A', 'AAAA', 'CNAME']) as $type) {
+                    $answer = $observed[$type];
+                    if (in_array($type, ['A', 'AAAA'], true) && $serverAnswers !== []) {
+                        $addressRecords = $addressRaw = [];
+                        foreach ($serverAnswers as $source) {
+                            $addressRecords = [...$addressRecords, ...$source[$type]->records];
+                            $addressRaw = [...$addressRaw, ...$source[$type]->rawLines];
+                        }
+                        $answer = new DnsLookupResult($addressRecords, $addressRaw, null);
                     }
-                    if ($first !== null && $set !== $first) {
-                        $outOfSync = true;
-                    }
-                    $first ??= $set;
-                }
-            }
-            if ($servers === []) {
-                $issues[] = ['type' => 'dns.issue.nameservers_unreachable', 'host' => $target, 'record_type' => null];
-            }
-            if ($outOfSync) {
-                $issues[] = ['type' => 'dns.issue.nameservers_out_of_sync', 'host' => $target, 'record_type' => null];
-            }
-            foreach ($serverFailures as $server => $exception) {
-                $issues[] = ['type' => $serverAnswers === [] ? 'dns.issue.nameservers_unreachable' : 'dns.issue.nameserver_unreachable',
-                    'host' => $target, 'record_type' => null, 'nameserver' => $server,
-                    'reason' => match (true) {
-                        $exception instanceof DnsNameserverRefusedException => 'private_target',
-                        $exception instanceof ExternalTimeoutException => 'timeout',
-                        default => 'servfail',
-                    }];
-            }
-            $complete = $serverAnswers !== [];
-            $publishBaseline = $publishBaseline && $complete && $serverFailures === [];
-            /** @var array<string, DnsLookupResult> $observed */
-            $observed = [];
-            try {
-                foreach (array_unique([...$types, 'A', 'AAAA', 'CNAME', 'NS']) as $type) {
-                    $observed[$type] = $this->lookup($context, $target, $type);
-                }
-            } catch (ExternalNetworkException $exception) {
-                $this->ensureBudget($context);
-                if (! $this->recoverable($exception) || $serverAnswers === []) {
-                    throw $exception;
-                }
-                // Use one complete authoritative observation rather than mixing partial replies.
-                $observed = reset($serverAnswers);
-                $resolverFailure = $exception instanceof ExternalTimeoutException ? 'timeout' : 'servfail';
-            }
-            if ($resolverFailure !== null && $serverAnswers !== []) {
-                $diagnostics[] = ['type' => 'dns.resolver_unavailable', 'host' => $target, 'reason' => $resolverFailure];
-            }
-            $answers = [];
-            foreach (array_unique([...$types, 'A', 'AAAA', 'CNAME']) as $type) {
-                $answer = $observed[$type];
-                if (in_array($type, ['A', 'AAAA'], true) && $serverAnswers !== []) {
-                    $addressRecords = $addressRaw = [];
-                    foreach ($serverAnswers as $source) {
-                        $addressRecords = [...$addressRecords, ...$source[$type]->records];
-                        $addressRaw = [...$addressRaw, ...$source[$type]->rawLines];
-                    }
-                    $answer = new DnsLookupResult($addressRecords, $addressRaw, null);
-                }
-                $answers[$type] = DnsSnapshot::normalize($answer->records);
-                if (in_array($type, $types, true)) {
-                    $key = $target.'|'.$type;
-                    $groups[$key] = $answers[$type];
-                    /** @var list<array<string, int|string>> $validatedRecords */
-                    $validatedRecords = $answer->records;
-                    $records = [...$records, ...$validatedRecords];
-                    $raw[$type] = [...($raw[$type] ?? []), ...$answer->rawLines];
-                    if ($complete && ($answers[$type] !== [] || in_array($key, $baseline['expected'] ?? [], true))) {
-                        $expected[] = $key;
-                        if ($answers[$type] === []) {
-                            $issues[] = ['type' => 'dns.issue.records_missing', 'host' => $target, 'record_type' => $type];
+                    $answers[$type] = DnsSnapshot::normalize($answer->records);
+                    if (in_array($type, $types, true)) {
+                        $key = $target.'|'.$type;
+                        $groups[$key] = $answers[$type];
+                        /** @var list<array<string, int|string>> $validatedRecords */
+                        $validatedRecords = $answer->records;
+                        if (count($records) + count($validatedRecords) > self::MaxTotalRecords) {
+                            throw new \OverflowException('DNS observation exceeds '.self::MaxTotalRecords.' records.');
+                        }
+                        $records = [...$records, ...$validatedRecords];
+                        foreach ($answer->rawLines as $line) {
+                            $rawBytes += strlen($line);
+                            if ($rawBytes > self::MaxTotalRawBytes) {
+                                throw new \OverflowException('DNS raw response exceeds '.self::MaxTotalRawBytes.' bytes.');
+                            }
+                        }
+                        $raw[$type] = [...($raw[$type] ?? []), ...$answer->rawLines];
+                        if ($complete && ($answers[$type] !== [] || in_array($key, $baseline['expected'] ?? [], true))) {
+                            $expected[] = $key;
+                            if ($answers[$type] === []) {
+                                $issues[] = ['type' => 'dns.issue.records_missing', 'host' => $target, 'record_type' => $type];
+                            }
                         }
                     }
                 }
-            }
-            if (! isset($answers['A'], $answers['AAAA'], $answers['CNAME'])) {
-                throw new \LogicException('DNS liveness queries are missing.');
-            }
-            if ($answers['A'] === [] && $answers['AAAA'] === [] && $answers['CNAME'] === []) {
-                if ($servers === [] && $resolverFailure !== null) {
-                    // Failed discovery cannot prove an outage from empty recursive replies.
-                    throw new ExternalNetworkException('DNS authoritative nameservers could not be determined.', previous: new \RuntimeException('DNS discovery failed with '.$resolverFailure.'.'));
+                if (! isset($answers['A'], $answers['AAAA'], $answers['CNAME'])) {
+                    throw new \LogicException('DNS liveness queries are missing.');
                 }
-                $issues[] = ['type' => 'dns.issue.resolves_to_nothing', 'host' => $target, 'record_type' => null];
+                if ($answers['A'] === [] && $answers['AAAA'] === [] && $answers['CNAME'] === []) {
+                    if ($servers === [] && $resolverFailure !== null) {
+                        // Failed discovery cannot prove an outage from empty recursive replies.
+                        throw new ExternalNetworkException('DNS authoritative nameservers could not be determined.', previous: new \RuntimeException('DNS discovery failed with '.$resolverFailure.'.'));
+                    }
+                    $issues[] = ['type' => 'dns.issue.resolves_to_nothing', 'host' => $target, 'record_type' => null];
+                }
             }
+        } catch (\OverflowException $exception) {
+            return new CheckOutcome(RunResult::Errored, 'dns.response_limit_exceeded', [], null,
+                error: new CheckError(\UnexpectedValueException::class, $exception->getMessage()));
         }
         $authoritative = array_values(array_unique($authoritative));
         sort($authoritative);
@@ -467,7 +506,7 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
         $headlineChanges = array_diff_key($changes, array_flip($missingTypes));
         // dns:<check>:<run> also preserves run identity for Activity after the check is deleted.
         $events = $changed && $state['warning_episode_run_id'] === null
-            ? [new AddonEvent('dns.records_changed', 'dns:'.$context->checkId.':'.$context->runId, 1, ['changes' => $changes], presentationParams: [
+            ? [new AddonEvent('dns.records_changed', 'dns:'.$context->checkId.':'.$context->runId, 1, $this->boundedChangesPayload($changes), presentationParams: [
                 'types' => implode(', ', array_keys($headlineChanges)),
                 'added' => array_sum(array_map(static fn (array $change): int => count($change['added']), $headlineChanges)),
                 'removed' => array_sum(array_map(static fn (array $change): int => count($change['removed']), $headlineChanges)),
@@ -479,15 +518,18 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
         return new CheckOutcome($result, $failed ? 'dns.failed' : ($issues !== [] ? 'dns.nameservers_unreachable' : ($changed ? 'dns.changed' : 'dns.succeeded')), [], new DnsMetrics(count($records), count($issues), $changed), $snapshot->bounded(), $events);
     }
 
-    /** @return array{string, list<string>, string|null} */
-    private function authorities(CheckContext $context, string $target): array
+    /**
+     * @param  array{queries: int, records: int, raw_bytes: int}  $budget
+     * @return array{string, list<string>, string|null}
+     */
+    private function authorities(CheckContext $context, string $target, array &$budget): array
     {
         // Cross-zone CNAME replies can contain NS records belonging to the target zone.
         $zone = $target;
         $failure = null;
         do {
             try {
-                $answer = $this->lookup($context, $zone, 'NS');
+                $answer = $this->lookup($context, $zone, 'NS', $budget);
             } catch (ExternalNetworkException $exception) {
                 $this->ensureBudget($context);
                 if (! $this->recoverable($exception) || ! str_contains($zone, '.')) {
@@ -512,14 +554,18 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
             }
         }
         $servers = array_values(array_unique($servers));
+        if (count($servers) > self::MaxNameserversPerTarget) {
+            throw new \OverflowException('DNS authoritative nameservers exceed '.self::MaxNameserversPerTarget.'.');
+        }
         sort($servers);
 
         return [$zone, $servers, $failure];
     }
 
-    private function serial(CheckContext $context, string $zone, string $server): int
+    /** @param array{queries: int, records: int, raw_bytes: int} $budget */
+    private function serial(CheckContext $context, string $zone, string $server, array &$budget): int
     {
-        $records = $this->lookup($context, $zone, 'SOA', $server)->records;
+        $records = $this->lookup($context, $zone, 'SOA', $budget, $server)->records;
         /** @var array{soa: list<array{serial: int}>} $validated */
         $validated = Validator::make(['soa' => $records], [
             'soa' => ['required', 'array', 'list', 'size:1'],
@@ -532,12 +578,28 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
         return $validated['soa'][0]['serial'];
     }
 
-    private function lookup(CheckContext $context, string $host, string $type, ?string $server = null): DnsLookupResult
+    /** @param array{queries: int, records: int, raw_bytes: int} $budget */
+    private function lookup(CheckContext $context, string $host, string $type, array &$budget, ?string $server = null): DnsLookupResult
     {
         $this->ensureBudget($context);
+        $budget['queries']++;
+        if ($budget['queries'] > self::MaxQueriesPerRun) {
+            throw new \OverflowException('DNS queries exceeded '.self::MaxQueriesPerRun.' per run.');
+        }
         $result = $this->resolver->resolve($host, $type, $server);
         if ($result->nameserver !== $server) {
             throw new \UnexpectedValueException('DNS response nameserver differs from request.');
+        }
+        // Charge every reply before retaining it in serverAnswers or normalizing it.
+        $budget['records'] += count($result->records);
+        if ($budget['records'] > self::MaxLookupRecords) {
+            throw new \OverflowException('DNS lookup records exceeded '.self::MaxLookupRecords.' per run.');
+        }
+        foreach ($result->rawLines as $line) {
+            $budget['raw_bytes'] += strlen($line);
+            if ($budget['raw_bytes'] > self::MaxLookupRawBytes) {
+                throw new \OverflowException('DNS lookup raw output exceeded '.self::MaxLookupRawBytes.' bytes per run.');
+            }
         }
         // Validate before a later transport failure discards this answer or address union replaces it.
         if ($type !== 'SOA') {
@@ -545,6 +607,37 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
         }
 
         return $result;
+    }
+
+    /**
+     * @param  array<string, array{added: list<array<string, int|string>>, removed: list<array<string, int|string>>}>  $changes
+     * @return array<string, mixed>
+     */
+    private function boundedChangesPayload(array $changes): array
+    {
+        $total = 0;
+        foreach ($changes as $change) {
+            $total += count($change['added']) + count($change['removed']);
+        }
+        if ($total <= self::MaxEventChangeRecords) {
+            return ['changes' => $changes];
+        }
+        $remaining = self::MaxEventChangeRecords;
+        $bounded = [];
+        foreach ($changes as $type => $change) {
+            $removed = array_slice($change['removed'], 0, $remaining);
+            $remaining -= count($removed);
+            $added = array_slice($change['added'], 0, $remaining);
+            $remaining -= count($added);
+            $bounded[$type] = [
+                'added' => $added,
+                'removed' => $removed,
+                'added_count' => count($change['added']),
+                'removed_count' => count($change['removed']),
+            ];
+        }
+
+        return ['changes' => $bounded, 'truncated' => true];
     }
 
     private function recoverable(ExternalNetworkException $exception): bool

@@ -29,7 +29,7 @@ final class RequestCheckRunController extends Controller
         $actor = $this->principal($request);
         // The resource reads the check and site loaded under the lock: a site deleted after the commit must not fail the response.
         $authorize($actor, 'update', static function () use ($run, $check, $data, $actor): void {
-            $run($check, RunOrigin::Manual, $data['httpClientHeaders'] ?? [], $actor, $actor->currentAccessToken()->id, heavyAdmission: false);
+            $run($check, RunOrigin::Manual, $data['httpClientHeaders'] ?? [], $actor, $actor->currentAccessToken()->id);
             $check->refresh()->load(['snoozes', 'site.checks']);
         }, $check);
 

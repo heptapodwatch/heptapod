@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use Heptapod\Actions\SendClientMessage;
 use Heptapod\Models\Check;
 use Heptapod\Models\Client;
 use Heptapod\Models\Event;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
 
 require_once __DIR__.'/../Support/ClientMessageRace.php';
@@ -110,6 +112,37 @@ it('turns two concurrent sends with the same key into one message and one replay
             ->and(Event::query()->where('client_id', $fixture['client']->id)->count())->toBe(1)
             ->and(DB::table('deliveries')->where('event_id', $created)->count())->toBe(1);
     } finally {
+        ($fixture['cleanup'])();
+    }
+});
+
+it('leaves no orphan attachment files when concurrent sends race on the same key or last quota slot', function (): void {
+    $before = Storage::disk(SendClientMessage::Disk)->files(SendClientMessage::Directory);
+    $fixture = clientMessageRaceFixture(alreadySent: 8);
+    $payload = [...$fixture['payload'], 'attach' => true];
+    try {
+        // 1) Same-key race with attachment (slot 9 of 10): 1 created, 1 replayed, exactly 1 attachment file on disk.
+        $sameKeyOutputs = clientMessageRace($fixture['client'],
+            clientMessageRaceProcess($fixture['owner'], $fixture['client'], $payload, 'attach-same'),
+            clientMessageRaceProcess($fixture['owner'], $fixture['client'], $payload, 'attach-same'));
+        $sameKeyCreated = (int) substr($sameKeyOutputs[0], strlen('created:'));
+        expect($sameKeyOutputs[0])->toStartWith('created:')->and($sameKeyOutputs[1])->toBe('replayed:'.$sameKeyCreated);
+
+        // 2) Distinct-key last-quota-slot race with attachment (slot 10 of 10): 1 created, 1 refused 429, zero orphans.
+        $quotaOutputs = clientMessageRace($fixture['client'],
+            clientMessageRaceProcess($fixture['owner'], $fixture['client'], $payload, 'attach-quota-a'),
+            clientMessageRaceProcess($fixture['owner'], $fixture['client'], $payload, 'attach-quota-b'));
+        $quotaCreated = (int) substr($quotaOutputs[0], strlen('created:'));
+        expect($quotaOutputs[0])->toStartWith('created:')->and($quotaOutputs[1])->toBe('http:429');
+
+        $afterFiles = array_values(array_diff(Storage::disk(SendClientMessage::Disk)->files(SendClientMessage::Directory), $before));
+        $committedPaths = DB::table('client_message_attachments')->whereIn('event_id', [$sameKeyCreated, $quotaCreated])->pluck('path')->all();
+        expect($afterFiles)->toHaveCount(2)->toEqualCanonicalizing($committedPaths);
+    } finally {
+        $leftovers = array_diff(Storage::disk(SendClientMessage::Disk)->files(SendClientMessage::Directory), $before);
+        foreach ($leftovers as $path) {
+            Storage::disk(SendClientMessage::Disk)->delete($path);
+        }
         ($fixture['cleanup'])();
     }
 });

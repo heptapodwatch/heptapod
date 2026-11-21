@@ -21,6 +21,7 @@ use Heptapod\Models\DispatcherHeartbeat;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Queue\RedisQueue;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
@@ -32,6 +33,11 @@ final readonly class ClaimService
     private const int OverdueGapSeconds = 300;
 
     private const int MaximumCatchUpWindowSeconds = 900;
+
+    /** Maximum overdue non-uptime checks re-spread in one dispatcher tick so uptime checks and heartbeats stay responsive. */
+    public const int MaxReSpreadPerTick = 500;
+
+    private const string GapRecoveryCacheKey = 'heptapod:dispatcher:gap_recovery';
 
     private const int FastCooldownSeconds = 30;
 
@@ -69,15 +75,20 @@ final readonly class ClaimService
             $heartbeatQuery = DispatcherHeartbeat::query();
             $heartbeatQuery->getQuery()->orderByDesc('last_seen_at');
             $lastHeartbeat = $heartbeatQuery->first()?->last_seen_at;
-            // A first start has no recorded gap; stale schedules alone can also come from pause/disable.
-            if ($lastHeartbeat !== null && $lastHeartbeat < $at->subSeconds(self::OverdueGapSeconds)) {
-                $this->reSpreadOverdue($at);
-            }
+            $recoveryCutoff = $this->continueGapRecovery($at, $lastHeartbeat, min($limit, self::MaxReSpreadPerTick));
 
             $query = $this->eligible();
-            $query->getQuery()->where(function (Builder $query) use ($atText): void {
-                $query->where(fn (Builder $due) => $due->where('checks.next_run_at', '<=', $atText)->whereNull('checks.lease_expires_at'))
-                    ->orWhere(fn (Builder $expired) => $expired->whereNotNull('checks.claim_token')->where('checks.lease_expires_at', '<', $atText));
+            $query->getQuery()->where(function (Builder $query) use ($atText, $recoveryCutoff): void {
+                $query->where(function (Builder $due) use ($atText, $recoveryCutoff): void {
+                    $due->where('checks.next_run_at', '<=', $atText)->whereNull('checks.lease_expires_at');
+                    // While gap recovery drains overdue non-uptime checks across ticks, keep claiming uptime, manual and recent checks immediately.
+                    if ($recoveryCutoff !== null) {
+                        $due->where(static fn (Builder $allowed): Builder => $allowed
+                            ->where('checks.type', CheckKey::Uptime->value)
+                            ->orWhere('checks.manual_run', true)
+                            ->orWhere('checks.next_run_at', '>=', $recoveryCutoff));
+                    }
+                })->orWhere(fn (Builder $expired) => $expired->whereNotNull('checks.claim_token')->where('checks.lease_expires_at', '<', $atText));
             })->orderByRaw('CASE WHEN checks.type = ? THEN 0 ELSE 1 END', [CheckKey::Uptime->value])
                 ->orderBy('checks.next_run_at')->orderBy('checks.id')->limit($limit)
                 ->lock('FOR UPDATE OF checks SKIP LOCKED');
@@ -98,50 +109,81 @@ final readonly class ClaimService
         });
     }
 
-    private function reSpreadOverdue(CarbonImmutable $at): void
+    /**
+     * Re-spreads at most one bounded chunk of overdue non-uptime checks per tick and persists progress across ticks.
+     * Returns the active recovery cutoff while more chunks remain, or null once gap recovery is complete.
+     */
+    private function continueGapRecovery(CarbonImmutable $at, ?CarbonImmutable $lastHeartbeat, int $chunkLimit): ?string
     {
-        /** @var int|null $maxId */
-        $maxId = DB::table('checks')->max('id');
-        $lastId = 0;
+        $cached = Cache::get(self::GapRecoveryCacheKey);
+        $state = is_array($cached) && is_int($cached['max_id'] ?? null) && is_int($cached['last_id'] ?? null) && is_string($cached['cutoff'] ?? null)
+            ? ['max_id' => $cached['max_id'], 'last_id' => $cached['last_id'], 'cutoff' => $cached['cutoff']]
+            : null;
+
+        // A first start has no recorded gap; stale schedules alone can also come from pause/disable.
+        if ($lastHeartbeat instanceof CarbonImmutable && $lastHeartbeat < $at->subSeconds(self::OverdueGapSeconds)) {
+            /** @var int|null $maxId */
+            $maxId = DB::table('checks')->max('id');
+            $state = [
+                'max_id' => $maxId ?? 0,
+                'last_id' => 0,
+                'cutoff' => $at->subSeconds(self::OverdueGapSeconds)->format('Y-m-d H:i:s.uP'),
+            ];
+        }
+
+        if ($state === null) {
+            return null;
+        }
+
+        $query = $this->eligible();
+        // A fixed ID frontier bounds catch-up while other processes add checks; one bounded chunk runs per tick.
+        $query->getQuery()->where('checks.id', '>', $state['last_id'])->where('checks.id', '<=', $state['max_id'])
+            ->where('checks.type', '!=', CheckKey::Uptime->value)
+            ->whereNull('checks.claim_token')->whereNull('checks.lease_expires_at')->where('checks.manual_run', false)
+            ->where('checks.next_run_at', '<', $state['cutoff'])
+            ->orderBy('checks.id')->limit($chunkLimit)->lock('FOR UPDATE OF checks SKIP LOCKED');
+        $checks = $query->get();
+
         $reSpread = 0;
         $maximumWindow = 0;
-        do {
-            $query = $this->eligible();
-            // A fixed ID frontier bounds the catch-up while other processes add checks.
-            $query->getQuery()->where('checks.id', '>', $lastId)->where('checks.id', '<=', $maxId ?? 0)
-                ->where('checks.type', '!=', CheckKey::Uptime->value)
-                ->whereNull('checks.claim_token')->whereNull('checks.lease_expires_at')->where('checks.manual_run', false)
-                ->where('checks.next_run_at', '<', $at->subSeconds(self::OverdueGapSeconds))
-                ->orderBy('checks.id')->limit(500)->lock('FOR UPDATE OF checks SKIP LOCKED');
-            $checks = $query->get();
-            foreach ($checks as $check) {
-                $window = min($check->interval_seconds, self::MaximumCatchUpWindowSeconds);
-                $next = CheckSchedule::nextSlot($check->id, $window, $at);
-                DB::table('checks')->where('id', $check->id)->update(['next_run_at' => $next->format('Y-m-d H:i:s.uP')]);
-                $lastId = $check->id;
-                $reSpread++;
-                $maximumWindow = max($maximumWindow, $window);
-            }
-        } while ($checks->count() === 500);
+        $lastId = $state['last_id'];
+        foreach ($checks as $check) {
+            $window = min($check->interval_seconds, self::MaximumCatchUpWindowSeconds);
+            $next = CheckSchedule::nextSlot($check->id, $window, $at);
+            DB::table('checks')->where('id', $check->id)->update(['next_run_at' => $next->format('Y-m-d H:i:s.uP')]);
+            $lastId = $check->id;
+            $reSpread++;
+            $maximumWindow = max($maximumWindow, $window);
+        }
+
+        $hasMore = $checks->count() === $chunkLimit;
+        if ($hasMore) {
+            $nextState = ['max_id' => $state['max_id'], 'last_id' => $lastId, 'cutoff' => $state['cutoff']];
+            DB::afterCommit(static fn () => Cache::put(self::GapRecoveryCacheKey, $nextState, 3600));
+        } else {
+            DB::afterCommit(static fn () => Cache::forget(self::GapRecoveryCacheKey));
+        }
 
         if ($reSpread > 0) {
             DB::afterCommit(static fn () => Log::info('Re-spread overdue checks after a dispatcher gap.', [
                 'checks' => $reSpread, 'window_seconds' => $maximumWindow, 'gap_threshold_seconds' => self::OverdueGapSeconds,
+                'more_remaining' => $hasMore,
             ]));
         }
+
+        return $hasMore ? $state['cutoff'] : null;
     }
 
     /** Manual requests share scheduled ownership, enablement and pause rules.
      * @param  list<array{name: string, value: string}>  $headers
-     * @param  bool  $heavyAdmission  manual heavy-queue admission; the compatibility request-run route opts out
      *
      * @throws ManualRunRefused
      */
-    public function runNow(int $checkId, RunOrigin $origin, array $headers = [], ?int $actorUserId = null, ?int $actorTokenId = null, bool $heavyAdmission = true): ?CheckRunAttempt
+    public function runNow(int $checkId, RunOrigin $origin, array $headers = [], ?int $actorUserId = null, ?int $actorTokenId = null): ?CheckRunAttempt
     {
-        return DB::transaction(function () use ($checkId, $origin, $headers, $actorUserId, $actorTokenId, $heavyAdmission): ?CheckRunAttempt {
+        return DB::transaction(function () use ($checkId, $origin, $headers, $actorUserId, $actorTokenId): ?CheckRunAttempt {
             $queue = $origin === RunOrigin::Manual ? $this->queueOf($checkId) : null;
-            if ($heavyAdmission && $queue !== null && $queue !== 'checks-fast') {
+            if ($queue !== null && $queue !== 'checks-fast') {
                 // Serializes manual heavy admission per queue; the scheduler never takes this lock.
                 DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['manual-admission:'.$queue]);
                 $outstanding = CheckRunAttempt::query()->getQuery()->where('queue', $queue)->where('origin', RunOrigin::Manual->value)

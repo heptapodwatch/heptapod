@@ -59,21 +59,22 @@ final class CrawlUrlParser implements UrlParser
         }
         $internal = [];
         foreach ($this->parser->extractUrls($html, $baseUrl) as $url) {
+            $boundedLinkText = $this->observer->boundLinkText($url->linkText);
             if ($url->isMalformed()) {
-                $this->observer->invalid($url->url, $baseUrl, $url->linkText, $url->resourceType);
+                $this->observer->invalid($url->url, $baseUrl, $boundedLinkText, $url->resourceType);
 
                 continue;
             }
             if (preg_match('/^[a-z][a-z0-9+.-]*:/i', $url->url) === 1 && preg_match('/^https?:/i', $url->url) !== 1) {
                 continue;
             }
-            $normalized = strlen($url->url) <= 8192 ? BrowserUrl::normalize($url->url, $baseUrl) : null;
+            $normalized = strlen($url->url) <= CrawlPersistence::MAX_URL_BYTES ? BrowserUrl::normalize($url->url, $baseUrl) : null;
             if ($normalized === null) {
-                $this->observer->invalid($url->url, $baseUrl, $url->linkText, $url->resourceType);
+                $this->observer->invalid($url->url, $baseUrl, $boundedLinkText, $url->resourceType);
 
                 continue;
             }
-            $url = new ExtractedUrl($normalized, $url->linkText, $url->resourceType);
+            $url = new ExtractedUrl($normalized, $boundedLinkText, $url->resourceType);
             $sameSite = BrowserUrl::isSameSite($normalized, $this->origin->toString());
             if (BrowserUrl::isEmailProtection($normalized, $this->origin->toString())) {
                 continue;

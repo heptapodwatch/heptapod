@@ -14,20 +14,12 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
 
 final readonly class CronUpcomingSource implements UpcomingEventSource
 {
+    /** Upper bound on rare cron tasks returned by a direct read() call. */
+    public const int MaxReadItems = 2000;
+
     public function read(array $visibleCheckIds, CarbonImmutable $from, CarbonImmutable $until): array
     {
-        if ($visibleCheckIds === []) {
-            return [];
-        }
-        $items = [];
-        foreach ($this->candidates($visibleCheckIds, $from, $until)->get() as $task) {
-            if (! $this->isRare($task)) {
-                continue;
-            }
-            $items[] = new UpcomingOccurrence($task->check_id, 'task:'.$task->id, $task->next_due_at, 'task', $task->name);
-        }
-
-        return $items;
+        return $this->page($visibleCheckIds, $from, $until, null, self::MaxReadItems)->occurrences;
     }
 
     public function page(array $visibleCheckIds, CarbonImmutable $from, CarbonImmutable $until, ?UpcomingPosition $after, int $limit): UpcomingOccurrencePage

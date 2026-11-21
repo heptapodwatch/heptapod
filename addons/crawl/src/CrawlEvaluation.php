@@ -26,6 +26,8 @@ final readonly class CrawlEvaluation
         $secrets = array_column($context->crawlerHeaders, 'value');
         try {
             $artifact = CrawlArtifact::from($this->collector->ensureFresh($context)->privateStorage())->redact($secrets, [$context->url])->underCurrentPolicy();
+        } catch (CrawlArtifactTooLarge $exception) {
+            return $this->storageLimitOutcome($mixed, $exception);
         } catch (CrawlStartRedirectOffSite|CrawlStartRedirectOriginChanged $exception) {
             $target = BrowserUrl::boundedEvidenceUrl(SecretRedactor::redact($exception->targetUrl, $secrets, [$context->url]));
             $summary = $exception instanceof CrawlStartRedirectOriginChanged ? 'crawl.start_redirect_credentials_origin' : 'crawl.start_redirect_off_site';
@@ -223,11 +225,29 @@ final readonly class CrawlEvaluation
         $row['reclassified_finding_ids'] = $this->carriedReclassifiedIds($previous['reclassified_ids'] ?? [], $visible, $identities);
         $row['comparison_key'] = hash('sha256', json_encode([$artifact->target_fingerprint, $artifact->config_fingerprint, $config], JSON_THROW_ON_ERROR));
         if (! $overflow) {
-            $this->store->stage($context, 'artifact', [$row]);
+            try {
+                $this->store->stage($context, 'artifact', [$row]);
+            } catch (CrawlArtifactTooLarge $exception) {
+                return $this->storageLimitOutcome($mixed, $exception);
+            }
         }
 
         return new CheckOutcome($result, $summary, $params, $metrics, new CrawlEvidence(array_slice($identities, 0, 10), count($identities) > 10, $uncheckedCount, $artifact->discovery_complete, $artifact->truncated, $pageCap, count($observedPages), count($artifact->observed_urls), count($artifact->discovered_urls), $capReached, $artifact->time_limit_reached, $artifact->resource_cap_reached, $overflow, [...$artifact->notes, ...(! $mixed && $whitelist->ignoredInvalid ? [new CheckRunPresentationPartData('broken_links.whitelist_entry_ignored_invalid')] : [])], $notVerifiableCount,
             count($externalUnverified), $this->sharedReason($externalUnverified), count($externalRefused), $this->sharedReason($externalRefused), $notVerifiableReasons), $events, incomplete: $artifact->truncated || $overflow, confirmedIncompleteFailure: $confirmedIncompleteFailure, verifiedNothing: $verifiedNothing);
+    }
+
+    private function storageLimitOutcome(bool $mixed, CrawlArtifactTooLarge $exception): CheckOutcome
+    {
+        return new CheckOutcome(
+            RunResult::Errored,
+            ($mixed ? 'mixed_content.' : 'broken_links.').'incomplete_resources',
+            [],
+            null,
+            evidence: new CrawlEvidence([], false, 0, false, true, $exception->pageCap, 0, 0, 0, resource_cap_reached: true, notes: [new CheckRunPresentationPartData('crawl.coverage.storage_limit')]),
+            error: new CheckError($exception::class, $exception->getMessage()),
+            incomplete: true,
+            verifiedNothing: true,
+        );
     }
 
     /** @param list<CrawlFinding> $findings */

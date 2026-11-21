@@ -22,6 +22,7 @@ use Heptapod\Contracts\Notifications\DeliveryResult;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Enums\AlertReminders;
+use Heptapod\Enums\IncidentCause;
 use Heptapod\Enums\NotificationMode;
 use Heptapod\Jobs\DispatchNotifications;
 use Heptapod\Jobs\SendNotification;
@@ -37,6 +38,7 @@ use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\Testing\ClaimedRun;
 use Heptapod\Testing\FakeChromiumRenderer;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\QueryException;
 use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Support\Facades\Cache;
@@ -1103,4 +1105,67 @@ it('continues a burst at once when a run routed a full batch', function (): void
     dispatchNotifications();
     Queue::assertNotPushed(DispatchNotifications::class);
     expect(Event::query()->whereNull('notification_routed_at')->count())->toBe(0);
+});
+
+it('dispatches due alerts before bounded housekeeping and bounds overlap expiry on the schedule', function (): void {
+    $this->freezeTime();
+    Queue::fake([SendNotification::class, DispatchNotifications::class]);
+    $destination = notificationWebhook();
+    $dueEvent = notificationIncidentEvent(['notification_routed_at' => now()]);
+    $dueDelivery = Delivery::query()->create([
+        'event_id' => $dueEvent->id,
+        'destination_id' => $destination->id,
+        'next_attempt_at' => now()->subMinute(),
+        'suppression_evaluated_at' => now(),
+    ]);
+
+    // Seed 105 open uptime incidents (past one reminder housekeeping batch).
+    $check = Check::factory()->create(['type' => CheckKey::Uptime, 'latest_run_result' => CheckResult::Failed]);
+    $openedAt = now()->subHours(2);
+    $incidentRows = [];
+    for ($i = 0; $i < 105; $i++) {
+        $siteCheck = Check::factory()->create(['type' => CheckKey::Uptime, 'latest_run_result' => CheckResult::Failed]);
+        $incidentRows[] = [
+            'site_id' => $siteCheck->site_id,
+            'check_id' => $siteCheck->id,
+            'cause' => IncidentCause::Failed->value,
+            'opened_at' => $openedAt,
+            'first_failure_at' => $openedAt,
+            'resolved_at' => null,
+            'evidence' => '{}',
+            'created_at' => $openedAt,
+            'updated_at' => $openedAt,
+        ];
+    }
+    DB::table('incidents')->insert($incidentRows);
+
+    // Even if reminders fail via invalid config, due alerts were already dispatched first.
+    config(['notifications.renotify_intervals_seconds' => ['bad']]);
+    expect(fn () => app()->call(new DispatchNotifications()->handle(...)))->toThrow(LogicException::class);
+    Queue::assertPushed(SendNotification::class, fn (SendNotification $job): bool => $job->deliveryId === $dueDelivery->id);
+
+    // With valid config and 105 open incidents, housekeeping processes one bounded batch and queues continuation.
+    config(['notifications.renotify_intervals_seconds' => [3600]]);
+    Queue::fake([SendNotification::class, DispatchNotifications::class]);
+    app()->call(new DispatchNotifications()->handle(...));
+    Queue::assertPushed(DispatchNotifications::class, static fn (DispatchNotifications $job): bool => $job->continuation);
+
+    // Second pass (continuation) finishes the remaining 5 open incidents without restarting the completed digest sweep.
+    Queue::fake([SendNotification::class, DispatchNotifications::class]);
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+    app()->call(new DispatchNotifications(continuation: true)->handle(...));
+    $continuationQueries = DB::getQueryLog();
+    DB::disableQueryLog();
+    Queue::assertNotPushed(DispatchNotifications::class);
+    expect(array_filter($continuationQueries, static fn (array $q): bool => str_contains($q['query'], 'notification_destinations')))->toBe([]);
+
+    // The scheduled DispatchNotifications job sets an explicit bounded overlap expiry (not the 24h default).
+    $schedule = app(Schedule::class);
+    $scheduled = array_values(array_filter(
+        $schedule->events(),
+        static fn (Illuminate\Console\Scheduling\Event $event): bool => str_contains((string) $event->description, DispatchNotifications::class),
+    ));
+    expect($scheduled)->toHaveCount(1)
+        ->and($scheduled[0]->expiresAt)->toBe(10);
 });

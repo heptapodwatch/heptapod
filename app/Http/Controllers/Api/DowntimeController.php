@@ -18,6 +18,9 @@ use Illuminate\Support\Facades\Gate;
 #[Group('Uptime')]
 final class DowntimeController extends Controller
 {
+    /** Bounds memory and response size on long or flapping windows while covering every realistic monitor history. */
+    public const int MaxPeriods = 1000;
+
     public function __invoke(MetricRangeRequest $request, Site $monitor): JsonResponse
     {
         Gate::authorize('view', $monitor);
@@ -27,7 +30,8 @@ final class DowntimeController extends Controller
         $check = $query->firstOrFail();
         $query = $check->incidents()->getQuery();
         $query->getQuery()->where('cause', IncidentCause::Failed->value)->where('first_failure_at', '<', $request->end())
-            ->where(fn (Builder $query) => $query->whereNull('resolved_at')->orWhere('resolved_at', '>=', $request->start()))->orderByDesc('first_failure_at');
+            ->where(fn (Builder $query) => $query->whereNull('resolved_at')->orWhere('resolved_at', '>=', $request->start()))
+            ->orderByDesc('first_failure_at')->orderByDesc('id')->limit(self::MaxPeriods);
         $incidents = $query->get();
 
         return response()->json(['data' => $incidents->map(fn (Incident $incident): array => ['id' => $incident->id,

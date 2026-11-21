@@ -22,9 +22,13 @@ use Illuminate\Support\Facades\DB;
 
 final readonly class EmitMaintenanceCatchUps
 {
+    /** Maximum ended maintenance windows processed per pass. */
+    public const int Batch = 20;
+
     public function __construct(private NotificationRecipients $routing, private NotificationSuppression $suppression, private HandleDeferredUptimeOpening $deferredOpenings) {}
 
-    public function __invoke(?int $windowId = null): void
+    /** @return bool whether more ended windows remain after this bounded batch */
+    public function __invoke(?int $windowId = null): bool
     {
         $at = CarbonImmutable::now('UTC');
         $candidates = MaintenancePeriod::query();
@@ -57,8 +61,10 @@ final readonly class EmitMaintenanceCatchUps
 
                     return $ready;
                 }))
-            ->orderBy('ends_at')->limit(20);
-        foreach ($candidates->get() as $candidate) {
+            ->orderBy('ends_at')->limit(self::Batch + 1);
+        $windows = $candidates->get();
+        $hasMore = $windows->count() > self::Batch;
+        foreach ($windows->take(self::Batch) as $candidate) {
             DB::transaction(function () use ($candidate, $at): void {
                 // NotificationLocks: the window (exclusive, so the recorder cannot open an incident in it meanwhile), the
                 // checks the catch-up events refer to, then the open incidents. No site lock: the inserts below only take
@@ -155,6 +161,8 @@ final readonly class EmitMaintenanceCatchUps
                 }
             });
         }
+
+        return $hasMore;
     }
 
     /** Called by active-episode reconciliation with the site locked; recorder suppression remains unchanged. */

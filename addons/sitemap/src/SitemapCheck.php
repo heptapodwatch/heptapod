@@ -55,6 +55,24 @@ use Spatie\Crawler\UrlParsers\SitemapUrlParser;
 
 final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailProvider, CheckRunPresenter, CheckType, MailEvidenceProvider
 {
+    /** Cumulative XML bytes fetched across all sitemap documents in one run (a 10,000-URL sitemap is ~1.5-2 MiB). */
+    public const int MaxTotalXmlBytes = 16 * 1024 * 1024;
+
+    /** Cumulative URL bytes retained across listed entries in one run (10,000 normal ~100-byte URLs use ~1 MiB). */
+    public const int MaxTotalUrlBytes = 4 * 1024 * 1024;
+
+    /** Maximum new and resolved issues embedded in one sitemap.issues_changed event payload. */
+    public const int MaxEventDiffIssues = 100;
+
+    /** Per-document issue preview kept inside sitemapIndexes/sitemaps entries; full issues stay in the top-level list. */
+    private const int MaxPerDocumentIssues = 5;
+
+    /** Reachability probes only need status, headers and bot-block prefix (16 KiB); 64 KiB bounds transfer memory separately from XML. */
+    public const int MaxReachabilityProbeBytes = 64 * 1024;
+
+    /** Maximum concurrent reachability probes accumulated in one batch before discarding bodies. */
+    private const int MaxReachabilityBatchSize = 100;
+
     public function __construct(private OutboundHttp $http, private SitemapPersistence $store, private SitemapDocumentReader $documents) {}
 
     public function configAttentionReason(#[\SensitiveParameter] array $config): ?string
@@ -295,6 +313,8 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
         $listedUrls = [$this->publicUrl($checkUrl, $secrets, $legacyCheckUrl) => true];
         $discoveryComplete = true;
         $processedUrls = 0;
+        $totalXmlBytes = 0;
+        $totalUrlBytes = strlen($this->publicUrl($checkUrl, $secrets, $legacyCheckUrl));
         $issues = [];
         $indexes = [];
         $sitemaps = [];
@@ -390,7 +410,12 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
                     }
                     $discoveryComplete = false;
                     $localIssues[] = $this->failureIssue($url, $response->failure, $secrets, $legacyCheckUrl);
+                } elseif ($totalXmlBytes + strlen($response->body) > self::MaxTotalXmlBytes) {
+                    $discoveryComplete = false;
+                    $exhausted = true;
+                    $localIssues[] = $this->issue($url, 'sitemap.issue.size_limit', $secrets, $legacyCheckUrl);
                 } else {
+                    $totalXmlBytes += strlen($response->body);
                     try {
                         $document = $this->documents->read($response->body, $limits['max_xml_bytes']);
                     } catch (SitemapSizeExceeded) {
@@ -435,19 +460,25 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
                                     $localIssues[] = $this->issue($url, 'sitemap.issue.recursion_limit', $secrets, $legacyCheckUrl);
                                     break;
                                 }
-                                $listedUrls[$this->publicUrl($entry->url, $secrets, $legacyCheckUrl)] = true;
+                                $publicEntryUrl = $this->publicUrl($entry->url, $secrets, $legacyCheckUrl);
+                                if (! isset($listedUrls[$publicEntryUrl])) {
+                                    if ($totalUrlBytes + strlen($publicEntryUrl) > self::MaxTotalUrlBytes) {
+                                        $discoveryComplete = false;
+                                        $exhausted = true;
+                                        $localIssues[] = $this->issue($url, 'sitemap.issue.size_limit', $secrets, $legacyCheckUrl);
+                                        break;
+                                    }
+                                    $totalUrlBytes += strlen($publicEntryUrl);
+                                    $listedUrls[$publicEntryUrl] = true;
+                                }
                                 $scheduled[$entry->url] = true;
                                 $queue[] = [$entry->url, $depth + 1];
                             }
-                            $indexes[] = ['url' => $this->publicUrl($url, $secrets, $legacyCheckUrl), 'issues' => $localIssues];
+                            $indexes[] = ['url' => $this->publicUrl($url, $secrets, $legacyCheckUrl), 'issues' => array_slice($localIssues, 0, self::MaxPerDocumentIssues)];
                         } else {
                             $allChecked = true;
                             /** @var list<array{string, string}> $keys */
                             $keys = [];
-                            // Retain known-but-unchecked entries even when the execution budget ends before probing.
-                            foreach (array_slice($entries, 0, max(0, $limits['max_urls'] - $processedUrls)) as $entry) {
-                                $listedUrls[$this->publicUrl($entry->url, $secrets, $legacyCheckUrl)] = true;
-                            }
                             foreach ($entries as $entry) {
                                 if ($this->remainingMilliseconds($context) <= 0) {
                                     $localIssues[] = $this->issue($url, 'sitemap.issue.time_limit', $secrets, $legacyCheckUrl);
@@ -461,11 +492,22 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
                                     $allChecked = false;
                                     break;
                                 }
-                                $listedUrls[$this->publicUrl($entry->url, $secrets, $legacyCheckUrl)] = true;
+                                $publicEntryUrl = $this->publicUrl($entry->url, $secrets, $legacyCheckUrl);
+                                if (! isset($listedUrls[$publicEntryUrl])) {
+                                    if ($totalUrlBytes + strlen($publicEntryUrl) > self::MaxTotalUrlBytes) {
+                                        $discoveryComplete = false;
+                                        $localIssues[] = $this->issue($url, 'sitemap.issue.size_limit', $secrets, $legacyCheckUrl);
+                                        $allChecked = false;
+                                        $exhausted = true;
+                                        break;
+                                    }
+                                    $totalUrlBytes += strlen($publicEntryUrl);
+                                    $listedUrls[$publicEntryUrl] = true;
+                                }
                                 $processedUrls++;
                                 $oversized = strlen($entry->url) > 2048;
-                                $urlKey = $oversized ? $this->publicUrl($entry->url, $secrets, $legacyCheckUrl) : $entry->url;
-                                $keys[] = [$urlKey, $this->publicUrl($entry->url, $secrets, $legacyCheckUrl)];
+                                $urlKey = $oversized ? $publicEntryUrl : $entry->url;
+                                $keys[] = [$urlKey, $publicEntryUrl];
                                 if (! array_key_exists($urlKey, $urlIssues)) {
                                     // Oversized and credential-bearing locations are structure issues; they never take a probe slot.
                                     if ($oversized) {
@@ -508,15 +550,16 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
                     break;
                 }
                 $batchStarted = CarbonImmutable::now();
+                $probeMaxBytes = min($limits['max_xml_bytes'], self::MaxReachabilityProbeBytes);
                 $pending = [];
                 foreach ($batch as $target) {
-                    $pending[$target] = $this->request($context, 'HEAD', $target, $limits['max_xml_bytes']);
+                    $pending[$target] = $this->request($context, 'HEAD', $target, $probeMaxBytes);
                 }
                 $results = $this->fetchBatches($client, $pending);
                 $fallback = [];
                 foreach ($results as $target => $result) {
                     if ($result?->failure?->kind === FetchFailureKind::HttpStatus) {
-                        $fallback[$target] = $this->request($context, 'GET', $target, $limits['max_xml_bytes']);
+                        $fallback[$target] = $this->request($context, 'GET', $target, $probeMaxBytes);
                     }
                 }
                 $results = array_replace($results, $this->fetchBatches($client, $fallback));
@@ -532,6 +575,10 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
                         if ($block === AutomatedCheckBlockReason::RateLimited) {
                             // A rate limit supplies no recovery evidence for an earlier broken URL.
                             $rateLimitedUrls[$this->publicUrl($target, $secrets, $legacyCheckUrl)] = true;
+                            $discoveryComplete = false;
+                            $urlIssues[$target] = null;
+                        } elseif (isset($fallback[$target]) && $result->failure?->kind === FetchFailureKind::TooLarge && $result->failure->status !== 200) {
+                            // A capped fallback GET could not read the error response; treat as unverified, never as a size-limit finding.
                             $discoveryComplete = false;
                             $urlIssues[$target] = null;
                         } else {
@@ -569,7 +616,7 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
             if ($windowTimedOut) {
                 $documentIssues[] = $issues[] = $this->issue($document['url'], 'sitemap.issue.time_limit', $secrets, $legacyCheckUrl);
             }
-            $sitemaps[] = ['url' => $this->publicUrl($document['url'], $secrets, $legacyCheckUrl), 'urlCount' => $document['urlCount'], 'checkedReachabilityOfAllUrls' => $allChecked, 'issuesCount' => count($documentIssues), 'issues' => $documentIssues];
+            $sitemaps[] = ['url' => $this->publicUrl($document['url'], $secrets, $legacyCheckUrl), 'urlCount' => $document['urlCount'], 'checkedReachabilityOfAllUrls' => $allChecked, 'issuesCount' => count($documentIssues), 'issues' => array_slice($documentIssues, 0, self::MaxPerDocumentIssues)];
         }
         if ($this->remainingMilliseconds($context) <= 0 && ! in_array('sitemap.issue.time_limit', array_column($issues, 'type'), true)) {
             $discoveryComplete = false;
@@ -630,10 +677,19 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
 
                 return $issue;
             };
-            $events[] = new AddonEvent('sitemap.issues_changed', 'sitemap:'.$context->checkId.':'.$baseline['run_id'].':'.hash('sha256', json_encode($comparisonIssues, JSON_THROW_ON_ERROR)), 1, [
-                'new' => array_values(array_map($withoutIdentity, array_diff_key($new, $old))),
-                'resolved' => array_values(array_map($withoutIdentity, array_filter(array_diff_key($old, $new), static fn (array $issue): bool => ($notVerifiable[$issue['url']]['reason'] ?? null) !== AutomatedCheckBlockReason::BotProtection->value))),
-            ]);
+            $newIssues = array_values(array_map($withoutIdentity, array_diff_key($new, $old)));
+            $resolvedIssues = array_values(array_map($withoutIdentity, array_filter(array_diff_key($old, $new), static fn (array $issue): bool => ($notVerifiable[$issue['url']]['reason'] ?? null) !== AutomatedCheckBlockReason::BotProtection->value)));
+            $diffTruncated = count($newIssues) > self::MaxEventDiffIssues || count($resolvedIssues) > self::MaxEventDiffIssues;
+            $eventPayload = [
+                'new' => array_slice($newIssues, 0, self::MaxEventDiffIssues),
+                'resolved' => array_slice($resolvedIssues, 0, self::MaxEventDiffIssues),
+            ];
+            if ($diffTruncated) {
+                $eventPayload['truncated'] = true;
+                $eventPayload['new_count'] = count($newIssues);
+                $eventPayload['resolved_count'] = count($resolvedIssues);
+            }
+            $events[] = new AddonEvent('sitemap.issues_changed', 'sitemap:'.$context->checkId.':'.$baseline['run_id'].':'.hash('sha256', json_encode($comparisonIssues, JSON_THROW_ON_ERROR)), 1, $eventPayload);
         }
 
         if ($timedOut) {
@@ -686,7 +742,8 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
     }
 
     /**
-     * The paced client bounds one batch to 500 requests; larger per-run settings dispatch consecutive batches.
+     * Bounds concurrent probe batch size and trims each retained probe body to the bot-block inspection prefix
+     * so fallback GETs never accumulate full HTML documents in memory.
      *
      * @param  array<string, FetchRequest>  $requests
      * @return array<string, FetchResult|null>
@@ -694,9 +751,29 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
     private function fetchBatches(PacedHttpClient $client, array $requests): array
     {
         $results = [];
-        foreach (array_chunk($requests, 500, true) as $batch) {
+        foreach (array_chunk($requests, self::MaxReachabilityBatchSize, true) as $batch) {
             foreach ($client->fetchMany($batch) as $target => $response) {
-                $results[(string) $target] = $response instanceof FetchResult ? $this->classifyResponse($response) : null;
+                if (! $response instanceof FetchResult) {
+                    $results[(string) $target] = null;
+
+                    continue;
+                }
+                $classified = $this->classifyResponse($response);
+                $body = strlen($classified->body) > AutomatedCheckBlock::BODY_PREFIX_BYTES
+                    ? substr($classified->body, 0, AutomatedCheckBlock::BODY_PREFIX_BYTES)
+                    : $classified->body;
+                $results[(string) $target] = $body === $classified->body
+                    ? $classified
+                    : new FetchResult(
+                        status: $classified->status,
+                        body: $body,
+                        headers: $classified->headers,
+                        failure: $classified->failure,
+                        transfers: $classified->transfers,
+                        effectiveUrl: $classified->effectiveUrl,
+                        certificate: $classified->certificate,
+                        certificateUnavailableReason: $classified->certificateUnavailableReason,
+                    );
             }
         }
 

@@ -104,3 +104,43 @@ it('writes a heartbeat through the single-tick command and rolls back uncommitte
     expect(DB::table('dispatcher_heartbeats')->where('id', gethostname().':'.getmypid())->exists())->toBeTrue()
         ->and($check->refresh()->claim_token)->not->toBeNull();
 });
+
+it('bounds overdue gap re-spread per tick, prioritizes uptime checks and continues across ticks', function (): void {
+    $staleAt = now()->subMinutes(10);
+    DB::table('dispatcher_heartbeats')->insert([
+        'id' => 'prior:1',
+        'last_seen_at' => $staleAt->format('Y-m-d H:i:s.uP'),
+    ]);
+    $overdueAt = now()->subMinutes(8);
+    $nonUptime = Check::factory()->count(25)->create([
+        'type' => CheckKey::Dns,
+        'interval_seconds' => 3600,
+        'next_run_at' => $overdueAt,
+    ]);
+    $uptime = Check::factory()->count(2)->create([
+        'type' => CheckKey::Uptime,
+        'interval_seconds' => 60,
+        'next_run_at' => $overdueAt,
+    ]);
+
+    $stillOverdue = static fn (): int => Check::query()
+        ->whereIn('id', $nonUptime->pluck('id'))
+        ->where('next_run_at', '<=', $overdueAt)
+        ->count();
+
+    // Tick 1: bounded re-spread (at most --batch=10), uptime checks claimed immediately, heartbeat published.
+    $this->artisan('heptapod:dispatch', ['--once' => true, '--batch' => 10])->assertSuccessful();
+    expect(DB::table('dispatcher_heartbeats')->where('id', gethostname().':'.getmypid())->exists())->toBeTrue()
+        ->and(Check::query()->whereIn('id', $uptime->pluck('id'))->whereNotNull('claim_token')->count())->toBe(2)
+        ->and(Check::query()->whereIn('id', $nonUptime->pluck('id'))->whereNotNull('claim_token')->count())->toBe(0)
+        ->and($stillOverdue())->toBe(15);
+
+    // Tick 2: continues gap recovery even though the heartbeat is now fresh.
+    $this->artisan('heptapod:dispatch', ['--once' => true, '--batch' => 10])->assertSuccessful();
+    expect($stillOverdue())->toBe(5)
+        ->and(Check::query()->whereIn('id', $nonUptime->pluck('id'))->whereNotNull('claim_token')->count())->toBe(0);
+
+    // Tick 3: finishes the remaining 5 overdue checks.
+    $this->artisan('heptapod:dispatch', ['--once' => true, '--batch' => 10])->assertSuccessful();
+    expect($stillOverdue())->toBe(0);
+});
