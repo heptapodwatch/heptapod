@@ -226,9 +226,23 @@ class AppServiceProvider extends ServiceProvider
         ]);
         RateLimiter::for('site-probe', fn (Request $request): Limit => Limit::perMinute(6)->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         RateLimiter::for('backup-now', fn (Request $request): Limit => Limit::perMinutes(5, 1)->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
-        RateLimiter::for('notification-test', static function (Request $request): array {
-            $channel = $request->route('channel');
-            $id = $channel instanceof NotificationDestination ? $channel->id : (is_string($channel) ? $channel : 'unknown');
+        $canonicalId = static function (mixed $value): string {
+            if ($value instanceof NotificationDestination || $value instanceof Invitation) {
+                return (string) $value->id;
+            }
+            if (is_int($value)) {
+                return (string) $value;
+            }
+            if (is_string($value) && ctype_digit($value)) {
+                $trimmed = ltrim($value, '0');
+
+                return $trimmed === '' ? '0' : $trimmed;
+            }
+
+            return 'unknown';
+        };
+        RateLimiter::for('notification-test', static function (Request $request) use ($canonicalId): array {
+            $id = $canonicalId($request->route('channel'));
             $user = $request->user();
             $identity = $user instanceof User ? $user->id : ($request->ip() ?? 'unknown');
 
@@ -237,9 +251,8 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perMinute(6)->by('channel:'.$identity.'|'.$id),
             ];
         });
-        RateLimiter::for('invitation-resend', static function (Request $request): array {
-            $invitation = $request->route('invitation');
-            $invitationId = $invitation instanceof Invitation ? $invitation->id : (is_string($invitation) ? $invitation : 'unknown');
+        RateLimiter::for('invitation-resend', static function (Request $request) use ($canonicalId): array {
+            $invitationId = $canonicalId($request->route('invitation'));
             $user = $request->user();
             $actor = $user instanceof User ? $user->id : ($request->ip() ?? 'unknown');
 

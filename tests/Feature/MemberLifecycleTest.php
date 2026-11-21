@@ -306,6 +306,31 @@ it('rate-limits invitation resends per invitation and per actor', function (): v
         ->assertJsonPath('code', 'rate_limited');
 });
 
+it('canonicalizes leading-zero invitation IDs for the per-invitation resend limit', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-31T12:00:00Z'));
+    Notification::fake();
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $client = Client::factory()->create();
+    $this->actingAs($owner);
+
+    $this->postJson(route('settings.members.invite'), [
+        'email' => 'canonical-invitee@example.test',
+        'role' => 'Member',
+        'client_ids' => [$client->id],
+    ])->assertCreated();
+    $invitation = Invitation::query()->where('email', 'canonical-invitee@example.test')->sole();
+
+    for ($zeros = 0; $zeros < 3; $zeros++) {
+        $this->postJson('/settings/members/invitations/'.str_repeat('0', $zeros).$invitation->id.'/resend')
+            ->assertNoContent();
+    }
+
+    $this->postJson('/settings/members/invitations/000'.$invitation->id.'/resend')
+        ->assertTooManyRequests()
+        ->assertJsonPath('code', 'rate_limited');
+});
+
 it('rejects expired and revoked invites and prevents Admin from inviting Admin', function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-05T00:30:00Z'));
     Notification::fake();
