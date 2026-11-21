@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Checks\History;
 
 use Carbon\CarbonImmutable;
+use Closure;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -13,11 +14,14 @@ final class HistoryRetention
 {
     public function hourlyCandidates(CarbonImmutable $at, RetentionPolicy $policy, bool $covered = true): Builder
     {
+        $cutoff = $at->utc()->subDays($policy->hourlyDays);
+
         return DB::table('check_run_rollups_hourly as hourly')
-            ->where('hourly.bucket_start', '<', $at->utc()->subDays($policy->hourlyDays))
-            ->whereExists(function (Builder $query): void {
+            ->where('hourly.bucket_start', '<', $cutoff)
+            ->whereExists(function (Builder $query) use ($cutoff): void {
                 $query->selectRaw('1')->from('check_run_rollups_daily as daily')
                     ->whereColumn('daily.check_id', 'hourly.check_id')
+                    ->where('daily.bucket_start', '<', $cutoff)
                     ->whereRaw("daily.bucket_start = date_trunc('day', hourly.bucket_start, 'UTC')")
                     ->whereRaw("daily.computed_at >= daily.bucket_start + interval '1 day 10 minutes'");
             }, not: ! $covered);
@@ -30,14 +34,28 @@ final class HistoryRetention
         if ($policy->hourlyDeletionEnabled) {
             do {
                 $limit = min(10000, RetentionPolicy::PerTableCap - $deleted);
-                $candidates = $this->hourlyCandidates($at, $policy)->select('hourly.check_id', 'hourly.bucket_start')
-                    ->orderBy('hourly.bucket_start')->limit($limit);
-                $batch = DB::affectingStatement('DELETE FROM check_run_rollups_hourly WHERE (check_id, bucket_start) IN ('.$candidates->toSql().')', $candidates->getBindings());
+                /** @var list<int> $ids */
+                $ids = $this->withHashJoin(fn (): array => $this->hourlyCandidates($at, $policy)
+                    ->orderBy('hourly.bucket_start')
+                    ->limit($limit)
+                    ->pluck('hourly.id')
+                    ->all());
+                if ($ids === []) {
+                    break;
+                }
+                // Run each batch delete inside a savepoint/transaction so a failure rolls back cleanly before
+                // CheckDataMaintenance unlocks its advisory lock instead of masking the error with 25P02.
+                $batch = DB::transaction(static fn (): int => DB::affectingStatement(
+                    'DELETE FROM check_run_rollups_hourly WHERE id = ANY(?::bigint[])',
+                    ['{'.implode(',', $ids).'}'],
+                ));
                 $deleted += $batch;
-            } while ($batch === $limit && $deleted < RetentionPolicy::PerTableCap);
+            } while ($batch > 0 && count($ids) === $limit && $deleted < RetentionPolicy::PerTableCap);
         }
 
-        return ['deleted' => $deleted, 'uncovered' => $this->hourlyCandidates($at, $policy, covered: false)->count()];
+        $uncovered = $this->withHashJoin(fn (): int => $this->hourlyCandidates($at, $policy, covered: false)->count());
+
+        return ['deleted' => $deleted, 'uncovered' => $uncovered];
     }
 
     /** @return list<array{table: string, eligible: int, oldest: ?string, capped: int, cap: ?int, exemptions: string, deletion_enabled: bool}> */
@@ -67,12 +85,12 @@ final class HistoryRetention
             ->whereNotIn('event.id', (clone $digestEvents)->select('event.id'));
         $deliveries = DB::table('deliveries')->whereIn('event_id', (clone $events)->select('event.id'));
         $exemptDeliveries = DB::table('deliveries')->whereIn('event_id', (clone $oldEvents)->select('event.id'))->count() - $deliveries->count();
-        $uncovered = $this->hourlyCandidates($at, $policy, covered: false)->count();
+        $uncovered = $this->withHashJoin(fn (): int => $this->hourlyCandidates($at, $policy, covered: false)->count());
         $open = DB::table('incidents')->whereNull('resolved_at')->count();
         $episode = DB::table('incidents')->where('resolved_at', '<', $cutoff)->count() - $incidents->count();
 
         return [
-            $this->reportRow('check_run_rollups_hourly', $this->hourlyCandidates($at, $policy), 'hourly.bucket_start', 'daily coverage missing='.$uncovered, deletionEnabled: $policy->hourlyDeletionEnabled),
+            $this->withHashJoin(fn (): array => $this->reportRow('check_run_rollups_hourly', $this->hourlyCandidates($at, $policy), 'hourly.bucket_start', 'daily coverage missing='.$uncovered, deletionEnabled: $policy->hourlyDeletionEnabled)),
             $this->reportRow('check_run_rollups_daily', DB::table('check_run_rollups_daily')->where('bucket_start', '<', $at->utc()->subDays($policy->dailyDays)), 'bucket_start'),
             $this->reportRow('events', $events, 'event.occurred_at', 'kept incident='.$keptIncidentEvents->count().'; pending/sending='.$pendingEvents->count().'; digest sources retained='.$digestEvents->count()),
             $this->reportRow('deliveries', $deliveries->join('events', 'events.id', '=', 'deliveries.event_id'), 'events.occurred_at', 'retained with exempt events='.$exemptDeliveries),
@@ -99,5 +117,32 @@ final class HistoryRetention
 
         return ['table' => $table, 'eligible' => $count, 'oldest' => $oldest,
             'capped' => $capped ? min($count, RetentionPolicy::PerTableCap) : $count, 'cap' => $capped ? RetentionPolicy::PerTableCap : null, 'exemptions' => $exemptions, 'deletion_enabled' => $deletionEnabled];
+    }
+
+    /**
+     * Stale or zero planner statistics on either rollup table make PostgreSQL pick a nested-loop or
+     * check-only merge join for the daily bucket lookup, turning hourly retention quadratic.
+     *
+     * @template T
+     *
+     * @param  Closure(): T  $callback
+     * @return T
+     */
+    private function withHashJoin(Closure $callback): mixed
+    {
+        return DB::transaction(static function () use ($callback): mixed {
+            /** @var object{nestloop: string, mergejoin: string} $settings */
+            $settings = DB::selectOne("SELECT current_setting('enable_nestloop') AS nestloop, current_setting('enable_mergejoin') AS mergejoin");
+            $nestloop = $settings->nestloop === 'on' ? 'on' : 'off';
+            $mergejoin = $settings->mergejoin === 'on' ? 'on' : 'off';
+            DB::statement('SET LOCAL enable_nestloop = off');
+            DB::statement('SET LOCAL enable_mergejoin = off');
+            $result = $callback();
+            // Restore caller settings when nested inside an outer transaction; rollback restores them automatically on error.
+            DB::statement('SET LOCAL enable_nestloop = '.$nestloop);
+            DB::statement('SET LOCAL enable_mergejoin = '.$mergejoin);
+
+            return $result;
+        });
     }
 }
