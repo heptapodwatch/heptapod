@@ -14,6 +14,7 @@ use Heptapod\Models\User;
 use Heptapod\Notifications\PasswordReset;
 use Heptapod\Notifications\TeamInvitation;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Passkeys\Passkeys;
@@ -192,6 +193,13 @@ it('reactivates an invited account without creating a second user and without it
         'remember_token' => 'remembered-before-removal']);
     $member->assignRole('Member');
     $member->passkeys()->create(['name' => 'Before removal', 'credential_id' => 'removed-key', 'credential' => []]);
+    $this->post(route('password.email'), ['email' => $member->email]);
+    $resetToken = null;
+    Notification::assertSentTo($member, PasswordReset::class, function (PasswordReset $notification) use (&$resetToken): bool {
+        $resetToken = $notification->token;
+
+        return true;
+    });
     $this->actingAs($owner)->deleteJson(route('settings.members.remove', $member->id))->assertNoContent();
     // A token that survived the removal (issued while it ran) must not come back with the account either.
     $survivingToken = $member->createToken('issued-during-removal', ['monitors:read'])->plainTextToken;
@@ -219,6 +227,9 @@ it('reactivates an invited account without creating a second user and without it
         ->and($member->two_factor_confirmed_at)->toBeNull()
         ->and($member->remember_token)->not->toBe('remembered-before-removal');
     $this->post(route('logout'));
+    $this->post(route('password.update'), ['token' => $resetToken, 'email' => $member->email,
+        'password' => 'taken-over', 'password_confirmation' => 'taken-over'])->assertSessionHasErrors('email');
+    expect(Hash::check('new-password', $member->refresh()->password))->toBeTrue();
     $this->withToken($survivingToken)->getJson('/api/monitors')->assertUnauthorized();
 });
 
