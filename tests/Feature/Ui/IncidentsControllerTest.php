@@ -27,6 +27,7 @@ use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\QueryPlanWork;
@@ -550,4 +551,50 @@ it('filters whole viewer-local days with a half-open end across DST and per view
         ->has('incidents', 2)
         ->where('incidents.0.id', $incidents[4]->id)
         ->where('incidents.1.id', $incidents[3]->id));
+});
+
+it('exports a stable incident snapshot without skipping or duplicating rows when incidents resolve between chunks', function (): void {
+    $owner = User::factory()->owner()->create();
+    $client = Client::factory()->create();
+    $base = CarbonImmutable::parse('2026-10-05T12:00:00Z');
+    $siteRows = [];
+    for ($index = 0; $index < 505; $index++) {
+        $siteRows[] = ['client_id' => $client->id, 'url' => "https://export-snap-{$index}.example.test", 'friendly_name' => "Snap {$index}",
+            'badge_id' => (string) Str::uuid(), 'created_at' => $base, 'updated_at' => $base];
+    }
+    DB::table('sites')->insert($siteRows);
+    $siteIds = DB::table('sites')->where('client_id', $client->id)->orderBy('id')->pluck('id')->all();
+    $checkRows = array_map(static fn (int $siteId): array => [
+        'site_id' => $siteId, 'type' => CheckKey::Uptime->value, 'enabled' => true, 'interval_seconds' => 60,
+        'failure_threshold' => 1, 'latest_run_result' => 'failed', 'created_at' => $base, 'updated_at' => $base,
+    ], $siteIds);
+    DB::table('checks')->insert($checkRows);
+    $checks = DB::table('checks')->whereIn('site_id', $siteIds)->orderBy('id')->get(['id', 'site_id']);
+    $rows = [];
+    foreach ($checks as $index => $check) {
+        $at = $base->subMinutes($index);
+        $rows[] = ['check_id' => $check->id, 'site_id' => $check->site_id, 'cause' => 'failed',
+            'opened_at' => $at, 'first_failure_at' => $at, 'resolved_at' => null,
+            'evidence' => '{}', 'created_at' => $at, 'updated_at' => $at];
+    }
+    DB::table('incidents')->insert($rows);
+    $expectedIds = DB::table('incidents')->whereNull('resolved_at')->orderByDesc('first_failure_at')->orderByDesc('id')->pluck('id')->map(strval(...))->all();
+    expect($expectedIds)->toHaveCount(505);
+
+    $mutated = false;
+    DB::listen(static function (QueryExecuted $query) use (&$mutated, $expectedIds): void {
+        if (! $mutated && str_contains($query->sql, 'from "incidents"') && (str_contains($query->sql, 'limit 500') || str_contains($query->sql, 'where "id" in ('))) {
+            $mutated = true;
+            DB::table('incidents')->where('id', (int) $expectedIds[0])->update(['resolved_at' => now()]);
+        }
+    });
+
+    $csv = $this->actingAs($owner)->get('/incidents/export.csv?filter[status]=open')->assertOk()->streamedContent();
+    $exportedIds = array_map(
+        static fn (string $line): string => str_getcsv($line, escape: '\\')[0] ?? '',
+        array_slice(explode("\r\n", rtrim(substr($csv, 3), "\r\n")), 1),
+    );
+
+    expect($mutated)->toBeTrue()
+        ->and($exportedIds)->toBe($expectedIds);
 });

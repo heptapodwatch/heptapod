@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Heptapod\Jobs;
 
-use Heptapod\Actions\FailRequestedBackup;
 use Heptapod\Actions\MarkBackupRunning;
+use Heptapod\Actions\ReconcileQueuedWork;
 use Heptapod\Actions\RecordBackupOutcome;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -29,7 +29,7 @@ final class RunBackupNow implements ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        app(FailRequestedBackup::class)($this->backupId);
+        app(ReconcileQueuedWork::class)->failBackup($this->backupId);
     }
 
     public function handle(MarkBackupRunning $markRunning, RecordBackupOutcome $record): void

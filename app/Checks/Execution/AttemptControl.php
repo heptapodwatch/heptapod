@@ -9,6 +9,7 @@ use Heptapod\Contracts\RunControl;
 use Heptapod\Contracts\RunProgress;
 use Heptapod\Events\LiveSignal;
 use Heptapod\Models\CheckRunAttempt;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 final class AttemptControl implements RunControl, RunProgress
@@ -30,9 +31,16 @@ final class AttemptControl implements RunControl, RunProgress
         if (! $force && $now - $this->lastActiveCheck < 1_000_000_000) {
             return;
         }
-        $attempt = CheckRunAttempt::query()->where('claim_token', $this->claimToken)->firstOrFail();
+        $active = DB::table('check_run_attempts as attempt')
+            ->join('checks as check_row', 'check_row.id', '=', 'attempt.check_id')
+            ->where('attempt.check_id', $this->checkId)
+            ->where('attempt.claim_token', $this->claimToken)
+            ->where('attempt.phase', 'running')
+            ->whereNull('attempt.cancel_requested_at')
+            ->where('check_row.claim_token', $this->claimToken)
+            ->exists();
         $this->lastActiveCheck = $now;
-        if ($attempt->cancel_requested_at !== null) {
+        if (! $active) {
             throw new RunCancelled('Check run cancelled.');
         }
     }
@@ -47,15 +55,22 @@ final class AttemptControl implements RunControl, RunProgress
         if ($now - $this->lastReport < 1_000_000_000) {
             return;
         }
-        $updated = DB::table('check_run_attempts')->where('claim_token', $this->claimToken)->where('phase', 'running')
-            ->whereNull('cancel_requested_at')->update(['progress_done' => $done, 'progress_total' => $total, 'phase_label' => $phase]);
+        $updated = DB::table('check_run_attempts')
+            ->where('check_id', $this->checkId)
+            ->where('claim_token', $this->claimToken)
+            ->where('phase', 'running')
+            ->whereNull('cancel_requested_at')
+            ->whereExists(fn (Builder $query): Builder => $query->from('checks')
+                ->where('id', $this->checkId)
+                ->where('claim_token', $this->claimToken))
+            ->update(['progress_done' => $done, 'progress_total' => $total, 'phase_label' => $phase]);
         if ($updated === 0) {
             $this->checkActive(true);
 
             return;
         }
         $this->lastReport = $now;
-        $attempt = CheckRunAttempt::query()->with('check.site', 'actor')->where('claim_token', $this->claimToken)->firstOrFail();
+        $attempt = CheckRunAttempt::query()->with('check.site', 'actor')->where('check_id', $this->checkId)->where('claim_token', $this->claimToken)->firstOrFail();
         LiveSignal::forRun('run.progress', $attempt->check()->getQuery()->firstOrFail()->site()->getQuery()->firstOrFail(), $this->checkId, $attempt->origin, $attempt->started_at, $attempt->actor?->name, progressN: $done, progressTotal: $total, phaseLabel: $phase, attemptId: $attempt->id);
     }
 }

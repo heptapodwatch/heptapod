@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Heptapod\Actions\MarkBackupRunning;
+use Heptapod\Checks\Execution\ExecutionBudget;
 use Heptapod\Jobs\RunBackupNow;
 use Heptapod\Models\User;
+use Illuminate\Queue\Connectors\ConnectorInterface;
+use Illuminate\Queue\NullQueue;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -68,3 +71,39 @@ it('records scheduled backup results with UTC timestamps and rejects non-Owners 
         ->assertJsonPath('runs.0.requested_at', '2026-10-05T00:30:00+00:00')
         ->assertJsonPath('runs.0.completed_at', '2026-10-05T00:30:00+00:00');
 })->with(['Member', 'Admin']);
+
+it('does not leave a manual backup stuck in queued after a dispatch failure or a lost queued job', function (): void {
+    $owner = User::factory()->owner()->create();
+    Queue::addConnector('failing-backup-redis', static fn (): ConnectorInterface => new class implements ConnectorInterface
+    {
+        public function connect(array $config): Illuminate\Contracts\Queue\Queue
+        {
+            return new class extends NullQueue
+            {
+                public function push($job, $data = '', $queue = null): mixed
+                {
+                    throw new RuntimeException('Redis dispatch unavailable');
+                }
+            };
+        }
+    });
+    config(['queue.connections.redis.driver' => 'failing-backup-redis']);
+
+    $this->actingAs($owner)->postJson(route('settings.backups.store'))->assertServerError();
+    $first = DB::table('backup_runs')->sole();
+    expect($first->state)->toBe('failed')
+        ->and($first->completed_at)->not->toBeNull();
+
+    // Once the queue recovers, a new manual backup is accepted instead of returning 409 forever.
+    Queue::fake([RunBackupNow::class]);
+    $this->travel(6)->minutes();
+    $second = $this->actingAs($owner)->postJson(route('settings.backups.store'))->assertAccepted()->json('id');
+
+    // A lost queued job expires after the queued timeout and unblocks future manual backups.
+    DB::table('backup_runs')->where('id', $second)->update(['requested_at' => now('UTC')->subSeconds(ExecutionBudget::RetryAfter + 1)]);
+    $this->travel(6)->minutes();
+    $third = $this->actingAs($owner)->postJson(route('settings.backups.store'))->assertAccepted()->json('id');
+
+    expect(DB::table('backup_runs')->where('id', $second)->value('state'))->toBe('failed')
+        ->and(DB::table('backup_runs')->where('id', $third)->value('state'))->toBe('queued');
+});

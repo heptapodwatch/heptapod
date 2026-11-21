@@ -49,11 +49,29 @@ final class IncidentExportController extends Controller
             $total = $pageRows->count();
             $rows = $present($pageRows);
         } else {
-            $total = $query->getEloquentBuilder()->getQuery()->count();
-            $rows = (static function () use ($query, $present): \Generator {
-                // One presented batch per chunk keeps the export's queries per chunk, not per row; the writer stops at the row limit.
-                foreach ($query->getEloquentBuilder()->with('site.client')->lazy(500)->chunk(500) as $chunk) {
-                    yield from $present($chunk->values()->collect());
+            // Snapshot ordered incident IDs once up to the row limit so concurrent openings or resolutions cannot shift chunks.
+            /** @var list<int> $ids */
+            $ids = array_values(array_map(
+                static fn (mixed $id): int => is_numeric($id) ? (int) $id : throw new \LogicException('Incident id must be numeric.'),
+                (clone $query->getEloquentBuilder()->getQuery())->limit(Table::RowLimit + 1)->pluck('incidents.id')->all(),
+            ));
+            if (count($ids) > Table::RowLimit) {
+                $total = $query->getEloquentBuilder()->getQuery()->count();
+            } else {
+                $total = count($ids);
+            }
+            $rows = (static function () use ($ids, $present): \Generator {
+                foreach (array_chunk($ids, 500) as $chunkIds) {
+                    $chunkQuery = Incident::query()->with(['site.client', 'check']);
+                    $chunkQuery->getQuery()->whereIntegerInRaw('id', $chunkIds);
+                    $byId = $chunkQuery->get()->keyBy('id');
+                    $ordered = collect($chunkIds)
+                        ->map(static fn (int $id): ?Incident => $byId->get($id))
+                        ->filter(static fn (?Incident $incident): bool => $incident instanceof Incident)
+                        ->values();
+                    if ($ordered->isNotEmpty()) {
+                        yield from $present($ordered);
+                    }
                 }
             })();
         }

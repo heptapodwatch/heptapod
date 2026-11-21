@@ -11,7 +11,6 @@ use Heptapod\Data\Ui\InstanceSettingsData;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
-use Heptapod\SystemHealth\ReadSystemHealth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,23 +21,23 @@ use Inertia\Response;
 
 final class InstanceController extends Controller
 {
-    public function edit(Request $request, InstanceSettings $settings, ReadSystemHealth $health): Response
+    public function edit(Request $request, InstanceSettings $settings): Response
     {
         return Inertia::render('settings/instance', new InstancePageData(
-            instancePage: $this->data($request, $settings, $health),
+            instancePage: $this->data($request, $settings),
         ));
     }
 
-    public function show(Request $request, InstanceSettings $settings, ReadSystemHealth $health): JsonResponse
+    public function show(Request $request, InstanceSettings $settings): JsonResponse
     {
-        return response()->json($this->data($request, $settings, $health));
+        return response()->json($this->data($request, $settings));
     }
 
-    private function data(Request $request, InstanceSettings $settings, ReadSystemHealth $health): InstanceSettingsData
+    private function data(Request $request, InstanceSettings $settings): InstanceSettingsData
     {
         $this->owner($request);
 
-        return InstanceSettingsData::current($settings, $health);
+        return InstanceSettingsData::current($settings);
     }
 
     public function update(Request $request, SaveInstanceSettings $save): JsonResponse|RedirectResponse

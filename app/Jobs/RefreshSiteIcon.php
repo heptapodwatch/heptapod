@@ -64,36 +64,51 @@ final class RefreshSiteIcon implements ShouldQueue
         }
         $site->forceFill(['icon_attempted_at' => now()])->save();
         $failureReason = 'icons.decode';
+        $existingHash = $site->icon_hash;
+        $writtenHash = null;
+        $adopted = false;
         try {
             $png = $fetch($site);
             $backing = $classify($png);
             $failureReason = 'icons.storage';
             $hash = hash('sha256', $png);
             Storage::disk()->put('site-icons/'.$site->id.'/'.$hash.'.png', $png);
-            $replacedHash = DB::transaction(function () use ($site, $hash, $backing): ?string {
+            $writtenHash = $hash;
+            $outcome = DB::transaction(function () use ($site, $hash, $backing): array {
                 $query = Site::query();
                 $query->getQuery()->lockForUpdate();
                 $current = $query->find($site->id);
-                if ($current === null || $current->url !== $site->url) {
-                    return null;
+                if ($current === null) {
+                    return ['adopted' => false, 'stale' => $hash];
+                }
+                if ($current->url !== $site->url) {
+                    return ['adopted' => false, 'stale' => $current->icon_hash !== $hash ? $hash : null];
                 }
                 if (! $current->iconRefreshEligible()) {
                     if ($this->manual) {
                         $current->forceFill(['icon_manual_result' => new IconRefreshResultData('icons.unavailable')])->save();
                     }
 
-                    return null;
+                    return ['adopted' => false, 'stale' => $current->icon_hash !== $hash ? $hash : null];
                 }
                 $previousHash = $current->icon_hash;
                 $current->forceFill(['icon_hash' => $hash, 'icon_backing' => $backing, 'icon_fetched_at' => now(),
                     ...($this->manual ? ['icon_manual_result' => new IconRefreshResultData('icons.refreshed')] : [])])->save();
 
-                return $previousHash !== $hash ? $previousHash : null;
+                return ['adopted' => true, 'stale' => $previousHash !== null && $previousHash !== $hash ? $previousHash : null];
             });
-            if ($replacedHash !== null) {
-                Storage::disk()->delete('site-icons/'.$site->id.'/'.$replacedHash.'.png');
+            $adopted = $outcome['adopted'];
+            if ($outcome['stale'] !== null) {
+                Storage::disk()->delete('site-icons/'.$site->id.'/'.$outcome['stale'].'.png');
             }
         } catch (\Throwable $exception) {
+            if ($writtenHash !== null && ! $adopted && $writtenHash !== $existingHash) {
+                try {
+                    Storage::disk()->delete('site-icons/'.$site->id.'/'.$writtenHash.'.png');
+                } catch (\Throwable $cleanupException) {
+                    Log::warning('Failed to delete unadopted site icon object', ['site_id' => $site->id, 'hash' => $writtenHash, 'exception' => $cleanupException]);
+                }
+            }
             // Icon failure is diagnostic only: preserve the old icon and never enter monitoring/incident recording.
             $result = $exception instanceof IconRefreshFailed ? $exception->result : new IconRefreshResultData($failureReason);
             Log::warning('Site icon refresh failed', ['site_id' => $site->id, 'result' => $result->toArray(), 'exception' => $exception]);

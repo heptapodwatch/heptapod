@@ -6,6 +6,7 @@ namespace Heptapod\Jobs;
 
 use Heptapod\Actions\CreateClient;
 use Heptapod\Actions\ImportOhDearAccount;
+use Heptapod\Actions\ReconcileQueuedWork;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Data\Import\ImportChannelRowData;
@@ -145,10 +146,7 @@ final class RunOhDearImport implements ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        $run = ImportRun::query()->find($this->runId);
-        if ($run instanceof ImportRun && $run->status === ImportRunStatus::Running) {
-            $this->finish($run, ImportRunStatus::Failed, 'unexpected');
-        }
+        app(ReconcileQueuedWork::class)->failImport($this->runId);
     }
 
     /**

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Checks\Execution\ExecutionBudget;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CronTaskStore;
 use Heptapod\Enums\ImportRunStatus;
@@ -14,6 +15,10 @@ use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Support\ImportTokenStore;
 use Heptapod\Testing\OhDearAccountTransport;
+use Illuminate\Console\Scheduling\Event;
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Queue\Connectors\ConnectorInterface;
+use Illuminate\Queue\NullQueue;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia;
@@ -231,4 +236,72 @@ it('pages import run rows in plan order, keeps whole-run summaries and respects 
     // Permissions unchanged: Members cannot view import runs or the plan page.
     $this->actingAs($member)->get('/settings/import/ohdear/runs/'.$run->id.'?page=2')->assertForbidden();
     $this->actingAs($member)->get('/settings/import/ohdear')->assertForbidden();
+});
+
+it('fails a queued import immediately when queue dispatch fails on start or retry so it can be retried', function (string $operation, string $initialStatus): void {
+    $owner = User::factory()->owner()->create();
+    $run = ImportRun::query()->create(['user_id' => $owner->id, 'source' => 'ohdear', 'status' => $initialStatus, 'expected' => 0,
+        'attempts' => $initialStatus === 'planned' ? 0 : 1, 'teams' => [], 'plan' => [], 'results' => [], 'created_client_ids' => []]);
+    ImportTokenStore::put($run->id, 'fixture-dispatch-secret');
+    Queue::addConnector('failing-redis', static fn (): ConnectorInterface => new class implements ConnectorInterface
+    {
+        public function connect(array $config): Illuminate\Contracts\Queue\Queue
+        {
+            return new class extends NullQueue
+            {
+                public function push($job, $data = '', $queue = null): mixed
+                {
+                    throw new RuntimeException('Redis dispatch unavailable');
+                }
+            };
+        }
+    });
+    config(['queue.connections.redis.driver' => 'failing-redis']);
+
+    $payload = $operation === 'start' ? ['expected' => 0, 'groups' => [], 'overrides' => []] : [];
+    $this->actingAs($owner)->postJson('/settings/import/ohdear/runs/'.$run->id.'/'.$operation, $payload)->assertServerError();
+
+    expect($run->refresh()->status)->toBe(ImportRunStatus::Failed)
+        ->and($run->error)->toBe('unexpected')
+        ->and($run->finished_at)->not->toBeNull();
+    expect(ImportTokenStore::get($run->id))->toBe('fixture-dispatch-secret');
+
+    // Once the queue recovers, the failed import can be retried immediately.
+    Queue::fake([RunOhDearImport::class]);
+    $this->actingAs($owner)->postJson('/settings/import/ohdear/runs/'.$run->id.'/retry')->assertOk();
+    expect($run->refresh()->status)->toBe(ImportRunStatus::Queued);
+})->with([
+    'start' => ['start', 'planned'],
+    'retry' => ['retry', 'incomplete'],
+]);
+
+it('marks a queued import failed when the worker job fails before claiming the run', function (): void {
+    $owner = User::factory()->owner()->create();
+    $run = ImportRun::query()->create(['user_id' => $owner->id, 'source' => 'ohdear', 'status' => 'queued', 'expected' => 0,
+        'attempts' => 1, 'teams' => [], 'plan' => [], 'results' => [], 'created_client_ids' => []]);
+
+    new RunOhDearImport($run->id)->failed(new RuntimeException('Worker failed before handle'));
+
+    expect($run->refresh()->status)->toBe(ImportRunStatus::Failed)
+        ->and($run->error)->toBe('unexpected')
+        ->and($run->finished_at)->not->toBeNull();
+});
+
+it('reconciles stale queued and running imports through the scheduled reconciler without disturbing fresh ones', function (): void {
+    $owner = User::factory()->owner()->create();
+    $staleQueued = ImportRun::query()->create(['user_id' => $owner->id, 'source' => 'ohdear', 'status' => 'queued', 'expected' => 0,
+        'attempts' => 1, 'teams' => [], 'plan' => [], 'results' => [], 'created_client_ids' => []]);
+    $freshQueued = ImportRun::query()->create(['user_id' => $owner->id, 'source' => 'ohdear', 'status' => 'queued', 'expected' => 0,
+        'attempts' => 1, 'teams' => [], 'plan' => [], 'results' => [], 'created_client_ids' => []]);
+    DB::table('import_runs')->where('id', $staleQueued->id)->update(['updated_at' => now()->subSeconds(ExecutionBudget::RetryAfter + 1)]);
+
+    $event = collect(app(Schedule::class)->events())
+        ->first(static fn (Event $scheduled): bool => $scheduled->description === 'reconcile-queued-work');
+    expect($event)->not->toBeNull();
+    $event->run(app());
+
+    expect($staleQueued->refresh()->status)->toBe(ImportRunStatus::Failed)
+        ->and($staleQueued->error)->toBe('unexpected')
+        ->and($staleQueued->finished_at)->not->toBeNull()
+        ->and($freshQueued->refresh()->status)->toBe(ImportRunStatus::Queued);
 });

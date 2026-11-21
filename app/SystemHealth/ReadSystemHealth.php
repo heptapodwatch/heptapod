@@ -71,7 +71,7 @@ final readonly class ReadSystemHealth
         if ($dispatcherAt !== null && ! $dispatcherAt instanceof CarbonImmutable) {
             throw new \UnexpectedValueException('Dispatcher heartbeat must be a timestamp.');
         }
-        $schedulerAt = $this->cachedTimestamp(config()->string('heptapod.health.scheduler_cache_key'));
+        $schedulerAt = self::cachedTimestamp(config()->string('heptapod.health.scheduler_cache_key'));
         $recentFailed = DB::table('failed_jobs')->where('failed_at', '>=', CarbonImmutable::now()->subDay())->count();
         /** @var int $databaseBytes */
         $databaseBytes = DB::scalar('SELECT pg_database_size(current_database())');
@@ -92,8 +92,8 @@ final readonly class ReadSystemHealth
             $this->databaseGrowth->read(),
             DB::table('failed_jobs')->count(),
             new HealthMetric($recentFailed > 0 ? HealthStatus::Warn : HealthStatus::Ok, $recentFailed),
-            $this->cachedTimestamp(config()->string('heptapod.health.external_ping_cache_key')),
-            $this->cachedTimestamp('heptapod:live:termination-failed-at'),
+            self::lastExternalPing(),
+            self::cachedTimestamp('heptapod:live:termination-failed-at'),
             $this->checkDataMaintenance->read(),
             SystemIssueData::open(),
             $this->systemIssueEvaluation(),
@@ -138,7 +138,12 @@ final readonly class ReadSystemHealth
         return new HealthMetric($percentage > 80 ? HealthStatus::Warn : HealthStatus::Ok, $percentage);
     }
 
-    private function cachedTimestamp(string $key): ?string
+    public static function lastExternalPing(): ?string
+    {
+        return self::cachedTimestamp(config()->string('heptapod.health.external_ping_cache_key'));
+    }
+
+    private static function cachedTimestamp(string $key): ?string
     {
         $value = Cache::store('redis')->get($key);
         if ($value !== null && ! is_string($value)) {

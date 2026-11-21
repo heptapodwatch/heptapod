@@ -499,3 +499,30 @@ it('throttles progress and rejects cancellation at addon checkpoints', function 
     usleep(1_010_000);
     expect(fn (): mixed => $control->report(3, 3, 'lighthouse'))->toThrow(RunCancelled::class);
 });
+
+it('rejects revoked and lease-replaced attempts at addon checkpoints', function (): void {
+    $owner = User::factory()->owner()->create();
+    $check = Check::factory()->create(['type' => CheckKey::Lighthouse]);
+    $this->actingAs($owner)->post("/sites/{$check->site_id}/checks/{$check->id}/run")->assertRedirect();
+    $attempt = CheckRunAttempt::query()->sole();
+    $started = CarbonImmutable::now('UTC');
+    $check->forceFill(['run_started_at' => $started, 'active_run_id' => 123459])->save();
+    $attempt->update(['phase' => RunPhase::Running, 'started_at' => $started]);
+
+    // 1. Lease replaced by a newer claim (without setting cancel_requested_at on the stale attempt).
+    $check->forceFill(['claim_token' => (string) Str::uuid()])->save();
+    expect(fn (): mixed => (new AttemptControl($check->id, $attempt->claim_token))->assertActive())
+        ->toThrow(RunCancelled::class);
+
+    // 2. Same claim token on check, but attempt phase is no longer running (e.g. marked failed).
+    $check->forceFill(['claim_token' => $attempt->claim_token])->save();
+    $attempt->update(['phase' => RunPhase::Failed]);
+    expect(fn (): mixed => (new AttemptControl($check->id, $attempt->claim_token))->assertActive())
+        ->toThrow(RunCancelled::class);
+
+    // 3. Check claim cleared (revoked) while attempt row still says running.
+    $attempt->update(['phase' => RunPhase::Running]);
+    $check->forceFill(['claim_token' => null])->save();
+    expect(fn (): mixed => (new AttemptControl($check->id, $attempt->claim_token))->assertActive())
+        ->toThrow(RunCancelled::class);
+});

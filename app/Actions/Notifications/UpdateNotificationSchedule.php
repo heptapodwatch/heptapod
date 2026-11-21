@@ -7,6 +7,7 @@ namespace Heptapod\Actions\Notifications;
 use Heptapod\Enums\RecipientKind;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\NotificationSchedule;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -34,6 +35,14 @@ final readonly class UpdateNotificationSchedule
         }
 
         return NotificationLocks::transaction(function () use ($kind, $userId, $clientId, $data): NotificationSchedule {
+            // Serialize concurrent first-time saves when no row exists yet for SELECT ... FOR UPDATE to lock.
+            DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', [
+                'notification-schedule:'.$kind->value.':'.match ($kind) {
+                    RecipientKind::Team => 'team',
+                    RecipientKind::User => (string) $userId,
+                    RecipientKind::Client => (string) $clientId,
+                },
+            ]);
             $query = NotificationSchedule::query()->where('recipient_kind', $kind->value);
             match ($kind) {
                 RecipientKind::Team => null,

@@ -40,7 +40,7 @@ final class InstanceSettingsData extends Data
     ) {}
 
     /** General and Email both show these facts; mail credentials only as configured or not. */
-    public static function current(InstanceSettings $settings, ReadSystemHealth $health): self
+    public static function current(InstanceSettings $settings): self
     {
         /** @var array{host?: string|null, port?: int|null, scheme?: string|null, username?: string|null, password?: string|null} $smtp */
         $smtp = config()->array('mail.mailers.smtp');
@@ -52,7 +52,7 @@ final class InstanceSettingsData extends Data
                 'scheme' => $smtp['scheme'] ?? null, 'username_configured' => filled($smtp['username'] ?? null),
                 'password_configured' => filled($smtp['password'] ?? null)],
             config()->string('mail.default'), ! SystemIssueMailer::canDeliver(), config()->string('mail.from.name'), config()->string('mail.from.address'),
-            filled(config('instance.heartbeat_url')), $health()->lastExternalPing, url('/up'),
+            filled(config('instance.heartbeat_url')), ReadSystemHealth::lastExternalPing(), url('/up'),
             ['editable' => false, 'source' => 'check definitions'], false, $retention);
     }
 }

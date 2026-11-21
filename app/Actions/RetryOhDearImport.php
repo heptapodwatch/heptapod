@@ -14,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 final readonly class RetryOhDearImport
 {
+    public function __construct(private ReconcileQueuedWork $reconcile) {}
+
     public function __invoke(ImportRun $importRun): void
     {
         if (ImportTokenStore::get($importRun->id) === null) {
@@ -30,7 +32,10 @@ final readonly class RetryOhDearImport
                 errorCode: 'import_cannot_retry',
             );
         }
-        RunOhDearImport::dispatch($importRun->id);
+        $this->reconcile->dispatchOrFail(
+            static fn () => RunOhDearImport::dispatch($importRun->id),
+            fn () => $this->reconcile->failImport($importRun->id, onlyQueued: true),
+        );
         LiveSignal::forImportChange();
     }
 }
