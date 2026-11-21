@@ -141,8 +141,7 @@ final class HistoryRetention
     }
 
     /**
-     * Bounds each coverage check to one (bucket_start, id) cursor window and distinct daily keys,
-     * keeping work proportional to the window without planner hints or temp-disk hash spills.
+     * Classifies at most HourlyWindowSize rows per (bucket_start, id) cursor window using distinct daily keys.
      *
      * @return list<object{id: int, bucket_start: string, covered: bool}>
      */
@@ -163,7 +162,11 @@ final class HistoryRetention
         return $rows;
     }
 
-    /** @return array{eligible: int, uncovered: int, oldest: ?string} */
+    /**
+     * Summarizes expired hourly rows across bounded cursor windows; best-effort under READ COMMITTED while maintenance runs.
+     *
+     * @return array{eligible: int, uncovered: int, oldest: ?string}
+     */
     private function summarizeExpiredHourly(string $cutoff, ?string $afterBucketStart = null, ?int $afterId = null): array
     {
         $eligible = 0;
@@ -175,20 +178,19 @@ final class HistoryRetention
             /** @var object{scanned: int, eligible: int, uncovered: int, oldest_covered: ?string, last_bucket_start: ?string, last_id: ?int} $window */
             $window = DB::selectOne(<<<SQL
                 {$windowQuery},
-                classified AS (
-                    SELECT w.id, w.bucket_start, (c.check_id IS NOT NULL) AS covered
-                    FROM window_rows w
-                    LEFT JOIN covered_days c
-                      ON c.check_id = w.check_id AND c.day_start = w.day_start
+                last_row AS MATERIALIZED (
+                    SELECT bucket_start, id FROM window_rows ORDER BY bucket_start DESC, id DESC LIMIT 1
                 )
                 SELECT
                     count(*)::int AS scanned,
-                    count(*) FILTER (WHERE covered)::int AS eligible,
-                    count(*) FILTER (WHERE NOT covered)::int AS uncovered,
-                    min(bucket_start) FILTER (WHERE covered) AS oldest_covered,
-                    (SELECT bucket_start FROM window_rows ORDER BY bucket_start DESC, id DESC LIMIT 1) AS last_bucket_start,
-                    (SELECT id FROM window_rows ORDER BY bucket_start DESC, id DESC LIMIT 1) AS last_id
-                FROM classified
+                    count(*) FILTER (WHERE c.check_id IS NOT NULL)::int AS eligible,
+                    count(*) FILTER (WHERE c.check_id IS NULL)::int AS uncovered,
+                    min(w.bucket_start) FILTER (WHERE c.check_id IS NOT NULL) AS oldest_covered,
+                    (SELECT bucket_start FROM last_row) AS last_bucket_start,
+                    (SELECT id FROM last_row) AS last_id
+                FROM window_rows w
+                LEFT JOIN covered_days c
+                  ON c.check_id = w.check_id AND c.day_start = w.day_start
                 SQL, $bindings);
             $eligible += $window->eligible;
             $uncovered += $window->uncovered;
