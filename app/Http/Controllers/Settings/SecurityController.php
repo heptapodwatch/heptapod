@@ -2,7 +2,7 @@
 
 namespace Heptapod\Http\Controllers\Settings;
 
-use Heptapod\Actions\Fortify\ResetUserPassword;
+use Heptapod\Actions\ChangePassword;
 use Heptapod\Data\Ui\SecurityPageData;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Http\Requests\Settings\PasswordUpdateRequest;
@@ -59,12 +59,12 @@ final class SecurityController extends Controller
     /**
      * Update the user's password.
      */
-    public function update(PasswordUpdateRequest $request, ResetUserPassword $reset): RedirectResponse
+    public function update(PasswordUpdateRequest $request, ChangePassword $change): RedirectResponse
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
 
-        $reset->reset($user, ['password' => $request->string('password')->toString(), 'password_confirmation' => $request->string('password_confirmation')->toString()]);
+        $change($user, $request->string('password')->toString());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Password updated.')]);
 

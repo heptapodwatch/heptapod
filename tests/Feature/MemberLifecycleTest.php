@@ -6,15 +6,17 @@ use Carbon\CarbonImmutable;
 use Heptapod\Contracts\LiveConnectionTerminator;
 use Heptapod\Enums\ClientScope;
 use Heptapod\Enums\NotificationCategory;
+use Heptapod\Jobs\TerminateLiveConnections;
 use Heptapod\Models\Check;
 use Heptapod\Models\Client;
 use Heptapod\Models\Invitation;
 use Heptapod\Models\User;
 use Heptapod\Notifications\PasswordReset;
 use Heptapod\Notifications\TeamInvitation;
-use Heptapod\Testing\FakeLiveConnectionTerminator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Laravel\Passkeys\Passkeys;
 
 require_once __DIR__.'/../Support/NotificationChannels.php';
@@ -62,13 +64,12 @@ it('cuts revoked member access across sessions tokens and live channels and bloc
     $member->assignRole('Member');
     $member->clients()->attach($client);
     $token = $member->createToken('prior', ['monitors:read'])->plainTextToken;
-    $terminator = new FakeLiveConnectionTerminator;
-    app()->instance(LiveConnectionTerminator::class, $terminator);
+    Queue::fake([TerminateLiveConnections::class]);
     DB::table('sessions')->insert(['id' => 'member-session', 'user_id' => $member->id,
         'payload' => '', 'last_activity' => now()->timestamp]);
     $this->actingAs($owner)->deleteJson(route('settings.members.remove', $member->id))->assertNoContent();
     expect($member->refresh()->disabled_at)->not->toBeNull();
-    expect($terminator->terminated)->toBe([$member->id]);
+    expect(Queue::pushed(TerminateLiveConnections::class)->pluck('userId')->all())->toBe([$member->id]);
     expect($member->tokens()->count())->toBe(0);
     expect(DB::table('sessions')->where('user_id', $member->id)->count())->toBe(0);
     $this->withToken($token)->getJson('/api/monitors')->assertUnauthorized();
@@ -90,11 +91,31 @@ it('cuts revoked member access across sessions tokens and live channels and bloc
     expect($recipients[$channel->id])->toMatchArray(['status' => 'not_sent', 'reason' => 'no_site_access']);
 });
 
+it('keeps a removal when the live server is unreachable and leaves the connection cut to the retrying queue', function (): void {
+    Queue::fake([TerminateLiveConnections::class]);
+    app()->instance(LiveConnectionTerminator::class, new class implements LiveConnectionTerminator
+    {
+        public function terminate(int $userId): void
+        {
+            throw new RuntimeException('Live server unreachable.');
+        }
+    });
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $member = User::factory()->create();
+    $member->assignRole('Member');
+
+    $this->actingAs($owner)->deleteJson(route('settings.members.remove', $member->id))->assertNoContent();
+
+    expect($member->refresh()->disabled_at)->not->toBeNull();
+    Queue::assertPushedOn('broadcasts', TerminateLiveConnections::class, fn (TerminateLiveConnections $job): bool => $job->userId === $member->id
+        && $job->connection === 'redis-broadcasts');
+});
+
 it('revokes scope immediately and denies a revoked Reverb channel on resubscription', function (): void {
     config(['broadcasting.default' => 'reverb', 'broadcasting.connections.reverb.key' => 'test-key',
         'broadcasting.connections.reverb.secret' => 'test-secret', 'broadcasting.connections.reverb.app_id' => 'test-app']);
-    $terminator = new FakeLiveConnectionTerminator;
-    app()->instance(LiveConnectionTerminator::class, $terminator);
+    Queue::fake([TerminateLiveConnections::class]);
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
     $one = Client::factory()->create();
@@ -108,7 +129,8 @@ it('revokes scope immediately and denies a revoked Reverb channel on resubscript
     $this->actingAs($owner)->patchJson(route('settings.members.update', $member->id), [
         'role' => 'Member', 'client_ids' => [$one->id],
     ])->assertNoContent();
-    expect($member->tokens()->count())->toBe(0)->and($terminator->terminated)->toBe([$member->id]);
+    expect($member->tokens()->count())->toBe(0)
+        ->and(Queue::pushed(TerminateLiveConnections::class)->pluck('userId')->all())->toBe([$member->id]);
     $this->actingAs($member->refresh())->postJson('/broadcasting/auth', ['socket_id' => '1.1',
         'channel_name' => 'presence-client.'.$two->id])->assertForbidden();
     $this->postJson('/broadcasting/auth', ['socket_id' => '1.1',
@@ -116,8 +138,7 @@ it('revokes scope immediately and denies a revoked Reverb channel on resubscript
 });
 
 it('revokes legacy all-client access when only the persisted scope changes', function (): void {
-    $terminator = new FakeLiveConnectionTerminator;
-    app()->instance(LiveConnectionTerminator::class, $terminator);
+    Queue::fake([TerminateLiveConnections::class]);
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
     $client = Client::factory()->create();
@@ -136,7 +157,8 @@ it('revokes legacy all-client access when only the persisted scope changes', fun
         ->and($member->clients()->get()->modelKeys())->toBe([$client->id])
         ->and($member->tokens()->count())->toBe(0)
         ->and(DB::table('sessions')->where('user_id', $member->id)->count())->toBe(0)
-        ->and($terminator->terminated)->toBe([$member->id]);
+
+        ->and(Queue::pushed(TerminateLiveConnections::class)->pluck('userId')->all())->toBe([$member->id]);
 });
 
 it('protects the last Owner from removal or demotion', function (): void {
@@ -161,14 +183,26 @@ it('tracks the last authenticated request without writing on every request', fun
     expect($member->refresh()->last_active_at->greaterThan($first))->toBeTrue();
 });
 
-it('reactivates an invited account without creating a second user', function (): void {
+it('reactivates an invited account without creating a second user and without its former sign-in factors', function (): void {
     Notification::fake();
+    Queue::fake([TerminateLiveConnections::class]);
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
     $client = Client::factory()->create();
-    $member = User::factory()->create(['email' => 'returning@example.test', 'client_scope' => ClientScope::Restricted]);
+    $member = User::factory()->withTwoFactor()->create(['email' => 'returning@example.test', 'client_scope' => ClientScope::Restricted,
+        'remember_token' => 'remembered-before-removal']);
     $member->assignRole('Member');
-    $member->forceFill(['disabled_at' => now()])->save();
+    $member->passkeys()->create(['name' => 'Before removal', 'credential_id' => 'removed-key', 'credential' => []]);
+    $this->post(route('password.email'), ['email' => $member->email]);
+    $resetToken = null;
+    Notification::assertSentTo($member, PasswordReset::class, function (PasswordReset $notification) use (&$resetToken): bool {
+        $resetToken = $notification->token;
+
+        return true;
+    });
+    $this->actingAs($owner)->deleteJson(route('settings.members.remove', $member->id))->assertNoContent();
+    // A token that survived the removal (issued while it ran) must not come back with the account either.
+    $survivingToken = $member->createToken('issued-during-removal', ['monitors:read'])->plainTextToken;
     $this->actingAs($owner)->postJson(route('settings.members.invite'), [
         'email' => $member->email, 'role' => 'Member', 'client_ids' => [$client->id],
     ])->assertCreated();
@@ -185,7 +219,18 @@ it('reactivates an invited account without creating a second user', function ():
     expect(User::query()->where('email', $member->email)->count())->toBe(1)
         ->and($member->refresh()->disabled_at)->toBeNull()
         ->and($member->hasVerifiedEmail())->toBeTrue()
-        ->and($member->clients()->get()->modelKeys())->toBe([$client->id]);
+        ->and($member->clients()->get()->modelKeys())->toBe([$client->id])
+        ->and($member->passkeys()->count())->toBe(0)
+        ->and($member->tokens()->count())->toBe(0)
+        ->and($member->two_factor_secret)->toBeNull()
+        ->and($member->two_factor_recovery_codes)->toBeNull()
+        ->and($member->two_factor_confirmed_at)->toBeNull()
+        ->and($member->remember_token)->not->toBe('remembered-before-removal');
+    $this->post(route('logout'));
+    $this->post(route('password.update'), ['token' => $resetToken, 'email' => $member->email,
+        'password' => 'taken-over', 'password_confirmation' => 'taken-over'])->assertSessionHasErrors('email');
+    expect(Hash::check('new-password', $member->refresh()->password))->toBeTrue();
+    $this->withToken($survivingToken)->getJson('/api/monitors')->assertUnauthorized();
 });
 
 it('binds protected presence subscriptions to numeric IDs without disclosing profile data', function (): void {

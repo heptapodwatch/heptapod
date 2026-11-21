@@ -25,6 +25,7 @@ use Heptapod\Contracts\TargetAvailabilityException;
 use Heptapod\Exceptions\CheckConfigurationValidationException;
 use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Exceptions\IconRefreshFailed;
+use Heptapod\Exceptions\ImportAccessRevoked;
 use Heptapod\Exceptions\InvalidOhDearResponse;
 use Heptapod\Exceptions\OwnerAlreadyExists;
 use Heptapod\Exceptions\UndeclaredImportNotice;
@@ -89,6 +90,7 @@ $notEngineText = [
     OhDearIdentityConflict::class => 'Oh Dear import conflict for one site, not a run',
     OwnerAlreadyExists::class => 'console command error, not a run',
     UndeclaredImportNotice::class => 'Oh Dear import developer error (an undeclared notice code), not a run',
+    ImportAccessRevoked::class => 'Oh Dear import control flow (its starter lost access), caught in RunOhDearImport; not a run',
     ApiProblem::class => 'HTTP problem response, not a run',
     ExpectedRefusal::class => 'expected web/Inertia HTTP refusal carrying a translated catalog key, not a check run',
     SitemapSizeExceeded::class => 'caught inside SitemapCheck; recorded as a catalog issue',

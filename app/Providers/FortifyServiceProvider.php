@@ -13,12 +13,14 @@ use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Mail\Mailable;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
+use Laravel\Fortify\Events\TwoFactorAuthenticationChallenged;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
 use Laravel\Fortify\Http\Requests\TwoFactorLoginRequest;
@@ -42,6 +44,12 @@ class FortifyServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->app->bind(TwoFactorLoginRequest::class, ActiveTwoFactorLoginRequest::class);
+        Event::listen(TwoFactorAuthenticationChallenged::class, static function (TwoFactorAuthenticationChallenged $event): void {
+            if (! $event->user instanceof User) {
+                throw new \LogicException('A two-factor challenge requires an account.');
+            }
+            request()->session()->put(ActiveTwoFactorLoginRequest::CredentialsKey, ActiveTwoFactorLoginRequest::credentialsFingerprint($event->user));
+        });
         $this->configureActions();
         $this->configureViews();
         $this->configureRateLimiting();

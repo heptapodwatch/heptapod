@@ -18,12 +18,13 @@ final class OhDearAccountTransport
     /** @param Account $account
      * @param  array<string, int>  $endpointStatuses
      * @param  array<string, \Throwable>  $endpointFailures
+     * @param  (\Closure(string): void)|null  $onRequest  Sees each request path before it is answered.
      */
-    public function fake(array $account, int $status = 200, ?int $failedMonitorPage = null, array $endpointStatuses = [], array $endpointFailures = []): MockClient
+    public function fake(array $account, int $status = 200, ?int $failedMonitorPage = null, array $endpointStatuses = [], array $endpointFailures = [], ?\Closure $onRequest = null): MockClient
     {
         MockClient::destroyGlobal();
 
-        return MockClient::global(['https://ohdear.app/api/*' => self::respond($account, $status, $failedMonitorPage, $endpointStatuses, $endpointFailures)]);
+        return MockClient::global(['https://ohdear.app/api/*' => self::respond($account, $status, $failedMonitorPage, $endpointStatuses, $endpointFailures, $onRequest)]);
     }
 
     /** Connector-scoped client answering from a recorded account directory (see tests/Fixtures/ohdear/real/README.md).
@@ -69,16 +70,20 @@ final class OhDearAccountTransport
     /** @param Account $account
      * @param  array<string, int>  $endpointStatuses
      * @param  array<string, \Throwable>  $endpointFailures
+     * @param  (\Closure(string): void)|null  $onRequest
      */
-    private static function respond(array $account, int $status = 200, ?int $failedMonitorPage = null, array $endpointStatuses = [], array $endpointFailures = []): \Closure
+    private static function respond(array $account, int $status = 200, ?int $failedMonitorPage = null, array $endpointStatuses = [], array $endpointFailures = [], ?\Closure $onRequest = null): \Closure
     {
-        return static function (PendingRequest $request) use ($account, $status, $failedMonitorPage, $endpointStatuses, $endpointFailures): MockResponse {
+        return static function (PendingRequest $request) use ($account, $status, $failedMonitorPage, $endpointStatuses, $endpointFailures, $onRequest): MockResponse {
             if ($request->getMethod()->value !== 'GET') {
                 throw new \LogicException('Account import must be read-only at Oh Dear.');
             }
             $path = parse_url($request->getUrl(), PHP_URL_PATH);
             if (! is_string($path)) {
                 throw new \LogicException('Invalid import endpoint URL.');
+            }
+            if ($onRequest instanceof \Closure) {
+                $onRequest($path);
             }
             /** @var int $page */
             $page = $request->query()->get('page') ?? 1;

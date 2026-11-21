@@ -3,14 +3,14 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
-use Heptapod\Contracts\LiveConnectionTerminator;
 use Heptapod\Enums\ClientScope;
+use Heptapod\Jobs\TerminateLiveConnections;
 use Heptapod\Models\Client;
 use Heptapod\Models\Invitation;
 use Heptapod\Models\User;
-use Heptapod\Testing\FakeLiveConnectionTerminator;
 use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Vite;
 
 it('edits real member access, keeps invalid drafts, deactivates and invites the same identity back', function (): void {
@@ -19,8 +19,7 @@ it('edits real member access, keeps invalid drafts, deactivates and invites the 
     config(['broadcasting.default' => 'null']);
     expect(config('mail.default'))->toBe('array')->and(config('queue.default'))->toBe('sync');
     expect(Mail::mailer()->getSymfonyTransport())->toBeInstanceOf(ArrayTransport::class);
-    $terminator = new FakeLiveConnectionTerminator;
-    app()->instance(LiveConnectionTerminator::class, $terminator);
+    Queue::fake([TerminateLiveConnections::class]);
     $owner = User::factory()->create(['name' => 'Fixture Owner', 'locale' => 'en']);
     $owner->assignRole('Owner');
     $one = Client::factory()->create(['name' => 'Nordlicht']);
@@ -44,7 +43,7 @@ it('edits real member access, keeps invalid drafts, deactivates and invites the 
         ->click('Save access')->assertSee('The client selection field is required.')
         ->assertSee('Save access')->check('#access-client-'.$one->id)->click('Save access')->assertSee('Access saved.');
     expect($member->clients()->get()->modelKeys())->toBe([$one->id]);
-    expect($terminator->terminated)->toBe([$member->id]);
+    expect(Queue::pushed(TerminateLiveConnections::class)->pluck('userId')->all())->toBe([$member->id]);
     $page->click('[data-test="edit-member-'.$member->id.'"]')->click('Remove from team')
         ->assertSee('History is retained.')->click('[data-test="confirm-remove-member"]')->assertSee('Member deactivated.');
     expect($member->refresh()->disabled_at)->not->toBeNull();
@@ -100,8 +99,7 @@ it('shows expired invitations and preserves a rejected invite draft on mobile in
 it('requires explicit consent before converting legacy all-client Member access', function (): void {
     Vite::useHotFile(storage_path('framework/testing.hot'));
     config(['broadcasting.default' => 'null']);
-    $terminator = new FakeLiveConnectionTerminator;
-    app()->instance(LiveConnectionTerminator::class, $terminator);
+    Queue::fake([TerminateLiveConnections::class]);
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
     $client = Client::factory()->create(['name' => 'Legacy assignment']);
@@ -115,15 +113,15 @@ it('requires explicit consent before converting legacy all-client Member access'
     expect($member->refresh()->client_scope)->toBe(ClientScope::All);
     $page->click('[data-test="edit-member-'.$member->id.'"]')->check('Replace legacy all-client access with the selected clients on save.')
         ->click('Save access')->assertSee('Access saved.');
-    expect($member->refresh()->client_scope)->toBe(ClientScope::Restricted)->and($terminator->terminated)->toBe([$member->id]);
+    expect($member->refresh()->client_scope)->toBe(ClientScope::Restricted)
+        ->and(Queue::pushed(TerminateLiveConnections::class)->pluck('userId')->all())->toBe([$member->id]);
     $page->assertNoJavaScriptErrors();
 });
 
 it('keeps a stale access draft and shows failure when the server no longer permits the edit', function (): void {
     Vite::useHotFile(storage_path('framework/testing.hot'));
     config(['broadcasting.default' => 'null']);
-    $terminator = new FakeLiveConnectionTerminator;
-    app()->instance(LiveConnectionTerminator::class, $terminator);
+    Queue::fake([TerminateLiveConnections::class]);
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
     $admin = User::factory()->create();
@@ -142,6 +140,7 @@ it('keeps a stale access draft and shows failure when the server no longer permi
         ->assertDontSee('Access saved.')->assertNotChecked('#access-client-'.$two->id)->assertEnabled('button[type="submit"]')
         ->screenshot(filename: 'members-fixture-stale-access-error')->click('Cancel')->click('Refresh')
         ->assertMissing('[data-test="edit-member-'.$member->id.'"]');
-    expect($member->refresh()->hasRole('Admin'))->toBeTrue()->and($terminator->terminated)->toBe([$member->id]);
+    expect($member->refresh()->hasRole('Admin'))->toBeTrue()
+        ->and(Queue::pushed(TerminateLiveConnections::class)->pluck('userId')->all())->toBe([$member->id]);
     $page->assertNoJavaScriptErrors();
 });

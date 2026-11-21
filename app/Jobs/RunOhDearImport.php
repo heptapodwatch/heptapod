@@ -14,6 +14,8 @@ use Heptapod\Data\Import\ImportPlanRowData;
 use Heptapod\Enums\ImportOperation;
 use Heptapod\Enums\ImportRunStatus;
 use Heptapod\Events\LiveSignal;
+use Heptapod\Events\Notifications\NotificationLocks;
+use Heptapod\Exceptions\ImportAccessRevoked;
 use Heptapod\Models\ImportRun;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
@@ -55,11 +57,21 @@ final class RunOhDearImport implements ShouldQueue
         // Setup, client creation and the import share one boundary: a local fault keeps the sites already written and
         // the token, so "Run again" can continue once it is fixed.
         // The fault may be the rejected save of this model's results: reload it so the terminal state does not retry that payload.
-        ImportOhDearAccount::stopOnLocalFault(fn () => $this->import($run, $import, $createClient), fn () => $this->finish($run->refresh(), ImportRunStatus::Failed, 'local_error'));
+        ImportOhDearAccount::stopOnLocalFault(function () use ($run, $import, $createClient): void {
+            try {
+                $this->import($run, $import, $createClient);
+            } catch (ImportAccessRevoked) {
+                // Sites, clients and channels written so far are kept; the token goes, so only a new plan can continue.
+                ImportTokenStore::forget($run->id);
+                $this->finish($run, ImportRunStatus::Failed, 'access_revoked');
+            }
+        }, fn () => $this->finish($run->refresh(), ImportRunStatus::Failed, 'local_error'));
     }
 
     private function import(ImportRun $run, ImportOhDearAccount $import, CreateClient $createClient): void
     {
+        $ensureAccess = $this->ensureStarterAccess($run);
+        $ensureAccess();
         $token = ImportTokenStore::get($run->id);
         if ($token === null) {
             $this->finish($run, ImportRunStatus::Failed, 'token_expired');
@@ -73,7 +85,7 @@ final class RunOhDearImport implements ShouldQueue
             return;
         }
         $sections = array_values($run->sections->all());
-        $clientIds = $this->clientIds($run, $createClient);
+        $clientIds = $this->clientIds($run, $createClient, $ensureAccess);
         $approvedChannels = [];
         $channelClientIds = [];
         foreach ($run->channel_plan as $row) {
@@ -114,7 +126,7 @@ final class RunOhDearImport implements ShouldQueue
         };
         // Stored reasons are text, so they are written in the language of the run's owner, the only user who sees them.
         $locale = User::query()->whereKey($run->user_id)->value('locale');
-        $plan = $this->withLocale(is_string($locale) ? $locale : config()->string('app.locale'), static fn (): ImportPlanData => $import($token, false, $sections, $approved, $progress, $approvedChannels, $channelClientIds));
+        $plan = $this->withLocale(is_string($locale) ? $locale : config()->string('app.locale'), static fn (): ImportPlanData => $import($token, false, $sections, $approved, $progress, $approvedChannels, $channelClientIds, $ensureAccess));
         $run->remote_error = $plan->remote_error;
         if ($plan->remote_error === null) {
             /** @var list<array<string, mixed>> $channelResults */
@@ -143,9 +155,10 @@ final class RunOhDearImport implements ShouldQueue
      * New clients are created inside the transaction that records them on the run, so a crash or a retry adopts
      * the client instead of creating another. Only sites that do not exist yet need one: existing sites keep theirs.
      *
+     * @param  \Closure(): void  $ensureAccess
      * @return array<int|string, int>
      */
-    private function clientIds(ImportRun $run, CreateClient $createClient): array
+    private function clientIds(ImportRun $run, CreateClient $createClient, \Closure $ensureAccess): array
     {
         $assignments = $run->assignments ?? [];
         $existing = Site::query()->getQuery()->whereIn('oh_dear_id', array_filter(array_keys($assignments), is_int(...)))->pluck('oh_dear_id')->all();
@@ -156,7 +169,8 @@ final class RunOhDearImport implements ShouldQueue
             }
             $name = $assignment['new_client'];
             $clientIds[$sourceId] = $assignment['client_id'] ?? ($name === null ? throw new \LogicException('Assignment without a client.')
-                : DB::transaction(function () use ($run, $name, $createClient): int {
+                : DB::transaction(function () use ($run, $name, $createClient, $ensureAccess): int {
+                    $ensureAccess();
                     $query = ImportRun::query();
                     $query->getQuery()->lockForUpdate();
                     $locked = $query->findOrFail($run->id);
@@ -212,6 +226,24 @@ final class RunOhDearImport implements ShouldQueue
         }
 
         return false;
+    }
+
+    /**
+     * Starting an import needs an active Owner or Admin (Settings → Import); the run writes a client, site or channel only
+     * while its starter still is one. Each write calls this first inside its own transaction: the key share on the starter
+     * waits for a removal or access change (they hold the user FOR UPDATE) and keeps one from committing until the write has.
+     *
+     * @return \Closure(): void
+     */
+    private function ensureStarterAccess(ImportRun $run): \Closure
+    {
+        return static function () use ($run): void {
+            NotificationLocks::users([$run->user_id]);
+            $starter = User::query()->find($run->user_id);
+            if (! $starter instanceof User || $starter->disabled_at !== null || ! $starter->hasAnyRole(['Owner', 'Admin'])) {
+                throw new ImportAccessRevoked;
+            }
+        };
     }
 
     private function finish(ImportRun $run, ImportRunStatus $status, ?string $error): void

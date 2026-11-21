@@ -20,6 +20,7 @@ final readonly class RevokeMemberAccess
         $member->tokens()->getQuery()->delete();
         ImportTokenStore::forgetUser($member->id);
         $this->sites->forgetMembership($member);
-        DB::afterCommit(static fn (): mixed => dispatch_sync(new TerminateLiveConnections($member->id)));
+        // Queued, so a briefly unreachable live server neither fails the revocation nor skips the job's retries.
+        TerminateLiveConnections::dispatch($member->id)->afterCommit();
     }
 }

@@ -8,6 +8,7 @@ use Heptapod\Actions\Notifications\SaveNotificationChannel;
 use Heptapod\Contracts\Schema\ValidatedConfig;
 use Heptapod\Data\Import\ImportChannelRowData;
 use Heptapod\Enums\ImportOperation;
+use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Exceptions\InvalidOhDearResponse;
 use Heptapod\Models\Client;
 use Heptapod\Models\NotificationDestination;
@@ -30,9 +31,10 @@ final readonly class ImportOhDearChannels
      * @param  list<int>  $monitors
      * @param  array<int, array<string, mixed>>|null  $approved
      * @param  array<int, int>  $clientIds  Explicit client assignments per channel; the CLI has none.
+     * @param  (\Closure(): void)|null  $beforeWrite  Runs first in each channel's write transaction; throws to stop the import.
      * @return list<ImportChannelRowData>
      */
-    public function __invoke(#[\SensitiveParameter] OhDear $sdk, array $monitors, bool $dryRun, ?array $approved, array $clientIds): array
+    public function __invoke(#[\SensitiveParameter] OhDear $sdk, array $monitors, bool $dryRun, ?array $approved, array $clientIds, ?\Closure $beforeWrite = null): array
     {
         $destinations = [];
         $collect = function (Request $request, string $level, array $groupTags = []) use ($sdk, &$destinations): void {
@@ -93,8 +95,14 @@ final readonly class ImportOhDearChannels
             $row->client_name = $client?->displayName();
             if (! $dryRun) {
                 try {
-                    $channel = $this->save->syncOhDear($id, $client?->id, $kind, __($row->kind_label).' · Oh Dear #'.$id, $row->enabled,
-                        array_column($row->check_types, 'value'), $row->categories, $config);
+                    $channel = NotificationLocks::transaction(function () use ($beforeWrite, $id, $client, $kind, $row, $config): NotificationDestination {
+                        if ($beforeWrite instanceof \Closure) {
+                            $beforeWrite();
+                        }
+
+                        return $this->save->syncOhDear($id, $client?->id, $kind, __($row->kind_label).' · Oh Dear #'.$id, $row->enabled,
+                            array_column($row->check_types, 'value'), $row->categories, $config);
+                    });
                     $row->operation = $channel->wasRecentlyCreated ? ImportOperation::Create : ImportOperation::Update;
                 } catch (ValidationException $exception) {
                     // Only a concurrent client archive or channel removal can invalidate an already validated write.
