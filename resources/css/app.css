@@ -106,6 +106,9 @@
     --color-muted-foreground: var(--muted-foreground);
     --color-foreground-faint: var(--foreground-faint);
 
+    --color-avatar-fallback: var(--avatar-fallback);
+    --color-avatar-fallback-foreground: var(--avatar-fallback-foreground);
+
     --color-accent: var(--accent);
     --color-accent-foreground: var(--accent-foreground);
     --color-item-highlight: var(--item-highlight);
@@ -248,6 +251,8 @@
     --secondary: #ffffff;
     --muted: #eef0f1;
     --accent: #dfe3e6;
+    --avatar-fallback: oklch(92.2% 0 none);
+    --avatar-fallback-foreground: #000000;
     --muted-foreground: #3f4952;
     --foreground-faint: #5c6771;
     --border: #d3d8dc;
@@ -363,6 +368,8 @@
     --secondary: #1a1f24;
     --muted: #0f1215;
     --accent: #1a1f24;
+    --avatar-fallback: oklch(37.1% 0 none);
+    --avatar-fallback-foreground: #ffffff;
     --muted-foreground: #a2abb4;
     --foreground-faint: #848e99;
     --border: #262c33;

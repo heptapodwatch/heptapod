@@ -108,7 +108,7 @@ export default function Profile({
                     <FormSection title={t('You')} description="">
                         <div className="space-y-4">
                             <Avatar className="size-14">
-                                <AvatarFallback className="bg-primary/20 text-headline text-foreground">
+                                <AvatarFallback className="bg-avatar-fallback text-headline text-avatar-fallback-foreground">
                                     {initials(user.name)}
                                 </AvatarFallback>
                             </Avatar>
