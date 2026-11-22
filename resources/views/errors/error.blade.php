@@ -45,8 +45,8 @@
                     <p class="text-sm text-muted-foreground">{{ $description ?? __('errors.'.$status.'.description') }}</p>
                 </div>
                 {{-- The classes of Button variant default / size default (components/ui/button.tsx): 40 px below sm, 32 px from sm,
-                     13 px label, the shared Quiet hover/press/focus recipe; plain CSS so the page needs no JavaScript. --}}
-                <a href="{{ $recoveryUrl }}" class="inline-flex h-10 min-w-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 text-cell leading-none font-medium quiet-focus quiet-press quiet-solid-primary sm:h-8 sm:min-w-0">
+                     13 px label, the shared focus-ring and press utilities; plain CSS so the page needs no JavaScript. --}}
+                <a href="{{ $recoveryUrl }}" class="inline-flex h-10 min-w-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3 text-cell leading-none font-medium text-primary-foreground focus-ring press hover:bg-primary-hover active:bg-primary-active sm:h-8 sm:min-w-0">
                     {{ $recoveryLabel }}
                 </a>
             </div>

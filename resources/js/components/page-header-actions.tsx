@@ -23,25 +23,53 @@ const InHeaderMenu = createContext(false);
 
 export function PageHeaderAction({
     className,
+    variant,
+    size,
+    asChild = false,
+    disabled,
+    onClick,
+    children,
     ...props
 }: ComponentProps<typeof Button>) {
     const inMenu = useContext(InHeaderMenu);
-    if (!inMenu) return <Button className={className} {...props} />;
+    if (!inMenu) {
+        return (
+            <Button
+                className={className}
+                variant={variant}
+                size={size}
+                asChild={asChild}
+                disabled={disabled}
+                onClick={onClick}
+                {...props}
+            >
+                {children}
+            </Button>
+        );
+    }
 
+    const { type: _type, ...itemProps } = props as Record<string, unknown>;
     return (
         <DropdownMenuItem
-            asChild
-            disabled={props.disabled}
+            {...itemProps}
+            asChild={asChild}
+            disabled={disabled}
+            variant={variant === 'destructive' ? 'destructive' : 'default'}
+            className={className}
+            onClick={
+                onClick
+                    ? (event) => {
+                          if (!disabled) {
+                              onClick(
+                                  event as unknown as React.MouseEvent<HTMLButtonElement>,
+                              );
+                          }
+                      }
+                    : undefined
+            }
             onSelect={(event) => event.preventDefault()}
         >
-            <Button
-                {...props}
-                variant="ghost"
-                className={cn(
-                    'w-full justify-start rounded-sm border-0 font-normal',
-                    className,
-                )}
-            />
+            {children}
         </DropdownMenuItem>
     );
 }

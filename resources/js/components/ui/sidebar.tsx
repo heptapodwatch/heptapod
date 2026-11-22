@@ -453,13 +453,13 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm quiet-focus quiet-press quiet-ghost group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:text-sidebar-accent-foreground active:text-sidebar-accent-foreground disabled:pointer-events-none aria-disabled:pointer-events-none data-[active=true]:font-[450] data-[active=true]:text-sidebar-accent-foreground data-[active=true]:[--quiet-bg:var(--sidebar-accent)] data-[active=true]:disabled:text-(--disabled-ghost-fg) data-[active=true]:aria-disabled:text-(--disabled-ghost-fg) data-[state=open]:hover:bg-(--ghost-hover) data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md bg-transparent p-2 text-left text-sm focus-ring press group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-ghost-hover hover:text-sidebar-accent-foreground active:bg-ghost-active active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:bg-transparent disabled:text-disabled-ghost-foreground aria-disabled:pointer-events-none aria-disabled:bg-transparent aria-disabled:text-disabled-ghost-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:font-[450] data-[active=true]:text-sidebar-accent-foreground data-[active=true]:hover:bg-selected-accent-hover data-[active=true]:active:bg-selected-accent-active data-[active=true]:disabled:bg-transparent data-[active=true]:disabled:text-disabled-ghost-foreground data-[active=true]:aria-disabled:bg-transparent data-[active=true]:aria-disabled:text-disabled-ghost-foreground data-[state=open]:hover:bg-ghost-hover data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
   {
     variants: {
       variant: {
         default: "",
         outline:
-          "bg-background shadow-[0_0_0_1px_var(--sidebar-border)] hover:bg-(--surface-hover) hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_var(--border-strong)] active:bg-(--surface-active)",
+          "bg-background shadow-[0_0_0_1px_var(--sidebar-border)] hover:bg-surface-hover hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_var(--border-strong)] active:bg-surface-active",
       },
       size: {
         default: "h-8 text-sm leading-none",
@@ -665,8 +665,8 @@ function SidebarMenuSubButton({
       data-size={size}
       data-active={isActive}
       className={cn(
-        "flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 leading-none text-sidebar-foreground quiet-focus quiet-press quiet-ghost hover:text-sidebar-accent-foreground active:text-sidebar-accent-foreground disabled:pointer-events-none aria-disabled:pointer-events-none [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground",
-        "data-[active=true]:text-sidebar-accent-foreground data-[active=true]:[--quiet-bg:var(--sidebar-accent)]",
+        "flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md bg-transparent px-2 leading-none text-sidebar-foreground focus-ring press hover:bg-ghost-hover hover:text-sidebar-accent-foreground active:bg-ghost-active active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:bg-transparent disabled:text-disabled-ghost-foreground aria-disabled:pointer-events-none aria-disabled:bg-transparent aria-disabled:text-disabled-ghost-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground",
+        "data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[active=true]:hover:bg-selected-accent-hover data-[active=true]:active:bg-selected-accent-active data-[active=true]:disabled:bg-transparent data-[active=true]:disabled:text-disabled-ghost-foreground data-[active=true]:aria-disabled:bg-transparent data-[active=true]:aria-disabled:text-disabled-ghost-foreground",
         size === "sm" && "text-xs",
         size === "md" && "text-sm",
         "group-data-[collapsible=icon]:hidden",

@@ -6,7 +6,7 @@ import { Select as SelectPrimitive } from "radix-ui"
 // Radix items cannot use the empty string; forms map this value back before submission.
 export const emptySelectValue = "__empty__"
 
-export const selectTriggerClassName = "flex w-fit items-center justify-between gap-2 rounded-md border border-input bg-muted px-3 py-0 text-cell leading-none whitespace-nowrap quiet-focus disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[placeholder]:text-muted-foreground h-10 sm:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground"
+export const selectTriggerClassName = "flex w-fit items-center justify-between gap-2 rounded-md border border-input bg-muted px-3 py-0 text-cell leading-none whitespace-nowrap focus-ring disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[placeholder]:text-muted-foreground h-10 sm:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground"
 
 function Select({
   ...props
@@ -111,7 +111,7 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex min-h-10 w-full sm:min-h-0 items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none quiet-item focus:bg-hover focus:text-accent-foreground data-[disabled]:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+        "relative flex min-h-10 w-full sm:min-h-0 items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none transition-[color,background-color] duration-(--motion-press) ease-out focus:bg-hover focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:text-disabled-ghost-foreground data-[disabled]:[&_svg]:text-disabled-ghost-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
         className
       )}
       {...props}

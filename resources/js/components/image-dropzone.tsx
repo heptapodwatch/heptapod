@@ -119,7 +119,7 @@ export function ImageDropzone({
                 type="button"
                 variant="outline"
                 // A multi-line drop target is a field, not an action: the form-field radius, not the button pill.
-                className="h-auto w-full flex-col gap-2 rounded-md py-4 whitespace-normal"
+                className="h-auto w-full flex-col gap-2 rounded-md py-4 leading-[inherit] whitespace-normal"
                 disabled={disabled}
                 {...fieldErrorProps(
                     id,

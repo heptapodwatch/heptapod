@@ -92,6 +92,8 @@
 
     --color-primary: var(--primary);
     --color-primary-foreground: var(--primary-foreground);
+    --color-primary-hover: var(--primary-hover);
+    --color-primary-active: var(--primary-active);
 
     --color-secondary: var(--secondary);
     --color-secondary-foreground: var(--secondary-foreground);
@@ -102,9 +104,31 @@
     --color-accent: var(--accent);
     --color-accent-foreground: var(--accent-foreground);
     --color-hover: var(--hover);
+    --color-surface-hover: var(--surface-hover);
+    --color-surface-active: var(--surface-active);
+    --color-ghost-hover: var(--ghost-hover);
+    --color-ghost-active: var(--ghost-active);
+    --color-selected-surface-hover: var(--selected-surface-hover);
+    --color-selected-surface-active: var(--selected-surface-active);
+    --color-selected-accent-hover: var(--selected-accent-hover);
+    --color-selected-accent-active: var(--selected-accent-active);
+
+    --color-disabled: var(--disabled);
+    --color-disabled-foreground: var(--disabled-foreground);
+    --color-disabled-border: var(--disabled-border);
+    --color-disabled-primary: var(--disabled-primary);
+    --color-disabled-primary-foreground: var(--disabled-primary-foreground);
+    --color-disabled-destructive: var(--disabled-destructive);
+    --color-disabled-destructive-foreground: var(
+        --disabled-destructive-foreground
+    );
+    --color-disabled-secondary: var(--disabled-secondary);
+    --color-disabled-ghost-foreground: var(--disabled-ghost-foreground);
 
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
+    --color-destructive-hover: var(--destructive-hover);
+    --color-destructive-active: var(--destructive-active);
 
     --color-border: var(--border);
     --color-border-strong: var(--border-strong);
@@ -191,39 +215,57 @@
     --chart-4: #b7bec4;
     --chart-5: #d3d8dc;
 
-    /* Quiet control interaction states: flat tonal hover/active steps and deliberate opaque disabled surfaces. */
+    /* Control interaction states: flat tonal hover/active steps and deliberate opaque disabled surfaces. */
     --hover: #dfe3e6;
-    --quiet-hover-mix: 11.5%;
-    --quiet-active-mix: 18.5%;
     --primary-hover: oklch(0.315 0.011 248);
     --primary-active: oklch(0.13 0.008 248);
     --destructive-hover: oklch(0.432 0.165 27.9);
     --destructive-active: oklch(0.365 0.148 27.9);
     --surface-hover: oklch(0.918 0.005 242);
     --surface-active: oklch(0.862 0.008 242);
-    --ghost-hover: rgb(16 20 24 / 0.115);
-    --ghost-active: rgb(16 20 24 / 0.185);
-    --disabled-primary-bg: color-mix(
+    --ghost-hover: color-mix(in srgb, transparent, var(--foreground) 11.5%);
+    --ghost-active: color-mix(in srgb, transparent, var(--foreground) 18.5%);
+    --selected-surface-hover: color-mix(
+        in srgb,
+        var(--secondary),
+        var(--foreground) 11.5%
+    );
+    --selected-surface-active: color-mix(
+        in srgb,
+        var(--secondary),
+        var(--foreground) 18.5%
+    );
+    --selected-accent-hover: color-mix(
+        in srgb,
+        var(--accent),
+        var(--foreground) 11.5%
+    );
+    --selected-accent-active: color-mix(
+        in srgb,
+        var(--accent),
+        var(--foreground) 18.5%
+    );
+    --disabled-primary: color-mix(
         in srgb,
         var(--primary) 14%,
         var(--background)
     );
-    --disabled-primary-fg: var(--foreground-faint);
-    --disabled-destructive-bg: color-mix(
+    --disabled-primary-foreground: var(--foreground-faint);
+    --disabled-destructive: color-mix(
         in srgb,
         var(--destructive) 12%,
         var(--muted)
     );
-    --disabled-destructive-fg: color-mix(
+    --disabled-destructive-foreground: color-mix(
         in srgb,
         var(--destructive) 48%,
         var(--foreground-faint)
     );
-    --disabled-surface-bg: var(--muted);
-    --disabled-surface-border: var(--border);
-    --disabled-secondary-bg: var(--muted);
-    --disabled-fg: var(--foreground-faint);
-    --disabled-ghost-fg: color-mix(
+    --disabled: var(--muted);
+    --disabled-border: var(--border);
+    --disabled-secondary: var(--muted);
+    --disabled-foreground: var(--foreground-faint);
+    --disabled-ghost-foreground: color-mix(
         in srgb,
         var(--foreground-faint) 78%,
         var(--background)
@@ -280,47 +322,61 @@
     --chart-4: #37404a;
     --chart-5: #262c33;
 
-    /* Quiet control interaction states (dark): distinct tonal steps above --secondary/--accent (#1a1f24) and --card (#13171b). */
+    /* Control interaction states (dark): distinct tonal steps above --secondary/--accent (#1a1f24) and --card (#13171b). */
     --hover: #272d34;
-    --quiet-hover-mix: 13.5%;
-    --quiet-active-mix: 21.5%;
     --primary-hover: oklch(0.842 0.007 248);
     --primary-active: oklch(0.76 0.01 248);
     --destructive-hover: oklch(0.722 0.162 27.3);
     --destructive-active: oklch(0.612 0.175 27.3);
     --surface-hover: oklch(0.326 0.016 248);
     --surface-active: oklch(0.376 0.018 248);
-    --ghost-hover: rgb(230 233 236 / 0.135);
-    --ghost-active: rgb(230 233 236 / 0.215);
-    --disabled-primary-bg: color-mix(
+    --ghost-hover: color-mix(in srgb, transparent, var(--foreground) 13.5%);
+    --ghost-active: color-mix(in srgb, transparent, var(--foreground) 21.5%);
+    --selected-surface-hover: color-mix(
+        in srgb,
+        var(--secondary),
+        var(--foreground) 13.5%
+    );
+    --selected-surface-active: color-mix(
+        in srgb,
+        var(--secondary),
+        var(--foreground) 21.5%
+    );
+    --selected-accent-hover: color-mix(
+        in srgb,
+        var(--accent),
+        var(--foreground) 13.5%
+    );
+    --selected-accent-active: color-mix(
+        in srgb,
+        var(--accent),
+        var(--foreground) 21.5%
+    );
+    --disabled-primary: color-mix(
         in srgb,
         var(--primary) 13%,
         var(--background)
     );
-    --disabled-primary-fg: var(--foreground-faint);
-    --disabled-destructive-bg: color-mix(
+    --disabled-primary-foreground: var(--foreground-faint);
+    --disabled-destructive: color-mix(
         in srgb,
         var(--destructive) 14%,
         var(--card)
     );
-    --disabled-destructive-fg: color-mix(
+    --disabled-destructive-foreground: color-mix(
         in srgb,
         var(--destructive) 46%,
         var(--foreground-faint)
     );
-    --disabled-surface-bg: color-mix(
-        in srgb,
-        var(--card) 60%,
-        var(--background)
-    );
-    --disabled-surface-border: var(--border);
-    --disabled-secondary-bg: color-mix(
+    --disabled: color-mix(in srgb, var(--card) 60%, var(--background));
+    --disabled-border: var(--border);
+    --disabled-secondary: color-mix(
         in srgb,
         var(--card) 75%,
         var(--background)
     );
-    --disabled-fg: #78828d;
-    --disabled-ghost-fg: #727c87;
+    --disabled-foreground: #78828d;
+    --disabled-ghost-foreground: #727c87;
 }
 
 @layer base {
@@ -610,62 +666,61 @@ html body[data-scroll-locked] {
     }
 }
 
-/*
- * Quiet control interaction recipe (heptapod-ui-rules Motion / Interaction states).
- * Defined in @layer components so caller utilities (e.g. hover:bg-transparent on ? or collapsed sidebar icons) still win.
- */
-@layer components {
-    /* Fixed-height controls centre 13 px caps; auto-height buttons (h-auto, e.g. ImageDropzone) keep inherited line-height. */
-    .quiet-center:not(.h-auto) {
-        line-height: 1;
-    }
+/* Shared control utilities (heptapod-ui-rules Motion / Interaction states): focus outline and spring press. */
+@utility focus-ring {
+    outline: 0px solid transparent;
+    outline-offset: 0px;
+    transition-property:
+        color, background-color, border-color, outline-width, outline-offset,
+        outline-color, text-decoration-color;
+    transition-duration:
+        var(--motion-press), var(--motion-press), var(--motion-press),
+        var(--motion-focus), var(--motion-focus), var(--motion-focus),
+        var(--motion-press);
+    transition-timing-function: var(--ease-out);
 
-    .quiet-focus,
-    .quiet-focus-inset {
-        outline: 0px solid transparent;
-        outline-offset: 0px;
-        transition-property:
-            color, background-color, border-color, outline-width,
-            outline-offset, outline-color, text-decoration-color;
-        transition-duration:
-            var(--motion-press), var(--motion-press), var(--motion-press),
-            var(--motion-focus), var(--motion-focus), var(--motion-focus),
-            var(--motion-press);
-        transition-timing-function: var(--ease-out);
-    }
-
-    .quiet-focus:focus-visible {
-        outline: 2px solid var(--quiet-ring, var(--ring));
+    &:focus-visible {
+        outline: 2px solid var(--ring);
         outline-offset: 2px;
     }
+}
 
-    .quiet-focus-inset:focus-visible {
-        outline: 2px solid var(--quiet-ring, var(--ring));
+@utility focus-ring-inset {
+    outline: 0px solid transparent;
+    outline-offset: 0px;
+    transition-property:
+        color, background-color, border-color, outline-width, outline-offset,
+        outline-color, text-decoration-color;
+    transition-duration:
+        var(--motion-press), var(--motion-press), var(--motion-press),
+        var(--motion-focus), var(--motion-focus), var(--motion-focus),
+        var(--motion-press);
+    transition-timing-function: var(--ease-out);
+
+    &:focus-visible {
+        outline: 2px solid var(--ring);
         outline-offset: -2px;
     }
+}
 
-    .quiet-focus-current {
-        --quiet-ring: currentColor;
-    }
+@utility press {
+    transform: none;
+    transition-property:
+        color, background-color, border-color, transform, outline-width,
+        outline-offset, outline-color, text-decoration-color;
+    transition-duration:
+        var(--motion-press), var(--motion-press), var(--motion-press),
+        var(--motion-press-out), var(--motion-focus), var(--motion-focus),
+        var(--motion-focus), var(--motion-press);
+    transition-timing-function:
+        var(--ease-out), var(--ease-out), var(--ease-out), var(--ease-spring),
+        var(--ease-out), var(--ease-out), var(--ease-out), var(--ease-out);
 
-    .quiet-press {
-        transform: none;
-        transition-property:
-            color, background-color, border-color, transform, outline-width,
-            outline-offset, outline-color, text-decoration-color;
-        transition-duration:
-            var(--motion-press), var(--motion-press), var(--motion-press),
-            var(--motion-press-out), var(--motion-focus), var(--motion-focus),
-            var(--motion-focus), var(--motion-press);
-        transition-timing-function:
-            var(--ease-out), var(--ease-out), var(--ease-out),
-            var(--ease-spring), var(--ease-out), var(--ease-out),
-            var(--ease-out), var(--ease-out);
-    }
-
-    .quiet-press:not(.quiet-item):not(:disabled):not(
-            [aria-disabled='true']
-        ):not([data-disabled]:not([data-disabled='false'])):active {
+    &:not(
+            :disabled,
+            [aria-disabled='true'],
+            [data-disabled]:not([data-disabled='false'])
+        ):active {
         transform: scale(0.96);
         transition-duration:
             70ms, 70ms, 70ms, var(--motion-press-in), var(--motion-focus),
@@ -673,201 +728,10 @@ html body[data-scroll-locked] {
         transition-timing-function: var(--ease-out);
     }
 
-    .quiet-solid-primary {
-        background-color: var(--primary);
-        color: var(--primary-foreground);
-    }
-
-    .quiet-solid-primary:is(
-        :disabled,
-        [aria-disabled='true'],
-        [data-disabled]:not([data-disabled='false'])
-    ) {
-        background-color: var(--disabled-primary-bg);
-        color: var(--disabled-primary-fg);
-        border-color: transparent;
-    }
-
-    .quiet-solid-destructive {
-        background-color: var(--destructive);
-        color: var(--destructive-foreground);
-    }
-
-    .quiet-solid-destructive:is(
-        :disabled,
-        [aria-disabled='true'],
-        [data-disabled]:not([data-disabled='false'])
-    ) {
-        background-color: var(--disabled-destructive-bg);
-        color: var(--disabled-destructive-fg);
-        border-color: transparent;
-    }
-
-    .quiet-outline {
-        border: 1px solid var(--border);
-        background-color: var(--secondary);
-        color: var(--foreground);
-    }
-
-    .quiet-outline:is(
-        :disabled,
-        [aria-disabled='true'],
-        [data-disabled]:not([data-disabled='false'])
-    ) {
-        background-color: var(--disabled-surface-bg);
-        border-color: var(--disabled-surface-border);
-        border-style: dashed;
-        color: var(--disabled-fg);
-    }
-
-    .quiet-secondary {
-        background-color: var(--secondary);
-        color: var(--secondary-foreground);
-    }
-
-    .quiet-secondary:is(
-        :disabled,
-        [aria-disabled='true'],
-        [data-disabled]:not([data-disabled='false'])
-    ) {
-        background-color: var(--disabled-secondary-bg);
-        color: var(--disabled-fg);
-        border-color: transparent;
-    }
-
-    /* Selectable controls (SegmentedControl, SidebarMenuButton, Tabs, Toggle) set --quiet-bg for their selected resting fill
-       so hover and press still step from that resting tone without per-component overrides. */
-    .quiet-ghost {
-        background-color: var(--quiet-bg, transparent);
-    }
-
-    .quiet-ghost:is(
-        :disabled,
-        [aria-disabled='true'],
-        [data-disabled]:not([data-disabled='false'])
-    ) {
-        background-color: var(--quiet-disabled-bg, transparent);
-        color: var(--disabled-ghost-fg);
-    }
-
-    .quiet-link {
-        background-color: transparent;
-        color: var(--primary);
-        text-decoration: underline;
-        text-decoration-color: transparent;
-        text-decoration-thickness: 1px;
-        text-underline-offset: 4px;
-    }
-
-    .quiet-link:is(
-        :disabled,
-        [aria-disabled='true'],
-        [data-disabled]:not([data-disabled='false'])
-    ) {
-        background-color: transparent;
-        color: var(--disabled-ghost-fg);
-        text-decoration-color: transparent;
-    }
-
-    /* Menu, select and command items: 120ms tonal highlight, deliberate disabled, no press scale. */
-    .quiet-item {
-        transition-property: color, background-color;
-        transition-duration: var(--motion-press);
-        transition-timing-function: var(--ease-out);
-    }
-
-    .quiet-item:is(
-        :disabled,
-        [aria-disabled='true'],
-        [data-disabled]:not([data-disabled='false'])
-    ) {
-        color: var(--disabled-ghost-fg);
-    }
-
-    .quiet-item:is(
-            :disabled,
-            [aria-disabled='true'],
-            [data-disabled]:not([data-disabled='false'])
-        )
-        svg {
-        color: var(--disabled-ghost-fg);
-    }
-
-    @media (hover: hover) {
-        .quiet-solid-primary:not(.quiet-item):not(:disabled):not(
-                [aria-disabled='true']
-            ):not([data-disabled]:not([data-disabled='false'])):hover {
-            background-color: var(--primary-hover);
+    @media (prefers-reduced-motion: reduce) {
+        &:active {
+            transform: none;
         }
-
-        .quiet-solid-destructive:not(.quiet-item):not(:disabled):not(
-                [aria-disabled='true']
-            ):not([data-disabled]:not([data-disabled='false'])):hover {
-            background-color: var(--destructive-hover);
-        }
-
-        .quiet-outline:not(.quiet-item):not(:disabled):not(
-                [aria-disabled='true']
-            ):not([data-disabled]:not([data-disabled='false'])):hover {
-            background-color: var(--surface-hover);
-            border-color: var(--border-strong);
-        }
-
-        .quiet-secondary:not(.quiet-item):not(:disabled):not(
-                [aria-disabled='true']
-            ):not([data-disabled]:not([data-disabled='false'])):hover {
-            background-color: var(--surface-hover);
-        }
-
-        .quiet-ghost:not(.quiet-item):not(:disabled):not(
-                [aria-disabled='true']
-            ):not([data-disabled]:not([data-disabled='false'])):hover {
-            background-color: color-mix(
-                in srgb,
-                var(--quiet-bg, transparent),
-                var(--foreground) var(--quiet-hover-mix)
-            );
-        }
-
-        .quiet-link:not(.quiet-item):not(:disabled):not(
-                [aria-disabled='true']
-            ):not([data-disabled]:not([data-disabled='false'])):hover {
-            text-decoration-color: currentColor;
-        }
-    }
-
-    .quiet-solid-primary:not(.quiet-item):not(:disabled):not(
-            [aria-disabled='true']
-        ):not([data-disabled]:not([data-disabled='false'])):active {
-        background-color: var(--primary-active);
-    }
-
-    .quiet-solid-destructive:not(.quiet-item):not(:disabled):not(
-            [aria-disabled='true']
-        ):not([data-disabled]:not([data-disabled='false'])):active {
-        background-color: var(--destructive-active);
-    }
-
-    .quiet-outline:not(.quiet-item):not(:disabled):not(
-            [aria-disabled='true']
-        ):not([data-disabled]:not([data-disabled='false'])):active {
-        background-color: var(--surface-active);
-    }
-
-    .quiet-secondary:not(.quiet-item):not(:disabled):not(
-            [aria-disabled='true']
-        ):not([data-disabled]:not([data-disabled='false'])):active {
-        background-color: var(--surface-active);
-    }
-
-    .quiet-ghost:not(.quiet-item):not(:disabled):not(
-            [aria-disabled='true']
-        ):not([data-disabled]:not([data-disabled='false'])):active {
-        background-color: color-mix(
-            in srgb,
-            var(--quiet-bg, transparent),
-            var(--foreground) var(--quiet-active-mix)
-        );
     }
 }
 
@@ -878,10 +742,5 @@ html body[data-scroll-locked] {
         animation-duration: 0.01ms !important;
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
-    }
-
-    .quiet-press,
-    .quiet-press:active {
-        transform: none !important;
     }
 }

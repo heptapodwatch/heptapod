@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Link, router } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import { LogOut } from 'lucide-react';
 import {
     DropdownMenuLabel,
@@ -29,6 +29,7 @@ export function UserMenuContent({ user }: { user: User }) {
     const handleLogout = () => {
         cleanup();
         router.flushAll();
+        router.post(logout.url());
     };
 
     return (
@@ -62,17 +63,9 @@ export function UserMenuContent({ user }: { user: User }) {
                 ))}
             </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-                <Link
-                    className="block w-full cursor-pointer"
-                    href={logout()}
-                    as="button"
-                    onClick={handleLogout}
-                    data-test="logout-button"
-                >
-                    <LogOut className="mr-2" />
-                    {t('Log out')}
-                </Link>
+            <DropdownMenuItem data-test="logout-button" onSelect={handleLogout}>
+                <LogOut />
+                {t('Log out')}
             </DropdownMenuItem>
         </>
     );

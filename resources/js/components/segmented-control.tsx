@@ -30,7 +30,7 @@ export function SegmentedControl({
                 <ToggleGroupItem
                     key={option.value}
                     value={option.value}
-                    className="relative h-8 rounded-full px-3 text-xs leading-none text-muted-foreground before:absolute before:inset-x-0 before:top-1/2 before:h-10 before:-translate-y-1/2 hover:text-foreground active:text-foreground disabled:text-(--disabled-ghost-fg) data-[state=on]:text-foreground data-[state=on]:shadow-sm data-[state=on]:[--quiet-bg:var(--secondary)] data-[state=on]:[--quiet-disabled-bg:var(--disabled-surface-bg)] data-[state=on]:disabled:text-(--disabled-fg) data-[state=on]:disabled:shadow-none sm:h-6 sm:before:hidden"
+                    className="relative h-8 rounded-full px-3 text-xs leading-none text-muted-foreground before:absolute before:inset-x-0 before:top-1/2 before:h-10 before:-translate-y-1/2 hover:bg-ghost-hover hover:text-foreground active:bg-ghost-active active:text-foreground disabled:bg-transparent disabled:text-disabled-ghost-foreground data-[state=on]:bg-secondary data-[state=on]:text-foreground data-[state=on]:shadow-sm data-[state=on]:hover:bg-selected-surface-hover data-[state=on]:active:bg-selected-surface-active data-[state=on]:disabled:bg-disabled data-[state=on]:disabled:text-disabled-foreground data-[state=on]:disabled:shadow-none sm:h-6 sm:before:hidden"
                 >
                     {option.label}
                 </ToggleGroupItem>

@@ -133,7 +133,7 @@ function PackageSummary({
                 aria-expanded={open}
                 aria-controls={controls}
                 onClick={onToggle}
-                className="-ml-2 h-auto min-h-8 max-w-full justify-start py-1 font-normal whitespace-normal"
+                className="-ml-2 h-auto min-h-8 max-w-full justify-start py-1 leading-[inherit] font-normal whitespace-normal"
             >
                 <ChevronRight
                     aria-hidden

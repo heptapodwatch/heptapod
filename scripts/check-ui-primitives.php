@@ -30,7 +30,7 @@ $hoverColourAllowlist = [
 ];
 /** Per file: the one other focus-ring utility it may use, and why. */
 $focusRingAllowlist = [
-    'resources/js/components/incident-banner.tsx' => ['quiet-focus-current', 'Red incident strip: the shared ring colour is invisible on red.'],
+    'resources/js/components/incident-banner.tsx' => ['focus-visible:outline-current', 'Red incident strip: the shared ring colour is invisible on red.'],
 ];
 /** Per file: the one reviewed disabled-opacity utility outside components/ui/, and why. */
 $disabledOpacityExceptions = [
@@ -219,7 +219,7 @@ foreach (['resources/js', 'addons'] as $base) {
 sort($files);
 
 /** A focus-ring utility other than the shared set: ring width other than 2, any ring colour other than ring, offsets, outlines. */
-$otherFocusRing = '~(?<![\w-])(?:(?:[\w\[\]&=*-]+:)*(?:focus|focus-visible|has-focus-visible|focus-within):(?:ring-(?!2\b|ring\b(?!/)|inset\b)[\w\[\]/.-]+|outline-(?!none\b)[\w\[\]/.-]+|border-ring\b)|quiet-focus-current\b)~';
+$otherFocusRing = '~(?<![\w-])(?:[\w\[\]&=*-]+:)*(?:focus|focus-visible|has-focus-visible|focus-within):(?:ring-(?!2\b|ring\b(?!/)|inset\b)[\w\[\]/.-]+|outline-(?!none\b)[\w\[\]/.-]+|border-ring\b)~';
 /** A ring on :focus fires on mouse clicks too; keyboard focus uses :focus-visible. */
 $plainFocusRing = '~(?<![\w-])(?:[\w\[\]&=*-]+:)*focus:(?:ring|outline)-[\w\[\]/.-]+~';
 
@@ -744,7 +744,7 @@ foreach ($files as $path) {
             }
         }
     }
-    // Deliberate disabled surfaces belong to the Quiet control primitives (heptapod-ui-rules Interaction states): no
+    // Deliberate disabled surfaces belong to the shared control primitives (heptapod-ui-rules Interaction states): no
     // hand-rolled disabled-variant opacity washout outside components/ui/.
     if (! str_starts_with($path, 'resources/js/components/ui/')
         && preg_match_all('~(?<![\w\[\]/-])(?:[\w\[\]&=*/-]+:)*[\w\[\]&=*/-]*disabled[\w\[\]&=*/-]*:(?:[\w\[\]&=*/-]+:)*!?opacity-(?:[\w.+-]+|\[[^\]]+\]|\([^)]+\))!?(?![\w-])~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
@@ -754,7 +754,7 @@ foreach ($files as $path) {
 
                 continue;
             }
-            $failures[] = sprintf('%s:%d: hand-rolled disabled opacity recipe (%s); use the shared Quiet control primitives instead of opacity washout', $path, substr_count($source, "\n", 0, $offset) + 1, $text);
+            $failures[] = sprintf('%s:%d: hand-rolled disabled opacity recipe (%s); use the shared disabled surface tokens instead of opacity washout', $path, substr_count($source, "\n", 0, $offset) + 1, $text);
         }
     }
     $focusException = $focusRingAllowlist[$path][0] ?? null;
@@ -889,6 +889,30 @@ foreach ($inlineActionErrorExceptions as $path => $reason) {
 foreach ($underlineAllowlist as $path => $reason) {
     if (! is_file($root.'/'.$path)) {
         $failures[] = "{$path}: allowlisted file no longer exists ({$reason})";
+    }
+}
+
+/*
+ * Keep app.css free of parallel component styling systems: tokens live in @theme / :root / .dark, shared primitives as
+ * @utility, and component states inline in each component with Tailwind variants. Reject @layer components and any
+ * unreviewed class selector outside @theme/@utility/@layer base.
+ */
+$appCss = (string) file_get_contents($root.'/resources/css/app.css');
+$appCssNoComments = (string) preg_replace('~/\*.*?\*/~s', '', $appCss);
+if (preg_match('~@layer\s+components\b~', $appCssNoComments) === 1) {
+    $failures[] = 'resources/css/app.css: @layer components block found; put tokens in @theme, shared utilities in @utility, and component states in TSX with Tailwind variants';
+}
+$allowedAppCssClasses = ['dark', 'tooltip-panel', 'motion-popover', 'motion-dialog', 'motion-overlay', 'motion-instant', 'motion-sheet', 'motion-row-in', 'run-arrival', 'recharts-reference-line-line', 'recharts-tooltip-wrapper'];
+// Strip @theme, @utility, @layer base and @keyframes blocks before scanning remaining selectors for class rules.
+$strippedAppCss = $appCssNoComments;
+while (preg_match('~@(?:theme|utility|keyframes|layer\s+base)\b[^{]*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}~s', $strippedAppCss) === 1) {
+    $strippedAppCss = (string) preg_replace('~@(?:theme|utility|keyframes|layer\s+base)\b[^{]*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}~s', '', $strippedAppCss);
+}
+if (preg_match_all('~(^|[\s,>+~(])\.([a-z][\w-]*)~m', $strippedAppCss, $cssClasses) > 0) {
+    foreach (array_unique($cssClasses[2]) as $className) {
+        if (! in_array($className, $allowedAppCssClasses, true)) {
+            $failures[] = "resources/css/app.css: component class rule .{$className} outside @theme/@utility; move states into TSX with Tailwind variants or define a descriptive @utility";
+        }
     }
 }
 
