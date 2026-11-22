@@ -21,6 +21,10 @@ import { cn } from '@/lib/utils';
 
 const InHeaderMenu = createContext(false);
 
+type PageHeaderActionProps = Omit<ComponentProps<typeof Button>, 'onClick'> & {
+    onClick?: () => void;
+};
+
 export function PageHeaderAction({
     className,
     variant,
@@ -29,18 +33,20 @@ export function PageHeaderAction({
     disabled,
     onClick,
     children,
+    type,
     ...props
-}: ComponentProps<typeof Button>) {
+}: PageHeaderActionProps) {
     const inMenu = useContext(InHeaderMenu);
     if (!inMenu) {
         return (
             <Button
+                type={type}
                 className={className}
                 variant={variant}
                 size={size}
                 asChild={asChild}
                 disabled={disabled}
-                onClick={onClick}
+                onClick={onClick ? () => onClick() : undefined}
                 {...props}
             >
                 {children}
@@ -48,26 +54,38 @@ export function PageHeaderAction({
         );
     }
 
-    const { type: _type, ...itemProps } = props as Record<string, unknown>;
+    const menuItemProps: Omit<
+        ComponentProps<typeof DropdownMenuItem>,
+        | 'variant'
+        | 'asChild'
+        | 'disabled'
+        | 'className'
+        | 'onSelect'
+        | 'children'
+    > = {
+        id: props.id,
+        'aria-label': props['aria-label'],
+        'aria-labelledby': props['aria-labelledby'],
+        'aria-describedby': props['aria-describedby'],
+        'aria-expanded': props['aria-expanded'],
+        'aria-haspopup': props['aria-haspopup'],
+        'aria-controls': props['aria-controls'],
+    };
+
     return (
         <DropdownMenuItem
-            {...itemProps}
+            {...menuItemProps}
             asChild={asChild}
             disabled={disabled}
             variant={variant === 'destructive' ? 'destructive' : 'default'}
             className={className}
-            onClick={
+            onSelect={
                 onClick
-                    ? (event) => {
-                          if (!disabled) {
-                              onClick(
-                                  event as unknown as React.MouseEvent<HTMLButtonElement>,
-                              );
-                          }
+                    ? () => {
+                          if (!disabled) onClick();
                       }
                     : undefined
             }
-            onSelect={(event) => event.preventDefault()}
         >
             {children}
         </DropdownMenuItem>

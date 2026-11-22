@@ -10,6 +10,7 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant inactive (&:is(:disabled, [aria-disabled="true"], [data-disabled]:not([data-disabled="false"])));
 
 /*
  * Motion tokens (heptapod-ui-rules Motion). Every overlay, press and arrival uses these; WAAPI callers import the same values from
@@ -103,7 +104,7 @@
 
     --color-accent: var(--accent);
     --color-accent-foreground: var(--accent-foreground);
-    --color-hover: var(--hover);
+    --color-item-highlight: var(--item-highlight);
     --color-surface-hover: var(--surface-hover);
     --color-surface-active: var(--surface-active);
     --color-ghost-hover: var(--ghost-hover);
@@ -115,7 +116,6 @@
 
     --color-disabled: var(--disabled);
     --color-disabled-foreground: var(--disabled-foreground);
-    --color-disabled-border: var(--disabled-border);
     --color-disabled-primary: var(--disabled-primary);
     --color-disabled-primary-foreground: var(--disabled-primary-foreground);
     --color-disabled-destructive: var(--disabled-destructive);
@@ -216,34 +216,44 @@
     --chart-5: #d3d8dc;
 
     /* Control interaction states: flat tonal hover/active steps and deliberate opaque disabled surfaces. */
-    --hover: #dfe3e6;
+    --item-highlight: #dfe3e6;
+    --mix-hover: 11.5%;
+    --mix-active: 18.5%;
     --primary-hover: oklch(0.315 0.011 248);
     --primary-active: oklch(0.13 0.008 248);
     --destructive-hover: oklch(0.432 0.165 27.9);
     --destructive-active: oklch(0.365 0.148 27.9);
     --surface-hover: oklch(0.918 0.005 242);
     --surface-active: oklch(0.862 0.008 242);
-    --ghost-hover: color-mix(in srgb, transparent, var(--foreground) 11.5%);
-    --ghost-active: color-mix(in srgb, transparent, var(--foreground) 18.5%);
+    --ghost-hover: color-mix(
+        in srgb,
+        transparent,
+        var(--foreground) var(--mix-hover)
+    );
+    --ghost-active: color-mix(
+        in srgb,
+        transparent,
+        var(--foreground) var(--mix-active)
+    );
     --selected-surface-hover: color-mix(
         in srgb,
         var(--secondary),
-        var(--foreground) 11.5%
+        var(--foreground) var(--mix-hover)
     );
     --selected-surface-active: color-mix(
         in srgb,
         var(--secondary),
-        var(--foreground) 18.5%
+        var(--foreground) var(--mix-active)
     );
     --selected-accent-hover: color-mix(
         in srgb,
         var(--accent),
-        var(--foreground) 11.5%
+        var(--foreground) var(--mix-hover)
     );
     --selected-accent-active: color-mix(
         in srgb,
         var(--accent),
-        var(--foreground) 18.5%
+        var(--foreground) var(--mix-active)
     );
     --disabled-primary: color-mix(
         in srgb,
@@ -262,7 +272,6 @@
         var(--foreground-faint)
     );
     --disabled: var(--muted);
-    --disabled-border: var(--border);
     --disabled-secondary: var(--muted);
     --disabled-foreground: var(--foreground-faint);
     --disabled-ghost-foreground: color-mix(
@@ -323,34 +332,44 @@
     --chart-5: #262c33;
 
     /* Control interaction states (dark): distinct tonal steps above --secondary/--accent (#1a1f24) and --card (#13171b). */
-    --hover: #272d34;
+    --item-highlight: #272d34;
+    --mix-hover: 13.5%;
+    --mix-active: 21.5%;
     --primary-hover: oklch(0.842 0.007 248);
     --primary-active: oklch(0.76 0.01 248);
     --destructive-hover: oklch(0.722 0.162 27.3);
     --destructive-active: oklch(0.612 0.175 27.3);
     --surface-hover: oklch(0.326 0.016 248);
     --surface-active: oklch(0.376 0.018 248);
-    --ghost-hover: color-mix(in srgb, transparent, var(--foreground) 13.5%);
-    --ghost-active: color-mix(in srgb, transparent, var(--foreground) 21.5%);
+    --ghost-hover: color-mix(
+        in srgb,
+        transparent,
+        var(--foreground) var(--mix-hover)
+    );
+    --ghost-active: color-mix(
+        in srgb,
+        transparent,
+        var(--foreground) var(--mix-active)
+    );
     --selected-surface-hover: color-mix(
         in srgb,
         var(--secondary),
-        var(--foreground) 13.5%
+        var(--foreground) var(--mix-hover)
     );
     --selected-surface-active: color-mix(
         in srgb,
         var(--secondary),
-        var(--foreground) 21.5%
+        var(--foreground) var(--mix-active)
     );
     --selected-accent-hover: color-mix(
         in srgb,
         var(--accent),
-        var(--foreground) 13.5%
+        var(--foreground) var(--mix-hover)
     );
     --selected-accent-active: color-mix(
         in srgb,
         var(--accent),
-        var(--foreground) 21.5%
+        var(--foreground) var(--mix-active)
     );
     --disabled-primary: color-mix(
         in srgb,
@@ -369,7 +388,6 @@
         var(--foreground-faint)
     );
     --disabled: color-mix(in srgb, var(--card) 60%, var(--background));
-    --disabled-border: var(--border);
     --disabled-secondary: color-mix(
         in srgb,
         var(--card) 75%,
@@ -704,7 +722,6 @@ html body[data-scroll-locked] {
 }
 
 @utility press {
-    transform: none;
     transition-property:
         color, background-color, border-color, transform, outline-width,
         outline-offset, outline-color, text-decoration-color;
@@ -716,21 +733,19 @@ html body[data-scroll-locked] {
         var(--ease-out), var(--ease-out), var(--ease-out), var(--ease-spring),
         var(--ease-out), var(--ease-out), var(--ease-out), var(--ease-out);
 
-    &:not(
-            :disabled,
-            [aria-disabled='true'],
-            [data-disabled]:not([data-disabled='false'])
-        ):active {
-        transform: scale(0.96);
-        transition-duration:
-            70ms, 70ms, 70ms, var(--motion-press-in), var(--motion-focus),
-            var(--motion-focus), var(--motion-focus), 70ms;
-        transition-timing-function: var(--ease-out);
-    }
+    @media (prefers-reduced-motion: no-preference) {
+        transform: none;
 
-    @media (prefers-reduced-motion: reduce) {
-        &:active {
-            transform: none;
+        &:not(
+                :disabled,
+                [aria-disabled='true'],
+                [data-disabled]:not([data-disabled='false'])
+            ):active {
+            transform: scale(0.96);
+            transition-duration:
+                70ms, 70ms, 70ms, var(--motion-press-in), var(--motion-focus),
+                var(--motion-focus), var(--motion-focus), 70ms;
+            transition-timing-function: var(--ease-out);
         }
     }
 }
