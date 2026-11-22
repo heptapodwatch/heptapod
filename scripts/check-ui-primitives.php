@@ -30,7 +30,7 @@ $hoverColourAllowlist = [
 ];
 /** Per file: the one other focus-ring utility it may use, and why. */
 $focusRingAllowlist = [
-    'resources/js/components/incident-banner.tsx' => ['focus-visible:ring-current', 'Red incident strip: the shared ring colour is invisible on red.'],
+    'resources/js/components/incident-banner.tsx' => ['quiet-focus-current', 'Red incident strip: the shared ring colour is invisible on red.'],
 ];
 /** Raw headings that are not section titles: exact element markers and expected counts. */
 $sectionHeadingExceptions = [
@@ -214,7 +214,7 @@ foreach (['resources/js', 'addons'] as $base) {
 sort($files);
 
 /** A focus-ring utility other than the shared set: ring width other than 2, any ring colour other than ring, offsets, outlines. */
-$otherFocusRing = '~(?<![\w-])(?:[\w\[\]&=*-]+:)*(?:focus|focus-visible|has-focus-visible|focus-within):(?:ring-(?!2\b|ring\b(?!/)|inset\b)[\w\[\]/.-]+|outline-(?!none\b)[\w\[\]/.-]+|border-ring\b)~';
+$otherFocusRing = '~(?<![\w-])(?:(?:[\w\[\]&=*-]+:)*(?:focus|focus-visible|has-focus-visible|focus-within):(?:ring-(?!2\b|ring\b(?!/)|inset\b)[\w\[\]/.-]+|outline-(?!none\b)[\w\[\]/.-]+|border-ring\b)|quiet-focus-current\b)~';
 /** A ring on :focus fires on mouse clicks too; keyboard focus uses :focus-visible. */
 $plainFocusRing = '~(?<![\w-])(?:[\w\[\]&=*-]+:)*focus:(?:ring|outline)-[\w\[\]/.-]+~';
 
@@ -739,6 +739,14 @@ foreach ($files as $path) {
             }
         }
     }
+    // Deliberate disabled surfaces belong to the Quiet control primitives (heptapod-ui-rules Interaction states): no
+    // hand-rolled disabled:opacity-* washout outside components/ui/.
+    if (! str_starts_with($path, 'resources/js/components/ui/')
+        && preg_match_all('~(?<![\w-])(?:[\w-]+:)*(?:disabled|aria-disabled|data-\[disabled[^\]]*\]):opacity-\d+\b~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
+        foreach ($matches[0] as [$text, $offset]) {
+            $failures[] = sprintf('%s:%d: hand-rolled disabled opacity recipe (%s); use the shared Quiet control primitives instead of opacity washout', $path, substr_count($source, "\n", 0, $offset) + 1, $text);
+        }
+    }
     $focusException = $focusRingAllowlist[$path][0] ?? null;
     $focusExceptionHits = 0;
     foreach ([$otherFocusRing, $plainFocusRing] as $pattern) {
@@ -875,4 +883,4 @@ passthru('cd '.escapeshellarg($root).' && node scripts/check-form-selects.mjs', 
 if ($formSelectStatus !== 0) {
     exit($formSelectStatus);
 }
-printf("UI primitives: %d files checked; 0 native prompts, 0 hand-styled link underlines, 0 link hover colour changes, 0 other focus rings, 0 local filled status dots, 0 local section titles or typography overrides, 0 local display-time presets, 0 large action buttons, 0 local horizontal navigation or step progress, 0 enabled cursor overrides, 0 local row density overrides or raw tables, 0 native date/time inputs, 0 hand-tinted callouts or notices above the page header, 0 raw palette text colours, 0 local spinners, 0 irreversible confirmations without destructive, 0 native checkbox/radio/number/details/select controls or raw inputs/textareas/buttons, 0 forms with browser validation, 0 hand-rolled error lines, 0 off-token control heights, 0 arbitrary or off-scale font sizes, 0 native title tooltips, 0 local list pagers, 0 local motion, 0 local tooltip providers, 0 site headers or second layouts on incident pages, 0 multi-line picker triggers, 0 local row emphasis, 0 switch rows without a row label, 0 inline action notes outside ActionNoteSlot.\n", count($files));
+printf("UI primitives: %d files checked; 0 native prompts, 0 hand-styled link underlines, 0 link hover colour changes, 0 other focus rings, 0 hand-rolled disabled opacity recipes, 0 local filled status dots, 0 local section titles or typography overrides, 0 local display-time presets, 0 large action buttons, 0 local horizontal navigation or step progress, 0 enabled cursor overrides, 0 local row density overrides or raw tables, 0 native date/time inputs, 0 hand-tinted callouts or notices above the page header, 0 raw palette text colours, 0 local spinners, 0 irreversible confirmations without destructive, 0 native checkbox/radio/number/details/select controls or raw inputs/textareas/buttons, 0 forms with browser validation, 0 hand-rolled error lines, 0 off-token control heights, 0 arbitrary or off-scale font sizes, 0 native title tooltips, 0 local list pagers, 0 local motion, 0 local tooltip providers, 0 site headers or second layouts on incident pages, 0 multi-line picker triggers, 0 local row emphasis, 0 switch rows without a row label, 0 inline action notes outside ActionNoteSlot.\n", count($files));

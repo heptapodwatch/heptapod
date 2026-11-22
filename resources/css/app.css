@@ -19,10 +19,14 @@
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
     --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 :root {
     --motion-press: 120ms;
+    --motion-press-in: 65ms;
+    --motion-press-out: 280ms;
+    --motion-focus: 150ms;
     --motion-enter: 160ms;
     --motion-exit: 120ms;
     --motion-sheet: 240ms;
@@ -185,6 +189,41 @@
     --chart-3: #5c6771;
     --chart-4: #b7bec4;
     --chart-5: #d3d8dc;
+
+    /* Quiet control interaction states: flat tonal hover/active steps and deliberate opaque disabled surfaces. */
+    --primary-hover: oklch(0.315 0.011 248);
+    --primary-active: oklch(0.13 0.008 248);
+    --destructive-hover: oklch(0.432 0.165 27.9);
+    --destructive-active: oklch(0.365 0.148 27.9);
+    --surface-hover: oklch(0.918 0.005 242);
+    --surface-active: oklch(0.862 0.008 242);
+    --ghost-hover: rgb(16 20 24 / 0.115);
+    --ghost-active: rgb(16 20 24 / 0.185);
+    --disabled-primary-bg: color-mix(
+        in srgb,
+        var(--primary) 14%,
+        var(--background)
+    );
+    --disabled-primary-fg: var(--foreground-faint);
+    --disabled-destructive-bg: color-mix(
+        in srgb,
+        var(--destructive) 12%,
+        var(--muted)
+    );
+    --disabled-destructive-fg: color-mix(
+        in srgb,
+        var(--destructive) 48%,
+        var(--foreground-faint)
+    );
+    --disabled-surface-bg: var(--muted);
+    --disabled-surface-border: var(--border);
+    --disabled-secondary-bg: var(--muted);
+    --disabled-fg: var(--foreground-faint);
+    --disabled-ghost-fg: color-mix(
+        in srgb,
+        var(--foreground-faint) 78%,
+        var(--background)
+    );
 }
 
 .dark {
@@ -194,7 +233,7 @@
     --popover: #181d22;
     --secondary: #1a1f24;
     --muted: #0f1215;
-    --accent: #1a1f24;
+    --accent: #272d34;
     --foreground-secondary: #c5ccd3;
     --muted-foreground: #a2abb4;
     --foreground-faint: #848e99;
@@ -236,6 +275,45 @@
     --chart-3: #848e99;
     --chart-4: #37404a;
     --chart-5: #262c33;
+
+    /* Quiet control interaction states (dark): distinct tonal steps above --secondary (#1a1f24) and --card (#13171b). */
+    --primary-hover: oklch(0.842 0.007 248);
+    --primary-active: oklch(0.76 0.01 248);
+    --destructive-hover: oklch(0.722 0.162 27.3);
+    --destructive-active: oklch(0.612 0.175 27.3);
+    --surface-hover: oklch(0.326 0.016 248);
+    --surface-active: oklch(0.376 0.018 248);
+    --ghost-hover: rgb(230 233 236 / 0.135);
+    --ghost-active: rgb(230 233 236 / 0.215);
+    --disabled-primary-bg: color-mix(
+        in srgb,
+        var(--primary) 13%,
+        var(--background)
+    );
+    --disabled-primary-fg: var(--foreground-faint);
+    --disabled-destructive-bg: color-mix(
+        in srgb,
+        var(--destructive) 14%,
+        var(--card)
+    );
+    --disabled-destructive-fg: color-mix(
+        in srgb,
+        var(--destructive) 46%,
+        var(--foreground-faint)
+    );
+    --disabled-surface-bg: color-mix(
+        in srgb,
+        var(--card) 60%,
+        var(--background)
+    );
+    --disabled-surface-border: var(--border);
+    --disabled-secondary-bg: color-mix(
+        in srgb,
+        var(--card) 75%,
+        var(--background)
+    );
+    --disabled-fg: #78828d;
+    --disabled-ghost-fg: #727c87;
 }
 
 @layer base {
@@ -525,6 +603,285 @@ html body[data-scroll-locked] {
     }
 }
 
+/*
+ * Quiet control interaction recipe (heptapod-ui-rules Motion / Interaction states).
+ * Defined in @layer components so caller utilities (e.g. hover:bg-transparent on ? or collapsed sidebar icons) still win.
+ */
+@layer components {
+    .quiet-focus,
+    .quiet-focus-inset {
+        outline: 0px solid transparent;
+        outline-offset: 0px;
+        transition-property:
+            color, background-color, border-color, outline-width,
+            outline-offset, outline-color, text-decoration-color;
+        transition-duration:
+            var(--motion-press), var(--motion-press), var(--motion-press),
+            var(--motion-focus), var(--motion-focus), var(--motion-focus),
+            var(--motion-press);
+        transition-timing-function: var(--ease-out);
+    }
+
+    .quiet-focus:focus-visible {
+        outline: 2px solid var(--quiet-ring, var(--ring));
+        outline-offset: 2px;
+    }
+
+    .quiet-focus-inset:focus-visible {
+        outline: 2px solid var(--quiet-ring, var(--ring));
+        outline-offset: -2px;
+    }
+
+    .quiet-focus-current {
+        --quiet-ring: currentColor;
+    }
+
+    .quiet-press {
+        transform: none;
+        transition-property:
+            color, background-color, border-color, transform, outline-width,
+            outline-offset, outline-color, text-decoration-color;
+        transition-duration:
+            var(--motion-press), var(--motion-press), var(--motion-press),
+            var(--motion-press-out), var(--motion-focus), var(--motion-focus),
+            var(--motion-focus), var(--motion-press);
+        transition-timing-function:
+            var(--ease-out), var(--ease-out), var(--ease-out),
+            var(--ease-spring), var(--ease-out), var(--ease-out),
+            var(--ease-out), var(--ease-out);
+    }
+
+    .quiet-press:not(:disabled):not([aria-disabled='true']):not(
+            [data-disabled]:not([data-disabled='false'])
+        ):active {
+        transform: scale(0.96);
+        transition-duration:
+            70ms, 70ms, 70ms, var(--motion-press-in), var(--motion-focus),
+            var(--motion-focus), var(--motion-focus), 70ms;
+        transition-timing-function: var(--ease-out);
+    }
+
+    .quiet-solid-primary {
+        background-color: var(--primary);
+        color: var(--primary-foreground);
+    }
+
+    .quiet-solid-primary:is(
+        :disabled,
+        [aria-disabled='true'],
+        [data-disabled]:not([data-disabled='false'])
+    ) {
+        background-color: var(--disabled-primary-bg);
+        color: var(--disabled-primary-fg);
+        border-color: transparent;
+    }
+
+    .quiet-solid-destructive {
+        background-color: var(--destructive);
+        color: var(--destructive-foreground);
+    }
+
+    .quiet-solid-destructive:is(
+        :disabled,
+        [aria-disabled='true'],
+        [data-disabled]:not([data-disabled='false'])
+    ) {
+        background-color: var(--disabled-destructive-bg);
+        color: var(--disabled-destructive-fg);
+        border-color: transparent;
+    }
+
+    .quiet-outline {
+        border: 1px solid var(--border);
+        background-color: var(--secondary);
+        color: var(--foreground);
+    }
+
+    .quiet-outline:is(
+        :disabled,
+        [aria-disabled='true'],
+        [data-disabled]:not([data-disabled='false'])
+    ) {
+        background-color: var(--disabled-surface-bg);
+        border-color: var(--disabled-surface-border);
+        border-style: dashed;
+        color: var(--disabled-fg);
+    }
+
+    .quiet-secondary {
+        background-color: var(--secondary);
+        color: var(--secondary-foreground);
+    }
+
+    .quiet-secondary:is(
+        :disabled,
+        [aria-disabled='true'],
+        [data-disabled]:not([data-disabled='false'])
+    ) {
+        background-color: var(--disabled-secondary-bg);
+        color: var(--disabled-fg);
+        border-color: transparent;
+    }
+
+    .quiet-ghost {
+        background-color: transparent;
+    }
+
+    .quiet-ghost:is(
+        :disabled,
+        [aria-disabled='true'],
+        [data-disabled]:not([data-disabled='false'])
+    ) {
+        background-color: transparent;
+        color: var(--disabled-ghost-fg);
+    }
+
+    .quiet-link {
+        background-color: transparent;
+        color: var(--primary);
+        text-decoration: underline;
+        text-decoration-color: transparent;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 4px;
+    }
+
+    .quiet-link:is(
+        :disabled,
+        [aria-disabled='true'],
+        [data-disabled]:not([data-disabled='false'])
+    ) {
+        background-color: transparent;
+        color: var(--disabled-ghost-fg);
+        text-decoration-color: transparent;
+    }
+
+    /* Menu, select and command items: 120ms tonal highlight, deliberate disabled, no press scale. */
+    .quiet-item {
+        transition-property: color, background-color;
+        transition-duration: var(--motion-press);
+        transition-timing-function: var(--ease-out);
+    }
+
+    .quiet-item:is(
+        :disabled,
+        [aria-disabled='true'],
+        [data-disabled]:not([data-disabled='false'])
+    ) {
+        color: var(--disabled-ghost-fg);
+    }
+
+    .quiet-item:is(
+            :disabled,
+            [aria-disabled='true'],
+            [data-disabled]:not([data-disabled='false'])
+        )
+        svg {
+        color: var(--disabled-ghost-fg);
+    }
+
+    @media (hover: hover) {
+        .quiet-solid-primary:not(:disabled):not([aria-disabled='true']):not(
+                [data-disabled]:not([data-disabled='false'])
+            ):hover {
+            background-color: var(--primary-hover);
+        }
+
+        .quiet-solid-destructive:not(:disabled):not([aria-disabled='true']):not(
+                [data-disabled]:not([data-disabled='false'])
+            ):hover {
+            background-color: var(--destructive-hover);
+        }
+
+        .quiet-outline:not(:disabled):not([aria-disabled='true']):not(
+                [data-disabled]:not([data-disabled='false'])
+            ):hover {
+            background-color: var(--surface-hover);
+            border-color: var(--border-strong);
+        }
+
+        .quiet-secondary:not(:disabled):not([aria-disabled='true']):not(
+                [data-disabled]:not([data-disabled='false'])
+            ):hover {
+            background-color: var(--surface-hover);
+        }
+
+        .quiet-ghost:not(:disabled):not([aria-disabled='true']):not(
+                [data-disabled]:not([data-disabled='false'])
+            ):hover {
+            background-color: var(--ghost-hover);
+        }
+
+        .quiet-link:not(:disabled):not([aria-disabled='true']):not(
+                [data-disabled]:not([data-disabled='false'])
+            ):hover {
+            text-decoration-color: currentColor;
+        }
+    }
+
+    .quiet-solid-primary:not(:disabled):not([aria-disabled='true']):not(
+            [data-disabled]:not([data-disabled='false'])
+        ):active {
+        background-color: var(--primary-active);
+    }
+
+    .quiet-solid-destructive:not(:disabled):not([aria-disabled='true']):not(
+            [data-disabled]:not([data-disabled='false'])
+        ):active {
+        background-color: var(--destructive-active);
+    }
+
+    .quiet-outline:not(:disabled):not([aria-disabled='true']):not(
+            [data-disabled]:not([data-disabled='false'])
+        ):active {
+        background-color: var(--surface-active);
+    }
+
+    .quiet-secondary:not(:disabled):not([aria-disabled='true']):not(
+            [data-disabled]:not([data-disabled='false'])
+        ):active {
+        background-color: var(--surface-active);
+    }
+
+    .quiet-ghost:not(:disabled):not([aria-disabled='true']):not(
+            [data-disabled]:not([data-disabled='false'])
+        ):active {
+        background-color: var(--ghost-active);
+    }
+
+    /* Linked badges (<a data-slot="badge">) share the Quiet focus ring and spring press; non-link spans stay static. */
+    a[data-slot='badge'] {
+        outline: 0px solid transparent;
+        outline-offset: 0px;
+        transform: none;
+        transition-property:
+            color, background-color, border-color, transform, outline-width,
+            outline-offset, outline-color, text-decoration-color;
+        transition-duration:
+            var(--motion-press), var(--motion-press), var(--motion-press),
+            var(--motion-press-out), var(--motion-focus), var(--motion-focus),
+            var(--motion-focus), var(--motion-press);
+        transition-timing-function:
+            var(--ease-out), var(--ease-out), var(--ease-out),
+            var(--ease-spring), var(--ease-out), var(--ease-out),
+            var(--ease-out), var(--ease-out);
+    }
+
+    a[data-slot='badge']:focus-visible {
+        outline: 2px solid var(--quiet-ring, var(--ring));
+        outline-offset: 2px;
+    }
+
+    a[data-slot='badge']:not([data-variant='link']):not(
+            [aria-disabled='true']
+        ):active {
+        transform: scale(0.96);
+        transition-duration:
+            70ms, 70ms, 70ms, var(--motion-press-in), var(--motion-focus),
+            var(--motion-focus), var(--motion-focus), 70ms;
+        transition-timing-function: var(--ease-out);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -532,5 +889,12 @@ html body[data-scroll-locked] {
         animation-duration: 0.01ms !important;
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
+    }
+
+    .quiet-press,
+    .quiet-press:active,
+    a[data-slot='badge'],
+    a[data-slot='badge']:active {
+        transform: none !important;
     }
 }

@@ -64,7 +64,7 @@ export function CommandPaletteTrigger({
             size={compact ? 'icon' : 'default'}
             className={cn(
                 !compact &&
-                    'w-full justify-start gap-2 px-3 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:shadow-none group-data-[collapsible=icon]:hover:bg-sidebar-accent group-data-[collapsible=icon]:hover:text-sidebar-accent-foreground dark:group-data-[collapsible=icon]:bg-transparent dark:group-data-[collapsible=icon]:hover:bg-sidebar-accent',
+                    'w-full justify-start gap-2 px-3 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:shadow-none group-data-[collapsible=icon]:hover:border-transparent group-data-[collapsible=icon]:hover:bg-(--ghost-hover) group-data-[collapsible=icon]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:active:bg-(--ghost-active)',
                 className,
             )}
             aria-label={t(compact ? 'Open command palette' : 'Search')}

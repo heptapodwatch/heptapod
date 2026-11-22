@@ -24,13 +24,13 @@ export function SegmentedControl({
             aria-label={label}
             disabled={disabled}
             spacing={1}
-            className="h-10 max-w-full rounded-full border bg-muted p-1 sm:h-8"
+            className="h-10 max-w-full rounded-full border bg-muted p-1 data-[disabled]:border-dashed sm:h-8"
         >
             {options.map((option) => (
                 <ToggleGroupItem
                     key={option.value}
                     value={option.value}
-                    className="relative h-8 rounded-full px-3 text-xs text-muted-foreground before:absolute before:inset-x-0 before:top-1/2 before:h-10 before:-translate-y-1/2 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=on]:bg-secondary data-[state=on]:text-foreground data-[state=on]:shadow-sm sm:h-6 sm:before:hidden"
+                    className="relative h-8 rounded-full px-3 text-xs leading-none text-muted-foreground before:absolute before:inset-x-0 before:top-1/2 before:h-10 before:-translate-y-1/2 hover:text-foreground active:text-foreground disabled:text-(--disabled-ghost-fg) data-[state=on]:bg-secondary data-[state=on]:text-foreground data-[state=on]:shadow-sm data-[state=on]:disabled:bg-(--disabled-surface-bg) data-[state=on]:disabled:text-(--disabled-fg) data-[state=on]:disabled:shadow-none sm:h-6 sm:before:hidden"
                 >
                     {option.label}
                 </ToggleGroupItem>

@@ -96,7 +96,7 @@ export function IncidentBanner({
                         className={
                             isError
                                 ? undefined
-                                : 'ml-auto shrink-0 text-status-down-foreground hover:bg-black/10 hover:text-status-down-foreground focus-visible:ring-current'
+                                : 'quiet-focus-current ml-auto shrink-0 text-status-down-foreground hover:bg-black/22 hover:text-status-down-foreground active:bg-black/30'
                         }
                         onClick={onOpen}
                     >

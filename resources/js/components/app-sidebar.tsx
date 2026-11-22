@@ -44,7 +44,7 @@ function SidebarCollapseButton({
                     data-sidebar="collapse-toggle"
                     aria-label={label}
                     onClick={toggleSidebar}
-                    className="rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    className="rounded-md text-muted-foreground hover:text-sidebar-accent-foreground"
                 >
                     {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
                 </Button>
@@ -111,7 +111,7 @@ export function AppSidebar({
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="text-muted-foreground group-data-[collapsible=icon]:hidden hover:bg-transparent hover:text-foreground dark:hover:bg-transparent"
+                                                className="text-muted-foreground group-data-[collapsible=icon]:hidden hover:bg-transparent hover:text-foreground active:bg-transparent dark:hover:bg-transparent"
                                                 aria-label={t(
                                                     'Keyboard shortcuts',
                                                 )}

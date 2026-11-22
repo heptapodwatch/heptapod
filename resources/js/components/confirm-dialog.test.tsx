@@ -97,13 +97,17 @@ it('uses the red button only for destructive confirmations', () => {
         <Harness onConfirm={() => Promise.resolve(true)} destructive />,
     );
     expect(
-        screen.getByRole('button', { name: 'Rotate ping URL' }).className,
-    ).toContain('bg-destructive');
+        screen
+            .getByRole('button', { name: 'Rotate ping URL' })
+            .getAttribute('data-variant'),
+    ).toBe('destructive');
     unmount();
     render(<Harness onConfirm={() => Promise.resolve(true)} />);
     expect(
-        screen.getByRole('button', { name: 'Rotate ping URL' }).className,
-    ).not.toContain('bg-destructive');
+        screen
+            .getByRole('button', { name: 'Rotate ping URL' })
+            .getAttribute('data-variant'),
+    ).toBe('default');
 });
 
 // A fake Inertia visit: it fires only the named terminal callbacks, in Inertia's order (the callback, then onFinish).
