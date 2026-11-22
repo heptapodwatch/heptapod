@@ -1,6 +1,7 @@
 import { Minus, Plus } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { fieldSurfaceClass } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 /**
@@ -86,7 +87,7 @@ export function NumberField({
                     : max !== undefined && number !== null && number >= max)
             }
             onClick={() => stepBy(direction)}
-            className="flex h-full w-10 shrink-0 cursor-pointer items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 sm:w-7"
+            className="flex h-full w-10 shrink-0 cursor-pointer items-center justify-center bg-transparent text-muted-foreground transition-[color,background-color] duration-(--motion-press) ease-out enabled:hover:bg-ghost-hover enabled:hover:text-foreground enabled:active:bg-ghost-active disabled:cursor-not-allowed disabled:bg-transparent disabled:text-disabled-ghost-foreground sm:w-7"
         >
             {icon}
         </button>
@@ -96,7 +97,8 @@ export function NumberField({
             data-slot="number-field"
             aria-disabled={disabled || undefined}
             className={cn(
-                'flex h-10 w-full min-w-0 items-stretch overflow-hidden rounded-md border border-input bg-muted transition-[color,box-shadow] has-focus-visible:ring-2 has-focus-visible:ring-ring has-aria-invalid:border-destructive aria-disabled:opacity-50 sm:h-8',
+                fieldSurfaceClass,
+                'flex h-10 items-stretch overflow-hidden transition-[color,box-shadow] has-focus-visible:ring-2 has-focus-visible:ring-ring has-aria-invalid:border-destructive has-aria-invalid:ring-destructive/20 dark:has-aria-invalid:ring-destructive/40 aria-disabled:opacity-50 sm:h-8',
                 className,
             )}
         >

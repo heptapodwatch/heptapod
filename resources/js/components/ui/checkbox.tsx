@@ -11,7 +11,7 @@ function Checkbox({
     <CheckboxPrimitive.Root
       data-slot="checkbox"
       className={cn(
-        "relative after:absolute after:-inset-3 sm:after:hidden peer size-4 shrink-0 rounded-[4px] border border-control-border bg-muted transition-shadow outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:aria-invalid:ring-destructive/40 dark:data-[state=checked]:bg-primary",
+        "relative after:absolute after:-inset-3 sm:after:hidden peer size-4 shrink-0 rounded-[4px] border border-control-border bg-muted focus-ring disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled aria-invalid:border-destructive aria-invalid:ring-destructive/20 aria-invalid:[--ring:var(--destructive)] data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground disabled:data-[state=checked]:border-transparent disabled:data-[state=checked]:bg-disabled-primary disabled:data-[state=checked]:text-disabled-primary-foreground dark:aria-invalid:ring-destructive/40",
         className
       )}
       {...props}
@@ -48,7 +48,7 @@ function CheckboxField({
     <div className={cn("min-w-0", className)}>
       <label
         htmlFor={id}
-        className="flex min-h-10 cursor-pointer items-center gap-2.5 text-cell has-disabled:cursor-not-allowed has-disabled:opacity-50 sm:min-h-8"
+        className="flex min-h-10 cursor-pointer items-center gap-2.5 text-cell has-disabled:cursor-not-allowed has-disabled:text-disabled-foreground sm:min-h-8"
       >
         <Checkbox {...props} id={id} aria-describedby={describedBy || undefined} />
         <span className="flex min-w-0 flex-wrap items-center gap-2">{children}</span>

@@ -61,7 +61,7 @@ function CommandDialog({
           <DialogTitle>{t(title)}</DialogTitle>
           <DialogDescription>{t(description)}</DialogDescription>
         </DialogHeader>
-        <Command className="[&_[data-slot=command-input-wrapper]]:h-12 [&_[data-slot=command-input-wrapper]]:pr-12 [&_[data-slot=command-input-wrapper]_svg]:size-5 [&_[data-slot=command-input]]:h-12 [&_[data-slot=command-input]]:text-base [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5 [&_[cmdk-item]_[data-slot=badge]>svg]:size-3">
+        <Command className="[&_[data-slot=command-input-wrapper]]:h-12 [&_[data-slot=command-input-wrapper]]:pr-12 [&_[data-slot=command-input-wrapper]_svg]:size-5 [&_[data-slot=command-input]]:h-12 [&_[data-slot=command-input]]:text-base [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-[450] [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5 [&_[cmdk-item]_[data-slot=badge]>svg]:size-3">
           {children}
         </Command>
       </DialogContent>
@@ -82,7 +82,7 @@ function CommandInput({
       <CommandPrimitive.Input
         data-slot="command-input"
         className={cn(
-          "flex h-10 w-full rounded-md bg-transparent py-0 sm:h-8 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
+          "flex h-10 w-full rounded-md bg-transparent py-0 sm:h-8 text-base md:text-cell outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
         {...props}
@@ -127,7 +127,7 @@ function CommandGroup({
     <CommandPrimitive.Group
       data-slot="command-group"
       className={cn(
-        "overflow-hidden p-1 text-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground",
+        "overflow-hidden p-1 text-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-label [&_[cmdk-group-heading]]:font-[450] [&_[cmdk-group-heading]]:text-muted-foreground",
         className
       )}
       {...props}
@@ -156,7 +156,7 @@ function CommandItem({
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        "relative flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none transition-[color,background-color] duration-(--motion-press) ease-out inactive:pointer-events-none inactive:text-disabled-ghost-foreground inactive:[&_svg]:text-disabled-ghost-foreground data-[selected=true]:bg-item-highlight data-[selected=true]:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
+        "relative flex items-center gap-2 rounded-md px-2 py-1.5 text-cell outline-hidden select-none transition-[color,background-color] duration-(--motion-press) ease-out inactive:pointer-events-none inactive:text-disabled-ghost-foreground inactive:[&_svg]:text-disabled-ghost-foreground data-[selected=true]:bg-item-highlight data-[selected=true]:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
         className
       )}
       {...props}
