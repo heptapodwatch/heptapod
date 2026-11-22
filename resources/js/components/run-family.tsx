@@ -173,8 +173,11 @@ export function RunGlyph({
             role="img"
             aria-label={label}
             viewBox="0 0 14 14"
-            data-spinning={progress ? undefined : true}
-            className={cn('run-glyph', size, 'text-[var(--status-info)]')}
+            className={cn(
+                size,
+                'text-status-info',
+                !progress && 'motion-safe:animate-[spin_1.1s_linear_infinite]',
+            )}
         >
             <circle
                 cx="7"
@@ -280,7 +283,7 @@ export function RunLine({
             </span>
             {bar && progress && phase === 'running' && (
                 <progress
-                    className="ms-5.5 mt-1.5 block h-1 w-[calc(100%-1.375rem)] overflow-hidden rounded-full [&::-moz-progress-bar]:bg-[var(--status-info)] [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-[var(--status-info)]"
+                    className="ms-5.5 mt-1.5 block h-1 w-[calc(100%-1.375rem)] overflow-hidden rounded-full [&::-moz-progress-bar]:bg-status-info [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-status-info"
                     value={progress.done}
                     max={progress.total}
                     aria-label={t('Run progress')}

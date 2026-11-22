@@ -7,6 +7,7 @@ import {
     useState,
     type ReactNode,
 } from 'react';
+import { tooltipPanelClass } from '@/components/ui/tooltip';
 import { focusRingClass } from '@/lib/interaction';
 import { cn } from '@/lib/utils';
 
@@ -215,7 +216,10 @@ export function ActionNoteSlot({
                                 onOpenAutoFocus={(event) =>
                                     event.preventDefault()
                                 }
-                                className="tooltip-panel motion-popover z-50 max-w-[min(28rem,calc(100vw-1rem))] rounded-[6px] border border-tooltip-border bg-tooltip-surface px-[9px] py-[6px] font-mono text-xs leading-[17px] text-tooltip-subject shadow-overlay outline-none"
+                                className={cn(
+                                    tooltipPanelClass,
+                                    'origin-(--radix-popover-content-transform-origin) motion-popover outline-none',
+                                )}
                             >
                                 {children}
                             </Popover.Content>

@@ -523,7 +523,7 @@ function UptimeCard({ page, uptime }: { page: Page; uptime: Check }) {
                 <p className="text-sm text-muted-foreground">{t('No data')}</p>
             )}
             {/* Below the bar at every width: beside the title it wrapped into a tall block on narrow cards. */}
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--foreground-faint)]">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-foreground-faint">
                 {legend('--status-ok', 'No interruption')}
                 {legend('--status-warn', 'Short interruptions (1–4 min)')}
                 {legend('--status-down', 'Outage (5 min or more)')}

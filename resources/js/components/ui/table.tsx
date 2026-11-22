@@ -4,7 +4,7 @@ import type { SiteState } from "@/types/monitoring"
 import { RowHintProvider, useRowHints } from "@/components/truncated-text"
 
 export const tableHeaderBackground = "bg-muted"
-export const tableHeaderText = "text-label font-[450] text-[var(--foreground-faint)]"
+export const tableHeaderText = "text-label font-label text-foreground-faint"
 export const tableHorizontalPadding = "px-4 @[900px]/table:px-3"
 export const tableHeaderPadding = cn(tableHorizontalPadding, "h-[34px]")
 const rowText = "text-cell [&_[data-entity-name]]:text-cell"
@@ -25,7 +25,7 @@ export function rowEmphasisClass(state: SiteState): string | undefined {
 const tableCellPadding = cn(tableHorizontalPadding, "py-1")
 export const listCardPadding = cn(tableHorizontalPadding, "min-h-10 py-2", rowText)
 export const listRowPadding = cn(listCardPadding, "sm:min-h-9 sm:py-1")
-export const tableRowStyle = "border-b border-[var(--border-soft)] transition-colors hover:bg-accent has-aria-expanded:bg-accent data-[state=selected]:bg-[var(--primary-soft)]"
+export const tableRowStyle = "border-b border-border-soft transition-colors hover:bg-accent has-aria-expanded:bg-accent data-[state=selected]:bg-primary-soft"
 
 function ListHeader({ className, ...props }: React.ComponentProps<"div">) {
   return <div className={cn("hidden items-center gap-4", tableHeaderBackground, tableHeaderText, tableHeaderPadding, tableRowStyle, className)} {...props} />

@@ -35,13 +35,17 @@ function DialogClose({
 
 function DialogOverlay({
   className,
+  instant = false,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+}: React.ComponentProps<typeof DialogPrimitive.Overlay> & {
+  instant?: boolean
+}) {
   return (
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-black/50 motion-overlay",
+        "fixed inset-0 z-50 bg-black/50",
+        !instant && "motion-overlay",
         className
       )}
       {...props}
@@ -53,22 +57,25 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  instant = false,
   onOpenAutoFocus,
   onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  instant?: boolean
 }) {
   const { t } = useTranslation()
   // Dialogs open from state (no DialogTrigger), so Radix has no trigger to refocus: return to the opener on close.
   const focusReturn = useReturnFocusToOpener({ onOpenAutoFocus, onCloseAutoFocus })
   return (
     <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
+      <DialogOverlay instant={instant} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-popover p-6 shadow-overlay outline-none motion-dialog sm:max-w-lg",
+          "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-popover p-6 shadow-overlay outline-none sm:max-w-lg",
+          !instant && "motion-dialog",
           className
         )}
         {...props}

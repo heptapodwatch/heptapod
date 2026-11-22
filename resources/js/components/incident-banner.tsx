@@ -33,12 +33,12 @@ export function IncidentBanner({
             className={cn(
                 'relative grid w-full grid-cols-[calc(var(--spacing)*4)_1fr] items-start gap-x-3 gap-y-0.5 px-4 py-3 text-sm [&>svg]:size-4 [&>svg]:translate-y-0.5',
                 isError
-                    ? 'border-b border-[var(--status-error)]/50 bg-[var(--status-error)]/10 text-foreground'
-                    : 'bg-[var(--status-down)] text-status-down-foreground sm:flex sm:min-h-10 sm:items-center sm:gap-3',
+                    ? 'border-b border-status-error/50 bg-status-error/10 text-foreground'
+                    : 'bg-status-down text-status-down-foreground sm:flex sm:min-h-10 sm:items-center sm:gap-3',
             )}
         >
             {isError ? (
-                <CircleAlert className="text-[var(--status-error)]!" />
+                <CircleAlert className="text-status-error!" />
             ) : (
                 <TriangleAlert className="text-status-down-foreground!" />
             )}

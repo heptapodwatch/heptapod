@@ -1,7 +1,8 @@
 import { ChevronRight } from 'lucide-react';
-import { useId, useState, type CSSProperties } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListFooter } from '@/components/list-footer';
+import { statusBadgeClass } from '@/components/monitoring';
 import { TextLink } from '@/components/text-link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,31 +24,32 @@ type Severity = 'critical' | 'high' | 'medium' | 'low';
 
 const severities: Record<
     Severity,
-    { rank: number; label: string; state: string; color: string }
+    { rank: number; label: string; state: string; badgeClass: string }
 > = {
     critical: {
         rank: 4,
         label: 'Critical',
         state: 'down',
-        color: 'var(--status-down)',
+        badgeClass: statusBadgeClass.down,
     },
     high: {
         rank: 3,
         label: 'High',
         state: 'failed',
-        color: 'var(--status-down)',
+        badgeClass: statusBadgeClass.failed,
     },
     medium: {
         rank: 2,
         label: 'Medium',
         state: 'warning',
-        color: 'var(--status-warn)',
+        badgeClass: statusBadgeClass.warning,
     },
     low: {
         rank: 1,
         label: 'Low',
         state: 'pending',
-        color: 'var(--status-error)',
+        badgeClass:
+            'border-[color-mix(in_srgb,var(--status-error)_28%,var(--border))] bg-transparent text-muted-foreground',
     },
 };
 
@@ -95,13 +97,8 @@ export function SeverityBadge({
     return (
         <Badge
             variant="outline"
-            className="status-badge"
+            className={severities[severity].badgeClass}
             data-state={severities[severity].state}
-            style={
-                {
-                    '--status-color': severities[severity].color,
-                } as CSSProperties
-            }
         >
             {t(severities[severity].label)}
         </Badge>

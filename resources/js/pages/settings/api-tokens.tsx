@@ -643,7 +643,7 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
                                         token.expires_at !== null &&
                                         new Date(token.expires_at).getTime() <=
                                             Date.now() && (
-                                            <span className="block text-xs text-(--status-warn)">
+                                            <span className="block text-xs text-status-warn">
                                                 {t('Expired')}
                                             </span>
                                         )}

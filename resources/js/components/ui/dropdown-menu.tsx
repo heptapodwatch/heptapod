@@ -159,7 +159,7 @@ function DropdownMenuLabel({
       data-slot="dropdown-menu-label"
       data-inset={inset}
       className={cn(
-        "px-2 py-1.5 text-label font-[450] text-[var(--foreground-faint)] data-[inset]:pl-8",
+        "px-2 py-1.5 text-label font-label text-foreground-faint data-[inset]:pl-8",
         className
       )}
       {...props}
@@ -174,7 +174,7 @@ function DropdownMenuSeparator({
   return (
     <DropdownMenuPrimitive.Separator
       data-slot="dropdown-menu-separator"
-      className={cn("-mx-1 my-1 h-px bg-[var(--border-soft)]", className)}
+      className={cn("-mx-1 my-1 h-px bg-border-soft", className)}
       {...props}
     />
   )
