@@ -12,9 +12,9 @@ const alertVariants = cva(
   {
     variants: {
       tone: {
-        info: "border-border bg-muted/40 [&_[data-slot=alert-icon]]:text-(--status-info)",
+        info: "border-border bg-muted/40 [&_[data-slot=alert-icon]]:text-status-info",
         warning:
-          "border-(--status-warn)/40 bg-(--status-warn)/5 [&_[data-slot=alert-icon]]:text-(--status-warn)",
+          "border-status-warn/40 bg-status-warn/5 [&_[data-slot=alert-icon]]:text-status-warn",
         danger:
           "border-destructive/40 bg-destructive/5 [&_[data-slot=alert-icon]]:text-destructive",
       },

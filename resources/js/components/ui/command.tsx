@@ -53,7 +53,8 @@ function CommandDialog({
     <Dialog {...props}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent
-        className={cn("motion-instant overflow-hidden p-0", className)}
+        instant
+        className={cn("overflow-hidden p-0", className)}
         showCloseButton={showCloseButton}
         onCloseAutoFocus={onCloseAutoFocus}
       >
@@ -61,7 +62,7 @@ function CommandDialog({
           <DialogTitle>{t(title)}</DialogTitle>
           <DialogDescription>{t(description)}</DialogDescription>
         </DialogHeader>
-        <Command className="[&_[data-slot=command-input-wrapper]]:h-12 [&_[data-slot=command-input-wrapper]]:pr-12 [&_[data-slot=command-input-wrapper]_svg]:size-5 [&_[data-slot=command-input]]:h-12 [&_[data-slot=command-input]]:text-base [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-[450] [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5 [&_[cmdk-item]_[data-slot=badge]>svg]:size-3">
+        <Command className="[&_[data-slot=command-input-wrapper]]:h-12 [&_[data-slot=command-input-wrapper]]:pr-12 [&_[data-slot=command-input-wrapper]_svg]:size-5 [&_[data-slot=command-input]]:h-12 [&_[data-slot=command-input]]:text-base [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-label [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5 [&_[cmdk-item]_[data-slot=badge]>svg]:size-3">
           {children}
         </Command>
       </DialogContent>
@@ -127,7 +128,7 @@ function CommandGroup({
     <CommandPrimitive.Group
       data-slot="command-group"
       className={cn(
-        "overflow-hidden p-1 text-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-label [&_[cmdk-group-heading]]:font-[450] [&_[cmdk-group-heading]]:text-muted-foreground",
+        "overflow-hidden p-1 text-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-label [&_[cmdk-group-heading]]:font-label [&_[cmdk-group-heading]]:text-muted-foreground",
         className
       )}
       {...props}
@@ -142,7 +143,7 @@ function CommandSeparator({
   return (
     <CommandPrimitive.Separator
       data-slot="command-separator"
-      className={cn("-mx-1 h-px bg-[var(--border-soft)]", className)}
+      className={cn("-mx-1 h-px bg-border-soft", className)}
       {...props}
     />
   )

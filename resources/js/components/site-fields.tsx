@@ -266,7 +266,7 @@ export function SiteCheckField({
         <label
             htmlFor={id}
             className={cn(
-                'flex cursor-pointer items-center gap-3 font-[450] has-disabled:cursor-not-allowed has-disabled:opacity-50',
+                'flex cursor-pointer items-center gap-3 font-label has-disabled:cursor-not-allowed has-disabled:opacity-50',
                 action ? 'min-w-0 flex-1' : listRowPadding,
             )}
         >

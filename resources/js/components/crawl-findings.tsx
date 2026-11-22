@@ -174,7 +174,7 @@ export function FindingsTable({
                                         className={
                                             muted
                                                 ? 'font-mono text-xs text-muted-foreground tabular-nums'
-                                                : 'font-mono text-xs text-[var(--status-down)] tabular-nums'
+                                                : 'font-mono text-xs text-status-down tabular-nums'
                                         }
                                     >
                                         {row.status}
@@ -291,7 +291,7 @@ export function FindingsTable({
                                         className={
                                             muted
                                                 ? 'font-mono text-xs whitespace-normal text-muted-foreground tabular-nums'
-                                                : 'font-mono text-xs whitespace-normal text-[var(--status-down)] tabular-nums'
+                                                : 'font-mono text-xs whitespace-normal text-status-down tabular-nums'
                                         }
                                     >
                                         {row.status}

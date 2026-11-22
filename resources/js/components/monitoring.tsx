@@ -3,13 +3,7 @@ import { PresentationChanges } from '@/components/presentation-changes';
 import { SiteAvatar } from '@/components/site-avatar';
 import { EmptyState } from '@/components/empty-state';
 import { AlertCircle, Globe } from 'lucide-react';
-import {
-    useLayoutEffect,
-    useRef,
-    useState,
-    type CSSProperties,
-    type ReactNode,
-} from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { EntityLink } from '@/components/entity-link';
 import { useTranslation } from 'react-i18next';
@@ -110,6 +104,25 @@ export function StatusDot({
         />
     );
 }
+export const statusBadgeClass: Record<SiteState, string> = {
+    ok: 'border-[color-mix(in_srgb,var(--status-ok)_28%,var(--border))] bg-transparent text-status-ok',
+    warning:
+        'border-[color-mix(in_srgb,var(--status-warn)_28%,var(--border))] bg-[color-mix(in_srgb,var(--status-warn)_6%,var(--card))] text-status-warn',
+    down: 'border-status-down bg-status-down text-status-down-foreground',
+    paused: 'border-[color-mix(in_srgb,var(--status-paused)_28%,var(--border))] bg-transparent text-muted-foreground',
+    pending:
+        'border-[color-mix(in_srgb,var(--status-pending)_28%,var(--border))] bg-transparent text-muted-foreground',
+    disabled:
+        'border-[color-mix(in_srgb,var(--status-disabled)_28%,var(--border))] bg-transparent text-muted-foreground',
+    unavailable:
+        'border-[color-mix(in_srgb,var(--status-disabled)_28%,var(--border))] bg-transparent text-muted-foreground',
+    maintenance:
+        'border-[color-mix(in_srgb,var(--status-info)_28%,var(--border))] bg-[color-mix(in_srgb,var(--status-info)_6%,var(--card))] text-status-info',
+    failed: 'border-[color-mix(in_srgb,var(--status-down)_28%,var(--border))] bg-[color-mix(in_srgb,var(--status-down)_6%,var(--card))] text-status-down',
+    'check-error':
+        'border-[color-mix(in_srgb,var(--status-error)_28%,var(--border))] bg-[color-mix(in_srgb,var(--status-error)_6%,var(--card))] text-status-error',
+};
+
 export function StatusBadge({
     state,
     label,
@@ -125,8 +138,7 @@ export function StatusBadge({
             variant="outline"
             aria-label={t(label ?? statusLabels[state])}
             data-state={state}
-            className="status-badge"
-            style={{ '--status-color': statusColor[state] } as CSSProperties}
+            className={statusBadgeClass[state]}
         >
             <span aria-hidden className="inline-flex">
                 <StatusDot

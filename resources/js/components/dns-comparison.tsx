@@ -289,7 +289,7 @@ export function DnsComparison({
                                                 (record, index) => (
                                                     <p
                                                         key={`removed-${index}`}
-                                                        className="break-all text-[var(--status-down)]"
+                                                        className="break-all text-status-down"
                                                     >
                                                         −{' '}
                                                         {Object.entries(record)
@@ -308,7 +308,7 @@ export function DnsComparison({
                                                 (record, index) => (
                                                     <p
                                                         key={`added-${index}`}
-                                                        className="break-all text-[var(--status-ok)]"
+                                                        className="break-all text-status-ok"
                                                     >
                                                         +{' '}
                                                         {Object.entries(record)

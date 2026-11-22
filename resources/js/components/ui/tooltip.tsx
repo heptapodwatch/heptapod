@@ -41,14 +41,33 @@ export type TooltipDetailsProps = {
   hint?: string
 }
 
+const tooltipStatusClass: Partial<Record<SiteState, string>> = {
+  ok: "text-status-ok",
+  warning: "text-status-warn",
+  down: "text-status-down",
+  failed: "text-status-down",
+  "check-error": "text-status-error",
+  maintenance: "text-status-info",
+}
+
+const tooltipPanelClass =
+  "tooltip-panel z-50 w-fit max-w-[min(28rem,calc(100vw-1rem))] rounded-[6px] border border-tooltip-border bg-tooltip-surface px-[9px] py-1.5 font-mono text-xs leading-[17px] text-tooltip-subject shadow-overlay wrap-anywhere"
+
 function TooltipDetails({ subject, facts, status, hint }: TooltipDetailsProps) {
   return (
-    <div data-slot="tooltip-details">
+    <div data-slot="tooltip-details" className="text-tooltip-muted">
       <p className="text-tooltip-subject">{subject}</p>
       {facts?.map((fact, index) => (
         <div key={index}>{fact}</div>
       ))}
-      {status && <p data-tooltip-status={status.state}>{status.label}</p>}
+      {status && (
+        <p
+          data-tooltip-status={status.state}
+          className={tooltipStatusClass[status.state]}
+        >
+          {status.label}
+        </p>
+      )}
       {hint && <p>{hint}</p>}
     </div>
   )
@@ -60,7 +79,8 @@ function TooltipPanel({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="tooltip-content"
       role="tooltip"
       className={cn(
-        "tooltip-panel z-50 w-fit max-w-[min(28rem,calc(100vw-1rem))] rounded-[6px] border border-tooltip-border bg-tooltip-surface px-[9px] py-[6px] font-mono text-xs leading-[17px] text-tooltip-subject shadow-overlay",
+        tooltipPanelClass,
+        "origin-(--radix-tooltip-content-transform-origin) motion-safe:animate-[motion-pop-in_var(--motion-enter)_var(--ease-out)] data-[state=closed]:animate-none data-[state=instant-open]:animate-none",
         className
       )}
       {...props}
@@ -96,4 +116,5 @@ export {
   TooltipDetails,
   TooltipPanel,
   TooltipProvider,
+  tooltipPanelClass,
 }

@@ -62,7 +62,6 @@ const palette = [
     ['Foreground', 'foreground'],
     ['Primary', 'primary'],
     ['Information', 'status-info'],
-    ['Secondary text', 'foreground-secondary'],
     ['Faint text', 'foreground-faint'],
     ['Soft border', 'border-soft'],
     ['Selection tint', 'primary-soft'],

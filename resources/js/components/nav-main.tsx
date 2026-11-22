@@ -111,7 +111,7 @@ export function NavMain({
                                                         item.title ===
                                                             t('Incidents') &&
                                                         item.count > 0
-                                                            ? 'ml-auto font-mono text-xs text-[var(--status-down)]'
+                                                            ? 'ml-auto font-mono text-xs text-status-down'
                                                             : 'ml-auto font-mono text-xs text-muted-foreground'
                                                     }
                                                 >

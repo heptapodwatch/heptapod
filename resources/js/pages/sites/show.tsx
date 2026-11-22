@@ -282,7 +282,7 @@ export default function SiteShow(page: SitePage) {
                                     )}
                             </span>
                             {incidentStartedAt && (
-                                <span className="text-xs text-[var(--foreground-faint)]">
+                                <span className="text-xs text-foreground-faint">
                                     {t('Since')}{' '}
                                     <MonitoringTime
                                         value={incidentStartedAt}
@@ -340,7 +340,7 @@ export default function SiteShow(page: SitePage) {
                     page.check.enabled &&
                     run?.phase === 'late' &&
                     run.due_at && (
-                        <p className="text-xs text-[var(--status-warn)]">
+                        <p className="text-xs text-status-warn">
                             {t('Late by {{duration}}', {
                                 duration: format.duration(
                                     Math.max(

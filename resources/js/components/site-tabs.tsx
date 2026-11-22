@@ -67,7 +67,7 @@ export function SiteTabs({
                             </span>
                         </TooltipHint>
                     ) : check.not_fresh ? (
-                        <span className="text-xs text-(--status-warn)">
+                        <span className="text-xs text-status-warn">
                             · {t('freshness.not_fresh')}
                         </span>
                     ) : null}

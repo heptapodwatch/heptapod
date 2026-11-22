@@ -109,7 +109,7 @@ export function HealthIndicator({
     updatedAtDateTime: string;
 }) {
     return (
-        <div className="flex min-h-8 items-center gap-2 rounded-md border border-[var(--border-soft)] px-2 text-xs text-muted-foreground">
+        <div className="flex min-h-8 items-center gap-2 rounded-md border border-border-soft px-2 text-xs text-muted-foreground">
             <StatusDot state={state} label={label} />
             <TruncatedText content={label}>
                 <span className="min-w-0 flex-1 truncate">{label}</span>
@@ -358,7 +358,7 @@ export function ScheduleCard({
                     <dd className="font-mono tabular-nums">{duration}</dd>
                 </dl>
                 {showRunsLink && (
-                    <p className="text-xs text-[var(--foreground-faint)]">
+                    <p className="text-xs text-foreground-faint">
                         {t('Every run is listed in Runs')}
                     </p>
                 )}

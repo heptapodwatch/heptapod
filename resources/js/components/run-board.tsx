@@ -309,7 +309,7 @@ function BoardColumn({
                     </span>
                 )}
             </div>
-            <div className="flex flex-1 flex-col gap-2 rounded-[10px] border border-[var(--border-soft)] bg-muted/40 p-2 sm:min-h-[36rem]">
+            <div className="flex flex-1 flex-col gap-2 rounded-[10px] border border-border-soft bg-muted/40 p-2 sm:min-h-[36rem]">
                 {empty !== null ? (
                     <p className="px-2 py-3 text-xs text-muted-foreground">
                         {empty}

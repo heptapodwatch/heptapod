@@ -636,8 +636,8 @@ function SavedCheckSettingsSheet({
                                             aria-live="polite"
                                             className={
                                                 probeResult.result === 'ok'
-                                                    ? 'text-[var(--status-ok)]'
-                                                    : 'text-[var(--status-warn)]'
+                                                    ? 'text-status-ok'
+                                                    : 'text-status-warn'
                                             }
                                         >
                                             {probeResult.result === 'ok'

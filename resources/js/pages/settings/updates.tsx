@@ -536,7 +536,7 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                                         )}
                                     </p>
                                 ) : (
-                                    <ul className="divide-y divide-(--border-soft)">
+                                    <ul className="divide-y divide-border-soft">
                                         {backups.archives.map(
                                             (archive, index) => (
                                                 <li

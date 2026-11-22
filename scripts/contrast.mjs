@@ -51,7 +51,6 @@ function ratio(foreground, background) {
 const surfaces = ['background', 'card', 'secondary'];
 const textChecks = [
     ['Text', 'foreground'],
-    ['Secondary text', 'foreground-secondary'],
     ['Muted text', 'muted-foreground'],
     ['Meta text', 'foreground-faint'],
     ['Status text · OK', 'status-ok'],
@@ -118,7 +117,7 @@ for (const theme of ['dark', 'light']) {
             `| Control border · radio, checkbox on \`--${surface}\` | 3 | ${report(ratio(colour('control-border'), colour(surface)), 3)} | | |`,
         );
     }
-    // Tinted badges use 6% status ink over the card, matching status-rings.css.
+    // Tinted badges use 6% status ink over the card, matching statusBadgeClass in monitoring.tsx.
     for (const status of ['warn', 'down', 'info', 'error']) {
         const ink = colour(`status-${status}`);
         const tinted = colour('card').map(
