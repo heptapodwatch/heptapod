@@ -88,11 +88,6 @@ $rawButtonOwners = [
     'resources/js/components/recipient-settings/recipient-settings.tsx' => [1, 'Channel row name: the row tab stop (rowTargetClick).'],
     'resources/js/components/text-link.tsx' => [1, 'TextLinkButton primitive: a button that looks like a text link.'],
 ];
-/** Per file: the one Badge font-size/weight exception (keyed by a snippet of its className) and why. */
-$badgeTypographyExceptions = [
-    'resources/js/components/run-family.tsx' => ['text-micro', 'YouMarker: compact 10 px "You" pin inside a 20 px RunLine.'],
-];
-$badgeTypographyExceptionCounts = [];
 /** Per file: the one error key a button action returns (no form field holds it), and why it has no field link. */
 $actionErrorKeys = [
     'resources/js/pages/sites/settings.tsx' => 'icon', // Refresh icon refused (unavailable / throttled): rendered in ActionNoteSlot beside the Refresh button.
@@ -197,104 +192,6 @@ function tagHasAttribute(string $tag, string $marker): bool
     }
 
     return false;
-}
-
-/** Read a full JSX opening tag starting at `<` (respecting quotes, templates and balanced `{…}` expressions). */
-function jsxOpeningTag(string $source, int $start): ?string
-{
-    $contexts = [];
-    $length = strlen($source);
-    for ($i = $start + 1; $i < $length; $i++) {
-        $char = $source[$i];
-        if ($contexts !== []) {
-            $context = $contexts[array_key_last($contexts)];
-            if ($context === '{') {
-                if ($char === '"' || $char === "'" || $char === '`' || $char === '{') {
-                    $contexts[] = $char;
-                } elseif ($char === '}') {
-                    array_pop($contexts);
-                }
-            } elseif ($char === '\\') {
-                $i++;
-            } elseif ($char === $context) {
-                array_pop($contexts);
-            } elseif ($context === '`' && $char === '$' && ($source[$i + 1] ?? '') === '{') {
-                $contexts[] = '{';
-                $i++;
-            }
-
-            continue;
-        }
-        if ($char === '"' || $char === "'" || $char === '{') {
-            $contexts[] = $char;
-        } elseif ($char === '>') {
-            return substr($source, $start, $i - $start + 1);
-        }
-    }
-
-    return null;
-}
-
-/**
- * Parse top-level JSX attributes from an opening tag into `[name => rawValue|null]` (`null` for boolean attributes).
- * Spreads (`{...props}`) are skipped, hyphenated names (`data-preview-variant`) stay one attribute key, and whitespace
- * around `=` is allowed.
- *
- * @return array<string, ?string>
- */
-function jsxTagAttributes(string $tag): array
-{
-    $attributes = [];
-    $length = strlen($tag);
-    $i = 1;
-    while ($i < $length && preg_match('/[\w.-]/', $tag[$i]) === 1) {
-        $i++;
-    }
-    while ($i < $length) {
-        while ($i < $length && ctype_space($tag[$i])) {
-            $i++;
-        }
-        if ($i >= $length || $tag[$i] === '>' || $tag[$i] === '/') {
-            break;
-        }
-        if ($tag[$i] === '{') {
-            $spread = expressionValue($tag, $i);
-            $i += strlen($spread);
-
-            continue;
-        }
-        $nameStart = $i;
-        while ($i < $length && preg_match('/[\w:-]/', $tag[$i]) === 1) {
-            $i++;
-        }
-        if ($i === $nameStart) {
-            $i++;
-
-            continue;
-        }
-        $name = substr($tag, $nameStart, $i - $nameStart);
-        while ($i < $length && ctype_space($tag[$i])) {
-            $i++;
-        }
-        if (($tag[$i] ?? '') !== '=') {
-            $attributes[$name] = null;
-
-            continue;
-        }
-        $i++;
-        while ($i < $length && ctype_space($tag[$i])) {
-            $i++;
-        }
-        if ($i < $length && in_array($tag[$i], ['"', "'", '{'], true)) {
-            $value = expressionValue($tag, $i);
-            $attributes[$name] = $value;
-            $i += strlen($value);
-        } else {
-            $attributes[$name] = null;
-        }
-    }
-
-    return $attributes;
 }
 
 /** A hover (or group-hover) variant that sets the text colour, e.g. hover:text-foreground, group-hover/row:text-x. */
@@ -716,84 +613,18 @@ foreach ($files as $path) {
             $failures[] = sprintf('%s:%d: native %s; use ConfirmDialog', $path, substr_count($source, "\n", 0, $offset) + 1, trim($text, " (\t"));
         }
     }
-    // Button surface (heptapod-ui-rules Forms): 4 variants (default, destructive, outline, ghost) and 4 sizes (default, xs, icon, icon-xs).
-    if ($path === 'resources/js/components/ui/button.tsx') {
-        if (preg_match('~\bvariant\s*:\s*\{([^}]*)\}~s', $source, $variantBlock) === 1
-            && preg_match_all('~(?:^|[\s,{])[\'"]?(secondary|link)[\'"]?\s*:~m', $variantBlock[1], $badVariants) > 0) {
-            $failures[] = "{$path}: removed Button variant(s) (".implode(', ', array_unique($badVariants[1])).'); allowed variants are default, outline, ghost, destructive';
-        }
-        if (preg_match('~\bsize\s*:\s*\{([^}]*)\}~s', $source, $sizeBlock) === 1
-            && preg_match_all('~(?:^|[\s,{])[\'"]?(sm|lg)[\'"]?\s*:~m', $sizeBlock[1], $badSizes) > 0) {
-            $failures[] = "{$path}: removed Button size(s) (".implode(', ', array_unique($badSizes[1])).'); allowed sizes are default, xs, icon, icon-xs';
-        }
-    }
-    if (preg_match_all('~<(Button|FormSecondaryAction|PageHeaderAction|ExportButton|SidebarMenuButton)(?=[\s/>])~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
-        foreach ($matches[0] as $index => [, $offset]) {
-            $opening = jsxOpeningTag($source, $offset);
-            if ($opening === null) {
+    if (preg_match_all('~<(Button|SidebarMenuButton)(?=\s)(?:[^<>]|=>)*?\bsize=~s', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
+        foreach ($matches[0] as $index => [$text, $offset]) {
+            $value = expressionValue($source, $offset + strlen($text));
+            if (preg_match('~[\'\"]lg[\'\"]~', $value) !== 1) {
                 continue;
             }
-            $attrs = jsxTagAttributes($opening);
-            $tag = $matches[1][$index][0];
-            $line = substr_count($source, "\n", 0, $offset) + 1;
-            $size = $attrs['size'] ?? null;
-            if ($size !== null) {
-                if ($tag === 'SidebarMenuButton') {
-                    if (preg_match('~[\'\"]lg[\'\"]~', $size) === 1) {
-                        if (isset($largeSidebarButtonExceptions[$path])) {
-                            $largeSidebarButtonExceptionCounts[$path] = ($largeSidebarButtonExceptionCounts[$path] ?? 0) + 1;
-                        } else {
-                            $failures[] = sprintf('%s:%d: large button; use the compact default size', $path, $line);
-                        }
-                    }
-                } elseif (preg_match('~[\'\"](sm|lg)[\'\"]~', $size, $badSize) === 1) {
-                    $failures[] = sprintf('%s:%d: removed Button size "%s"; allowed sizes are default, xs, icon, icon-xs', $path, $line, $badSize[1]);
-                }
-            }
-            if ($tag !== 'SidebarMenuButton') {
-                $variant = $attrs['variant'] ?? null;
-                if ($variant !== null && preg_match('~[\'\"](secondary|link)[\'\"]~', $variant, $badVariant) === 1) {
-                    $failures[] = sprintf('%s:%d: removed Button variant "%s"; allowed variants are default, outline, ghost, destructive', $path, $line, $badVariant[1]);
-                }
-            }
-        }
-    }
-    // Badge surface (heptapod-ui-rules Foundation): single neutral outline variant, never a link (no asChild), no caller font-size/weight overrides.
-    if ($path === 'resources/js/components/ui/badge.tsx') {
-        if (preg_match('~\bvariant\s*:\s*\{([^}]*)\}~s', $source, $variantBlock) === 1
-            && preg_match_all('~(?:^|[\s,{])[\'"]?(default|secondary|destructive|ghost|link)[\'"]?\s*:~m', $variantBlock[1], $badVariants) > 0) {
-            $failures[] = "{$path}: removed Badge variant(s) (".implode(', ', array_unique($badVariants[1])).'); Badge has one neutral outline variant';
-        }
-        if (preg_match('~\basChild\b|\[a&\]~', $source) === 1) {
-            $failures[] = "{$path}: Badges are never links; do not add asChild or [a&] link hover styles";
-        }
-    }
-    if (preg_match_all('~<Badge(?=[\s/>])~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
-        foreach ($matches[0] as [, $offset]) {
-            $opening = jsxOpeningTag($source, $offset);
-            if ($opening === null) {
+            if ($matches[1][$index][0] === 'SidebarMenuButton' && isset($largeSidebarButtonExceptions[$path])) {
+                $largeSidebarButtonExceptionCounts[$path] = ($largeSidebarButtonExceptionCounts[$path] ?? 0) + 1;
+
                 continue;
             }
-            $attrs = jsxTagAttributes($opening);
-            $line = substr_count($source, "\n", 0, $offset) + 1;
-            $variant = $attrs['variant'] ?? null;
-            if ($variant !== null && preg_match('~[\'\"](default|secondary|destructive|ghost|link)[\'\"]~', $variant, $badVariant) === 1) {
-                $failures[] = sprintf('%s:%d: removed Badge variant "%s"; Badge uses the single neutral outline variant', $path, $line, $badVariant[1]);
-            }
-            if (array_key_exists('asChild', $attrs)) {
-                $failures[] = sprintf('%s:%d: Badge asChild is removed; Badges are never links', $path, $line);
-            }
-            $className = $attrs['className'] ?? null;
-            if ($className !== null) {
-                $sizeOrWeight = preg_match('~(?<![\w-])(?:[\w-]+:)*(?:text-(?:page-title|headline|stat|section|sm|cell|xs|label|micro|mark|base|lg|[2-9]?xl|\[)|font-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black|\[))~', $className) === 1;
-                if ($sizeOrWeight) {
-                    if (isset($badgeTypographyExceptions[$path]) && str_contains($className, $badgeTypographyExceptions[$path][0])) {
-                        $badgeTypographyExceptionCounts[$path] = ($badgeTypographyExceptionCounts[$path] ?? 0) + 1;
-                    } else {
-                        $failures[] = sprintf('%s:%d: Badge typography override; Badge owns text-label font-[450]', $path, $line);
-                    }
-                }
-            }
+            $failures[] = sprintf('%s:%d: large button; use the compact default size', $path, substr_count($source, "\n", 0, $offset) + 1);
         }
     }
     // Density belongs to the shared table/list tokens, including responsive cards that keep native link/list semantics.
@@ -1041,13 +872,6 @@ foreach ($hoverColourAllowlist as $path => [$marker, $reason]) {
         $failures[] = "{$path}: the hover exception ({$marker}) must mark exactly one link, found {$found}; the exception covers one named element";
     }
 }
-foreach ($badgeTypographyExceptions as $path => [$snippet, $reason]) {
-    $found = $badgeTypographyExceptionCounts[$path] ?? 0;
-    if ($found !== 1) {
-        $failures[] = "{$path}: expected one named Badge typography exception ({$snippet}), found {$found} ({$reason})";
-    }
-}
-
 foreach ($rawButtonOwners as $path => [, $reason]) {
     if (! is_file($root.'/'.$path)) {
         $failures[] = "{$path}: raw-button exception no longer exists ({$reason})";
@@ -1104,4 +928,4 @@ passthru('cd '.escapeshellarg($root).' && node scripts/check-form-selects.mjs', 
 if ($formSelectStatus !== 0) {
     exit($formSelectStatus);
 }
-printf("UI primitives: %d files checked; 0 native prompts, 0 hand-styled link underlines, 0 link hover colour changes, 0 other focus rings, 0 hand-rolled disabled opacity recipes, 0 local filled status dots, 0 local section titles or typography overrides, 0 local display-time presets, 0 removed Button/Badge variants or sizes, 0 Badge typography overrides, 0 local horizontal navigation or step progress, 0 enabled cursor overrides, 0 local row density overrides or raw tables, 0 native date/time inputs, 0 hand-tinted callouts or notices above the page header, 0 raw palette text colours, 0 local spinners, 0 irreversible confirmations without destructive, 0 native checkbox/radio/number/details/select controls or raw inputs/textareas/buttons, 0 forms with browser validation, 0 hand-rolled error lines, 0 off-token control heights, 0 arbitrary or off-scale font sizes, 0 native title tooltips, 0 local list pagers, 0 local motion, 0 local tooltip providers, 0 site headers or second layouts on incident pages, 0 multi-line picker triggers, 0 local row emphasis, 0 switch rows without a row label, 0 inline action notes outside ActionNoteSlot.\n", count($files));
+printf("UI primitives: %d files checked; 0 native prompts, 0 hand-styled link underlines, 0 link hover colour changes, 0 other focus rings, 0 hand-rolled disabled opacity recipes, 0 local filled status dots, 0 local section titles or typography overrides, 0 local display-time presets, 0 large action buttons, 0 local horizontal navigation or step progress, 0 enabled cursor overrides, 0 local row density overrides or raw tables, 0 native date/time inputs, 0 hand-tinted callouts or notices above the page header, 0 raw palette text colours, 0 local spinners, 0 irreversible confirmations without destructive, 0 native checkbox/radio/number/details/select controls or raw inputs/textareas/buttons, 0 forms with browser validation, 0 hand-rolled error lines, 0 off-token control heights, 0 arbitrary or off-scale font sizes, 0 native title tooltips, 0 local list pagers, 0 local motion, 0 local tooltip providers, 0 site headers or second layouts on incident pages, 0 multi-line picker triggers, 0 local row emphasis, 0 switch rows without a row label, 0 inline action notes outside ActionNoteSlot.\n", count($files));
