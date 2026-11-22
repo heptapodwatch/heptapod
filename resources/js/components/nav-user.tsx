@@ -35,7 +35,7 @@ export function NavUser() {
                         >
                             <Avatar className="size-4 shrink-0 overflow-hidden rounded-full group-data-[collapsible=icon]:size-5">
                                 <AvatarImage src={user.avatar} alt="" />
-                                <AvatarFallback className="bg-primary/15 text-micro text-foreground">
+                                <AvatarFallback className="bg-avatar-fallback text-micro text-avatar-fallback-foreground">
                                     {getInitials(user.name).slice(0, 1)}
                                 </AvatarFallback>
                             </Avatar>
