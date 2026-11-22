@@ -75,7 +75,7 @@ function DialogContent({
         data-slot="dialog-content"
         className={cn(
           "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-popover p-6 shadow-overlay outline-none sm:max-w-lg",
-          !instant && "motion-dialog",
+          !instant && "motion-pop",
           className
         )}
         {...props}

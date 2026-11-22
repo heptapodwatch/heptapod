@@ -218,7 +218,7 @@ export function ActionNoteSlot({
                                 }
                                 className={cn(
                                     tooltipPanelClass,
-                                    'origin-(--radix-popover-content-transform-origin) motion-popover outline-none',
+                                    'motion-pop outline-none',
                                 )}
                             >
                                 {children}

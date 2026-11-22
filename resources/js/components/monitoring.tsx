@@ -105,22 +105,22 @@ export function StatusDot({
     );
 }
 export const statusBadgeClass: Record<SiteState, string> = {
-    ok: 'border-[color-mix(in_srgb,var(--status-ok)_28%,var(--border))] bg-transparent text-status-ok',
+    ok: 'border-status-ok-border bg-transparent text-status-ok',
     warning:
-        'border-[color-mix(in_srgb,var(--status-warn)_28%,var(--border))] bg-[color-mix(in_srgb,var(--status-warn)_6%,var(--card))] text-status-warn',
+        'border-status-warn-border bg-status-warn-surface text-status-warn',
     down: 'border-status-down bg-status-down text-status-down-foreground',
-    paused: 'border-[color-mix(in_srgb,var(--status-paused)_28%,var(--border))] bg-transparent text-muted-foreground',
+    paused: 'border-status-paused-border bg-transparent text-muted-foreground',
     pending:
-        'border-[color-mix(in_srgb,var(--status-pending)_28%,var(--border))] bg-transparent text-muted-foreground',
+        'border-status-pending-border bg-transparent text-muted-foreground',
     disabled:
-        'border-[color-mix(in_srgb,var(--status-disabled)_28%,var(--border))] bg-transparent text-muted-foreground',
+        'border-status-disabled-border bg-transparent text-muted-foreground',
     unavailable:
-        'border-[color-mix(in_srgb,var(--status-disabled)_28%,var(--border))] bg-transparent text-muted-foreground',
+        'border-status-disabled-border bg-transparent text-muted-foreground',
     maintenance:
-        'border-[color-mix(in_srgb,var(--status-info)_28%,var(--border))] bg-[color-mix(in_srgb,var(--status-info)_6%,var(--card))] text-status-info',
-    failed: 'border-[color-mix(in_srgb,var(--status-down)_28%,var(--border))] bg-[color-mix(in_srgb,var(--status-down)_6%,var(--card))] text-status-down',
+        'border-status-info-border bg-status-info-surface text-status-info',
+    failed: 'border-status-down-border bg-status-down-surface text-status-down',
     'check-error':
-        'border-[color-mix(in_srgb,var(--status-error)_28%,var(--border))] bg-[color-mix(in_srgb,var(--status-error)_6%,var(--card))] text-status-error',
+        'border-status-error-border bg-status-error-surface text-status-error',
 };
 
 export function StatusBadge({

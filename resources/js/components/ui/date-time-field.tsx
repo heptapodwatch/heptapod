@@ -437,7 +437,7 @@ export function DateTimeField({
                                 )
                                 ?.focus();
                         }}
-                        className="z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-lg border bg-popover p-3 text-popover-foreground shadow-overlay motion-popover"
+                        className="z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-lg border bg-popover p-3 text-popover-foreground shadow-overlay motion-pop"
                     >
                         <div className="flex items-center justify-between">
                             <span className="text-sm font-medium">

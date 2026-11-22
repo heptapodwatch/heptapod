@@ -165,6 +165,70 @@
     --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* Status badge border and tinted surface tokens: evaluated against the active theme at the element. */
+@theme inline {
+    --color-status-ok-border: color-mix(
+        in srgb,
+        var(--status-ok) 28%,
+        var(--border)
+    );
+    --color-status-warn-border: color-mix(
+        in srgb,
+        var(--status-warn) 28%,
+        var(--border)
+    );
+    --color-status-warn-surface: color-mix(
+        in srgb,
+        var(--status-warn) 6%,
+        var(--card)
+    );
+    --color-status-down-border: color-mix(
+        in srgb,
+        var(--status-down) 28%,
+        var(--border)
+    );
+    --color-status-down-surface: color-mix(
+        in srgb,
+        var(--status-down) 6%,
+        var(--card)
+    );
+    --color-status-info-border: color-mix(
+        in srgb,
+        var(--status-info) 28%,
+        var(--border)
+    );
+    --color-status-info-surface: color-mix(
+        in srgb,
+        var(--status-info) 6%,
+        var(--card)
+    );
+    --color-status-error-border: color-mix(
+        in srgb,
+        var(--status-error) 28%,
+        var(--border)
+    );
+    --color-status-error-surface: color-mix(
+        in srgb,
+        var(--status-error) 6%,
+        var(--card)
+    );
+    --color-status-pending-border: color-mix(
+        in srgb,
+        var(--status-pending) 28%,
+        var(--border)
+    );
+    --color-status-paused-border: color-mix(
+        in srgb,
+        var(--status-paused) 28%,
+        var(--border)
+    );
+    --color-status-disabled-border: color-mix(
+        in srgb,
+        var(--status-disabled) 28%,
+        var(--border)
+    );
+}
+
 :root {
     /* Tooltips stay dark in both themes, including their status colours. */
     --tooltip-surface: #13171b;
@@ -585,17 +649,7 @@ html body[data-scroll-locked] {
     }
 }
 
-@utility motion-popover {
-    &[data-state='open'] {
-        animation: motion-pop-in var(--motion-enter) var(--ease-out);
-    }
-
-    &[data-state='closed'] {
-        animation: motion-pop-out var(--motion-exit) var(--ease-out);
-    }
-}
-
-@utility motion-dialog {
+@utility motion-pop {
     &[data-state='open'] {
         animation: motion-pop-in var(--motion-enter) var(--ease-out);
     }

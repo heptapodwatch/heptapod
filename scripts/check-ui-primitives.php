@@ -324,7 +324,7 @@ foreach ($files as $path) {
     // local curves, no generic tw-animate overlay classes, no numbered durations or built-in linear/in curves.
     if ($path !== 'resources/js/lib/motion.ts' && preg_match_all('~(?<![\w-])(?:[\w-]+:)*(?:transition-all|cubic-bezier|animate-(?:in|out)|(?:zoom|slide|fade)-(?:in|out)(?:-[\w-]+)?|duration-\d+|ease-(?:linear|in)(?![\w-]))(?![\w-])~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
         foreach ($matches[0] as [$text, $offset]) {
-            $failures[] = sprintf('%s:%d: local motion %s; use the motion tokens and recipes (motion-popover, motion-dialog, motion-sheet, motion-overlay, duration-(--motion-*), ease-out)', $path, substr_count($source, "\n", 0, $offset) + 1, $text);
+            $failures[] = sprintf('%s:%d: local motion %s; use the motion tokens and recipes (motion-pop, motion-sheet, motion-overlay, duration-(--motion-*), ease-out)', $path, substr_count($source, "\n", 0, $offset) + 1, $text);
         }
     }
     // One incident page, two states (heptapod-ui-rules Incident episode): incident pages render IncidentEpisode, never the

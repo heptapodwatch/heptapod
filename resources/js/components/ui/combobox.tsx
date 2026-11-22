@@ -180,7 +180,7 @@ export function Combobox({
                     align="start"
                     sideOffset={4}
                     collisionPadding={8}
-                    className="z-50 w-(--radix-popover-trigger-width) max-w-[calc(100vw-1rem)] origin-(--radix-popover-content-transform-origin) overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-overlay motion-popover"
+                    className="z-50 w-(--radix-popover-trigger-width) max-w-[calc(100vw-1rem)] origin-(--radix-popover-content-transform-origin) overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-overlay motion-pop"
                 >
                     <Command label={t('combobox.search')} shouldFilter={false}>
                         <CommandInput
@@ -326,7 +326,7 @@ export function MultiCombobox({
                         align="start"
                         sideOffset={4}
                         collisionPadding={8}
-                        className="z-50 w-(--radix-popover-trigger-width) max-w-[calc(100vw-1rem)] origin-(--radix-popover-content-transform-origin) overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-overlay motion-popover"
+                        className="z-50 w-(--radix-popover-trigger-width) max-w-[calc(100vw-1rem)] origin-(--radix-popover-content-transform-origin) overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-overlay motion-pop"
                     >
                         <Command label={t('combobox.search')} shouldFilter={false}>
                             <CommandInput
