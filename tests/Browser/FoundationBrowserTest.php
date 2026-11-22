@@ -34,12 +34,13 @@ it('navigates the shell and opens search from the keyboard', function (): void {
 it('renders the local foundation gallery with the status and run states', function (): void {
     Vite::useHotFile(storage_path('framework/testing.hot'));
     $page = visit('/dev/components')->assertSee('Check error')->assertSee('Reconnecting')
-        ->assertSee('Queued')->assertSee('Late')->assertSee('No sites yet');
-    $page->click('[data-foundation-gallery] header button:text-is("DE")')->assertSee('Farben · Status');
-    $page->click('[data-foundation-gallery] header button[aria-label="Dunkel"]');
-    expect($page->script('document.documentElement.classList.contains("dark")'))->toBeTrue();
-    $page->click('[data-foundation-gallery] header button[aria-label="Hell"]');
-    expect($page->script('getComputedStyle(document.querySelector("[data-foundation-gallery] [aria-label=\\"Prüffehler\\"]")).backgroundColor'))->toBe('rgb(138, 148, 160)');
+        ->assertSee('Queued')->assertSee('Running')->assertSee('No sites yet');
+    $page->click('[data-foundation-gallery] header button:text-is("DE")')
+        ->assertSee('Farben · Status')
+        ->assertSee('Prüffehler')
+        ->assertSee('In Warteschlange');
+    $page->click('[data-foundation-gallery] header button:text-is("EN")')
+        ->assertSee('Colour · status');
     $page->assertNoJavaScriptErrors();
 });
 

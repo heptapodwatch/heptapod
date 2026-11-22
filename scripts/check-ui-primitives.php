@@ -199,6 +199,104 @@ function tagHasAttribute(string $tag, string $marker): bool
     return false;
 }
 
+/** Read a full JSX opening tag starting at `<` (respecting quotes, templates and balanced `{…}` expressions). */
+function jsxOpeningTag(string $source, int $start): ?string
+{
+    $contexts = [];
+    $length = strlen($source);
+    for ($i = $start + 1; $i < $length; $i++) {
+        $char = $source[$i];
+        if ($contexts !== []) {
+            $context = $contexts[array_key_last($contexts)];
+            if ($context === '{') {
+                if ($char === '"' || $char === "'" || $char === '`' || $char === '{') {
+                    $contexts[] = $char;
+                } elseif ($char === '}') {
+                    array_pop($contexts);
+                }
+            } elseif ($char === '\\') {
+                $i++;
+            } elseif ($char === $context) {
+                array_pop($contexts);
+            } elseif ($context === '`' && $char === '$' && ($source[$i + 1] ?? '') === '{') {
+                $contexts[] = '{';
+                $i++;
+            }
+
+            continue;
+        }
+        if ($char === '"' || $char === "'" || $char === '{') {
+            $contexts[] = $char;
+        } elseif ($char === '>') {
+            return substr($source, $start, $i - $start + 1);
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Parse top-level JSX attributes from an opening tag into `[name => rawValue|null]` (`null` for boolean attributes).
+ * Spreads (`{...props}`) are skipped, hyphenated names (`data-preview-variant`) stay one attribute key, and whitespace
+ * around `=` is allowed.
+ *
+ * @return array<string, ?string>
+ */
+function jsxTagAttributes(string $tag): array
+{
+    $attributes = [];
+    $length = strlen($tag);
+    $i = 1;
+    while ($i < $length && preg_match('/[\w.-]/', $tag[$i]) === 1) {
+        $i++;
+    }
+    while ($i < $length) {
+        while ($i < $length && ctype_space($tag[$i])) {
+            $i++;
+        }
+        if ($i >= $length || $tag[$i] === '>' || $tag[$i] === '/') {
+            break;
+        }
+        if ($tag[$i] === '{') {
+            $spread = expressionValue($tag, $i);
+            $i += strlen($spread);
+
+            continue;
+        }
+        $nameStart = $i;
+        while ($i < $length && preg_match('/[\w:-]/', $tag[$i]) === 1) {
+            $i++;
+        }
+        if ($i === $nameStart) {
+            $i++;
+
+            continue;
+        }
+        $name = substr($tag, $nameStart, $i - $nameStart);
+        while ($i < $length && ctype_space($tag[$i])) {
+            $i++;
+        }
+        if (($tag[$i] ?? '') !== '=') {
+            $attributes[$name] = null;
+
+            continue;
+        }
+        $i++;
+        while ($i < $length && ctype_space($tag[$i])) {
+            $i++;
+        }
+        if ($i < $length && in_array($tag[$i], ['"', "'", '{'], true)) {
+            $value = expressionValue($tag, $i);
+            $attributes[$name] = $value;
+            $i += strlen($value);
+        } else {
+            $attributes[$name] = null;
+        }
+    }
+
+    return $attributes;
+}
+
 /** A hover (or group-hover) variant that sets the text colour, e.g. hover:text-foreground, group-hover/row:text-x. */
 $hoverColour = '~(?<![\w-])(?:[\w-]+:)*(?:group-)?hover(?:/[\w-]+)?:text-~';
 
@@ -629,31 +727,34 @@ foreach ($files as $path) {
             $failures[] = "{$path}: removed Button size(s) (".implode(', ', array_unique($badSizes[1])).'); allowed sizes are default, xs, icon, icon-xs';
         }
     }
-    if (preg_match_all('~<(Button|FormSecondaryAction|PageHeaderAction|ExportButton|SidebarMenuButton)(?=\s)(?:[^<>]|=>)*?\bsize=~s', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
-        foreach ($matches[0] as $index => [$text, $offset]) {
-            $value = expressionValue($source, $offset + strlen($text));
-            $tag = $matches[1][$index][0];
-            if ($tag === 'SidebarMenuButton') {
-                if (preg_match('~[\'\"]lg[\'\"]~', $value) === 1) {
-                    if (isset($largeSidebarButtonExceptions[$path])) {
-                        $largeSidebarButtonExceptionCounts[$path] = ($largeSidebarButtonExceptionCounts[$path] ?? 0) + 1;
-                    } else {
-                        $failures[] = sprintf('%s:%d: large button; use the compact default size', $path, substr_count($source, "\n", 0, $offset) + 1);
-                    }
-                }
-
+    if (preg_match_all('~<(Button|FormSecondaryAction|PageHeaderAction|ExportButton|SidebarMenuButton)(?=[\s/>])~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
+        foreach ($matches[0] as $index => [, $offset]) {
+            $opening = jsxOpeningTag($source, $offset);
+            if ($opening === null) {
                 continue;
             }
-            if (preg_match('~[\'\"](sm|lg)[\'\"]~', $value, $badSize) === 1) {
-                $failures[] = sprintf('%s:%d: removed Button size "%s"; allowed sizes are default, xs, icon, icon-xs', $path, substr_count($source, "\n", 0, $offset) + 1, $badSize[1]);
+            $attrs = jsxTagAttributes($opening);
+            $tag = $matches[1][$index][0];
+            $line = substr_count($source, "\n", 0, $offset) + 1;
+            $size = $attrs['size'] ?? null;
+            if ($size !== null) {
+                if ($tag === 'SidebarMenuButton') {
+                    if (preg_match('~[\'\"]lg[\'\"]~', $size) === 1) {
+                        if (isset($largeSidebarButtonExceptions[$path])) {
+                            $largeSidebarButtonExceptionCounts[$path] = ($largeSidebarButtonExceptionCounts[$path] ?? 0) + 1;
+                        } else {
+                            $failures[] = sprintf('%s:%d: large button; use the compact default size', $path, $line);
+                        }
+                    }
+                } elseif (preg_match('~[\'\"](sm|lg)[\'\"]~', $size, $badSize) === 1) {
+                    $failures[] = sprintf('%s:%d: removed Button size "%s"; allowed sizes are default, xs, icon, icon-xs', $path, $line, $badSize[1]);
+                }
             }
-        }
-    }
-    if (preg_match_all('~<(Button|FormSecondaryAction|PageHeaderAction|ExportButton)(?=\s)(?:[^<>]|=>)*?\bvariant=~s', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
-        foreach ($matches[0] as [$text, $offset]) {
-            $value = expressionValue($source, $offset + strlen($text));
-            if (preg_match('~[\'\"](secondary|link)[\'\"]~', $value, $badVariant) === 1) {
-                $failures[] = sprintf('%s:%d: removed Button variant "%s"; allowed variants are default, outline, ghost, destructive', $path, substr_count($source, "\n", 0, $offset) + 1, $badVariant[1]);
+            if ($tag !== 'SidebarMenuButton') {
+                $variant = $attrs['variant'] ?? null;
+                if ($variant !== null && preg_match('~[\'\"](secondary|link)[\'\"]~', $variant, $badVariant) === 1) {
+                    $failures[] = sprintf('%s:%d: removed Button variant "%s"; allowed variants are default, outline, ghost, destructive', $path, $line, $badVariant[1]);
+                }
             }
         }
     }
@@ -667,25 +768,29 @@ foreach ($files as $path) {
             $failures[] = "{$path}: Badges are never links; do not add asChild or [a&] link hover styles";
         }
     }
-    if (preg_match_all('~<Badge(?=\s)(?:[^<>]|=>)*?>~s', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
-        foreach ($matches[0] as [$tag, $offset]) {
-            if (preg_match('~\bvariant=~', $tag, $variantMatch, PREG_OFFSET_CAPTURE) === 1) {
-                $value = expressionValue($tag, $variantMatch[0][1] + strlen($variantMatch[0][0]));
-                if (preg_match('~[\'\"](default|secondary|destructive|ghost|link)[\'\"]~', $value, $badVariant) === 1) {
-                    $failures[] = sprintf('%s:%d: removed Badge variant "%s"; Badge uses the single neutral outline variant', $path, substr_count($source, "\n", 0, $offset) + 1, $badVariant[1]);
-                }
+    if (preg_match_all('~<Badge(?=[\s/>])~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
+        foreach ($matches[0] as [, $offset]) {
+            $opening = jsxOpeningTag($source, $offset);
+            if ($opening === null) {
+                continue;
             }
-            if (tagHasAttribute($tag, 'asChild')) {
-                $failures[] = sprintf('%s:%d: Badge asChild is removed; Badges are never links', $path, substr_count($source, "\n", 0, $offset) + 1);
+            $attrs = jsxTagAttributes($opening);
+            $line = substr_count($source, "\n", 0, $offset) + 1;
+            $variant = $attrs['variant'] ?? null;
+            if ($variant !== null && preg_match('~[\'\"](default|secondary|destructive|ghost|link)[\'\"]~', $variant, $badVariant) === 1) {
+                $failures[] = sprintf('%s:%d: removed Badge variant "%s"; Badge uses the single neutral outline variant', $path, $line, $badVariant[1]);
             }
-            if (preg_match('~\bclassName=~', $tag, $classMatch, PREG_OFFSET_CAPTURE) === 1) {
-                $value = expressionValue($tag, $classMatch[0][1] + strlen($classMatch[0][0]));
-                $sizeOrWeight = preg_match('~(?<![\w-])(?:[\w-]+:)*(?:text-(?:page-title|headline|stat|section|sm|cell|xs|label|micro|mark|base|lg|[2-9]?xl|\[)|font-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black|\[))~', $value) === 1;
+            if (array_key_exists('asChild', $attrs)) {
+                $failures[] = sprintf('%s:%d: Badge asChild is removed; Badges are never links', $path, $line);
+            }
+            $className = $attrs['className'] ?? null;
+            if ($className !== null) {
+                $sizeOrWeight = preg_match('~(?<![\w-])(?:[\w-]+:)*(?:text-(?:page-title|headline|stat|section|sm|cell|xs|label|micro|mark|base|lg|[2-9]?xl|\[)|font-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black|\[))~', $className) === 1;
                 if ($sizeOrWeight) {
-                    if (isset($badgeTypographyExceptions[$path]) && str_contains($value, $badgeTypographyExceptions[$path][0])) {
+                    if (isset($badgeTypographyExceptions[$path]) && str_contains($className, $badgeTypographyExceptions[$path][0])) {
                         $badgeTypographyExceptionCounts[$path] = ($badgeTypographyExceptionCounts[$path] ?? 0) + 1;
                     } else {
-                        $failures[] = sprintf('%s:%d: Badge typography override; Badge owns text-label font-[450]', $path, substr_count($source, "\n", 0, $offset) + 1);
+                        $failures[] = sprintf('%s:%d: Badge typography override; Badge owns text-label font-[450]', $path, $line);
                     }
                 }
             }
