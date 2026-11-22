@@ -101,6 +101,7 @@
 
     --color-accent: var(--accent);
     --color-accent-foreground: var(--accent-foreground);
+    --color-hover: var(--hover);
 
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
@@ -191,6 +192,9 @@
     --chart-5: #d3d8dc;
 
     /* Quiet control interaction states: flat tonal hover/active steps and deliberate opaque disabled surfaces. */
+    --hover: #dfe3e6;
+    --quiet-hover-mix: 11.5%;
+    --quiet-active-mix: 18.5%;
     --primary-hover: oklch(0.315 0.011 248);
     --primary-active: oklch(0.13 0.008 248);
     --destructive-hover: oklch(0.432 0.165 27.9);
@@ -233,7 +237,7 @@
     --popover: #181d22;
     --secondary: #1a1f24;
     --muted: #0f1215;
-    --accent: #272d34;
+    --accent: #1a1f24;
     --foreground-secondary: #c5ccd3;
     --muted-foreground: #a2abb4;
     --foreground-faint: #848e99;
@@ -276,7 +280,10 @@
     --chart-4: #37404a;
     --chart-5: #262c33;
 
-    /* Quiet control interaction states (dark): distinct tonal steps above --secondary (#1a1f24) and --card (#13171b). */
+    /* Quiet control interaction states (dark): distinct tonal steps above --secondary/--accent (#1a1f24) and --card (#13171b). */
+    --hover: #272d34;
+    --quiet-hover-mix: 13.5%;
+    --quiet-active-mix: 21.5%;
     --primary-hover: oklch(0.842 0.007 248);
     --primary-active: oklch(0.76 0.01 248);
     --destructive-hover: oklch(0.722 0.162 27.3);
@@ -723,8 +730,10 @@ html body[data-scroll-locked] {
         border-color: transparent;
     }
 
+    /* Selectable controls (SegmentedControl, SidebarMenuButton, Tabs, Toggle) set --quiet-bg for their selected resting fill
+       so hover and press still step from that resting tone without per-component overrides. */
     .quiet-ghost {
-        background-color: transparent;
+        background-color: var(--quiet-bg, transparent);
     }
 
     .quiet-ghost:is(
@@ -732,7 +741,7 @@ html body[data-scroll-locked] {
         [aria-disabled='true'],
         [data-disabled]:not([data-disabled='false'])
     ) {
-        background-color: transparent;
+        background-color: var(--quiet-disabled-bg, transparent);
         color: var(--disabled-ghost-fg);
     }
 
@@ -808,7 +817,11 @@ html body[data-scroll-locked] {
         .quiet-ghost:not(:disabled):not([aria-disabled='true']):not(
                 [data-disabled]:not([data-disabled='false'])
             ):hover {
-            background-color: var(--ghost-hover);
+            background-color: color-mix(
+                in srgb,
+                var(--quiet-bg, transparent),
+                var(--foreground) var(--quiet-hover-mix)
+            );
         }
 
         .quiet-link:not(:disabled):not([aria-disabled='true']):not(
@@ -845,40 +858,11 @@ html body[data-scroll-locked] {
     .quiet-ghost:not(:disabled):not([aria-disabled='true']):not(
             [data-disabled]:not([data-disabled='false'])
         ):active {
-        background-color: var(--ghost-active);
-    }
-
-    /* Linked badges (<a data-slot="badge">) share the Quiet focus ring and spring press; non-link spans stay static. */
-    a[data-slot='badge'] {
-        outline: 0px solid transparent;
-        outline-offset: 0px;
-        transform: none;
-        transition-property:
-            color, background-color, border-color, transform, outline-width,
-            outline-offset, outline-color, text-decoration-color;
-        transition-duration:
-            var(--motion-press), var(--motion-press), var(--motion-press),
-            var(--motion-press-out), var(--motion-focus), var(--motion-focus),
-            var(--motion-focus), var(--motion-press);
-        transition-timing-function:
-            var(--ease-out), var(--ease-out), var(--ease-out),
-            var(--ease-spring), var(--ease-out), var(--ease-out),
-            var(--ease-out), var(--ease-out);
-    }
-
-    a[data-slot='badge']:focus-visible {
-        outline: 2px solid var(--quiet-ring, var(--ring));
-        outline-offset: 2px;
-    }
-
-    a[data-slot='badge']:not([data-variant='link']):not(
-            [aria-disabled='true']
-        ):active {
-        transform: scale(0.96);
-        transition-duration:
-            70ms, 70ms, 70ms, var(--motion-press-in), var(--motion-focus),
-            var(--motion-focus), var(--motion-focus), 70ms;
-        transition-timing-function: var(--ease-out);
+        background-color: color-mix(
+            in srgb,
+            var(--quiet-bg, transparent),
+            var(--foreground) var(--quiet-active-mix)
+        );
     }
 }
 
@@ -892,9 +876,7 @@ html body[data-scroll-locked] {
     }
 
     .quiet-press,
-    .quiet-press:active,
-    a[data-slot='badge'],
-    a[data-slot='badge']:active {
+    .quiet-press:active {
         transform: none !important;
     }
 }

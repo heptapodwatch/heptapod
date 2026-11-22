@@ -740,9 +740,9 @@ foreach ($files as $path) {
         }
     }
     // Deliberate disabled surfaces belong to the Quiet control primitives (heptapod-ui-rules Interaction states): no
-    // hand-rolled disabled:opacity-* washout outside components/ui/.
+    // hand-rolled disabled:opacity-* washout (numeric, arbitrary or token values) outside components/ui/.
     if (! str_starts_with($path, 'resources/js/components/ui/')
-        && preg_match_all('~(?<![\w-])(?:[\w-]+:)*(?:disabled|aria-disabled|data-\[disabled[^\]]*\]):opacity-\d+\b~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
+        && preg_match_all('~(?<![\w-])(?:[\w-]+:)*(?:disabled|aria-disabled|data-\[disabled[^\]]*\]):opacity-(?:\d+(?:\.\d+)?|\[[^\]]+\]|\([^)]+\))(?![\w-])~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
         foreach ($matches[0] as [$text, $offset]) {
             $failures[] = sprintf('%s:%d: hand-rolled disabled opacity recipe (%s); use the shared Quiet control primitives instead of opacity washout', $path, substr_count($source, "\n", 0, $offset) + 1, $text);
         }

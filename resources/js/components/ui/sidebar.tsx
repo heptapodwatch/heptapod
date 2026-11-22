@@ -453,7 +453,7 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm quiet-focus quiet-press quiet-ghost group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:text-sidebar-accent-foreground active:text-sidebar-accent-foreground disabled:pointer-events-none aria-disabled:pointer-events-none data-[active=true]:bg-sidebar-accent data-[active=true]:font-[450] data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-(--ghost-hover) data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm quiet-focus quiet-press quiet-ghost group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:text-sidebar-accent-foreground active:text-sidebar-accent-foreground disabled:pointer-events-none aria-disabled:pointer-events-none data-[active=true]:font-[450] data-[active=true]:text-sidebar-accent-foreground data-[active=true]:[--quiet-bg:var(--sidebar-accent)] data-[active=true]:disabled:text-(--disabled-ghost-fg) data-[active=true]:aria-disabled:text-(--disabled-ghost-fg) data-[state=open]:hover:bg-(--ghost-hover) data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -666,7 +666,7 @@ function SidebarMenuSubButton({
       data-active={isActive}
       className={cn(
         "flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 leading-none text-sidebar-foreground quiet-focus quiet-press quiet-ghost hover:text-sidebar-accent-foreground active:text-sidebar-accent-foreground disabled:pointer-events-none aria-disabled:pointer-events-none [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground",
-        "data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground",
+        "data-[active=true]:text-sidebar-accent-foreground data-[active=true]:[--quiet-bg:var(--sidebar-accent)]",
         size === "sm" && "text-xs",
         size === "md" && "text-sm",
         "group-data-[collapsible=icon]:hidden",

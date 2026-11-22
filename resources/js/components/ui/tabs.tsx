@@ -64,7 +64,7 @@ function TabsTrigger({
       data-slot="tabs-trigger"
       className={cn(
         "relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-full border border-transparent px-2 py-1 text-cell leading-none font-[450] whitespace-nowrap text-foreground quiet-focus quiet-press quiet-ghost group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start hover:text-foreground active:text-foreground disabled:pointer-events-none disabled:text-(--disabled-ghost-fg) group-data-[variant=default]/tabs-list:data-[state=active]:shadow-sm group-data-[variant=line]/tabs-list:data-[state=active]:shadow-sm dark:text-muted-foreground dark:hover:text-foreground dark:active:text-foreground dark:disabled:text-(--disabled-ghost-fg) [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        "data-[state=active]:border-border data-[state=active]:bg-secondary data-[state=active]:text-foreground data-[state=active]:disabled:border-dashed data-[state=active]:disabled:border-(--disabled-surface-border) data-[state=active]:disabled:bg-(--disabled-surface-bg) data-[state=active]:disabled:text-(--disabled-fg) data-[state=active]:disabled:shadow-none",
+        "data-[state=active]:border-border data-[state=active]:text-foreground data-[state=active]:[--quiet-bg:var(--secondary)] data-[state=active]:[--quiet-disabled-bg:var(--disabled-surface-bg)] data-[state=active]:disabled:border-dashed data-[state=active]:disabled:border-(--disabled-surface-border) data-[state=active]:disabled:text-(--disabled-fg) data-[state=active]:disabled:shadow-none",
         className
       )}
       {...props}
