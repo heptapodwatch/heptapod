@@ -2,13 +2,21 @@ import { RadioGroup as RadioGroupPrimitive } from 'radix-ui';
 import { useEffect, useId, type ComponentProps } from 'react';
 import { cn } from '@/lib/utils';
 
+type RadioGroupProps = Omit<
+    ComponentProps<typeof RadioGroupPrimitive.Root>,
+    'orientation'
+> & {
+    /** Horizontal by default; pass `both` for two-dimensional grids (RadioCards) so all four arrows move focus. */
+    orientation?: 'horizontal' | 'vertical' | 'both';
+};
+
 export function RadioGroup({
     className,
     id,
     'aria-labelledby': labelledBy,
-    orientation,
+    orientation = 'horizontal',
     ...props
-}: ComponentProps<typeof RadioGroupPrimitive.Root>) {
+}: RadioGroupProps) {
     const generatedId = useId();
     const groupId = id ?? generatedId;
     useEffect(() => {
@@ -36,7 +44,7 @@ export function RadioGroup({
             id={groupId}
             aria-labelledby={labelledBy}
             data-slot="radio-group"
-            orientation={orientation}
+            orientation={orientation === 'both' ? undefined : orientation}
             className={cn(
                 'flex gap-x-4 gap-y-1',
                 orientation === 'vertical' ? 'flex-col' : 'flex-wrap',

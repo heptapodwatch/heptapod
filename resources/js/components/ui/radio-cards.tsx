@@ -29,6 +29,7 @@ export function RadioCards<T extends string>({
             aria-labelledby={labelledBy}
             aria-describedby={describedBy}
             aria-invalid={invalid || undefined}
+            orientation="both"
             value={value}
             onValueChange={(next) => onChange(next as T)}
             disabled={disabled}

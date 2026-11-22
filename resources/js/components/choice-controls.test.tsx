@@ -171,3 +171,31 @@ it('selects RadioGroup items by label click and arrows, skipping disabled items,
     expect(document.activeElement).toBe(manual);
     expect(screen.getByTestId('until').textContent).toBe('manual');
 });
+
+it('keeps horizontal RadioGroup ignoring ArrowDown while moving on ArrowRight', async () => {
+    const user = userEvent.setup();
+    function Reminders() {
+        const [cadence, setCadence] = useState('standard');
+        return (
+            <>
+                <RadioGroup value={cadence} onValueChange={setCadence}>
+                    <RadioGroupItem value="standard">Standard</RadioGroupItem>
+                    <RadioGroupItem value="daily">Daily</RadioGroupItem>
+                </RadioGroup>
+                <output data-testid="cadence">{cadence}</output>
+            </>
+        );
+    }
+    render(<Reminders />);
+    const standard = screen.getByRole('radio', { name: 'Standard' });
+    const daily = screen.getByRole('radio', { name: 'Daily' });
+    standard.focus();
+    await user.keyboard('{ArrowDown}');
+    expect(standard.getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByTestId('cadence').textContent).toBe('standard');
+    await user.keyboard('{ArrowRight>}');
+    await waitFor(() =>
+        expect(daily.getAttribute('aria-checked')).toBe('true'),
+    );
+    await user.keyboard('{/ArrowRight}');
+});
