@@ -16,7 +16,7 @@
                     --primary: #e6e9ec;
                     --primary-foreground: #0d1013;
                     --primary-hover: oklch(0.842 0.007 248);
-                    --primary-active: oklch(0.76 0.01 248);
+                    --primary-active: oklch(0.68 0.012 248);
                     --ring: #a9b7c4;
                 }
             }

@@ -27,7 +27,7 @@ export default function PasswordInput({
                 variant="ghost"
                 size="icon-xs"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute top-1/2 right-0 -translate-y-1/2 text-muted-foreground focus-ring-inset hover:text-foreground sm:right-1"
+                className="absolute top-1/2 right-0 -translate-y-1/2 focus-ring-inset text-muted-foreground hover:text-foreground sm:right-1"
                 aria-label={
                     showPassword ? t('Hide password') : t('Show password')
                 }

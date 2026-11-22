@@ -69,7 +69,7 @@ export function SectionTabs({
             data-muted={item.muted || undefined}
             className={cn(
                 horizontalNavigationItemClass,
-                'focus-ring-inset hover:text-foreground',
+                'focus-ring-inset transition-[color] duration-(--motion-press) ease-out hover:text-foreground',
                 item.value === value && horizontalNavigationActiveClass,
                 item.muted && 'text-muted-foreground',
             )}

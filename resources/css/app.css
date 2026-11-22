@@ -18,13 +18,12 @@
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
     --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
-    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 :root {
     --motion-press: 120ms;
-    --motion-press-in: 65ms;
-    --motion-press-out: 280ms;
+    --motion-press-in: 40ms;
+    --motion-press-out: 160ms;
     --motion-focus: 150ms;
     --motion-enter: 160ms;
     --motion-exit: 120ms;
@@ -298,13 +297,13 @@
     /* Control interaction states: flat tonal hover/active steps and deliberate opaque disabled surfaces. */
     --item-highlight: #dfe3e6;
     --mix-hover: 11.5%;
-    --mix-active: 18.5%;
+    --mix-active: 26%;
     --primary-hover: oklch(0.315 0.011 248);
-    --primary-active: oklch(0.13 0.008 248);
+    --primary-active: oklch(0.06 0.005 248);
     --destructive-hover: oklch(0.432 0.165 27.9);
-    --destructive-active: oklch(0.365 0.148 27.9);
+    --destructive-active: oklch(0.31 0.135 27.9);
     --surface-hover: oklch(0.918 0.005 242);
-    --surface-active: oklch(0.862 0.008 242);
+    --surface-active: oklch(0.81 0.01 242);
     --ghost-hover: color-mix(
         in srgb,
         transparent,
@@ -414,13 +413,13 @@
     /* Control interaction states (dark): distinct tonal steps above --secondary/--accent (#1a1f24) and --card (#13171b). */
     --item-highlight: #272d34;
     --mix-hover: 13.5%;
-    --mix-active: 21.5%;
+    --mix-active: 30%;
     --primary-hover: oklch(0.842 0.007 248);
-    --primary-active: oklch(0.76 0.01 248);
+    --primary-active: oklch(0.68 0.012 248);
     --destructive-hover: oklch(0.722 0.162 27.3);
-    --destructive-active: oklch(0.612 0.175 27.3);
+    --destructive-active: oklch(0.6 0.176 27.3);
     --surface-hover: oklch(0.326 0.016 248);
-    --surface-active: oklch(0.376 0.018 248);
+    --surface-active: oklch(0.435 0.02 248);
     --ghost-hover: color-mix(
         in srgb,
         transparent,
@@ -711,69 +710,53 @@ html body[data-scroll-locked] {
     transition-timing-function: var(--ease-out) !important;
 }
 
-/* Shared control utilities (heptapod-ui-rules Motion / Interaction states): focus outline and spring press. */
+@keyframes focus-ring-in {
+    from {
+        outline-width: 0px;
+        outline-offset: 0px;
+        outline-color: transparent;
+    }
+}
+
+/*
+ * Shared control utilities (heptapod-ui-rules Motion / Interaction states).
+ * focus-ring / focus-ring-inset animate strictly on :focus-visible via keyframes so adding the utility or [data-hint-focus]
+ * after mount never transitions from the browser default outline, and transition-* ownership stays exclusively with press
+ * or the component itself.
+ */
 @utility focus-ring {
-    outline: 0px solid transparent;
-    outline-offset: 0px;
-    transition-property:
-        color, background-color, border-color, outline-width, outline-offset,
-        outline-color, text-decoration-color;
-    transition-duration:
-        var(--motion-press), var(--motion-press), var(--motion-press),
-        var(--motion-focus), var(--motion-focus), var(--motion-focus),
-        var(--motion-press);
-    transition-timing-function: var(--ease-out);
+    outline: none;
 
     &:focus-visible {
         outline: 2px solid var(--ring);
         outline-offset: 2px;
+        animation: focus-ring-in var(--motion-focus) var(--ease-out);
     }
 }
 
 @utility focus-ring-inset {
-    outline: 0px solid transparent;
-    outline-offset: 0px;
-    transition-property:
-        color, background-color, border-color, outline-width, outline-offset,
-        outline-color, text-decoration-color;
-    transition-duration:
-        var(--motion-press), var(--motion-press), var(--motion-press),
-        var(--motion-focus), var(--motion-focus), var(--motion-focus),
-        var(--motion-press);
-    transition-timing-function: var(--ease-out);
+    outline: none;
 
     &:focus-visible {
         outline: 2px solid var(--ring);
         outline-offset: -2px;
+        animation: focus-ring-in var(--motion-focus) var(--ease-out);
     }
 }
 
+/* Tonal press timing: zero movement, 40ms snap-in on :active and 160ms settle on release. */
 @utility press {
     transition-property:
-        color, background-color, border-color, transform, outline-width,
-        outline-offset, outline-color, text-decoration-color;
-    transition-duration:
-        var(--motion-press), var(--motion-press), var(--motion-press),
-        var(--motion-press-out), var(--motion-focus), var(--motion-focus),
-        var(--motion-focus), var(--motion-press);
-    transition-timing-function:
-        var(--ease-out), var(--ease-out), var(--ease-out), var(--ease-spring),
-        var(--ease-out), var(--ease-out), var(--ease-out), var(--ease-out);
+        color, background-color, border-color, text-decoration-color;
+    transition-duration: var(--motion-press-out);
+    transition-timing-function: var(--ease-out);
 
-    @media (prefers-reduced-motion: no-preference) {
-        transform: none;
-
-        &:not(
-                :disabled,
-                [aria-disabled='true'],
-                [data-disabled]:not([data-disabled='false'])
-            ):active {
-            transform: scale(0.96);
-            transition-duration:
-                70ms, 70ms, 70ms, var(--motion-press-in), var(--motion-focus),
-                var(--motion-focus), var(--motion-focus), 70ms;
-            transition-timing-function: var(--ease-out);
-        }
+    &:not(
+            :disabled,
+            [aria-disabled='true'],
+            [data-disabled]:not([data-disabled='false'])
+        ):active {
+        transition-duration: var(--motion-press-in);
     }
 }
 

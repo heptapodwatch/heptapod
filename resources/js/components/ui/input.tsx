@@ -2,7 +2,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 export const fieldSurfaceClass =
-  "w-full min-w-0 rounded-md border border-input bg-muted selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 aria-invalid:[--ring:var(--destructive)] dark:aria-invalid:ring-destructive/40"
+  "w-full min-w-0 rounded-md border border-input bg-muted transition-[color,border-color] duration-(--motion-press) ease-out selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 aria-invalid:[--ring:var(--destructive)] dark:aria-invalid:ring-destructive/40"
 
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (

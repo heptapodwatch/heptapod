@@ -14,7 +14,7 @@ function Switch({
       data-slot="switch"
       data-size={size}
       className={cn(
-        "relative after:absolute after:-inset-3 sm:after:hidden peer group/switch inline-flex shrink-0 items-center rounded-full border border-transparent shadow-xs focus-ring disabled:cursor-not-allowed disabled:shadow-none data-[size=default]:h-[1.15rem] data-[size=default]:w-8 data-[size=sm]:h-3.5 data-[size=sm]:w-6 data-[state=checked]:bg-primary data-[state=unchecked]:bg-border-strong disabled:data-[state=checked]:bg-disabled-primary disabled:data-[state=unchecked]:border-border disabled:data-[state=unchecked]:bg-disabled",
+        "relative after:absolute after:-inset-3 sm:after:hidden peer group/switch inline-flex shrink-0 items-center rounded-full border border-transparent shadow-xs transition-[background-color] duration-(--motion-press) ease-out focus-ring disabled:cursor-not-allowed disabled:shadow-none data-[size=default]:h-[1.15rem] data-[size=default]:w-8 data-[size=sm]:h-3.5 data-[size=sm]:w-6 data-[state=checked]:bg-primary data-[state=unchecked]:bg-border-strong disabled:data-[state=checked]:bg-disabled-primary disabled:data-[state=unchecked]:border-border disabled:data-[state=unchecked]:bg-disabled",
         className
       )}
       {...props}

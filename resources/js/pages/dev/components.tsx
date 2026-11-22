@@ -375,9 +375,9 @@ const spacingTokens = [
 ] as const;
 
 const motionTokens = [
-    { token: '--motion-press', use: 'Control colour & border' },
-    { token: '--motion-press-in', use: 'Active scale-in (0.96)' },
-    { token: '--motion-press-out', use: 'Spring release' },
+    { token: '--motion-press', use: 'Control hover & border' },
+    { token: '--motion-press-in', use: 'Active tone snap-in' },
+    { token: '--motion-press-out', use: 'Tone press settle' },
     { token: '--motion-focus', use: '2px focus ring' },
     { token: '--motion-enter', use: 'Popover & dialog enter' },
     { token: '--motion-exit', use: 'Overlay exit' },
@@ -385,7 +385,6 @@ const motionTokens = [
     { token: '--ease-out', use: 'Default curve (ease-out)' },
     { token: '--ease-in-out', use: 'Layout shift (ease-in-out)' },
     { token: '--ease-drawer', use: 'Sheet slide' },
-    { token: '--ease-spring', use: 'Press release' },
 ] as const;
 
 function readCssToken(token: string): string {
