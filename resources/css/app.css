@@ -615,6 +615,11 @@ html body[data-scroll-locked] {
  * Defined in @layer components so caller utilities (e.g. hover:bg-transparent on ? or collapsed sidebar icons) still win.
  */
 @layer components {
+    /* Fixed-height controls centre 13 px caps; auto-height buttons (h-auto, e.g. ImageDropzone) keep inherited line-height. */
+    .quiet-center:not(.h-auto) {
+        line-height: 1;
+    }
+
     .quiet-focus,
     .quiet-focus-inset {
         outline: 0px solid transparent;
@@ -658,9 +663,9 @@ html body[data-scroll-locked] {
             var(--ease-out), var(--ease-out);
     }
 
-    .quiet-press:not(:disabled):not([aria-disabled='true']):not(
-            [data-disabled]:not([data-disabled='false'])
-        ):active {
+    .quiet-press:not(.quiet-item):not(:disabled):not(
+            [aria-disabled='true']
+        ):not([data-disabled]:not([data-disabled='false'])):active {
         transform: scale(0.96);
         transition-duration:
             70ms, 70ms, 70ms, var(--motion-press-in), var(--motion-focus),
@@ -789,34 +794,34 @@ html body[data-scroll-locked] {
     }
 
     @media (hover: hover) {
-        .quiet-solid-primary:not(:disabled):not([aria-disabled='true']):not(
-                [data-disabled]:not([data-disabled='false'])
-            ):hover {
+        .quiet-solid-primary:not(.quiet-item):not(:disabled):not(
+                [aria-disabled='true']
+            ):not([data-disabled]:not([data-disabled='false'])):hover {
             background-color: var(--primary-hover);
         }
 
-        .quiet-solid-destructive:not(:disabled):not([aria-disabled='true']):not(
-                [data-disabled]:not([data-disabled='false'])
-            ):hover {
+        .quiet-solid-destructive:not(.quiet-item):not(:disabled):not(
+                [aria-disabled='true']
+            ):not([data-disabled]:not([data-disabled='false'])):hover {
             background-color: var(--destructive-hover);
         }
 
-        .quiet-outline:not(:disabled):not([aria-disabled='true']):not(
-                [data-disabled]:not([data-disabled='false'])
-            ):hover {
+        .quiet-outline:not(.quiet-item):not(:disabled):not(
+                [aria-disabled='true']
+            ):not([data-disabled]:not([data-disabled='false'])):hover {
             background-color: var(--surface-hover);
             border-color: var(--border-strong);
         }
 
-        .quiet-secondary:not(:disabled):not([aria-disabled='true']):not(
-                [data-disabled]:not([data-disabled='false'])
-            ):hover {
+        .quiet-secondary:not(.quiet-item):not(:disabled):not(
+                [aria-disabled='true']
+            ):not([data-disabled]:not([data-disabled='false'])):hover {
             background-color: var(--surface-hover);
         }
 
-        .quiet-ghost:not(:disabled):not([aria-disabled='true']):not(
-                [data-disabled]:not([data-disabled='false'])
-            ):hover {
+        .quiet-ghost:not(.quiet-item):not(:disabled):not(
+                [aria-disabled='true']
+            ):not([data-disabled]:not([data-disabled='false'])):hover {
             background-color: color-mix(
                 in srgb,
                 var(--quiet-bg, transparent),
@@ -824,40 +829,40 @@ html body[data-scroll-locked] {
             );
         }
 
-        .quiet-link:not(:disabled):not([aria-disabled='true']):not(
-                [data-disabled]:not([data-disabled='false'])
-            ):hover {
+        .quiet-link:not(.quiet-item):not(:disabled):not(
+                [aria-disabled='true']
+            ):not([data-disabled]:not([data-disabled='false'])):hover {
             text-decoration-color: currentColor;
         }
     }
 
-    .quiet-solid-primary:not(:disabled):not([aria-disabled='true']):not(
-            [data-disabled]:not([data-disabled='false'])
-        ):active {
+    .quiet-solid-primary:not(.quiet-item):not(:disabled):not(
+            [aria-disabled='true']
+        ):not([data-disabled]:not([data-disabled='false'])):active {
         background-color: var(--primary-active);
     }
 
-    .quiet-solid-destructive:not(:disabled):not([aria-disabled='true']):not(
-            [data-disabled]:not([data-disabled='false'])
-        ):active {
+    .quiet-solid-destructive:not(.quiet-item):not(:disabled):not(
+            [aria-disabled='true']
+        ):not([data-disabled]:not([data-disabled='false'])):active {
         background-color: var(--destructive-active);
     }
 
-    .quiet-outline:not(:disabled):not([aria-disabled='true']):not(
-            [data-disabled]:not([data-disabled='false'])
-        ):active {
+    .quiet-outline:not(.quiet-item):not(:disabled):not(
+            [aria-disabled='true']
+        ):not([data-disabled]:not([data-disabled='false'])):active {
         background-color: var(--surface-active);
     }
 
-    .quiet-secondary:not(:disabled):not([aria-disabled='true']):not(
-            [data-disabled]:not([data-disabled='false'])
-        ):active {
+    .quiet-secondary:not(.quiet-item):not(:disabled):not(
+            [aria-disabled='true']
+        ):not([data-disabled]:not([data-disabled='false'])):active {
         background-color: var(--surface-active);
     }
 
-    .quiet-ghost:not(:disabled):not([aria-disabled='true']):not(
-            [data-disabled]:not([data-disabled='false'])
-        ):active {
+    .quiet-ghost:not(.quiet-item):not(:disabled):not(
+            [aria-disabled='true']
+        ):not([data-disabled]:not([data-disabled='false'])):active {
         background-color: color-mix(
             in srgb,
             var(--quiet-bg, transparent),

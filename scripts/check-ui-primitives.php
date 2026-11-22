@@ -32,6 +32,11 @@ $hoverColourAllowlist = [
 $focusRingAllowlist = [
     'resources/js/components/incident-banner.tsx' => ['quiet-focus-current', 'Red incident strip: the shared ring colour is invisible on red.'],
 ];
+/** Per file: the one reviewed disabled-opacity utility outside components/ui/, and why. */
+$disabledOpacityExceptions = [
+    'resources/js/components/site-fields.tsx' => ['has-disabled:opacity-50', 'SiteCheckField switch-row label: mirrors CheckboxField/RadioGroupItem row dimming while its Switch is disabled.'],
+];
+$disabledOpacityExceptionCounts = [];
 /** Raw headings that are not section titles: exact element markers and expected counts. */
 $sectionHeadingExceptions = [
     'resources/js/components/foundation-primitives.tsx' => ['text-headline', 1, 'StateSentence: the Sites health headline (headline token), not a section title.'],
@@ -740,10 +745,15 @@ foreach ($files as $path) {
         }
     }
     // Deliberate disabled surfaces belong to the Quiet control primitives (heptapod-ui-rules Interaction states): no
-    // hand-rolled disabled:opacity-* washout (numeric, arbitrary or token values) outside components/ui/.
+    // hand-rolled disabled-variant opacity washout outside components/ui/.
     if (! str_starts_with($path, 'resources/js/components/ui/')
-        && preg_match_all('~(?<![\w-])(?:[\w-]+:)*(?:disabled|aria-disabled|data-\[disabled[^\]]*\]):opacity-(?:\d+(?:\.\d+)?|\[[^\]]+\]|\([^)]+\))(?![\w-])~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
+        && preg_match_all('~(?<![\w\[\]/-])(?:[\w\[\]&=*/-]+:)*[\w\[\]&=*/-]*disabled[\w\[\]&=*/-]*:(?:[\w\[\]&=*/-]+:)*!?opacity-(?:[\w.+-]+|\[[^\]]+\]|\([^)]+\))!?(?![\w-])~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
         foreach ($matches[0] as [$text, $offset]) {
+            if (isset($disabledOpacityExceptions[$path]) && $text === $disabledOpacityExceptions[$path][0]) {
+                $disabledOpacityExceptionCounts[$path] = ($disabledOpacityExceptionCounts[$path] ?? 0) + 1;
+
+                continue;
+            }
             $failures[] = sprintf('%s:%d: hand-rolled disabled opacity recipe (%s); use the shared Quiet control primitives instead of opacity washout', $path, substr_count($source, "\n", 0, $offset) + 1, $text);
         }
     }
@@ -821,6 +831,13 @@ foreach ($filledDotExceptions as $path => [$snippet, $reason]) {
     $found = $filledDotExceptionCounts[$path] ?? 0;
     if ($found !== 1) {
         $failures[] = "{$path}: expected one named decorative-dot exception ({$snippet}), found {$found} ({$reason})";
+    }
+}
+
+foreach ($disabledOpacityExceptions as $path => [$snippet, $reason]) {
+    $found = $disabledOpacityExceptionCounts[$path] ?? 0;
+    if ($found !== 1) {
+        $failures[] = "{$path}: expected one named disabled-opacity exception ({$snippet}), found {$found} ({$reason})";
     }
 }
 
