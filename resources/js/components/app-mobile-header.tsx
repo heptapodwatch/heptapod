@@ -1,6 +1,6 @@
 import { usePage } from '@inertiajs/react';
 import { BrandLink } from '@/components/app-logo';
-import { CommandPaletteTrigger } from '@/components/real-command-palette';
+import { CommandPaletteTrigger } from '@/components/command-palette';
 import { useTranslation } from 'react-i18next';
 import { RunGlyph } from '@/components/run-family';
 import { Button } from '@/components/ui/button';

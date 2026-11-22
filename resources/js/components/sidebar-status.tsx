@@ -23,6 +23,7 @@ import {
 import { useFormat } from '@/hooks/use-format';
 import { useRunningNow } from '@/hooks/use-running-now';
 import { checkTypes } from '@/lib/check-types';
+import { cn } from '@/lib/utils';
 import { index as runsIndex } from '@/routes/runs';
 import {
     edit as ownNotifications,
@@ -33,8 +34,8 @@ import { edit as systemHealth } from '@/routes/settings/system';
 /** At most three run rows; the rest is one "N more · Runs" row (UI rules, Sidebar footer). */
 const RUN_ROWS = 3;
 
-/** Quiet status rows: information, not destinations. No hover surface when expanded; hover matches nav icons in the collapsed rail. */
-const quietRow =
+/** Status rows: information, not destinations. No hover surface when expanded; hover matches nav icons in the collapsed rail. */
+const statusRowClass =
     'group/status text-xs text-muted-foreground hover:bg-transparent hover:text-foreground active:bg-transparent group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:hover:bg-sidebar-accent group-data-[collapsible=icon]:active:bg-sidebar-accent';
 
 function StatusRow({
@@ -82,11 +83,7 @@ function StatusRow({
             <SidebarMenuButton
                 asChild
                 tooltip={tooltip}
-                className={
-                    buttonClassName
-                        ? `${quietRow} ${buttonClassName}`
-                        : quietRow
-                }
+                className={cn(statusRowClass, buttonClassName)}
             >
                 {href ? (
                     <Link href={href}>{body}</Link>
@@ -192,7 +189,7 @@ function RunRows({ rows, total }: { rows: FooterRun[]; total: number }) {
             {lead && (
                 <StatusRow
                     className="hidden group-data-[collapsible=icon]:block"
-                    buttonClassName="group-data-[collapsible=icon]:overflow-visible!"
+                    buttonClassName="group-data-[collapsible=icon]:overflow-visible"
                     leading={
                         <span className="relative inline-flex">
                             <RunGlyph

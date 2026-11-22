@@ -19,10 +19,8 @@ import { Head, router } from '@inertiajs/react';
 import { KeyRound, Copy, Plus } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-    EvidenceBlock,
-    ShownOnceSecret,
-} from '@/components/foundation-primitives';
+import { EvidenceBlock } from '@/components/evidence-block';
+import { ShownOnceSecret } from '@/components/shown-once-secret';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {

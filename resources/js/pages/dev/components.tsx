@@ -1,40 +1,47 @@
 import { SectionHeading } from '@/components/section-heading';
 import { FormSection } from '@/components/form-section';
-import { Head, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { useState, type ReactNode } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { PageContainer } from '@/components/page-container';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Card,
+    CardAction,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SectionTabs } from '@/components/section-tabs';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { SegmentedControl } from '@/components/segmented-control';
+import { EvidenceBlock } from '@/components/evidence-block';
+import { ScoreRing } from '@/components/score-ring';
+import { ShownOnceSecret } from '@/components/shown-once-secret';
+import { rowTargetClass } from '@/components/entity-link';
 import {
     StatusDot,
     StatusBadge,
-    StateSentence,
     CheckStrip,
     UptimeBar,
     EventTimeline,
-    AttentionRow,
-    ClientMark,
-    PeekSheet,
-    EvidenceBlock,
-    DiffBlock,
-    ExpiryRow,
-    ScoreRing,
-    ScheduleCard,
-    RuleRow,
-    EmptyState,
-    ShownOnceSecret,
-    FoundationSkeleton,
-    Freshness,
-    HealthIndicator,
-} from '@/components/foundation-primitives';
+    statusColor,
+    ContentState as EmptyState,
+} from '@/components/monitoring';
+import { TruncatedText } from '@/components/truncated-text';
 import { MetricTile, Sparkline } from '@/components/sparkline';
 import {
     gallerySites,
@@ -48,6 +55,7 @@ import {
 } from '@/fixtures/design';
 import { setLocale, type Locale } from '@/lib/i18n';
 import { statusLabels } from '@/lib/status';
+import { cn } from '@/lib/utils';
 import { RunLine, RunResultChip } from '@/components/run-family';
 
 const sampleSite: Heptapod.Data.Ui.SiteRowData = gallerySites[0]!;
@@ -208,7 +216,7 @@ export default function Components() {
                                 checks={sampleChecks}
                                 runningCheckIds={[sampleChecks[0]!.id]}
                             />
-                            <ClientMark
+                            <GalleryClientMark
                                 name={sampleClient.name}
                                 initials="AC"
                                 color="#7c5e10"
@@ -374,7 +382,7 @@ export default function Components() {
                         description={t('Paste one address or a list.')}
                     />
                     <EmptyState state="error" />
-                    <FoundationSkeleton />
+                    <GallerySkeleton />
                     <Skeleton className="h-10 w-full" />
                     <SectionTabs
                         label={t('Checks')}
@@ -398,5 +406,312 @@ export default function Components() {
                 </div>
             </section>
         </PageContainer>
+    );
+}
+
+function StateSentence({
+    state,
+    sentence,
+    detail,
+    action,
+    suffix,
+}: {
+    state: Heptapod.Enums.SiteStatus;
+    sentence: ReactNode;
+    detail?: ReactNode;
+    action?: ReactNode;
+    suffix?: ReactNode;
+}) {
+    return (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+                <h2 className="flex flex-wrap items-center gap-3 text-headline">
+                    <StatusBadge state={state} />
+                    {sentence}
+                    {suffix}
+                </h2>
+                {detail && (
+                    <p className="text-sm text-muted-foreground">{detail}</p>
+                )}
+            </div>
+            {action}
+        </div>
+    );
+}
+
+function GalleryClientMark({
+    name,
+    initials,
+    color,
+    size = 'md',
+}: {
+    name: string;
+    initials: string;
+    color: string;
+    size?: 'sm' | 'md';
+}) {
+    return (
+        <span
+            role="img"
+            aria-label={name}
+            className={`inline-flex shrink-0 items-center justify-center rounded-md font-mono font-semibold text-white ${size === 'sm' ? 'size-4 text-mark' : 'size-7 text-xs'}`}
+            style={{ backgroundColor: color }}
+        >
+            {initials}
+        </span>
+    );
+}
+
+function HealthIndicator({
+    state,
+    label,
+    updatedAt,
+    updatedAtDateTime,
+}: {
+    state: 'ok' | 'warning' | 'check-error';
+    label: string;
+    updatedAt: string;
+    updatedAtDateTime: string;
+}) {
+    return (
+        <div className="flex min-h-8 items-center gap-2 rounded-md border border-border-soft px-2 text-xs text-muted-foreground">
+            <StatusDot state={state} label={label} />
+            <TruncatedText content={label}>
+                <span className="min-w-0 flex-1 truncate">{label}</span>
+            </TruncatedText>
+            <time
+                dateTime={updatedAtDateTime}
+                className="font-mono tabular-nums"
+            >
+                {updatedAt}
+            </time>
+        </div>
+    );
+}
+
+function Freshness({
+    state,
+    lastUpdated,
+}: {
+    state: 'live' | 'reconnecting' | 'offline';
+    lastUpdated?: string;
+}) {
+    const { t } = useTranslation();
+    return (
+        <StatusBadge
+            state={state === 'live' ? 'ok' : 'warning'}
+            label={
+                state === 'live'
+                    ? t('Live')
+                    : state === 'reconnecting'
+                      ? t('Reconnecting · data from {{time}}', {
+                            time: lastUpdated ?? '—',
+                        })
+                      : t('Offline')
+            }
+        />
+    );
+}
+
+function PeekSheet({
+    title,
+    description,
+    trigger,
+    children,
+    open,
+    onOpenChange,
+}: {
+    title: string;
+    description: string;
+    trigger?: ReactNode;
+    children: ReactNode;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+}) {
+    return (
+        <Sheet open={open} onOpenChange={onOpenChange}>
+            {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
+            <SheetContent className="w-full overflow-y-auto sm:max-w-[520px]">
+                <SheetHeader>
+                    <SheetTitle>{title}</SheetTitle>
+                    <SheetDescription>{description}</SheetDescription>
+                </SheetHeader>
+                <div className="p-4">{children}</div>
+            </SheetContent>
+        </Sheet>
+    );
+}
+
+function DiffBlock({ before, after }: { before: string; after: string }) {
+    const { t } = useTranslation();
+    return (
+        <div className="grid gap-2 sm:grid-cols-2">
+            <EvidenceBlock
+                title={t('Before')}
+                rows={[{ label: t('Value'), value: before }]}
+            />
+            <EvidenceBlock
+                title={t('After')}
+                rows={[{ label: t('Value'), value: after }]}
+            />
+        </div>
+    );
+}
+
+function ExpiryRow({
+    label,
+    daysLeft,
+    windowDays,
+    state,
+}: {
+    label: string;
+    daysLeft: number;
+    windowDays: number;
+    state: Heptapod.Enums.SiteStatus;
+}) {
+    const { t } = useTranslation();
+    return (
+        <div className="flex items-center gap-3 text-sm">
+            <StatusDot state={state} />
+            <TruncatedText content={label}>
+                <span className="min-w-0 flex-1 truncate">{label}</span>
+            </TruncatedText>
+            <div className="h-1 w-28 overflow-hidden rounded-full bg-muted">
+                <div
+                    className="h-full"
+                    style={{
+                        backgroundColor: statusColor[state],
+                        width: `${Math.min(100, Math.max(0, (daysLeft / windowDays) * 100))}%`,
+                    }}
+                />
+            </div>
+            <span className="font-mono text-xs tabular-nums">
+                {t('{{count}} d', { count: daysLeft })}
+            </span>
+        </div>
+    );
+}
+
+function ScheduleCard({
+    next,
+    last,
+    duration,
+    interval,
+    showRunsLink = true,
+}: {
+    next: ReactNode;
+    last: ReactNode;
+    duration: string;
+    interval?: string;
+    showRunsLink?: boolean;
+}) {
+    const { t } = useTranslation();
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>{t('Schedule')}</CardTitle>
+                {showRunsLink && (
+                    <CardAction>
+                        <Button variant="ghost" disabled>
+                            {t('Runs')} <ChevronRight className="size-4" />
+                        </Button>
+                    </CardAction>
+                )}
+            </CardHeader>
+            <CardContent className="space-y-2">
+                <dl className="grid grid-cols-[6rem_1fr] gap-y-2 text-xs">
+                    {interval && (
+                        <>
+                            <dt className="text-muted-foreground">
+                                {t('Every')}
+                            </dt>
+                            <dd className="font-mono tabular-nums">
+                                {interval}
+                            </dd>
+                        </>
+                    )}
+                    <dt className="text-muted-foreground">{t('Next run')}</dt>
+                    <dd className="font-mono tabular-nums">{next}</dd>
+                    <dt className="text-muted-foreground">{t('Last run')}</dt>
+                    <dd className="font-mono tabular-nums">{last}</dd>
+                    <dt className="text-muted-foreground">
+                        {t('Usually takes')}
+                    </dt>
+                    <dd className="font-mono tabular-nums">{duration}</dd>
+                </dl>
+                {showRunsLink && (
+                    <p className="text-xs text-foreground-faint">
+                        {t('Every run is listed in Runs')}
+                    </p>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function AttentionRow({
+    site,
+    summary,
+    state,
+    href,
+}: {
+    site: Heptapod.Data.Ui.SiteRowData;
+    summary: string;
+    state: Heptapod.Enums.SiteStatus;
+    href: string;
+}) {
+    return (
+        <Link
+            href={href}
+            prefetch
+            className={cn(
+                'flex min-h-10 items-center gap-3 border-b px-3 text-sm',
+                rowTargetClass,
+            )}
+        >
+            <StatusDot state={state} />
+            <TruncatedText content={site.name}>
+                <span className="min-w-0 flex-1 truncate">{site.name}</span>
+            </TruncatedText>
+            <TruncatedText content={summary}>
+                <span className="hidden min-w-0 flex-1 truncate text-muted-foreground sm:block">
+                    {summary}
+                </span>
+            </TruncatedText>
+            <StatusBadge state={state} />
+        </Link>
+    );
+}
+
+function RuleRow({
+    name,
+    detail,
+    enabled,
+}: {
+    name: string;
+    detail: string;
+    enabled: boolean;
+}) {
+    return (
+        <div className="flex min-h-10 items-center gap-3 border-b px-3 text-sm">
+            <TruncatedText content={name}>
+                <span className="min-w-0 flex-1 truncate">{name}</span>
+            </TruncatedText>
+            <span className="text-xs text-muted-foreground">{detail}</span>
+            <StatusBadge
+                state={enabled ? 'ok' : 'disabled'}
+                label={enabled ? 'Enabled' : 'Disabled'}
+            />
+        </div>
+    );
+}
+
+function GallerySkeleton() {
+    return (
+        <div className="space-y-3" aria-busy="true">
+            <Skeleton className="h-6 w-1/2" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+        </div>
     );
 }

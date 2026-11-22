@@ -788,20 +788,20 @@ export function DataTable({
                                                                 header.column
                                                                     .id,
                                                             )
-                                                                ? '-mr-3 max-w-full gap-1 px-1! text-xs @[900px]/table:-mr-1'
+                                                                ? '-mr-3 max-w-full gap-1 px-1 text-xs has-[>svg]:px-1 @[900px]/table:-mr-1'
                                                                 : full &&
                                                                     header
                                                                         .column
                                                                         .id ===
                                                                         'state'
-                                                                  ? 'ml-0 max-w-full gap-1 px-1! text-xs'
+                                                                  ? 'ml-0 max-w-full gap-1 px-1 text-xs has-[>svg]:px-1'
                                                                   : full &&
                                                                       header
                                                                           .column
                                                                           .id ===
                                                                           'name'
-                                                                    ? '-ml-1 max-w-full gap-1 px-1! text-xs'
-                                                                    : '-ml-3 max-w-full gap-1 px-1! text-xs @[900px]/table:-ml-1'
+                                                                    ? '-ml-1 max-w-full gap-1 px-1 text-xs has-[>svg]:px-1'
+                                                                    : '-ml-3 max-w-full gap-1 px-1 text-xs has-[>svg]:px-1 @[900px]/table:-ml-1'
                                                         }
                                                         onClick={
                                                             serverMode

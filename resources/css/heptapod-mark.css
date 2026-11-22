@@ -109,11 +109,11 @@
     }
 }
 
-/* Hover and keyboard focus: the pills step apart with a spring, the mark glows ice,
+/* Hover (pointer devices) and keyboard focus (all devices): the pills step apart with a spring, the mark glows ice,
    and the wordmark takes a faint share of the glow without moving.
    No other rule gives the wordmark the accent glow. */
 @media (hover: hover) {
-    .hp-brand-link:is(:hover, :focus-visible) .hp-mark {
+    .hp-brand-link:hover .hp-mark {
         filter: drop-shadow(
                 0 0 4px color-mix(in srgb, var(--mark-accent) 55%, transparent)
             )
@@ -122,35 +122,74 @@
             );
     }
 
-    .hp-brand-link:is(:hover, :focus-visible) .hp-word {
+    .hp-brand-link:hover .hp-word {
         filter: drop-shadow(
             0 0 6px color-mix(in srgb, var(--mark-accent) 20%, transparent)
         );
     }
 
-    .hp-brand-link:is(:hover, :focus-visible) .hp-a {
+    .hp-brand-link:hover .hp-a {
         transform: translateY(-3px);
     }
 
-    .hp-brand-link:is(:hover, :focus-visible) .hp-d {
+    .hp-brand-link:hover .hp-d {
         transform: translateY(3px);
     }
 
-    .hp-brand-link:is(:hover, :focus-visible) .hp-f {
+    .hp-brand-link:hover .hp-f {
         transform: translate(-3px, -1.5px);
     }
 
-    .hp-brand-link:is(:hover, :focus-visible) .hp-e {
+    .hp-brand-link:hover .hp-e {
         transform: translate(-3px, 1.5px);
     }
 
-    .hp-brand-link:is(:hover, :focus-visible) .hp-b {
+    .hp-brand-link:hover .hp-b {
         transform: translate(3px, -1.5px);
     }
 
-    .hp-brand-link:is(:hover, :focus-visible) .hp-c {
+    .hp-brand-link:hover .hp-c {
         transform: translate(3px, 1.5px);
     }
+}
+
+.hp-brand-link:focus-visible .hp-mark {
+    filter: drop-shadow(
+            0 0 4px color-mix(in srgb, var(--mark-accent) 55%, transparent)
+        )
+        drop-shadow(
+            0 0 12px color-mix(in srgb, var(--mark-accent) 25%, transparent)
+        );
+}
+
+.hp-brand-link:focus-visible .hp-word {
+    filter: drop-shadow(
+        0 0 6px color-mix(in srgb, var(--mark-accent) 20%, transparent)
+    );
+}
+
+.hp-brand-link:focus-visible .hp-a {
+    transform: translateY(-3px);
+}
+
+.hp-brand-link:focus-visible .hp-d {
+    transform: translateY(3px);
+}
+
+.hp-brand-link:focus-visible .hp-f {
+    transform: translate(-3px, -1.5px);
+}
+
+.hp-brand-link:focus-visible .hp-e {
+    transform: translate(-3px, 1.5px);
+}
+
+.hp-brand-link:focus-visible .hp-b {
+    transform: translate(3px, -1.5px);
+}
+
+.hp-brand-link:focus-visible .hp-c {
+    transform: translate(3px, 1.5px);
 }
 
 /* Reduced motion: the still mark. The Down count stays visible because it carries information. */
@@ -159,14 +198,4 @@
         animation: none !important;
         transform: none !important;
     }
-}
-
-/* The sidebar menu button clips its last span (truncate) and itself (overflow hidden); the lockup must not be
-   clipped: the p descender, the hover step-apart and the glow extend past the box. */
-.hp-brand-link {
-    overflow: visible !important;
-}
-
-.hp-brand-link > span.hp-brand:last-child {
-    overflow: visible;
 }

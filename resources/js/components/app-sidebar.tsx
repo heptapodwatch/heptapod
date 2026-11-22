@@ -1,6 +1,6 @@
 import { usePage } from '@inertiajs/react';
 import { CircleHelp, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { CommandPaletteTrigger } from '@/components/real-command-palette';
+import { CommandPaletteTrigger } from '@/components/command-palette';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import {
@@ -97,7 +97,8 @@ export function AppSidebar({
                             <SidebarMenuButton
                                 size="lg"
                                 asChild
-                                className="min-w-0 flex-1 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!"
+                                // The lockup's p descender, hover step-apart and glow extend past the button box.
+                                className="min-w-0 flex-1 overflow-visible group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:justify-center [&>span:last-child]:overflow-visible"
                             >
                                 <BrandLink
                                     markOnly={!isMobile && state !== 'expanded'}
@@ -138,7 +139,7 @@ export function AppSidebar({
                 </SidebarMenu>
                 {props.auth.user && (
                     <CommandPaletteTrigger
-                        collapsedTooltip={collapsed}
+                        collapsed={collapsed}
                         onClick={(trigger) => {
                             setOpenMobile(false);
                             onOpenSearch(trigger);

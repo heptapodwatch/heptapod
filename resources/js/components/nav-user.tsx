@@ -30,12 +30,12 @@ export function NavUser() {
                         {/* One footer row (UI rules, Sidebar footer): avatar, name, role as secondary, chevron. */}
                         <SidebarMenuButton
                             tooltip={user.name}
-                            className="group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0! data-[state=open]:bg-sidebar-accent"
+                            className="group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0 data-[state=open]:bg-sidebar-accent"
                             data-test="sidebar-menu-button"
                         >
                             <Avatar className="size-4 shrink-0 overflow-hidden rounded-full group-data-[collapsible=icon]:size-5">
                                 <AvatarImage src={user.avatar} alt="" />
-                                <AvatarFallback className="bg-neutral-200 text-micro text-black dark:bg-neutral-700 dark:text-white">
+                                <AvatarFallback className="bg-primary/15 text-micro text-foreground">
                                     {getInitials(user.name).slice(0, 1)}
                                 </AvatarFallback>
                             </Avatar>
