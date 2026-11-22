@@ -6,7 +6,7 @@ export function RadioGroup({
     className,
     id,
     'aria-labelledby': labelledBy,
-    orientation = 'horizontal',
+    orientation,
     ...props
 }: ComponentProps<typeof RadioGroupPrimitive.Root>) {
     const generatedId = useId();
@@ -50,13 +50,17 @@ export function RadioGroup({
 /** The one radio mark (Radix item + indicator), shared by RadioGroupItem and RadioCards. */
 export function RadioMark({
     className,
+    focusRing = true,
     ...props
-}: ComponentProps<typeof RadioGroupPrimitive.Item>) {
+}: ComponentProps<typeof RadioGroupPrimitive.Item> & {
+    focusRing?: boolean;
+}) {
     return (
         <RadioGroupPrimitive.Item
             data-slot="radio-group-item"
             className={cn(
-                'size-4 shrink-0 cursor-pointer rounded-full border border-control-border text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed data-[state=checked]:border-primary',
+                'size-4 shrink-0 cursor-pointer rounded-full border border-control-border text-primary disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled disabled:text-disabled-primary-foreground disabled:data-[state=checked]:border-border data-[state=checked]:border-primary',
+                focusRing ? 'focus-ring' : 'outline-none',
                 className,
             )}
             {...props}
@@ -79,7 +83,7 @@ export function RadioGroupItem({
     return (
         <label
             htmlFor={itemId}
-            className="flex min-h-10 cursor-pointer items-center gap-2 text-sm has-disabled:cursor-not-allowed has-disabled:opacity-50 sm:min-h-8"
+            className="flex min-h-10 cursor-pointer items-center gap-2 text-cell has-disabled:cursor-not-allowed has-disabled:text-disabled-foreground sm:min-h-8"
         >
             <RadioMark id={itemId} className={className} {...props} />
             {children}

@@ -113,6 +113,10 @@ it('selects RadioCards by card click and arrow keys, with label as name and cons
     );
     expect(document.activeElement).toBe(member);
     await user.keyboard('{/ArrowDown}');
+    (document.activeElement as HTMLElement).blur();
+    await user.click(screen.getByText('Role'));
+    expect(document.activeElement).toBe(member);
+    expect(screen.getByTestId('role').textContent).toBe('Member');
 });
 
 it('ignores clicks on disabled RadioCards', async () => {
