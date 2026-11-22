@@ -737,8 +737,8 @@ foreach ($files as $path) {
     }
     // A pill radius follows its content. A container that stretches to the row width keeps the panel radius:
     // a full-width rounded-full bar reads as an oversized button (the old run bar on the check tab).
-    // Named exceptions: the search field is a pill by design, and a tab trigger is one segment inside a pill track.
-    $fullWidthPillExceptions = ['resources/js/components/ui/input.tsx', 'resources/js/components/ui/tabs.tsx'];
+    // Named exceptions: the search field is a pill by design.
+    $fullWidthPillExceptions = ['resources/js/components/ui/input.tsx'];
     if (! in_array($path, $fullWidthPillExceptions, true) && preg_match_all('~<[A-Za-z][\w.]*(?=\s)(?:[^<>]|=>)*?className=~s', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
         foreach ($matches[0] as [$text, $offset]) {
             $value = expressionValue($source, $offset + strlen($text));

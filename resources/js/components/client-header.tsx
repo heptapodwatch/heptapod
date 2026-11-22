@@ -1,10 +1,19 @@
 import { useTranslation } from 'react-i18next';
 import { ClientMark } from '@/components/client-mark';
-import {
-    ClientSectionTabs,
-    type ClientSection,
-} from '@/components/client-section-tabs';
 import { PageHeader } from '@/components/page-header';
+import { SectionTabs } from '@/components/section-tabs';
+import {
+    notifications as clientNotifications,
+    settings as clientSettings,
+    show as clientShow,
+} from '@/routes/clients';
+
+export type ClientSection =
+    | 'sites'
+    | 'incidents'
+    | 'messages'
+    | 'notifications'
+    | 'settings';
 
 export function ClientHeader({
     client,
@@ -32,10 +41,44 @@ export function ClientHeader({
                     ) : undefined
                 }
             />
-            <ClientSectionTabs
-                clientId={client.id}
+            <SectionTabs
+                label={t('Client navigation')}
                 value={section}
-                canManage={canManage}
+                items={[
+                    {
+                        value: 'sites',
+                        label: t('Sites'),
+                        href: clientShow.url(client.id),
+                    },
+                    {
+                        value: 'incidents',
+                        label: t('Incidents'),
+                        href: clientShow.url(client.id, {
+                            query: { tab: 'incidents' },
+                        }),
+                    },
+                    {
+                        value: 'messages',
+                        label: t('client_messages.tab'),
+                        href: clientShow.url(client.id, {
+                            query: { tab: 'messages' },
+                        }),
+                    },
+                    ...(canManage
+                        ? [
+                              {
+                                  value: 'notifications',
+                                  label: t('Notifications'),
+                                  href: clientNotifications.url(client.id),
+                              },
+                              {
+                                  value: 'settings',
+                                  label: t('Settings'),
+                                  href: clientSettings.url(client.id),
+                              },
+                          ]
+                        : []),
+                ]}
             />
         </>
     );
