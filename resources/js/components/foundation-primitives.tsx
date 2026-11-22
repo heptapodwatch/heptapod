@@ -330,7 +330,7 @@ export function ScheduleCard({
                 <CardTitle>{t('Schedule')}</CardTitle>
                 {showRunsLink && (
                     <CardAction>
-                        <Button variant="ghost" size="sm" disabled>
+                        <Button variant="ghost" disabled>
                             {t('Runs')} <ChevronRight className="size-4" />
                         </Button>
                     </CardAction>

@@ -54,7 +54,6 @@ export default function TeamNotifications({
                                     auth.canManageInstance ? (
                                         <Button
                                             variant="outline"
-                                            size="sm"
                                             disabled={dismissal.processing}
                                             onClick={() => void dismiss()}
                                         >

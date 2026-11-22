@@ -190,7 +190,7 @@ function RotatePingUrl({ url }: { url: string }) {
     const [open, setOpen] = useState(false);
     return (
         <>
-            <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+            <Button variant="outline" onClick={() => setOpen(true)}>
                 {t('Rotate ping URL')}
             </Button>
             <ConfirmDialog

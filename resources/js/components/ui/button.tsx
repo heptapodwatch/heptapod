@@ -14,19 +14,15 @@ const buttonVariants = cva(
           "press bg-destructive text-destructive-foreground hover:bg-destructive-hover active:bg-destructive-active inactive:border-transparent inactive:bg-disabled-destructive inactive:text-disabled-destructive-foreground",
         outline:
           "press border border-border bg-secondary text-foreground hover:border-border-strong hover:bg-surface-hover active:bg-surface-active inactive:border-dashed inactive:border-border inactive:bg-disabled inactive:text-disabled-foreground",
-        secondary:
-          "press bg-secondary text-secondary-foreground hover:bg-surface-hover active:bg-surface-active inactive:border-transparent inactive:bg-disabled-secondary inactive:text-disabled-foreground",
         ghost:
           "press bg-transparent hover:bg-ghost-hover active:bg-ghost-active inactive:bg-transparent inactive:text-disabled-ghost-foreground",
-        link: "bg-transparent text-primary underline decoration-transparent decoration-1 underline-offset-4 hover:decoration-current inactive:text-disabled-ghost-foreground inactive:decoration-transparent",
       },
       size: {
-        default: "h-8 gap-1.5 rounded-full px-3 leading-none has-[>svg]:px-2.5",
-        xs: "h-6 gap-1 rounded-full px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-8 gap-1.5 rounded-full px-3 leading-none has-[>svg]:px-2.5",
+        default: "h-8 gap-1.5 px-3 leading-none has-[>svg]:px-2.5",
+        xs: "h-6 gap-1 px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
         icon: "size-8 leading-none",
         "icon-xs":
-          "size-6 rounded-full leading-none [&_svg:not([class*='size-'])]:size-3",
+          "size-6 leading-none [&_svg:not([class*='size-'])]:size-3",
       },
     },
     defaultVariants: {

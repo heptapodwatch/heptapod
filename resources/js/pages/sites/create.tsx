@@ -436,7 +436,6 @@ function AddSiteForm({
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        size="sm"
                                         disabled={form.processing}
                                         onClick={() => {
                                             if (clearDraft()) onStartOver();

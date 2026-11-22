@@ -314,7 +314,6 @@ export default function SiteShow(page: SitePage) {
                             !cancelPending ? (
                                 <Button
                                     variant="outline"
-                                    size="sm"
                                     onClick={() => {
                                         setCancelPending(true);
                                         router.post(

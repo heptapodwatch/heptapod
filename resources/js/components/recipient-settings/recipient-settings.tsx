@@ -45,10 +45,10 @@ function ChannelStatus({
         <>
             {shown && <StatusBadge state={shown[0]} label={shown[1]} />}
             {channel.account_mail && (
-                <Badge variant="secondary">{t('Account email')}</Badge>
+                <Badge variant="outline">{t('Account email')}</Badge>
             )}
             {custom && (
-                <Badge variant="secondary">
+                <Badge variant="outline">
                     {t('recipient_settings.custom')}
                 </Badge>
             )}

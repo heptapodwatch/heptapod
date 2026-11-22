@@ -322,7 +322,6 @@ export default function Instance({
                     }
                 >
                     <FormSecondaryAction
-                        size="sm"
                         disabled={!form.isDirty || form.processing}
                         onClick={() => form.resetAndClearErrors()}
                     >
@@ -331,7 +330,6 @@ export default function Instance({
                     <Button
                         type="submit"
                         form="instance-settings-form"
-                        size="sm"
                         disabled={!form.isDirty || form.processing}
                     >
                         {t('Save')}

@@ -337,7 +337,7 @@ export function SitesAttentionBand({
                 <Alert
                     tone="warning"
                     action={
-                        <Button asChild variant="outline" size="sm">
+                        <Button asChild variant="outline">
                             <Link
                                 href={sitesIndex.url({
                                     query: { 'filter[state]': 'paused' },

@@ -12,7 +12,7 @@ export function PendingChanges({
     if (count === 0) return null;
 
     return (
-        <Button type="button" variant="outline" size="sm" onClick={apply}>
+        <Button type="button" variant="outline" onClick={apply}>
             {t(
                 count === 1
                     ? '{{count}} new change ↑'

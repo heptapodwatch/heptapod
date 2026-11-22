@@ -36,7 +36,6 @@ export function RowActions({
         return (
             <Button
                 type="button"
-                size="sm"
                 variant="ghost"
                 data-test={only.testId}
                 disabled={only.disabled}

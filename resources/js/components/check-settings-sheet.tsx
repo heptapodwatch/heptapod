@@ -431,7 +431,6 @@ function SavedCheckSettingsSheet({
     return (
         <>
             <FormSecondaryAction
-                size="sm"
                 aria-label={triggerLabel}
                 onClick={() => setOpen(true)}
             >

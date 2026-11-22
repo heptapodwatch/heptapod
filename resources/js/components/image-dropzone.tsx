@@ -165,7 +165,6 @@ export function ImageDropzone({
             </div>
             {onReset && (
                 <FormSecondaryAction
-                    size="sm"
                     disabled={disabled}
                     onClick={() => {
                         setLocalError(undefined);

@@ -556,7 +556,7 @@ function LaunchpadCard({
             <CardHeader>
                 <CardTitle>{title}</CardTitle>
                 <CardAction>
-                    <Button asChild size="sm" variant="ghost">
+                    <Button asChild variant="ghost">
                         <Link
                             href={checkShow.url({
                                 site: siteId,

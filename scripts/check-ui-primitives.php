@@ -77,7 +77,6 @@ $calloutTintExceptions = [
 $sheetContentOwners = [
     'resources/js/components/sheet-form.tsx' => 'The record create/edit sheet primitive.',
     'resources/js/components/ui/sidebar.tsx' => 'The mobile sidebar drawer, not a form.',
-    'resources/js/components/multi-step-sheet.tsx' => 'Design-preview stepper sheet on /dev/components, not routed.',
     'resources/js/components/foundation-primitives.tsx' => 'Design-preview sheet on /dev/components, not routed.',
 ];
 /** Raw <button> elements outside components/ui/: each is a shared primitive or a row target that draws the shared ring itself. Every other button is Button. */
@@ -86,9 +85,7 @@ $rawButtonOwners = [
     'resources/js/components/filter-bar.tsx' => [1, 'FilterBar clear (x) control drawn inside the filter trigger.'],
     'resources/js/components/info-tooltip.tsx' => [1, 'InfoTooltip primitive: the 16 px info trigger.'],
     'resources/js/components/monitoring.tsx' => [1, 'UptimeBar: the strip is one tab stop with Left/Right day navigation.'],
-    'resources/js/components/password-input.tsx' => [1, 'PasswordInput primitive: the visibility toggle inside the field.'],
     'resources/js/components/recipient-settings/recipient-settings.tsx' => [1, 'Channel row name: the row tab stop (rowTargetClick).'],
-    'resources/js/components/stepper.tsx' => [1, 'Stepper primitive: numbered step buttons.'],
     'resources/js/components/text-link.tsx' => [1, 'TextLinkButton primitive: a button that looks like a text link.'],
 ];
 /** Per file: the one error key a button action returns (no form field holds it), and why it has no field link. */
@@ -295,8 +292,8 @@ foreach ($files as $path) {
     if (str_contains($source, '<nav') && ! in_array($path, $navigationOwners, true)) {
         $failures[] = "{$path}: local navigation; use SectionTabs for horizontal navigation or name a vertical exception";
     }
-    if ($path !== 'resources/js/components/stepper.tsx' && preg_match('~aria-current=(?:\{[^}]*)?[\'\"]step[\'\"]~s', $source) === 1) {
-        $failures[] = "{$path}: local step progress; use Stepper";
+    if (preg_match('~aria-current=(?:\{[^}]*)?[\'\"]step[\'\"]~s', $source) === 1) {
+        $failures[] = "{$path}: local step progress; use progressive reveal instead of a hand-built stepper";
     }
     // Date/time entry is the branded DateTimeField/TimeField; never a native picker (L1).
     if ($path !== 'resources/js/components/ui/date-time-field.tsx'
@@ -647,10 +644,9 @@ foreach ($files as $path) {
                 $tag = $matches[1][$index][0];
                 // Guard all native list items rather than trying to infer JSX ancestry across map callbacks.
                 $timeline = $tag === 'li' && ($timelineRowClasses[$path] ?? null) === $value;
-                $stepper = $path === 'resources/js/components/stepper.tsx' && $tag === 'li' && tagHasAttribute($text, 'aria-current=');
                 $primitive = in_array($tag, ['TableRow', 'TableCell', 'TableHead', 'ListRow', 'ListHeader', 'li'], true);
                 $usesDensity = preg_match($densityToken, $value) === 1;
-                if (! $timeline && ! $stepper && ($primitive || $usesDensity) && preg_match($densityOverride, $value) === 1) {
+                if (! $timeline && ($primitive || $usesDensity) && preg_match($densityOverride, $value) === 1) {
                     $failures[] = sprintf('%s:%d: local row height or vertical padding; use the shared table/list density', $path, substr_count($source, "\n", 0, $offset) + 1);
                 }
             }
@@ -876,6 +872,12 @@ foreach ($hoverColourAllowlist as $path => [$marker, $reason]) {
         $failures[] = "{$path}: the hover exception ({$marker}) must mark exactly one link, found {$found}; the exception covers one named element";
     }
 }
+foreach ($rawButtonOwners as $path => [, $reason]) {
+    if (! is_file($root.'/'.$path)) {
+        $failures[] = "{$path}: raw-button exception no longer exists ({$reason})";
+    }
+}
+
 foreach ($sheetContentOwners as $path => $reason) {
     if (! is_file($root.'/'.$path)) {
         $failures[] = "{$path}: sheet exception no longer exists ({$reason})";

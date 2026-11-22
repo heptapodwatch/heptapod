@@ -294,7 +294,6 @@ export function RealCommandPalette({
                             <span>{t('Search unavailable')}</span>
                             <Button
                                 variant="outline"
-                                size="sm"
                                 onClick={() =>
                                     setRetryCount((count) => count + 1)
                                 }

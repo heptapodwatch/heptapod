@@ -331,7 +331,6 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                     {auth.canManageInstance && (
                         <Button
                             variant="outline"
-                            size="sm"
                             disabled={busy || !updates.enabled_by_server}
                             onClick={() => void toggleChecks()}
                         >
@@ -343,7 +342,7 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                         </Button>
                     )}
                     {updates.release_url !== null && (
-                        <Button variant="outline" size="sm" asChild>
+                        <Button variant="outline" asChild>
                             <a
                                 href={updates.release_url}
                                 target="_blank"
@@ -493,7 +492,6 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                             <div className="flex flex-wrap items-center gap-2">
                                 <Button
                                     variant="outline"
-                                    size="sm"
                                     aria-describedby={
                                         backupStandingNote
                                             ? backupNoteId

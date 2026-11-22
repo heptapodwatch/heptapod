@@ -774,7 +774,6 @@ export function DataTable({
                                                                 : !header.column.getCanSort()
                                                         }
                                                         variant="ghost"
-                                                        size="sm"
                                                         aria-label={
                                                             fullHeaderLabels[
                                                                 header.column.id

@@ -351,7 +351,6 @@ function SecretDialog({
                 <ShownOnceSecret label={t('Token')} value={secret.value} />
                 <div className="space-y-1.5">
                     <Button
-                        size="sm"
                         aria-describedby={failed ? copyNoteId : undefined}
                         onClick={async () =>
                             setFailed(!(await copy(secret.value)))
@@ -517,7 +516,6 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
                     <>
                         <Button
                             data-shortcut-create
-                            size="sm"
                             onClick={() => {
                                 setCreating(true);
                                 setRevoked(false);
@@ -654,7 +652,6 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
                         ))}
                         <Button
                             data-test="revoke-token"
-                            size="sm"
                             variant="ghost"
                             className="justify-self-end"
                             onClick={() => {

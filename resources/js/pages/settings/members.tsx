@@ -706,7 +706,6 @@ export default function Members({ roster: initialRoster }: { roster: Roster }) {
                         <>
                             <Button
                                 data-shortcut-create
-                                size="sm"
                                 disabled={busy}
                                 onClick={() => {
                                     setMessage('');
@@ -778,10 +777,7 @@ export default function Members({ roster: initialRoster }: { roster: Roster }) {
                                 </div>
                             </div>
                             <div role="cell">
-                                <Badge
-                                    variant="secondary"
-                                    className="text-xs font-normal"
-                                >
+                                <Badge variant="outline">
                                     {t(member.role ?? 'Unknown role')}
                                 </Badge>
                             </div>
@@ -865,10 +861,7 @@ export default function Members({ roster: initialRoster }: { roster: Roster }) {
                                 </p>
                             </div>
                             <div role="cell">
-                                <Badge
-                                    variant="secondary"
-                                    className="text-xs font-normal"
-                                >
+                                <Badge variant="outline">
                                     {t(invitation.role)}
                                 </Badge>
                             </div>

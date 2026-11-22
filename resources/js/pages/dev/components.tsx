@@ -1,10 +1,9 @@
 import { SectionHeading } from '@/components/section-heading';
 import { FormSection } from '@/components/form-section';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { PageContainer } from '@/components/page-container';
 import { useTranslation } from 'react-i18next';
-import AppearanceTabs from '@/components/appearance-tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -49,14 +48,6 @@ import {
 } from '@/fixtures/design';
 import { setLocale, type Locale } from '@/lib/i18n';
 import { statusLabels } from '@/lib/status';
-import {
-    EntityCombobox,
-    clientComboboxOptions,
-} from '@/components/entity-combobox';
-import InputError from '@/components/input-error';
-import { MultiStepFormSheet } from '@/components/multi-step-sheet';
-import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
 import { RunLine, RunResultChip } from '@/components/run-family';
 
 const sampleSite: Heptapod.Data.Ui.SiteRowData = gallerySites[0]!;
@@ -100,7 +91,6 @@ export default function Components() {
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <AppearanceTabs />
                     <SegmentedControl
                         label={t('Language')}
                         value={i18n.language}
@@ -112,12 +102,6 @@ export default function Components() {
                     />
                 </div>
             </header>
-            <FormSection
-                title={t('Add site')}
-                description={t('Preview only. No monitoring data changed.')}
-            >
-                <MultiStepSheet />
-            </FormSection>
             <section className="space-y-4">
                 <SectionHeading>
                     {t('Colour · brand and neutrals')}
@@ -176,7 +160,6 @@ export default function Components() {
                 <div className="flex flex-wrap items-center gap-2">
                     <Button>{t('Open incident')}</Button>
                     <Button variant="outline">{t('Run check')}</Button>
-                    <Button variant="secondary">{t('Secondary')}</Button>
                     <Button variant="ghost">{t('Ghost')}</Button>
                     <Button variant="destructive">{t('Delete site')}</Button>
                     <Button disabled>{t('Disabled')}</Button>
@@ -416,128 +399,5 @@ export default function Components() {
                 </div>
             </section>
         </PageContainer>
-    );
-}
-
-function MultiStepSheet({ invalid = false }: { invalid?: boolean }) {
-    const { t } = useTranslation();
-    const [open, setOpen] = useState(false);
-    const form = useForm({ url: '', client: '1' });
-    return (
-        <MultiStepFormSheet
-            open={open}
-            onOpenChange={setOpen}
-            title="Add site"
-            description="Preview only. No monitoring data changed."
-            completeLabel="Add site"
-            trigger={
-                <Button
-                    onClick={() => {
-                        form.resetAndClearErrors();
-                        if (invalid) {
-                            form.setData('url', 'http://api.northwind.example');
-                            form.setError('url', 'Use an HTTPS URL.');
-                        }
-                    }}
-                >
-                    {t(invalid ? 'Show validation errors' : 'Add site')}
-                </Button>
-            }
-            onComplete={() => {
-                toast.success(t('Site added. Preview only.'));
-                setOpen(false);
-            }}
-            steps={[
-                {
-                    title: 'URL',
-                    focusId: 'sheet-url',
-                    validate: () => {
-                        // Fixture-only server response; production callers submit with form.post().
-                        if (
-                            !URL.canParse(form.data.url) ||
-                            new URL(form.data.url).protocol !== 'https:'
-                        ) {
-                            form.setError('url', 'Use an HTTPS URL.');
-                            return false;
-                        }
-                        form.clearErrors();
-                        return true;
-                    },
-                    content: (
-                        <div className="space-y-2">
-                            <Label htmlFor="sheet-url">{t('URL')}</Label>
-                            <Input
-                                id="sheet-url"
-                                value={form.data.url}
-                                onChange={(event) =>
-                                    form.setData('url', event.target.value)
-                                }
-                                aria-invalid={!!form.errors.url}
-                                aria-describedby="sheet-url-help"
-                                placeholder="https://shop.acme.example"
-                            />
-                            {form.errors.url ? (
-                                <InputError
-                                    id="sheet-url-help"
-                                    message={form.errors.url}
-                                />
-                            ) : (
-                                <p
-                                    id="sheet-url-help"
-                                    className="text-sm text-muted-foreground"
-                                >
-                                    {t('Use an HTTPS URL.')}
-                                </p>
-                            )}
-                        </div>
-                    ),
-                },
-                {
-                    title: 'Client',
-                    content: (
-                        <div className="space-y-2">
-                            <Label htmlFor="sheet-client">{t('Client')}</Label>
-                            <EntityCombobox
-                                id="sheet-client"
-                                options={clientComboboxOptions(clients)}
-                                value={form.data.client}
-                                onValueChange={(value) =>
-                                    form.setData('client', value)
-                                }
-                            />
-                        </div>
-                    ),
-                },
-                {
-                    title: 'Review',
-                    content: (
-                        <dl className="space-y-3 text-sm">
-                            <div>
-                                <dt className="text-muted-foreground">
-                                    {t('URL')}
-                                </dt>
-                                <dd className="font-mono break-all">
-                                    {form.data.url}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="text-muted-foreground">
-                                    {t('Client')}
-                                </dt>
-                                <dd>
-                                    {
-                                        clients.find(
-                                            (item) =>
-                                                String(item.id) ===
-                                                form.data.client,
-                                        )?.name
-                                    }
-                                </dd>
-                            </div>
-                        </dl>
-                    ),
-                },
-            ]}
-        />
     );
 }

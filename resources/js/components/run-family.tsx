@@ -203,7 +203,7 @@ export function RunGlyph({
 export function YouMarker() {
     const { t } = useTranslation();
     return (
-        <Badge variant="secondary" className="h-5 shrink-0 px-1.5 text-micro">
+        <Badge variant="outline" className="h-5 shrink-0 px-1.5 text-micro">
             {t('You')}
         </Badge>
     );

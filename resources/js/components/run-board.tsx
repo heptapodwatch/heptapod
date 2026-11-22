@@ -71,7 +71,6 @@ function RunBoardLiveStatus() {
             {!live && reloadAvailable && (
                 <Button
                     variant="outline"
-                    size="sm"
                     onClick={() => window.location.reload()}
                 >
                     {t('runs.board.reload')}
@@ -408,11 +407,7 @@ export function RunBoard({
                 </div>
                 <div className="ml-auto flex items-center gap-3">
                     {board.pendingCount > 0 && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={board.apply}
-                        >
+                        <Button variant="outline" onClick={board.apply}>
                             {t(
                                 board.pendingCount === 1
                                     ? '{{count}} new change ↑'

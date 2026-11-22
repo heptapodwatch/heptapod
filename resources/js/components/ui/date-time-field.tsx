@@ -419,7 +419,7 @@ export function DateTimeField({
                         size="icon-xs"
                         disabled={disabled}
                         aria-label={t('Select date')}
-                        className="absolute top-1/2 right-1.5 -translate-y-1/2"
+                        className="absolute top-1/2 right-0 -translate-y-1/2 sm:right-1"
                     >
                         <CalendarDays />
                     </Button>
@@ -531,7 +531,6 @@ export function DateTimeField({
                                 <Button
                                     type="button"
                                     variant="ghost"
-                                    size="sm"
                                     onClick={() => {
                                         setText('');
                                         setInvalidText(false);
