@@ -205,7 +205,7 @@ export function SiteChecksList({
                                                             )}
                                                     </p>
                                                     {blocked && (
-                                                        <p className="text-xs text-[var(--status-warn)]">
+                                                        <p className="text-xs text-status-warn">
                                                             {t(
                                                                 'add_site.blocked.uptime',
                                                             )}
@@ -296,7 +296,7 @@ export function SiteChecksList({
                                                         <span
                                                             className={
                                                                 missing
-                                                                    ? 'text-xs text-[var(--status-warn)]'
+                                                                    ? 'text-xs text-status-warn'
                                                                     : 'text-xs text-muted-foreground'
                                                             }
                                                         >

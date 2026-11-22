@@ -205,7 +205,6 @@ export default function ClientSettings({
                         }
                     >
                         <FormSecondaryAction
-                            size="sm"
                             disabled={!form.isDirty || form.processing}
                             onClick={() => {
                                 form.reset();
@@ -218,7 +217,6 @@ export default function ClientSettings({
                             id="client-settings-save"
                             type="submit"
                             form="client-settings-form"
-                            size="sm"
                             disabled={!form.isDirty || form.processing}
                         >
                             {t(creating ? 'Create client' : 'Save')}

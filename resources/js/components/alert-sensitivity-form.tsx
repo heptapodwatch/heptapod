@@ -83,7 +83,6 @@ export function TeamAlertSensitivity({
                 }
             >
                 <FormSecondaryAction
-                    size="sm"
                     disabled={!form.isDirty || form.processing}
                     onClick={() => {
                         form.resetAndClearErrors();
@@ -95,7 +94,6 @@ export function TeamAlertSensitivity({
                 <Button
                     type="submit"
                     form="team-alert-sensitivity-form"
-                    size="sm"
                     disabled={
                         !form.isDirty ||
                         form.processing ||
@@ -221,7 +219,6 @@ export function SiteAlertSensitivity({
                 <Button
                     type="button"
                     variant="outline"
-                    size="sm"
                     onClick={() => setOpen(true)}
                 >
                     {t('alert_sensitivity.change')}

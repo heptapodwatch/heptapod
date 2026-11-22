@@ -122,14 +122,14 @@ export function CheckTabLayout({
                                 />
                             )}
                         {page.check.enabled && page.schedule.last_loss && (
-                            <span className="text-xs text-(--status-warn)">
+                            <span className="text-xs text-status-warn">
                                 {t(
                                     `freshness.loss.${page.schedule.last_loss.cause}`,
                                 )}
                             </span>
                         )}
                         {page.check.enabled && page.check.checked_at && (
-                            <span className="text-xs text-[var(--foreground-faint)]">
+                            <span className="text-xs text-foreground-faint">
                                 {page.check.pending_recheck
                                     ? t('Last result: {{result}}', {
                                           result: t(

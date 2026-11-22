@@ -1,4 +1,4 @@
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { ToggleGroup as ToggleGroupPrimitive } from 'radix-ui';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
@@ -47,34 +47,35 @@ export function WeekdayToggleGroup({
 }) {
     const { t } = useTranslation();
     return (
-        <ToggleGroup
+        <ToggleGroupPrimitive.Root
             id={id}
+            data-slot="toggle-group"
             type="multiple"
             aria-labelledby={labelledBy}
             aria-describedby={describedBy}
             aria-invalid={invalid || undefined}
             disabled={disabled}
-            spacing={1}
             value={value.map(String)}
             onValueChange={(next) =>
                 onValueChange(next.map(Number).sort((a, b) => a - b))
             }
-            className={cn('flex-wrap gap-1', className)}
+            className={cn('flex w-fit flex-wrap items-center gap-1', className)}
         >
             {weekdays.map((day) => {
                 const stored = toStored(day.iso, numbering);
                 return (
-                    <ToggleGroupItem
+                    <ToggleGroupPrimitive.Item
                         key={day.iso}
+                        data-slot="toggle-group-item"
                         id={id ? `${id}-${stored}` : undefined}
                         value={String(stored)}
                         aria-label={t(day.long)}
-                        className="h-10 min-w-11 border border-input bg-muted px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground sm:h-8"
+                        className="inline-flex h-10 w-auto min-w-10 shrink-0 press items-center justify-center rounded-full border border-input bg-muted px-2 text-cell leading-none font-medium whitespace-nowrap text-muted-foreground focus-ring hover:border-border-strong hover:bg-surface-hover hover:text-foreground focus:z-10 focus-visible:z-10 active:bg-surface-active active:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:border-primary-hover data-[state=on]:hover:bg-primary-hover data-[state=on]:active:border-primary-active data-[state=on]:active:bg-primary-active sm:h-8 sm:min-w-11 sm:px-2.5 inactive:pointer-events-none inactive:border-dashed inactive:border-border inactive:bg-disabled inactive:text-disabled-foreground data-[state=on]:inactive:border-transparent data-[state=on]:inactive:bg-disabled-primary data-[state=on]:inactive:text-disabled-primary-foreground"
                     >
                         {t(day.short)}
-                    </ToggleGroupItem>
+                    </ToggleGroupPrimitive.Item>
                 );
             })}
-        </ToggleGroup>
+        </ToggleGroupPrimitive.Root>
     );
 }

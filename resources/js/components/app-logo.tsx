@@ -60,7 +60,7 @@ export function BrandLink({
                 role="img"
                 aria-label={label}
                 tabIndex={0}
-                className={cn('hp-brand-link', className)}
+                className={cn('hp-brand-link rounded-md focus-ring', className)}
             >
                 {content}
             </span>
@@ -70,7 +70,7 @@ export function BrandLink({
                 href={brand.href}
                 prefetch
                 aria-label={label}
-                className={cn('hp-brand-link', className)}
+                className={cn('hp-brand-link rounded-md focus-ring', className)}
             >
                 {content}
             </Link>

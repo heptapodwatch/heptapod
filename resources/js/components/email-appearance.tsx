@@ -349,7 +349,6 @@ export function AppearanceFields({
                 />
                 {unreadable && (
                     <FormSecondaryAction
-                        size="sm"
                         disabled={disabled}
                         onClick={() =>
                             onText('accent', readableShade(text.accent))

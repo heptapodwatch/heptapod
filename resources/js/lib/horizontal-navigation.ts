@@ -2,7 +2,7 @@
 export const horizontalNavigationClass =
     'flex max-w-full gap-4 overflow-x-auto border-b';
 export const horizontalNavigationItemClass =
-    'inline-flex h-10 shrink-0 items-center gap-1.5 border-b-2 border-transparent px-2 text-cell font-[450] whitespace-nowrap text-muted-foreground sm:h-8';
+    'inline-flex h-10 shrink-0 items-center gap-1.5 border-b-2 border-transparent px-2 pt-0.5 text-cell leading-none font-label whitespace-nowrap text-muted-foreground sm:h-8';
 export const horizontalNavigationActiveClass =
     'border-b-foreground font-medium text-foreground';
 /** A 24 px edge fade on the side(s) that scroll, so a cut-off tab reads as "more this way". */

@@ -197,10 +197,12 @@ it('shows each delivery outcome with the shared status tone', async () => {
     render(<ClientMessagesList client={{ id: 3, name: 'Müller GmbH' }} />);
     await screen.findAllByText('Broken links on shop.test: 2 found');
     expect(
-        [...document.querySelectorAll('.status-badge')].map((badge) => [
-            badge.getAttribute('data-state'),
-            badge.getAttribute('aria-label'),
-        ]),
+        [...document.querySelectorAll('[data-slot="badge"][data-state]')].map(
+            (badge) => [
+                badge.getAttribute('data-state'),
+                badge.getAttribute('aria-label'),
+            ],
+        ),
     ).toEqual(Object.values(outcomes));
 });
 

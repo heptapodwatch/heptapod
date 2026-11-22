@@ -111,8 +111,8 @@ export function NavMain({
                                                         item.title ===
                                                             t('Incidents') &&
                                                         item.count > 0
-                                                            ? 'ml-auto font-mono text-xs text-[var(--status-down)]'
-                                                            : 'ml-auto font-mono text-xs text-muted-foreground'
+                                                            ? 'ml-auto font-mono text-xs text-status-down transition-colors duration-(--motion-press-out) ease-out group-hover/menu-button:text-sidebar-accent-foreground group-active/menu-button:text-sidebar-accent-foreground group-active/menu-button:duration-(--motion-press-in)'
+                                                            : 'ml-auto font-mono text-xs text-muted-foreground transition-colors duration-(--motion-press-out) ease-out group-hover/menu-button:text-sidebar-accent-foreground group-active/menu-button:text-sidebar-accent-foreground group-active/menu-button:duration-(--motion-press-in)'
                                                     }
                                                 >
                                                     {format.number(item.count)}

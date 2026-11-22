@@ -21,27 +21,73 @@ import { cn } from '@/lib/utils';
 
 const InHeaderMenu = createContext(false);
 
+type PageHeaderActionProps = Omit<ComponentProps<typeof Button>, 'onClick'> & {
+    onClick?: () => void;
+};
+
 export function PageHeaderAction({
     className,
+    variant,
+    size,
+    asChild = false,
+    disabled,
+    onClick,
+    children,
+    type,
     ...props
-}: ComponentProps<typeof Button>) {
+}: PageHeaderActionProps) {
     const inMenu = useContext(InHeaderMenu);
-    if (!inMenu) return <Button className={className} {...props} />;
+    if (!inMenu) {
+        return (
+            <Button
+                type={type}
+                className={className}
+                variant={variant}
+                size={size}
+                asChild={asChild}
+                disabled={disabled}
+                onClick={onClick ? () => onClick() : undefined}
+                {...props}
+            >
+                {children}
+            </Button>
+        );
+    }
+
+    const menuItemProps: Omit<
+        ComponentProps<typeof DropdownMenuItem>,
+        | 'variant'
+        | 'asChild'
+        | 'disabled'
+        | 'className'
+        | 'onSelect'
+        | 'children'
+    > = {
+        id: props.id,
+        'aria-label': props['aria-label'],
+        'aria-labelledby': props['aria-labelledby'],
+        'aria-describedby': props['aria-describedby'],
+        'aria-expanded': props['aria-expanded'],
+        'aria-haspopup': props['aria-haspopup'],
+        'aria-controls': props['aria-controls'],
+    };
 
     return (
         <DropdownMenuItem
-            asChild
-            disabled={props.disabled}
-            onSelect={(event) => event.preventDefault()}
+            {...menuItemProps}
+            asChild={asChild}
+            disabled={disabled}
+            variant={variant === 'destructive' ? 'destructive' : 'default'}
+            className={className}
+            onSelect={
+                onClick
+                    ? () => {
+                          if (!disabled) onClick();
+                      }
+                    : undefined
+            }
         >
-            <Button
-                {...props}
-                variant="ghost"
-                className={cn(
-                    'w-full justify-start rounded-sm border-0 font-normal',
-                    className,
-                )}
-            />
+            {children}
         </DropdownMenuItem>
     );
 }

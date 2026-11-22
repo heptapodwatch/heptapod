@@ -19,10 +19,8 @@ import { Head, router } from '@inertiajs/react';
 import { KeyRound, Copy, Plus } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-    EvidenceBlock,
-    ShownOnceSecret,
-} from '@/components/foundation-primitives';
+import { EvidenceBlock } from '@/components/evidence-block';
+import { ShownOnceSecret } from '@/components/shown-once-secret';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
@@ -351,7 +349,6 @@ function SecretDialog({
                 <ShownOnceSecret label={t('Token')} value={secret.value} />
                 <div className="space-y-1.5">
                     <Button
-                        size="sm"
                         aria-describedby={failed ? copyNoteId : undefined}
                         onClick={async () =>
                             setFailed(!(await copy(secret.value)))
@@ -517,7 +514,6 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
                     <>
                         <Button
                             data-shortcut-create
-                            size="sm"
                             onClick={() => {
                                 setCreating(true);
                                 setRevoked(false);
@@ -645,7 +641,7 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
                                         token.expires_at !== null &&
                                         new Date(token.expires_at).getTime() <=
                                             Date.now() && (
-                                            <span className="block text-xs text-(--status-warn)">
+                                            <span className="block text-xs text-status-warn">
                                                 {t('Expired')}
                                             </span>
                                         )}
@@ -654,7 +650,6 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
                         ))}
                         <Button
                             data-test="revoke-token"
-                            size="sm"
                             variant="ghost"
                             className="justify-self-end"
                             onClick={() => {

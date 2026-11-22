@@ -114,7 +114,7 @@ export function PageHeader({
                         </TooltipHint>
                         {count !== undefined && (
                             <Badge
-                                variant="secondary"
+                                variant="outline"
                                 className="font-mono tabular-nums"
                             >
                                 {count}

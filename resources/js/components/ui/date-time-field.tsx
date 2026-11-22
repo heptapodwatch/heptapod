@@ -419,7 +419,7 @@ export function DateTimeField({
                         size="icon-xs"
                         disabled={disabled}
                         aria-label={t('Select date')}
-                        className="absolute top-1/2 right-1.5 -translate-y-1/2"
+                        className="absolute top-1/2 right-0 -translate-y-1/2 sm:right-1"
                     >
                         <CalendarDays />
                     </Button>
@@ -437,7 +437,7 @@ export function DateTimeField({
                                 )
                                 ?.focus();
                         }}
-                        className="z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-lg border bg-popover p-3 text-popover-foreground shadow-overlay motion-popover"
+                        className="z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-lg border bg-popover p-3 text-popover-foreground shadow-overlay motion-pop"
                     >
                         <div className="flex items-center justify-between">
                             <span className="text-sm font-medium">
@@ -531,7 +531,6 @@ export function DateTimeField({
                                 <Button
                                     type="button"
                                     variant="ghost"
-                                    size="sm"
                                     onClick={() => {
                                         setText('');
                                         setInvalidText(false);

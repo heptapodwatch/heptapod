@@ -1,5 +1,5 @@
+import { ToggleGroup as ToggleGroupPrimitive } from 'radix-ui';
 import type { ReactNode } from 'react';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 export function SegmentedControl({
     value,
@@ -15,7 +15,8 @@ export function SegmentedControl({
     disabled?: boolean;
 }) {
     return (
-        <ToggleGroup
+        <ToggleGroupPrimitive.Root
+            data-slot="toggle-group"
             type="single"
             value={value}
             onValueChange={(next) => {
@@ -23,18 +24,18 @@ export function SegmentedControl({
             }}
             aria-label={label}
             disabled={disabled}
-            spacing={1}
-            className="h-10 max-w-full rounded-full border bg-muted p-1 sm:h-8"
+            className="flex h-10 w-fit max-w-full items-center gap-1 rounded-full border bg-muted p-1 sm:h-8 inactive:border-dashed"
         >
             {options.map((option) => (
-                <ToggleGroupItem
+                <ToggleGroupPrimitive.Item
                     key={option.value}
+                    data-slot="toggle-group-item"
                     value={option.value}
-                    className="relative h-8 rounded-full px-3 text-xs text-muted-foreground before:absolute before:inset-x-0 before:top-1/2 before:h-10 before:-translate-y-1/2 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=on]:bg-secondary data-[state=on]:text-foreground data-[state=on]:shadow-sm sm:h-6 sm:before:hidden"
+                    className="relative inline-flex h-8 w-auto min-w-0 shrink-0 items-center justify-center gap-2 rounded-full bg-transparent px-3 text-cell leading-none font-label whitespace-nowrap text-muted-foreground focus-ring press before:absolute before:inset-x-0 before:top-1/2 before:h-10 before:-translate-y-1/2 hover:bg-ghost-hover hover:text-foreground focus:z-10 focus-visible:z-10 active:bg-ghost-active active:text-foreground data-[state=on]:bg-secondary data-[state=on]:text-foreground data-[state=on]:shadow-sm data-[state=on]:hover:bg-selected-surface-hover data-[state=on]:active:bg-selected-surface-active sm:h-6 sm:before:hidden inactive:pointer-events-none inactive:bg-transparent inactive:text-disabled-ghost-foreground data-[state=on]:inactive:bg-disabled data-[state=on]:inactive:text-disabled-foreground data-[state=on]:inactive:shadow-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
                 >
                     {option.label}
-                </ToggleGroupItem>
+                </ToggleGroupPrimitive.Item>
             ))}
-        </ToggleGroup>
+        </ToggleGroupPrimitive.Root>
     );
 }

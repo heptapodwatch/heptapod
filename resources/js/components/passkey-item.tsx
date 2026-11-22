@@ -64,7 +64,6 @@ export default function PasskeyItem({ passkey, onDelete }: Props) {
 
             <Button
                 variant="ghost"
-                size="sm"
                 className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                 onClick={() => setOpen(true)}
             >

@@ -22,7 +22,7 @@ import {
     RunCheckReason,
     useCheckRun,
 } from '@/components/check-run-status';
-import { ProductCheckDetail } from '@/components/product-check-detail';
+import { CheckDetail } from '@/components/check-detail';
 import { AlertChannelsLine } from '@/components/alert-channels-line';
 import { SiteOverviewContent } from '@/components/site-overview-content';
 import { MonitoringTime } from '@/components/monitoring';
@@ -282,7 +282,7 @@ export default function SiteShow(page: SitePage) {
                                     )}
                             </span>
                             {incidentStartedAt && (
-                                <span className="text-xs text-[var(--foreground-faint)]">
+                                <span className="text-xs text-foreground-faint">
                                     {t('Since')}{' '}
                                     <MonitoringTime
                                         value={incidentStartedAt}
@@ -314,7 +314,6 @@ export default function SiteShow(page: SitePage) {
                             !cancelPending ? (
                                 <Button
                                     variant="outline"
-                                    size="sm"
                                     onClick={() => {
                                         setCancelPending(true);
                                         router.post(
@@ -341,7 +340,7 @@ export default function SiteShow(page: SitePage) {
                     page.check.enabled &&
                     run?.phase === 'late' &&
                     run.due_at && (
-                        <p className="text-xs text-[var(--status-warn)]">
+                        <p className="text-xs text-status-warn">
                             {t('Late by {{duration}}', {
                                 duration: format.duration(
                                     Math.max(
@@ -359,7 +358,7 @@ export default function SiteShow(page: SitePage) {
                             count={bufferedRuns.pendingCount}
                             apply={bufferedRuns.apply}
                         />
-                        <ProductCheckDetail
+                        <CheckDetail
                             requestedRun={requestedRun}
                             primaryAction={runAction}
                             actionNote={runActionNote}

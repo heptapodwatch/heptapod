@@ -71,7 +71,6 @@ function RunBoardLiveStatus() {
             {!live && reloadAvailable && (
                 <Button
                     variant="outline"
-                    size="sm"
                     onClick={() => window.location.reload()}
                 >
                     {t('runs.board.reload')}
@@ -310,7 +309,7 @@ function BoardColumn({
                     </span>
                 )}
             </div>
-            <div className="flex flex-1 flex-col gap-2 rounded-[10px] border border-[var(--border-soft)] bg-muted/40 p-2 sm:min-h-[36rem]">
+            <div className="flex flex-1 flex-col gap-2 rounded-[10px] border border-border-soft bg-muted/40 p-2 sm:min-h-[36rem]">
                 {empty !== null ? (
                     <p className="px-2 py-3 text-xs text-muted-foreground">
                         {empty}
@@ -408,11 +407,7 @@ export function RunBoard({
                 </div>
                 <div className="ml-auto flex items-center gap-3">
                     {board.pendingCount > 0 && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={board.apply}
-                        >
+                        <Button variant="outline" onClick={board.apply}>
                             {t(
                                 board.pendingCount === 1
                                     ? '{{count}} new change ↑'

@@ -49,22 +49,24 @@ const empty: Heptapod.Data.Ui.SearchResultsData = {
 export function CommandPaletteTrigger({
     onClick,
     compact = false,
-    collapsedTooltip = false,
+    collapsed = false,
     className,
 }: {
     onClick: (trigger: HTMLButtonElement) => void;
     compact?: boolean;
-    collapsedTooltip?: boolean;
+    collapsed?: boolean;
     className?: string;
 }) {
     const { t } = useTranslation();
+    const iconOnly = compact || collapsed;
     const button = (
         <Button
-            variant="outline"
-            size={compact ? 'icon' : 'default'}
+            variant={collapsed ? 'ghost' : 'outline'}
+            size={iconOnly ? 'icon' : 'default'}
             className={cn(
-                !compact &&
-                    'w-full justify-start gap-2 px-3 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:shadow-none group-data-[collapsible=icon]:hover:bg-sidebar-accent group-data-[collapsible=icon]:hover:text-sidebar-accent-foreground dark:group-data-[collapsible=icon]:bg-transparent dark:group-data-[collapsible=icon]:hover:bg-sidebar-accent',
+                collapsed
+                    ? 'rounded-md hover:text-sidebar-accent-foreground'
+                    : !compact && 'group/search w-full justify-start gap-2',
                 className,
             )}
             aria-label={t(compact ? 'Open command palette' : 'Search')}
@@ -73,14 +75,12 @@ export function CommandPaletteTrigger({
             onClick={(event) => onClick(event.currentTarget)}
         >
             <Search />
-            {!compact && (
+            {!iconOnly && (
                 <>
-                    <span className="min-w-0 flex-1 truncate text-left text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+                    <span className="min-w-0 flex-1 truncate text-left text-xs text-muted-foreground transition-colors duration-(--motion-press-out) ease-out group-hover/search:text-foreground group-active/search:text-foreground group-active/search:duration-(--motion-press-in)">
                         {t('Search')}
                     </span>
-                    <Kbd className="group-data-[collapsible=icon]:hidden">
-                        ⌘K
-                    </Kbd>
+                    <Kbd>⌘K</Kbd>
                 </>
             )}
         </Button>
@@ -89,18 +89,14 @@ export function CommandPaletteTrigger({
     return (
         <Tooltip>
             <TooltipTrigger asChild>{button}</TooltipTrigger>
-            <TooltipContent
-                side="right"
-                align="center"
-                hidden={!collapsedTooltip}
-            >
+            <TooltipContent side="right" align="center" hidden={!collapsed}>
                 {t('Search')} <Kbd>⌘K</Kbd>
             </TooltipContent>
         </Tooltip>
     );
 }
 
-export function RealCommandPalette({
+export function CommandPalette({
     open,
     onOpenChange: setOpen,
     onOpen,
@@ -294,7 +290,6 @@ export function RealCommandPalette({
                             <span>{t('Search unavailable')}</span>
                             <Button
                                 variant="outline"
-                                size="sm"
                                 onClick={() =>
                                     setRetryCount((count) => count + 1)
                                 }

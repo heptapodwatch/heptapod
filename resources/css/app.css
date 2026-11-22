@@ -1,7 +1,5 @@
 @import 'tailwindcss';
 
-@import 'tw-animate-css';
-
 @import './status-rings.css';
 
 @import './heptapod-mark.css';
@@ -10,6 +8,7 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant inactive (&:is(:disabled, [aria-disabled="true"], [data-disabled]:not([data-disabled="false"])));
 
 /*
  * Motion tokens (heptapod-ui-rules Motion). Every overlay, press and arrival uses these; WAAPI callers import the same values from
@@ -23,6 +22,8 @@
 
 :root {
     --motion-press: 120ms;
+    --motion-press-in: 40ms;
+    --motion-press-out: 160ms;
     --motion-enter: 160ms;
     --motion-exit: 120ms;
     --motion-sheet: 240ms;
@@ -68,6 +69,10 @@
     --text-micro: 10px;
     --text-mark: 9px;
 
+    --font-weight-label: 450;
+
+    --animate-caret-blink: caret-blink 1.25s ease-out infinite;
+
     --radius-lg: var(--radius);
     --radius-md: 7px;
     --radius-sm: 7px;
@@ -88,22 +93,59 @@
 
     --color-primary: var(--primary);
     --color-primary-foreground: var(--primary-foreground);
+    --color-primary-soft: var(--primary-soft);
+    --color-primary-hover: var(--primary-hover);
+    --color-primary-active: var(--primary-active);
 
     --color-secondary: var(--secondary);
     --color-secondary-foreground: var(--secondary-foreground);
 
     --color-muted: var(--muted);
     --color-muted-foreground: var(--muted-foreground);
+    --color-foreground-faint: var(--foreground-faint);
+
+    --color-avatar-fallback: var(--avatar-fallback);
+    --color-avatar-fallback-foreground: var(--avatar-fallback-foreground);
 
     --color-accent: var(--accent);
     --color-accent-foreground: var(--accent-foreground);
+    --color-item-highlight: var(--item-highlight);
+    --color-surface-hover: var(--surface-hover);
+    --color-surface-active: var(--surface-active);
+    --color-ghost-hover: var(--ghost-hover);
+    --color-ghost-active: var(--ghost-active);
+    --color-selected-surface-hover: var(--selected-surface-hover);
+    --color-selected-surface-active: var(--selected-surface-active);
+    --color-selected-accent-hover: var(--selected-accent-hover);
+    --color-selected-accent-active: var(--selected-accent-active);
+
+    --color-disabled: var(--disabled);
+    --color-disabled-foreground: var(--disabled-foreground);
+    --color-disabled-primary: var(--disabled-primary);
+    --color-disabled-primary-foreground: var(--disabled-primary-foreground);
+    --color-disabled-destructive: var(--disabled-destructive);
+    --color-disabled-destructive-foreground: var(
+        --disabled-destructive-foreground
+    );
+    --color-disabled-ghost-foreground: var(--disabled-ghost-foreground);
 
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
+    --color-destructive-hover: var(--destructive-hover);
+    --color-destructive-active: var(--destructive-active);
 
     --color-border: var(--border);
+    --color-border-soft: var(--border-soft);
     --color-border-strong: var(--border-strong);
+    --color-status-ok: var(--status-ok);
+    --color-status-warn: var(--status-warn);
+    --color-status-down: var(--status-down);
     --color-status-down-foreground: var(--status-down-foreground);
+    --color-status-info: var(--status-info);
+    --color-status-error: var(--status-error);
+    --color-status-pending: var(--status-pending);
+    --color-status-paused: var(--status-paused);
+    --color-status-disabled: var(--status-disabled);
     --color-input: var(--input);
     --color-control-border: var(--control-border);
     --color-ring: var(--ring);
@@ -122,6 +164,70 @@
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* Status badge border and tinted surface tokens: evaluated against the active theme at the element. */
+@theme inline {
+    --color-status-ok-border: color-mix(
+        in srgb,
+        var(--status-ok) 28%,
+        var(--border)
+    );
+    --color-status-warn-border: color-mix(
+        in srgb,
+        var(--status-warn) 28%,
+        var(--border)
+    );
+    --color-status-warn-surface: color-mix(
+        in srgb,
+        var(--status-warn) 6%,
+        var(--card)
+    );
+    --color-status-down-border: color-mix(
+        in srgb,
+        var(--status-down) 28%,
+        var(--border)
+    );
+    --color-status-down-surface: color-mix(
+        in srgb,
+        var(--status-down) 6%,
+        var(--card)
+    );
+    --color-status-info-border: color-mix(
+        in srgb,
+        var(--status-info) 28%,
+        var(--border)
+    );
+    --color-status-info-surface: color-mix(
+        in srgb,
+        var(--status-info) 6%,
+        var(--card)
+    );
+    --color-status-error-border: color-mix(
+        in srgb,
+        var(--status-error) 28%,
+        var(--border)
+    );
+    --color-status-error-surface: color-mix(
+        in srgb,
+        var(--status-error) 6%,
+        var(--card)
+    );
+    --color-status-pending-border: color-mix(
+        in srgb,
+        var(--status-pending) 28%,
+        var(--border)
+    );
+    --color-status-paused-border: color-mix(
+        in srgb,
+        var(--status-paused) 28%,
+        var(--border)
+    );
+    --color-status-disabled-border: color-mix(
+        in srgb,
+        var(--status-disabled) 28%,
+        var(--border)
+    );
 }
 
 :root {
@@ -143,7 +249,8 @@
     --secondary: #ffffff;
     --muted: #eef0f1;
     --accent: #dfe3e6;
-    --foreground-secondary: #2a3138;
+    --avatar-fallback: oklch(92.2% 0 none);
+    --avatar-fallback-foreground: #000000;
     --muted-foreground: #3f4952;
     --foreground-faint: #5c6771;
     --border: #d3d8dc;
@@ -185,6 +292,70 @@
     --chart-3: #5c6771;
     --chart-4: #b7bec4;
     --chart-5: #d3d8dc;
+
+    /* Control interaction states: flat tonal hover/active steps and deliberate opaque disabled surfaces. */
+    --item-highlight: #dfe3e6;
+    --mix-hover: 11.5%;
+    --mix-active: 26%;
+    --primary-hover: oklch(0.315 0.011 248);
+    --primary-active: oklch(0.06 0.005 248);
+    --destructive-hover: oklch(0.432 0.165 27.9);
+    --destructive-active: oklch(0.31 0.135 27.9);
+    --surface-hover: oklch(0.918 0.005 242);
+    --surface-active: oklch(0.81 0.01 242);
+    --ghost-hover: color-mix(
+        in srgb,
+        transparent,
+        var(--foreground) var(--mix-hover)
+    );
+    --ghost-active: color-mix(
+        in srgb,
+        transparent,
+        var(--foreground) var(--mix-active)
+    );
+    --selected-surface-hover: color-mix(
+        in srgb,
+        var(--secondary),
+        var(--foreground) var(--mix-hover)
+    );
+    --selected-surface-active: color-mix(
+        in srgb,
+        var(--secondary),
+        var(--foreground) var(--mix-active)
+    );
+    --selected-accent-hover: color-mix(
+        in srgb,
+        var(--accent),
+        var(--foreground) var(--mix-hover)
+    );
+    --selected-accent-active: color-mix(
+        in srgb,
+        var(--accent),
+        var(--foreground) var(--mix-active)
+    );
+    --disabled-primary: color-mix(
+        in srgb,
+        var(--primary) 14%,
+        var(--background)
+    );
+    --disabled-primary-foreground: var(--foreground-faint);
+    --disabled-destructive: color-mix(
+        in srgb,
+        var(--destructive) 12%,
+        var(--muted)
+    );
+    --disabled-destructive-foreground: color-mix(
+        in srgb,
+        var(--destructive) 48%,
+        var(--foreground-faint)
+    );
+    --disabled: var(--muted);
+    --disabled-foreground: var(--foreground-faint);
+    --disabled-ghost-foreground: color-mix(
+        in srgb,
+        var(--foreground-faint) 78%,
+        var(--background)
+    );
 }
 
 .dark {
@@ -195,7 +366,8 @@
     --secondary: #1a1f24;
     --muted: #0f1215;
     --accent: #1a1f24;
-    --foreground-secondary: #c5ccd3;
+    --avatar-fallback: oklch(37.1% 0 none);
+    --avatar-fallback-foreground: #ffffff;
     --muted-foreground: #a2abb4;
     --foreground-faint: #848e99;
     --border: #262c33;
@@ -236,6 +408,66 @@
     --chart-3: #848e99;
     --chart-4: #37404a;
     --chart-5: #262c33;
+
+    /* Control interaction states (dark): distinct tonal steps above --secondary/--accent (#1a1f24) and --card (#13171b). */
+    --item-highlight: #272d34;
+    --mix-hover: 13.5%;
+    --mix-active: 30%;
+    --primary-hover: oklch(0.842 0.007 248);
+    --primary-active: oklch(0.68 0.012 248);
+    --destructive-hover: oklch(0.722 0.162 27.3);
+    --destructive-active: oklch(0.6 0.176 27.3);
+    --surface-hover: oklch(0.326 0.016 248);
+    --surface-active: oklch(0.435 0.02 248);
+    --ghost-hover: color-mix(
+        in srgb,
+        transparent,
+        var(--foreground) var(--mix-hover)
+    );
+    --ghost-active: color-mix(
+        in srgb,
+        transparent,
+        var(--foreground) var(--mix-active)
+    );
+    --selected-surface-hover: color-mix(
+        in srgb,
+        var(--secondary),
+        var(--foreground) var(--mix-hover)
+    );
+    --selected-surface-active: color-mix(
+        in srgb,
+        var(--secondary),
+        var(--foreground) var(--mix-active)
+    );
+    --selected-accent-hover: color-mix(
+        in srgb,
+        var(--accent),
+        var(--foreground) var(--mix-hover)
+    );
+    --selected-accent-active: color-mix(
+        in srgb,
+        var(--accent),
+        var(--foreground) var(--mix-active)
+    );
+    --disabled-primary: color-mix(
+        in srgb,
+        var(--primary) 13%,
+        var(--background)
+    );
+    --disabled-primary-foreground: var(--foreground-faint);
+    --disabled-destructive: color-mix(
+        in srgb,
+        var(--destructive) 14%,
+        var(--card)
+    );
+    --disabled-destructive-foreground: color-mix(
+        in srgb,
+        var(--destructive) 46%,
+        var(--foreground-faint)
+    );
+    --disabled: color-mix(in srgb, var(--card) 60%, var(--background));
+    --disabled-foreground: #78828d;
+    --disabled-ghost-foreground: #727c87;
 }
 
 @layer base {
@@ -300,7 +532,7 @@ html body[data-scroll-locked] {
     padding-right: 0 !important;
 }
 
-/* Scope legacy content colours to the dark panel without changing the page theme. */
+/* Scope content colours to the dark tooltip surface without changing the page theme. */
 .tooltip-panel {
     --muted-foreground: var(--tooltip-muted);
     --color-muted-foreground: var(--tooltip-muted);
@@ -308,68 +540,30 @@ html body[data-scroll-locked] {
     --destructive: var(--tooltip-status-down);
     --color-destructive: var(--tooltip-status-down);
     --status-ok: var(--tooltip-status-ok);
+    --color-status-ok: var(--tooltip-status-ok);
     --status-warn: var(--tooltip-status-warn);
+    --color-status-warn: var(--tooltip-status-warn);
     --status-down: var(--tooltip-status-down);
+    --color-status-down: var(--tooltip-status-down);
     --status-info: var(--tooltip-status-info);
+    --color-status-info: var(--tooltip-status-info);
     --status-error: var(--tooltip-status-error);
-    font-feature-settings: 'ss01' on;
-    overflow-wrap: anywhere;
-    transform-origin: var(--radix-tooltip-content-transform-origin);
-    animation: motion-pop-in var(--motion-enter) var(--ease-out);
+    --color-status-error: var(--tooltip-status-error);
 }
 
-/* A standalone hint value made focusable by TooltipHint/TruncatedText gets the one keyboard focus ring. */
-[data-hint-focus]:focus-visible {
-    border-radius: 0.25rem;
-    outline: none;
-    box-shadow: 0 0 0 2px var(--ring);
+/* A standalone hint value made focusable by TooltipHint/TruncatedText gets the shared keyboard focus ring. */
+[data-hint-focus] {
+    @apply focus-ring;
+
+    &:focus-visible {
+        border-radius: 0.25rem;
+    }
 }
 
 /* A history mark has its own description; do not show the chart tooltip behind it. */
 [data-slot='chart']:has(.recharts-reference-line-line:is(:hover, :focus))
     .recharts-tooltip-wrapper {
     visibility: hidden !important;
-}
-
-.tooltip-panel [data-slot='tooltip-details'] {
-    color: var(--tooltip-muted);
-}
-
-.tooltip-panel [data-tooltip-status] {
-    color: var(--tooltip-muted);
-}
-
-.tooltip-panel [data-tooltip-status='ok'] {
-    color: var(--tooltip-status-ok);
-}
-
-.tooltip-panel [data-tooltip-status='warning'] {
-    color: var(--tooltip-status-warn);
-}
-
-.tooltip-panel [data-tooltip-status='down'],
-.tooltip-panel [data-tooltip-status='failed'] {
-    color: var(--tooltip-status-down);
-}
-
-.tooltip-panel [data-tooltip-status='check-error'] {
-    color: var(--tooltip-status-error);
-}
-
-.tooltip-panel [data-tooltip-status='maintenance'] {
-    color: var(--tooltip-status-info);
-}
-
-/* Radix distinguishes focus and subsequent instant opens from hover entrances. */
-.tooltip-panel[data-state='closed'],
-.tooltip-panel[data-state='instant-open'] {
-    animation: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .tooltip-panel {
-        animation: none;
-    }
 }
 
 @utility shadow-overlay {
@@ -448,8 +642,19 @@ html body[data-scroll-locked] {
     }
 }
 
-.motion-popover,
-.motion-dialog {
+@keyframes caret-blink {
+    0%,
+    70%,
+    100% {
+        opacity: 1;
+    }
+    20%,
+    50% {
+        opacity: 0;
+    }
+}
+
+@utility motion-pop {
     &[data-state='open'] {
         animation: motion-pop-in var(--motion-enter) var(--ease-out);
     }
@@ -459,7 +664,7 @@ html body[data-scroll-locked] {
     }
 }
 
-.motion-overlay {
+@utility motion-overlay {
     &[data-state='open'] {
         animation: motion-fade-in var(--motion-enter) var(--ease-out);
     }
@@ -469,13 +674,7 @@ html body[data-scroll-locked] {
     }
 }
 
-/* The command palette opens from a shortcut many times a day: no motion (heptapod-ui-rules Motion). */
-.motion-dialog.motion-instant,
-.motion-overlay:has(+ .motion-instant) {
-    animation: none;
-}
-
-.motion-sheet {
+@utility motion-sheet {
     &[data-side='right'] {
         --motion-sheet-from: translateX(100%);
     }
@@ -501,7 +700,7 @@ html body[data-scroll-locked] {
     }
 }
 
-.motion-row-in {
+@utility motion-row-in {
     animation: motion-row-in var(--motion-enter) var(--ease-out);
 }
 
@@ -510,18 +709,42 @@ html body[data-scroll-locked] {
     transition-timing-function: var(--ease-out) !important;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .run-arrival {
-        animation: run-arrival 900ms var(--ease-out);
-    }
+/*
+ * Shared control utilities (heptapod-ui-rules Motion / Interaction states).
+ * focus-ring / focus-ring-inset draw an instant full-strength outline strictly on :focus-visible with nothing at rest,
+ * avoiding route-load outline flashes and keeping transition-* ownership exclusively with press or the component itself.
+ */
+@utility focus-ring {
+    outline: none;
 
-    @keyframes run-arrival {
-        from {
-            background-color: var(--accent);
-        }
-        to {
-            background-color: transparent;
-        }
+    &:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+    }
+}
+
+@utility focus-ring-inset {
+    outline: none;
+
+    &:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: -2px;
+    }
+}
+
+/* Tonal press timing: zero movement, 40ms snap-in on :active and 160ms settle on release. */
+@utility press {
+    transition-property:
+        color, background-color, border-color, text-decoration-color;
+    transition-duration: var(--motion-press-out);
+    transition-timing-function: var(--ease-out);
+
+    &:not(
+            :disabled,
+            [aria-disabled='true'],
+            [data-disabled]:not([data-disabled='false'])
+        ):active {
+        transition-duration: var(--motion-press-in);
     }
 }
 

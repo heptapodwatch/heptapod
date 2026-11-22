@@ -230,7 +230,7 @@ function NumberedStrip({ example }: { example: OutageExample }) {
                         className={cn(
                             'aspect-square max-h-[11px] rounded-[2px]',
                             index * squareMinutes < example.duration
-                                ? 'bg-(--status-down)'
+                                ? 'bg-status-down'
                                 : 'bg-muted-foreground/15',
                             marked.has(index + 1) &&
                                 'outline-2 outline-offset-1 outline-foreground',
@@ -527,7 +527,7 @@ export function AlertSensitivityOptions({
             ),
             badge:
                 !team && preset.preset === 'relaxed' ? (
-                    <Badge variant="secondary">
+                    <Badge variant="outline">
                         {t('alert_sensitivity.default')}
                     </Badge>
                 ) : undefined,

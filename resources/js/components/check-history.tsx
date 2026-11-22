@@ -118,7 +118,7 @@ export function CheckHistory({
         action?: ReactNode,
     ) => (
         <ListRow className="grid-cols-[10px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 sm:grid-cols-[150px_10px_minmax(0,1fr)_auto]">
-            <span className="col-start-2 col-end-4 font-mono text-xs text-[var(--foreground-faint)] tabular-nums sm:col-start-auto sm:col-end-auto">
+            <span className="col-start-2 col-end-4 font-mono text-xs text-foreground-faint tabular-nums sm:col-start-auto sm:col-end-auto">
                 {time}
             </span>
             <span className="col-start-1 row-start-1 row-end-3 sm:col-start-auto sm:row-start-auto sm:row-end-auto">
@@ -157,7 +157,7 @@ export function CheckHistory({
                             data-history-latest={item.run.ended_at}
                             data-history-kind={item.kind}
                             data-history-result={item.run.result}
-                            className="border-b border-[var(--border-soft)] last:border-0"
+                            className="border-b border-border-soft last:border-0"
                         >
                             {item.kind === 'unchanged' ? (
                                 <Disclosure

@@ -3,13 +3,7 @@ import { PresentationChanges } from '@/components/presentation-changes';
 import { SiteAvatar } from '@/components/site-avatar';
 import { EmptyState } from '@/components/empty-state';
 import { AlertCircle, Globe } from 'lucide-react';
-import {
-    useLayoutEffect,
-    useRef,
-    useState,
-    type CSSProperties,
-    type ReactNode,
-} from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { EntityLink } from '@/components/entity-link';
 import { useTranslation } from 'react-i18next';
@@ -110,6 +104,25 @@ export function StatusDot({
         />
     );
 }
+export const statusBadgeClass: Record<SiteState, string> = {
+    ok: 'border-status-ok-border bg-transparent text-status-ok',
+    warning:
+        'border-status-warn-border bg-status-warn-surface text-status-warn',
+    down: 'border-status-down bg-status-down text-status-down-foreground',
+    paused: 'border-status-paused-border bg-transparent text-muted-foreground',
+    pending:
+        'border-status-pending-border bg-transparent text-muted-foreground',
+    disabled:
+        'border-status-disabled-border bg-transparent text-muted-foreground',
+    unavailable:
+        'border-status-disabled-border bg-transparent text-muted-foreground',
+    maintenance:
+        'border-status-info-border bg-status-info-surface text-status-info',
+    failed: 'border-status-down-border bg-status-down-surface text-status-down',
+    'check-error':
+        'border-status-error-border bg-status-error-surface text-status-error',
+};
+
 export function StatusBadge({
     state,
     label,
@@ -125,8 +138,7 @@ export function StatusBadge({
             variant="outline"
             aria-label={t(label ?? statusLabels[state])}
             data-state={state}
-            className="status-badge"
-            style={{ '--status-color': statusColor[state] } as CSSProperties}
+            className={statusBadgeClass[state]}
         >
             <span aria-hidden className="inline-flex">
                 <StatusDot

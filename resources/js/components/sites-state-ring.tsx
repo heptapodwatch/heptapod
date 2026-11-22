@@ -130,7 +130,7 @@ export function SitesStateRing({
                     aria-label={t('Sites')}
                     data-sites-state-ring
                     data-down={tiles.down > 0 ? '' : undefined}
-                    className="sites-state-ring size-12 shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:size-13"
+                    className="sites-state-ring relative inline-block size-12 shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:size-13"
                 >
                     <svg
                         aria-hidden="true"

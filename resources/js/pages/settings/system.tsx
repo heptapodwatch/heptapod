@@ -550,7 +550,7 @@ export default function System({ systemPage }: { systemPage: Page }) {
                     {t('Service conditions at sample time')}
                 </SectionHeading>
                 <dl className="grid gap-x-6 sm:grid-cols-2">
-                    <div className="space-y-1 border-b border-(--border-soft) py-3">
+                    <div className="space-y-1 border-b border-border-soft py-3">
                         <dt className="text-cell font-medium">
                             {t('Dispatcher')}
                         </dt>
@@ -559,7 +559,7 @@ export default function System({ systemPage }: { systemPage: Page }) {
                             {heartbeatDetail(health.dispatcher)}
                         </dd>
                     </div>
-                    <div className="space-y-1 border-b border-(--border-soft) py-3">
+                    <div className="space-y-1 border-b border-border-soft py-3">
                         <dt className="text-cell font-medium">
                             {t('Horizon workers')}
                         </dt>
@@ -579,7 +579,7 @@ export default function System({ systemPage }: { systemPage: Page }) {
                                 : t('No running Horizon observed')}
                         </dd>
                     </div>
-                    <div className="space-y-1 border-b border-(--border-soft) py-3">
+                    <div className="space-y-1 border-b border-border-soft py-3">
                         <dt className="text-cell font-medium">
                             {t('Worker memory')}
                         </dt>
@@ -605,7 +605,7 @@ export default function System({ systemPage }: { systemPage: Page }) {
                     {services.map(([name, metric]) => (
                         <div
                             key={name}
-                            className="space-y-1 border-b border-(--border-soft) py-3"
+                            className="space-y-1 border-b border-border-soft py-3"
                         >
                             <dt className="text-cell font-medium">
                                 <TechnicalName
@@ -627,7 +627,7 @@ export default function System({ systemPage }: { systemPage: Page }) {
                             </dd>
                         </div>
                     ))}
-                    <div className="space-y-1 border-b border-(--border-soft) py-3">
+                    <div className="space-y-1 border-b border-border-soft py-3">
                         <dt className="text-cell font-medium">{t('Reverb')}</dt>
                         <dd>
                             <HealthState metric={health.reverb} />
@@ -638,7 +638,7 @@ export default function System({ systemPage }: { systemPage: Page }) {
                             </p>
                         </dd>
                     </div>
-                    <div className="space-y-1 border-b border-(--border-soft) py-3">
+                    <div className="space-y-1 border-b border-border-soft py-3">
                         <dt className="text-cell font-medium">
                             {t('Last successful heartbeat')}
                         </dt>
@@ -650,7 +650,7 @@ export default function System({ systemPage }: { systemPage: Page }) {
                             )}
                         </dd>
                     </div>
-                    <div className="space-y-1 border-b border-(--border-soft) py-3">
+                    <div className="space-y-1 border-b border-border-soft py-3">
                         <dt className="text-cell font-medium">
                             {t('Check history processing')}
                         </dt>
@@ -711,7 +711,7 @@ export default function System({ systemPage }: { systemPage: Page }) {
                             )}
                         </dd>
                     </div>
-                    <div className="space-y-1 border-b border-(--border-soft) py-3">
+                    <div className="space-y-1 border-b border-border-soft py-3">
                         <dt className="text-cell font-medium">
                             {t('Mail delivery')}
                         </dt>
@@ -747,7 +747,7 @@ export default function System({ systemPage }: { systemPage: Page }) {
                         </dd>
                     </div>
                     {health.lastLiveTerminationFailure !== null && (
-                        <div className="space-y-1 border-b border-(--border-soft) py-3">
+                        <div className="space-y-1 border-b border-border-soft py-3">
                             <dt className="text-cell font-medium">
                                 {t('Last live delivery failure')}
                             </dt>

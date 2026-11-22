@@ -1,12 +1,8 @@
 import { ChevronDown, SlidersHorizontal, X } from 'lucide-react';
+import { Collapsible as CollapsiblePrimitive } from 'radix-ui';
 import type { ComponentProps, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { SelectTrigger } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -55,10 +51,14 @@ export function FilterBar({
                         : 'contents'
                 }
             >
-                <Collapsible
+                <CollapsiblePrimitive.Root
+                    data-slot="collapsible"
                     className={outside ? 'contents' : 'min-w-0 md:contents'}
                 >
-                    <CollapsibleTrigger asChild>
+                    <CollapsiblePrimitive.Trigger
+                        data-slot="collapsible-trigger"
+                        asChild
+                    >
                         <Button variant="outline" className="group md:hidden">
                             <SlidersHorizontal aria-hidden="true" />
                             {activeCount > 0
@@ -69,8 +69,9 @@ export function FilterBar({
                                 className="group-data-[state=open]:rotate-180"
                             />
                         </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent
+                    </CollapsiblePrimitive.Trigger>
+                    <CollapsiblePrimitive.Content
+                        data-slot="collapsible-content"
                         forceMount
                         className={`${outside ? 'order-3 w-full md:order-none ' : ''}pt-2 data-[state=closed]:hidden md:contents md:pt-0 md:data-[state=closed]:contents`}
                     >
@@ -87,8 +88,8 @@ export function FilterBar({
                                 </div>
                             )}
                         </div>
-                    </CollapsibleContent>
-                </Collapsible>
+                    </CollapsiblePrimitive.Content>
+                </CollapsiblePrimitive.Root>
                 {filtersActive && (
                     <Button
                         type="button"
@@ -194,7 +195,7 @@ export function FilterCombobox({
 export function FilterSelectTrigger({
     onClear,
     ...props
-}: Omit<ComponentProps<typeof SelectTrigger>, 'className' | 'size'> & {
+}: Omit<ComponentProps<typeof SelectTrigger>, 'className'> & {
     'aria-label': string;
     onClear: (() => void) | null;
 }) {

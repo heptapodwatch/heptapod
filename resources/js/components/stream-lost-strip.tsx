@@ -15,7 +15,7 @@ export function StreamLostStrip() {
     return (
         <div
             role="status"
-            className="flex h-8 shrink-0 items-center gap-2 border-b border-[var(--status-warn)]/25 bg-[var(--status-warn)]/8 px-4 text-xs text-[var(--status-warn)] md:px-6"
+            className="flex h-8 shrink-0 items-center gap-2 border-b border-status-warn/25 bg-status-warn/8 px-4 text-xs text-status-warn md:px-6"
         >
             <span aria-hidden="true" className="inline-flex">
                 <StatusDot state="warning" />

@@ -23,7 +23,7 @@ export function EvidenceFacts({
         >
             {rows.map((row) => (
                 <div key={row.label} className="contents">
-                    <dt className="pt-px text-xs text-[var(--foreground-faint)]">
+                    <dt className="pt-px text-xs text-foreground-faint">
                         {row.label}
                     </dt>
                     <dd
@@ -31,7 +31,7 @@ export function EvidenceFacts({
                             'mb-2.5 min-w-0 text-cell [overflow-wrap:anywhere]',
                             !stacked && 'sm:mb-0',
                             row.mono && 'font-mono text-xs tabular-nums',
-                            row.failed && 'text-[var(--status-down)]',
+                            row.failed && 'text-status-down',
                         )}
                     >
                         {row.value}

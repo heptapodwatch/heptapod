@@ -33,13 +33,31 @@ it('navigates the shell and opens search from the keyboard', function (): void {
 
 it('renders the local foundation gallery with the status and run states', function (): void {
     Vite::useHotFile(storage_path('framework/testing.hot'));
-    $page = visit('/dev/components')->assertSee('Check error')->assertSee('Reconnecting')
-        ->assertSee('Queued')->assertSee('Late')->assertSee('No sites yet');
-    $page->click('[data-foundation-gallery] header button:text-is("DE")')->assertSee('Farben · Status');
-    $page->click('[data-foundation-gallery] header button[aria-label="Dunkel"]');
+    $page = visit('/dev/components')
+        ->assertSee('Foundations')
+        ->assertSee('Actions')
+        ->assertSee('Inputs')
+        ->assertSee('Navigation and selection')
+        ->assertSee('Feedback')
+        ->assertSee('Overlays')
+        ->assertSee('Layout patterns')
+        ->assertSee('Monitoring primitives')
+        ->assertSee('Check error')->assertSee('Reconnecting')
+        ->assertSee('Queued')->assertSee('Running')->assertSee('No sites yet');
+    $page->click('[data-foundation-gallery] header button:text-is("Dark")');
     expect($page->script('document.documentElement.classList.contains("dark")'))->toBeTrue();
-    $page->click('[data-foundation-gallery] header button[aria-label="Hell"]');
-    expect($page->script('getComputedStyle(document.querySelector("[data-foundation-gallery] [aria-label=\\"Prüffehler\\"]")).backgroundColor'))->toBe('rgb(138, 148, 160)');
+    $page->click('[data-foundation-gallery] header button:text-is("Light")');
+    expect($page->script('document.documentElement.classList.contains("dark")'))->toBeFalse();
+    $page->click('[data-foundation-gallery] header button:text-is("DE")')
+        ->assertSee('Grundlagen')
+        ->assertSee('Aktionen')
+        ->assertSee('Eingaben')
+        ->assertSee('Farben · Status')
+        ->assertSee('Prüffehler')
+        ->assertSee('In Warteschlange');
+    $page->click('[data-foundation-gallery] header button:text-is("EN")')
+        ->assertSee('Foundations')
+        ->assertSee('Colour · status');
     $page->assertNoJavaScriptErrors();
 });
 

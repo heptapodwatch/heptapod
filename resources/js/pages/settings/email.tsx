@@ -329,7 +329,6 @@ export default function Email({
                     }
                 >
                     <FormSecondaryAction
-                        size="sm"
                         disabled={!form.isDirty || form.processing}
                         onClick={() => form.resetAndClearErrors()}
                     >
@@ -338,7 +337,6 @@ export default function Email({
                     <Button
                         type="submit"
                         form="email-settings-form"
-                        size="sm"
                         disabled={!form.isDirty || form.processing}
                     >
                         {t('Save')}

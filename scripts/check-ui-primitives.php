@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+// Fail loud on any PHP warning (e.g. malformed preg_* pattern) so guards can never pass silently.
+set_error_handler(static function (int $severity, string $message, string $file, int $line): never {
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+
 /*
  * Guards for the shared UI primitives (heptapod-ui-rules):
  * - confirmations use ConfirmDialog, never the browser's native confirm/alert/prompt;
@@ -30,11 +35,16 @@ $hoverColourAllowlist = [
 ];
 /** Per file: the one other focus-ring utility it may use, and why. */
 $focusRingAllowlist = [
-    'resources/js/components/incident-banner.tsx' => ['focus-visible:ring-current', 'Red incident strip: the shared ring colour is invisible on red.'],
+    'resources/js/components/incident-banner.tsx' => ['focus-visible:outline-current', 'Red incident strip: the shared ring colour is invisible on red.'],
 ];
+/** Per file: the one reviewed disabled-opacity utility outside components/ui/, and why. */
+$disabledOpacityExceptions = [
+    'resources/js/components/site-fields.tsx' => ['has-disabled:opacity-50', 'SiteCheckField switch-row label: mirrors CheckboxField/RadioGroupItem row dimming while its Switch is disabled.'],
+];
+$disabledOpacityExceptionCounts = [];
 /** Raw headings that are not section titles: exact element markers and expected counts. */
 $sectionHeadingExceptions = [
-    'resources/js/components/foundation-primitives.tsx' => ['text-headline', 1, 'StateSentence: the Sites health headline (headline token), not a section title.'],
+    'resources/js/pages/dev/components.tsx' => ['text-headline', 1, 'StateSentence: the Sites health headline (headline token), not a section title.'],
     'resources/js/components/incident-episode.tsx' => ['pt-2 pb-3', 1, 'Compact timeline calendar-day divider.'],
     'resources/js/pages/clients/show.tsx' => ['sr-only', 2, 'Invisible headings name the Incidents and Messages tab panels; Sites uses PageHeader.'],
 ];
@@ -67,8 +77,7 @@ $calloutTintExceptions = [
 $sheetContentOwners = [
     'resources/js/components/sheet-form.tsx' => 'The record create/edit sheet primitive.',
     'resources/js/components/ui/sidebar.tsx' => 'The mobile sidebar drawer, not a form.',
-    'resources/js/components/multi-step-sheet.tsx' => 'Design-preview stepper sheet on /dev/components, not routed.',
-    'resources/js/components/foundation-primitives.tsx' => 'Design-preview sheet on /dev/components, not routed.',
+    'resources/js/pages/dev/components.tsx' => 'Design-preview sheet on /dev/components, not routed.',
 ];
 /** Raw <button> elements outside components/ui/: each is a shared primitive or a row target that draws the shared ring itself. Every other button is Button. */
 $rawButtonOwners = [
@@ -76,9 +85,7 @@ $rawButtonOwners = [
     'resources/js/components/filter-bar.tsx' => [1, 'FilterBar clear (x) control drawn inside the filter trigger.'],
     'resources/js/components/info-tooltip.tsx' => [1, 'InfoTooltip primitive: the 16 px info trigger.'],
     'resources/js/components/monitoring.tsx' => [1, 'UptimeBar: the strip is one tab stop with Left/Right day navigation.'],
-    'resources/js/components/password-input.tsx' => [1, 'PasswordInput primitive: the visibility toggle inside the field.'],
     'resources/js/components/recipient-settings/recipient-settings.tsx' => [1, 'Channel row name: the row tab stop (rowTargetClick).'],
-    'resources/js/components/stepper.tsx' => [1, 'Stepper primitive: numbered step buttons.'],
     'resources/js/components/text-link.tsx' => [1, 'TextLinkButton primitive: a button that looks like a text link.'],
 ];
 /** Per file: the one error key a button action returns (no form field holds it), and why it has no field link. */
@@ -285,8 +292,8 @@ foreach ($files as $path) {
     if (str_contains($source, '<nav') && ! in_array($path, $navigationOwners, true)) {
         $failures[] = "{$path}: local navigation; use SectionTabs for horizontal navigation or name a vertical exception";
     }
-    if ($path !== 'resources/js/components/stepper.tsx' && preg_match('~aria-current=(?:\{[^}]*)?[\'\"]step[\'\"]~s', $source) === 1) {
-        $failures[] = "{$path}: local step progress; use Stepper";
+    if (preg_match('~aria-current=(?:\{[^}]*)?[\'\"]step[\'\"]~s', $source) === 1) {
+        $failures[] = "{$path}: local step progress; use progressive reveal instead of a hand-built stepper";
     }
     // Date/time entry is the branded DateTimeField/TimeField; never a native picker (L1).
     if ($path !== 'resources/js/components/ui/date-time-field.tsx'
@@ -317,7 +324,7 @@ foreach ($files as $path) {
     // local curves, no generic tw-animate overlay classes, no numbered durations or built-in linear/in curves.
     if ($path !== 'resources/js/lib/motion.ts' && preg_match_all('~(?<![\w-])(?:[\w-]+:)*(?:transition-all|cubic-bezier|animate-(?:in|out)|(?:zoom|slide|fade)-(?:in|out)(?:-[\w-]+)?|duration-\d+|ease-(?:linear|in)(?![\w-]))(?![\w-])~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
         foreach ($matches[0] as [$text, $offset]) {
-            $failures[] = sprintf('%s:%d: local motion %s; use the motion tokens and recipes (motion-popover, motion-dialog, motion-sheet, motion-overlay, duration-(--motion-*), ease-out)', $path, substr_count($source, "\n", 0, $offset) + 1, $text);
+            $failures[] = sprintf('%s:%d: local motion %s; use the motion tokens and recipes (motion-pop, motion-sheet, motion-overlay, duration-(--motion-*), ease-out)', $path, substr_count($source, "\n", 0, $offset) + 1, $text);
         }
     }
     // One incident page, two states (heptapod-ui-rules Incident episode): incident pages render IncidentEpisode, never the
@@ -591,7 +598,7 @@ foreach ($files as $path) {
         $failures[] = "{$path}: local site sections; use SiteTabs for consistent check markers";
     }
     // Global keyboard shortcuts register in lib/shortcuts.ts and appear in the ? sheet; ⌘K and ⌘B are the listed primitives.
-    if (preg_match('~addEventListener\(\s*[\'"]keydown~', $source) === 1 && ! in_array($path, ['resources/js/lib/shortcuts.ts', 'resources/js/components/real-command-palette.tsx', 'resources/js/components/ui/sidebar.tsx'], true)) {
+    if (preg_match('~addEventListener\(\s*[\'"]keydown~', $source) === 1 && ! in_array($path, ['resources/js/lib/shortcuts.ts', 'resources/js/components/command-palette.tsx', 'resources/js/components/ui/sidebar.tsx'], true)) {
         $failures[] = "{$path}: global keydown listener; register shortcuts in resources/js/lib/shortcuts.ts so the ? sheet lists them";
     }
     // One label per action (heptapod-ui-rules Navigation): retired synonyms must not return.
@@ -637,10 +644,9 @@ foreach ($files as $path) {
                 $tag = $matches[1][$index][0];
                 // Guard all native list items rather than trying to infer JSX ancestry across map callbacks.
                 $timeline = $tag === 'li' && ($timelineRowClasses[$path] ?? null) === $value;
-                $stepper = $path === 'resources/js/components/stepper.tsx' && $tag === 'li' && tagHasAttribute($text, 'aria-current=');
                 $primitive = in_array($tag, ['TableRow', 'TableCell', 'TableHead', 'ListRow', 'ListHeader', 'li'], true);
                 $usesDensity = preg_match($densityToken, $value) === 1;
-                if (! $timeline && ! $stepper && ($primitive || $usesDensity) && preg_match($densityOverride, $value) === 1) {
+                if (! $timeline && ($primitive || $usesDensity) && preg_match($densityOverride, $value) === 1) {
                     $failures[] = sprintf('%s:%d: local row height or vertical padding; use the shared table/list density', $path, substr_count($source, "\n", 0, $offset) + 1);
                 }
             }
@@ -727,8 +733,8 @@ foreach ($files as $path) {
     }
     // A pill radius follows its content. A container that stretches to the row width keeps the panel radius:
     // a full-width rounded-full bar reads as an oversized button (the old run bar on the check tab).
-    // Named exceptions: the search field is a pill by design, and a tab trigger is one segment inside a pill track.
-    $fullWidthPillExceptions = ['resources/js/components/ui/input.tsx', 'resources/js/components/ui/tabs.tsx'];
+    // Named exceptions: the search field is a pill by design.
+    $fullWidthPillExceptions = ['resources/js/components/ui/input.tsx'];
     if (! in_array($path, $fullWidthPillExceptions, true) && preg_match_all('~<[A-Za-z][\w.]*(?=\s)(?:[^<>]|=>)*?className=~s', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
         foreach ($matches[0] as [$text, $offset]) {
             $value = expressionValue($source, $offset + strlen($text));
@@ -737,6 +743,19 @@ foreach ($files as $path) {
             if ($stretches && ! $track && preg_match('~(?<![\w:-])rounded-full(?![\w-])~', $value) === 1) {
                 $failures[] = sprintf('%s:%d: full-width pill; stretching containers use the panel radius, pills follow their content', $path, substr_count($source, "\n", 0, $offset) + 1);
             }
+        }
+    }
+    // Deliberate disabled surfaces belong to the shared control primitives (heptapod-ui-rules Interaction states): no
+    // hand-rolled disabled/inactive-variant opacity washout outside components/ui/.
+    if (! str_starts_with($path, 'resources/js/components/ui/')
+        && preg_match_all('~(?<![\w\[\]/-])(?:[\w\[\]&=*/-]+:)*[\w\[\]&=*/-]*(?:disabled|inactive)[\w\[\]&=*/-]*:(?:[\w\[\]&=*/-]+:)*!?opacity-(?:[\w.+-]+|\[[^\]]+\]|\([^)]+\))!?(?![\w-])~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
+        foreach ($matches[0] as [$text, $offset]) {
+            if (isset($disabledOpacityExceptions[$path]) && $text === $disabledOpacityExceptions[$path][0]) {
+                $disabledOpacityExceptionCounts[$path] = ($disabledOpacityExceptionCounts[$path] ?? 0) + 1;
+
+                continue;
+            }
+            $failures[] = sprintf('%s:%d: hand-rolled disabled opacity recipe (%s); use the shared disabled surface tokens instead of opacity washout', $path, substr_count($source, "\n", 0, $offset) + 1, $text);
         }
     }
     $focusException = $focusRingAllowlist[$path][0] ?? null;
@@ -816,6 +835,13 @@ foreach ($filledDotExceptions as $path => [$snippet, $reason]) {
     }
 }
 
+foreach ($disabledOpacityExceptions as $path => [$snippet, $reason]) {
+    $found = $disabledOpacityExceptionCounts[$path] ?? 0;
+    if ($found !== 1) {
+        $failures[] = "{$path}: expected one named disabled-opacity exception ({$snippet}), found {$found} ({$reason})";
+    }
+}
+
 foreach ($destructiveTextExceptions as $path => [$snippet, $reason]) {
     $found = $destructiveTextExceptionCounts[$path] ?? 0;
     if ($found !== 1) {
@@ -846,6 +872,12 @@ foreach ($hoverColourAllowlist as $path => [$marker, $reason]) {
         $failures[] = "{$path}: the hover exception ({$marker}) must mark exactly one link, found {$found}; the exception covers one named element";
     }
 }
+foreach ($rawButtonOwners as $path => [, $reason]) {
+    if (! is_file($root.'/'.$path)) {
+        $failures[] = "{$path}: raw-button exception no longer exists ({$reason})";
+    }
+}
+
 foreach ($sheetContentOwners as $path => $reason) {
     if (! is_file($root.'/'.$path)) {
         $failures[] = "{$path}: sheet exception no longer exists ({$reason})";
@@ -867,6 +899,27 @@ foreach ($underlineAllowlist as $path => $reason) {
     }
 }
 
+/*
+ * Keep app.css free of parallel component styling systems: tokens live in @theme / :root / .dark, shared primitives as
+ * @utility, and component states inline in each component with Tailwind variants. Reject @layer components.
+ */
+$appCss = (string) file_get_contents($root.'/resources/css/app.css');
+$appCssNoComments = preg_replace('~/\*.*?\*/~s', '', $appCss);
+if ($appCssNoComments === null || preg_last_error() !== PREG_NO_ERROR) {
+    throw new RuntimeException('Regex error stripping comments from resources/css/app.css: '.preg_last_error_msg());
+}
+$hasLayerComponents = preg_match('~@layer\s+components\b~', $appCssNoComments);
+if ($hasLayerComponents === false || preg_last_error() !== PREG_NO_ERROR) {
+    throw new RuntimeException('Regex error checking @layer components in resources/css/app.css: '.preg_last_error_msg());
+}
+if ($hasLayerComponents === 1) {
+    $failures[] = 'resources/css/app.css: @layer components block found; put tokens in @theme, shared utilities in @utility, and component states in TSX with Tailwind variants';
+}
+
+if (preg_last_error() !== PREG_NO_ERROR) {
+    throw new RuntimeException('UI primitive guard encountered a PCRE error: '.preg_last_error_msg());
+}
+
 if ($failures !== []) {
     fwrite(STDERR, "UI primitive guard failed:\n  ".implode("\n  ", $failures)."\n");
     exit(1);
@@ -875,4 +928,4 @@ passthru('cd '.escapeshellarg($root).' && node scripts/check-form-selects.mjs', 
 if ($formSelectStatus !== 0) {
     exit($formSelectStatus);
 }
-printf("UI primitives: %d files checked; 0 native prompts, 0 hand-styled link underlines, 0 link hover colour changes, 0 other focus rings, 0 local filled status dots, 0 local section titles or typography overrides, 0 local display-time presets, 0 large action buttons, 0 local horizontal navigation or step progress, 0 enabled cursor overrides, 0 local row density overrides or raw tables, 0 native date/time inputs, 0 hand-tinted callouts or notices above the page header, 0 raw palette text colours, 0 local spinners, 0 irreversible confirmations without destructive, 0 native checkbox/radio/number/details/select controls or raw inputs/textareas/buttons, 0 forms with browser validation, 0 hand-rolled error lines, 0 off-token control heights, 0 arbitrary or off-scale font sizes, 0 native title tooltips, 0 local list pagers, 0 local motion, 0 local tooltip providers, 0 site headers or second layouts on incident pages, 0 multi-line picker triggers, 0 local row emphasis, 0 switch rows without a row label, 0 inline action notes outside ActionNoteSlot.\n", count($files));
+printf("UI primitives: %d files checked; 0 native prompts, 0 hand-styled link underlines, 0 link hover colour changes, 0 other focus rings, 0 hand-rolled disabled opacity recipes, 0 local filled status dots, 0 local section titles or typography overrides, 0 local display-time presets, 0 large action buttons, 0 local horizontal navigation or step progress, 0 enabled cursor overrides, 0 local row density overrides or raw tables, 0 native date/time inputs, 0 hand-tinted callouts or notices above the page header, 0 raw palette text colours, 0 local spinners, 0 irreversible confirmations without destructive, 0 native checkbox/radio/number/details/select controls or raw inputs/textareas/buttons, 0 forms with browser validation, 0 hand-rolled error lines, 0 off-token control heights, 0 arbitrary or off-scale font sizes, 0 native title tooltips, 0 local list pagers, 0 local motion, 0 local tooltip providers, 0 site headers or second layouts on incident pages, 0 multi-line picker triggers, 0 local row emphasis, 0 switch rows without a row label, 0 inline action notes outside ActionNoteSlot.\n", count($files));
