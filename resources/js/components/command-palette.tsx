@@ -66,7 +66,7 @@ export function CommandPaletteTrigger({
             className={cn(
                 collapsed
                     ? 'rounded-md hover:text-sidebar-accent-foreground'
-                    : !compact && 'group w-full justify-start gap-2',
+                    : !compact && 'group/search w-full justify-start gap-2',
                 className,
             )}
             aria-label={t(compact ? 'Open command palette' : 'Search')}
@@ -77,7 +77,7 @@ export function CommandPaletteTrigger({
             <Search />
             {!iconOnly && (
                 <>
-                    <span className="min-w-0 flex-1 truncate text-left text-xs text-muted-foreground group-hover:text-foreground group-active:text-foreground">
+                    <span className="min-w-0 flex-1 truncate text-left text-xs text-muted-foreground transition-colors duration-(--motion-press-out) ease-out group-hover/search:text-foreground group-active/search:text-foreground group-active/search:duration-(--motion-press-in)">
                         {t('Search')}
                     </span>
                     <Kbd>⌘K</Kbd>
