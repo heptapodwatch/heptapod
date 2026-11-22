@@ -122,7 +122,6 @@
     --color-disabled-destructive-foreground: var(
         --disabled-destructive-foreground
     );
-    --color-disabled-secondary: var(--disabled-secondary);
     --color-disabled-ghost-foreground: var(--disabled-ghost-foreground);
 
     --color-destructive: var(--destructive);
@@ -272,7 +271,6 @@
         var(--foreground-faint)
     );
     --disabled: var(--muted);
-    --disabled-secondary: var(--muted);
     --disabled-foreground: var(--foreground-faint);
     --disabled-ghost-foreground: color-mix(
         in srgb,
@@ -388,11 +386,6 @@
         var(--foreground-faint)
     );
     --disabled: color-mix(in srgb, var(--card) 60%, var(--background));
-    --disabled-secondary: color-mix(
-        in srgb,
-        var(--card) 75%,
-        var(--background)
-    );
     --disabled-foreground: #78828d;
     --disabled-ghost-foreground: #727c87;
 }
