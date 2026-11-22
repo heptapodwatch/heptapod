@@ -49,7 +49,7 @@ const severities: Record<
         label: 'Low',
         state: 'pending',
         badgeClass:
-            'border-[color-mix(in_srgb,var(--status-error)_28%,var(--border))] bg-transparent text-muted-foreground',
+            'border-status-error-border bg-transparent text-muted-foreground',
     },
 };
 
