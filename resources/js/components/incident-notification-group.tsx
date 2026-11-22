@@ -158,7 +158,6 @@ export function IncidentNotificationGroup({
                 </p>
             )}
             <Button
-                size="sm"
                 variant="ghost"
                 aria-expanded={isOpen}
                 disabled={loading}
@@ -190,7 +189,6 @@ export function IncidentNotificationGroup({
                                     {page.next_cursor && (
                                         <Button
                                             variant="outline"
-                                            size="sm"
                                             onClick={() =>
                                                 load(page.next_cursor)
                                             }
@@ -201,7 +199,6 @@ export function IncidentNotificationGroup({
                                     {page.has_previous && (
                                         <Button
                                             variant="outline"
-                                            size="sm"
                                             onClick={() => load()}
                                         >
                                             {t('Latest notifications')}
@@ -280,7 +277,6 @@ export function IncidentDeliveryRow({
             )}
             {previewAvailable && delivery.can_preview && (
                 <Button
-                    size="sm"
                     variant="ghost"
                     onClick={() => onPreview(delivery.event_id)}
                 >

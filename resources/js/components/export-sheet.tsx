@@ -80,7 +80,7 @@ export function ExportButton({
     kind,
     scopes,
     variant = 'outline',
-    size = 'sm',
+    size = 'default',
 }: {
     /** The page type whose last format and scope the sheet remembers. */
     kind: 'findings' | 'incidents' | 'client_messages';
@@ -88,8 +88,7 @@ export function ExportButton({
     scopes: ExportScope[];
     /** Outline in card toolbars, ghost in list rows, primary only where export is the header's only action. */
     variant?: 'outline' | 'default' | 'ghost';
-    /** Page headers use the default size, card toolbars and rows the small one. */
-    size?: 'sm' | 'default';
+    size?: 'default';
 }) {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);

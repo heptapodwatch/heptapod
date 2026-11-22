@@ -74,7 +74,6 @@ export function ProductCheckDetail({
                                 <PageHeaderAction
                                     type="button"
                                     variant="outline"
-                                    size="sm"
                                     onClick={() => setSendOpen(true)}
                                 >
                                     <Send aria-hidden />

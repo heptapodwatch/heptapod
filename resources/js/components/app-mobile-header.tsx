@@ -38,7 +38,6 @@ function MobileRunsTrigger() {
     return (
         <Button
             variant="ghost"
-            size="sm"
             className="h-10 gap-1.5 px-2"
             aria-label={`${t('Running now')}: ${count}`}
             onClick={() => setOpenMobile(true)}

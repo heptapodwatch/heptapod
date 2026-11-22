@@ -527,7 +527,7 @@ export function AlertSensitivityOptions({
             ),
             badge:
                 !team && preset.preset === 'relaxed' ? (
-                    <Badge variant="secondary">
+                    <Badge variant="outline">
                         {t('alert_sensitivity.default')}
                     </Badge>
                 ) : undefined,

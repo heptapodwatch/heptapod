@@ -331,7 +331,6 @@ export default function Profile({
                     }
                 >
                     <FormSecondaryAction
-                        size="sm"
                         disabled={!form.isDirty || form.processing}
                         onClick={() => {
                             form.resetAndClearErrors();
@@ -342,7 +341,6 @@ export default function Profile({
                     <Button
                         type="submit"
                         form="profile-form"
-                        size="sm"
                         disabled={!form.isDirty || form.processing}
                         data-test="update-profile-button"
                     >

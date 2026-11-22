@@ -129,7 +129,6 @@ function PackageSummary({
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <Button
                 variant="ghost"
-                size="sm"
                 aria-expanded={open}
                 aria-controls={controls}
                 onClick={onToggle}

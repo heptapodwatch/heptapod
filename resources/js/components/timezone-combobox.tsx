@@ -232,7 +232,6 @@ export function BrowserTimezoneHint({
             action={
                 <Button
                     type="button"
-                    size="sm"
                     variant="outline"
                     disabled={draft === zone}
                     onClick={() => onUse(zone)}

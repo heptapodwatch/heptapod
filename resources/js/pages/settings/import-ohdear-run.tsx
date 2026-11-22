@@ -82,7 +82,6 @@ function CopyUrl({ url }: { url: string }) {
             </TruncatedText>
             <Button
                 type="button"
-                size="sm"
                 variant="outline"
                 onClick={async () => {
                     if (await copy(url)) {

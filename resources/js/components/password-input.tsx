@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff } from 'lucide-react';
 import type { ComponentProps, Ref } from 'react';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -21,10 +22,12 @@ export default function PasswordInput({
                 ref={ref}
                 {...props}
             />
-            <button
+            <Button
                 type="button"
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute top-1/2 right-0 flex size-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none max-sm:focus-visible:ring-inset sm:right-1 sm:size-6"
+                className="absolute top-1/2 right-0 -translate-y-1/2 text-muted-foreground hover:text-foreground sm:right-1"
                 aria-label={
                     showPassword ? t('Hide password') : t('Show password')
                 }
@@ -34,7 +37,7 @@ export default function PasswordInput({
                 ) : (
                     <Eye className="size-4" />
                 )}
-            </button>
+            </Button>
         </div>
     );
 }

@@ -136,7 +136,6 @@ export function DnsComparison({
                         {canAccept && !activeRun && (
                             <Button
                                 variant="outline"
-                                size="sm"
                                 onClick={() => setConfirmOpen(true)}
                             >
                                 {t('Accept as normal')}

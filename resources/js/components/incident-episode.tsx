@@ -282,7 +282,7 @@ export function IncidentEpisode({
     const day = (time: string) => format.date(time, { dateStyle: 'full' });
     // CardAction holds buttons only (heptapod-ui-rules Cards): Open check is a ghost button beside Export.
     const openCheck = check && (
-        <Button asChild size="sm" variant="ghost">
+        <Button asChild variant="ghost">
             <Link
                 href={checkShow.url({ site: page.site.id, check: check.id })}
                 prefetch
@@ -994,7 +994,6 @@ export function IncidentEpisode({
                             <CardTitle>{t('Internal note')}</CardTitle>
                             <CardAction>
                                 <FormSecondaryAction
-                                    size="sm"
                                     onClick={() => setNoteOpen(true)}
                                 >
                                     {t(

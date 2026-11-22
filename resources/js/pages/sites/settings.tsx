@@ -616,7 +616,6 @@ export default function SiteSettings({
                     }
                 >
                     <FormSecondaryAction
-                        size="sm"
                         disabled={!form.isDirty || form.processing}
                         onClick={() => {
                             clearProbe();
@@ -629,7 +628,6 @@ export default function SiteSettings({
                         id="site-settings-save"
                         type="submit"
                         form="site-settings-form"
-                        size="sm"
                         disabled={!form.isDirty || form.processing}
                     >
                         {t('Save')}
@@ -714,7 +712,6 @@ export default function SiteSettings({
                             <Button
                                 type="button"
                                 variant="outline"
-                                size="sm"
                                 aria-describedby={
                                     iconHasNote ? iconNoteId : undefined
                                 }
