@@ -2,7 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { ProductCheckDetail } from './product-check-detail';
+import { CheckDetail } from './check-detail';
 import { SiteCheckList } from './site-overview-content';
 import { checkTabPageFixture, sites } from '@/fixtures/design';
 import type { RequestedRun } from '@/hooks/use-requested-run';
@@ -108,7 +108,7 @@ it('shows the missing capability instead of awaiting a result in an unavailable 
 });
 
 it('shows the projected pending state in the check header with a muted previous result and no old change chip', () => {
-    render(<ProductCheckDetail page={page(true)} requestedRun={own} />, {
+    render(<CheckDetail page={page(true)} requestedRun={own} />, {
         wrapper: TooltipProvider,
     });
     expect(
@@ -121,7 +121,7 @@ it('shows the projected pending state in the check header with a muted previous 
 });
 
 it('keeps the stored header and change chip when no accepted recheck is pending', () => {
-    render(<ProductCheckDetail page={page(false)} requestedRun={own} />, {
+    render(<CheckDetail page={page(false)} requestedRun={own} />, {
         wrapper: TooltipProvider,
     });
     expect(

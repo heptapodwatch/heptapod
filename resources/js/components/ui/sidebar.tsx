@@ -452,12 +452,12 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md bg-transparent p-2 text-left text-cell focus-ring press group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-ghost-hover hover:text-sidebar-accent-foreground active:bg-ghost-active active:text-sidebar-accent-foreground inactive:pointer-events-none inactive:bg-transparent inactive:text-disabled-ghost-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:font-[450] data-[active=true]:text-sidebar-accent-foreground data-[active=true]:hover:bg-selected-accent-hover data-[active=true]:active:bg-selected-accent-active data-[active=true]:inactive:bg-transparent data-[active=true]:inactive:text-disabled-ghost-foreground data-[state=open]:hover:bg-ghost-hover data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md bg-transparent p-2 text-left text-cell focus-ring press group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8 hover:bg-ghost-hover hover:text-sidebar-accent-foreground active:bg-ghost-active active:text-sidebar-accent-foreground inactive:pointer-events-none inactive:bg-transparent inactive:text-disabled-ghost-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:font-[450] data-[active=true]:text-sidebar-accent-foreground data-[active=true]:hover:bg-selected-accent-hover data-[active=true]:active:bg-selected-accent-active data-[active=true]:inactive:bg-transparent data-[active=true]:inactive:text-disabled-ghost-foreground data-[state=open]:hover:bg-ghost-hover data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
   {
     variants: {
       size: {
         default: "h-8 text-cell leading-none",
-        lg: "h-12 text-cell group-data-[collapsible=icon]:p-0!",
+        lg: "h-12 text-cell group-data-[collapsible=icon]:p-0",
       },
     },
     defaultVariants: {

@@ -44,7 +44,7 @@ $disabledOpacityExceptions = [
 $disabledOpacityExceptionCounts = [];
 /** Raw headings that are not section titles: exact element markers and expected counts. */
 $sectionHeadingExceptions = [
-    'resources/js/components/foundation-primitives.tsx' => ['text-headline', 1, 'StateSentence: the Sites health headline (headline token), not a section title.'],
+    'resources/js/pages/dev/components.tsx' => ['text-headline', 1, 'StateSentence: the Sites health headline (headline token), not a section title.'],
     'resources/js/components/incident-episode.tsx' => ['pt-2 pb-3', 1, 'Compact timeline calendar-day divider.'],
     'resources/js/pages/clients/show.tsx' => ['sr-only', 2, 'Invisible headings name the Incidents and Messages tab panels; Sites uses PageHeader.'],
 ];
@@ -77,7 +77,7 @@ $calloutTintExceptions = [
 $sheetContentOwners = [
     'resources/js/components/sheet-form.tsx' => 'The record create/edit sheet primitive.',
     'resources/js/components/ui/sidebar.tsx' => 'The mobile sidebar drawer, not a form.',
-    'resources/js/components/foundation-primitives.tsx' => 'Design-preview sheet on /dev/components, not routed.',
+    'resources/js/pages/dev/components.tsx' => 'Design-preview sheet on /dev/components, not routed.',
 ];
 /** Raw <button> elements outside components/ui/: each is a shared primitive or a row target that draws the shared ring itself. Every other button is Button. */
 $rawButtonOwners = [
@@ -598,7 +598,7 @@ foreach ($files as $path) {
         $failures[] = "{$path}: local site sections; use SiteTabs for consistent check markers";
     }
     // Global keyboard shortcuts register in lib/shortcuts.ts and appear in the ? sheet; ⌘K and ⌘B are the listed primitives.
-    if (preg_match('~addEventListener\(\s*[\'"]keydown~', $source) === 1 && ! in_array($path, ['resources/js/lib/shortcuts.ts', 'resources/js/components/real-command-palette.tsx', 'resources/js/components/ui/sidebar.tsx'], true)) {
+    if (preg_match('~addEventListener\(\s*[\'"]keydown~', $source) === 1 && ! in_array($path, ['resources/js/lib/shortcuts.ts', 'resources/js/components/command-palette.tsx', 'resources/js/components/ui/sidebar.tsx'], true)) {
         $failures[] = "{$path}: global keydown listener; register shortcuts in resources/js/lib/shortcuts.ts so the ? sheet lists them";
     }
     // One label per action (heptapod-ui-rules Navigation): retired synonyms must not return.

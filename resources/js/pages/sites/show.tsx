@@ -22,7 +22,7 @@ import {
     RunCheckReason,
     useCheckRun,
 } from '@/components/check-run-status';
-import { ProductCheckDetail } from '@/components/product-check-detail';
+import { CheckDetail } from '@/components/check-detail';
 import { AlertChannelsLine } from '@/components/alert-channels-line';
 import { SiteOverviewContent } from '@/components/site-overview-content';
 import { MonitoringTime } from '@/components/monitoring';
@@ -358,7 +358,7 @@ export default function SiteShow(page: SitePage) {
                             count={bufferedRuns.pendingCount}
                             apply={bufferedRuns.apply}
                         />
-                        <ProductCheckDetail
+                        <CheckDetail
                             requestedRun={requestedRun}
                             primaryAction={runAction}
                             actionNote={runActionNote}

@@ -2,7 +2,7 @@ import { CardToolbarActions } from '@/components/card-toolbar-actions';
 import { cn } from '@/lib/utils';
 import { type ReactNode } from 'react';
 import { EvidenceFacts } from '@/components/evidence-facts';
-import { ScoreRing } from '@/components/foundation-primitives';
+import { ScoreRing } from '@/components/score-ring';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from 'react-i18next';
 import { ListFooter } from '@/components/list-footer';

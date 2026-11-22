@@ -7,7 +7,7 @@ import {
     screen,
 } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { RealCommandPalette } from '@/components/real-command-palette';
+import { CommandPalette } from '@/components/command-palette';
 import { navigation } from '@/lib/navigation';
 
 vi.mock('@inertiajs/react', async (importOriginal) => ({
@@ -56,7 +56,7 @@ afterEach(() => {
 
 function palette() {
     render(
-        <RealCommandPalette
+        <CommandPalette
             open
             onOpenChange={vi.fn()}
             onOpen={vi.fn()}

@@ -17,7 +17,7 @@ import { usePage } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import { findings as findingsExport } from '@/routes/sites/checks';
 
-export function ProductCheckDetail({
+export function CheckDetail({
     page,
     primaryAction,
     actionNote,

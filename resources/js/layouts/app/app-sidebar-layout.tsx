@@ -6,7 +6,7 @@ import { FormActionsDock } from '@/components/form-section';
 import { LiveProvider } from '@/components/live-provider';
 import { RunningNowShell } from '@/components/running-now-shell';
 import { KeyboardShortcutsDialog } from '@/components/keyboard-shortcuts-dialog';
-import { RealCommandPalette } from '@/components/real-command-palette';
+import { CommandPalette } from '@/components/command-palette';
 import { StreamLostStrip } from '@/components/stream-lost-strip';
 import { useLiveReload } from '@/hooks/use-live';
 import { useRef, useState, type ComponentProps } from 'react';
@@ -42,7 +42,7 @@ export default function AppSidebarLayout({
         setSearchOpen(true);
     };
     const restorePaletteFocus: NonNullable<
-        ComponentProps<typeof RealCommandPalette>['onCloseAutoFocus']
+        ComponentProps<typeof CommandPalette>['onCloseAutoFocus']
     > = (event) => {
         // The drawer search disappears on open; return to the mobile-bar search.
         // Navigation can unmount AppLayout, leaving no shell focus target.
@@ -80,7 +80,7 @@ export default function AppSidebarLayout({
                     <FormActionsDock>{children}</FormActionsDock>
                 </AppContent>
                 {props.auth.user && (
-                    <RealCommandPalette
+                    <CommandPalette
                         open={searchOpen}
                         onOpenChange={setSearchOpen}
                         onOpen={rememberPaletteFocus}
