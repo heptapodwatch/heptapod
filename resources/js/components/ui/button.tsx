@@ -15,7 +15,7 @@ const buttonVariants = cva(
         outline:
           "border border-border bg-secondary text-foreground hover:border-border-strong hover:bg-surface-hover active:bg-surface-active inactive:border-dashed inactive:border-border inactive:bg-disabled inactive:text-disabled-foreground",
         ghost:
-          "bg-transparent hover:bg-ghost-hover active:bg-ghost-active inactive:bg-transparent inactive:text-disabled-ghost-foreground",
+          "bg-transparent hover:bg-ghost-hover hover:text-foreground active:bg-ghost-active active:text-foreground inactive:bg-transparent inactive:text-disabled-ghost-foreground",
       },
       size: {
         default: "h-8 gap-1.5 px-3 leading-none has-[>svg]:px-2.5",

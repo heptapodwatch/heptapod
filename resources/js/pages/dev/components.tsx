@@ -375,10 +375,9 @@ const spacingTokens = [
 ] as const;
 
 const motionTokens = [
-    { token: '--motion-press', use: 'Control hover & border' },
+    { token: '--motion-press', use: 'Menu, tab & field hover/border' },
     { token: '--motion-press-in', use: 'Active tone snap-in' },
-    { token: '--motion-press-out', use: 'Tone press settle' },
-    { token: '--motion-focus', use: '2px focus ring' },
+    { token: '--motion-press-out', use: 'Pressable hover & release settle' },
     { token: '--motion-enter', use: 'Popover & dialog enter' },
     { token: '--motion-exit', use: 'Overlay exit' },
     { token: '--motion-sheet', use: 'Drawer slide' },

@@ -111,8 +111,8 @@ export function NavMain({
                                                         item.title ===
                                                             t('Incidents') &&
                                                         item.count > 0
-                                                            ? 'ml-auto font-mono text-xs text-status-down'
-                                                            : 'ml-auto font-mono text-xs text-muted-foreground'
+                                                            ? 'ml-auto font-mono text-xs text-status-down group-hover/menu-button:text-sidebar-accent-foreground group-active/menu-button:text-sidebar-accent-foreground'
+                                                            : 'ml-auto font-mono text-xs text-muted-foreground group-hover/menu-button:text-sidebar-accent-foreground group-active/menu-button:text-sidebar-accent-foreground'
                                                     }
                                                 >
                                                     {format.number(item.count)}

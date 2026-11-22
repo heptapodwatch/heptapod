@@ -42,12 +42,12 @@ export function NavUser() {
                             <span className="min-w-0 flex-1 truncate group-data-[collapsible=icon]:sr-only">
                                 {user.name}
                             </span>
-                            <span className="shrink-0 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+                            <span className="shrink-0 text-xs text-muted-foreground group-hover/menu-button:text-sidebar-accent-foreground group-active/menu-button:text-sidebar-accent-foreground group-data-[collapsible=icon]:hidden">
                                 {user.roles
                                     .map((role) => t(role.name))
                                     .join(', ')}
                             </span>
-                            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground group-data-[collapsible=icon]:hidden" />
+                            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground group-hover/menu-button:text-sidebar-accent-foreground group-active/menu-button:text-sidebar-accent-foreground group-data-[collapsible=icon]:hidden" />
                         </SidebarMenuButton>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent

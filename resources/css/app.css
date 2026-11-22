@@ -24,7 +24,6 @@
     --motion-press: 120ms;
     --motion-press-in: 40ms;
     --motion-press-out: 160ms;
-    --motion-focus: 150ms;
     --motion-enter: 160ms;
     --motion-exit: 120ms;
     --motion-sheet: 240ms;
@@ -710,19 +709,10 @@ html body[data-scroll-locked] {
     transition-timing-function: var(--ease-out) !important;
 }
 
-@keyframes focus-ring-in {
-    from {
-        outline-width: 0px;
-        outline-offset: 0px;
-        outline-color: transparent;
-    }
-}
-
 /*
  * Shared control utilities (heptapod-ui-rules Motion / Interaction states).
- * focus-ring / focus-ring-inset animate strictly on :focus-visible via keyframes so adding the utility or [data-hint-focus]
- * after mount never transitions from the browser default outline, and transition-* ownership stays exclusively with press
- * or the component itself.
+ * focus-ring / focus-ring-inset draw an instant full-strength outline strictly on :focus-visible with nothing at rest,
+ * avoiding route-load outline flashes and keeping transition-* ownership exclusively with press or the component itself.
  */
 @utility focus-ring {
     outline: none;
@@ -730,7 +720,6 @@ html body[data-scroll-locked] {
     &:focus-visible {
         outline: 2px solid var(--ring);
         outline-offset: 2px;
-        animation: focus-ring-in var(--motion-focus) var(--ease-out);
     }
 }
 
@@ -740,7 +729,6 @@ html body[data-scroll-locked] {
     &:focus-visible {
         outline: 2px solid var(--ring);
         outline-offset: -2px;
-        animation: focus-ring-in var(--motion-focus) var(--ease-out);
     }
 }
 

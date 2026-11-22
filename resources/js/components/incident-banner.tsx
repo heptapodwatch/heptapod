@@ -79,7 +79,7 @@ export function IncidentBanner({
                         className={
                             isError
                                 ? undefined
-                                : 'ml-auto shrink-0 text-status-down-foreground hover:bg-black/22 hover:text-status-down-foreground focus-visible:outline-current active:bg-black/30 dark:hover:bg-white/22 dark:active:bg-white/34'
+                                : 'ml-auto shrink-0 text-status-down-foreground hover:bg-black/22 hover:text-status-down-foreground focus-visible:outline-current active:bg-black/30 active:text-status-down-foreground dark:hover:bg-white/22 dark:active:bg-white/34'
                         }
                         onClick={onOpen}
                     >
