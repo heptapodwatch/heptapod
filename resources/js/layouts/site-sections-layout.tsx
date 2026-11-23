@@ -129,18 +129,15 @@ function writtenCheckId(siteId: number, url: URL): number | null {
         : Number(match[2]);
 }
 
-/** After choosing a section in the drawer, focus goes to the new page's heading (the drawer and its trigger are gone). */
-function focusHeadingAfterVisit(): void {
-    const stop = router.on('navigate', () => {
-        stop();
-        requestAnimationFrame(() => {
-            const heading = document.querySelector<HTMLElement>(
-                '[data-page-header] h1',
-            );
-            if (!heading) return;
-            heading.tabIndex = -1;
-            heading.focus({ preventScroll: true });
-        });
+/** The new page's heading takes focus after a drawer visit: the drawer and its trigger belonged to the old page. */
+function focusHeading(): void {
+    requestAnimationFrame(() => {
+        const heading = document.querySelector<HTMLElement>(
+            '[data-page-header] h1',
+        );
+        if (!heading) return;
+        heading.tabIndex = -1;
+        heading.focus({ preventScroll: true });
     });
 }
 
@@ -344,7 +341,7 @@ export function SiteSectionsLayout({
         : null;
     const host = new URL(site.identity.url).host;
 
-    const checkItem = (check: Check, onSelect?: () => void) => {
+    const checkItem = (check: Check, inDrawer: boolean) => {
         const active = check === activeCheck;
         const shortState = checkShortState(check, t, format, now);
         return (
@@ -362,7 +359,7 @@ export function SiteSectionsLayout({
                         href={checkShow.url({ site: site.id, check: check.id })}
                         aria-current={active ? 'page' : undefined}
                         prefetch
-                        onClick={onSelect}
+                        {...drawerLink(active, inDrawer)}
                     >
                         <RailDot
                             check={check}
@@ -386,7 +383,7 @@ export function SiteSectionsLayout({
 
     const sectionItem = (
         section: 'overview' | 'settings',
-        onSelect?: () => void,
+        inDrawer: boolean,
     ) => (
         <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={value === section}>
@@ -398,7 +395,7 @@ export function SiteSectionsLayout({
                     }
                     aria-current={value === section ? 'page' : undefined}
                     prefetch
-                    onClick={onSelect}
+                    {...drawerLink(value === section, inDrawer)}
                 >
                     {section === 'overview' ? (
                         <LayoutGrid aria-hidden />
@@ -413,10 +410,25 @@ export function SiteSectionsLayout({
         </SidebarMenuItem>
     );
 
-    const navigation = (onSelect?: () => void) => (
+    /**
+     * In the drawer: the current section only closes it (focus returns to the switcher); another section closes it and,
+     * once that visit has succeeded, focuses the new page's heading.
+     */
+    const drawerLink = (current: boolean, inDrawer: boolean) =>
+        inDrawer
+            ? {
+                  onClick: (event: { preventDefault: () => void }) => {
+                      if (current) event.preventDefault();
+                      setDrawerOpen(false);
+                  },
+                  onSuccess: current ? undefined : focusHeading,
+              }
+            : {};
+
+    const navigation = (inDrawer: boolean) => (
         <nav aria-label={t('Site sections')} className="space-y-1">
             <SidebarGroup className="py-0 pb-2">
-                <SidebarMenu>{sectionItem('overview', onSelect)}</SidebarMenu>
+                <SidebarMenu>{sectionItem('overview', inDrawer)}</SidebarMenu>
             </SidebarGroup>
             {attentionChecks.length > 0 && (
                 <SidebarGroup className="py-0 pb-3">
@@ -430,7 +442,7 @@ export function SiteSectionsLayout({
                     </SidebarGroupLabel>
                     <SidebarMenu>
                         {attentionChecks.map((check) =>
-                            checkItem(check, onSelect),
+                            checkItem(check, inDrawer),
                         )}
                     </SidebarMenu>
                 </SidebarGroup>
@@ -445,14 +457,14 @@ export function SiteSectionsLayout({
                         )}
                     </SidebarGroupLabel>
                     <SidebarMenu>
-                        {otherChecks.map((check) => checkItem(check, onSelect))}
+                        {otherChecks.map((check) => checkItem(check, inDrawer))}
                     </SidebarMenu>
                 </SidebarGroup>
             )}
             {canOpenSettings && (
                 <SidebarGroup className="border-t border-border-soft py-0 pt-2">
                     <SidebarMenu>
-                        {sectionItem('settings', onSelect)}
+                        {sectionItem('settings', inDrawer)}
                     </SidebarMenu>
                 </SidebarGroup>
             )}
@@ -548,10 +560,7 @@ export function SiteSectionsLayout({
                                 {host}
                             </SheetDescription>
                         </SheetHeader>
-                        {navigation(() => {
-                            setDrawerOpen(false);
-                            focusHeadingAfterVisit();
-                        })}
+                        {navigation(true)}
                     </SheetContent>
                 </Sheet>
             </div>
@@ -565,7 +574,7 @@ export function SiteSectionsLayout({
                         maintenance={maintenance}
                     />
                 </div>
-                {navigation()}
+                {navigation(false)}
             </aside>
 
             <div className="min-w-0 flex-1 space-y-6">{children}</div>
