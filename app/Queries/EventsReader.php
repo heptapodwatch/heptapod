@@ -37,19 +37,6 @@ final readonly class EventsReader
         return $this->present($query->get(), $incidentId !== null);
     }
 
-    /** @return array{events: list<EventData>, pagination: PaginationData} One page of a site's events, newest first (list `site_events`). */
-    public function sitePage(User $user, int $siteId): array
-    {
-        $query = $this->filtered($user, $siteId, null, null, null);
-        $query->getQuery()->orderByDesc('occurred_at')->orderByDesc('id');
-        $page = $this->paging->paginate($query, 'site_events');
-        /** @var list<Event> $items */
-        $items = $page->items();
-        $events = new EloquentCollection($items);
-
-        return ['events' => $this->present($events), 'pagination' => PaginationData::fromPaginator($page)];
-    }
-
     /** @param EloquentCollection<int, Event> $events
      * @return list<EventData>
      */

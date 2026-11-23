@@ -10,14 +10,18 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { I18nextProvider } from 'react-i18next';
 import { CheckConfiguration } from './check-configuration';
 import { CronTasksDetail } from './cron-tasks-detail';
-import { SiteCheckList } from './site-overview-content';
+import { CheckDetail } from './check-detail';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { checkTabPageFixture, sites } from '@/fixtures/design';
 import i18n from '@/lib/i18n';
 
 vi.mock('@inertiajs/react', () => ({
-    usePage: () => ({ props: { timezone: 'UTC' } }),
+    usePage: () => ({
+        props: { timezone: 'UTC', auth: { canManageChannels: false } },
+    }),
     router: { on: () => () => {} },
+    // The check header's closed Snooze until sheet holds its form; nothing here submits it.
+    useForm: <T,>(data: T) => ({ data, errors: {}, processing: false }),
     Link: ({ children, href }: { children: ReactNode; href: string }) => (
         <a href={href}>{children}</a>
     ),
@@ -83,12 +87,22 @@ it.each([
 
         render(
             <I18nextProvider i18n={i18n}>
-                <SiteCheckList siteId={1} checks={[check]} />
+                <CheckDetail
+                    page={{ ...page(), check }}
+                    requestedRun={{
+                        state: { phase: 'idle' },
+                        finished: null,
+                        request: vi.fn(),
+                        accept: vi.fn(),
+                        abandon: vi.fn(),
+                        consume: vi.fn(),
+                    }}
+                />
             </I18nextProvider>,
             { wrapper: TooltipProvider },
         );
 
-        expect(screen.getByText(headline)).not.toBeNull();
+        expect(screen.getByRole('heading', { name: headline })).not.toBeNull();
     },
 );
 
@@ -195,6 +209,12 @@ it.each([
                 />
             </I18nextProvider>,
             { wrapper: TooltipProvider },
+        );
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: i18n.t('site_sections.show_all_settings'),
+            }),
         );
 
         expect(screen.getByText(speed)).not.toBeNull();

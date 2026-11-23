@@ -21,79 +21,6 @@ vi.stubGlobal(
 );
 afterEach(cleanup);
 
-it('keeps explicitly ordered site sections stable when check payload order changes', () => {
-    const overview = {
-        value: 'overview',
-        label: 'Overview',
-        href: '/site',
-        order: 0,
-    };
-    const uptime = {
-        value: '2',
-        label: 'Uptime',
-        href: '/site/checks/2',
-        order: 2,
-    };
-    const dns = { value: '9', label: 'DNS', href: '/site/checks/9', order: 9 };
-    const settings = {
-        value: 'settings',
-        label: 'Settings',
-        href: '/site/settings',
-        order: Number.MAX_SAFE_INTEGER,
-    };
-    const { rerender } = render(
-        <SectionTabs
-            label="Site sections"
-            value="2"
-            items={[overview, dns, uptime, settings]}
-        />,
-    );
-
-    expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual(
-        ['Overview', 'Uptime', 'DNS', 'Settings'],
-    );
-    rerender(
-        <SectionTabs
-            label="Site sections"
-            value="settings"
-            items={[overview, uptime, dns, settings]}
-        />,
-    );
-    expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual(
-        ['Overview', 'Uptime', 'DNS', 'Settings'],
-    );
-    expect(
-        screen
-            .getByRole('link', { name: 'Settings' })
-            .getAttribute('aria-current'),
-    ).toBe('page');
-});
-
-it('keeps the decorative separator outside the active Settings link', () => {
-    render(
-        <SectionTabs
-            label="Site sections"
-            value="settings"
-            items={[
-                { value: 'uptime', label: 'Uptime', href: '/site/checks/1' },
-                {
-                    value: 'settings',
-                    label: 'Settings',
-                    href: '/site/settings',
-                    separated: true,
-                },
-            ]}
-        />,
-    );
-    const settings = screen.getByRole('link', { name: 'Settings' });
-    const separator = screen.getByRole('separator', { hidden: true });
-    expect(separator.closest('a')).toBeNull();
-    expect(separator.parentElement).toBe(settings.parentElement);
-    expect(separator.nextElementSibling).toBe(settings);
-    expect(settings.getAttribute('aria-current')).toBe('page');
-    expect(screen.getAllByRole('link')).toHaveLength(2);
-});
-
 it('scrolls the active navigation link into view and moves focus without navigating with arrows and Home/End', () => {
     const view = render(
         <SectionTabs
@@ -110,7 +37,6 @@ it('scrolls the active navigation link into view and moves focus without navigat
                     value: 'settings',
                     label: 'Settings',
                     href: '/clients/1/settings',
-                    separated: true,
                 },
             ]}
         />,
@@ -187,36 +113,4 @@ it('marks the scrollable edges so a cut-off row fades instead of clipping a labe
     fireEvent.scroll(row);
     expect(row.hasAttribute('data-overflow-start')).toBe(true);
     expect(row.hasAttribute('data-overflow-end')).toBe(false);
-});
-
-it('pins a separated item (site Settings) outside the scrolling row so it is never cut off', () => {
-    render(
-        <SectionTabs
-            label="Site sections"
-            value="uptime"
-            items={[
-                { value: 'overview', label: 'Overview', href: '/site' },
-                { value: 'uptime', label: 'Uptime', href: '/site/checks/1' },
-                {
-                    value: 'settings',
-                    label: 'Settings',
-                    href: '/site/settings',
-                    separated: true,
-                },
-            ]}
-        />,
-    );
-    const navigation = screen.getByRole('navigation', {
-        name: 'Site sections',
-    });
-    const scroll = navigation.querySelector('[data-section-tabs-scroll]')!;
-    const settings = screen.getByRole('link', { name: 'Settings' });
-    expect(scroll.contains(settings)).toBe(false);
-    expect(scroll.contains(screen.getByRole('link', { name: 'Uptime' }))).toBe(
-        true,
-    );
-    // Keyboard order still runs through every link, pinned ones last.
-    expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual(
-        ['Overview', 'Uptime', 'Settings'],
-    );
 });

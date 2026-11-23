@@ -12,9 +12,6 @@ export type SectionTab = {
     value: string;
     label: ReactNode;
     href: string;
-    muted?: boolean;
-    order?: number;
-    separated?: boolean;
 };
 
 export function SectionTabs({
@@ -57,28 +54,21 @@ export function SectionTabs({
             resize.disconnect();
         };
     }, []);
-    const orderedItems = items.toSorted(
-        (a, b) => (a.order ?? 0) - (b.order ?? 0),
-    );
     const link = (item: SectionTab) => (
         <Link
             key={item.value}
             href={item.href}
             aria-current={item.value === value ? 'page' : undefined}
             prefetch
-            data-muted={item.muted || undefined}
             className={cn(
                 horizontalNavigationItemClass,
                 'focus-ring-inset transition-[color] duration-(--motion-press) ease-out hover:text-foreground',
                 item.value === value && horizontalNavigationActiveClass,
-                item.muted && 'text-muted-foreground',
             )}
         >
             {item.label}
         </Link>
     );
-    // Separated items (site Settings) stay pinned at the right, outside the scroll area, so they are never cut off.
-    const pinned = orderedItems.filter((item) => item.separated);
     return (
         <nav
             ref={navigation}
@@ -125,19 +115,8 @@ export function SectionTabs({
                     'min-w-0 flex-1 border-b-0',
                 )}
             >
-                {orderedItems.filter((item) => !item.separated).map(link)}
+                {items.map(link)}
             </div>
-            {pinned.length > 0 && (
-                <div className="flex shrink-0 gap-4 pl-4">
-                    <span
-                        role="separator"
-                        aria-orientation="vertical"
-                        aria-hidden
-                        className="h-4 shrink-0 self-center border-l border-border"
-                    />
-                    {pinned.map(link)}
-                </div>
-            )}
         </nav>
     );
 }

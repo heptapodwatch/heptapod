@@ -51,7 +51,7 @@ it('evaluates only requested detail props while ignoring stale presentation sele
     foreach ([
         ["/clients/{$other->id}", 'clients/show', 'incidents', 'WITH visible AS MATERIALIZED'],
         ["/incidents/{$incident->id}", 'incidents/show', 'internal_note', 'episode_events AS MATERIALIZED'],
-        ["/sites/{$check->site_id}", 'sites/show', 'events', 'from "check_run_rollups"'],
+        ["/sites/{$check->site_id}", 'sites/show', 'incidents', 'from "check_run_rollups"'],
         ["/sites/{$check->site_id}/checks/{$check->id}", 'sites/show', 'runs', 'from "check_run_rollups"'],
     ] as [$uri, $component, $prop, $excludedQuery]) {
         $version = $this->get($uri)->assertOk()->inertiaPage()['version'];
@@ -140,7 +140,7 @@ it('does not query member channel scopes for an unrelated partial prop', functio
     expect(collect($queries)->filter(static fn (string $sql): bool => str_contains($sql, 'client_user')))->toBeEmpty();
 });
 
-it('skips overview history when refreshing only site events', function (): void {
+it('skips overview history when refreshing only site incidents', function (): void {
     $user = User::factory()->create();
     $user->assignRole('Owner');
     $check = Check::factory()->create();
@@ -152,10 +152,10 @@ it('skips overview history when refreshing only site events', function (): void 
     });
 
     $response = $this->get($uri, [
-        'X-Inertia' => 'true', 'X-Inertia-Version' => $version, 'X-Inertia-Partial-Component' => 'sites/show', 'X-Inertia-Partial-Data' => 'events',
+        'X-Inertia' => 'true', 'X-Inertia-Version' => $version, 'X-Inertia-Partial-Component' => 'sites/show', 'X-Inertia-Partial-Data' => 'incidents',
     ])->assertOk();
 
-    expect($response->json('props'))->toHaveKey('events')->not->toHaveKey('history');
+    expect($response->json('props'))->toHaveKey('incidents')->not->toHaveKey('history');
     expect(collect($queries)->filter(static fn (string $sql): bool => str_contains($sql, 'check_run_rollups')))->toBeEmpty();
 });
 

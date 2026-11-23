@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { CheckDetail } from './check-detail';
-import { SiteCheckList } from './site-overview-content';
 import { checkTabPageFixture, sites } from '@/fixtures/design';
 import type { RequestedRun } from '@/hooks/use-requested-run';
 
@@ -86,27 +85,6 @@ function page(pending: boolean) {
 
 afterEach(cleanup);
 
-it('shows the missing capability instead of awaiting a result in an unavailable overview check row', () => {
-    render(
-        <SiteCheckList
-            siteId={1}
-            checks={[
-                {
-                    ...page(false).check,
-                    result: 'pending',
-                    state: 'unavailable',
-                    summary: null,
-                    presentation: null,
-                    unavailable_reason: 'lighthouse.browser_unavailable',
-                },
-            ]}
-        />,
-        { wrapper: TooltipProvider },
-    );
-    expect(screen.getByText('lighthouse.browser_unavailable')).not.toBeNull();
-    expect(screen.queryByText('Awaiting first check result')).toBeNull();
-});
-
 it('shows the projected pending state in the check header with a muted previous result and no old change chip', () => {
     render(<CheckDetail page={page(true)} requestedRun={own} />, {
         wrapper: TooltipProvider,
@@ -130,13 +108,4 @@ it('keeps the stored header and change chip when no accepted recheck is pending'
     expect(screen.getByText('Failed', { exact: true })).not.toBeNull();
     expect(screen.getByText('Old change chip')).not.toBeNull();
     expect(screen.queryByText(/Last result: Failed/)).toBeNull();
-});
-
-it('uses the same projected pending state and headline in the overview check row', () => {
-    render(<SiteCheckList siteId={1} checks={[page(true).check]} />, {
-        wrapper: TooltipProvider,
-    });
-    expect(screen.getByText('Checking the accepted records…')).not.toBeNull();
-    expect(screen.getByText('Pending')).not.toBeNull();
-    expect(screen.queryByText('Old change chip')).toBeNull();
 });

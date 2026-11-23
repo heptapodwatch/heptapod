@@ -277,7 +277,9 @@ it('uses the same display name in SQL projections, incidents and notification ev
     $event = Event::factory()->for($check)->for($incident)->create(['type' => 'incident.opened']);
 
     $response = $this->actingAs($user)->get('/sites/'.$site->id)->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
-        ->where('site.name', $expected)->where('incidents.0.site_name', $expected)->where('events.0.site_name', $expected));
+        ->where('site.name', $expected)->where('incidents.0.site_name', $expected));
+    $this->get('/activity?period=all')->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+        ->where('events.data.0.latest.site_name', $expected));
     expect($site->displayName())->toBe($expected);
     $message = app(NotificationMessage::class)->build($event);
     expect($message->siteLabel)->toBe($expected);

@@ -451,6 +451,12 @@ export function CrawlFindings({
           ].filter(Boolean)
         : [];
 
+    const sameAsLatest = Boolean(
+        history.observed_at &&
+        latest?.run_ended_at &&
+        history.observed_at === latest.run_ended_at,
+    );
+
     return (
         <Card className="overflow-hidden">
             <CardHeader>
@@ -501,21 +507,31 @@ export function CrawlFindings({
                     <Alert tone="info">
                         <AlertTitle>
                             {t('Latest run incomplete')} (
-                            {incomplete.join(' · ')}) ·{' '}
-                            <MonitoringTime value={latest.run_ended_at} />
+                            {incomplete.join(' · ')})
+                            {!sameAsLatest && (
+                                <>
+                                    {' '}
+                                    ·{' '}
+                                    <MonitoringTime
+                                        value={latest.run_ended_at}
+                                    />
+                                </>
+                            )}
                         </AlertTitle>
                     </Alert>
                 )}
-                <p className="text-muted-foreground">
-                    {history.observed_at ? (
-                        <>
-                            {t('Findings from')}{' '}
-                            <MonitoringTime value={history.observed_at} />
-                        </>
-                    ) : (
-                        t('Awaiting first accepted crawl')
-                    )}
-                </p>
+                {(!history.observed_at || !sameAsLatest) && (
+                    <p className="text-muted-foreground">
+                        {history.observed_at ? (
+                            <>
+                                {t('Findings from')}{' '}
+                                <MonitoringTime value={history.observed_at} />
+                            </>
+                        ) : (
+                            t('Awaiting first accepted crawl')
+                        )}
+                    </p>
+                )}
                 {(history.page_cap_reached ||
                     history.time_limit_reached ||
                     history.resource_cap_reached) && (

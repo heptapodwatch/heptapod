@@ -23,7 +23,6 @@ final class CheckTabPageData extends Data
      * @param  ClosureLazy|list<MetricSeriesData>  $metrics
      * @param  ClosureLazy|list<ResponseTimeSeriesData>  $response_times
      * @param  ClosureLazy|list<MetricSeriesData>  $phase_series
-     * @param  ClosureLazy|list<RunAllCheckData>  $run_all_checks
      */
     public function __construct(
         public readonly ClosureLazy|SiteRowData $site,
@@ -41,7 +40,6 @@ final class CheckTabPageData extends Data
         public readonly ClosureLazy|MetricSeriesData|null $response_p95_hourly,
         public readonly ClosureLazy|ClientData $client,
         public readonly ClosureLazy|CheckHistoryData|null $history,
-        public readonly ClosureLazy|array $run_all_checks,
         public readonly ClosureLazy|MaintenanceSiteHeaderData|null $maintenance,
         public readonly ClosureLazy|PerformanceNoiseData|null $performance_noise,
         public readonly ClosureLazy|CheckRunPresentationPartData|null $performance_unavailable,

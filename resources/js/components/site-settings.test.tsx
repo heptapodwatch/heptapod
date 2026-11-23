@@ -8,6 +8,8 @@ import {
 } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { SidebarProvider } from '@/components/ui/sidebar';
 import SiteSettings from '@/pages/sites/settings';
 import { checkTabPageFixture, clients, sites } from '@/fixtures/design';
 import { router } from '@inertiajs/react';
@@ -32,7 +34,6 @@ vi.mock('react-i18next', async (importOriginal) => {
 });
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }));
 vi.mock('@/hooks/use-live', () => ({ useLiveReload: () => vi.fn() }));
-vi.mock('@/components/site-header', () => ({ SiteHeader: () => null }));
 vi.mock('@/components/alert-sensitivity-form', () => ({
     SiteAlertSensitivity: () => null,
 }));
@@ -52,6 +53,14 @@ afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
 });
+
+function TestWrapper({ children }: { children: React.ReactNode }) {
+    return (
+        <TooltipProvider>
+            <SidebarProvider>{children}</SidebarProvider>
+        </TooltipProvider>
+    );
+}
 
 it('shows a failing check indicator in the settings navigation, not just on check pages', () => {
     const site = sites[0]!;
@@ -79,11 +88,9 @@ it('shows a failing check indicator in the settings navigation, not just on chec
             site={{ ...site, checks: [sitemap] }}
             client={clients[0]!}
             clients={clients}
-            resume_at={null}
             check_count={1}
             incident_count={0}
             result_count={0}
-            run_all_checks={[]}
             maintenance={null}
             icon_fetched_at={null}
             icon_manual_result={null}
@@ -105,6 +112,7 @@ it('shows a failing check indicator in the settings navigation, not just on chec
                 recovery_max: 10,
             }}
         />,
+        { wrapper: TestWrapper },
     );
     const navigation = screen.getByRole('navigation', {
         name: 'Site sections',
@@ -136,11 +144,9 @@ it('makes the whole check row the toggle target, not only the switch', () => {
             site={site}
             client={clients[0]!}
             clients={clients}
-            resume_at={null}
             check_count={site.checks.length}
             incident_count={0}
             result_count={0}
-            run_all_checks={[]}
             maintenance={null}
             icon_fetched_at={null}
             icon_manual_result={null}
@@ -162,6 +168,7 @@ it('makes the whole check row the toggle target, not only the switch', () => {
                 recovery_max: 10,
             }}
         />,
+        { wrapper: TestWrapper },
     );
     const check = site.checks[0]!;
     const toggle = screen.getByRole('switch', { name: check.label_key });
@@ -205,11 +212,9 @@ it('saves a check from its settings row without submitting or discarding the sit
             site={site}
             client={clients[0]!}
             clients={clients}
-            resume_at={null}
             check_count={site.checks.length}
             incident_count={0}
             result_count={0}
-            run_all_checks={[]}
             maintenance={null}
             icon_fetched_at={null}
             icon_manual_result={null}
@@ -232,7 +237,7 @@ it('saves a check from its settings row without submitting or discarding the sit
             }}
         />
     );
-    const { rerender } = render(page([check]));
+    const { rerender } = render(page([check]), { wrapper: TestWrapper });
     const toggle = screen.getByRole('switch', { name: first!.label_key });
     const drafted =
         toggle.getAttribute('aria-checked') === 'true' ? 'false' : 'true';
@@ -312,11 +317,9 @@ it('checks only a changed address on blur and includes the current site in the p
             site={site}
             client={clients[0]!}
             clients={clients}
-            resume_at={null}
             check_count={site.checks.length}
             incident_count={0}
             result_count={0}
-            run_all_checks={[]}
             maintenance={null}
             icon_fetched_at={null}
             icon_manual_result={null}
@@ -338,6 +341,7 @@ it('checks only a changed address on blur and includes the current site in the p
                 recovery_max: 10,
             }}
         />,
+        { wrapper: TestWrapper },
     );
     const field = screen.getByLabelText('URL') as HTMLInputElement;
     fireEvent.blur(field);

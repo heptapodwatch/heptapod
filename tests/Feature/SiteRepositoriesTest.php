@@ -107,7 +107,7 @@ it('finds every visible monitor of a repository by any remote form, within the t
         ->assertUnprocessable()->assertJsonValidationErrors(['filter.repository_url' => 'Remove the credentials']);
 });
 
-it('lets Owners and Admins edit repositories in Site settings with an audit entry and shows them read-only to Members', function (): void {
+it('lets Owners and Admins edit repositories in Site settings with an audit entry and refuses the edit to Members', function (): void {
     $owner = User::factory()->owner()->create();
     $site = Site::factory()->create();
 
@@ -132,11 +132,10 @@ it('lets Owners and Admins edit repositories in Site settings with an audit entr
 
     $member = User::factory()->member()->create();
     $this->actingAs($member)->patch('/sites/'.$site->id, ['repositories' => []])->assertForbidden();
-    $this->get('/sites/'.$site->id)->assertInertia(fn (Assert $page): Assert => $page->where('repositories', [
+    $this->actingAs($owner)->get('/sites/'.$site->id.'/settings')->assertInertia(fn (Assert $page): Assert => $page->where('repositories', [
         ['url' => 'https://github.com/acme/shop', 'label' => 'Shop'],
         ['url' => 'https://github.com/acme/infra', 'label' => null],
     ]));
-    expect($site->repositories()->count())->toBe(2);
 });
 
 it('sends repository links to team and personal webhooks and never to a client webhook', function (RecipientKind $kind, bool $included): void {

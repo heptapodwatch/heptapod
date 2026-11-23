@@ -32,7 +32,6 @@ use Heptapod\Contracts\RunResult;
 use Heptapod\Enums\ClientScope;
 use Heptapod\Enums\IncidentCause;
 use Heptapod\Enums\NotificationCategory;
-use Heptapod\Http\ListPageSize;
 use Heptapod\Jobs\RunCheck;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
@@ -43,7 +42,6 @@ use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\NotificationDestination;
-use Heptapod\Models\RecurringMaintenancePeriod;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
@@ -87,12 +85,12 @@ it('serves scoped overview history and incident links without secrets', function
     $response = $this->actingAs($user)->get('/sites/'.$site->id)->assertInertia(fn (Assert $page): Assert => $page
         ->component('sites/show')->where('header.id', $site->id)->where('header.name', $site->displayName())
         ->where('site.identity.id', $site->id)->where('client.id', $client->id)->where('client.name', $client->name)->where('site.checks.0.open_incident_id', $incident->id)
-        ->where('site.state', 'check-error')->where('can_manage', false)->has('history', 90)->has('events', 1)->has('incidents', 1)
+        ->where('site.state', 'check-error')->where('can_manage', false)->has('history', 90)->has('incidents', 1)
         // 388acc030 removes check-only charts from the site overview.
-        ->where('incidents.0.cause', 'errored')->missing('response_times')->missing('phase_series'));
+        ->where('incidents.0.cause', 'errored')->missing('response_times')->missing('phase_series')
+        // The rail lists the checks; events live in Activity, what is coming in Upcoming.
+        ->missing('events')->missing('upcoming')->missing('repositories'));
     expect(json_encode($response->inertiaProps(), JSON_THROW_ON_ERROR))->not->toContain($secret);
-    expect($response->inertiaProps()['events'][0]['site_name'])->toBe($site->displayName());
-    expect($response->inertiaProps()['events'][0]['message'])->toBe('Check error');
     $this->get('/sites/'.$hidden->id)->assertNotFound();
 });
 
@@ -160,9 +158,9 @@ it('shows the scoped run-all preview and each fast-only submission result', func
     $before = $this->actingAs($owner)->get('/sites/'.$site->id)->assertOk()->inertiaProps();
     expect(collect($before['run_all_checks'])->pluck('check_id')->all())->toEqualCanonicalizing([$fast->id, $heavy->id]);
     expect(collect($before['run_all_checks'])->firstWhere('check_id', $heavy->id)['queue'])->toBe('checks-browser');
+    // Run all checks lives only on the Overview; check pages and site Settings do not compute its plans.
     foreach (['/sites/'.$site->id.'/checks/'.$fast->id, '/sites/'.$site->id.'/settings'] as $path) {
-        $plans = $this->get($path)->assertOk()->inertiaProps()['run_all_checks'];
-        expect(collect($plans)->pluck('check_id')->all())->toEqualCanonicalizing([$fast->id, $heavy->id]);
+        expect($this->get($path)->assertOk()->inertiaProps())->not->toHaveKey('run_all_checks');
     }
     expect($before)->toHaveKey('run_all_result');
     expect($before['run_all_result'])->toBeNull();
@@ -225,10 +223,10 @@ it('holds site, check, and incident detail query budgets as related history grow
     // Upper budgets: page shell (auth, shell health, sidebar), the site/check/incident record and its bounded
     // history, presentation and freshness reads. e04c03b5d presentations, f80f6d32a freshness, 78bd4a4b episode
     // pages, 36aca5a1a avatars and 25458fc44/0a385128 shell health are batched reads, not per-history-row queries.
-    // Feed-visible events add their batched site, client, check and incident loads. The overview reads the site's repository links once.
-    // The sidebar's late runs count is read inline, not in a second deferred request (two reads), and so is Running now (visible sites, check runs, imports, backup). Paged sub-lists count their rows once (site feed, uptime failures + open incident window, incident notifications).
+    // Feed-visible events add their batched site, client, check and incident loads (incident page).
+    // The sidebar's late runs count is read inline, not in a second deferred request (two reads), and so is Running now (visible sites, check runs, imports, backup). Paged sub-lists count their rows once (uptime failures + open incident window, incident notifications).
     [$path, $budget, $rendered] = match ($page) {
-        'site' => ['/sites/'.$site->id, 63, static fn (array $props): int => count($props['events'])],
+        'site' => ['/sites/'.$site->id, 63, static fn (array $props): int => count($props['incidents'])],
         'check' => ['/sites/'.$site->id.'/checks/'.$check->id, 67, static fn (array $props): int => count($props['runs'])],
         'incident' => ['/incidents/'.$incident->id, 77, static fn (array $props): int => collect($props['timeline'])->where('event.type', 'incident.cause_changed')->count()],
     };
@@ -248,9 +246,9 @@ it('holds site, check, and incident detail query budgets as related history grow
     $addHistory($count);
     [$many, $manyRows] = $measure();
 
-    // The site feed shows its first page, the check runs preview the newest 20; the incident timeline shows every cause change of the episode.
-    expect($fewRows)->toBe(2)->and($manyRows)->toBe(match ($page) {
-        'site' => min(2 + $count, ListPageSize::Default), 'incident' => 2 + $count, 'check' => 20,
+    // The overview lists the newest 20 incidents, the check runs preview the newest 20; the incident timeline shows every cause change of the episode.
+    expect($fewRows)->toBe($page === 'site' ? 3 : 2)->and($manyRows)->toBe(match ($page) {
+        'site' => 20, 'incident' => 2 + $count, 'check' => 20,
     });
     expect($many)->toBeLessThanOrEqual($few, $path.' grew from '.$few.' to '.$many.' queries as rendered rows grew from '.$fewRows.' to '.$manyRows)
         ->and($few)->toBeLessThanOrEqual($budget, $path.' used '.$few.' queries, over its budget of '.$budget);
@@ -303,60 +301,28 @@ function siteDeferredProps(string $path, string $props): array
         'X-Inertia-Partial-Component' => 'sites/show', 'X-Inertia-Partial-Data' => $props])->assertOk()->json('props');
 }
 
-it('records every uptime outage of the last 30 days with Uptime\'s downtime, not only the 20 newest incidents', function (): void {
+it('serves the Performance tab\'s newest measured hourly average for the Response card', function (): void {
     $now = CarbonImmutable::parse('2026-10-01T12:00:00Z');
-    $owner = User::factory()->create();
-    $owner->assignRole('Owner');
-    $site = Site::factory()->create(['created_at' => $now->subDays(40)]);
-    $uptime = Check::factory()->for($site)->create(['type' => CheckKey::Uptime, 'created_at' => $now->subDays(40), 'first_result_at' => $now->subDays(40)]);
-    $certificate = Check::factory()->for($site)->create(['type' => CheckKey::CertificateHealth]);
-    foreach (range(1, 24) as $day) {
-        $start = $now->subDays($day);
-        Incident::factory()->for($uptime)->create(['opened_at' => $start, 'first_failure_at' => $start, 'resolved_at' => $start->addMinutes(10)]);
-    }
-    $open = $now->subMinutes(5);
-    Incident::factory()->for($uptime)->create(['opened_at' => $open, 'first_failure_at' => $open]);
-    // Started before the window and still down inside it: counts, with only its last day as downtime.
-    Incident::factory()->for($uptime)->create(['opened_at' => $now->subDays(31), 'first_failure_at' => $now->subDays(31), 'resolved_at' => $now->subDays(29)]);
-    // Maintenance covers the first 4 of the 10 minutes on day 5, as it does for the uptime percentage.
-    MaintenancePeriod::factory()->create(['site_id' => $site->id, 'starts_at' => $now->subDays(5), 'ends_at' => $now->subDays(5)->addMinutes(4)]);
-    // Not outages of the window: before it, a check error, and another check's failure.
-    Incident::factory()->for($uptime)->create(['opened_at' => $now->subDays(33), 'first_failure_at' => $now->subDays(33), 'resolved_at' => $now->subDays(32)]);
-    Incident::factory()->for($uptime)->create(['cause' => IncidentCause::Errored, 'opened_at' => $now->subDays(2), 'first_failure_at' => $now->subDays(2), 'resolved_at' => $now->subDays(2)->addHour()]);
-    Incident::factory()->for($certificate)->create(['opened_at' => $now->subDays(3), 'first_failure_at' => $now->subDays(3), 'resolved_at' => $now->subDays(2)]);
-    // The Performance tab's number: the newest measured hourly average.
+    $this->travelTo($now);
+    $owner = User::factory()->owner()->create();
+    $site = Site::factory()->create();
+    $uptime = Check::factory()->for($site)->create(['type' => CheckKey::Uptime]);
     CheckRunRollupHourly::factory()->for($uptime)->create(['bucket_start' => $now->subHours(3), 'metric_sums' => ['total_time_in_seconds' => 0.2], 'metric_counts' => ['total_time_in_seconds' => 1]]);
     CheckRunRollupHourly::factory()->for($uptime)->create(['bucket_start' => $now->subHour(), 'metric_sums' => ['total_time_in_seconds' => 0.8], 'metric_counts' => ['total_time_in_seconds' => 2]]);
 
     $this->actingAs($owner);
-    expect(siteDeferredProps('/sites/'.$site->id, 'record')['record'])->toEqual([
-        'outage_count' => 26, 'downtime_seconds' => 24 * 600 - 240 + 300 + 86400,
-        'last_outage_started_at' => $open->toIso8601String(), 'response_ms' => 400,
-    ]);
+    expect(siteDeferredProps('/sites/'.$site->id, 'response_ms')['response_ms'])->toEqual(400);
+    $uptime->delete();
+    expect(siteDeferredProps('/sites/'.$site->id, 'response_ms')['response_ms'])->toBeNull();
 });
 
-it('lists the next maintenance window and expiries of this site only', function (): void {
-    $owner = User::factory()->create();
-    $owner->assignRole('Owner');
-    $site = Site::factory()->create();
-    $sibling = Site::factory()->for($site->client)->create();
-    foreach ([[$site, '2027-04-19T00:00:00Z'], [$sibling, '2026-10-11T00:00:00Z']] as [$owned, $expiry]) {
-        $domain = Check::factory()->for($owned)->create(['type' => CheckKey::Domain]);
-        DB::table('domain_snapshots')->insert(['site_id' => $owned->id, 'check_id' => $domain->id, 'run_id' => $domain->id, 'claim_token' => (string) Str::uuid(), 'run_ended_at' => now(),
-            'snapshot' => json_encode(['domain' => 'site.example', 'expires_at' => $expiry, 'registrar' => 'Registrar'], JSON_THROW_ON_ERROR), 'created_at' => now()]);
-    }
-    MaintenancePeriod::factory()->create(['site_id' => $sibling->id, 'starts_at' => now()->addHour(), 'ends_at' => now()->addHours(2)]);
-    // A daily series yields 365 occurrences; the domain expiry 200 days out must still be listed.
-    RecurringMaintenancePeriod::factory()->create(['site_id' => $site->id, 'timezone' => 'UTC', 'start_time' => '23:00', 'end_time' => '23:30']);
+it('serves the scheduled resume time for the Overview\'s Resume site action', function (): void {
+    $owner = User::factory()->owner()->create();
+    $site = Site::factory()->create(['paused_at' => now(), 'resume_at' => '2026-10-06T06:00:00Z']);
 
-    $this->actingAs($owner);
-    $upcoming = siteDeferredProps('/sites/'.$site->id, 'upcoming')['upcoming'];
-    expect(array_map(static fn (array $item): array => [$item['type'], $item['date']], $upcoming))->toBe([
-        ['maintenance', '2026-10-01T23:00:00+00:00'], ['domain', '2027-04-19T00:00:00+00:00'],
-    ]);
-    // Pausing stops the checks, not the expiry: the site's own overview keeps its known dates.
-    $site->forceFill(['paused_at' => now()])->save();
-    expect(array_column(siteDeferredProps('/sites/'.$site->id, 'upcoming')['upcoming'], 'type'))->toBe(['maintenance', 'domain']);
+    $this->actingAs($owner)->get('/sites/'.$site->id)->assertInertia(fn (Assert $page): Assert => $page
+        ->where('resume_at', '2026-10-06T06:00:00+00:00'));
+    $this->get('/sites/'.$site->id.'/settings')->assertInertia(fn (Assert $page): Assert => $page->missing('resume_at')->missing('run_all_checks'));
 });
 
 it('counts the channels an outage of the site or a failure of a check would reach now', function (): void {

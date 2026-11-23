@@ -34,9 +34,11 @@ it('shows a registered addon summary and real run history without addon-specific
     $this->actingAs($user);
 
     $page = visit('/sites/'.$check->site_id.'/checks/'.$check->id);
-    $page->assertSee('Sitemap')->assertSee('What we check')->assertSee('Last result')->assertSee('History')
+    $page->click('button:has-text("All settings")');
+    $page->assertSee('Sitemap')->assertSee('Check settings')->assertSee('Last result')->assertSee('History')
         ->assertSee('Scheduled')->assertSee('Sitemap path')->assertDontSee('Using defaults')
-        ->assertSee('Maintenance')->assertSee('Run check')->assertNoJavaScriptErrors();
+        // Site-wide actions live on the Overview only.
+        ->assertDontSee('Maintenance')->assertSee('Run check')->assertNoJavaScriptErrors();
     expect($page->script('document.querySelectorAll("[data-check-detail=sitemap] tbody tr").length'))->toBe(1);
 });
 
@@ -108,7 +110,7 @@ it('shows editable performance settings only once', function (): void {
     $this->actingAs($user);
 
     visit('/sites/'.$check->site_id.'/checks/'.$check->id)
-        ->assertSee('What we check')->assertDontSee('Configuration')->assertNoJavaScriptErrors();
+        ->assertSee('Check settings')->assertDontSee('Configuration')->assertNoJavaScriptErrors();
 });
 
 it('keeps the last successful Lighthouse scores after a failed attempt', function (): void {
@@ -131,7 +133,7 @@ it('keeps the last successful Lighthouse scores after a failed attempt', functio
 
     visit('/sites/'.$check->site_id.'/checks/'.$check->id)
         ->assertSee('Scores from last successful run')->assertSee('92')->assertSee('98')->assertSee('Mobile')
-        ->assertSee('Performance, 90 days')->assertSee('What we check')->click('button:has-text("Edit")')
+        ->assertSee('Performance, 90 days')->assertSee('Check settings')->click('button:has-text("Edit")')
         ->fill('input[name="notification_settings.performance"]', '70')
         ->click('button[type="submit"]')->assertNoJavaScriptErrors();
     expect($check->refresh()->executionConfig()['notification_settings']['performance'])->toBe(70);
@@ -336,7 +338,7 @@ it('edits check settings through the authorized product sheet', function (): voi
         ->assertSee('GET')
         ->fill('input[name="timeout"]', '12')
         ->click('button[type="submit"]')
-        ->assertSee('What we check')
+        ->assertSee('Check settings')
         ->assertNoJavaScriptErrors();
     expect($check->refresh()->executionConfig()['timeout'])->toBe(12);
 });

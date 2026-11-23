@@ -1892,7 +1892,7 @@ function NavigationSection({
             description={t('gallery.section.navigation_desc')}
         >
             <div className="space-y-6 rounded-lg border bg-card p-4">
-                <Spec label="SectionTabs (with muted + separated item)">
+                <Spec label="SectionTabs">
                     <SectionTabs
                         label={t('Checks')}
                         value={section}
@@ -1911,13 +1911,11 @@ function NavigationSection({
                                 value: 'certificate',
                                 label: t('Certificate'),
                                 href: sectionHref('certificate'),
-                                muted: true,
                             },
                             {
                                 value: 'settings',
                                 label: t('Settings'),
                                 href: sectionHref('settings'),
-                                separated: true,
                             },
                         ]}
                     />

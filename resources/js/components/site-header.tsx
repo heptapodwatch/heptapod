@@ -1,13 +1,10 @@
-import { TooltipHint } from '@/components/truncated-text';
 import { AbsoluteTime } from '@/components/absolute-time';
-import { SiteAvatar } from '@/components/site-avatar';
 import { PageHeader } from '@/components/page-header';
 import { PageHeaderAction } from '@/components/page-header-actions';
 import { Link, router } from '@inertiajs/react';
 import { useState } from 'react';
-import { ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { StatusBadge } from '@/components/monitoring';
+import { MonitoringTime, StatusBadge } from '@/components/monitoring';
 import { SiteRunAll } from '@/components/site-run-all';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -21,21 +18,18 @@ import {
 } from '@/components/ui/tooltip';
 import { ConfirmDialog, confirmVisit } from '@/components/confirm-dialog';
 import { useFormat } from '@/hooks/use-format';
-import { show as clientShow } from '@/routes/clients';
+import { checkState, stateCountOrder } from '@/lib/status';
 import { pause, resume } from '@/routes/sites';
 import { index as maintenanceIndex } from '@/routes/maintenance';
-import { TextLink } from '@/components/text-link';
 
 type Site = Heptapod.Data.Ui.SiteRowData;
 
-export function SitePauseAction({
+function SitePauseAction({
     site,
     resumeAt,
-    onChanged,
 }: {
     site: Site;
-    resumeAt?: string | null;
-    onChanged?: () => void;
+    resumeAt: string | null;
 }) {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
@@ -58,7 +52,6 @@ export function SitePauseAction({
                             {},
                             {
                                 preserveScroll: true,
-                                onSuccess: () => onChanged?.(),
                                 onFinish: () => setBusy(false),
                             },
                         );
@@ -84,17 +77,15 @@ export function SitePauseAction({
                     'Pausing stops checks and alerts. History and open incidents remain.',
                 )}
                 confirmLabel={t('Pause site')}
-                onConfirm={async () => {
-                    const paused = await confirmVisit((callbacks) =>
+                onConfirm={() =>
+                    confirmVisit((callbacks) =>
                         router.post(
                             pause.url(site.id),
                             { until },
                             { preserveScroll: true, ...callbacks },
                         ),
-                    );
-                    if (paused) onChanged?.();
-                    return paused;
-                }}
+                    )
+                }
             >
                 <div className="space-y-1">
                     <Label id="pause-until-label">{t('Until')}</Label>
@@ -135,27 +126,50 @@ export function SitePauseAction({
     );
 }
 
-export function SiteHeader({
+/**
+ * The site Overview header, the one home of the site-wide actions: the site state as h1, Run all checks… as primary,
+ * Maintenance and Pause site / Resume site in More actions, the freshness warning as its notice.
+ */
+export function SiteOverviewHeader({
     site,
-    client,
     canManage,
     runAllChecks,
     resumeAt,
     maintenance,
-    showTrail = false,
-    metaDetails,
 }: {
     site: Site;
-    client: Heptapod.Data.Ui.ClientData | null;
     canManage: boolean;
-    runAllChecks?: Heptapod.Data.Ui.RunAllCheckData[];
-    resumeAt?: string | null;
-    maintenance?: Heptapod.Data.Ui.MaintenanceSiteHeaderData | null;
-    showTrail?: boolean;
-    metaDetails?: React.ReactNode;
+    runAllChecks: Heptapod.Data.Ui.RunAllCheckData[];
+    resumeAt: string | null;
+    maintenance: Heptapod.Data.Ui.MaintenanceSiteHeaderData | null;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
+    const enabledChecks = site.checks.filter((check) => check.enabled);
+    const attentionSummary = stateCountOrder
+        .filter((state) => state !== 'ok')
+        .flatMap((state) => {
+            const count = enabledChecks.filter(
+                (check) => checkState(check) === state,
+            ).length;
+            return count ? [t(`site.checks.${state}`, { count })] : [];
+        })
+        .join(', ');
+    const title =
+        site.identity.state === 'paused'
+            ? t('site_overview.paused')
+            : attentionSummary ||
+              t(enabledChecks.length ? 'All checks OK' : 'No checks enabled');
+    const incidentStartedAt = enabledChecks
+        .flatMap((check) =>
+            check.open_incident_started_at
+                ? [check.open_incident_started_at]
+                : [],
+        )
+        .sort()[0];
+    const staleCount = site.checks.filter(
+        (check) => check.not_fresh && !check.freshness_suppressed_by,
+    ).length;
     // Without a current window, managers go straight to the new-window sheet for this site; otherwise to its windows.
     const scheduleMaintenance = canManage && maintenance?.id == null;
     const maintenanceLink = (
@@ -181,11 +195,9 @@ export function SiteHeader({
     const runAllAction =
         canManage &&
         site.identity.state !== 'paused' &&
-        runAllChecks &&
         runAllChecks.length > 0 ? (
             <SiteRunAll site={site} plans={runAllChecks} />
         ) : null;
-    const primary = runAllAction;
     const maintenanceSourceTime =
         maintenance?.startsAt && maintenance.endsAt
             ? format.windowSourceTime(
@@ -198,87 +210,45 @@ export function SiteHeader({
         Number(Boolean(canManage || maintenance)) + Number(canManage);
     return (
         <PageHeader
-            leading={
-                <SiteAvatar
-                    name={site.identity.name}
-                    iconUrl={site.identity.icon_url}
-                    iconBacking={site.identity.icon_backing}
-                />
-            }
-            title={site.identity.name}
-            titleAction={
-                showTrail ? (
-                    <TooltipHint content={site.identity.url}>
-                        <a
-                            href={site.identity.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label={t('Open site')}
-                            className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                        >
-                            <ExternalLink className="size-4" />
-                        </a>
-                    </TooltipHint>
-                ) : undefined
-            }
-            trail={
-                showTrail && client ? (
-                    <TextLink
-                        variant="secondary"
-                        href={clientShow.url(client.id)}
-                        prefetch
-                    >
-                        {client.name}
-                    </TextLink>
-                ) : undefined
-            }
-            meta={
-                showTrail ? (
-                    <>
-                        <StatusBadge state={site.identity.state} />
-                        {metaDetails ??
-                            site.tags.map((tag) => (
-                                <Badge key={tag} variant="outline">
-                                    {tag}
-                                </Badge>
-                            ))}
-                    </>
-                ) : undefined
-            }
-            badge={
-                showTrail ? undefined : (
-                    <StatusBadge state={site.identity.state} />
-                )
-            }
+            title={title}
+            description=""
             metadata={
-                !showTrail && (
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                        {client && (
-                            <TextLink
-                                variant="secondary"
-                                href={clientShow.url(client.id)}
-                                prefetch
-                            >
-                                {client.name}
-                            </TextLink>
-                        )}
-                        {site.tags.map((tag) => (
-                            <Badge key={tag} variant="outline">
-                                {tag}
-                            </Badge>
-                        ))}
-                        <span className="font-mono text-xs break-all">
-                            {site.identity.url}
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                    <span className="text-xs font-medium text-muted-foreground">
+                        {t('Overview')}
+                    </span>
+                    <StatusBadge state={site.identity.state} />
+                    {incidentStartedAt && (
+                        <span className="text-xs text-foreground-faint">
+                            {t('Since')}{' '}
+                            <MonitoringTime
+                                value={incidentStartedAt}
+                                mode="since"
+                                className="font-mono text-xs tabular-nums"
+                            />
                         </span>
-                    </div>
+                    )}
+                    {site.tags.map((tag) => (
+                        <Badge key={tag} variant="outline">
+                            {tag}
+                        </Badge>
+                    ))}
+                </div>
+            }
+            notices={
+                staleCount > 0 && (
+                    <Alert tone="warning">
+                        <AlertTitle>
+                            {t('freshness.site', { count: staleCount })}
+                        </AlertTitle>
+                    </Alert>
                 )
             }
-            description={t('pages.site.description')}
             // One primary per site header: Run all checks. Everything else is in More actions.
-            primaryAction={primary}
+            primaryAction={runAllAction}
             // Exactly one primary plus More actions, even for a single secondary. Without a primary
             // (never leave only a More menu) the secondary actions stay buttons.
-            overflowSecondary={primary != null ? 'always' : false}
+            overflowSecondary={runAllAction != null ? 'always' : false}
             secondaryActionCount={secondaryActionCount}
             secondaryActions={
                 secondaryActionCount > 0 && (

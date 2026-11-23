@@ -106,8 +106,10 @@ it('builds reachable review states and component recovery through the recorder a
     $owner->assignRole('Owner');
     $props = $this->actingAs($owner)->get('/sites/'.$recovered->id)->assertOk()->inertiaProps();
     expect($props['site']['checks'][0]['open_incident_id'])->toBeNull();
-    expect(collect($props['events'])->where('severity', 'recovered')->where('duration_seconds', 192))->toHaveCount(1);
-    expect(collect($props['events'])->where('severity', 'recovered')->where('duration_seconds', 120))->toHaveCount(1);
+    $recoveries = collect($this->get('/activity?period=all&q='.rawurlencode($recovered->displayName()))->assertOk()->inertiaProps()['events']['data'])
+        ->pluck('latest')->where('severity', 'recovered');
+    expect($recoveries->where('duration_seconds', 192))->toHaveCount(1);
+    expect($recoveries->where('duration_seconds', 120))->toHaveCount(1);
     foreach ($sites as $site) {
         foreach ($site->checks as $item) {
             if ($item->latest_run_id === null) {

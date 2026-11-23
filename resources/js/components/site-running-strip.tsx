@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { RunLine, useRunDetail } from '@/components/run-family';
-import { useCheckRun, useCheckRunOf } from '@/components/check-run-status';
+import { useCheckRunOf } from '@/components/check-run-status';
 import { useStreamState } from '@/lib/live-store';
 import { show as checkShow } from '@/routes/sites/checks';
 
@@ -91,27 +91,5 @@ export function SiteRunningStrip({
                 </p>
             )}
         </section>
-    );
-}
-
-/** The overview row's marker for a manual run of its check in flight: the state word, one detail, You. */
-export function CheckRowRunMarker({
-    check,
-}: {
-    check: Heptapod.Data.Ui.CheckStripData;
-}) {
-    const { t } = useTranslation();
-    const detail = useRunDetail();
-    const run = useCheckRun(check.id, check.run);
-    if (!run?.manual) return null;
-    return (
-        <RunLine
-            phase={run.lifecycle}
-            progress={run.progress}
-            label={t(run.lifecycle === 'running' ? 'Running' : 'Queued')}
-            detail={detail(run.state)}
-            mine={run.mine}
-            className="px-0 py-0.5"
-        />
     );
 }

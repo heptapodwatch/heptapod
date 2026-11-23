@@ -1421,7 +1421,6 @@ export function checkTabPageFixture(
         can_run: true,
         can_move: true,
         cooldown_until: null,
-        run_all_checks: [],
         maintenance: null,
         performance_noise: null,
         performance_unavailable: null,
