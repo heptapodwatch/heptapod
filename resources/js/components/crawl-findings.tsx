@@ -410,6 +410,7 @@ export function CrawlFindings({
     action,
     origin,
     exportContext,
+    headerTime,
 }: {
     history: Findings;
     latest: Heptapod.Addons.Crawl.CrawlSnapshot | null;
@@ -418,6 +419,8 @@ export function CrawlFindings({
     /** The site origin; same-origin URLs show as path. */
     origin?: string;
     exportContext?: FindingsExportContext;
+    /** The time the page header already shows (the check page's Last checked); an equal time is not repeated here. */
+    headerTime?: string | null;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -451,11 +454,10 @@ export function CrawlFindings({
           ].filter(Boolean)
         : [];
 
-    const sameAsLatest = Boolean(
-        history.observed_at &&
-        latest?.run_ended_at &&
-        history.observed_at === latest.run_ended_at,
-    );
+    const shownInHeader = (value: string | null | undefined) =>
+        Boolean(
+            value && headerTime && Date.parse(value) === Date.parse(headerTime),
+        );
 
     return (
         <Card className="overflow-hidden">
@@ -508,7 +510,7 @@ export function CrawlFindings({
                         <AlertTitle>
                             {t('Latest run incomplete')} (
                             {incomplete.join(' · ')})
-                            {!sameAsLatest && (
+                            {!shownInHeader(latest.run_ended_at) && (
                                 <>
                                     {' '}
                                     ·{' '}
@@ -520,7 +522,7 @@ export function CrawlFindings({
                         </AlertTitle>
                     </Alert>
                 )}
-                {(!history.observed_at || !sameAsLatest) && (
+                {!shownInHeader(history.observed_at) && (
                     <p className="text-muted-foreground">
                         {history.observed_at ? (
                             <>

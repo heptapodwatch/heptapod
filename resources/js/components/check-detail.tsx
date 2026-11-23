@@ -90,6 +90,7 @@ export function CheckDetail({
                         presentation={check.presentation}
                         latest={latest}
                         since={check.open_incident_started_at}
+                        headerTime={check.checked_at}
                         exportContext={
                             [
                                 'broken_links',

@@ -37,8 +37,8 @@ it('shows a registered addon summary and real run history without addon-specific
     $page->click('button:has-text("All settings")');
     $page->assertSee('Sitemap')->assertSee('Check settings')->assertSee('Last result')->assertSee('History')
         ->assertSee('Scheduled')->assertSee('Sitemap path')->assertDontSee('Using defaults')
-        // Site-wide actions live on the Overview only.
-        ->assertDontSee('Maintenance')->assertSee('Run check')->assertNoJavaScriptErrors();
+        // Site-wide actions live on the Overview only (the app sidebar still lists Maintenance).
+        ->assertDontSeeIn('[data-page-header]', 'Maintenance')->assertSee('Run check')->assertNoJavaScriptErrors();
     expect($page->script('document.querySelectorAll("[data-check-detail=sitemap] tbody tr").length'))->toBe(1);
 });
 

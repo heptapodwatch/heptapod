@@ -145,6 +145,7 @@ export function CheckEvidence({
     requestedHost,
     origin,
     exportContext,
+    headerTime,
 }: {
     type: Heptapod.Contracts.CheckKey;
     detail: Heptapod.Contracts.CheckDetailData | null;
@@ -157,6 +158,8 @@ export function CheckEvidence({
     /** The site origin; findings tables show same-origin URLs as path. */
     origin?: string;
     exportContext?: FindingsExportContext;
+    /** The time the page header already shows; findings do not repeat it. */
+    headerTime?: string | null;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -184,6 +187,7 @@ export function CheckEvidence({
                 action={action}
                 origin={origin}
                 exportContext={exportContext}
+                headerTime={headerTime}
             />
         );
     }

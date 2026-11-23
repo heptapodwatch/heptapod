@@ -15,6 +15,8 @@ import { CheckHistory } from '@/components/check-history';
 import { checkState, isSnoozed, runState, statusLabels } from '@/lib/status';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { CheckSnoozeActions } from '@/components/check-snooze-actions';
+import { TextLink } from '@/components/text-link';
+import { show as incidentShow } from '@/routes/incidents';
 
 export function CheckTabLayout({
     page,
@@ -156,6 +158,19 @@ export function CheckTabLayout({
                                     value={page.check.checked_at}
                                     className="font-mono text-xs tabular-nums"
                                 />
+                            </span>
+                        )}
+                        {page.check.open_incident_id !== null && (
+                            <span className="text-xs">
+                                <TextLink
+                                    variant="secondary"
+                                    href={incidentShow.url(
+                                        page.check.open_incident_id,
+                                    )}
+                                    prefetch
+                                >
+                                    {t('Open incident')}
+                                </TextLink>
                             </span>
                         )}
                     </div>

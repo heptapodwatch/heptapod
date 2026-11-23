@@ -581,7 +581,10 @@ it('omits uptime history and response charts from a cron-only overview', functio
     $site = Site::query()->where('friendly_name', 'Review recovered-tasks')->sole();
     $page = visit('/sites/'.$site->id);
     expect($page->script('document.querySelector("main").textContent'))->not->toContain('90-day history', '24-hour uptime', 'Response time');
-    $page->assertSee('Scheduled tasks')->assertSee('2 tasks · all on time')->assertSee('Next run in')->assertNoJavaScriptErrors();
+    $page->assertSeeIn('nav[aria-label="Site sections"]', 'Scheduled tasks')->assertNoJavaScriptErrors();
+    // The task summary and the next due times live on the Scheduled tasks page.
+    $page->click('nav[aria-label="Site sections"] a:has-text("Scheduled tasks")')
+        ->assertSee('2 tasks · all on time')->assertSee('Next due')->assertNoJavaScriptErrors();
 });
 
 it('switches site uptime history between 7, 30, and 90 days without crashing', function (): void {
