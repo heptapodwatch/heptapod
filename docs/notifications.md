@@ -81,7 +81,7 @@ The account email follows the account address. After a change, queued alerts wai
 
 ## Who gets this
 
-**Site settings → Alerts** and open incidents show **Who gets this**. For one check and one category, it lists every channel that would be told if it happened at this moment, and when. The site overview and every check tab show one line with the number of channels and a **Details** link to it.
+**Site settings → Alerts** and open incidents show **Who gets this**. For one check and one category, it lists every channel that would be told if it happened at this moment, and when. The site overview and every check page show one line with the number of channels and a **Details** link to it.
 
 - For the other channels it gives the reason: category off, site left out, check type not selected, paused, no access, quiet hours or digest.
 - It sends nothing and does not replay history. Members see other people's addresses masked.
