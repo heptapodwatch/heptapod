@@ -445,13 +445,12 @@
     "site_sections.attention_count_other": "{{formattedCount}} erfordern Aufmerksamkeit",
     "site_sections.broken_count_one": "{{formattedCount}} defekt",
     "site_sections.broken_count_other": "{{formattedCount}} defekt",
-    "site_sections.issue_count_one": "{{formattedCount}} Problem",
-    "site_sections.issue_count_other": "{{formattedCount}} Probleme",
     "site_sections.expires_in_days_one": "Läuft in {{formattedCount}} Tag ab",
     "site_sections.expires_in_days_other": "Läuft in {{formattedCount}} Tagen ab",
-    "site_sections.valid_days_one": "Gültig · {{formattedCount}} Tag",
-    "site_sections.valid_days_other": "Gültig · {{formattedCount}} Tage",
     "site_sections.snoozed": "Stummgeschaltet",
     "site_sections.settings_description": "Adresse, Prüfungen, Alarme und Repositorys dieser Website verwalten.",
-    "site_sections.show_all_settings": "Alle Einstellungen"
+    "site_sections.show_all_settings": "Alle Einstellungen",
+    "site_sections.expires_on": "Läuft am {{date}} ab",
+    "site_sections.valid_until": "Gültig bis {{date}}",
+    "site_sections.expired_on": "Abgelaufen am {{date}}"
 }

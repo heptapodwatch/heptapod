@@ -4,100 +4,80 @@ import { checkState, isSnoozed, statusLabels } from '@/lib/status';
 
 type Check = Heptapod.Data.Ui.CheckStripData;
 type Format = ReturnType<typeof useFormat>;
+type Part = Heptapod.Contracts.CheckRunPresentationPartData;
 
-function numericParam(
-    params: Record<string, string | number | boolean | null>,
-    key: string,
-): number | null {
-    const value = params[key];
+function numericParam(part: Part, key: string): number | null {
+    const value = part.params[key];
     return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function presentationBrokenCount(check: Check): number | null {
-    const parts = check.presentation?.parts ?? [];
-    let total = 0;
-    let matched = false;
-    for (const part of parts) {
-        if (
-            part.key === 'broken_links.presentation.internal' ||
-            part.key === 'broken_links.presentation.external'
-        ) {
-            const count = numericParam(part.params, 'count');
-            if (count !== null) {
-                total += count;
-                matched = true;
-            }
-        }
-    }
-    return matched ? total : null;
+/** Broken links: the presenter's internal plus external broken counts. */
+function brokenCount(parts: Part[]): number | null {
+    const counts = parts
+        .filter(
+            (part) =>
+                part.key === 'broken_links.presentation.internal' ||
+                part.key === 'broken_links.presentation.external',
+        )
+        .map((part) => numericParam(part, 'count'));
+    return counts.length > 0 && counts.every((count) => count !== null)
+        ? counts.reduce<number>((sum, count) => sum + count!, 0)
+        : null;
 }
 
+const domainDateKeys: Record<string, string> = {
+    'checks.presentation.domain_expires': 'site_sections.expires_on',
+    'checks.presentation.domain_valid_until': 'site_sections.valid_until',
+    'checks.presentation.domain_expired': 'site_sections.expired_on',
+};
+
+/**
+ * A fact only where the server states it (a count or date from the presenter); otherwise the history label or the state
+ * word, never a number guessed from generic parameters.
+ */
 function baseShortState(check: Check, t: TFunction, format: Format): string {
-    const state = checkState(check);
+    const parts = check.presentation?.parts ?? [];
     if (check.key === 'broken_links') {
-        const count = presentationBrokenCount(check);
+        const count = brokenCount(parts);
         if (count !== null && count > 0) {
             return t('site_sections.broken_count', {
                 count,
                 formattedCount: format.number(count),
             });
         }
-        if (state === 'ok') return t('OK');
     }
-
-    if (check.key === 'sitemap') {
-        const count = numericParam(check.summary_params, 'count');
-        if (
-            count !== null &&
-            count > 0 &&
-            (state === 'failed' || state === 'warning')
-        ) {
-            return t('site_sections.issue_count', {
-                count,
-                formattedCount: format.number(count),
+    if (check.key === 'certificate_health') {
+        const expiry = parts.find(
+            (part) => part.key === 'causes.certificate_expiry',
+        );
+        const days = expiry ? numericParam(expiry, 'days') : null;
+        if (days !== null && days >= 0) {
+            return t('site_sections.expires_in_days', {
+                count: days,
+                formattedCount: format.number(days),
             });
         }
-        if (state === 'ok') return t('OK');
     }
-
-    if (check.key === 'certificate_health' || check.key === 'domain') {
-        const days = numericParam(check.summary_params, 'days');
-        if (days !== null) {
-            if (state === 'warning') {
-                return t('site_sections.expires_in_days', {
-                    count: days,
-                    formattedCount: format.number(days),
-                });
-            }
-            if (state === 'ok') {
-                return t('site_sections.valid_days', {
-                    count: days,
-                    formattedCount: format.number(days),
-                });
-            }
+    if (check.key === 'domain') {
+        const part = parts.find((item) => item.key in domainDateKeys);
+        const date = part?.params.date;
+        if (part && typeof date === 'string') {
+            return t(domainDateKeys[part.key]!, {
+                date: format.calendarDate(date),
+            });
         }
     }
-
-    if (check.key === 'uptime') {
-        if (state === 'ok') return t('Up');
-        if (state === 'down') return t('Down');
+    const state = checkState(check);
+    if (check.key === 'uptime' && (state === 'ok' || state === 'down')) {
+        return t(state === 'ok' ? 'Up' : 'Down');
     }
-
-    if (check.key === 'performance' && state === 'ok') {
-        const avg = numericParam(check.summary_params, 'average_ms');
-        if (avg !== null) {
-            return `${format.milliseconds(avg)} ${t('ms')}`;
-        }
-    }
-
     if (check.presentation?.history_label) {
         return format.presentationPart(check.presentation.history_label);
     }
-
     return t(statusLabels[state]);
 }
 
-/** Compact one-line status fact for the vertical site sections navigation. */
+/** Compact one-line status fact for the site rail. */
 export function checkShortState(
     check: Check,
     t: TFunction,
@@ -112,8 +92,7 @@ export function checkShortState(
 
     const base = baseShortState(check, t, format);
     if (isSnoozed(check, now)) {
-        const state = checkState(check);
-        return state === 'ok'
+        return checkState(check) === 'ok'
             ? t('site_sections.snoozed')
             : `${t('site_sections.snoozed')} · ${base}`;
     }

@@ -121,7 +121,8 @@ it('shows a failing check indicator in the settings navigation, not just on chec
         name: /checks.sitemap.label/,
     });
     expect(link.getAttribute('href')).toBe(`/sites/${site.id}/checks/114`);
-    expect(within(link).getByRole('img', { name: 'Failed' })).not.toBeNull();
+    // The short state names the state once; the status shape beside it is not announced again.
+    expect(within(link).getByText('Failed')).not.toBeNull();
     expect(
         within(navigation)
             .getByRole('link', { name: 'Settings' })

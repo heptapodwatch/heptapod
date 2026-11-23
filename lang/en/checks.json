@@ -445,13 +445,12 @@
     "site_sections.attention_count_other": "{{formattedCount}} need attention",
     "site_sections.broken_count_one": "{{formattedCount}} broken",
     "site_sections.broken_count_other": "{{formattedCount}} broken",
-    "site_sections.issue_count_one": "{{formattedCount}} issue",
-    "site_sections.issue_count_other": "{{formattedCount}} issues",
     "site_sections.expires_in_days_one": "Expires in {{formattedCount}} day",
     "site_sections.expires_in_days_other": "Expires in {{formattedCount}} days",
-    "site_sections.valid_days_one": "Valid · {{formattedCount}} day",
-    "site_sections.valid_days_other": "Valid · {{formattedCount}} days",
     "site_sections.snoozed": "Snoozed",
     "site_sections.settings_description": "Manage the address, checks, alerts and repositories of this site.",
-    "site_sections.show_all_settings": "All settings"
+    "site_sections.show_all_settings": "All settings",
+    "site_sections.expires_on": "Expires {{date}}",
+    "site_sections.valid_until": "Valid until {{date}}",
+    "site_sections.expired_on": "Expired {{date}}"
 }

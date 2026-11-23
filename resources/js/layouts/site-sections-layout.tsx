@@ -37,6 +37,7 @@ import {
     checkState,
     isAttentionState,
     isSnoozed,
+    statusLabels,
 } from '@/lib/status';
 import type { SiteState } from '@/types/monitoring';
 import { cn } from '@/lib/utils';
@@ -50,13 +51,15 @@ type Check = Heptapod.Data.Ui.CheckStripData;
 /** The rail's two groups as check IDs, in display order. */
 type RailPlacement = { attention: number[]; other: number[] };
 
+/** Down, Failed, Check error, Warning, unavailable or without current data (stale or freshness-suppressed). */
 function needsAttention(check: Check): boolean {
     if (!check.enabled) return false;
     const state = checkState(check);
     return (
         isAttentionState(state) ||
         state === 'unavailable' ||
-        (check.not_fresh && !check.freshness_suppressed_by)
+        check.not_fresh ||
+        check.freshness_suppressed_by !== null
     );
 }
 
@@ -64,27 +67,81 @@ function canonicalOrder(check: Check): number {
     return siteCheckOrder.indexOf(check.key);
 }
 
+function byAttention(left: Check, right: Check): number {
+    return (
+        bySeverity(checkState(left), checkState(right)) ||
+        canonicalOrder(left) - canonicalOrder(right) ||
+        left.id - right.id
+    );
+}
+
+function byCanonical(left: Check, right: Check): number {
+    return (
+        Number(!left.enabled) - Number(!right.enabled) ||
+        canonicalOrder(left) - canonicalOrder(right) ||
+        left.id - right.id
+    );
+}
+
 function placeChecks(checks: Check[]): RailPlacement {
     return {
         attention: checks
             .filter(needsAttention)
-            .toSorted(
-                (left, right) =>
-                    bySeverity(checkState(left), checkState(right)) ||
-                    canonicalOrder(left) - canonicalOrder(right) ||
-                    left.id - right.id,
-            )
+            .toSorted(byAttention)
             .map((check) => check.id),
         other: checks
             .filter((check) => !needsAttention(check))
-            .toSorted(
-                (left, right) =>
-                    Number(!left.enabled) - Number(!right.enabled) ||
-                    canonicalOrder(left) - canonicalOrder(right) ||
-                    left.id - right.id,
-            )
+            .toSorted(byCanonical)
             .map((check) => check.id),
     };
+}
+
+/** Takes the moved checks out of their places and inserts each at its sorted position in its current group; nothing else moves. */
+function moveChecks(
+    placement: RailPlacement,
+    moved: Check[],
+    byId: Map<number, Check>,
+): RailPlacement {
+    const ids = new Set(moved.map((check) => check.id));
+    const next = {
+        attention: placement.attention.filter((id) => !ids.has(id)),
+        other: placement.other.filter((id) => !ids.has(id)),
+    };
+    for (const check of moved) {
+        const attention = needsAttention(check);
+        const group = attention ? next.attention : next.other;
+        const compare = attention ? byAttention : byCanonical;
+        const index = group.findIndex((id) => {
+            const placed = byId.get(id);
+            return placed !== undefined && compare(check, placed) < 0;
+        });
+        group.splice(index === -1 ? group.length : index, 0, check.id);
+    }
+    return next;
+}
+
+/** The check a write visit changed: any non-GET visit to one of this site's check routes, except a run or its cancel, whose result arrives later. */
+function writtenCheckId(siteId: number, url: URL): number | null {
+    const match = /^\/sites\/(\d+)\/checks\/(\d+)(\/[^/]+)?/.exec(url.pathname);
+    if (!match || Number(match[1]) !== siteId) return null;
+    return match[3] === '/run' || match[3] === '/cancel'
+        ? null
+        : Number(match[2]);
+}
+
+/** After choosing a section in the drawer, focus goes to the new page's heading (the drawer and its trigger are gone). */
+function focusHeadingAfterVisit(): void {
+    const stop = router.on('navigate', () => {
+        stop();
+        requestAnimationFrame(() => {
+            const heading = document.querySelector<HTMLElement>(
+                '[data-page-header] h1',
+            );
+            if (!heading) return;
+            heading.tabIndex = -1;
+            heading.focus({ preventScroll: true });
+        });
+    });
 }
 
 /** The status shape of one rail item: a check without current data shows the check-error ring. */
@@ -94,6 +151,43 @@ function railDotState(check: Check, snoozed: boolean): SiteState {
     return check.not_fresh && !check.freshness_suppressed_by && state === 'ok'
         ? 'check-error'
         : state;
+}
+
+/** The check's status shape; hidden from screen readers when the short state beside it already says the same word. */
+function RailDot({
+    check,
+    shortState,
+    now,
+    className,
+}: {
+    check: Check;
+    shortState: string;
+    now: number;
+    className?: string;
+}) {
+    const { t } = useTranslation();
+    const format = useFormat();
+    const snoozed = isSnoozed(check, now);
+    const state = railDotState(check, snoozed);
+    const label = snoozed
+        ? t('Snoozed until {{time}}', {
+              time: format.timestamp(check.snoozed_until!),
+          })
+        : t(
+              check.freshness_suppressed_by
+                  ? 'No current data'
+                  : check.not_fresh
+                    ? 'freshness.not_fresh'
+                    : statusLabels[state],
+          );
+    return (
+        <span
+            className={cn('inline-flex shrink-0', className)}
+            aria-hidden={label === shortState || undefined}
+        >
+            <StatusDot state={state} snoozed={snoozed} label={label} />
+        </span>
+    );
 }
 
 function SiteIdentity({
@@ -173,7 +267,8 @@ function SiteIdentity({
 /**
  * The frame of every site page (Overview, each check, Settings): site identity and the vertical section rail on the
  * left (a drawer below lg), the section on the right. The rail never re-sorts under the user: groups and order are taken
- * when the page opens and after the user's own write (Turn off, Run check); live updates only change marks and short states.
+ * when the page opens; after this tab's own successful write to a check only that check moves; live updates and new
+ * arrivals (placed once, at the end of their group) change nothing else.
  */
 export function SiteSectionsLayout({
     site,
@@ -196,48 +291,62 @@ export function SiteSectionsLayout({
     const { t } = useTranslation();
     const format = useFormat();
     const [drawerOpen, setDrawerOpen] = useState(false);
-    // Inertia remounts the page on navigation; within a visit only the user's own writes count, never live reloads.
-    const [writes, setWrites] = useState(0);
-    useEffect(
-        () =>
-            router.on('finish', (event) => {
-                const visit = event.detail.visit;
-                if (
-                    !['get', 'query'].includes(visit.method) &&
-                    visit.completed &&
-                    !visit.cancelled
-                )
-                    setWrites((count) => count + 1);
-            }),
-        [],
-    );
-    const [placement, setPlacement] = useState(() => ({
-        writes,
-        ...placeChecks(checks),
-    }));
-    if (placement.writes !== writes) {
-        setPlacement({ writes, ...placeChecks(checks) });
+    const byId = new Map(checks.map((check) => [check.id, check]));
+    // Inertia remounts the page on navigation, so this is taken once per visit.
+    const [placement, setPlacement] = useState(() => placeChecks(checks));
+    // Checks this tab changed through a successful write; they move once the response has rendered.
+    const [ownChanges, setOwnChanges] = useState<number[]>([]);
+    useEffect(() => {
+        const writes = new Map<string, number>();
+        const stopBefore = router.on('before', (event) => {
+            const visit = event.detail.visit;
+            if (['get', 'query'].includes(visit.method)) return;
+            const checkId = writtenCheckId(site.id, visit.url);
+            if (checkId !== null) writes.set(visit.id, checkId);
+        });
+        const stopSuccess = router.on('success', (event) => {
+            const checkId =
+                event.detail.visitId === undefined
+                    ? undefined
+                    : writes.get(event.detail.visitId);
+            if (checkId === undefined) return;
+            writes.delete(event.detail.visitId!);
+            setOwnChanges((ids) => [...ids, checkId]);
+        });
+        return () => {
+            stopBefore();
+            stopSuccess();
+        };
+    }, [site.id]);
+    const placed = new Set([...placement.attention, ...placement.other]);
+    const arrivals = checks.filter((check) => !placed.has(check.id));
+    if (ownChanges.length > 0 || arrivals.length > 0) {
+        const moved = placeChecks(arrivals);
+        const next = moveChecks(
+            placement,
+            checks.filter((check) => ownChanges.includes(check.id)),
+            byId,
+        );
+        setPlacement({
+            attention: [...next.attention, ...moved.attention],
+            other: [...next.other, ...moved.other],
+        });
+        setOwnChanges([]);
     }
     const now = Date.now();
-
-    const byId = new Map(checks.map((check) => [check.id, check]));
-    const placed = new Set([...placement.attention, ...placement.other]);
-    const arrived = placeChecks(
-        checks.filter((check) => !placed.has(check.id)),
-    );
     const inOrder = (ids: number[]) => ids.flatMap((id) => byId.get(id) ?? []);
-    const attentionChecks = inOrder([
-        ...placement.attention,
-        ...arrived.attention,
-    ]);
-    const otherChecks = inOrder([...placement.other, ...arrived.other]);
+    const attentionChecks = inOrder(placement.attention);
+    const otherChecks = inOrder(placement.other);
 
     const activeCheck = byId.get(Number(value));
+    const activeShortState = activeCheck
+        ? checkShortState(activeCheck, t, format, now)
+        : null;
     const host = new URL(site.identity.url).host;
 
     const checkItem = (check: Check, onSelect?: () => void) => {
         const active = check === activeCheck;
-        const snoozed = isSnoozed(check, now);
+        const shortState = checkShortState(check, t, format, now);
         return (
             <SidebarMenuItem key={check.id}>
                 {/* Two lines (name and short state): the rail's named height exception. */}
@@ -255,31 +364,18 @@ export function SiteSectionsLayout({
                         prefetch
                         onClick={onSelect}
                     >
-                        <span className="mt-1 inline-flex shrink-0">
-                            <StatusDot
-                                state={railDotState(check, snoozed)}
-                                snoozed={snoozed}
-                                label={
-                                    snoozed
-                                        ? t('Snoozed until {{time}}', {
-                                              time: format.timestamp(
-                                                  check.snoozed_until!,
-                                              ),
-                                          })
-                                        : check.freshness_suppressed_by
-                                          ? 'No current data'
-                                          : check.not_fresh
-                                            ? 'freshness.not_fresh'
-                                            : undefined
-                                }
-                            />
-                        </span>
+                        <RailDot
+                            check={check}
+                            shortState={shortState}
+                            now={now}
+                            className="mt-1"
+                        />
                         <span className="min-w-0 flex-1 space-y-0.5">
                             <span className="block truncate text-cell leading-tight">
                                 {t(check.label_key)}
                             </span>
                             <span className="block truncate text-xs leading-tight text-muted-foreground tabular-nums">
-                                {checkShortState(check, t, format, now)}
+                                {shortState}
                             </span>
                         </span>
                     </Link>
@@ -386,12 +482,10 @@ export function SiteSectionsLayout({
                                     {t('site_sections.choose_section')}:
                                 </span>
                                 {activeCheck ? (
-                                    <StatusDot
-                                        state={railDotState(
-                                            activeCheck,
-                                            isSnoozed(activeCheck, now),
-                                        )}
-                                        snoozed={isSnoozed(activeCheck, now)}
+                                    <RailDot
+                                        check={activeCheck}
+                                        shortState={activeShortState!}
+                                        now={now}
                                     />
                                 ) : value === 'settings' ? (
                                     <Settings
@@ -415,13 +509,7 @@ export function SiteSectionsLayout({
                                 </span>
                                 {activeCheck && (
                                     <span className="truncate text-xs text-muted-foreground tabular-nums">
-                                        ·{' '}
-                                        {checkShortState(
-                                            activeCheck,
-                                            t,
-                                            format,
-                                            now,
-                                        )}
+                                        · {activeShortState}
                                     </span>
                                 )}
                             </span>
@@ -460,7 +548,10 @@ export function SiteSectionsLayout({
                                 {host}
                             </SheetDescription>
                         </SheetHeader>
-                        {navigation(() => setDrawerOpen(false))}
+                        {navigation(() => {
+                            setDrawerOpen(false);
+                            focusHeadingAfterVisit();
+                        })}
                     </SheetContent>
                 </Sheet>
             </div>
