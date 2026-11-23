@@ -30,7 +30,6 @@ $densityOverride = '~(?:^|[\\s\'"`:])!?(?:(?:min-|max-)?h-|p(?:y|t|b)?-)~';
  * The exception covers exactly one element: the file must contain exactly one <Link>/<a> opening tag with the marker.
  */
 $hoverColourAllowlist = [
-    'resources/js/components/site-header.tsx' => ["aria-label={t('Open site')}", 'Icon-only "Open site" control: no text and no underline, so not a text link.'],
     'resources/js/components/section-tabs.tsx' => ['aria-current=', 'Section tabs: navigation tab control, not a text link'],
 ];
 /** Per file: the one other focus-ring utility it may use, and why. */
@@ -77,6 +76,8 @@ $calloutTintExceptions = [
 $sheetContentOwners = [
     'resources/js/components/sheet-form.tsx' => 'The record create/edit sheet primitive.',
     'resources/js/components/ui/sidebar.tsx' => 'The mobile sidebar drawer, not a form.',
+    // Its own Sheet, not the sidebar's: a second SidebarProvider would shadow the app sidebar and register a second ⌘B.
+    'resources/js/layouts/site-sections-layout.tsx' => 'The site section drawer below lg: navigation, not a form.',
     'resources/js/pages/dev/components.tsx' => 'Design-preview sheet on /dev/components, not routed.',
 ];
 /** Raw <button> elements outside components/ui/: each is a shared primitive or a row target that draws the shared ring itself. Every other button is Button. */
@@ -231,6 +232,7 @@ $navigationOwners = [
     'resources/js/components/section-tabs.tsx',
     'resources/js/components/nav-main.tsx', // App sidebar: vertical primary navigation.
     'resources/js/layouts/settings/layout.tsx', // Desktop grouped sidebar; mobile uses SectionTabs.
+    'resources/js/layouts/site-sections-layout.tsx', // The site rail: vertical; below lg the same list in a drawer.
 ];
 /** Per allowlisted file: how many link tags carry its marker attribute. */
 $markedLinkCounts = [];
@@ -329,14 +331,14 @@ foreach ($files as $path) {
     }
     // One incident page, two states (heptapod-ui-rules Incident episode): incident pages render IncidentEpisode, never the
     // site header with its site actions or a second, state-specific layout.
-    if (str_starts_with($path, 'resources/js/pages/incidents/') && preg_match('~\bSiteHeader\b~', $source) === 1) {
-        $failures[] = "{$path}: SiteHeader on an incident page; incidents use IncidentEpisode (one page for open and resolved)";
+    if (str_starts_with($path, 'resources/js/pages/incidents/') && preg_match('~\b(?:SiteSectionsLayout|SiteOverviewHeader)\b~', $source) === 1) {
+        $failures[] = "{$path}: site frame or Overview header on an incident page; incidents use IncidentEpisode (one page for open and resolved)";
     }
     if ($path === 'resources/js/pages/incidents/show.tsx' && preg_match('~<IncidentEpisode\b~', $source) !== 1) {
         $failures[] = "{$path}: the incident page must render IncidentEpisode for every incident";
     }
-    if ($path === 'resources/js/components/incident-episode.tsx' && preg_match('~\bSiteHeader\b~', $source) === 1) {
-        $failures[] = "{$path}: SiteHeader inside the incident episode; it has its own PageHeader with the site in the trail";
+    if ($path === 'resources/js/components/incident-episode.tsx' && preg_match('~\b(?:SiteSectionsLayout|SiteOverviewHeader)\b~', $source) === 1) {
+        $failures[] = "{$path}: site frame or Overview header inside the incident episode; it has its own PageHeader with the site in the trail";
     }
     // A picker trigger shows the selected value on one line (mark + label); the list row with its secondary line stays in the list.
     if ($path === 'resources/js/components/ui/combobox.tsx' && preg_match_all('~<Popover\.Trigger\b.*?</Popover\.Trigger>~s', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
@@ -595,7 +597,7 @@ foreach ($files as $path) {
         }
     }
     if (str_starts_with($path, 'resources/js/pages/sites/') && str_contains($source, '<SectionTabs')) {
-        $failures[] = "{$path}: local site sections; use SiteTabs for consistent check markers";
+        $failures[] = "{$path}: horizontal site sections; site pages use the SiteSectionsLayout rail";
     }
     // Global keyboard shortcuts register in lib/shortcuts.ts and appear in the ? sheet; ⌘K and ⌘B are the listed primitives.
     if (preg_match('~addEventListener\(\s*[\'"]keydown~', $source) === 1 && ! in_array($path, ['resources/js/lib/shortcuts.ts', 'resources/js/components/command-palette.tsx', 'resources/js/components/ui/sidebar.tsx'], true)) {

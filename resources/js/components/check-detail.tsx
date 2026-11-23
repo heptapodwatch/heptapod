@@ -21,11 +21,14 @@ export function CheckDetail({
     page,
     primaryAction,
     actionNote,
+    runStatus,
     requestedRun,
 }: {
     page: Heptapod.Data.Ui.CheckTabPageData;
     primaryAction?: ReactNode;
     actionNote?: ActionNoteDescriptor;
+    /** A run in flight (status row, late note) and the run history's pending changes, below the header. */
+    runStatus?: ReactNode;
     requestedRun: RequestedRun;
 }) {
     const headlineFor = useCheckHeadline();
@@ -87,6 +90,7 @@ export function CheckDetail({
                         presentation={check.presentation}
                         latest={latest}
                         since={check.open_incident_started_at}
+                        headerTime={check.checked_at}
                         exportContext={
                             [
                                 'broken_links',
@@ -120,6 +124,7 @@ export function CheckDetail({
                 headline={headline}
                 primaryAction={primaryAction}
                 actionNote={actionNote}
+                runStatus={runStatus}
                 evidence={evidence}
             />
             {sendable && page.client && sendOpen && (

@@ -46,7 +46,7 @@ Control probes send no telemetry or instance data. Operators can configure or tu
 ## Run checks by hand
 
 - **Run check** on a check page queues one run. A fast check accepts one manual request every 30 seconds, a crawl or browser check one every five minutes.
-- **Run all checks…** in the site header queues every enabled check after a confirmation. The confirmation lists each check with its queue and maximum run time, because it sends requests to the site.
+- **Run all checks…** on the site's **Overview** queues every enabled check after a confirmation. The confirmation lists each check with its queue and maximum run time, because it sends requests to the site.
 - **Only fast checks** skips crawl and browser checks.
 - Run all reports each check as queued or skipped with a reason: busy, rate-limited, unavailable or fast checks only. A busy check does not stop the others.
 - A manual run does not move the check's schedule.
@@ -62,7 +62,7 @@ Only Broken links, Mixed content and Lighthouse runs can be cancelled, with **Ca
 
 ## Pause a site
 
-**Pause site** under **More actions** in the site header stops checks and alerts and keeps history. **Resume site** starts them again. A scheduled resume in one hour or tomorrow at 08:00 uses your time zone.
+**Pause site** under **More actions** on the site's **Overview** stops checks and alerts and keeps history. **Resume site** starts them again. A scheduled resume in one hour or tomorrow at 08:00 uses your time zone.
 
 ## Queues and retention
 

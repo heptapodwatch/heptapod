@@ -15,18 +15,22 @@ import { CheckHistory } from '@/components/check-history';
 import { checkState, isSnoozed, runState, statusLabels } from '@/lib/status';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { CheckSnoozeActions } from '@/components/check-snooze-actions';
+import { TextLink } from '@/components/text-link';
+import { show as incidentShow } from '@/routes/incidents';
 
 export function CheckTabLayout({
     page,
     headline,
     primaryAction,
     actionNote,
+    runStatus,
     evidence,
 }: {
     page: Heptapod.Data.Ui.CheckTabPageData;
     headline: string;
     primaryAction?: ReactNode;
     actionNote?: ActionNoteDescriptor;
+    runStatus?: ReactNode;
     evidence: ReactNode;
 }) {
     const { t } = useTranslation();
@@ -62,10 +66,23 @@ export function CheckTabLayout({
             exact: `${format.exact(freshness.not_fresh_since)}\n${format.exact(freshness.awaiting_result_since)}`,
         };
     }
+
+    const presentationDetails =
+        page.check.enabled &&
+        page.freshness_suppressed_by === null &&
+        !page.check.pending_recheck &&
+        page.check.presentation &&
+        (page.check.presentation.changes.length > 0 ||
+            page.check.presentation.details.length > 0) ? (
+            <PresentationChanges
+                changes={page.check.presentation.changes}
+                details={page.check.presentation.details}
+            />
+        ) : undefined;
+
     return (
         <section className="space-y-6" data-check-detail={page.check.key}>
             <PageHeader
-                headingLevel={2}
                 titleTooltip={format.presentationTime(
                     page.freshness_suppression
                         ? [page.freshness_suppression]
@@ -86,9 +103,12 @@ export function CheckTabLayout({
                               : headline
                         : t('This check is turned off.')
                 }
-                description={t('pages.check.description')}
+                description=""
                 metadata={
-                    <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                        <span className="text-xs font-medium text-muted-foreground">
+                            {t(page.check.label_key)}
+                        </span>
                         <StatusBadge
                             state={checkState({
                                 ...page.check,
@@ -112,15 +132,6 @@ export function CheckTabLayout({
                                 />
                             </span>
                         )}
-                        {page.check.enabled &&
-                            page.freshness_suppressed_by === null &&
-                            !page.check.pending_recheck &&
-                            page.check.presentation && (
-                                <PresentationChanges
-                                    changes={page.check.presentation.changes}
-                                    details={page.check.presentation.details}
-                                />
-                            )}
                         {page.check.enabled && page.schedule.last_loss && (
                             <span className="text-xs text-status-warn">
                                 {t(
@@ -149,8 +160,22 @@ export function CheckTabLayout({
                                 />
                             </span>
                         )}
+                        {page.check.open_incident_id !== null && (
+                            <span className="text-xs">
+                                <TextLink
+                                    variant="secondary"
+                                    href={incidentShow.url(
+                                        page.check.open_incident_id,
+                                    )}
+                                    prefetch
+                                >
+                                    {t('Open incident')}
+                                </TextLink>
+                            </span>
+                        )}
                     </div>
                 }
+                meta={presentationDetails}
                 primaryAction={primaryAction}
                 actionNote={actionNote}
                 secondaryActions={
@@ -194,31 +219,28 @@ export function CheckTabLayout({
                     )
                 }
             />
-            <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_21.25rem]">
-                <div className="min-w-0 space-y-4">
-                    {page.check.enabled ? (
-                        evidence
-                    ) : (
-                        <Card>
-                            <CardContent>
-                                <EmptyState
-                                    bare
-                                    icon={Power}
-                                    title={t('Check off')}
-                                    description={t(
-                                        page.check.key === 'application_health'
-                                            ? 'Application health reads a JSON endpoint on your site and reports each of its checks.'
-                                            : 'Turn this check on to collect new results. Earlier results remain in the history below.',
-                                    )}
-                                />
-                            </CardContent>
-                        </Card>
-                    )}
-                </div>
-                <aside className="min-w-0">
-                    <CheckConfiguration page={page} />
-                </aside>
+            {runStatus}
+            <div className="min-w-0 space-y-4">
+                {page.check.enabled ? (
+                    evidence
+                ) : (
+                    <Card>
+                        <CardContent>
+                            <EmptyState
+                                bare
+                                icon={Power}
+                                title={t('Check off')}
+                                description={t(
+                                    page.check.key === 'application_health'
+                                        ? 'Application health reads a JSON endpoint on your site and reports each of its checks.'
+                                        : 'Turn this check on to collect new results. Earlier results remain in the history below.',
+                                )}
+                            />
+                        </CardContent>
+                    </Card>
+                )}
             </div>
+            <CheckConfiguration page={page} />
             <CheckHistory page={page} />
         </section>
     );

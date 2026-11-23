@@ -237,99 +237,105 @@ export function NotificationExplanation({
                         {t('explanation.no_channels')}
                     </p>
                 ) : (
-                    <div className="grid gap-3 lg:grid-cols-3">
-                        {lanes.map((lane) => {
-                            const items = result.recipients.filter(
-                                (recipient) =>
-                                    (
-                                        lane.statuses as readonly string[]
-                                    ).includes(recipient.status),
-                            );
-                            return (
-                                <section
-                                    key={lane.key}
-                                    aria-labelledby={`${id}-${lane.key}`}
-                                    className="min-w-0 space-y-2 rounded-lg border bg-muted/40 p-3"
-                                >
-                                    <SectionHeading
-                                        level={3}
-                                        id={`${id}-${lane.key}`}
-                                        className="flex items-center gap-2"
+                    <div className="@container/lanes">
+                        <div className="grid gap-3 @[36rem]/lanes:grid-cols-3">
+                            {lanes.map((lane) => {
+                                const items = result.recipients.filter(
+                                    (recipient) =>
+                                        (
+                                            lane.statuses as readonly string[]
+                                        ).includes(recipient.status),
+                                );
+                                return (
+                                    <section
+                                        key={lane.key}
+                                        aria-labelledby={`${id}-${lane.key}`}
+                                        className="min-w-0 space-y-2 rounded-lg border bg-muted/40 p-3"
                                     >
-                                        {t(`explanation.lane.${lane.key}`)}
-                                        <span className="font-mono text-xs text-muted-foreground tabular-nums">
-                                            {items.length}
-                                        </span>
-                                    </SectionHeading>
-                                    {items.length === 0 && (
-                                        <p className="text-xs text-muted-foreground">
-                                            {t('explanation.lane_empty')}
-                                        </p>
-                                    )}
-                                    {items.map((recipient) => {
-                                        const href = settingsHref(recipient);
-                                        return (
-                                            <div
-                                                key={recipient.channel_id}
-                                                data-explained-channel={
-                                                    recipient.channel_id
-                                                }
-                                                className="flex min-w-0 gap-2 rounded-lg border bg-card p-2.5"
-                                            >
-                                                <ChannelGlyph
-                                                    channel={recipient.channel}
-                                                />
-                                                <div className="min-w-0 space-y-0.5">
-                                                    <p className="truncate text-cell font-medium">
-                                                        {href ? (
-                                                            <TextLink
-                                                                href={href}
-                                                            >
-                                                                {
-                                                                    recipient.label
-                                                                }
-                                                            </TextLink>
-                                                        ) : (
-                                                            recipient.label
-                                                        )}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {t(
-                                                            `explanation.kind.${recipient.recipient_kind}`,
-                                                        )}
-                                                        {recipient.address &&
-                                                            ` · ${recipient.address}`}
-                                                    </p>
-                                                    <p className="text-xs">
-                                                        {t(
-                                                            reasonKeys[
-                                                                recipient.reason
-                                                            ] ??
-                                                                recipient.reason,
-                                                        )}
-                                                        {recipient.due_at &&
-                                                            recipient.status !==
-                                                                'now' && (
-                                                                <>
-                                                                    {' '}
-                                                                    <AbsoluteTime
-                                                                        value={
-                                                                            recipient.due_at
-                                                                        }
-                                                                        timezone={
-                                                                            result.timezone
-                                                                        }
-                                                                    />
-                                                                </>
+                                        <SectionHeading
+                                            level={3}
+                                            id={`${id}-${lane.key}`}
+                                            className="flex items-center gap-2"
+                                        >
+                                            {t(`explanation.lane.${lane.key}`)}
+                                            <span className="font-mono text-xs text-muted-foreground tabular-nums">
+                                                {items.length}
+                                            </span>
+                                        </SectionHeading>
+                                        {items.length === 0 && (
+                                            <p className="text-xs text-muted-foreground">
+                                                {t('explanation.lane_empty')}
+                                            </p>
+                                        )}
+                                        {items.map((recipient) => {
+                                            const href =
+                                                settingsHref(recipient);
+                                            return (
+                                                <div
+                                                    key={recipient.channel_id}
+                                                    data-explained-channel={
+                                                        recipient.channel_id
+                                                    }
+                                                    className="flex min-w-0 gap-2 rounded-lg border bg-card p-2.5"
+                                                >
+                                                    <ChannelGlyph
+                                                        channel={
+                                                            recipient.channel
+                                                        }
+                                                    />
+                                                    <div className="min-w-0 space-y-0.5">
+                                                        <p className="truncate text-cell font-medium">
+                                                            {href ? (
+                                                                <TextLink
+                                                                    href={href}
+                                                                >
+                                                                    {
+                                                                        recipient.label
+                                                                    }
+                                                                </TextLink>
+                                                            ) : (
+                                                                recipient.label
                                                             )}
-                                                    </p>
+                                                        </p>
+                                                        <p className="text-xs [overflow-wrap:anywhere] text-muted-foreground">
+                                                            {t(
+                                                                `explanation.kind.${recipient.recipient_kind}`,
+                                                            )}
+                                                            {recipient.address &&
+                                                                ` · ${recipient.address}`}
+                                                        </p>
+                                                        <p className="text-xs">
+                                                            {t(
+                                                                reasonKeys[
+                                                                    recipient
+                                                                        .reason
+                                                                ] ??
+                                                                    recipient.reason,
+                                                            )}
+                                                            {recipient.due_at &&
+                                                                recipient.status !==
+                                                                    'now' && (
+                                                                    <>
+                                                                        {' '}
+                                                                        <AbsoluteTime
+                                                                            value={
+                                                                                recipient.due_at
+                                                                            }
+                                                                            timezone={
+                                                                                result.timezone
+                                                                            }
+                                                                        />
+                                                                    </>
+                                                                )}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
-                                </section>
-                            );
-                        })}
+                                            );
+                                        })}
+                                    </section>
+                                );
+                            })}
+                        </div>
                     </div>
                 )}
             </CardContent>

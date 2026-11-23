@@ -33,7 +33,14 @@ use Heptapod\Testing\FakeCertificateFetcher;
 use Heptapod\Testing\FakeOutboundHttp;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
-use Inertia\Testing\AssertableInertia as Assert;
+
+/** @return list<array<string, mixed>> Activity's event rows, newest first: each row's event, then the failure a paired recovery ends. */
+function activityEvents(): array
+{
+    $groups = test()->get('/activity?period=all')->assertOk()->inertiaProps()['events']['data'];
+
+    return array_merge(...array_map(static fn (array $group): array => array_values(array_filter([$group['latest'], $group['earlier']])), $groups));
+}
 
 beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-03T12:00:00Z'));
@@ -51,12 +58,11 @@ it('shows meaningful transitions once with site identity and operator vocabulary
     $opened = Event::factory()->for($check)->for($incident)->create(['type' => 'incident.opened', 'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Failed, 'payload' => $payload]);
     $recovered = Event::factory()->for($check)->for($incident)->create(['type' => 'incident.resolved', 'from_result' => CheckResult::Failed, 'to_result' => CheckResult::Succeeded]);
 
-    foreach (['/sites/'.$check->site_id] as $route) {
-        $this->actingAs($owner)->get($route)->assertInertia(fn (Assert $page): Assert => $page
-            ->has('events', 2)->where('events.0.id', $recovered->id)
-            ->where('events.0.message', 'Recovered after 3m 12s')->where('events.1.message', 'Down')
-            ->where('events.1.site_name', $check->site->displayName()));
-    }
+    $this->actingAs($owner);
+    $events = activityEvents();
+    expect($events)->toHaveCount(2)->and($events[0]['id'])->toBe($recovered->id)
+        ->and($events[0]['message'])->toBe('Recovered after 3m 12s')->and($events[1]['message'])->toBe('Down')
+        ->and($events[1]['site_name'])->toBe($check->site->displayName());
     $timeline = collect($this->get('/incidents/'.$incident->id)->inertiaProps()['timeline'])->pluck('event')->filter()->values();
     expect($timeline->pluck('id')->all())->toBe([$opened->id, $recovered->id])
         ->and($timeline->pluck('message')->all())->toBe(['Down', 'Recovered after 3m 12s']);
@@ -64,7 +70,7 @@ it('shows meaningful transitions once with site identity and operator vocabulary
     expect(new RenderedAlert($message, 'en', 'UTC', 'Heptapod', 'https://heptapod.example')->title())->not->toContain('●', '✓');
 });
 
-it('names each cron task result in site timeline', function (string $result, string $expected): void {
+it('names each cron task result in the Activity timeline', function (string $result, string $expected): void {
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
     $check = Check::factory()->create(['type' => CheckKey::Cron]);
@@ -79,10 +85,8 @@ it('names each cron task result in site timeline', function (string $result, str
         }, 'summary_params' => ['presentation' => 'direct']],
     ]);
 
-    foreach (['/sites/'.$check->site_id] as $route) {
-        $events = $this->actingAs($owner)->get($route)->assertOk()->inertiaProps()['events'];
-        expect($events[0]['message'])->toBe('Cleanup 2: '.$expected.'.');
-    }
+    $this->actingAs($owner);
+    expect(activityEvents()[0]['message'])->toBe('Cleanup 2: '.$expected.'.');
 })->with([
     'succeeded' => ['succeeded', 'Succeeded'],
     'failed' => ['failed', 'Failed'],
@@ -137,10 +141,8 @@ it('shows one incident opening across threshold failures and labels only inciden
     $before = Event::query()->where('check_id', $check->id)->count();
     $execute();
     expect(Event::query()->where('check_id', $check->id)->count())->toBe($before);
-    foreach (['/sites/'.$check->site_id] as $route) {
-        $rows = $this->actingAs($owner)->get($route)->assertOk()->inertiaProps()['events'];
-        expect(array_column($rows, 'message'))->toBe(['Down']);
-    }
+    $this->actingAs($owner);
+    expect(array_column(activityEvents(), 'message'))->toBe(['Down']);
     $timeline = collect($this->get('/incidents/'.$incident->id)->assertOk()->inertiaProps()['timeline'])->pluck('event')->filter();
     expect($timeline->pluck('message')->all())->toBe(['Down']);
     $http->respondUsing(function (): FetchResult {
@@ -149,7 +151,7 @@ it('shows one incident opening across threshold failures and labels only inciden
     $execute();
     $http->respondUsing(fn (): FetchResult => new FetchResult(503));
     $execute();
-    $rows = $this->get('/sites/'.$check->site_id)->assertOk()->inertiaProps()['events'];
+    $rows = activityEvents();
     expect(array_column($rows, 'type'))->toBe(['incident.cause_changed', 'incident.cause_changed', 'incident.opened']);
     expect(array_column($rows, 'message'))->toBe(['Cause changed: HTTP 503 Service Unavailable', 'Cause changed: Worker unavailable', 'Down']);
 });
@@ -206,7 +208,7 @@ it('accepts retained JSON null summary parameters as an empty parameter set', fu
 
     $props = $this->actingAs($owner)->get('/sites/'.$check->site_id)->assertOk()->inertiaProps();
     expect($props['site']['checks'][0]['summary_params'])->toBe([])
-        ->and($props['events'][0]['message'])->toBe('Recovered');
+        ->and(activityEvents()[0]['message'])->toBe('Recovered');
 
     $check->update(['summary_params' => ['optional' => null]]);
     $run->update(['summary_params' => ['optional' => null]]);
@@ -229,7 +231,8 @@ it('presents historical check facts rather than the latest result', function (Ch
         'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Warning, 'payload' => $payload]);
     // Same sequence ID in a different partition must not replace the event's physical run.
     CheckRun::factory()->for($check)->create(['id' => $run->id, 'summary' => 'uptime.succeeded', 'ended_at' => now()->addDay()]);
-    $this->actingAs($owner)->get('/sites/'.$check->site_id)->assertInertia(fn (Assert $page): Assert => $page->where('events.0.message', $message));
+    $this->actingAs($owner);
+    expect(activityEvents()[0]['message'])->toBe($message);
 })->with([
     'performance warning' => [CheckKey::Performance, 'causes.response_time', ['seconds' => 2.8, 'threshold' => 2.5], ['average_response_time_in_ms' => 2800], [], 'Warning: response time 2.8 s > 2.5 s'],
     'certificate expiry' => [CheckKey::CertificateHealth, 'causes.certificate_expiry', ['days' => 9, 'presentation' => 'direct'], [], ['certificate_details' => ['valid_until' => '2026-10-12T11:59:00Z']], 'Certificate expires in 9 days'],
@@ -265,8 +268,8 @@ it('shows recovery even when a transient failure did not reach the incident thre
     $owner->assignRole('Owner');
     $check = Check::factory()->create();
     Event::factory()->for($check)->create(['from_result' => CheckResult::Errored, 'to_result' => CheckResult::Succeeded]);
-    $this->actingAs($owner)->get('/sites/'.$check->site_id)->assertInertia(fn (Assert $page): Assert => $page
-        ->where('events.0.message', 'Recovered')->where('events.0.severity', 'recovered')->where('events.0.incident_id', null));
+    $this->actingAs($owner);
+    expect(activityEvents()[0])->toMatchArray(['message' => 'Recovered', 'severity' => 'recovered', 'incident_id' => null]);
 });
 
 it('localizes the retained component identifier when its name is missing', function (string $locale, string $name, array $payload): void {
@@ -276,8 +279,8 @@ it('localizes the retained component identifier when its name is missing', funct
     Event::factory()->for($check)->create(['type' => 'cron.task_result_changed', 'component_type' => SuppressionComponent::Cron,
         'component_id' => 17, 'payload' => $payload, 'to_result' => CheckResult::Failed]);
 
-    $props = $this->actingAs($owner)->get('/sites/'.$check->site_id)->assertOk()->inertiaProps();
-    expect($props['events'][0]['message_params']['component'])->toBe($name);
+    $this->actingAs($owner);
+    expect(activityEvents()[0]['message_params']['component'])->toBe($name);
 })->with([
     ['en', 'Component #17', ['result' => 'failed']],
     ['de', 'Komponente #17', ['result' => 'failed']],
@@ -305,15 +308,14 @@ it('keeps component names and recovery facts distinct in a shared timeline', fun
             ]);
         }
     }
-    foreach (['/sites/'.$site->id] as $route) {
-        $rows = collect($this->actingAs($owner)->get($route)->assertOk()->inertiaProps()['events'])->keyBy('id');
-        expect($rows[$events[0]->id]['message'])->toBe('Backup [redacted]: '.$failed);
-        expect($rows[$events[1]->id]['message'])->toBe('Backup [redacted]: '.$backupRecovery)
-            ->and($rows[$events[1]->id]['duration_seconds'])->toBe(192)->and($rows[$events[1]->id]['time'])->toBe($at->toIso8601String());
-        expect($rows[$events[2]->id]['message'])->toBe('Cleanup: '.$failed);
-        expect($rows[$events[3]->id]['message'])->toBe('Cleanup: '.$cleanupRecovery)->and($rows[$events[3]->id]['duration_seconds'])->toBe(120);
-        expect(json_encode($rows, JSON_THROW_ON_ERROR))->not->toContain('task-private-secret');
-    }
+    $this->actingAs($owner);
+    $rows = collect(activityEvents())->keyBy('id');
+    expect($rows[$events[0]->id]['message'])->toBe('Backup [redacted]: '.$failed);
+    expect($rows[$events[1]->id]['message'])->toBe('Backup [redacted]: '.$backupRecovery)
+        ->and($rows[$events[1]->id]['duration_seconds'])->toBe(192)->and($rows[$events[1]->id]['time'])->toBe($at->toIso8601String());
+    expect($rows[$events[2]->id]['message'])->toBe('Cleanup: '.$failed);
+    expect($rows[$events[3]->id]['message'])->toBe('Cleanup: '.$cleanupRecovery)->and($rows[$events[3]->id]['duration_seconds'])->toBe(120);
+    expect(json_encode($rows, JSON_THROW_ON_ERROR))->not->toContain('task-private-secret');
 })->with([
     ['en', 'Failed', 'Recovered after 3m 12s', 'Recovered after 2m'],
     ['de', 'Fehlgeschlagen', 'Wiederhergestellt nach 3m 12s', 'Wiederhergestellt nach 2m'],

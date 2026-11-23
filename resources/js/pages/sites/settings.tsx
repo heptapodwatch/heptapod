@@ -7,8 +7,8 @@ import { SiteAlertSensitivity } from '@/components/alert-sensitivity-form';
 import { SiteAvatar } from '@/components/site-avatar';
 import { useLiveReload } from '@/hooks/use-live';
 import { refresh as refreshIcon } from '@/routes/sites/icon';
-import { SiteTabs } from '@/components/site-tabs';
-import { PageContainer } from '@/components/page-container';
+import { SiteSectionsLayout } from '@/layouts/site-sections-layout';
+import { PageHeader } from '@/components/page-header';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import {
     categories,
@@ -17,7 +17,6 @@ import {
 import { useId, useRef, useState } from 'react';
 import { useSiteUrlProbe } from '@/hooks/use-site-url-probe';
 import { useTranslation } from 'react-i18next';
-import { SiteHeader } from '@/components/site-header';
 import {
     FormSection,
     FormActions,
@@ -69,11 +68,9 @@ export default function SiteSettings({
     site,
     client,
     clients,
-    resume_at,
     check_count,
     incident_count,
     result_count,
-    run_all_checks,
     maintenance,
     icon_fetched_at,
     icon_manual_result,
@@ -321,21 +318,17 @@ export default function SiteSettings({
     return (
         <>
             <Head title={t('Site settings')} />
-            <PageContainer>
-                <SiteHeader
-                    showTrail
-                    site={site}
-                    client={client}
-                    canManage={!archivedClient}
-                    runAllChecks={run_all_checks}
-                    maintenance={maintenance}
-                    resumeAt={resume_at}
-                />
-                <SiteTabs
-                    siteId={site.id}
-                    checks={enabledChecks}
-                    value="settings"
-                    canManage
+            <SiteSectionsLayout
+                site={site}
+                client={client}
+                checks={enabledChecks}
+                value="settings"
+                canOpenSettings
+                maintenance={maintenance}
+            >
+                <PageHeader
+                    title={t('Site settings')}
+                    description={t('site_sections.settings_description')}
                 />
                 <form
                     noValidate
@@ -851,7 +844,7 @@ export default function SiteSettings({
                         </ConfirmDialog>
                     </div>
                 </FormSection>
-            </PageContainer>
+            </SiteSectionsLayout>
             {setupCheck && (
                 <CheckSettingsSheet
                     check={setupCheck}

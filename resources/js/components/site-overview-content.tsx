@@ -1,29 +1,17 @@
 import { Deferred, Link } from '@inertiajs/react';
 import { ArrowRight } from 'lucide-react';
-import { CheckRowRunMarker } from '@/components/site-running-strip';
-import { useId, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AbsoluteTime } from '@/components/absolute-time';
 import { AlertChannelsLine } from '@/components/alert-channels-line';
-import {
-    EntityLink,
-    openRowTarget,
-    rowTargetClass,
-} from '@/components/entity-link';
 import { LighthouseScoreGrid } from '@/components/check-evidence';
-import { ListFooter } from '@/components/list-footer';
 import { EvidenceFacts } from '@/components/evidence-facts';
 import {
-    ContentState,
-    EventTimeline,
     MonitoringTime,
     responseLineColor,
     responseTimeSummary,
-    StatusBadge,
     UptimeBar,
 } from '@/components/monitoring';
 import { Sparkline } from '@/components/sparkline';
-import { SectionHeading } from '@/components/section-heading';
 import { StatTile } from '@/components/stat-tile';
 import { TextLink } from '@/components/text-link';
 import { Button } from '@/components/ui/button';
@@ -35,454 +23,109 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ListHeader, ListRow, rowEmphasisClass } from '@/components/ui/table';
-import { useCheckHeadline } from '@/hooks/use-check-headline';
 import { useFormat } from '@/hooks/use-format';
-import {
-    bySeverity,
-    checkState,
-    isAttentionState,
-    isSnoozed,
-} from '@/lib/status';
-import type { SiteState } from '@/types/monitoring';
-import { cn } from '@/lib/utils';
-import { show as incidentShow } from '@/routes/incidents';
-import { index as maintenanceIndex } from '@/routes/maintenance';
+import { checkState } from '@/lib/status';
 import { show as checkShow } from '@/routes/sites/checks';
 
 type Page = Heptapod.Data.Ui.SiteOverviewPageData;
 type Check = Heptapod.Data.Ui.CheckStripData;
 
-type SiteCheckRow = {
-    key: string;
-    state: Heptapod.Enums.SiteStatus;
-    /** StatusBadge label when the state word alone would mislead (a suppressed gap). */
-    stateLabel?: string;
-    /** A snoozed check keeps its result colour with the pause bars cut out. */
-    snoozed?: boolean;
-    what: string;
-    detail: string;
-    when: ReactNode;
-    /** The row's one target; a paused site has none (Resume is the header action). */
-    href: string | null;
-    check?: Check;
-};
-
-/** The Sites attention band's State · What · When widths. */
-const checkListColumns = 'sm:grid-cols-[8.5rem_minmax(0,1fr)_7rem]';
-
-/** An unavailable check cannot run at all, so on its own site it needs attention too. */
-function needsAttention(state: SiteState): boolean {
-    return isAttentionState(state) || state === 'unavailable';
-}
-
-function checkHref(siteId: number, check: Check): string {
-    return check.open_incident_id !== null
-        ? incidentShow.url(check.open_incident_id)
-        : checkShow.url({ site: siteId, check: check.id });
-}
-
-/** "Is this site OK, and what needs me?": attention first, then the 30-day record and what is coming, one row per other check, recent events. */
+/**
+ * "Is this site OK?" below the Overview header: the uptime, response time and Lighthouse cards, the alert line and the
+ * site's repository links. The rail beside it lists every check with its state, so nothing here repeats it.
+ */
 export function SiteOverviewContent({ page }: { page: Page }) {
-    const { t } = useTranslation();
-    const format = useFormat();
-    const attentionId = useId();
-    const checksId = useId();
-    const { site } = page;
-    const repositoryFacts = useRepositoryFacts(page.repositories);
-    // Enabled checks by severity, turned-off ones last.
-    const checks = [...site.checks].sort(
-        (a, b) => bySeverity(checkState(a), checkState(b)) || a.id - b.id,
-    );
-    const attentionChecks = checks.filter((check) =>
-        needsAttention(checkState(check)),
-    );
-    const maintenance =
-        page.maintenance?.state === 'active' ? page.maintenance : null;
-    const siteRows: SiteCheckRow[] = [
-        ...(site.state === 'paused'
-            ? [
-                  {
-                      key: 'paused',
-                      state: 'paused' as const,
-                      what: t('site_overview.paused'),
-                      detail: t('site_overview.paused_detail'),
-                      when: null,
-                      href: null,
-                  },
-              ]
-            : []),
-        ...(maintenance
-            ? [
-                  {
-                      key: 'maintenance',
-                      state: 'maintenance' as const,
-                      what:
-                          maintenance.reason ?? t('site_overview.maintenance'),
-                      detail: t(
-                          maintenance.muteAlerts
-                              ? 'Alerts muted'
-                              : 'Alerts continue',
-                      ),
-                      when: maintenance.endsAt && (
-                          <span>
-                              {t('Until')}{' '}
-                              <AbsoluteTime value={maintenance.endsAt} />
-                              {(() => {
-                                  const sourceTime = format.instantSourceTime(
-                                      maintenance.endsAt,
-                                      maintenance.timezone,
-                                  );
-                                  return sourceTime ? (
-                                      <span className="text-muted-foreground">
-                                          {' '}
-                                          {sourceTime}
-                                      </span>
-                                  ) : null;
-                              })()}
-                          </span>
-                      ),
-                      href: maintenanceIndex.url({
-                          query: { site_id: site.id },
-                      }),
-                  },
-              ]
-            : []),
-    ];
-    const hasLaunchpad = site.checks.some((check) => check.key === 'uptime');
-    // A healthy row of a carded check only repeats its card; a non-OK one keeps its cause.
-    const otherChecks = checks.filter(
-        (check) =>
-            !attentionChecks.includes(check) &&
-            !(
-                hasLaunchpad &&
-                ['uptime', 'performance', 'lighthouse'].includes(check.key) &&
-                check.enabled &&
-                checkState(check) === 'ok'
-            ),
-    );
-    const uptime = site.checks.find((check) => check.key === 'uptime');
-    const lighthouse = site.checks.find(
-        (check) => check.key === 'lighthouse' && check.enabled,
-    );
+    const uptime = page.site.checks.find((check) => check.key === 'uptime');
     return (
-        <div className="space-y-6" data-site-overview>
-            {/* As on Sites: nothing needs attention, no section; the header meta already states the site's state. */}
-            {siteRows.length + attentionChecks.length > 0 && (
-                <section
-                    data-site-attention
-                    className="space-y-3"
-                    aria-labelledby={attentionId}
-                >
-                    <SectionHeading id={attentionId}>
-                        {t('Needs attention')}
-                    </SectionHeading>
-                    <SiteCheckList
-                        siteId={site.id}
-                        leading={siteRows}
-                        checks={attentionChecks}
-                    />
-                </section>
-            )}
-            {/* Each line's height as loaded: the values wrap to two lines below sm and fit on one above. */}
-            <Deferred
-                data={['record', 'upcoming']}
-                fallback={
-                    <div aria-busy="true">
-                        <EvidenceFacts
-                            rows={[
-                                ...(uptime
-                                    ? [
-                                          {
-                                              label: t('Last 30 days'),
-                                              value: (
-                                                  <Skeleton className="h-[2lh] w-96 max-w-full sm:h-[1lh]" />
-                                              ),
-                                          },
-                                      ]
-                                    : []),
-                                {
-                                    label: t('Coming up'),
-                                    value: (
-                                        <Skeleton className="h-[2lh] w-72 max-w-full sm:h-[1lh]" />
-                                    ),
-                                },
-                                ...repositoryFacts,
-                            ]}
-                        />
-                    </div>
-                }
-            >
-                <SiteRecordLines
-                    page={page}
-                    repositoryFacts={repositoryFacts}
-                />
-            </Deferred>
-            {uptime && (
-                // One row from xl only: narrower, a card's title and Open check collide (DE at 1024).
-                <div
-                    data-site-launchpad
-                    className="grid gap-6 xl:auto-cols-fr xl:grid-flow-col"
-                >
-                    <UptimeCard page={page} uptime={uptime} />
-                    <ResponseCard
-                        page={page}
-                        check={
-                            site.checks.find(
-                                (check) =>
-                                    check.key === 'performance' &&
-                                    check.enabled,
-                            ) ?? uptime
-                        }
-                    />
-                    {lighthouse && (
-                        <LighthouseCard page={page} lighthouse={lighthouse} />
-                    )}
-                </div>
-            )}
-            {otherChecks.length > 0 && (
-                <section className="space-y-3" aria-labelledby={checksId}>
-                    <SectionHeading id={checksId}>{t('Checks')}</SectionHeading>
-                    <SiteCheckList siteId={site.id} checks={otherChecks} />
-                </section>
-            )}
-            <Card className="min-w-0">
-                <CardHeader>
-                    <CardTitle>{t('Recent events')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {page.events.length ? (
-                        <div className="space-y-3">
-                            <EventTimeline events={page.events} />
-                            <ListFooter
-                                count={t('{{count}} events', {
-                                    count: page.events_pagination.total,
-                                    formattedCount: format.number(
-                                        page.events_pagination.total,
-                                    ),
-                                })}
-                                pagination={page.events_pagination}
-                                only={['events', 'events_pagination']}
-                            />
-                        </div>
-                    ) : (
-                        <ContentState
-                            bare
-                            state="empty"
-                            title="No events yet"
-                            description="Events appear here when a state changes, not after every check run."
-                        />
-                    )}
-                </CardContent>
-            </Card>
+        <>
+            {uptime && <SiteLaunchpad page={page} uptime={uptime} />}
             {uptime?.enabled && (
                 <AlertChannelsLine
-                    siteId={site.id}
+                    siteId={page.site.id}
                     checkId={uptime.id}
                     category="outage"
                     count={page.alert_channels}
                     canOpenSettings={page.can_move}
                 />
             )}
-        </div>
+            <SiteRepositories repositories={page.repositories} />
+        </>
     );
 }
 
-/** The site's repository links as one record line (none without links): label, then the link without its scheme. */
-function useRepositoryFacts(
-    repositories: Heptapod.Data.Ui.SiteRepositoryData[],
-) {
-    const { t } = useTranslation();
-    if (repositories.length === 0) return [];
-    return [
-        {
-            label: t('repositories.title'),
-            value: (
-                <ul className="flex flex-wrap gap-x-4 gap-y-1">
-                    {repositories.map((repository) => (
-                        <li key={repository.url} className="min-w-0">
-                            {repository.label && (
-                                <span className="mr-1.5 text-muted-foreground">
-                                    {repository.label}
-                                </span>
-                            )}
-                            <TextLink external url href={repository.url}>
-                                {repository.url.replace(/^https:\/\//, '')}
-                            </TextLink>
-                        </li>
-                    ))}
-                </ul>
-            ),
-        },
-    ];
-}
-
-/** Last 30 days and Coming up, in words you can read out on a client call. */
-function SiteRecordLines({
-    page,
-    repositoryFacts,
+/** The site's repository links, read-only for everyone who sees the site (edited in Site settings); none without links. */
+function SiteRepositories({
+    repositories,
 }: {
-    page: Page;
-    repositoryFacts: { label: string; value: ReactNode }[];
+    repositories: Heptapod.Data.Ui.SiteRepositoryData[];
 }) {
     const { t } = useTranslation();
-    const format = useFormat();
-    const { record, upcoming = [] } = page;
-    const coming = upcoming.map((item) =>
-        item.type === 'maintenance'
-            ? t('site_overview.coming_maintenance', {
-                  time: format.timestamp(item.date),
-              })
-            : t(
-                  item.type === 'certificate'
-                      ? 'site_overview.coming_certificate'
-                      : 'site_overview.coming_domain',
-                  { date: format.calendarDate(item.date) },
-              ),
-    );
+    if (repositories.length === 0) return null;
     return (
-        <div data-site-record>
-            <EvidenceFacts
-                rows={[
-                    ...(record
-                        ? [
-                              {
-                                  label: t('Last 30 days'),
-                                  value:
-                                      record.last_outage_started_at === null
-                                          ? t('site_overview.record_no_outage')
-                                          : t('site_overview.record_outages', {
-                                                count: record.outage_count,
-                                                formattedCount: format.number(
-                                                    record.outage_count,
-                                                ),
-                                                duration: format.duration(
-                                                    record.downtime_seconds,
-                                                ),
-                                                date: format.calendarDate(
-                                                    record.last_outage_started_at,
-                                                ),
-                                            }),
-                              },
-                          ]
-                        : []),
-                    {
-                        label: t('Coming up'),
-                        value: coming.length
-                            ? coming.join(' · ')
-                            : t('site_overview.coming_nothing'),
-                    },
-                    ...repositoryFacts,
-                ]}
-            />
-        </div>
+        <EvidenceFacts
+            rows={[
+                {
+                    label: t('repositories.title'),
+                    value: (
+                        <ul className="flex flex-wrap gap-x-4 gap-y-1">
+                            {repositories.map((repository) => (
+                                <li key={repository.url} className="min-w-0">
+                                    {repository.label && (
+                                        <span className="mr-1.5 text-muted-foreground">
+                                            {repository.label}
+                                        </span>
+                                    )}
+                                    <TextLink
+                                        external
+                                        url
+                                        href={repository.url}
+                                    >
+                                        {repository.url.replace(
+                                            /^https:\/\//,
+                                            '',
+                                        )}
+                                    </TextLink>
+                                </li>
+                            ))}
+                        </ul>
+                    ),
+                },
+            ]}
+        />
     );
 }
 
-/** The row of one check: its cause or current headline, the check name, and since when (open incident) or when last checked. */
-function useCheckRow(siteId: number) {
-    const { t } = useTranslation();
-    const format = useFormat();
-    const headline = useCheckHeadline();
-    return (check: Check): SiteCheckRow => {
-        const snoozed = isSnoozed(check, Date.now());
-        const state = checkState(check);
-        return {
-            key: `check:${check.id}`,
-            check,
-            state,
-            snoozed,
-            stateLabel:
-                !snoozed && check.freshness_suppressed_by
-                    ? 'No current data'
-                    : undefined,
-            // An attention row names its issue (incl. the uptime-dependency headline); an unavailable check's cause is its missing capability.
-            what:
-                needsAttention(state) && !check.unavailable_reason
-                    ? format.issueHeadline({
-                          ...check,
-                          check: check.key,
-                          fallback: headline(check),
-                      })
-                    : headline(check),
-            detail: snoozed
-                ? `${t(check.label_key)} · ${t('Snoozed until {{time}}', { time: format.timestamp(check.snoozed_until!) })}`
-                : t(check.label_key),
-            when: check.open_incident_started_at ? (
-                <MonitoringTime
-                    value={check.open_incident_started_at}
-                    mode="since"
-                    prefix={t('Since')}
-                />
-            ) : check.checked_at ? (
-                <MonitoringTime
-                    value={check.checked_at}
-                    mode="since"
-                    prefix={t('Checked')}
-                />
-            ) : check.enabled && !check.unavailable_reason ? (
-                t('Awaiting first result')
-            ) : null,
-            href: checkHref(siteId, check),
-        };
-    };
-}
-
-/**
- * Needs attention and Checks: one bordered list with the Sites attention band's State · What · When columns. A row with a
- * target opens it from anywhere; the headline link stays its one tab stop.
- */
-export function SiteCheckList({
-    siteId,
-    checks,
-    leading = [],
-}: {
-    siteId: number;
-    checks: Check[];
-    /** Site-level rows before the checks: a paused site, an active maintenance window. */
-    leading?: SiteCheckRow[];
-}) {
-    const { t } = useTranslation();
-    const checkRow = useCheckRow(siteId);
+/** Uptime and Response time side by side, Lighthouse full width below: sized by the right column, not the viewport. */
+function SiteLaunchpad({ page, uptime }: { page: Page; uptime: Check }) {
+    const { site } = page;
+    const lighthouseCheck = site.checks.find(
+        (check) => check.key === 'lighthouse' && check.enabled,
+    );
     return (
-        <div className="@container/table overflow-hidden rounded-lg border">
-            <ListHeader className={cn(checkListColumns, 'sm:grid')}>
-                <span>{t('State')}</span>
-                <span>{t('What')}</span>
-                <span>{t('When')}</span>
-            </ListHeader>
-            {[...leading, ...checks.map(checkRow)].map((row) => (
-                <ListRow
-                    key={row.key}
-                    data-site-check={row.check?.id}
-                    className={cn(
-                        checkListColumns,
-                        'sm:items-center',
-                        row.href && rowTargetClass,
-                        rowEmphasisClass(row.state),
-                    )}
-                    onClick={row.href ? openRowTarget(row.href) : undefined}
-                >
-                    <StatusBadge
-                        state={row.state}
-                        label={row.stateLabel}
-                        snoozed={row.snoozed}
-                    />
-                    <div className="min-w-0">
-                        <EntityLink
-                            href={row.href ?? undefined}
-                            name={row.what}
+        <div className="@container/launchpad">
+            <div
+                data-site-launchpad
+                className="grid gap-4 @[44rem]/launchpad:grid-cols-2"
+            >
+                <UptimeCard page={page} uptime={uptime} />
+                <ResponseCard
+                    page={page}
+                    check={
+                        site.checks.find(
+                            (check) =>
+                                check.key === 'performance' && check.enabled,
+                        ) ?? uptime
+                    }
+                />
+                {lighthouseCheck && (
+                    <div className="@[44rem]/launchpad:col-span-2">
+                        <LighthouseCard
+                            page={page}
+                            lighthouse={lighthouseCheck}
                         />
-                        <p className="text-xs break-words text-muted-foreground">
-                            {row.detail}
-                        </p>
-                        {row.check && <CheckRowRunMarker check={row.check} />}
                     </div>
-                    <span className="font-mono text-xs text-muted-foreground">
-                        {row.when}
-                    </span>
-                </ListRow>
-            ))}
+                )}
+            </div>
         </div>
     );
 }
@@ -590,7 +233,7 @@ function ResponseCard({ page, check }: { page: Page; check: Check }) {
                 label={t('Hourly average')}
                 value={
                     <Deferred
-                        data="record"
+                        data="response_ms"
                         fallback={
                             <Skeleton
                                 aria-busy="true"
@@ -598,9 +241,9 @@ function ResponseCard({ page, check }: { page: Page; check: Check }) {
                             />
                         }
                     >
-                        {page.record?.response_ms == null
+                        {page.response_ms == null
                             ? '—'
-                            : `${format.milliseconds(page.record.response_ms)} ${t('ms')}`}
+                            : `${format.milliseconds(page.response_ms)} ${t('ms')}`}
                     </Deferred>
                 }
             />
@@ -648,7 +291,7 @@ function LighthouseCard({
                     <>
                         <LighthouseScoreGrid
                             metrics={null}
-                            className="grid-cols-4 gap-2"
+                            className="grid-cols-2 gap-4 sm:grid-cols-4"
                         />
                         <Skeleton aria-busy="true" className="h-4 w-28" />
                     </>
@@ -657,7 +300,7 @@ function LighthouseCard({
                 {metrics ? (
                     <LighthouseScoreGrid
                         metrics={metrics}
-                        className="grid-cols-4 gap-2"
+                        className="grid-cols-2 gap-4 sm:grid-cols-4"
                     />
                 ) : (
                     <p className="text-sm text-muted-foreground">

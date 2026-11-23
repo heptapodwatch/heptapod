@@ -2,8 +2,6 @@ import {
     hasActionNote,
     type ActionNoteDescriptor,
 } from '@/components/action-note-slot';
-import { Alert, AlertTitle } from '@/components/ui/alert';
-import { PageContainer } from '@/components/page-container';
 import { Head, router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { isCoalescedStateChange, useLiveReload } from '@/hooks/use-live';
@@ -11,7 +9,7 @@ import { useBufferedChanges } from '@/hooks/use-buffered-changes';
 import { useRequestedRun } from '@/hooks/use-requested-run';
 import { PendingChanges } from '@/components/pending-changes';
 import { useEffect, useId, useState } from 'react';
-import { SiteHeader } from '@/components/site-header';
+import { SiteOverviewHeader } from '@/components/site-header';
 import { SiteRunningStrip } from '@/components/site-running-strip';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
@@ -25,9 +23,7 @@ import {
 import { CheckDetail } from '@/components/check-detail';
 import { AlertChannelsLine } from '@/components/alert-channels-line';
 import { SiteOverviewContent } from '@/components/site-overview-content';
-import { MonitoringTime } from '@/components/monitoring';
-import { SiteTabs } from '@/components/site-tabs';
-import { checkState, stateCountOrder } from '@/lib/status';
+import { SiteSectionsLayout } from '@/layouts/site-sections-layout';
 import { useFormat } from '@/hooks/use-format';
 import { index as sitesIndex } from '@/routes/sites';
 import {
@@ -77,13 +73,12 @@ export default function SiteShow(page: SitePage) {
                   'client',
                   'maintenance',
                   'history',
-                  'events',
-                  'events_pagination',
                   'incidents',
                   'uptime_ranges',
-                  'record',
-                  'upcoming',
+                  'response_ms',
                   'lighthouse',
+                  'resume_at',
+                  'repositories',
               ],
         (signal) =>
             signal.ids.site === page.header.id ||
@@ -125,26 +120,9 @@ export default function SiteShow(page: SitePage) {
         if (ownRun) requestedRun.consume();
     }, [ownRun]);
     const { site, client, header } = page;
-    const enabledChecks = site.checks.filter((check) => check.enabled);
-    const tabChecks = site.checks.filter(
+    const listedChecks = site.checks.filter(
         (check) => check.enabled || (isCheck && check.id === page.check.id),
     );
-    const attentionSummary = stateCountOrder
-        .filter((state) => state !== 'ok')
-        .flatMap((state) => {
-            const count = enabledChecks.filter(
-                (check) => checkState(check) === state,
-            ).length;
-            return count ? [t(`site.checks.${state}`, { count })] : [];
-        })
-        .join(', ');
-    const incidentStartedAt = enabledChecks
-        .flatMap((check) =>
-            check.open_incident_started_at
-                ? [check.open_incident_started_at]
-                : [],
-        )
-        .sort()[0];
     const canManage = isCheck ? page.can_run : page.can_manage;
     const openUptime = isCheck
         ? undefined
@@ -186,8 +164,7 @@ export default function SiteShow(page: SitePage) {
         : undefined;
     const runAction = canShowRunAction ? (
         <Button
-            variant={page.check.enabled ? 'outline' : 'default'}
-            className="w-full md:w-auto"
+            variant="default"
             aria-describedby={
                 hasActionNote(runActionNote) ? runNoteId : undefined
             }
@@ -248,6 +225,56 @@ export default function SiteShow(page: SitePage) {
             )}
         </Button>
     ) : null;
+    // A run in flight and the history's pending changes sit below the check header.
+    const runStatus = isCheck ? (
+        <>
+            {page.check.enabled && activeRun && (
+                <CheckRunStatusRow
+                    run={activeRun}
+                    action={
+                        page.can_run && run?.can_cancel && !cancelPending ? (
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setCancelPending(true);
+                                    router.post(
+                                        cancelRun.url({
+                                            site: site.id,
+                                            check: page.check.id,
+                                        }),
+                                        {},
+                                        {
+                                            preserveScroll: true,
+                                            onFinish: () =>
+                                                setCancelPending(false),
+                                        },
+                                    );
+                                }}
+                            >
+                                {t('Cancel')}
+                            </Button>
+                        ) : undefined
+                    }
+                />
+            )}
+            {page.check.enabled && run?.phase === 'late' && run.due_at && (
+                <p className="text-xs text-status-warn">
+                    {t('Late by {{duration}}', {
+                        duration: format.duration(
+                            Math.max(
+                                0,
+                                (Date.now() - Date.parse(run.due_at)) / 1000,
+                            ),
+                        ),
+                    })}
+                </p>
+            )}
+            <PendingChanges
+                count={bufferedRuns.pendingCount}
+                apply={bufferedRuns.apply}
+            />
+        </>
+    ) : null;
     return (
         <>
             <Head title={header.name} />
@@ -268,100 +295,21 @@ export default function SiteShow(page: SitePage) {
                     onOpen={() => router.visit(incidentShow.url(openUptime.id))}
                 />
             )}
-            <PageContainer>
-                <SiteHeader
-                    showTrail
-                    metaDetails={
-                        <>
-                            <span>
-                                {attentionSummary ||
-                                    t(
-                                        enabledChecks.length
-                                            ? 'All checks OK'
-                                            : 'No checks enabled',
-                                    )}
-                            </span>
-                            {incidentStartedAt && (
-                                <span className="text-xs text-foreground-faint">
-                                    {t('Since')}{' '}
-                                    <MonitoringTime
-                                        value={incidentStartedAt}
-                                        mode="since"
-                                        className="font-mono text-xs"
-                                    />
-                                </span>
-                            )}
-                        </>
-                    }
-                    site={site}
-                    client={client}
-                    canManage={canManage}
-                    runAllChecks={page.run_all_checks}
-                    maintenance={page.maintenance}
-                />
-                <SiteTabs
-                    siteId={site.id}
-                    checks={tabChecks}
-                    value={isCheck ? String(page.check.id) : 'overview'}
-                    canManage={canManage || page.can_move}
-                />
-                {isCheck && page.check.enabled && activeRun && (
-                    <CheckRunStatusRow
-                        run={activeRun}
-                        action={
-                            page.can_run &&
-                            run?.can_cancel &&
-                            !cancelPending ? (
-                                <Button
-                                    variant="outline"
-                                    onClick={() => {
-                                        setCancelPending(true);
-                                        router.post(
-                                            cancelRun.url({
-                                                site: site.id,
-                                                check: page.check.id,
-                                            }),
-                                            {},
-                                            {
-                                                preserveScroll: true,
-                                                onFinish: () =>
-                                                    setCancelPending(false),
-                                            },
-                                        );
-                                    }}
-                                >
-                                    {t('Cancel')}
-                                </Button>
-                            ) : undefined
-                        }
-                    />
-                )}
-                {isCheck &&
-                    page.check.enabled &&
-                    run?.phase === 'late' &&
-                    run.due_at && (
-                        <p className="text-xs text-status-warn">
-                            {t('Late by {{duration}}', {
-                                duration: format.duration(
-                                    Math.max(
-                                        0,
-                                        (Date.now() - Date.parse(run.due_at)) /
-                                            1000,
-                                    ),
-                                ),
-                            })}
-                        </p>
-                    )}
+            <SiteSectionsLayout
+                site={site}
+                client={client}
+                checks={listedChecks}
+                value={isCheck ? String(page.check.id) : 'overview'}
+                canOpenSettings={canManage || page.can_move}
+                maintenance={page.maintenance}
+            >
                 {isCheck ? (
                     <>
-                        <PendingChanges
-                            count={bufferedRuns.pendingCount}
-                            apply={bufferedRuns.apply}
-                        />
                         <CheckDetail
                             requestedRun={requestedRun}
                             primaryAction={runAction}
                             actionNote={runActionNote}
+                            runStatus={runStatus}
                             page={{ ...page, runs: bufferedRuns.rows }}
                         />
                         {page.check.enabled && (
@@ -380,31 +328,21 @@ export default function SiteShow(page: SitePage) {
                     </>
                 ) : (
                     <>
+                        <SiteOverviewHeader
+                            site={site}
+                            canManage={canManage}
+                            runAllChecks={page.run_all_checks}
+                            resumeAt={page.resume_at}
+                            maintenance={page.maintenance}
+                        />
                         <SiteRunningStrip
                             site={site}
                             runAllResult={page.run_all_result}
                         />
-                        {site.checks.some(
-                            (check) =>
-                                check.not_fresh &&
-                                !check.freshness_suppressed_by,
-                        ) && (
-                            <Alert tone="warning">
-                                <AlertTitle>
-                                    {t('freshness.site', {
-                                        count: site.checks.filter(
-                                            (check) =>
-                                                check.not_fresh &&
-                                                !check.freshness_suppressed_by,
-                                        ).length,
-                                    })}
-                                </AlertTitle>
-                            </Alert>
-                        )}
                         <SiteOverviewContent page={page} />
                     </>
                 )}
-            </PageContainer>
+            </SiteSectionsLayout>
         </>
     );
 }

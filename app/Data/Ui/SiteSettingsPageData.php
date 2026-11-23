@@ -13,14 +13,12 @@ final class SiteSettingsPageData extends Data
 {
     /**
      * @param  list<ClientData>  $clients
-     * @param  list<RunAllCheckData>  $run_all_checks
      * @param  array{minutes_min: int, minutes_max: int, stored_minutes_min: int, stored_minutes_max: int, recovery_min: int, recovery_max: int}  $alert_sensitivity_bounds
      * @param  list<AlertSensitivityData>  $alert_sensitivity_presets
      */
     public function __construct(
         public readonly SiteRowData $site,
         public readonly ClientData $client,
-        public readonly ?string $resume_at,
         public readonly int $check_count,
         public readonly int $incident_count,
         public readonly AlertSensitivityData $alert_sensitivity,
@@ -28,7 +26,6 @@ final class SiteSettingsPageData extends Data
         public readonly array $alert_sensitivity_presets,
         public readonly array $alert_sensitivity_bounds,
         public readonly InertiaLazy|int $result_count,
-        public readonly array $run_all_checks = [],
         public readonly ?MaintenanceSiteHeaderData $maintenance = null,
         public readonly ?string $icon_fetched_at = null,
         public readonly ?IconRefreshResultData $icon_manual_result = null,

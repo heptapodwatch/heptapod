@@ -136,7 +136,7 @@ it('labels the live performance series in milliseconds and explains missing hist
     $page->assertSee($hasHistory ? 'p95 response time · ms' : 'History not available yet.')
         ->assertDontSee('sample_count ·')
         ->assertNoJavaScriptErrors();
-    $page->assertSee('What we check')->assertDontSee('Configuration');
+    $page->assertSee('Check settings')->assertDontSee('Configuration');
 })->with([false, true]);
 
 it('navigates from Today attention to the selected site and all sites', function (): void {
@@ -187,7 +187,8 @@ it('ages live check timestamps after navigation without reloading the document',
     $before = $page->script('document.querySelector("[data-check-detail] tbody time").textContent');
     $page->script('(() => { const now = Date.now(); Date.now = () => now + 300000; })()');
     $page->click('a[href="/sites/'.$check->site_id.'"]')->assertPathIs('/sites/'.$check->site_id)
-        ->click('a[role=tab][href="'.$path.'"]')->assertPathIs($path);
+        ->click('nav[aria-label="Site sections"] a[href="'.$path.'"]')->assertPathIs($path)
+        ->assertPresent('nav[aria-label="Site sections"] a[href="'.$path.'"][aria-current="page"]');
     expect($page->script('document.querySelector("[data-check-detail] tbody time").textContent'))->not->toBe($before);
     $page->assertNoJavaScriptErrors();
 });
@@ -518,10 +519,11 @@ it('shows only enabled check navigation and cards while retaining overview histo
     $enabledPath = '/sites/'.$site->id.'/checks/'.$enabled->id;
     $disabledPath = '/sites/'.$site->id.'/checks/'.$disabled->id;
 
-    $page = visit('/sites/'.$site->id)->assertPresent('a[role=tab][href="'.$enabledPath.'"]')
+    $page = visit('/sites/'.$site->id)->assertPresent('nav[aria-label="Site sections"] a[href="'.$enabledPath.'"]')
         ->assertCount('main a[href="'.$disabledPath.'"]', 0)->assertSee('90-day history')->assertDontSee('Response time')
-        ->assertSee('Recent events')->assertNoJavaScriptErrors();
-    $page = visit($disabledPath)->assertMissing('a[role=tab][href="'.$disabledPath.'"]')->assertSee('History');
+        ->assertNoJavaScriptErrors();
+    // The viewed turned-off check stays in the rail, muted with Off; other turned-off checks are not listed.
+    $page = visit($disabledPath)->assertPresent('nav[aria-label="Site sections"] a[href="'.$disabledPath.'"][aria-current="page"]')->assertSee('History');
     if ($role === 'Owner') {
         $page->click('button:text-is("Edit")')->assertSee('Check settings');
     } else {
@@ -580,7 +582,10 @@ it('omits uptime history and response charts from a cron-only overview', functio
     $site = Site::query()->where('friendly_name', 'Review recovered-tasks')->sole();
     $page = visit('/sites/'.$site->id);
     expect($page->script('document.querySelector("main").textContent'))->not->toContain('90-day history', '24-hour uptime', 'Response time');
-    $page->assertSee('Scheduled tasks')->assertSee('Recent events')->assertSee('2 tasks · all on time')->assertSee('Next run in')->assertNoJavaScriptErrors();
+    $page->assertSeeIn('nav[aria-label="Site sections"]', 'Scheduled tasks')->assertNoJavaScriptErrors();
+    // The task summary and the next due times live on the Scheduled tasks page.
+    $page->click('nav[aria-label="Site sections"] a:has-text("Scheduled tasks")')
+        ->assertSee('2 tasks · all on time')->assertSee('Next due')->assertNoJavaScriptErrors();
 });
 
 it('switches site uptime history between 7, 30, and 90 days without crashing', function (): void {
@@ -629,7 +634,7 @@ it('confirms fast-only site runs and shows individual queued and skipped results
         ->assertSee('Skipped: fast checks only')->assertNoJavaScriptErrors();
 });
 
-it('shares pause and run-all controls across site overview, check and settings', function (): void {
+it('keeps pause and run-all controls on the site overview only', function (): void {
     Vite::useHotFile(storage_path('framework/testing.hot'));
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
@@ -641,10 +646,11 @@ it('shares pause and run-all controls across site overview, check and settings',
     $page->click('button[aria-label="More actions"]')->click('[role="menuitem"]:has-text("Pause site")')
         ->assertSee('Pause Header preview?');
     $page->click('button:has-text("Cancel")');
-    $page->click('[role="tab"][href="/sites/'.$site->id.'/checks/'.$check->id.'"]')
-        ->assertPathIs('/sites/'.$site->id.'/checks/'.$check->id)->assertSee('Run all checks…');
-    $page->click('a[href="/sites/'.$site->id.'/settings"]')
-        ->assertPathIs('/sites/'.$site->id.'/settings')->assertSee('Run all checks…');
+    $page->click('nav[aria-label="Site sections"] a[href="/sites/'.$site->id.'/checks/'.$check->id.'"]')
+        ->assertPathIs('/sites/'.$site->id.'/checks/'.$check->id)->assertDontSee('Run all checks…');
+    $page->click('nav[aria-label="Site sections"] a[href="/sites/'.$site->id.'/settings"]')
+        ->assertPathIs('/sites/'.$site->id.'/settings')->assertDontSee('Run all checks…');
+    $page->click('nav[aria-label="Site sections"] a[href="/sites/'.$site->id.'"]')->assertPathIs('/sites/'.$site->id);
     $page->click('button[aria-label="More actions"]')->click('[role="menuitem"]:has-text("Pause site")')
         ->assertSee('Pause Header preview?')->click('input[value="hour"]');
     $page->click('[role="dialog"] button:has-text("Pause site")')->assertSee('Resume site')->assertNoJavaScriptErrors();

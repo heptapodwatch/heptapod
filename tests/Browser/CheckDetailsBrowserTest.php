@@ -34,9 +34,11 @@ it('shows a registered addon summary and real run history without addon-specific
     $this->actingAs($user);
 
     $page = visit('/sites/'.$check->site_id.'/checks/'.$check->id);
-    $page->assertSee('Sitemap')->assertSee('What we check')->assertSee('Last result')->assertSee('History')
+    $page->click('button:has-text("All settings")');
+    $page->assertSee('Sitemap')->assertSee('Check settings')->assertSee('Last result')->assertSee('History')
         ->assertSee('Scheduled')->assertSee('Sitemap path')->assertDontSee('Using defaults')
-        ->assertSee('Maintenance')->assertSee('Run check')->assertNoJavaScriptErrors();
+        // Site-wide actions live on the Overview only (the app sidebar still lists Maintenance).
+        ->assertDontSeeIn('[data-page-header]', 'Maintenance')->assertSee('Run check')->assertNoJavaScriptErrors();
     expect($page->script('document.querySelectorAll("[data-check-detail=sitemap] tbody tr").length'))->toBe(1);
 });
 
@@ -108,7 +110,7 @@ it('shows editable performance settings only once', function (): void {
     $this->actingAs($user);
 
     visit('/sites/'.$check->site_id.'/checks/'.$check->id)
-        ->assertSee('What we check')->assertDontSee('Configuration')->assertNoJavaScriptErrors();
+        ->assertSee('Check settings')->assertDontSee('Configuration')->assertNoJavaScriptErrors();
 });
 
 it('keeps the last successful Lighthouse scores after a failed attempt', function (): void {
@@ -131,7 +133,7 @@ it('keeps the last successful Lighthouse scores after a failed attempt', functio
 
     visit('/sites/'.$check->site_id.'/checks/'.$check->id)
         ->assertSee('Scores from last successful run')->assertSee('92')->assertSee('98')->assertSee('Mobile')
-        ->assertSee('Performance, 90 days')->assertSee('What we check')->click('button:has-text("Edit")')
+        ->assertSee('Performance, 90 days')->assertSee('Check settings')->click('button:has-text("Edit")')
         ->fill('input[name="notification_settings.performance"]', '70')
         ->click('button[type="submit"]')->assertNoJavaScriptErrors();
     expect($check->refresh()->executionConfig()['notification_settings']['performance'])->toBe(70);
@@ -248,7 +250,8 @@ it('keeps unsaved health settings gated after a failed probe', function (): void
 
     $page = visit('/sites/'.$check->site_id.'/checks/'.$check->id)->resize(390, 844);
     $page->script('window.dispatchEvent(new Event("resize"))');
-    expect($page->script('(() => { const tab = document.querySelector("[role=tab][data-state=active]"); const rect = tab.getBoundingClientRect(); return rect.left >= 0 && rect.right <= innerWidth; })()'))->toBeTrue();
+    // Below lg the site sections open from one switcher; it stays inside the viewport.
+    expect($page->script('(() => { const button = [...document.querySelectorAll("button")].find((item) => item.textContent.startsWith("Switch site section")); const rect = button.getBoundingClientRect(); return rect.width > 0 && rect.left >= 0 && rect.right <= innerWidth; })()'))->toBeTrue();
     $page->click('[data-check-detail=application_health] button:has-text("Edit")')
         ->fill('input[name="result_url"]', 'http://127.0.0.1/new-health')
         ->assertSee('Edit health check')->assertCount('[data-slot=sheet-content] [role=tablist]', 0)
@@ -336,7 +339,7 @@ it('edits check settings through the authorized product sheet', function (): voi
         ->assertSee('GET')
         ->fill('input[name="timeout"]', '12')
         ->click('button[type="submit"]')
-        ->assertSee('What we check')
+        ->assertSee('Check settings')
         ->assertNoJavaScriptErrors();
     expect($check->refresh()->executionConfig()['timeout'])->toBe(12);
 });

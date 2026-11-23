@@ -18,7 +18,7 @@ Owners and Admins schedule windows.
 5. Set **Mute alerts during the window** and **Alert if still failing at the end**. Both are on by default.
 6. Select **Schedule maintenance**.
 
-The list shows 50 windows per page, each **Planned**, **Active** or **Done**. Filter it by **Window state** and client. The site header links to that site's windows; a shared window the site left early shows as **Done** with its departure time.
+The list shows 50 windows per page, each **Planned**, **Active** or **Done**. Filter it by **Window state** and client. A site's **Overview** links to that site's windows; a shared window the site left early shows as **Done** with its departure time.
 
 ## What happens during a window
 
@@ -27,7 +27,7 @@ The list shows 50 windows per page, each **Planned**, **Active** or **Done**. Fi
 - A muted window sends no opening or recovery alerts. It also stops all reminders for its sites, including reminders for incidents that opened before the window.
 - An unmuted window changes no notifications.
 - Client and tag windows include the sites that belong to the client or tag at check time. Sites added later join automatically.
-- The site header shows the active or next window, muted or not.
+- A site's **Overview** shows the active or next window, muted or not, on its **Maintenance** action. The site's section list marks an active window with **Maintenance**.
 
 ## Catch-up alerts
 
@@ -68,7 +68,7 @@ Every change is audited.
 - Owners and Admins see and change every window.
 - Members see every window without write controls.
 - Members limited to assigned clients see only the site and client windows of those clients. They never see tag windows, because sites outside their clients may join the tag later.
-- For a site in an active tag window, such a Member's site header shows only that maintenance is active and whether alerts are muted.
+- For a site in an active tag window, such a Member's site **Overview** shows only that maintenance is active and whether alerts are muted.
 
 ## Recurring windows
 
@@ -80,7 +80,7 @@ Every change is audited.
 
 ## Live updates
 
-The list and site headers update when a window starts or ends. They are sent every minute, best-effort; a page reload always shows the current state. Changes from window boundaries or another tab wait behind **N new changes**. Your own edits appear at once. See [interface behavior](./ui.md) for buffering limits.
+The list and the site pages update when a window starts or ends. They are sent every minute, best-effort; a page reload always shows the current state. On the list, changes from window boundaries or another tab wait behind **N new changes**; a site's **Overview** shows them in place. Your own edits appear at once. See [interface behavior](./ui.md) for buffering limits.
 
 ## API
 

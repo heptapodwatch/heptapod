@@ -26,28 +26,6 @@ beforeEach(function (): void {
     $this->withoutVite();
 });
 
-it('pages a site overview\'s events newest first and remembers the size', function (): void {
-    $owner = User::factory()->owner()->create();
-    $check = Check::factory()->for(Site::factory()->for(Client::factory()))->create();
-    $events = collect(range(1, 12))->map(fn (int $minute): Event => Event::factory()->for($check)->create([
-        'occurred_at' => now()->subMinutes($minute), 'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Succeeded,
-        'type' => 'site.paused']));
-    $path = '/sites/'.$check->site_id;
-
-    $this->actingAs($owner)->get($path)->assertInertia(fn (Assert $page): Assert => $page
-        ->has('events', 12)->where('events_pagination.total', 12)->where('events_pagination.page_name', 'site_events_page'));
-    $this->get($path.'?site_events_per_page=10')->assertCookie(ListPageSize::Cookie, json_encode(['site_events' => 10]), false)
-        ->assertInertia(fn (Assert $page): Assert => $page->has('events', 10)->where('events.0.id', $events[0]->id)->where('events_pagination.last_page', 2));
-
-    $this->withUnencryptedCookie(ListPageSize::Cookie, json_encode(['site_events' => 10]));
-    $this->get($path.'?site_events_page=2')->assertInertia(fn (Assert $page): Assert => $page
-        ->has('events', 2)->where('events.0.id', $events[10]->id)->where('events.1.id', $events[11]->id));
-    $this->get($path.'?site_events_per_page=7')->assertSessionHasErrors('site_events_per_page');
-
-    // Paging never widens access: another client's member still cannot open the site.
-    $this->actingAs(User::factory()->create())->get($path.'?site_events_page=2')->assertForbidden();
-});
-
 it('pages one Activity group\'s own events', function (): void {
     $owner = User::factory()->owner()->create();
     $check = Check::factory()->for(Site::factory()->for(Client::factory()))->create();

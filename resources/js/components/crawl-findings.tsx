@@ -410,6 +410,7 @@ export function CrawlFindings({
     action,
     origin,
     exportContext,
+    headerTime,
 }: {
     history: Findings;
     latest: Heptapod.Addons.Crawl.CrawlSnapshot | null;
@@ -418,6 +419,8 @@ export function CrawlFindings({
     /** The site origin; same-origin URLs show as path. */
     origin?: string;
     exportContext?: FindingsExportContext;
+    /** The time the page header already shows (the check page's Last checked); an equal time is not repeated here. */
+    headerTime?: string | null;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -450,6 +453,15 @@ export function CrawlFindings({
                   : []),
           ].filter(Boolean)
         : [];
+
+    // Snapshot times carry whole seconds, the header's run end microseconds: the same instant compares by the second.
+    const shownInHeader = (value: string | null | undefined) =>
+        Boolean(
+            value &&
+            headerTime &&
+            Math.floor(Date.parse(value) / 1000) ===
+                Math.floor(Date.parse(headerTime) / 1000),
+        );
 
     return (
         <Card className="overflow-hidden">
@@ -501,21 +513,31 @@ export function CrawlFindings({
                     <Alert tone="info">
                         <AlertTitle>
                             {t('Latest run incomplete')} (
-                            {incomplete.join(' · ')}) ·{' '}
-                            <MonitoringTime value={latest.run_ended_at} />
+                            {incomplete.join(' · ')})
+                            {!shownInHeader(latest.run_ended_at) && (
+                                <>
+                                    {' '}
+                                    ·{' '}
+                                    <MonitoringTime
+                                        value={latest.run_ended_at}
+                                    />
+                                </>
+                            )}
                         </AlertTitle>
                     </Alert>
                 )}
-                <p className="text-muted-foreground">
-                    {history.observed_at ? (
-                        <>
-                            {t('Findings from')}{' '}
-                            <MonitoringTime value={history.observed_at} />
-                        </>
-                    ) : (
-                        t('Awaiting first accepted crawl')
-                    )}
-                </p>
+                {!shownInHeader(history.observed_at) && (
+                    <p className="text-muted-foreground">
+                        {history.observed_at ? (
+                            <>
+                                {t('Findings from')}{' '}
+                                <MonitoringTime value={history.observed_at} />
+                            </>
+                        ) : (
+                            t('Awaiting first accepted crawl')
+                        )}
+                    </p>
+                )}
                 {(history.page_cap_reached ||
                     history.time_limit_reached ||
                     history.resource_cap_reached) && (

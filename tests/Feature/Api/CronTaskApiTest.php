@@ -165,9 +165,9 @@ it('resolves a failed parent through the engine after empty sync even during an 
     app(CheckExecutor::class)->execute($check->id, $claim, 30);
     expect($check->refresh()->summary)->toBe('cron.no_tasks')->and($check->latest_run_result)->toBe(CheckResult::Succeeded);
     expect($incident->refresh()->resolved_at)->not->toBeNull();
-    $this->actingAs($this->owner)->get('/sites/'.$this->site->id)->assertOk()->assertInertia(fn (Assert $page): Assert => $page
-        ->where('events', fn (Collection $events): bool => $events->contains(fn (array $event): bool => $event['type'] === 'incident.resolved'
-            && $event['message'] === $message && $event['duration_seconds'] === null)));
+    $this->actingAs($this->owner)->get('/activity?period=all')->assertOk()->assertInertia(fn (Assert $page): Assert => $page
+        ->where('events.data', fn (Collection $groups): bool => $groups->contains(fn (array $group): bool => $group['latest']['type'] === 'incident.resolved'
+            && $group['latest']['message'] === $message && $group['latest']['duration_seconds'] === null)));
 })->with([
     ['en', 'Resolved — no scheduled tasks'],
     ['de', 'Behoben — keine geplanten Aufgaben'],
