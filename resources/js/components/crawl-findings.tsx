@@ -454,9 +454,13 @@ export function CrawlFindings({
           ].filter(Boolean)
         : [];
 
+    // Snapshot times carry whole seconds, the header's run end microseconds: the same instant compares by the second.
     const shownInHeader = (value: string | null | undefined) =>
         Boolean(
-            value && headerTime && Date.parse(value) === Date.parse(headerTime),
+            value &&
+            headerTime &&
+            Math.floor(Date.parse(value) / 1000) ===
+                Math.floor(Date.parse(headerTime) / 1000),
         );
 
     return (
