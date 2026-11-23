@@ -80,7 +80,7 @@ Every change is audited.
 
 ## Live updates
 
-The list and the site pages update when a window starts or ends. They are sent every minute, best-effort; a page reload always shows the current state. Changes from window boundaries or another tab wait behind **N new changes**. Your own edits appear at once. See [interface behavior](./ui.md) for buffering limits.
+The list and the site pages update when a window starts or ends. They are sent every minute, best-effort; a page reload always shows the current state. On the list, changes from window boundaries or another tab wait behind **N new changes**; a site's **Overview** shows them in place. Your own edits appear at once. See [interface behavior](./ui.md) for buffering limits.
 
 ## API
 
