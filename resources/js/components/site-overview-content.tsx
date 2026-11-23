@@ -4,6 +4,7 @@ import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertChannelsLine } from '@/components/alert-channels-line';
 import { LighthouseScoreGrid } from '@/components/check-evidence';
+import { EvidenceFacts } from '@/components/evidence-facts';
 import {
     MonitoringTime,
     responseLineColor,
@@ -12,6 +13,7 @@ import {
 } from '@/components/monitoring';
 import { Sparkline } from '@/components/sparkline';
 import { StatTile } from '@/components/stat-tile';
+import { TextLink } from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -29,8 +31,8 @@ type Page = Heptapod.Data.Ui.SiteOverviewPageData;
 type Check = Heptapod.Data.Ui.CheckStripData;
 
 /**
- * "Is this site OK?" below the Overview header: the uptime, response time and Lighthouse cards and the alert line. The rail
- * beside it lists every check with its state, so nothing here repeats it.
+ * "Is this site OK?" below the Overview header: the uptime, response time and Lighthouse cards, the alert line and the
+ * site's repository links. The rail beside it lists every check with its state, so nothing here repeats it.
  */
 export function SiteOverviewContent({ page }: { page: Page }) {
     const uptime = page.site.checks.find((check) => check.key === 'uptime');
@@ -46,7 +48,50 @@ export function SiteOverviewContent({ page }: { page: Page }) {
                     canOpenSettings={page.can_move}
                 />
             )}
+            <SiteRepositories repositories={page.repositories} />
         </>
+    );
+}
+
+/** The site's repository links, read-only for everyone who sees the site (edited in Site settings); none without links. */
+function SiteRepositories({
+    repositories,
+}: {
+    repositories: Heptapod.Data.Ui.SiteRepositoryData[];
+}) {
+    const { t } = useTranslation();
+    if (repositories.length === 0) return null;
+    return (
+        <EvidenceFacts
+            rows={[
+                {
+                    label: t('repositories.title'),
+                    value: (
+                        <ul className="flex flex-wrap gap-x-4 gap-y-1">
+                            {repositories.map((repository) => (
+                                <li key={repository.url} className="min-w-0">
+                                    {repository.label && (
+                                        <span className="mr-1.5 text-muted-foreground">
+                                            {repository.label}
+                                        </span>
+                                    )}
+                                    <TextLink
+                                        external
+                                        url
+                                        href={repository.url}
+                                    >
+                                        {repository.url.replace(
+                                            /^https:\/\//,
+                                            '',
+                                        )}
+                                    </TextLink>
+                                </li>
+                            ))}
+                        </ul>
+                    ),
+                },
+            ]}
+        />
     );
 }
 

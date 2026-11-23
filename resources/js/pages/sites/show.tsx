@@ -78,6 +78,7 @@ export default function SiteShow(page: SitePage) {
                   'response_ms',
                   'lighthouse',
                   'resume_at',
+                  'repositories',
               ],
         (signal) =>
             signal.ids.site === page.header.id ||

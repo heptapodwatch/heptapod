@@ -232,6 +232,7 @@ final readonly class SiteDetailReader
                 ? $this->checkHistory($user, Check::query()->with('site')->findOrFail($lighthouse->id)) : null, 'overview'),
             can_move: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
             resume_at: Lazy::closure(static fn (): ?string => $storedSite->resume_at?->toIso8601String()),
+            repositories: Lazy::closure(static fn (): array => SiteRepositoryData::forSite($siteId)),
         );
     }
 

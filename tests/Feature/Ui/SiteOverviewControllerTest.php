@@ -89,7 +89,7 @@ it('serves scoped overview history and incident links without secrets', function
         // 388acc030 removes check-only charts from the site overview.
         ->where('incidents.0.cause', 'errored')->missing('response_times')->missing('phase_series')
         // The rail lists the checks; events live in Activity, what is coming in Upcoming.
-        ->missing('events')->missing('upcoming')->missing('repositories'));
+        ->missing('events')->missing('upcoming'));
     expect(json_encode($response->inertiaProps(), JSON_THROW_ON_ERROR))->not->toContain($secret);
     $this->get('/sites/'.$hidden->id)->assertNotFound();
 });
@@ -223,7 +223,7 @@ it('holds site, check, and incident detail query budgets as related history grow
     // Upper budgets: page shell (auth, shell health, sidebar), the site/check/incident record and its bounded
     // history, presentation and freshness reads. e04c03b5d presentations, f80f6d32a freshness, 78bd4a4b episode
     // pages, 36aca5a1a avatars and 25458fc44/0a385128 shell health are batched reads, not per-history-row queries.
-    // Feed-visible events add their batched site, client, check and incident loads (incident page).
+    // Feed-visible events add their batched site, client, check and incident loads (incident page). The overview reads the site's repository links once.
     // The sidebar's late runs count is read inline, not in a second deferred request (two reads), and so is Running now (visible sites, check runs, imports, backup). Paged sub-lists count their rows once (uptime failures + open incident window, incident notifications).
     [$path, $budget, $rendered] = match ($page) {
         'site' => ['/sites/'.$site->id, 63, static fn (array $props): int => count($props['incidents'])],

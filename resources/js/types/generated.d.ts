@@ -1964,6 +1964,7 @@ readonly alert_channels?: number | null,
 readonly lighthouse?: Heptapod.Contracts.CheckHistoryData | null,
 readonly can_move: boolean,
 readonly resume_at: string | null,
+readonly repositories: Heptapod.Data.Ui.SiteRepositoryData[],
 };
 export type SiteProbeData = {
 readonly final_url: string | null,
