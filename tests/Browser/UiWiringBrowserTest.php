@@ -187,7 +187,8 @@ it('ages live check timestamps after navigation without reloading the document',
     $before = $page->script('document.querySelector("[data-check-detail] tbody time").textContent');
     $page->script('(() => { const now = Date.now(); Date.now = () => now + 300000; })()');
     $page->click('a[href="/sites/'.$check->site_id.'"]')->assertPathIs('/sites/'.$check->site_id)
-        ->click('a[role=tab][href="'.$path.'"]')->assertPathIs($path);
+        ->click('nav[aria-label="Site sections"] a[href="'.$path.'"]')->assertPathIs($path)
+        ->assertPresent('nav[aria-label="Site sections"] a[href="'.$path.'"][aria-current="page"]');
     expect($page->script('document.querySelector("[data-check-detail] tbody time").textContent'))->not->toBe($before);
     $page->assertNoJavaScriptErrors();
 });

@@ -250,7 +250,8 @@ it('keeps unsaved health settings gated after a failed probe', function (): void
 
     $page = visit('/sites/'.$check->site_id.'/checks/'.$check->id)->resize(390, 844);
     $page->script('window.dispatchEvent(new Event("resize"))');
-    expect($page->script('(() => { const tab = document.querySelector("[role=tab][data-state=active]"); const rect = tab.getBoundingClientRect(); return rect.left >= 0 && rect.right <= innerWidth; })()'))->toBeTrue();
+    // Below lg the site sections open from one switcher; it stays inside the viewport.
+    expect($page->script('(() => { const button = [...document.querySelectorAll("button")].find((item) => item.textContent.startsWith("Switch site section")); const rect = button.getBoundingClientRect(); return rect.width > 0 && rect.left >= 0 && rect.right <= innerWidth; })()'))->toBeTrue();
     $page->click('[data-check-detail=application_health] button:has-text("Edit")')
         ->fill('input[name="result_url"]', 'http://127.0.0.1/new-health')
         ->assertSee('Edit health check')->assertCount('[data-slot=sheet-content] [role=tablist]', 0)
