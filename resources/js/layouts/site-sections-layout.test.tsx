@@ -1,4 +1,5 @@
 import {
+    act,
     cleanup,
     fireEvent,
     render,
@@ -14,12 +15,18 @@ import { clients, sites } from '@/fixtures/design';
 import i18n from '@/lib/i18n';
 import { SiteSectionsLayout } from './site-sections-layout';
 
+const finishListeners: ((event: unknown) => void)[] = [];
 vi.mock('@inertiajs/react', () => ({
     Link: ({
         prefetch: _prefetch,
         ...props
     }: ComponentProps<'a'> & { prefetch?: boolean }) => <a {...props} />,
-    router: { post: vi.fn(), delete: vi.fn() },
+    router: {
+        on: (event: string, listener: (event: unknown) => void) => {
+            if (event === 'finish') finishListeners.push(listener);
+            return () => {};
+        },
+    },
     usePage: () => ({ props: { timezone: 'UTC' } }),
 }));
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }));
@@ -36,7 +43,7 @@ function Wrapper({ children }: { children: ReactNode }) {
 
 afterEach(cleanup);
 
-it('groups checks by attention with short states, keeps their places on live updates and opens the drawer below lg', async () => {
+it("groups checks by attention with short states, keeps their places on live updates until the user's own write and opens the drawer below lg", async () => {
     await i18n.changeLanguage('en');
     const site = sites[0]!;
     const base = site.checks[0]!;
@@ -160,6 +167,28 @@ it('groups checks by attention with short states, keeps their places on live upd
         'Broken linksOK',
         'CertificateExpires in 9 days',
         'UptimeUp',
+        'Settings',
+    ]);
+
+    // The user's own write shows its result at once: Broken links moves to Other checks.
+    act(() =>
+        finishListeners.forEach((listener) =>
+            listener({
+                detail: {
+                    visit: {
+                        method: 'post',
+                        completed: true,
+                        cancelled: false,
+                    },
+                },
+            }),
+        ),
+    );
+    expect(railLinks()).toEqual([
+        'Overview',
+        'CertificateExpires in 9 days',
+        'UptimeUp',
+        'Broken linksOK',
         'Settings',
     ]);
 

@@ -1,11 +1,11 @@
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import {
     ChevronsUpDown,
     ExternalLink,
     LayoutGrid,
     Settings,
 } from 'lucide-react';
-import { useState, type PropsWithChildren } from 'react';
+import { useEffect, useState, type PropsWithChildren } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StatusBadge, StatusDot } from '@/components/monitoring';
 import { PageContainer } from '@/components/page-container';
@@ -173,7 +173,7 @@ function SiteIdentity({
 /**
  * The frame of every site page (Overview, each check, Settings): site identity and the vertical section rail on the
  * left (a drawer below lg), the section on the right. The rail never re-sorts under the user: groups and order are taken
- * when the page opens; live updates only change marks and short states.
+ * when the page opens and after the user's own write (Turn off, Run check); live updates only change marks and short states.
  */
 export function SiteSectionsLayout({
     site,
@@ -196,8 +196,28 @@ export function SiteSectionsLayout({
     const { t } = useTranslation();
     const format = useFormat();
     const [drawerOpen, setDrawerOpen] = useState(false);
-    // Inertia remounts the page on navigation, so this is taken once per visit.
-    const [placement] = useState(() => placeChecks(checks));
+    // Inertia remounts the page on navigation; within a visit only the user's own writes count, never live reloads.
+    const [writes, setWrites] = useState(0);
+    useEffect(
+        () =>
+            router.on('finish', (event) => {
+                const visit = event.detail.visit;
+                if (
+                    !['get', 'query'].includes(visit.method) &&
+                    visit.completed &&
+                    !visit.cancelled
+                )
+                    setWrites((count) => count + 1);
+            }),
+        [],
+    );
+    const [placement, setPlacement] = useState(() => ({
+        writes,
+        ...placeChecks(checks),
+    }));
+    if (placement.writes !== writes) {
+        setPlacement({ writes, ...placeChecks(checks) });
+    }
     const now = Date.now();
 
     const byId = new Map(checks.map((check) => [check.id, check]));
