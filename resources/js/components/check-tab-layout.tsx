@@ -21,12 +21,14 @@ export function CheckTabLayout({
     headline,
     primaryAction,
     actionNote,
+    runStatus,
     evidence,
 }: {
     page: Heptapod.Data.Ui.CheckTabPageData;
     headline: string;
     primaryAction?: ReactNode;
     actionNote?: ActionNoteDescriptor;
+    runStatus?: ReactNode;
     evidence: ReactNode;
 }) {
     const { t } = useTranslation();
@@ -202,6 +204,7 @@ export function CheckTabLayout({
                     )
                 }
             />
+            {runStatus}
             <div className="min-w-0 space-y-4">
                 {page.check.enabled ? (
                     evidence

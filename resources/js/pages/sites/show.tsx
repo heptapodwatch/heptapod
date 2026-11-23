@@ -224,6 +224,56 @@ export default function SiteShow(page: SitePage) {
             )}
         </Button>
     ) : null;
+    // A run in flight and the history's pending changes sit below the check header.
+    const runStatus = isCheck ? (
+        <>
+            {page.check.enabled && activeRun && (
+                <CheckRunStatusRow
+                    run={activeRun}
+                    action={
+                        page.can_run && run?.can_cancel && !cancelPending ? (
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setCancelPending(true);
+                                    router.post(
+                                        cancelRun.url({
+                                            site: site.id,
+                                            check: page.check.id,
+                                        }),
+                                        {},
+                                        {
+                                            preserveScroll: true,
+                                            onFinish: () =>
+                                                setCancelPending(false),
+                                        },
+                                    );
+                                }}
+                            >
+                                {t('Cancel')}
+                            </Button>
+                        ) : undefined
+                    }
+                />
+            )}
+            {page.check.enabled && run?.phase === 'late' && run.due_at && (
+                <p className="text-xs text-status-warn">
+                    {t('Late by {{duration}}', {
+                        duration: format.duration(
+                            Math.max(
+                                0,
+                                (Date.now() - Date.parse(run.due_at)) / 1000,
+                            ),
+                        ),
+                    })}
+                </p>
+            )}
+            <PendingChanges
+                count={bufferedRuns.pendingCount}
+                apply={bufferedRuns.apply}
+            />
+        </>
+    ) : null;
     return (
         <>
             <Head title={header.name} />
@@ -252,63 +302,13 @@ export default function SiteShow(page: SitePage) {
                 canOpenSettings={canManage || page.can_move}
                 maintenance={page.maintenance}
             >
-                {isCheck && page.check.enabled && activeRun && (
-                    <CheckRunStatusRow
-                        run={activeRun}
-                        action={
-                            page.can_run &&
-                            run?.can_cancel &&
-                            !cancelPending ? (
-                                <Button
-                                    variant="outline"
-                                    onClick={() => {
-                                        setCancelPending(true);
-                                        router.post(
-                                            cancelRun.url({
-                                                site: site.id,
-                                                check: page.check.id,
-                                            }),
-                                            {},
-                                            {
-                                                preserveScroll: true,
-                                                onFinish: () =>
-                                                    setCancelPending(false),
-                                            },
-                                        );
-                                    }}
-                                >
-                                    {t('Cancel')}
-                                </Button>
-                            ) : undefined
-                        }
-                    />
-                )}
-                {isCheck &&
-                    page.check.enabled &&
-                    run?.phase === 'late' &&
-                    run.due_at && (
-                        <p className="text-xs text-status-warn">
-                            {t('Late by {{duration}}', {
-                                duration: format.duration(
-                                    Math.max(
-                                        0,
-                                        (Date.now() - Date.parse(run.due_at)) /
-                                            1000,
-                                    ),
-                                ),
-                            })}
-                        </p>
-                    )}
                 {isCheck ? (
                     <>
-                        <PendingChanges
-                            count={bufferedRuns.pendingCount}
-                            apply={bufferedRuns.apply}
-                        />
                         <CheckDetail
                             requestedRun={requestedRun}
                             primaryAction={runAction}
                             actionNote={runActionNote}
+                            runStatus={runStatus}
                             page={{ ...page, runs: bufferedRuns.rows }}
                         />
                         {page.check.enabled && (
