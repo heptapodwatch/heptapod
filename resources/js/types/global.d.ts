@@ -27,6 +27,8 @@ declare module '@inertiajs/core' {
             overallHealth: Heptapod.Data.Ui.ShellHealthData | null;
             /** The installed version; null for guests. */
             heptapodVersion: string | null;
+            /** Throwaway: a forced "Not installed yet" framing on local stacks (`?track=`). */
+            trackPreview: 'a' | 'b' | 'c' | null;
             /** Owners and Admins only; `latest` is set only while an update is available. */
             appUpdate: {
                 status: string;

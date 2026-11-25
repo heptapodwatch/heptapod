@@ -78,7 +78,6 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
         setRefreshFailed(false);
     }, [updatesPage]);
     const updates = page.updates;
-    const missingHeadingId = useId();
     const available =
         updates.update_status === 'available' &&
         updates.latest_version !== null;
@@ -337,70 +336,12 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                     </p>
                 )}
                 {available && updates.releases !== null && (
-                    <section
-                        aria-labelledby={missingHeadingId}
-                        className="space-y-3"
-                    >
-                        <div className="space-y-1">
-                            <SectionHeading level={3} id={missingHeadingId}>
-                                {t('Not installed yet')}
-                            </SectionHeading>
-                            <p className="text-xs text-muted-foreground">
-                                {t(
-                                    updates.releases_truncated
-                                        ? 'updates.missing_at_least'
-                                        : 'updates.missing',
-                                    {
-                                        count: updates.releases.length,
-                                        formattedCount: number(
-                                            updates.releases.length,
-                                        ),
-                                        version: updates.installed_version,
-                                    },
-                                )}
-                            </p>
-                        </div>
-                        {/* A quiet version track: dashed rail and hollow markers for releases not here yet, ending on the installed one. */}
-                        <div>
-                            {updates.releases.map((release, index) => (
-                                <div
-                                    key={release.tag}
-                                    className={trackRowClass}
-                                >
-                                    <span
-                                        aria-hidden="true"
-                                        className="relative flex justify-center"
-                                    >
-                                        <span
-                                            className={cn(
-                                                'absolute bottom-0 border-l border-dashed border-border-strong',
-                                                index === 0
-                                                    ? 'top-[30px]'
-                                                    : 'top-0',
-                                            )}
-                                        />
-                                        <span className="relative mt-[25px] size-2.5 rounded-full border-2 border-muted-foreground bg-background" />
-                                    </span>
-                                    <SkippedRelease release={release} />
-                                </div>
-                            ))}
-                            <div className={trackRowClass}>
-                                <span
-                                    aria-hidden="true"
-                                    className="relative flex justify-center"
-                                >
-                                    <span className="absolute top-0 h-6 border-l border-border-strong" />
-                                    <span className="relative mt-[19px] size-2.5 rounded-full bg-foreground" />
-                                </span>
-                                <p className="py-4 text-xs text-muted-foreground">
-                                    <span className="font-mono">
-                                        {updates.installed_version}
-                                    </span>{' '}
-                                    {t('Installed')}
-                                </p>
-                            </div>
-                        </div>
-                    </section>
+                    <MissingReleases
+                        releases={updates.releases}
+                        truncated={updates.releases_truncated}
+                        security={updates.security}
+                        installed={updates.installed_version}
+                    />
                 )}
                 {available && (
                     <div className="space-y-2">
@@ -866,6 +807,144 @@ const releaseNotesClass = cn(
 /** One row of the version track: a narrow rail column beside the text. */
 const trackRowClass = 'grid grid-cols-[0.625rem_minmax(0,1fr)] gap-x-4';
 
+type Release = NonNullable<Page['updates']['releases']>[number];
+
+/**
+ * Releases this instance does not have yet, newest first, ending on the installed one. Three framings for Jonas to
+ * pick (throwaway, `?track=a|b|c` on a local stack): a words only, b a neutral version track, c a region in the tone
+ * of the lit stem on the mark.
+ */
+function MissingReleases({
+    releases,
+    truncated,
+    security,
+    installed,
+}: {
+    releases: Release[];
+    truncated: boolean;
+    security: boolean;
+    installed: string;
+}) {
+    const { t } = useTranslation();
+    const { number } = useFormat();
+    const headingId = useId();
+    const track = usePage().props.trackPreview ?? 'b';
+    const rail = track !== 'a';
+    // Dashed segments and hollow rings for releases not here yet; c draws them in the tone of the lit stem.
+    const missing =
+        track === 'c'
+            ? cn(
+                  'border-l-[1.5px] border-dashed',
+                  security ? 'border-status-down' : 'border-status-warn',
+              )
+            : 'border-l-2 border-dashed border-border-strong';
+    const ring =
+        track === 'c'
+            ? cn(
+                  'border-[1.5px]',
+                  security ? 'border-status-down' : 'border-status-warn',
+              )
+            : 'border-2 border-muted-foreground';
+    const header = (
+        <div className="space-y-1">
+            <SectionHeading level={3} id={headingId}>
+                {t('Not installed yet')}
+            </SectionHeading>
+            <p className="text-xs text-muted-foreground">
+                {t(truncated ? 'updates.missing_at_least' : 'updates.missing', {
+                    count: releases.length,
+                    formattedCount: number(releases.length),
+                    version: installed,
+                })}
+            </p>
+        </div>
+    );
+    const rows = (
+        <div className="[&>div:last-child_article]:border-b-0">
+            {releases.map((release, index) =>
+                rail ? (
+                    <div key={release.tag} className={trackRowClass}>
+                        <span
+                            aria-hidden="true"
+                            className="relative flex justify-center"
+                        >
+                            {index > 0 && (
+                                <span
+                                    className={cn(
+                                        'absolute top-0 h-[25px]',
+                                        missing,
+                                    )}
+                                />
+                            )}
+                            <span
+                                className={cn(
+                                    'absolute top-[35px] bottom-0',
+                                    missing,
+                                )}
+                            />
+                            <span
+                                className={cn(
+                                    'relative mt-[25px] size-2.5 rounded-full',
+                                    ring,
+                                )}
+                            />
+                        </span>
+                        <SkippedRelease release={release} />
+                    </div>
+                ) : (
+                    <div key={release.tag}>
+                        <SkippedRelease release={release} />
+                    </div>
+                ),
+            )}
+        </div>
+    );
+    const installedText = (
+        <p className="py-4 text-cell leading-4">
+            <span className="font-mono">{installed}</span>
+            {' · '}
+            {t('Installed')}
+        </p>
+    );
+    const anchor = rail ? (
+        <div className={cn(trackRowClass, track === 'c' && 'px-4')}>
+            <span aria-hidden="true" className="relative flex justify-center">
+                <span className="absolute top-0 h-[19px] border-l-2 border-border-strong" />
+                <span className="relative mt-[19px] size-2.5 rounded-full bg-foreground" />
+            </span>
+            {installedText}
+        </div>
+    ) : (
+        <div className="border-t border-border-soft">{installedText}</div>
+    );
+    if (track === 'c') {
+        return (
+            <div>
+                <section
+                    aria-labelledby={headingId}
+                    className={cn(
+                        'rounded-lg border border-dashed px-4 pt-4',
+                        security
+                            ? 'border-status-down-border bg-status-down-surface/50'
+                            : 'border-status-warn-border bg-status-warn-surface/50',
+                    )}
+                >
+                    {header}
+                    {rows}
+                </section>
+                {anchor}
+            </div>
+        );
+    }
+    return (
+        <section aria-labelledby={headingId} className="space-y-1">
+            {header}
+            {rows}
+            {anchor}
+        </section>
+    );
+}
+
 /** One release between the installed and the latest: its headline and the items an Owner must read first. */
 function SkippedRelease({
     release,
@@ -874,7 +953,7 @@ function SkippedRelease({
 }) {
     const { t } = useTranslation();
     return (
-        <article className="space-y-3 border-b border-border-soft py-5">
+        <article className="space-y-3 border-b border-border-soft/60 py-5">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                 <div className="flex flex-wrap items-baseline gap-x-2">
                     <SectionHeading level={4}>

@@ -80,6 +80,9 @@ class HandleInertiaRequests extends Middleware
             // The installed version for the help dialog; release checks stay with Owners and Admins, who may open Updates & backups.
             'heptapodVersion' => $user instanceof User ? config()->string('heptapod.version') : null,
             // A cache read only (no query on any page); null until a check or the Updates page wrote it.
+            // Throwaway: lets Jonas compare the "Not installed yet" framings on a local stack (`?track=a|b|c`).
+            'trackPreview' => app()->isLocal() && $user instanceof User && $user->hasAnyRole(['Owner', 'Admin'])
+                && in_array($request->query('track'), ['a', 'b', 'c'], true) ? $request->query('track') : null,
             'appUpdate' => static fn (): ?array => $user instanceof User && $user->hasAnyRole(['Owner', 'Admin'])
                 ? app(UpdateStatusReader::class)->shellSummary() : null,
             'overallHealth' => fn (): ?array => $user instanceof User ? app(ShellHealthReader::class)->read($user)->toArray() : null,
