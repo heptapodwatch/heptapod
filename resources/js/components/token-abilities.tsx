@@ -234,29 +234,32 @@ export function TokenGrant({
     const shown = expanded ? groups : groups.slice(0, 2);
     const hidden = groups.length - shown.length;
     return (
-        <span
-            className={cn(
-                'flex min-w-0 flex-wrap items-center justify-end gap-1 min-[87.5rem]:justify-start',
-                !expanded &&
-                    'min-[87.5rem]:flex-nowrap min-[87.5rem]:overflow-hidden',
-            )}
-        >
-            {shown.map((group) => (
-                <TooltipHint
-                    key={group.area}
-                    content={group.abilities.join(', ')}
-                >
-                    <Badge className="font-normal">
-                        {`${t(`api_tokens.area.${group.area}`)} · ${group.abilities.map((ability) => t(`api_tokens.level.${levelOf(ability)}`)).join(', ')}`}
-                    </Badge>
-                </TooltipHint>
-            ))}
+        <span className="flex min-w-0 items-center justify-end gap-1 min-[87.5rem]:justify-start">
+            {/* Only the pills clip in a narrow column; the toggle stays reachable. */}
+            <span
+                className={cn(
+                    'flex min-w-0 flex-wrap items-center justify-end gap-1 min-[87.5rem]:justify-start',
+                    !expanded &&
+                        'min-[87.5rem]:flex-nowrap min-[87.5rem]:overflow-hidden',
+                )}
+            >
+                {shown.map((group) => (
+                    <TooltipHint
+                        key={group.area}
+                        content={group.abilities.join(', ')}
+                    >
+                        <Badge className="font-normal">
+                            {`${t(`api_tokens.area.${group.area}`)} · ${group.abilities.map((ability) => t(`api_tokens.level.${levelOf(ability)}`)).join(', ')}`}
+                        </Badge>
+                    </TooltipHint>
+                ))}
+            </span>
             {(hidden > 0 || expanded) && (
                 <Button
                     type="button"
                     variant="ghost"
                     size="xs"
-                    className="text-muted-foreground"
+                    className="shrink-0 self-end text-muted-foreground"
                     aria-expanded={expanded}
                     aria-label={
                         expanded

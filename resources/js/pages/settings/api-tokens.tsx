@@ -48,7 +48,7 @@ import {
 } from '@/components/token-abilities';
 import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import { Badge } from '@/components/ui/badge';
-import { relativeTimeFormat } from '@/lib/format-cache';
+import { AbsoluteTime } from '@/components/absolute-time';
 import { data as readData, destroy, store } from '@/routes/settings/api-tokens';
 
 type TokenPage = Heptapod.Data.Ui.ApiTokenSettingsData;
@@ -537,42 +537,8 @@ function SecretDialog({
     );
 }
 
-/** A relative time ("in 30 days") that keeps one line in the list; the exact instant is the tooltip. */
-function RelativeTime({
-    value,
-    timezone,
-    label,
-}: {
-    value: string;
-    timezone: string;
-    label: string;
-}) {
-    const { i18n } = useTranslation();
-    const format = useFormat();
-    const seconds = (new Date(value).getTime() - Date.now()) / 1000;
-    const [unit, size] = (
-        [
-            ['year', 31536000],
-            ['month', 2678400],
-            ['day', 86400],
-            ['hour', 3600],
-            ['minute', 60],
-        ] as const
-    ).find(([, length]) => Math.abs(seconds) >= length) ?? ['minute', 60];
-    return (
-        <TooltipHint content={format.exact(value, timezone)} label={label}>
-            <time dateTime={value} className="whitespace-nowrap tabular-nums">
-                {relativeTimeFormat(i18n.language, {
-                    numeric: 'auto',
-                    style: 'short',
-                }).format(Math.round(seconds / size), unit)}
-            </time>
-        </TooltipHint>
-    );
-}
-
 const tokenColumns =
-    'min-[87.5rem]:grid-cols-[minmax(10rem,1.2fr)_minmax(0,2fr)_8rem_5.5rem_5.5rem_4.5rem] min-[87.5rem]:gap-x-3';
+    'min-[87.5rem]:grid-cols-[minmax(8rem,0.9fr)_minmax(0,2fr)_8.5rem_6.5rem_6.5rem_4.5rem] min-[87.5rem]:gap-x-3';
 
 export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
     const { t } = useTranslation();
@@ -633,10 +599,12 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
                 {t(empty)}
             </span>
         ) : (
-            <RelativeTime
+            <AbsoluteTime
                 value={value}
                 timezone={page.timezone}
+                mode="calendarDate"
                 label={t(label)}
+                className="whitespace-nowrap"
             />
         );
     const refresh = async () => {
@@ -806,7 +774,7 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
                         {
                             label: 'Expires',
                             value: (
-                                <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                <span className="inline-flex flex-col items-end min-[87.5rem]:items-start">
                                     {date(
                                         token.expires_at,
                                         'No expiry',
