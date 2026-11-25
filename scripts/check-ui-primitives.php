@@ -930,4 +930,8 @@ passthru('cd '.escapeshellarg($root).' && node scripts/check-form-selects.mjs', 
 if ($formSelectStatus !== 0) {
     exit($formSelectStatus);
 }
+passthru('cd '.escapeshellarg($root).' && node scripts/check-page-headers.mjs', $pageHeaderStatus);
+if ($pageHeaderStatus !== 0) {
+    exit($pageHeaderStatus);
+}
 printf("UI primitives: %d files checked; 0 native prompts, 0 hand-styled link underlines, 0 link hover colour changes, 0 other focus rings, 0 hand-rolled disabled opacity recipes, 0 local filled status dots, 0 local section titles or typography overrides, 0 local display-time presets, 0 large action buttons, 0 local horizontal navigation or step progress, 0 enabled cursor overrides, 0 local row density overrides or raw tables, 0 native date/time inputs, 0 hand-tinted callouts or notices above the page header, 0 raw palette text colours, 0 local spinners, 0 irreversible confirmations without destructive, 0 native checkbox/radio/number/details/select controls or raw inputs/textareas/buttons, 0 forms with browser validation, 0 hand-rolled error lines, 0 off-token control heights, 0 arbitrary or off-scale font sizes, 0 native title tooltips, 0 local list pagers, 0 local motion, 0 local tooltip providers, 0 site headers or second layouts on incident pages, 0 multi-line picker triggers, 0 local row emphasis, 0 switch rows without a row label, 0 inline action notes outside ActionNoteSlot.\n", count($files));

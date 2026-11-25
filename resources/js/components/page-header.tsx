@@ -20,6 +20,7 @@ type PageHeaderActionSlots =
 
 export function PageHeader({
     title,
+    visibleTitle,
     titleTooltip,
     headingLevel = 1,
     titleAction,
@@ -42,6 +43,8 @@ export function PageHeader({
     actionNote,
 }: {
     title: string;
+    /** Shown instead of the title when it differs from the document heading (the Sites health headline); the h1 keeps `title`, visually hidden. */
+    visibleTitle?: ReactNode;
     titleTooltip?: string;
     headingLevel?: 1 | 2;
     titleAction?: ReactNode;
@@ -91,51 +94,63 @@ export function PageHeader({
                         </div>
                     )}
                     {metadata}
-                    <div className="flex flex-wrap items-center gap-2">
-                        {leading}
-                        <TooltipHint content={titleTooltip}>
-                            <Heading
-                                className={
-                                    headingLevel === 1
-                                        ? 'min-w-0 text-page-title break-words'
-                                        : 'min-w-0 text-headline break-words'
-                                }
-                                aria-label={
-                                    titleAction === undefined
-                                        ? undefined
-                                        : title
-                                }
-                            >
-                                {title}
-                                {titleAction !== undefined && (
-                                    <> {titleAction}</>
-                                )}
-                            </Heading>
-                        </TooltipHint>
-                        {count !== undefined && (
-                            <Badge
-                                variant="outline"
-                                className="font-mono tabular-nums"
-                            >
-                                {count}
-                            </Badge>
+                    <div className="flex min-w-0 items-center gap-3">
+                        {/* The hidden heading comes first in reading order; sr-only takes it out of the flex flow. */}
+                        {visibleTitle !== undefined && (
+                            <Heading className="sr-only">{title}</Heading>
                         )}
-                        {badge}
-                    </div>
-                    {meta !== undefined && (
-                        <div className="text-sm text-muted-foreground">
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                                {meta}
+                        {leading}
+                        <div className="min-w-0 flex-1 space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                                {visibleTitle === undefined ? (
+                                    <TooltipHint content={titleTooltip}>
+                                        <Heading
+                                            className={
+                                                headingLevel === 1
+                                                    ? 'min-w-0 text-page-title break-words'
+                                                    : 'min-w-0 text-headline break-words'
+                                            }
+                                            aria-label={
+                                                titleAction === undefined
+                                                    ? undefined
+                                                    : title
+                                            }
+                                        >
+                                            {title}
+                                            {titleAction !== undefined && (
+                                                <> {titleAction}</>
+                                            )}
+                                        </Heading>
+                                    </TooltipHint>
+                                ) : (
+                                    visibleTitle
+                                )}
+                                {count !== undefined && (
+                                    <Badge
+                                        variant="outline"
+                                        className="font-mono tabular-nums"
+                                    >
+                                        {count}
+                                    </Badge>
+                                )}
+                                {badge}
                             </div>
+                            {meta !== undefined && (
+                                <div className="text-sm text-muted-foreground">
+                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                                        {meta}
+                                    </div>
+                                </div>
+                            )}
+                            {description && (
+                                <TruncatedText content={description}>
+                                    <p className="line-clamp-2 text-sm text-muted-foreground sm:line-clamp-1">
+                                        {description}
+                                    </p>
+                                </TruncatedText>
+                            )}
                         </div>
-                    )}
-                    {description && (
-                        <TruncatedText content={description}>
-                            <p className="line-clamp-2 text-sm text-muted-foreground sm:line-clamp-1">
-                                {description}
-                            </p>
-                        </TruncatedText>
-                    )}
+                    </div>
                 </div>
                 {(primaryAction || secondaryActions || hasActionNoteSlot) &&
                     (hasActionNoteSlot ? (

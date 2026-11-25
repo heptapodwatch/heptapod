@@ -3,6 +3,7 @@ import { TruncatedText } from '@/components/truncated-text';
 import { SectionHeading } from '@/components/section-heading';
 import { TextLink, TextLinkButton } from '@/components/text-link';
 import { SiteAvatar } from '@/components/site-avatar';
+import { PageHeader } from '@/components/page-header';
 import { Link, usePage } from '@inertiajs/react';
 import {
     useEffect,
@@ -257,49 +258,41 @@ export function SitesAttentionBand({
 
     return (
         <div ref={rootRef} className="min-w-0 space-y-4">
-            {/* The page header: ring, headline, one meta line with the state breakdown. The h1 stays "Sites". */}
-            <header data-page-header className="flex min-w-0 flex-col gap-4">
-                <h1 className="sr-only">{t('Sites')}</h1>
-                <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex min-w-0 items-center gap-4">
-                        <SitesStateRing tiles={tiles} />
-                        {/* A fixed line count (three below sm, one from sm) so a long site name never moves the band. */}
-                        <div className="min-w-0 space-y-1">
-                            <TruncatedText content={headline}>
-                                <p
-                                    data-sites-headline
-                                    className="line-clamp-3 text-headline sm:line-clamp-1 sm:text-page-title"
-                                >
-                                    {headline}
-                                </p>
-                            </TruncatedText>
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                                <span>{meta}</span>
-                                {breakdown.map((state) => (
-                                    <span
-                                        key={state}
-                                        className="inline-flex items-center gap-1"
-                                    >
-                                        {/* The dot's accessible name is the state word; the ring tooltip lists every count. */}
-                                        <StatusDot state={state} />
-                                        <span className="font-mono tabular-nums">
-                                            {format.number(
-                                                tiles[tileColumns[state]],
-                                            )}
-                                        </span>
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                    {actions && (
-                        <div className="flex shrink-0 items-center gap-2 sm:ml-auto">
-                            {actions}
-                        </div>
-                    )}
-                </div>
-                {notices}
-            </header>
+            <PageHeader
+                title={t('Sites')}
+                description=""
+                leading={<SitesStateRing tiles={tiles} />}
+                visibleTitle={
+                    // A fixed line count (three below sm, one from sm) so a long site name never moves the band.
+                    <TruncatedText content={headline}>
+                        <p
+                            data-sites-headline
+                            className="line-clamp-3 min-w-0 text-headline sm:line-clamp-1 sm:text-page-title"
+                        >
+                            {headline}
+                        </p>
+                    </TruncatedText>
+                }
+                meta={
+                    <>
+                        <span>{meta}</span>
+                        {breakdown.map((state) => (
+                            <span
+                                key={state}
+                                className="inline-flex items-center gap-1"
+                            >
+                                {/* The dot's accessible name is the state word; the ring tooltip lists every count. */}
+                                <StatusDot state={state} />
+                                <span className="font-mono tabular-nums">
+                                    {format.number(tiles[tileColumns[state]])}
+                                </span>
+                            </span>
+                        ))}
+                    </>
+                }
+                actions={actions}
+                notices={notices}
+            />
             {!stale && active > 0 && !health.notifications_covered && (
                 <Alert
                     tone="danger"
