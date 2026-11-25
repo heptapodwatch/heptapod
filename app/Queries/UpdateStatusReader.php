@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Composer\Semver\Comparator;
 use Composer\Semver\VersionParser;
 use Heptapod\Settings\InstanceSettings;
+use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -129,15 +130,37 @@ final readonly class UpdateStatusReader
     public function shellSummary(): ?array
     {
         /** @var array{status: string, latest: string|null, security: bool}|null */
-        return Cache::get($this->shellKey());
+        return Cache::store('redis')->get($this->shellKey());
     }
 
-    /** Writes the shell summary from the database; called by the check and by the Updates page and its actions. */
+    /**
+     * Writes the shell summary from the database, or clears it while checks are off. It rereads the setting inside the
+     * lock the toggle also takes, so a check that loaded the setting before its fetch can never republish "available"
+     * after an Owner switched checks off.
+     */
     public function primeShellSummary(): void
     {
-        $updates = $this->read();
-        Cache::forever($this->shellKey(), ['status' => $updates['update_status'], 'security' => $updates['security'],
-            'latest' => $updates['update_status'] === 'available' ? $updates['latest_version'] : null]);
+        $this->withSummaryLock(function (): void {
+            $this->settings->refresh();
+            if (! config()->boolean('heptapod.updates.enabled_by_server') || ! $this->settings->updates_enabled) {
+                Cache::store('redis')->forget($this->shellKey());
+
+                return;
+            }
+            $updates = $this->read();
+            Cache::store('redis')->forever($this->shellKey(), ['status' => $updates['update_status'], 'security' => $updates['security'],
+                'latest' => $updates['update_status'] === 'available' ? $updates['latest_version'] : null]);
+        });
+    }
+
+    /** Toggling checks and publishing the summary never interleave; both are a few milliseconds of work. */
+    public function withSummaryLock(\Closure $callback): void
+    {
+        $locks = Cache::store('redis')->getStore();
+        if (! $locks instanceof LockProvider) {
+            throw new \LogicException('The Redis cache store must provide locks.');
+        }
+        $locks->lock('heptapod:update-summary', 10)->block(5, $callback);
     }
 
     private function shellKey(): string

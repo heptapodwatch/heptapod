@@ -17,6 +17,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Testing\AssertableInertia as Assert;
 
+// The shell summary lives in the shared Redis store; each test gets its own empty one instead of a key left by another.
+beforeEach(function (): void {
+    config(['cache.stores.redis' => ['driver' => 'array']]);
+});
+
 it('does not contact the release source when disabled by server configuration', function (): void {
     config(['heptapod.updates.enabled_by_server' => false]);
     $fake = new FakeOutboundHttp;
@@ -108,7 +113,7 @@ it('tells only Owners and Admins about a newer release in the shell, and only wh
     $owner = User::factory()->owner()->create();
     $this->actingAs($owner)->patchJson(route('settings.updates.update'), ['enabled' => false])->assertOk();
     $this->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page
-        ->where('appUpdate', ['status' => 'disabled_by_user', 'security' => false, 'latest' => null]));
+        ->where('appUpdate', null));
 
     // The shell reads only the cache: after an upgrade, or with the cache cleared, it shows no update, never a stale one.
     $this->patchJson(route('settings.updates.update'), ['enabled' => true])->assertOk();
@@ -116,8 +121,24 @@ it('tells only Owners and Admins about a newer release in the shell, and only wh
     $this->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page->where('appUpdate', null));
     config(['heptapod.version' => 'v1.2.2']);
     $this->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page->where('appUpdate.latest', 'v1.2.3'));
-    Cache::flush();
+    Cache::store('redis')->flush();
     $this->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page->where('appUpdate', null));
+});
+
+it('keeps the update off in the shell when an Owner switches checks off while a check is fetching', function (): void {
+    config(['heptapod.version' => 'v1.2.2', 'heptapod.updates.enabled_by_server' => true]);
+    $items = [releaseItem('v1.2.3', 'New.'), releaseItem('v1.2.2', 'Installed.')];
+    app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static function (FetchRequest $request) use ($items): FetchResult {
+        if (str_ends_with($request->url, '/latest')) {
+            // The Owner switches checks off in another request; this check still holds the settings it loaded before.
+            DB::table('settings')->where('group', 'instance')->where('name', 'updates_enabled')->update(['payload' => json_encode(false)]);
+        }
+
+        return new FetchResult(status: 200, body: json_encode(str_ends_with($request->url, '/latest') ? $items[0] : $items, JSON_THROW_ON_ERROR));
+    }));
+    $this->artisan('heptapod:check-updates')->assertSuccessful();
+    $owner = User::factory()->owner()->create();
+    $this->actingAs($owner)->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page->where('appUpdate', null));
 });
 
 it('explains the skipped releases as capped plain text from the fixed note sections', function (): void {

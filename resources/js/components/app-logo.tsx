@@ -98,6 +98,7 @@ export function BrandLink({
                             {version && version !== 'unknown' && (
                                 // The installed version, for everyone signed in; the update line names only the new one.
                                 <span className="ml-2 text-tooltip-muted">
+                                    <span className="sr-only">, </span>
                                     {version}
                                 </span>
                             )}
