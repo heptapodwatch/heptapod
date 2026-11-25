@@ -143,15 +143,15 @@ export function PageHeader({
                                     </div>
                                 </div>
                             )}
+                            {description && (
+                                <TruncatedText content={description}>
+                                    <p className="line-clamp-2 text-sm text-muted-foreground sm:line-clamp-1">
+                                        {description}
+                                    </p>
+                                </TruncatedText>
+                            )}
                         </div>
                     </div>
-                    {description && (
-                        <TruncatedText content={description}>
-                            <p className="line-clamp-2 text-sm text-muted-foreground sm:line-clamp-1">
-                                {description}
-                            </p>
-                        </TruncatedText>
-                    )}
                 </div>
                 {(primaryAction || secondaryActions || hasActionNoteSlot) &&
                     (hasActionNoteSlot ? (
