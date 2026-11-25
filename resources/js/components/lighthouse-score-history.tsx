@@ -100,7 +100,7 @@ export function LighthouseScoreHistory({ weeks }: { weeks: Week[] }) {
                                     data={weeks}
                                     margin={{
                                         left: 0,
-                                        right: 16,
+                                        right: 24,
                                         top: 4,
                                         bottom: 0,
                                     }}
@@ -155,7 +155,7 @@ export function LighthouseScoreHistory({ weeks }: { weeks: Week[] }) {
                                             weeks.filter(
                                                 (week) =>
                                                     week[category] !== null,
-                                            ).length === 1
+                                            ).length <= 3
                                         }
                                     />
                                 </LineChart>

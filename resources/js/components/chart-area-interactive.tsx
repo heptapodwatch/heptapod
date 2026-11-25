@@ -61,6 +61,8 @@ const ranges: { key: Range; label: string; caption: string }[] = [
 ];
 // Past 7 days the buckets are UTC days or weeks, so their dates are UTC dates.
 const utcRanges: Range[] = ['30d', '90d', '1y', 'all'];
+// With this few measured points, dots show they are single measurements rather than a long, even line.
+const fewPoints = 3;
 
 /** The uptime check's response time: one range at a time, loaded by a partial reload of `response_time`. */
 export function ChartAreaInteractive({
@@ -82,6 +84,19 @@ export function ChartAreaInteractive({
         (point) => point.average_ms !== null || point.p95_ms !== null,
     );
     const marks = active === '24h';
+    // Hourly points: one tick where a new local day starts, so no day repeats on the axis.
+    const dayOf = (time: string) =>
+        format.date(time, { day: 'numeric', month: 'short' });
+    const dayTicks =
+        active === '7d'
+            ? points
+                  .filter(
+                      (point, index) =>
+                          index > 0 &&
+                          dayOf(point.time) !== dayOf(points[index - 1]!.time),
+                  )
+                  .map((point) => point.time)
+            : undefined;
     const isEmpty =
         !hasValues &&
         !(
@@ -126,7 +141,7 @@ export function ChartAreaInteractive({
         return format.calendarDate(value, 'UTC');
     };
     return (
-        <Card className="@container/card min-w-0">
+        <Card className="@container/card min-w-0" data-response-chart>
             <CardHeader>
                 <CardTitle>{t('Response time')}</CardTitle>
                 <CardDescription>
@@ -197,7 +212,7 @@ export function ChartAreaInteractive({
                         <ComposedChart
                             accessibilityLayer
                             data={points}
-                            margin={{ left: 0, right: 8, top: 8, bottom: 0 }}
+                            margin={{ left: 0, right: 24, top: 8, bottom: 0 }}
                         >
                             <CartesianGrid vertical={false} />
                             <XAxis
@@ -205,6 +220,7 @@ export function ChartAreaInteractive({
                                 tickLine={false}
                                 axisLine={false}
                                 minTickGap={40}
+                                ticks={dayTicks}
                                 tickFormatter={(value) =>
                                     format.date(String(value), {
                                         timeZone,
@@ -216,7 +232,7 @@ export function ChartAreaInteractive({
                                             : active === 'all'
                                               ? {
                                                     month: 'short',
-                                                    year: 'numeric',
+                                                    year: '2-digit',
                                                 }
                                               : {
                                                     day: 'numeric',
@@ -290,7 +306,7 @@ export function ChartAreaInteractive({
                                 dot={
                                     points.filter(
                                         (point) => point.average_ms !== null,
-                                    ).length === 1
+                                    ).length <= fewPoints
                                 }
                             />
                             <Line
@@ -302,7 +318,7 @@ export function ChartAreaInteractive({
                                 dot={
                                     points.filter(
                                         (point) => point.p95_ms !== null,
-                                    ).length === 1
+                                    ).length <= fewPoints
                                 }
                             />
                         </ComposedChart>
