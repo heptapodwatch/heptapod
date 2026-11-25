@@ -810,9 +810,9 @@ const trackRowClass = 'grid grid-cols-[0.625rem_minmax(0,1fr)] gap-x-4';
 type Release = NonNullable<Page['updates']['releases']>[number];
 
 /**
- * Releases this instance does not have yet, newest first, ending on the installed one. Three framings for Jonas to
- * pick (throwaway, `?track=a|b|c` on a local stack): a words only, b a neutral version track, c a region in the tone
- * of the lit stem on the mark.
+ * Releases this instance does not have yet, newest first, in a region toned like the lit stem on the mark (dashed,
+ * barely tinted, a dashed rail with hollow rings: "not here yet"), then the installed release outside it on a solid
+ * neutral segment. Rails and markers are decorative; the text says it all.
  */
 function MissingReleases({
     releases,
@@ -828,120 +828,84 @@ function MissingReleases({
     const { t } = useTranslation();
     const { number } = useFormat();
     const headingId = useId();
-    const track = usePage().props.trackPreview ?? 'b';
-    const rail = track !== 'a';
-    // Dashed segments and hollow rings for releases not here yet; c draws them in the tone of the lit stem.
-    const missing =
-        track === 'c'
-            ? cn(
-                  'border-l-[1.5px] border-dashed',
-                  security ? 'border-status-down' : 'border-status-warn',
-              )
-            : 'border-l-2 border-dashed border-border-strong';
-    const ring =
-        track === 'c'
-            ? cn(
-                  'border-[1.5px]',
-                  security ? 'border-status-down' : 'border-status-warn',
-              )
-            : 'border-2 border-muted-foreground';
-    const header = (
-        <div className="space-y-1">
-            <SectionHeading level={3} id={headingId}>
-                {t('Not installed yet')}
-            </SectionHeading>
-            <p className="text-xs text-muted-foreground">
-                {t(truncated ? 'updates.missing_at_least' : 'updates.missing', {
-                    count: releases.length,
-                    formattedCount: number(releases.length),
-                    version: installed,
-                })}
-            </p>
-        </div>
-    );
-    const rows = (
-        <div className="[&>div:last-child_article]:border-b-0">
-            {releases.map((release, index) =>
-                rail ? (
-                    <div key={release.tag} className={trackRowClass}>
-                        <span
-                            aria-hidden="true"
-                            className="relative flex justify-center"
-                        >
-                            {index > 0 && (
+    const tone = security ? 'border-status-down' : 'border-status-warn';
+    const missing = cn('border-l-[1.5px] border-dashed', tone);
+    return (
+        <div>
+            <section
+                aria-labelledby={headingId}
+                className={cn(
+                    'rounded-lg border border-dashed px-4 pt-4',
+                    security
+                        ? 'border-status-down-border bg-status-down-surface/50'
+                        : 'border-status-warn-border bg-status-warn-surface/50',
+                )}
+            >
+                <div className="space-y-1">
+                    <SectionHeading level={3} id={headingId}>
+                        {t('Not installed yet')}
+                    </SectionHeading>
+                    <p className="text-xs text-muted-foreground">
+                        {t(
+                            truncated
+                                ? 'updates.missing_at_least'
+                                : 'updates.missing',
+                            {
+                                count: releases.length,
+                                formattedCount: number(releases.length),
+                                version: installed,
+                            },
+                        )}
+                    </p>
+                </div>
+                <div className="[&>div:last-child_article]:border-b-0">
+                    {releases.map((release, index) => (
+                        <div key={release.tag} className={trackRowClass}>
+                            <span
+                                aria-hidden="true"
+                                className="relative flex justify-center"
+                            >
+                                {index > 0 && (
+                                    <span
+                                        className={cn(
+                                            'absolute top-0 h-[25px]',
+                                            missing,
+                                        )}
+                                    />
+                                )}
                                 <span
                                     className={cn(
-                                        'absolute top-0 h-[25px]',
+                                        'absolute top-[35px] bottom-0',
                                         missing,
                                     )}
                                 />
-                            )}
-                            <span
-                                className={cn(
-                                    'absolute top-[35px] bottom-0',
-                                    missing,
-                                )}
-                            />
-                            <span
-                                className={cn(
-                                    'relative mt-[25px] size-2.5 rounded-full',
-                                    ring,
-                                )}
-                            />
-                        </span>
-                        <SkippedRelease release={release} />
-                    </div>
-                ) : (
-                    <div key={release.tag}>
-                        <SkippedRelease release={release} />
-                    </div>
-                ),
-            )}
-        </div>
-    );
-    const installedText = (
-        <p className="py-4 text-cell leading-4">
-            <span className="font-mono">{installed}</span>
-            {' · '}
-            {t('Installed')}
-        </p>
-    );
-    const anchor = rail ? (
-        <div className={cn(trackRowClass, track === 'c' && 'px-4')}>
-            <span aria-hidden="true" className="relative flex justify-center">
-                <span className="absolute top-0 h-[19px] border-l-2 border-border-strong" />
-                <span className="relative mt-[19px] size-2.5 rounded-full bg-foreground" />
-            </span>
-            {installedText}
-        </div>
-    ) : (
-        <div className="border-t border-border-soft">{installedText}</div>
-    );
-    if (track === 'c') {
-        return (
-            <div>
-                <section
-                    aria-labelledby={headingId}
-                    className={cn(
-                        'rounded-lg border border-dashed px-4 pt-4',
-                        security
-                            ? 'border-status-down-border bg-status-down-surface/50'
-                            : 'border-status-warn-border bg-status-warn-surface/50',
-                    )}
+                                <span
+                                    className={cn(
+                                        'relative mt-[25px] size-2.5 rounded-full border-[1.5px]',
+                                        tone,
+                                    )}
+                                />
+                            </span>
+                            <SkippedRelease release={release} />
+                        </div>
+                    ))}
+                </div>
+            </section>
+            <div className={cn(trackRowClass, 'px-4')}>
+                <span
+                    aria-hidden="true"
+                    className="relative flex justify-center"
                 >
-                    {header}
-                    {rows}
-                </section>
-                {anchor}
+                    <span className="absolute top-0 h-[19px] border-l-2 border-border-strong" />
+                    <span className="relative mt-[19px] size-2.5 rounded-full bg-foreground" />
+                </span>
+                <p className="py-4 text-cell leading-4">
+                    <span className="font-mono">{installed}</span>
+                    {' · '}
+                    {t('Installed')}
+                </p>
             </div>
-        );
-    }
-    return (
-        <section aria-labelledby={headingId} className="space-y-1">
-            {header}
-            {rows}
-            {anchor}
-        </section>
+        </div>
     );
 }
 
