@@ -45,12 +45,17 @@ const lit: Record<'h' | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9, Segment[]> = {
     9: ['a', 'b', 'c', 'd', 'f', 'g'],
 };
 
+/** A newer Heptapod release, shown to Owners and Admins on the resting mark; a security release is more urgent. */
+export type MarkUpdate = 'update' | 'security';
+
 export function HeptapodMark({
     downCount,
     recovered,
+    update = null,
 }: {
     downCount: number;
     recovered: boolean;
+    update?: MarkUpdate | null;
 }) {
     const hidden = useDocumentHidden();
     const glyph =
@@ -67,6 +72,8 @@ export function HeptapodMark({
         <svg
             className="hp-mark"
             data-state={state}
+            // Monitoring states win: an update only shows on the resting H.
+            data-update={state === 'still' && update ? update : undefined}
             data-paused={hidden ? '' : undefined}
             viewBox="33.5 19.5 53 81"
             aria-hidden="true"

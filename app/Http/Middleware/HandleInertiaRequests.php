@@ -12,6 +12,7 @@ use Heptapod\Models\User;
 use Heptapod\Queries\RunningNowReader;
 use Heptapod\Queries\RunsReader;
 use Heptapod\Queries\ShellHealthReader;
+use Heptapod\Queries\UpdateStatusReader;
 use Heptapod\SystemHealth\SystemIssueKind;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -63,6 +64,7 @@ class HandleInertiaRequests extends Middleware
             // The viewer's zone: their own, else the instance's (guests too); lazy so non-Inertia responses stay zero-DB.
             'timezone' => static fn (): string => User::viewerTimezone($user instanceof User ? $user : null),
             'exportRowLimit' => Table::RowLimit,
+            'sourceUrl' => config()->string('heptapod.updates.source_url'),
             'mailLogOnly' => MailDeliveryMode::logOnly(),
             'mailConfigurationAction' => SystemIssueKind::MailLogOnly->navigationAction($user instanceof User ? $user : null),
             'mailMayOnlyBeLogged' => MailDeliveryMode::includesLocalTransport(),
@@ -75,6 +77,11 @@ class HandleInertiaRequests extends Middleware
                 'canViewUpdates' => $user instanceof User && $user->hasAnyRole(['Owner', 'Admin']),
                 'canManageChannels' => $user instanceof User && $user->hasAnyRole(['Owner', 'Admin']),
             ],
+            // The installed version for the help dialog; release checks stay with Owners and Admins, who may open Updates & backups.
+            'heptapodVersion' => $user instanceof User ? config()->string('heptapod.version') : null,
+            // A cache read only (no query on any page); null until a check or the Updates page wrote it.
+            'appUpdate' => static fn (): ?array => $user instanceof User && $user->hasAnyRole(['Owner', 'Admin'])
+                ? app(UpdateStatusReader::class)->shellSummary() : null,
             'overallHealth' => fn (): ?array => $user instanceof User ? app(ShellHealthReader::class)->read($user)->toArray() : null,
             ...($user instanceof User && $user->hasAnyRole(['Owner', 'Admin', 'Member'])
                 // Inline, not deferred: a deferred group costs every visit a second request that reruns the page controller.

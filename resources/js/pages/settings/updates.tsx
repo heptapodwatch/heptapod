@@ -1,3 +1,4 @@
+import { TextLink } from '@/components/text-link';
 import { ActionNoteSlot } from '@/components/action-note-slot';
 import { TooltipHint } from '@/components/truncated-text';
 import { Disclosure } from '@/components/ui/disclosure';
@@ -19,7 +20,8 @@ import {
     useHttpRequest,
 } from '@/hooks/use-http-request';
 import { onLiveSignal } from '@/lib/live-store';
-import { Archive, ExternalLink } from 'lucide-react';
+import { Archive, Copy, ExternalLink } from 'lucide-react';
+import { useClipboard } from '@/hooks/use-clipboard';
 import { EmptyState } from '@/components/empty-state';
 import { useEffect, useId, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -41,6 +43,7 @@ import {
 import { status, update } from '@/routes/settings/updates';
 
 type Page = Heptapod.Data.Ui.UpdatesSettingsPageData;
+const upgradeDocsUrl = 'https://heptapod.watch/docs/running-it/updating/';
 type Backups = NonNullable<Page['backups']>;
 const releaseLabels: Record<string, string> = {
     disabled_by_server: 'Release checks disabled by server',
@@ -75,6 +78,9 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
         setRefreshFailed(false);
     }, [updatesPage]);
     const updates = page.updates;
+    const available =
+        updates.update_status === 'available' &&
+        updates.latest_version !== null;
     const backups = page.backups;
     const acceptedRun =
         backups?.latest_run?.id === acceptedId
@@ -282,51 +288,84 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                 }}
             />
             <FormSection title={t('Version')} description="">
-                <div className="flex flex-wrap items-center gap-3">
-                    <span className="font-mono text-stat break-all tabular-nums">
-                        {updates.installed_version === 'unknown'
-                            ? t('Unknown')
-                            : updates.installed_version}
-                    </span>
-                    <span className="text-cell">
-                        {t(releaseLabels[updates.update_status] ?? 'Unknown')}
-                        {updates.update_status === 'available' &&
-                            updates.latest_version !== null &&
-                            ` · ${updates.latest_version}`}
-                    </span>
-                </div>
-                <dl className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-                    <div>
-                        <dt>{t('Status evaluated at')}</dt>
-                        <dd>{timestamp(updates.evaluated_at)}</dd>
-                    </div>
-                    <div>
-                        <dt>{t('Last release check')}</dt>
-                        <dd>
-                            {timestamp(updates.checked_at)}
-                            {updates.http_status !== null &&
-                                ` · ${t('HTTP :status', { status: updates.http_status })}`}
-                        </dd>
-                    </div>
-                    <div>
-                        <dt>{t('Last successful release check')}</dt>
-                        <dd>{timestamp(updates.last_success_at)}</dd>
-                    </div>
-                    <div>
-                        <dt>{t('Last observed release')}</dt>
-                        <dd>
-                            {updates.latest_version ?? t('Unknown')}
-                            {updates.published_at !== null && (
-                                <> · {timestamp(updates.published_at)}</>
-                            )}
-                        </dd>
-                    </div>
-                </dl>
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                    {t(
-                        'Refresh reads cached release checks; it does not contact the release source or install an update.',
+                <p className="text-cell">
+                    {t(':version installed', {
+                        version:
+                            updates.installed_version === 'unknown'
+                                ? t('Unknown')
+                                : updates.installed_version,
+                    })}
+                    {' · '}
+                    {available ? (
+                        <>
+                            {t(':version available', {
+                                version: updates.latest_version,
+                            })}
+                            {updates.releases !== null &&
+                                ` · ${t(
+                                    updates.releases_truncated
+                                        ? 'updates.behind_at_least'
+                                        : 'updates.behind',
+                                    {
+                                        count: updates.releases.length,
+                                        formattedCount: number(
+                                            updates.releases.length,
+                                        ),
+                                    },
+                                )}`}
+                        </>
+                    ) : (
+                        t(releaseLabels[updates.update_status] ?? 'Unknown')
                     )}
                 </p>
+                {available && updates.security && (
+                    <Alert tone="danger">
+                        <AlertTitle>
+                            {t('This update includes a security fix.')}
+                        </AlertTitle>
+                        <AlertDescription>
+                            {t(
+                                'Read the security items below and upgrade soon.',
+                            )}
+                        </AlertDescription>
+                    </Alert>
+                )}
+                {available && updates.releases === null && (
+                    <p className="text-xs text-muted-foreground">
+                        {t('Release details could not be loaded.')}
+                    </p>
+                )}
+                {available && updates.releases !== null && (
+                    <MissingReleases
+                        releases={updates.releases}
+                        truncated={updates.releases_truncated}
+                        security={updates.security}
+                        installed={updates.installed_version}
+                    />
+                )}
+                {available && (
+                    <div className="space-y-2">
+                        <p className="text-cell">
+                            {t(
+                                'To upgrade, run this on the server. It backs up first and installs the latest release.',
+                            )}{' '}
+                            <InfoTooltip>
+                                {t(
+                                    'For a Git checkout or another installation directory, follow How to upgrade.',
+                                )}
+                            </InfoTooltip>
+                        </p>
+                        <UpgradeCommand />
+                    </div>
+                )}
+                {updates.update_status === 'disabled_by_user' &&
+                    auth.canManageInstance && (
+                        <p className="text-cell">
+                            {t(
+                                'Turn on release checks to see new versions here: once a day Heptapod asks GitHub for the latest release, sending only its version in the user agent.',
+                            )}
+                        </p>
+                    )}
                 <div className="flex flex-wrap gap-2">
                     {auth.canManageInstance && (
                         <Button
@@ -349,11 +388,65 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                                 rel="noreferrer"
                             >
                                 <ExternalLink className="size-3.5" />
-                                {t('Last observed release notes')}
+                                {available
+                                    ? t('Release notes :version', {
+                                          version: updates.latest_version,
+                                      })
+                                    : t('Last observed release notes')}
+                            </a>
+                        </Button>
+                    )}
+                    {available && (
+                        <Button variant="outline" asChild>
+                            <a
+                                href={upgradeDocsUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                <ExternalLink className="size-3.5" />
+                                {t('How to upgrade')}
                             </a>
                         </Button>
                     )}
                 </div>
+                <Disclosure
+                    className="text-xs"
+                    triggerClassName="text-cell font-medium"
+                    summary={t('Check details')}
+                >
+                    <dl className="mt-2 grid gap-2 text-muted-foreground sm:grid-cols-2">
+                        <div>
+                            <dt>{t('Status evaluated at')}</dt>
+                            <dd>{timestamp(updates.evaluated_at)}</dd>
+                        </div>
+                        <div>
+                            <dt>{t('Last release check')}</dt>
+                            <dd>
+                                {timestamp(updates.checked_at)}
+                                {updates.http_status !== null &&
+                                    ` · ${t('HTTP :status', { status: updates.http_status })}`}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>{t('Last successful release check')}</dt>
+                            <dd>{timestamp(updates.last_success_at)}</dd>
+                        </div>
+                        <div>
+                            <dt>{t('Last observed release')}</dt>
+                            <dd>
+                                {updates.latest_version ?? t('Unknown')}
+                                {updates.published_at !== null && (
+                                    <> · {timestamp(updates.published_at)}</>
+                                )}
+                            </dd>
+                        </div>
+                    </dl>
+                    <p className="mt-2 leading-relaxed text-muted-foreground">
+                        {t(
+                            'Refresh reads cached release checks; it does not contact the release source or install an update.',
+                        )}
+                    </p>
+                </Disclosure>
             </FormSection>
             <FormSection
                 title={t('Backups')}
@@ -663,17 +756,236 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                 <code className="block rounded-lg border bg-muted/30 px-4 py-3 text-xs break-all">
                     docs/deploy/operations.md
                 </code>
-                <p className="text-xs text-muted-foreground">
-                    {t(
-                        'Read the runbook first, then run sudo ./scripts/upgrade.sh in the installation directory.',
-                    )}{' '}
-                    <InfoTooltip>
-                        {t(
-                            'This applies to installations from the one-line installer. In a Git checkout, run git fetch --tags && git checkout <tag> first, then ./scripts/upgrade.sh (add --build only for source-built installs).',
-                        )}
-                    </InfoTooltip>
-                </p>
             </FormSection>
         </PageContainer>
+    );
+}
+
+/** The bundle upgrade goes to the latest release by default, so the command never carries a tag. */
+const upgradeCommand = 'cd /opt/heptapod && sudo ./scripts/upgrade.sh';
+
+/** The upgrade command, selectable and copyable; a failed copy leaves the visible text to select by hand. */
+function UpgradeCommand() {
+    const { t } = useTranslation();
+    const [copied, copy] = useClipboard();
+    return (
+        <div className="flex items-start gap-2">
+            <code className="block min-w-0 flex-1 rounded-lg border bg-muted/30 px-3 py-2 text-xs break-all">
+                {upgradeCommand}
+            </code>
+            <Button
+                variant="outline"
+                onClick={async () => {
+                    if (!(await copy(upgradeCommand))) {
+                        toast.error(
+                            t(
+                                'Copy failed. Select the command and copy it manually.',
+                            ),
+                        );
+                    }
+                }}
+            >
+                <Copy className="size-3.5" />
+                {t(copied ? 'Copied' : 'Copy')}
+            </Button>
+        </div>
+    );
+}
+
+/** The server-rendered note: headings, lists, code and links in the type scale of the page; links as TextLink draws them. */
+const releaseNotesClass = cn(
+    'max-w-prose text-xs leading-relaxed text-muted-foreground [&>*:first-child]:mt-0',
+    // Blocks: paragraphs and lists keep a little room; section headings get more above them and stand out.
+    '[&_ol]:mt-2 [&_p]:mt-2 [&_ul]:mt-2',
+    '[&_h1]:mt-5 [&_h1]:text-cell [&_h1]:font-medium [&_h1]:text-foreground [&_h2]:mt-5 [&_h2]:text-cell [&_h2]:font-medium [&_h2]:text-foreground [&_h3]:mt-4 [&_h3]:font-medium [&_h3]:text-foreground',
+    // Lists: spaced items; the bold lead of each bullet stays bold and dark so the eye can scan the leads.
+    '[&_li]:mt-1.5 [&_ol]:list-decimal [&_ol]:pl-4 [&_strong]:font-medium [&_strong]:text-foreground [&_ul]:list-disc [&_ul]:pl-4',
+    // Links as TextLink draws them; code in mono.
+    '[&_a]:text-foreground [&_a]:underline [&_a]:decoration-current/40 [&_a]:underline-offset-4 [&_a:hover]:no-underline [&_code]:font-mono',
+);
+
+/** One row of the version track: a narrow rail column beside the text. */
+const trackRowClass = 'grid grid-cols-[0.625rem_minmax(0,1fr)] gap-x-4';
+
+type Release = NonNullable<Page['updates']['releases']>[number];
+
+/**
+ * Releases this instance does not have yet, newest first, in a region toned like the lit stem on the mark (dashed,
+ * barely tinted, a dashed rail with hollow rings: "not here yet"), then the installed release outside it on a solid
+ * neutral segment. Rails and markers are decorative; the text says it all.
+ */
+function MissingReleases({
+    releases,
+    truncated,
+    security,
+    installed,
+}: {
+    releases: Release[];
+    truncated: boolean;
+    security: boolean;
+    installed: string;
+}) {
+    const { t } = useTranslation();
+    const { number } = useFormat();
+    const headingId = useId();
+    const tone = security ? 'border-status-down' : 'border-status-warn';
+    const missing = cn('border-l-[1.5px] border-dashed', tone);
+    return (
+        <div>
+            <section
+                aria-labelledby={headingId}
+                className={cn(
+                    'rounded-lg border border-dashed px-4 pt-4',
+                    security
+                        ? 'border-status-down-border bg-status-down-surface/50'
+                        : 'border-status-warn-border bg-status-warn-surface/50',
+                )}
+            >
+                <div className="space-y-1">
+                    <SectionHeading level={3} id={headingId}>
+                        {t('Not installed yet')}
+                    </SectionHeading>
+                    <p className="text-xs text-muted-foreground">
+                        {t(
+                            truncated
+                                ? 'updates.missing_at_least'
+                                : 'updates.missing',
+                            {
+                                count: releases.length,
+                                formattedCount: number(releases.length),
+                                version: installed,
+                            },
+                        )}
+                    </p>
+                </div>
+                <div className="[&>div:last-child_article]:border-b-0">
+                    {releases.map((release, index) => (
+                        <div key={release.tag} className={trackRowClass}>
+                            <span
+                                aria-hidden="true"
+                                className="relative flex justify-center"
+                            >
+                                {index > 0 && (
+                                    <span
+                                        className={cn(
+                                            'absolute top-0 h-[25px]',
+                                            missing,
+                                        )}
+                                    />
+                                )}
+                                <span
+                                    className={cn(
+                                        'absolute top-[35px] bottom-0',
+                                        missing,
+                                    )}
+                                />
+                                <span
+                                    className={cn(
+                                        'relative mt-[25px] size-2.5 rounded-full border-[1.5px]',
+                                        tone,
+                                    )}
+                                />
+                            </span>
+                            <SkippedRelease release={release} />
+                        </div>
+                    ))}
+                </div>
+            </section>
+            <div className={cn(trackRowClass, 'px-4')}>
+                <span
+                    aria-hidden="true"
+                    className="relative flex justify-center"
+                >
+                    <span className="absolute top-0 h-[19px] border-l-2 border-border-strong" />
+                    <span className="relative mt-[19px] size-2.5 rounded-full bg-foreground" />
+                </span>
+                <p className="py-4 text-cell leading-4">
+                    <span className="font-mono">{installed}</span>
+                    {' · '}
+                    {t('Installed')}
+                </p>
+            </div>
+        </div>
+    );
+}
+
+/** One release between the installed and the latest: its headline and the items an Owner must read first. */
+function SkippedRelease({
+    release,
+}: {
+    release: NonNullable<Page['updates']['releases']>[number];
+}) {
+    const { t } = useTranslation();
+    return (
+        <article className="space-y-3 border-b border-border-soft/60 py-5">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                    <SectionHeading level={4}>
+                        <span className="font-mono">{release.tag}</span>
+                    </SectionHeading>
+                    <span className="text-xs text-muted-foreground">
+                        <AbsoluteTime value={release.published_at} />
+                    </span>
+                </div>
+                <Button variant="ghost" size="xs" asChild>
+                    <a href={release.url} target="_blank" rel="noreferrer">
+                        <ExternalLink />
+                        {t('Release notes')}
+                    </a>
+                </Button>
+            </div>
+            {/* The summary: the headline and only the items to read before upgrading. */}
+            <div className="max-w-prose space-y-3">
+                {release.headline !== null && (
+                    <p className="text-cell">{release.headline}</p>
+                )}
+                <ReleaseItems
+                    title={t('Before you upgrade')}
+                    items={release.before}
+                />
+                <ReleaseItems title={t('Security')} items={release.security} />
+            </div>
+            {release.notes_html !== null && (
+                <Disclosure
+                    className="text-xs"
+                    triggerClassName="text-cell font-medium"
+                    summary={t('Full release notes')}
+                >
+                    <div
+                        className={cn(
+                            'mt-3 border-l border-border-soft pl-4',
+                            releaseNotesClass,
+                        )}
+                        // Rendered on the server by ReleaseNotes::html: raw HTML stripped, unsafe links unlinked, no images.
+                        dangerouslySetInnerHTML={{ __html: release.notes_html }}
+                    />
+                    {release.notes_truncated && (
+                        <p className="mt-3 pl-4">
+                            <TextLink
+                                external
+                                href={release.url}
+                                variant="secondary"
+                            >
+                                {t('Continued on GitHub')}
+                            </TextLink>
+                        </p>
+                    )}
+                </Disclosure>
+            )}
+        </article>
+    );
+}
+
+function ReleaseItems({ title, items }: { title: string; items: string[] }) {
+    if (items.length === 0) return null;
+    return (
+        <div className="space-y-1.5 text-xs leading-relaxed">
+            <p className="font-medium">{title}</p>
+            <ul className="list-disc space-y-1.5 pl-4 text-muted-foreground">
+                {items.map((item) => (
+                    <li key={item}>{item}</li>
+                ))}
+            </ul>
+        </div>
     );
 }

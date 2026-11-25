@@ -1,7 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
-import { HeptapodMark } from '@/components/heptapod-mark';
+import { HeptapodMark, type MarkUpdate } from '@/components/heptapod-mark';
 import {
     Tooltip,
     TooltipContent,
@@ -19,6 +19,9 @@ export type BrandState = {
     /** Null during the recovered one-shot: it only confirms, there is nothing to open. */
     href: string | null;
     label: string;
+    /** Owners and Admins only: a newer release is out. `label` is the full sentence for screen readers; the tooltip
+     * shows `headline` under its "Heptapod" title. */
+    update: { mark: MarkUpdate; label: string; headline: string } | null;
 };
 
 /** The Heptapod lockup: the live mark and the outlined lowercase wordmark. Size follows `--brand-mark-h`. */
@@ -34,6 +37,7 @@ export default function AppLogo({
             <HeptapodMark
                 downCount={brand?.downCount ?? 0}
                 recovered={brand?.recovered ?? false}
+                update={brand?.update?.mark}
             />
             {!markOnly && <span className="hp-word" />}
         </span>
@@ -46,12 +50,20 @@ export default function AppLogo({
  */
 export function BrandLink({
     markOnly = false,
+    tooltipSide = 'right',
     className,
     ...props
-}: Omit<ComponentProps<typeof Link>, 'href'> & { markOnly?: boolean }) {
+}: Omit<ComponentProps<typeof Link>, 'href'> & {
+    markOnly?: boolean;
+    /** The phone bar has no room to the right of the centred brand. */
+    tooltipSide?: 'right' | 'bottom';
+}) {
     const brand = useBrandState();
     const { t } = useTranslation();
-    const label = `Heptapod · ${brand.label}`;
+    const version = usePage().props.heptapodVersion;
+    const label = [`Heptapod · ${brand.label}`, brand.update?.label]
+        .filter(Boolean)
+        .join(' · ');
     const content = <AppLogo brand={brand} markOnly={markOnly} />;
     const trigger =
         brand.href === null ? (
@@ -78,9 +90,25 @@ export function BrandLink({
     return (
         <Tooltip>
             <TooltipTrigger asChild>{trigger}</TooltipTrigger>
-            <TooltipContent side="right" align="start">
+            <TooltipContent side={tooltipSide} align="start">
                 <TooltipDetails
-                    subject="Heptapod"
+                    subject={
+                        <>
+                            Heptapod
+                            {version && version !== 'unknown' && (
+                                // The installed version, for everyone signed in; the update line names only the new one.
+                                <span className="ml-2 text-tooltip-muted">
+                                    <span className="sr-only">, </span>
+                                    {version}
+                                </span>
+                            )}
+                        </>
+                    }
+                    facts={
+                        brand.update
+                            ? [<UpdateNotice key="update" {...brand.update} />]
+                            : undefined
+                    }
                     status={{
                         state: brand.downCount > 0 ? 'down' : 'ok',
                         label:
@@ -100,10 +128,31 @@ export function BrandLink({
 /** The shell brand: the Down count from the shared health prop, the recovered one-shot and the link target. */
 export function useBrandState(): BrandState {
     const { t } = useTranslation();
-    const downCount = usePage().props.overallHealth?.down_site_count ?? 0;
+    const { overallHealth, appUpdate } = usePage().props;
+    const downCount = overallHealth?.down_site_count ?? 0;
     const recovered = useRecovered(downCount);
+    const available =
+        appUpdate?.status === 'available' && appUpdate.latest !== null;
+    const update: BrandState['update'] = available
+        ? {
+              mark: appUpdate.security ? 'security' : 'update',
+              label: t(
+                  appUpdate.security
+                      ? 'Heptapod :version includes a security fix.'
+                      : 'Heptapod :version is available.',
+                  { version: appUpdate.latest },
+              ),
+              headline: t(
+                  appUpdate.security
+                      ? ':version includes a security fix.'
+                      : ':version is available.',
+                  { version: appUpdate.latest },
+              ),
+          }
+        : null;
     if (downCount > 0) {
         return {
+            update,
             downCount,
             recovered,
             href: '/sites?filter[state]=down',
@@ -111,6 +160,7 @@ export function useBrandState(): BrandState {
         };
     }
     return {
+        update,
         downCount,
         recovered,
         href: recovered ? null : '/sites',
@@ -155,4 +205,38 @@ function useRecovered(downCount: number): boolean {
         };
     }, [downCount]);
     return recovered;
+}
+
+/**
+ * The update line of the mark's tooltip, tied to the lit stem: a stem-shaped marker and the headline in the stem's colour
+ * (the tooltip's own status tokens, AA on its dark surface), the explanation muted below.
+ */
+function UpdateNotice({ mark, headline }: NonNullable<BrandState['update']>) {
+    const { t } = useTranslation();
+    const security = mark === 'security';
+    return (
+        <span className="my-0.5 block">
+            <span
+                className={cn(
+                    'flex items-start gap-1.5',
+                    security ? 'text-status-down' : 'text-status-warn',
+                )}
+            >
+                <span
+                    aria-hidden="true"
+                    className={cn(
+                        // Upright like the lit stem; centred on the first 17px line when the headline wraps.
+                        'mt-1 h-2.5 w-1 shrink-0 rounded-full',
+                        security ? 'bg-status-down' : 'bg-status-warn',
+                    )}
+                />
+                {headline}
+            </span>
+            <span className="block">
+                {t(
+                    'An update of Heptapod itself, not of a site. Details in Updates & backups.',
+                )}
+            </span>
+        </span>
+    );
 }

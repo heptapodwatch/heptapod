@@ -1,7 +1,12 @@
 /* The Heptapod lockup (mark + outlined wordmark) and the mark's states. Brand kit: wordmark-ui.svg, mark.svg. */
 :root {
-    /* The brand accent. Only the mark uses it (the hover glow); never a button, link or status colour. */
-    --mark-accent: #9fd6ff;
+    /* The brand accent, turquoise as in the launch video. Only the mark uses it (the hover glow); never a button,
+       link or status colour. Dark uses the video's bright turquoise. */
+    --mark-accent: #79ad95;
+}
+
+.dark {
+    --mark-accent: #9ad0b8;
 }
 
 .hp-brand {
@@ -106,6 +111,33 @@
     }
     100% {
         fill: currentColor;
+    }
+}
+
+/* A newer Heptapod release (Owners and Admins only), on the resting H: the upper right stem, where a notification
+   badge would sit, takes the warning colour for an update and the danger colour for a security update, and pulses
+   slowly between lit and 35 % (3 s, never off, so the H stays readable). The cadence is the same for both; the colour
+   carries the urgency. A hidden tab pauses it; under reduced motion it holds lit and still (the rules at the end).
+   The tooltip says it is about Heptapod itself, since these colours mean Warning and Down for sites. */
+.hp-mark[data-update] .hp-b {
+    animation: hp-update-pulse 3s ease-in-out infinite;
+}
+
+.hp-mark[data-update='update'] .hp-b {
+    fill: var(--status-warn);
+}
+
+.hp-mark[data-update='security'] .hp-b {
+    fill: var(--status-down);
+}
+
+@keyframes hp-update-pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.35;
     }
 }
 

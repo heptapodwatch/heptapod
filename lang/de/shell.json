@@ -32,5 +32,12 @@
     "run.import": "Oh-Dear-Import",
     "run.backup": "Sicherung",
     "run.openImport": "Import öffnen",
-    "run.openBackups": "Sicherungen öffnen"
+    "run.openBackups": "Sicherungen öffnen",
+    "Heptapod :version is available.": "Heptapod :version ist verfügbar.",
+    "Heptapod :version": "Heptapod :version",
+    "Heptapod :version includes a security fix.": "Heptapod :version enthält eine Sicherheitskorrektur.",
+    "An update of Heptapod itself, not of a site. Details in Updates & backups.": "Ein Update von Heptapod selbst, nicht einer Website. Details unter Updates & Sicherungen.",
+    ":version is available.": ":version ist verfügbar.",
+    ":version includes a security fix.": ":version enthält eine Sicherheitskorrektur.",
+    "Source code": "Quellcode"
 }
