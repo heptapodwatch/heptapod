@@ -35,13 +35,15 @@ final readonly class UpdateSiteSettings
             return;
         }
         NotificationLocks::transaction(function () use ($site, $siteAttributes, $timing, $clientId, $user, $refuseWhenBusy): void {
-            if ($refuseWhenBusy) {
-                // The move's own exclusive lock below then re-enters at once.
-                NotificationLocks::accessExclusiveOrBusy();
+            // Level 0 first; the move's own exclusive lock below then re-enters at once.
+            $refuseWhenBusy ? NotificationLocks::accessExclusiveOrBusy() : NotificationLocks::accessExclusive();
+            $extraSettings = $siteAttributes !== [] || $timing !== [];
+            if ($extraSettings) {
+                // The source as it is under the lock: one archived while this request waited takes a move only.
+                Gate::forUser($this->authorize->currentActor($user))->authorize('update', Site::query()->findOrFail($site->id));
             }
-            // The move takes the exclusive access lock first and authorizes itself; the rest is decided under that lock.
             $site = ($this->move)($user, $site, $clientId);
-            if ($siteAttributes === [] && $timing === []) {
+            if (! $extraSettings) {
                 return;
             }
             Gate::forUser($this->authorize->currentActor($user))->authorize('update', $site);

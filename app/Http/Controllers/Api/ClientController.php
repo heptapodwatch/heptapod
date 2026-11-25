@@ -54,7 +54,7 @@ final class ClientController extends Controller
         Gate::authorize('create', Client::class);
         // A token limited to one client cannot widen its own reach.
         abort_if($user->tokenClientConstraint() !== null, 403);
-        $this->rejectUnsupportedFields($request, self::Fields);
+        $this->rejectUnsupportedFields($request->all(), self::Fields);
         /** @var array<string, mixed> $attributes */
         $attributes = $request->only(self::Fields);
 
@@ -65,7 +65,7 @@ final class ClientController extends Controller
     public function update(Request $request, Client $client, UpdateClient $update): ClientResource
     {
         Gate::authorize('update', $client);
-        $this->rejectUnsupportedFields($request, self::Fields);
+        $this->rejectUnsupportedFields($request->all(), self::Fields);
         /** @var array<string, mixed> $attributes */
         $attributes = $request->only(self::Fields);
 

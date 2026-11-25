@@ -73,7 +73,7 @@ final class MonitorController extends Controller
     {
         /** @var array{client_id?: int|null} $data */
         $data = Validator::make($request->all(), ['team_id' => ['required', 'integer', 'in:1'], 'type' => ['required', 'in:http'],
-            'client_id' => ['nullable', 'integer', $policy->visibleClientRule($this->principal($request), includeArchived: true)]])->validate();
+            'client_id' => ['nullable', 'integer:strict', $policy->visibleClientRule($this->principal($request), includeArchived: true)]])->validate();
         $client = isset($data['client_id']) ? Client::query()->findOrFail($data['client_id']) : Client::query()->where('is_internal', true)->firstOrFail();
         // Before the policy, which refuses an archived client with a bare 403.
         if ($client->archived_at !== null) {
@@ -97,11 +97,11 @@ final class MonitorController extends Controller
         // request out of an archived client is allowed as on the web; UpdateSiteSettings refuses other fields there.
         Gate::authorize(array_key_exists('client_id', $attributes) ? 'move' : 'update', $monitor);
         $user = $this->principal($request);
-        /** @var array{client_id?: int|numeric-string} $data */
-        $data = Validator::make($attributes, ['client_id' => ['sometimes', 'required', 'integer', $policy->visibleClientRule($user, includeArchived: true)]])->validate();
+        /** @var array{client_id?: int} $data */
+        $data = Validator::make($attributes, ['client_id' => ['sometimes', 'required', 'integer:strict', $policy->visibleClientRule($user, includeArchived: true)]])->validate();
         if (isset($data['client_id'])) {
             // MoveSiteToClient moves the site first, then the other fields are saved, as in the web site settings.
-            $move($user, $monitor, $attributes, [], (int) $data['client_id'], refuseWhenBusy: true);
+            $move($user, $monitor, $attributes, [], $data['client_id'], refuseWhenBusy: true);
             $site = $monitor->refresh();
         } else {
             $site = $authorize($user, 'update', static fn (): Site => $update($monitor, $attributes), $monitor);

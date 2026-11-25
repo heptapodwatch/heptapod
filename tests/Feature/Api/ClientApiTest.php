@@ -23,13 +23,14 @@ function internalClient(): Client
  * ApiTestCase validates against the pinned Oh Dear spec, which has no client endpoints; call the kernel and validate
  * every response, refusals included, against the published contract instead.
  *
- * @param  array<string, mixed>  $body
+ * @param  array<string, mixed>|string  $body  a string is sent as the raw body (malformed JSON included)
  */
-function clientApi(string $method, string $uri, string $token, array $body = []): TestResponse
+function clientApi(string $method, string $uri, string $token, array|string $body = []): TestResponse
 {
     app('auth')->forgetGuards();
+    $content = is_string($body) ? $body : ($body === [] ? null : json_encode($body, JSON_THROW_ON_ERROR));
     $response = app(HttpKernel::class)->handle(Request::create($uri, $method, server: ['HTTP_AUTHORIZATION' => 'Bearer '.$token,
-        'HTTP_ACCEPT' => 'application/json', 'CONTENT_TYPE' => 'application/json'], content: $body === [] ? null : json_encode($body, JSON_THROW_ON_ERROR)));
+        'HTTP_ACCEPT' => 'application/json', 'CONTENT_TYPE' => 'application/json'], content: $content));
     $path = preg_replace('~^/api/clients/[0-9]+~', '/clients/{client}', (string) parse_url($uri, PHP_URL_PATH));
     $path = $path === '/api/clients' ? '/clients' : $path;
     ResponseValidator::validate($response, Reader::readFromJsonFile(base_path('docs/openapi.json'))->paths[$path]->{strtolower($method)}, '3.1.2');
@@ -62,11 +63,11 @@ it('lets an Owner token create, read, change, archive with a move and restore cl
     $this->putJson('/api/monitors/'.$unassigned, ['client_id' => $id, 'friendly_name' => 'Moved'])->assertOk()
         ->assertJsonPath('client_ref', 'client:'.$id)->assertJsonPath('label', 'Moved');
 
-    clientApi('POST', '/api/clients/'.$id.'/archive', $token, ['move_to_client_id' => $internal])->assertOk()->assertJsonPath('archived', true);
+    clientApi('POST', '/api/clients/'.$id.'/archive', $token, ['sites' => 'move', 'move_to_client_id' => $internal])->assertOk()->assertJsonPath('archived', true);
     expect(Site::query()->whereKey([$inAcme, $unassigned])->pluck('client_id')->unique()->all())->toBe([$internal]);
     clientApi('GET', '/api/clients', $token)->assertOk()->assertJsonPath('data.*.id', [$internal]);
     clientApi('GET', '/api/clients?filter[include_archived]=true', $token)->assertOk()->assertJsonPath('data.*.id', [$internal, $id]);
-    clientApi('POST', '/api/clients/'.$id.'/restore', $token)->assertOk()->assertJsonPath('archived', false);
+    clientApi('POST', '/api/clients/'.$id.'/restore', $token, ['sites' => 'resume'])->assertOk()->assertJsonPath('archived', false);
 });
 
 it('pauses the sites of a client archived without a move and resumes them on restore', function (): void {
@@ -74,9 +75,9 @@ it('pauses the sites of a client archived without a move and resumes them on res
     $site = Site::factory()->for($client)->create();
     $token = clientToken(User::factory()->admin()->create(), ['clients:write']);
 
-    clientApi('POST', '/api/clients/'.$client->id.'/archive', $token)->assertOk()->assertJsonPath('archived', true);
+    clientApi('POST', '/api/clients/'.$client->id.'/archive', $token, ['sites' => 'pause'])->assertOk()->assertJsonPath('archived', true);
     expect($site->refresh()->paused_at)->not->toBeNull();
-    clientApi('POST', '/api/clients/'.$client->id.'/restore', $token)->assertOk()->assertJsonPath('archived', false);
+    clientApi('POST', '/api/clients/'.$client->id.'/restore', $token, ['sites' => 'resume'])->assertOk()->assertJsonPath('archived', false);
     expect($site->refresh()->paused_at)->toBeNull();
 });
 
@@ -104,11 +105,11 @@ it('refuses client writes to Members, client-constrained tokens and tokens witho
 
     clientApi('POST', '/api/clients', $member, ['name' => 'Nope'])->assertForbidden();
     clientApi('PUT', '/api/clients/'.$client->id, $member, ['name' => 'Nope'])->assertNotFound();
-    clientApi('POST', '/api/clients/'.$client->id.'/archive', $member)->assertNotFound();
+    clientApi('POST', '/api/clients/'.$client->id.'/archive', $member, ['sites' => 'pause'])->assertNotFound();
     clientApi('POST', '/api/clients', $constrained, ['name' => 'Nope'])->assertForbidden();
     clientApi('PUT', '/api/clients/'.internalClient()->id, $constrained, ['name' => 'Nope'])->assertNotFound();
     clientApi('POST', '/api/clients', $readOnly, ['name' => 'Nope'])->assertForbidden();
-    clientApi('POST', '/api/clients/'.$client->id.'/archive', $readOnly)->assertForbidden();
+    clientApi('POST', '/api/clients/'.$client->id.'/archive', $readOnly, ['sites' => 'pause'])->assertForbidden();
 
     expect(Client::query()->where('name', 'Nope')->exists())->toBeFalse()->and($client->refresh()->archived_at)->toBeNull();
 });
@@ -116,7 +117,7 @@ it('refuses client writes to Members, client-constrained tokens and tokens witho
 it('keeps the internal client unarchivable and its name fixed', function (): void {
     $token = clientToken(User::factory()->owner()->create(), ['clients:write']);
 
-    clientApi('POST', '/api/clients/'.internalClient()->id.'/archive', $token)->assertForbidden();
+    clientApi('POST', '/api/clients/'.internalClient()->id.'/archive', $token, ['sites' => 'pause'])->assertForbidden();
     clientApi('PUT', '/api/clients/'.internalClient()->id, $token, ['name' => 'Renamed'])->assertUnprocessable()->assertJsonValidationErrors(['name']);
 });
 
@@ -126,7 +127,7 @@ it('refuses an archive move to a missing, hidden, archived or the same client on
     $archived = Client::factory()->create(['archived_at' => now()]);
     $hidden = Client::factory()->create();
     $admin = User::factory()->admin()->create();
-    $refused = fn (string $token, int $target) => clientApi('POST', '/api/clients/'.$client->id.'/archive', $token, ['move_to_client_id' => $target])
+    $refused = fn (string $token, int $target) => clientApi('POST', '/api/clients/'.$client->id.'/archive', $token, ['sites' => 'move', 'move_to_client_id' => $target])
         ->assertUnprocessable()->assertJsonValidationErrors(['move_to_client_id']);
 
     $broad = clientToken($admin, ['clients:write']);
@@ -183,11 +184,11 @@ it('refuses restore to Members, other clients, tokens without clients:write and 
     $foreign = clientToken($owner, ['clients:write'], $other->id);
     $broad = clientToken($owner, ['clients:write']);
 
-    clientApi('POST', '/api/clients/'.$client->id.'/restore', $readOnly)->assertForbidden();
-    clientApi('POST', '/api/clients/'.$client->id.'/restore', $member)->assertNotFound();
-    clientApi('POST', '/api/clients/'.$client->id.'/restore', $foreign)->assertNotFound();
-    clientApi('POST', '/api/clients/'.internalClient()->id.'/restore', $broad)->assertForbidden();
-    clientApi('POST', '/api/clients/'.$client->id.'/restore', $broad, ['resume' => false])->assertUnprocessable()->assertJsonValidationErrors(['resume']);
+    clientApi('POST', '/api/clients/'.$client->id.'/restore', $readOnly, ['sites' => 'resume'])->assertForbidden();
+    clientApi('POST', '/api/clients/'.$client->id.'/restore', $member, ['sites' => 'resume'])->assertNotFound();
+    clientApi('POST', '/api/clients/'.$client->id.'/restore', $foreign, ['sites' => 'resume'])->assertNotFound();
+    clientApi('POST', '/api/clients/'.internalClient()->id.'/restore', $broad, ['sites' => 'resume'])->assertForbidden();
+    clientApi('POST', '/api/clients/'.$client->id.'/restore', $broad, ['sites' => 'resume', 'resume' => false])->assertUnprocessable()->assertJsonValidationErrors(['resume']);
     expect($client->refresh()->archived_at)->not->toBeNull();
 });
 
@@ -197,22 +198,55 @@ it('refuses an unknown archive field instead of pausing every site', function ()
     $token = clientToken(User::factory()->owner()->create(), ['clients:write']);
 
     // client_id is the web form's field; the API takes move_to_client_id.
-    clientApi('POST', '/api/clients/'.$client->id.'/archive', $token, ['client_id' => internalClient()->id])->assertUnprocessable()->assertJsonValidationErrors(['client_id' => __('api.unsupported_field')]);
+    clientApi('POST', '/api/clients/'.$client->id.'/archive', $token, ['sites' => 'move', 'client_id' => internalClient()->id])->assertUnprocessable()->assertJsonValidationErrors(['client_id' => __('api.unsupported_field')]);
     clientApi('POST', '/api/clients', $token, ['name' => 'Logo Ltd', 'logo' => 'x'])->assertUnprocessable()->assertJsonValidationErrors(['logo']);
     expect($client->refresh()->archived_at)->toBeNull()->and($site->refresh()->paused_at)->toBeNull()
         ->and(Client::query()->where('name', 'Logo Ltd')->exists())->toBeFalse();
 });
 
-it('takes numeric-string client IDs like integers', function (): void {
+it('refuses client IDs that are not JSON integers', function (string $id): void {
     $client = Client::factory()->create();
-    $target = Client::factory()->create();
     $site = Site::factory()->for($client)->create();
     $token = clientToken(User::factory()->owner()->create(), ['clients:write', 'monitors:write']);
+    // Raw JSON: json_encode would turn 1.0 into 1.
+    $raw = fn (string $method, string $uri, string $json) => $this->call($method, $uri, server: ['HTTP_AUTHORIZATION' => 'Bearer '.$token,
+        'HTTP_ACCEPT' => 'application/json', 'CONTENT_TYPE' => 'application/json'], content: $json);
 
-    $this->withToken($token)->putJson('/api/monitors/'.$site->id, ['client_id' => (string) $target->id])->assertOk()->assertJsonPath('client_ref', 'client:'.$target->id);
-    clientApi('POST', '/api/clients/'.$target->id.'/archive', $token, ['move_to_client_id' => (string) $client->id])->assertOk()->assertJsonPath('archived', true);
-    expect($site->refresh()->client_id)->toBe($client->id);
-});
+    // Each of these is client 1 ("No client") in a loose comparison; none may move or create anything there.
+    $raw('PUT', '/api/monitors/'.$site->id, '{"client_id":'.$id.'}')->assertUnprocessable()->assertJsonValidationErrors(['client_id']);
+    $raw('POST', '/api/monitors', '{"team_id":1,"type":"http","url":"https://loose-id.test","checks":[],"client_id":'.$id.'}')
+        ->assertUnprocessable()->assertJsonValidationErrors(['client_id']);
+    clientApi('POST', '/api/clients/'.$client->id.'/archive', $token, '{"sites":"move","move_to_client_id":'.$id.'}')
+        ->assertUnprocessable()->assertJsonValidationErrors(['move_to_client_id']);
+    expect($site->refresh()->client_id)->toBe($client->id)->and($client->refresh()->archived_at)->toBeNull()
+        ->and(Site::query()->where('url', 'https://loose-id.test')->exists())->toBeFalse();
+})->with(['true' => 'true', 'numeric string' => '"1"', 'float' => '1.0']);
+
+it('refuses archive and restore without an explicit, well-formed mode', function (string $operation, string $body): void {
+    $client = Client::factory()->create(['archived_at' => $operation === 'restore' ? now() : null]);
+    $site = Site::factory()->for($client)->create(['paused_at' => $operation === 'restore' ? now() : null, 'paused_by_archive_at' => $operation === 'restore' ? now() : null]);
+    $token = clientToken(User::factory()->owner()->create(), ['clients:write']);
+
+    clientApi('POST', '/api/clients/'.$client->id.'/'.$operation, $token, $body)->assertUnprocessable();
+    expect($client->refresh()->archived_at === null)->toBe($operation === 'archive')
+        ->and($site->refresh()->paused_at === null)->toBe($operation === 'archive')
+        ->and($site->client_id)->toBe($client->id);
+})->with([
+    'archive without a body' => ['archive', ''],
+    'archive null' => ['archive', 'null'],
+    'archive list' => ['archive', '[]'],
+    'archive empty object' => ['archive', '{}'],
+    'archive truncated JSON' => ['archive', '{"sites":"pau'],
+    'archive unknown mode' => ['archive', '{"sites":"stop"}'],
+    'archive mode true' => ['archive', '{"sites":true}'],
+    'archive move without a target' => ['archive', '{"sites":"move"}'],
+    'archive pause with a target' => ['archive', '{"sites":"pause","move_to_client_id":1}'],
+    'restore without a body' => ['restore', ''],
+    'restore null' => ['restore', 'null'],
+    'restore list' => ['restore', '[]'],
+    'restore truncated JSON' => ['restore', '{"sites":"res'],
+    'restore unknown choice' => ['restore', '{"sites":true}'],
+]);
 
 it('moves a monitor out of an archived client with client_id alone, as on the web', function (): void {
     $site = Site::factory()->create(['paused_at' => now(), 'paused_by_archive_at' => now()]);

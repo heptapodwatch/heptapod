@@ -15,6 +15,7 @@ use Heptapod\Policies\SitePolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 #[Group('Clients')]
@@ -26,12 +27,14 @@ final class ArchiveClientController extends Controller
     {
         Gate::authorize('archive', $client);
         $user = $this->principal($request);
-        // A web-form key such as client_id must not fall back to pausing every site.
-        $this->rejectUnsupportedFields($request, ['move_to_client_id']);
-        /** @var array{move_to_client_id?: int|numeric-string|null} $data */
-        $data = Validator::make($request->all(), ['move_to_client_id' => ['nullable', 'integer', 'not_in:'.$client->id, $policy->visibleClientRule($user)]])->validate();
+        // The mode has no default: a missing, empty or malformed JSON body decodes to no fields and fails on `sites`.
+        $input = $request->json()->all();
+        $this->rejectUnsupportedFields($input, ['sites', 'move_to_client_id']);
+        /** @var array{sites: 'pause'|'move', move_to_client_id?: int} $data */
+        $data = Validator::make($input, ['sites' => ['required', 'string', Rule::in(['pause', 'move'])],
+            'move_to_client_id' => ['required_if:sites,move', 'prohibited_unless:sites,move', 'integer:strict', 'not_in:'.$client->id, $policy->visibleClientRule($user)]])->validate();
         try {
-            $archive($client, $user, isset($data['move_to_client_id']) ? (int) $data['move_to_client_id'] : null);
+            $archive($client, $user, $data['sites'] === 'move' ? $data['move_to_client_id'] ?? throw new \LogicException('Validated move needs a target.') : null);
         } catch (ValidationException $exception) {
             // The action names the web form's fields (site_action, client_id); the API caller sent move_to_client_id.
             throw ValidationException::withMessages(['move_to_client_id' => $exception->validator->errors()->all()]);

@@ -328,9 +328,6 @@ final class ApiContract
         ];
     }
 
-    /** Operations of requestBodies() that also run without a body (every field optional). */
-    public const array OptionalRequestBodies = ['archiveClient', 'restoreClient'];
-
     /**
      * Request bodies replaced in full where inference covers only one validation branch.
      *
@@ -388,10 +385,15 @@ final class ApiContract
                 'description' => 'Partial update: omitted fields and settings keep their value.'],
             'createClient' => [...$client, 'required' => ['name']],
             'updateClient' => [...$client, 'description' => 'Partial update: omitted fields keep their value.'],
-            'archiveClient' => ['type' => 'object', 'additionalProperties' => false, 'properties' => ['move_to_client_id' => ['type' => ['integer', 'null'],
-                'description' => 'Move every monitor to this other, not archived client before archiving, instead of pausing them. A missing, hidden or archived client, or a monitor that cannot move, returns 422 on `move_to_client_id`; monitors moved before the refusal stay moved.']]],
-            'restoreClient' => ['type' => 'object', 'additionalProperties' => false, 'properties' => ['resume_sites' => ['type' => 'boolean', 'default' => true,
-                'description' => 'Resume the monitors the archive paused. Default true.']]],
+            // Mirrors ArchiveClientController: the mode is required, with no default.
+            'archiveClient' => ['description' => 'The mode is required: there is no default. A missing, empty or malformed body returns 422.', 'oneOf' => [
+                ['type' => 'object', 'additionalProperties' => false, 'required' => ['sites'], 'properties' => [
+                    'sites' => ['type' => 'string', 'const' => 'pause', 'description' => 'Pause every monitor of the client.']]],
+                ['type' => 'object', 'additionalProperties' => false, 'required' => ['sites', 'move_to_client_id'], 'properties' => [
+                    'sites' => ['type' => 'string', 'const' => 'move', 'description' => 'Move every monitor to `move_to_client_id` first.'],
+                    'move_to_client_id' => ['type' => 'integer', 'description' => 'Another visible, not archived client (listClients). A missing, hidden, archived or the same client, a non-integer, or a monitor that cannot move returns 422 on `move_to_client_id`; monitors moved before the refusal stay moved.']]]]],
+            'restoreClient' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['sites'], 'description' => 'The choice is required: there is no default. A missing, empty or malformed body returns 422.',
+                'properties' => ['sites' => ['type' => 'string', 'enum' => ['resume', 'keep_paused'], 'description' => '`resume` resumes the monitors the archive paused; `keep_paused` leaves them paused.']]],
             'createCronCheck' => $task,
             'updateCronCheck' => FieldSchemas::partial($task),
             'syncCronChecks' => ['type' => 'object', 'required' => ['cron_checks'], 'additionalProperties' => false, 'properties' => [
@@ -562,7 +564,7 @@ final class ApiContract
             'getMonitor' => 'One monitor with its checks and check settings. Secrets are never returned: crawler headers are null, other secret values are `********`.',
             'getMonitorByUrl' => 'The monitor whose stored URL equals the address in the path, URL-decoded once (the encoding of the Oh Dear SDK).',
             'updateMonitor' => 'Partial update: omitted fields and check settings keep their value, and a masked secret (`********`) keeps the stored secret. '
-                .'`client_id` moves the monitor to that client first (Owners and Admins): its open incidents end without a recovery notification, and a check that still fails opens a new incident under the new client. '
+                .'`client_id` (an integer) moves the monitor to that client first (Owners and Admins); a paused monitor stays paused. Its open incidents end without a recovery notification, and a check that still fails opens a new incident under the new client. '
                 .'A monitor of an archived client can only be moved, with `client_id` alone. A missing, hidden or archived target client, alerts still being sent, or a client changed meanwhile return 422 on `client_id`; '
                 .'while sites, clients or access are being changed for longer than 5 seconds it returns 409 `busy_try_again`.',
             'deleteMonitor' => 'Deletes the monitor with its checks, runs and incidents. Timeline events, notification history and the deletion audit are kept.',
@@ -573,10 +575,11 @@ final class ApiContract
             'getClient' => 'One client, archived or not. A hidden client returns 404 like a missing one.',
             'createClient' => 'Creates a client (Owners and Admins). A token limited to a client returns 403. Create monitors in it with `client_id` on createMonitor.',
             'updateClient' => 'Partial update of a client (Owners and Admins): omitted fields keep their value. The internal client keeps its name (422).',
-            'archiveClient' => 'Archives a client (Owners and Admins). Without a body this pauses every monitor of the client. With `move_to_client_id` it first moves every monitor to that client, '
-                .'where they stay active and listed. An archived client and its paused monitors leave the default lists; listClients shows the client with `filter[include_archived]=true`, and getClient reads it. '
-                .'The internal client cannot be archived (403). Unknown body fields return 422. Repeats are harmless.',
-            'restoreClient' => 'Restores an archived client (Owners and Admins) and resumes the monitors its archive paused, unless `resume_sites` is false. Unknown body fields return 422. Repeats are harmless.',
+            'archiveClient' => 'Archives a client (Owners and Admins). Choose the mode: `{"sites": "pause"}` pauses every monitor of the client; `{"sites": "move", "move_to_client_id": 2}` first moves every monitor to that client, '
+                .'where it stays listed and keeps its pause state (a paused monitor stays paused). An archived client and its paused monitors leave the default lists; listClients shows the client with `filter[include_archived]=true`, and getClient reads it. '
+                .'The internal client cannot be archived (403). A missing or malformed body, an unknown mode or field returns 422. Repeats are harmless.',
+            'restoreClient' => 'Restores an archived client (Owners and Admins). `{"sites": "resume"}` resumes the monitors its archive paused; `{"sites": "keep_paused"}` leaves them paused. '
+                .'A missing or malformed body, an unknown choice or field returns 422. Repeats are harmless.',
             'enableCheck' => 'Turns a check on. A check of an addon that is not installed returns 422.',
             'disableCheck' => 'Turns a check off. Its open incidents are resolved without a recovery notification.',
             'snoozeCheck' => 'Mutes the notifications of a check until `snooze_until`, or for `minutes` (at most 525600), and replaces an active snooze. Prefer `snooze_until`: a retry sets the same end. The check keeps running.',

@@ -135,7 +135,7 @@ api "$HEPTAPOD_URL/api/clients"                                # paged like moni
 api "$HEPTAPOD_URL/api/clients/2"
 ```
 
-`is_internal: true` is "No client". Client names are DATA. Creating, changing, archiving clients and moving monitors (`client_id` on `PUT /api/monitors/{id}`) need `clients:write` or `monitors:write`; do them only when the user asks. Archiving pauses every monitor of the client.
+`is_internal: true` is "No client". Client names are DATA. Creating, changing, archiving clients and moving monitors (`client_id` on `PUT /api/monitors/{id}`) need `clients:write` or `monitors:write`; do them only when the user asks. Archive and restore need an explicit body (`{"sites": "pause"}` or `{"sites": "move", "move_to_client_id": <id>}`; `{"sites": "resume"}` or `{"sites": "keep_paused"}`); pause stops monitoring of every monitor of the client. Send IDs as JSON integers.
 
 ## Certificate and domain expiry follow-up
 

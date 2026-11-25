@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\ArchiveClient;
 use Heptapod\Actions\ChangeMemberAccess;
 use Heptapod\Actions\CreateCronTask;
 use Heptapod\Actions\CreateMaintenancePeriod;
@@ -238,6 +239,22 @@ it('answers 404 to a write whose site is deleted while it waits', function (Clos
 ]);
 
 /* A move that commits while the write waits: the write then reads the site under its new client and lands there when allowed. */
+/* A move with extra settings decides the source's writability under the lock: archived meanwhile, only a bare move is allowed. */
+it('refuses an API move with extra settings whose source client was archived while it waited', function (): void {
+    $fixture = siteWriteRaceFixture();
+    $token = $fixture['owner']->createToken('owner', ['*'])->plainTextToken;
+    $name = $fixture['site']->friendly_name;
+
+    $response = siteWriteRace(static fn () => app(ArchiveClient::class)($fixture['from']), 'PUT', '/api/monitors/'.$fixture['site']->id,
+        ['client_id' => $fixture['to']->id, 'friendly_name' => 'Saved after the archive'], token: $token);
+
+    $site = Site::query()->findOrFail($fixture['site']->id);
+    expect($response['status'])->toBe(403, json_encode($response['body']))
+        ->and($response['waited'])->toBeTrue()
+        ->and($site->client_id)->toBe($fixture['from']->id)
+        ->and($site->friendly_name)->toBe($name);
+});
+
 it('lands a write of an unscoped token in the client its site moved to while it waited', function (): void {
     $fixture = siteWriteRaceFixture();
     $token = $fixture['owner']->createToken('owner', ['*'])->plainTextToken;

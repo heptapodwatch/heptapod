@@ -5465,7 +5465,7 @@
         },
         "/clients/{client}/archive": {
             "post": {
-                "description": "Archives a client (Owners and Admins). Without a body this pauses every monitor of the client. With `move_to_client_id` it first moves every monitor to that client, where they stay active and listed. An archived client and its paused monitors leave the default lists; listClients shows the client with `filter[include_archived]=true`, and getClient reads it. The internal client cannot be archived (403). Unknown body fields return 422. Repeats are harmless.\n\nToken abilities: `clients:write`.",
+                "description": "Archives a client (Owners and Admins). Choose the mode: `{\"sites\": \"pause\"}` pauses every monitor of the client; `{\"sites\": \"move\", \"move_to_client_id\": 2}` first moves every monitor to that client, where it stays listed and keeps its pause state (a paused monitor stays paused). An archived client and its paused monitors leave the default lists; listClients shows the client with `filter[include_archived]=true`, and getClient reads it. The internal client cannot be archived (403). A missing or malformed body, an unknown mode or field returns 422. Repeats are harmless.\n\nToken abilities: `clients:write`.",
                 "operationId": "archiveClient",
                 "parameters": [
                     {
@@ -5482,23 +5482,50 @@
                     "content": {
                         "application/json": {
                             "example": {
-                                "move_to_client_id": 1
+                                "move_to_client_id": 1,
+                                "sites": "move"
                             },
                             "schema": {
-                                "additionalProperties": false,
-                                "properties": {
-                                    "move_to_client_id": {
-                                        "description": "Move every monitor to this other, not archived client before archiving, instead of pausing them. A missing, hidden or archived client, or a monitor that cannot move, returns 422 on `move_to_client_id`; monitors moved before the refusal stay moved.",
-                                        "type": [
-                                            "integer",
-                                            "null"
-                                        ]
+                                "description": "The mode is required: there is no default. A missing, empty or malformed body returns 422.",
+                                "oneOf": [
+                                    {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "sites": {
+                                                "const": "pause",
+                                                "description": "Pause every monitor of the client.",
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "sites"
+                                        ],
+                                        "type": "object"
+                                    },
+                                    {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "move_to_client_id": {
+                                                "description": "Another visible, not archived client (listClients). A missing, hidden, archived or the same client, a non-integer, or a monitor that cannot move returns 422 on `move_to_client_id`; monitors moved before the refusal stay moved.",
+                                                "type": "integer"
+                                            },
+                                            "sites": {
+                                                "const": "move",
+                                                "description": "Move every monitor to `move_to_client_id` first.",
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "sites",
+                                            "move_to_client_id"
+                                        ],
+                                        "type": "object"
                                     }
-                                },
-                                "type": "object"
+                                ]
                             }
                         }
-                    }
+                    },
+                    "required": true
                 },
                 "responses": {
                     "200": {
@@ -5630,7 +5657,7 @@
         },
         "/clients/{client}/restore": {
             "post": {
-                "description": "Restores an archived client (Owners and Admins) and resumes the monitors its archive paused, unless `resume_sites` is false. Unknown body fields return 422. Repeats are harmless.\n\nToken abilities: `clients:write`.",
+                "description": "Restores an archived client (Owners and Admins). `{\"sites\": \"resume\"}` resumes the monitors its archive paused; `{\"sites\": \"keep_paused\"}` leaves them paused. A missing or malformed body, an unknown choice or field returns 422. Repeats are harmless.\n\nToken abilities: `clients:write`.",
                 "operationId": "restoreClient",
                 "parameters": [
                     {
@@ -5647,21 +5674,29 @@
                     "content": {
                         "application/json": {
                             "example": {
-                                "resume_sites": true
+                                "sites": "resume"
                             },
                             "schema": {
                                 "additionalProperties": false,
+                                "description": "The choice is required: there is no default. A missing, empty or malformed body returns 422.",
                                 "properties": {
-                                    "resume_sites": {
-                                        "default": true,
-                                        "description": "Resume the monitors the archive paused. Default true.",
-                                        "type": "boolean"
+                                    "sites": {
+                                        "description": "`resume` resumes the monitors the archive paused; `keep_paused` leaves them paused.",
+                                        "enum": [
+                                            "resume",
+                                            "keep_paused"
+                                        ],
+                                        "type": "string"
                                     }
                                 },
+                                "required": [
+                                    "sites"
+                                ],
                                 "type": "object"
                             }
                         }
-                    }
+                    },
+                    "required": true
                 },
                 "responses": {
                     "200": {
@@ -11537,7 +11572,7 @@
                 }
             },
             "put": {
-                "description": "Partial update: omitted fields and check settings keep their value, and a masked secret (`********`) keeps the stored secret. `client_id` moves the monitor to that client first (Owners and Admins): its open incidents end without a recovery notification, and a check that still fails opens a new incident under the new client. A monitor of an archived client can only be moved, with `client_id` alone. A missing, hidden or archived target client, alerts still being sent, or a client changed meanwhile return 422 on `client_id`; while sites, clients or access are being changed for longer than 5 seconds it returns 409 `busy_try_again`.\n\nToken abilities: `monitors:write`.",
+                "description": "Partial update: omitted fields and check settings keep their value, and a masked secret (`********`) keeps the stored secret. `client_id` (an integer) moves the monitor to that client first (Owners and Admins); a paused monitor stays paused. Its open incidents end without a recovery notification, and a check that still fails opens a new incident under the new client. A monitor of an archived client can only be moved, with `client_id` alone. A missing, hidden or archived target client, alerts still being sent, or a client changed meanwhile return 422 on `client_id`; while sites, clients or access are being changed for longer than 5 seconds it returns 409 `busy_try_again`.\n\nToken abilities: `monitors:write`.",
                 "operationId": "updateMonitor",
                 "parameters": [
                     {

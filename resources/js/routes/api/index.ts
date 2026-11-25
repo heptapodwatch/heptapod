@@ -3735,7 +3735,7 @@ updateClient.form = updateClientForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ArchiveClientController::__invoke
-* @see app/Http/Controllers/Api/ArchiveClientController.php:25
+* @see app/Http/Controllers/Api/ArchiveClientController.php:26
 * @route '/api/clients/{client}/archive'
 */
 export const archiveClient = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -3750,7 +3750,7 @@ archiveClient.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ArchiveClientController::__invoke
-* @see app/Http/Controllers/Api/ArchiveClientController.php:25
+* @see app/Http/Controllers/Api/ArchiveClientController.php:26
 * @route '/api/clients/{client}/archive'
 */
 archiveClient.url = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -3783,7 +3783,7 @@ archiveClient.url = (args: { client: number | { id: number } } | [client: number
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ArchiveClientController::__invoke
-* @see app/Http/Controllers/Api/ArchiveClientController.php:25
+* @see app/Http/Controllers/Api/ArchiveClientController.php:26
 * @route '/api/clients/{client}/archive'
 */
 archiveClient.post = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -3793,7 +3793,7 @@ archiveClient.post = (args: { client: number | { id: number } } | [client: numbe
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ArchiveClientController::__invoke
-* @see app/Http/Controllers/Api/ArchiveClientController.php:25
+* @see app/Http/Controllers/Api/ArchiveClientController.php:26
 * @route '/api/clients/{client}/archive'
 */
 const archiveClientForm = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -3803,7 +3803,7 @@ const archiveClientForm = (args: { client: number | { id: number } } | [client: 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ArchiveClientController::__invoke
-* @see app/Http/Controllers/Api/ArchiveClientController.php:25
+* @see app/Http/Controllers/Api/ArchiveClientController.php:26
 * @route '/api/clients/{client}/archive'
 */
 archiveClientForm.post = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -3815,7 +3815,7 @@ archiveClient.form = archiveClientForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RestoreClientController::__invoke
-* @see app/Http/Controllers/Api/RestoreClientController.php:23
+* @see app/Http/Controllers/Api/RestoreClientController.php:24
 * @route '/api/clients/{client}/restore'
 */
 export const restoreClient = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -3830,7 +3830,7 @@ restoreClient.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RestoreClientController::__invoke
-* @see app/Http/Controllers/Api/RestoreClientController.php:23
+* @see app/Http/Controllers/Api/RestoreClientController.php:24
 * @route '/api/clients/{client}/restore'
 */
 restoreClient.url = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -3863,7 +3863,7 @@ restoreClient.url = (args: { client: number | { id: number } } | [client: number
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RestoreClientController::__invoke
-* @see app/Http/Controllers/Api/RestoreClientController.php:23
+* @see app/Http/Controllers/Api/RestoreClientController.php:24
 * @route '/api/clients/{client}/restore'
 */
 restoreClient.post = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -3873,7 +3873,7 @@ restoreClient.post = (args: { client: number | { id: number } } | [client: numbe
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RestoreClientController::__invoke
-* @see app/Http/Controllers/Api/RestoreClientController.php:23
+* @see app/Http/Controllers/Api/RestoreClientController.php:24
 * @route '/api/clients/{client}/restore'
 */
 const restoreClientForm = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -3883,7 +3883,7 @@ const restoreClientForm = (args: { client: number | { id: number } } | [client: 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RestoreClientController::__invoke
-* @see app/Http/Controllers/Api/RestoreClientController.php:23
+* @see app/Http/Controllers/Api/RestoreClientController.php:24
 * @route '/api/clients/{client}/restore'
 */
 restoreClientForm.post = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
