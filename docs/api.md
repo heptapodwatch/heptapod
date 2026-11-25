@@ -22,20 +22,20 @@ The command rejects abilities the user's role cannot have.
 
 ## Presets
 
-| Preset                     | API value    | Abilities                                                                                                                          |
-| -------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **Read for coding agents** | `agent-read` | `identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `activity:read`, `upcoming:read`                                |
-| **Read**                   | `read`       | `identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `uptime:read`, `downtime:read`, `tags:read`, `maintenance:read` |
-| **Write**                  | `write`      | The read abilities plus `monitors:write`, `checks:write`, `checks:snooze`, `incidents:note`, `tags:write`, `maintenance:write`     |
-| **Manage**                 | `manage`     | The same as **Write**                                                                                                              |
+| Preset                     | API value    | Abilities                                                                                                                                          |
+| -------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Read for coding agents** | `agent-read` | `identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `activity:read`, `upcoming:read`                                                |
+| **Read**                   | `read`       | `identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `uptime:read`, `downtime:read`, `tags:read`, `clients:read`, `maintenance:read` |
+| **Write**                  | `write`      | The read abilities plus `monitors:write`, `checks:write`, `checks:snooze`, `incidents:note`, `tags:write`, `maintenance:write`                     |
+| **Manage**                 | `manage`     | The same as **Write**                                                                                                                              |
 
-Each preset contains only the abilities the user's role can have. `checks:run` is in no preset; grant it through `abilities` on the settings endpoint or the token command.
+Each preset contains only the abilities the user's role can have. `checks:run` and `clients:write` are in no preset; grant them through `abilities` on the settings endpoint or the token command.
 
 ## Token rules
 
 - Abilities are independent: write does not include read.
 - Only an Owner can issue `*`.
-- Members cannot get `monitors:write`, `checks:write`, `checks:run` or `maintenance:write`. An older token with these abilities gets 403 on writes, or 404 for hidden resources.
+- Members cannot get `monitors:write`, `checks:write`, `checks:run`, `maintenance:write` or `clients:write`. An older token with these abilities gets 403 on writes, or 404 for hidden resources.
 - Members can get `checks:snooze`. `checks:write` also allows snooze and unsnooze.
 - Every request uses the user's current role and client access. A token limited to a client reaches only what both allow. Without access to that client, it reaches no sites.
 - Tokens have no default expiry. `SANCTUM_EXPIRATION` sets a maximum age in minutes; rebuild the config cache after changing it. A token's own expiry still applies.
@@ -167,6 +167,29 @@ These endpoints manage site windows in UTC. Client and tag windows, time zones a
 - Stop-maintenance on a shared window excludes only this site, once. The next occurrence includes it again. Still-open failures then get the normal [catch-up](./maintenance.md#catch-up-alerts).
 - Writes also need the user to manage the site. Members read the maintenance of sites they can see. A Member limited to assigned clients never sees tag windows.
 
+## Clients
+
+These endpoints list and manage clients. There is no client delete; archive a client instead.
+
+| Endpoint                         | Ability         | Effect                                                                                                                                             |
+| -------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/clients`               | `clients:read`  | Clients you can see, paged like the monitor list. `filter[include_archived]=true` adds archived clients.                                           |
+| `GET /api/clients/{id}`          | `clients:read`  | One client, archived or not.                                                                                                                       |
+| `POST /api/clients`              | `clients:write` | Creates a client: `name`, optional `short_name`, `locale`, `timezone`, `accent_color` (201).                                                       |
+| `PUT /api/clients/{id}`          | `clients:write` | Changes the same fields. Omitted fields stay as they are.                                                                                          |
+| `POST /api/clients/{id}/archive` | `clients:write` | Archives the client. Required body: `{"sites": "pause"}` pauses all its sites; `{"sites": "move", "move_to_client_id": 2}` moves them there first. |
+| `POST /api/clients/{id}/restore` | `clients:write` | Restores the client. Required body: `{"sites": "resume"}` resumes the sites its archive paused; `{"sites": "keep_paused"}` does not.               |
+
+- The list includes **No client**, the built-in client for sites without one, as `is_internal: true` with the name `Internal`. It cannot be renamed or archived.
+- Create, change, archive and restore need an Owner or Admin. A token limited to a client cannot create clients (403) and only reaches its own client.
+- `POST /api/monitors` takes an optional `client_id`; without it the site goes to **No client**.
+- Archive and restore have no default. A missing, empty or malformed body, an unknown mode or a move without `move_to_client_id` returns 422.
+- An archived client leaves the list; `filter[include_archived]=true` shows it. Sites moved away before archiving stay visible under their new client.
+- Moving a site does not change its pause state: a paused site stays paused under its new client.
+- Unknown body fields return 422. Client IDs in bodies are JSON integer literals; `"2"`, `""`, `true` or `2.0` return 422. On create, an omitted or `null` `client_id` means **No client**.
+- `PUT /api/monitors/{id}` with `client_id` moves the site, like **Client** in the site settings. Open incidents end without a recovery alert. A site of an archived client can only be moved, with `client_id` alone.
+- A missing, hidden or archived client, alerts still being sent, or a site changed meanwhile return 422 on `client_id`. Alert timing fields are not part of the API (422). While sites, clients or access are being changed for more than 5 seconds, a move returns 409 `busy_try_again`. A failed archive move returns 422 on `move_to_client_id`; sites moved before it stay moved.
+
 ## Scheduled tasks
 
 Scheduled tasks are created, changed and deleted only through the API.
@@ -244,14 +267,14 @@ Tested operations:
 - Snooze `minutes` takes an integer or a digit-only string, at most 525600.
 - Implemented operations add 422 (`Error`) and 429 (`ErrorMessage`) responses.
 - Page size is 1–200, default 200. Mixing the two paging styles returns 422. `filter[team_id]` must be 1.
-- `getMe` returns the instance time zone as the team's `timezone`. Client and user time zones are not part of the API. They are set in the web UI, where an empty one follows the instance time zone; the web client form sends `timezone: null` to return a client to that default.
+- `getMe` returns the instance time zone as the team's `timezone`. User time zones are not part of the API. A client's own `timezone` is in the [client endpoints](#clients); `null` follows the instance time zone.
 - Run and summary check errors serialize as `failed`. Check snapshots keep `errored-or-timed-out`.
 - `ohdear_url` fields point to local report pages.
 - Tags expose their names and only accessible site IDs. There is no tag update or delete.
 
 ### Monitors and checks
 
-- Only HTTP monitors exist. API-created monitors belong to **No client**, the built-in client for sites without one. The team ID is always 1.
+- Only HTTP monitors exist. API-created monitors belong to **No client**, the built-in client for sites without one, unless `client_id` names another client (see [Clients](#clients)). The team ID is always 1.
 - Creating without check input enables the recommended checks. `checks: []` disables them.
 - Omitted settings on update stay as they are.
 - A run in progress can still publish its result after an edit. The next run uses the new settings.

@@ -391,6 +391,7 @@
     "All tags": "Alle Tags",
     "api.unsupported": "Dieser Monitortyp oder diese Einstellung wird von den installierten Prüfungen nicht unterstützt.",
     "api.conflicting_aliases": "Für dieselbe Einstellung wurden widersprüchliche Werte angegeben.",
+    "api.unsupported_field": "Dieses Feld wird von diesem Endpunkt nicht unterstützt.",
     "api.unsupported_location": "Nur die lokale Prüfstelle wird unterstützt. Entfernte Standorte können nicht konfiguriert werden.",
     "api.invalid_minutes": "Minuten müssen eine positive Ganzzahl oder Ziffernfolge sein, höchstens 525600.",
     "api.invalid_snooze_until": "snooze_until muss ein zukünftiger Zeitpunkt mit Zeitzonenversatz sein, höchstens 365 Tage voraus.",

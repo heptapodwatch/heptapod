@@ -274,6 +274,8 @@
     "api_tokens.ability.downtime_read": "Read outages",
     "api_tokens.ability.tags_read": "Read tags",
     "api_tokens.ability.tags_write": "Change tags",
+    "api_tokens.ability.clients_read": "Read clients",
+    "api_tokens.ability.clients_write": "Create clients",
     "api_tokens.ability.maintenance_read": "Read maintenance",
     "api_tokens.ability.maintenance_write": "Change maintenance",
     "api_tokens.ability.activity_read": "Read activity",

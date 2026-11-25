@@ -391,6 +391,7 @@
     "All tags": "All tags",
     "api.unsupported": "This monitor type or setting is not supported by the installed checks.",
     "api.conflicting_aliases": "Conflicting values were supplied for the same setting.",
+    "api.unsupported_field": "This field is not supported by this endpoint.",
     "api.unsupported_location": "Only the local probe is supported. Remote locations cannot be configured.",
     "api.invalid_minutes": "Minutes must be a positive integer or digit-only string, at most 525600.",
     "api.invalid_snooze_until": "snooze_until must be a future instant with a time zone offset, at most 365 days ahead.",

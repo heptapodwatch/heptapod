@@ -115,6 +115,12 @@ $findingsApiGuest = $request('GET', '/api/findings?incident_id=1', ['headers' =>
 verify($findingsApiGuest->getStatusCode() === 401, 'Findings API must require a persistent bearer token');
 verify($findingsApiGuest->getHeader('Location') === [] && $findingsApiGuest->getHeader('Content-Type') === ['application/json'], 'Findings API guest response must be raw JSON, not a redirect to an internal HTTP origin');
 verify(json_decode((string) $findingsApiGuest->getBody(), true, flags: JSON_THROW_ON_ERROR) === ['error' => 'Unauthenticated.'], 'Findings API guest must not disclose monitoring evidence');
+// The client API, writes included, answers a guest as raw JSON like the findings API: a bearer token is the only credential.
+foreach ([['GET', '/api/clients'], ['GET', '/api/clients/1'], ['POST', '/api/clients'], ['PUT', '/api/clients/1'], ['POST', '/api/clients/1/archive'], ['POST', '/api/clients/1/restore']] as [$method, $path]) {
+    $clientApiGuest = $request($method, $path, ['headers' => ['Accept' => 'application/json']]);
+    verify($clientApiGuest->getStatusCode() === 401 && $clientApiGuest->getHeader('Location') === [] && $clientApiGuest->getHeader('Content-Type') === ['application/json']
+        && json_decode((string) $clientApiGuest->getBody(), true, flags: JSON_THROW_ON_ERROR) === ['error' => 'Unauthenticated.'], "{$method} {$path} must answer a raw 401 JSON without a bearer token, not a redirect to an internal HTTP origin");
+}
 $options = json_decode((string) $request('GET', '/passkeys/login/options', ['headers' => ['Accept' => 'application/json']])->getBody(), true, flags: JSON_THROW_ON_ERROR);
 verify(($options['options']['rpId'] ?? null) === 'monitor.example.com', 'WebAuthn relying-party host wrong');
 verify(config('fortify.passkeys.allowed_origins') === ['https://monitor.example.com:8443'], 'WebAuthn allowed origin wrong');

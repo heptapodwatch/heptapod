@@ -93,6 +93,14 @@ final class SitePolicy
         return Rule::exists(Site::class, 'id')->using(static fn (QueryBuilder $query): QueryBuilder => $query->whereIn('id', $visible));
     }
 
+    /** Validates a client ID inside the caller's reach, so a hidden client fails exactly like a missing one. */
+    public function visibleClientRule(User $user, bool $includeArchived = false): Exists
+    {
+        $visible = $this->visibleClients($user, $includeArchived)->getQuery()->select('clients.id');
+
+        return Rule::exists(Client::class, 'id')->using(static fn (QueryBuilder $query): QueryBuilder => $query->whereIn('id', $visible));
+    }
+
     /** @return list<int> */
     public function visibleSiteIds(User $user): array
     {

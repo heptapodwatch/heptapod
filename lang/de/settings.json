@@ -274,6 +274,8 @@
     "api_tokens.ability.downtime_read": "Ausfälle lesen",
     "api_tokens.ability.tags_read": "Stichworte lesen",
     "api_tokens.ability.tags_write": "Stichworte ändern",
+    "api_tokens.ability.clients_read": "Kunden lesen",
+    "api_tokens.ability.clients_write": "Kunden anlegen",
     "api_tokens.ability.maintenance_read": "Wartung lesen",
     "api_tokens.ability.maintenance_write": "Wartung ändern",
     "api_tokens.ability.activity_read": "Aktivität lesen",
