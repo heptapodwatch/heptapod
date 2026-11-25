@@ -74,7 +74,7 @@ final readonly class CheckForUpdates
      * Null when the source has no list endpoint, the read fails, or the page is not a JSON array holding the tag
      * `/latest` confirmed: a list that misses the latest release cannot explain it.
      *
-     * @return array{page_full: bool, items: list<array{tag: string, published_at: string, headline: string|null, before: list<string>, security: list<string>}>}|null
+     * @return array{page_full: bool, items: list<array{tag: string, published_at: string, headline: string|null, before: list<string>, security: list<string>, body: string, body_truncated: bool}>}|null
      */
     private function releases(string $latestUrl, string $latestTag, CheckContext $context): ?array
     {
@@ -108,8 +108,8 @@ final readonly class CheckForUpdates
             } catch (InvalidFormatException) {
                 continue;
             }
-            $items[] = ['tag' => $item['tag_name'], 'published_at' => $published,
-                ...ReleaseNotes::parse(is_string($item['body'] ?? null) ? $item['body'] : '')];
+            $body = is_string($item['body'] ?? null) ? $item['body'] : '';
+            $items[] = ['tag' => $item['tag_name'], 'published_at' => $published, ...ReleaseNotes::parse($body), ...ReleaseNotes::body($body)];
         }
 
         // Also rejects `{}`, which decodes like an empty list.

@@ -80,16 +80,41 @@ final readonly class UpdateStatusReader
         if ($json === null) {
             return ['releases' => null, 'truncated' => false];
         }
-        /** @var array{page_full: bool, items: list<array{tag: string, published_at: string, headline: string|null, before: list<string>, security: list<string>}>} $page */
+        /** @var array{page_full: bool, items: list<array{tag: string, published_at: string, headline: string|null, before: list<string>, security: list<string>, body?: string, body_truncated?: bool}>} $page */
         $page = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
         $parser = new VersionParser;
         $items = array_filter($page['items'], static fn (array $release): bool => self::isReleaseTag($release['tag']));
-        $releases = array_values(array_map(static fn (array $release): array => [...$release, 'url' => self::releaseUrl($release['tag'])],
+        $releases = array_values(array_map(static fn (array $release): array => ['tag' => $release['tag'], 'url' => self::releaseUrl($release['tag']),
+            'published_at' => $release['published_at'], 'headline' => $release['headline'], 'before' => $release['before'], 'security' => $release['security']],
             array_filter($items, static fn (array $release): bool => Comparator::greaterThan($parser->normalize($release['tag']), $parser->normalize($installed))
                 && Comparator::lessThanOrEqualTo($parser->normalize($release['tag']), $parser->normalize($latest)))));
         usort($releases, static fn (array $a, array $b): int => version_compare($b['tag'], $a['tag']));
         $reachesInstalled = array_any($items, static fn (array $release): bool => Comparator::lessThanOrEqualTo($parser->normalize($release['tag']), $parser->normalize($installed)));
 
         return ['releases' => $releases, 'truncated' => $page['page_full'] && ! $reachesInstalled];
+    }
+
+    /**
+     * The stored full notes by tag, raw and capped. Only the Updates page renders them; `read()` (the shell prop,
+     * System health) never carries them.
+     *
+     * @return array<string, array{body: string, body_truncated: bool}>
+     */
+    public function notes(): array
+    {
+        $json = DB::table('update_checks')->where('id', 1)->value('releases');
+        if (! is_string($json)) {
+            return [];
+        }
+        /** @var array{items: list<array{tag: string, body?: string, body_truncated?: bool}>} $page */
+        $page = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
+        $notes = [];
+        foreach ($page['items'] as $release) {
+            if (self::isReleaseTag($release['tag']) && isset($release['body'])) {
+                $notes[$release['tag']] = ['body' => $release['body'], 'body_truncated' => $release['body_truncated'] ?? false];
+            }
+        }
+
+        return $notes;
     }
 }

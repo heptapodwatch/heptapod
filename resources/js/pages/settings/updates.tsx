@@ -1,3 +1,4 @@
+import { TextLink } from '@/components/text-link';
 import { ActionNoteSlot } from '@/components/action-note-slot';
 import { TooltipHint } from '@/components/truncated-text';
 import { Disclosure } from '@/components/ui/disclosure';
@@ -793,6 +794,10 @@ function UpgradeCommand() {
     );
 }
 
+/** The server-rendered note: headings, lists, code and links in the page's own type scale; links as TextLink draws them. */
+const releaseNotesClass =
+    'mt-2 space-y-2 text-xs leading-relaxed text-muted-foreground [&_a]:text-foreground [&_a]:underline [&_a]:decoration-current/40 [&_a]:underline-offset-4 [&_a:hover]:no-underline [&_code]:font-mono [&_h1]:font-medium [&_h1]:text-foreground [&_h2]:font-medium [&_h2]:text-foreground [&_h3]:font-medium [&_h3]:text-foreground [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-4 [&_strong]:font-medium [&_strong]:text-foreground [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-4';
+
 /** One release between the installed and the latest: its headline and the items an Owner must read first. */
 function SkippedRelease({
     release,
@@ -823,6 +828,30 @@ function SkippedRelease({
                 items={release.before}
             />
             <ReleaseItems title={t('Security')} items={release.security} />
+            {release.notes_html !== null && (
+                <Disclosure
+                    className="text-xs"
+                    triggerClassName="text-cell font-medium"
+                    summary={t('Full release notes')}
+                >
+                    <div
+                        className={releaseNotesClass}
+                        // Rendered on the server by ReleaseNotes::html: raw HTML stripped, unsafe links unlinked, no images.
+                        dangerouslySetInnerHTML={{ __html: release.notes_html }}
+                    />
+                    {release.notes_truncated && (
+                        <p className="mt-2">
+                            <TextLink
+                                external
+                                href={release.url}
+                                variant="secondary"
+                            >
+                                {t('Continued on GitHub')}
+                            </TextLink>
+                        </p>
+                    )}
+                </Disclosure>
+            )}
         </li>
     );
 }

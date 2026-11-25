@@ -4,14 +4,28 @@ declare(strict_types=1);
 
 namespace Heptapod\Support;
 
+use League\CommonMark\Environment\Environment;
+use League\CommonMark\Event\DocumentParsedEvent;
+use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\Extension\CommonMark\Node\Inline\Image;
+use League\CommonMark\Extension\CommonMark\Node\Inline\Link;
+use League\CommonMark\MarkdownConverter;
+use League\CommonMark\Node\Node;
+use League\CommonMark\Renderer\ChildNodeRendererInterface;
+use League\CommonMark\Renderer\NodeRendererInterface;
+
 /**
- * Reads the parts of a Heptapod release note an Owner needs before upgrading, as plain text.
- * The notes follow one shape (`.agents/skills/heptapod-release-notes`): a headline sentence, then `## ` sections
- * with `- ` bullets. The body comes from the network, so nothing but capped plain text leaves this class.
+ * Reads a Heptapod release note: the parts an Owner needs before upgrading as plain text, and the full note as
+ * safe HTML. The notes follow one shape (`.agents/skills/heptapod-release-notes`): a headline sentence, then `## `
+ * sections with `- ` bullets. The body comes from the network: only capped plain text or the sanitized HTML below
+ * leaves this class.
  */
 final class ReleaseNotes
 {
     private const int MaxBodyBytes = 65536;
+
+    /** The stored full note; a longer one is cut and links to GitHub for the rest. */
+    private const int MaxNotesBytes = 16384;
 
     private const int MaxHeadline = 280;
 
@@ -56,6 +70,39 @@ final class ReleaseNotes
 
         return ['headline' => $headline === '' ? null : $headline,
             'before' => array_slice($before, 0, self::MaxItems), 'security' => array_slice($security, 0, self::MaxItems)];
+    }
+
+    /** @return array{body: string, body_truncated: bool} */
+    public static function body(string $markdown): array
+    {
+        return ['body' => mb_strcut($markdown, 0, self::MaxNotesBytes, 'UTF-8'), 'body_truncated' => strlen($markdown) > self::MaxNotesBytes];
+    }
+
+    /**
+     * The full note as HTML: raw HTML stripped, unsafe links without a target, images as their alt text so nothing
+     * loads from elsewhere, and every link opening in a new tab without referrer or ranking credit.
+     */
+    public static function html(string $markdown): string
+    {
+        $environment = new Environment(['html_input' => 'strip', 'allow_unsafe_links' => false, 'max_nesting_level' => 10]);
+        $environment->addExtension(new CommonMarkCoreExtension);
+        $environment->addRenderer(Image::class, new class implements NodeRendererInterface
+        {
+            public function render(Node $node, ChildNodeRendererInterface $childRenderer): string
+            {
+                return $childRenderer->renderNodes($node->children());
+            }
+        }, 10);
+        $environment->addEventListener(DocumentParsedEvent::class, static function (DocumentParsedEvent $event): void {
+            foreach ($event->getDocument()->iterator() as $node) {
+                if ($node instanceof Link) {
+                    $node->data->set('attributes/target', '_blank');
+                    $node->data->set('attributes/rel', 'noopener noreferrer nofollow');
+                }
+            }
+        });
+
+        return new MarkdownConverter($environment)->convert(mb_scrub($markdown, 'UTF-8'))->getContent();
     }
 
     /** Markdown and HTML to one line of plain text. */

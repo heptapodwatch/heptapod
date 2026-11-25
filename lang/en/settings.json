@@ -444,5 +444,7 @@
     "Release notes": "Release notes",
     "Before you upgrade": "Before you upgrade",
     "Release details could not be loaded.": "Release details could not be loaded.",
-    "Release notes :version": "Release notes :version"
+    "Release notes :version": "Release notes :version",
+    "Full release notes": "Full release notes",
+    "Continued on GitHub": "Continued on GitHub"
 }

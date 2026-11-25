@@ -142,6 +142,35 @@ it('explains the skipped releases as capped plain text from the fixed note secti
         ->where('appUpdate', ['status' => 'available', 'security' => true, 'latest' => 'v1.2.3']));
 });
 
+it('renders each skipped release note as safe HTML on the Updates page only, capped with a pointer to GitHub', function (): void {
+    config(['heptapod.version' => 'v1.2.0', 'heptapod.updates.enabled_by_server' => true]);
+    $body = "Headline.\n\n## Improved\n- **Bold** item with [docs](https://heptapod.watch/docs/) and [bad](javascript:alert(1)).\n\n"
+        ."<script>alert(1)</script><iframe src=\"https://x.test\"></iframe>\n\n![tracking pixel](https://x.test/p.png)\n\n`code`";
+    app()->instance(OutboundHttp::class, fakeReleaseSource([
+        releaseItem('v1.2.2', $body),
+        releaseItem('v1.2.1', 'Long.'."\n\n".str_repeat('word ', 5000)),
+        releaseItem('v1.2.0', 'Installed.'),
+    ]));
+    $this->artisan('heptapod:check-updates')->assertSuccessful();
+    $owner = User::factory()->owner()->create();
+    $response = $this->actingAs($owner)->getJson(route('settings.updates.status'))->assertOk()
+        ->assertJsonPath('releases.0.notes_truncated', false)->assertJsonPath('releases.1.notes_truncated', true);
+    $html = $response->json('releases.0.notes_html');
+    expect($html)->toContain('<h2>Improved</h2>')->toContain('<strong>Bold</strong>')->toContain('<code>code</code>')
+        ->toContain('<a target="_blank" rel="noopener noreferrer nofollow" href="https://heptapod.watch/docs/">docs</a>')
+        // The unsafe link keeps its text but loses its target; raw HTML and the image never reach the page.
+        ->toContain('<a target="_blank" rel="noopener noreferrer nofollow">bad</a>')->toContain('tracking pixel')
+        ->not->toContain('javascript:')->not->toContain('<script')->not->toContain('<iframe')->not->toContain('<img')->not->toContain('x.test');
+    // 16 KiB of markdown are stored and rendered; the rest is on GitHub.
+    expect(strlen(strip_tags($response->json('releases.1.notes_html'))))->toBeLessThanOrEqual(16384)->toBeGreaterThan(16000);
+    $this->get(route('settings.updates.edit'))->assertInertia(fn (Assert $page): Assert => $page
+        ->where('updatesPage.updates.releases.0.notes_html', $html));
+
+    // The shell prop and System health read the status without any note.
+    expect($this->get(route('sites.index'))->getContent())->not->toContain('Headline.')->not->toContain('notes_html')
+        ->and($this->getJson(route('settings.system.data'))->assertOk()->getContent())->not->toContain('notes_html')->not->toContain('tracking pixel');
+});
+
 it('says the count is a lower bound when the fetched page never reaches the installed release', function (): void {
     config(['heptapod.version' => 'v1.0.0', 'heptapod.updates.enabled_by_server' => true]);
     // A full page of 20 whose last entry is a pre-release: 19 stable releases, and older ones may be missing.
