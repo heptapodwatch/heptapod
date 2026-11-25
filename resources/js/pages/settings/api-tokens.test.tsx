@@ -31,7 +31,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
             },
             post: async () => {
                 posts.push(transform(data));
-                return { token: 'secret' };
+                return { token: 'secret', expires_at: null };
             },
             get: () => new Promise(() => {}),
             delete: async () => null,
@@ -146,8 +146,6 @@ it.each([
 );
 
 it('issues exactly the edited checklist with the chosen client access and a 30-day default expiry', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2030-01-01T00:00:00Z'));
     render(
         <TooltipProvider>
             <ApiTokens tokensPage={page} />
@@ -180,7 +178,6 @@ it('issues exactly the edited checklist with the chosen client access and a 30-d
     await act(async () => {
         fireEvent.submit(form);
     });
-    vi.useRealTimers();
     expect(posts).toEqual([
         {
             name: 'Deploy',
@@ -192,7 +189,8 @@ it('issues exactly the edited checklist with the chosen client access and a 30-d
                 'maintenance:write',
             ],
             client_id: null,
-            expires_at: '2030-01-31T00:00:00.000Z',
+            expires_at: null,
+            expires_in_days: 30,
         },
     ]);
 });

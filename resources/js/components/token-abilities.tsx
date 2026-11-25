@@ -89,13 +89,11 @@ export function AbilityChecklist({
     value,
     onChange,
     disabled,
-    describedBy,
 }: {
     available: string[];
     value: string[];
     onChange: (abilities: string[]) => void;
     disabled?: boolean;
-    describedBy?: string;
 }) {
     const { t } = useTranslation();
     const ungrouped = available.filter(
@@ -122,7 +120,6 @@ export function AbilityChecklist({
                                 value={ability}
                                 checked={value.includes(ability)}
                                 disabled={disabled}
-                                aria-describedby={describedBy}
                                 description={
                                     abilityConsequences[ability]
                                         ? t(abilityConsequences[ability])

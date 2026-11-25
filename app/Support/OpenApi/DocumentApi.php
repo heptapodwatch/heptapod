@@ -81,7 +81,7 @@ final class DocumentApi implements DocumentTransformer
         }
 
         return 'Personal access token from **Settings → API tokens**, sent as `Authorization: Bearer <token>`. Abilities are independent: write does not imply read. '
-            .'New tokens name their abilities: `*` is no longer issued, existing `*` tokens keep every ability. '.$this->quoted(CreateApiToken::AdminAbilities).' are for Owners and Admins only.'
+            .'New tokens name their abilities: `*` is no longer issued. Existing `*` tokens still match every ability, limited by the current role and client access. '.$this->quoted(CreateApiToken::AdminAbilities).' are for Owners and Admins only.'
             ."\n\nFrozen presets of the settings endpoint:\n- `read`: ".$this->quoted(CreateApiToken::ReadPreset)."\n- `write` and `manage`: ".$this->quoted(CreateApiToken::HistoricalAbilities)
             ."\n- `agent-read`: ".$this->quoted(CreateApiToken::AgentReadPreset)
             ."\n\nStarting points of the token form (they fill the checklist; the checked abilities are the grant):\n- Read everything: every `:read` ability\n- Deploy automation (Owners and Admins): ".$this->quoted(CreateApiToken::DeployAutomation)

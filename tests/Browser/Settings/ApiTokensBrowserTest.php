@@ -65,9 +65,10 @@ it('validates creates clears the one-time disclosure and revokes through the rea
     $page = visit('/settings/profile')->resize(1440, 900)->click('API tokens')->assertSee('No API tokens yet.')->click('Create token');
     // Mask credential pixels before issuance, including automatic failure screenshots. No trace is enabled.
     $page->script('const style = document.createElement("style"); style.textContent = "#one-time-secret { opacity: 0 !important; }"; document.head.append(style); Object.defineProperty(navigator, "clipboard", {configurable: true, value: {writeText: async () => { throw new DOMException("Denied", "NotAllowedError"); }}});');
-    $page->fill('token-name', str_repeat('x', 256))->keys('token-name', 'Enter')->assertSee('The name field must not be greater than 255 characters.');
-    $page->fill('token-name', 'Browser scoped read')->click('One client')->click('#token-client')->click('[role="option"]:has-text("'.$client->name.'")')
-        ->click('Custom date')->fill('token-expiry', '2000-01-02T03:04')->keys('token-name', 'Enter')->assertSee('The expires at field must be a date after now.')
+    // Client access is required before any request, so choose it first; the overlong name then reaches the server.
+    $page->click('One client')->click('#token-client')->click('[role="option"]:has-text("'.$client->name.'")')
+        ->fill('token-name', str_repeat('x', 256))->keys('token-name', 'Enter')->assertSee('The name field must not be greater than 255 characters.');
+    $page->fill('token-name', 'Browser scoped read')->click('Custom date')->fill('token-expiry', '2000-01-02T03:04')->keys('token-name', 'Enter')->assertSee('The expires at field must be a date after now.')
         ->fill('token-expiry', '2030-01-02T03:04')->keys('token-name', 'Enter')->assertSee('Copy your token now');
     try {
         expect($page->script('(() => { const value = document.querySelector("#one-time-secret").value; return value.length > 40 && !JSON.stringify(history.state).includes(value) && !JSON.stringify(localStorage).includes(value) && !JSON.stringify(sessionStorage).includes(value); })()'))->toBeTrue();

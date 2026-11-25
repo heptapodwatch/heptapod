@@ -55,16 +55,16 @@ Each preset contains only the abilities the user's role can have.
 ## Token rules
 
 - Abilities are independent: write does not include read.
-- New tokens name their abilities: settings and the token command refuse `*`. An existing `*` token keeps working and is listed as **All abilities, including future ones**. Replace it with a token that names its abilities, then revoke it.
+- New tokens name their abilities: settings and the token command refuse `*`. An existing `*` token keeps matching every ability, still limited by your current role and client access, and is listed as **All abilities, including future ones**. Replace it with a token that names its abilities, then revoke it.
 - Members cannot get `monitors:write`, `checks:write`, `checks:run`, `maintenance:write` or `clients:write`. An older token with these abilities gets 403 on writes, or 404 for hidden resources.
 - Members can get `checks:snooze`. `checks:write` also allows snooze and unsnooze.
 - Every request uses the user's current role and client access. A token limited to a client reaches only what both allow. Without access to that client, it reaches no sites. A token for all clients also reaches clients you get access to later.
-- The form defaults to 30 days. The settings endpoint and the token command set no expiry unless you pass one. `SANCTUM_EXPIRATION` sets a maximum age in minutes and can end a token earlier; rebuild the config cache after changing it.
+- The form defaults to 30 days, counted from the server's time at creation. The settings endpoint sets no expiry unless you pass `expires_at` or `expires_in_days: 30`. The token command has no expiry option; its tokens do not expire on their own. `SANCTUM_EXPIRATION` sets a maximum age in minutes and can end a token earlier; rebuild the config cache after changing it.
 - Session cookies do not authenticate API requests.
 
 The settings endpoints `GET /settings/api-tokens/data`, `POST /settings/api-tokens` and `DELETE /settings/api-tokens/{id}` list, create and revoke the signed-in user's own tokens.
 
-- Creation takes `abilities` or a `preset`, an optional `client_id` and an optional `expires_at`.
+- Creation takes `abilities` or a `preset`, an optional `client_id`, and an optional `expires_at` or `expires_in_days` (`30`). It returns the stored `expires_at`.
 - `GET /settings/api-tokens/data` returns the abilities your role can grant, the preset mappings and the starting points.
 - Creation returns the plaintext token once, with `Cache-Control: no-store`. Listings hold only metadata.
 

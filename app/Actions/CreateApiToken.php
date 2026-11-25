@@ -56,12 +56,15 @@ final class CreateApiToken
             'deploy-automation' => array_diff(self::DeployAutomation, $allowed) === [] ? array_values(array_intersect($allowed, self::DeployAutomation)) : null];
     }
 
-    /** @param list<string> $abilities */
-    public function __invoke(User $user, string $name, array $abilities, ?int $clientId = null, ?DateTimeInterface $expiresAt = null): string
+    /**
+     * @param  list<string>  $abilities
+     * @param  int|null  $expiresInDays  a lifetime counted from server time at issuance, instead of $expiresAt
+     */
+    public function __invoke(User $user, string $name, array $abilities, ?int $clientId = null, ?DateTimeInterface $expiresAt = null, ?int $expiresInDays = null): string
     {
         $authenticated = $user;
 
-        return DB::transaction(function () use ($authenticated, $name, $abilities, $clientId, $expiresAt): string {
+        return DB::transaction(function () use ($authenticated, $name, $abilities, $clientId, $expiresAt, $expiresInDays): string {
             // NotificationLocks level 0: a change of who may write what holds the access-structure lock exclusive, first.
             NotificationLocks::accessExclusive();
             // Removal, access changes and password resets hold the user FOR UPDATE while they delete its tokens: a token is
@@ -79,7 +82,7 @@ final class CreateApiToken
             if ($expiresAt instanceof DateTimeInterface && $expiresAt <= now()) {
                 throw ValidationException::withMessages(['expires_at' => __('validation.after', ['attribute' => 'expires_at', 'date' => 'now'])]);
             }
-            $created = $user->createToken($name, $abilities, $expiresAt);
+            $created = $user->createToken($name, $abilities, $expiresInDays === null ? $expiresAt : now()->addDays($expiresInDays));
             $created->accessToken->forceFill(['client_id' => $clientId])->save();
 
             return $created->plainTextToken;

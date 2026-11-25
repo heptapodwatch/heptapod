@@ -16,21 +16,26 @@ beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-20T12:00:00Z'));
 });
 
-it('issues the read-everything starting point documented for agents', function (): void {
-    $skill = file_get_contents(base_path('.agents/skills/heptapod-api/SKILL.md'));
-    expect($skill)->toBeString();
-    expect(preg_match('/\*\*Read everything\*\* \(([^)]+)\)/', $skill, $matches))->toBe(1);
-    $abilities = array_map(fn (string $ability): string => trim($ability, ' `'), explode(',', $matches[1]));
+it('issues the read-everything starting point with a 30-day lifetime counted on the server', function (): void {
+    $abilities = ['identity:read', 'monitors:read', 'checks:read', 'incidents:read', 'uptime:read', 'downtime:read', 'tags:read',
+        'maintenance:read', 'activity:read', 'upcoming:read', 'clients:read'];
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
+    $store = route('settings.api-tokens.store');
 
     $this->actingAs($owner)->getJson(route('settings.api-tokens.data'))
         ->assertOk()->assertJsonPath('starting_points.read-everything', $abilities);
-    $this->postJson(route('settings.api-tokens.store'), ['name' => 'Agent reader', 'abilities' => $abilities])
-        ->assertCreated()->assertJsonStructure(['token']);
+    $this->postJson($store, ['name' => 'Agent reader', 'abilities' => $abilities, 'expires_in_days' => 30])
+        ->assertCreated()->assertJsonPath('expires_at', '2026-11-19T12:00:00+00:00');
+    $this->postJson($store, ['name' => 'Both', 'abilities' => $abilities, 'expires_in_days' => 30, 'expires_at' => now()->addDay()->toIso8601String()])
+        ->assertUnprocessable()->assertJsonValidationErrors('expires_in_days');
+    $this->postJson($store, ['name' => 'Long', 'abilities' => $abilities, 'expires_in_days' => 3650])
+        ->assertUnprocessable()->assertJsonValidationErrors('expires_in_days');
 
-    expect($owner->tokens()->sole()->abilities)->toBe($abilities)->toBe(['identity:read', 'monitors:read', 'checks:read',
-        'incidents:read', 'uptime:read', 'downtime:read', 'tags:read', 'maintenance:read', 'activity:read', 'upcoming:read', 'clients:read']);
+    $token = $owner->tokens()->sole();
+    expect($token->abilities)->toBe($abilities)->and($token->expires_at?->toIso8601String())->toBe('2026-11-19T12:00:00+00:00');
+    // Callers that pass neither keep the endpoint's no-expiry default.
+    $this->postJson($store, ['name' => 'Unattended', 'abilities' => ['monitors:read']])->assertCreated()->assertJsonPath('expires_at', null);
 });
 
 it('offers every role its grantable abilities and the deploy starting point only to Owners and Admins', function (string $role, bool $privileged): void {

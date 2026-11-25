@@ -69,7 +69,6 @@ type Disclosure = {
 };
 const dialogClass =
     'max-h-[calc(100dvh_-_2rem)] max-w-[calc(100vw_-_2rem)] overflow-y-auto sm:max-w-[480px]';
-const thirtyDays = 30 * 24 * 60 * 60 * 1000;
 
 function CreateToken({
     page,
@@ -86,7 +85,10 @@ function CreateToken({
         empty: [],
     };
     // Unmount the form after issuance: the request also holds its response in component memory.
-    const form = useHttpRequest<Draft, { token: string }>({
+    const form = useHttpRequest<
+        Draft,
+        { token: string; expires_at: string | null }
+    >({
         name: '',
         abilities: page.starting_points['read-everything'],
         reach: '',
@@ -153,18 +155,14 @@ function CreateToken({
             focus.current = 'token-expiry';
             return;
         }
-        const expiresAt =
-            form.data.expiry === '30-days'
-                ? new Date(Date.now() + thirtyDays).toISOString()
-                : form.data.expiry === 'custom'
-                  ? customExpiresAt
-                  : null;
+        // The server counts the 30 days from its own clock; the browser clock never sets a lifetime.
         form.transform((draft) => ({
             name: draft.name,
             abilities: draft.abilities,
             client_id:
                 draft.reach === 'client' ? Number(draft.client_id) : null,
-            expires_at: expiresAt,
+            expires_at: draft.expiry === 'custom' ? customExpiresAt : null,
+            expires_in_days: draft.expiry === '30-days' ? 30 : null,
         }));
         try {
             const result = await form.post(store.url(), {
@@ -191,7 +189,7 @@ function CreateToken({
                                       client.id === Number(form.data.client_id),
                               )!.name
                             : null,
-                    expires_at: expiresAt,
+                    expires_at: result.expires_at,
                 });
         } catch (error: unknown) {
             // Field errors are already shown. A lost issuance response is ambiguous: require a metadata check before another attempt.
@@ -296,6 +294,7 @@ function CreateToken({
                     tabIndex={-1}
                     role="group"
                     aria-labelledby="token-abilities-label"
+                    {...fieldErrorProps('token-abilities', abilitiesError)}
                     className="space-y-1.5 outline-none"
                 >
                     <p
@@ -311,15 +310,12 @@ function CreateToken({
                         available={page.abilities}
                         value={form.data.abilities}
                         disabled={form.processing}
-                        describedBy={
-                            abilitiesError ? 'token-abilities-error' : undefined
-                        }
                         onChange={(abilities) =>
                             form.setData('abilities', abilities)
                         }
                     />
                     <InputError
-                        id="token-abilities-error"
+                        field="token-abilities"
                         message={abilitiesError}
                     />
                 </div>
@@ -419,6 +415,14 @@ function CreateToken({
                                 describedBy="token-expiry-error"
                                 onInvalidChange={setExpiryInvalid}
                             />
+                            <InputError
+                                id="token-expiry-error"
+                                message={
+                                    expiryInvalid
+                                        ? 'Enter the date and time in 24-hour format.'
+                                        : form.errors.expires_at
+                                }
+                            />
                         </>
                     )}
                     {form.data.expiry === 'none' && (
@@ -428,14 +432,6 @@ function CreateToken({
                             )}
                         </p>
                     )}
-                    <InputError
-                        id="token-expiry-error"
-                        message={
-                            expiryInvalid
-                                ? 'Enter the date and time in 24-hour format.'
-                                : form.errors.expires_at
-                        }
-                    />
                 </div>
             </SheetForm>
         </Sheet>
