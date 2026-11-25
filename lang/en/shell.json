@@ -32,5 +32,6 @@
     "run.import": "Oh Dear import",
     "run.backup": "Backup",
     "run.openImport": "Open import",
-    "run.openBackups": "Open backups"
+    "run.openBackups": "Open backups",
+    ":version available": ":version available"
 }

@@ -428,5 +428,13 @@
     "backups.archives.count_one": "{{formattedCount}} Archiv",
     "backups.archives.count_other": "{{formattedCount}} Archive",
     "system.issues.count_one": "{{formattedCount}} offenes Problem",
-    "system.issues.count_other": "{{formattedCount}} offene Probleme"
+    "system.issues.count_other": "{{formattedCount}} offene Probleme",
+    "Published": "Veröffentlicht",
+    "Back up first, then run the command for your installation in its directory.": "Erstellen Sie zuerst eine Sicherung und führen Sie dann den Befehl für Ihre Installation in deren Verzeichnis aus.",
+    "One-line installer": "Einzeiliger Installer",
+    "Git checkout": "Git-Checkout",
+    "Turn on release checks to see new versions here: once a day Heptapod asks GitHub for the latest release, sending only its version in the user agent.": "Aktivieren Sie die Release-Prüfung, um neue Versionen hier zu sehen: Einmal täglich fragt Heptapod bei GitHub das neueste Release ab und sendet dabei nur die eigene Version im User-Agent.",
+    "What's new in :version": "Neu in :version",
+    "How to upgrade": "Anleitung zum Aktualisieren",
+    "Copy failed. Select the command and copy it manually.": "Kopieren fehlgeschlagen. Markieren Sie den Befehl und kopieren Sie ihn manuell."
 }

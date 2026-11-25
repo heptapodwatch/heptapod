@@ -19,7 +19,8 @@ import {
     useHttpRequest,
 } from '@/hooks/use-http-request';
 import { onLiveSignal } from '@/lib/live-store';
-import { Archive, ExternalLink } from 'lucide-react';
+import { Archive, Copy, ExternalLink } from 'lucide-react';
+import { useClipboard } from '@/hooks/use-clipboard';
 import { EmptyState } from '@/components/empty-state';
 import { useEffect, useId, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -41,6 +42,7 @@ import {
 import { status, update } from '@/routes/settings/updates';
 
 type Page = Heptapod.Data.Ui.UpdatesSettingsPageData;
+const upgradeDocsUrl = 'https://heptapod.watch/docs/running-it/updating/';
 type Backups = NonNullable<Page['backups']>;
 const releaseLabels: Record<string, string> = {
     disabled_by_server: 'Release checks disabled by server',
@@ -293,8 +295,43 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                         {updates.update_status === 'available' &&
                             updates.latest_version !== null &&
                             ` · ${updates.latest_version}`}
+                        {updates.update_status === 'available' &&
+                            updates.published_at !== null && (
+                                <>
+                                    {' · '}
+                                    {t('Published')}{' '}
+                                    <AbsoluteTime
+                                        value={updates.published_at}
+                                    />
+                                </>
+                            )}
                     </span>
                 </div>
+                {updates.update_status === 'available' &&
+                    updates.latest_version !== null && (
+                        <div className="space-y-2">
+                            <p className="text-cell">
+                                {t(
+                                    'Back up first, then run the command for your installation in its directory.',
+                                )}
+                            </p>
+                            <UpgradeCommand
+                                label={t('One-line installer')}
+                                command={`sudo ./scripts/upgrade.sh --to ${updates.latest_version}`}
+                            />
+                            <UpgradeCommand
+                                label={t('Git checkout')}
+                                command={`git fetch --tags && git checkout ${updates.latest_version} && ./scripts/upgrade.sh`}
+                            />
+                        </div>
+                    )}
+                {updates.update_status === 'disabled_by_user' && (
+                    <p className="text-cell">
+                        {t(
+                            'Turn on release checks to see new versions here: once a day Heptapod asks GitHub for the latest release, sending only its version in the user agent.',
+                        )}
+                    </p>
+                )}
                 <dl className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
                     <div>
                         <dt>{t('Status evaluated at')}</dt>
@@ -349,7 +386,23 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                                 rel="noreferrer"
                             >
                                 <ExternalLink className="size-3.5" />
-                                {t('Last observed release notes')}
+                                {updates.update_status === 'available'
+                                    ? t("What's new in :version", {
+                                          version: updates.latest_version,
+                                      })
+                                    : t('Last observed release notes')}
+                            </a>
+                        </Button>
+                    )}
+                    {updates.update_status === 'available' && (
+                        <Button variant="outline" asChild>
+                            <a
+                                href={upgradeDocsUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                <ExternalLink className="size-3.5" />
+                                {t('How to upgrade')}
                             </a>
                         </Button>
                     )}
@@ -675,5 +728,43 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                 </p>
             </FormSection>
         </PageContainer>
+    );
+}
+
+/** One upgrade command, selectable and copyable; a failed copy leaves the visible text to select by hand. */
+function UpgradeCommand({
+    label,
+    command,
+}: {
+    label: string;
+    command: string;
+}) {
+    const { t } = useTranslation();
+    const [copied, copy] = useClipboard();
+    return (
+        <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <div className="flex items-start gap-2">
+                <code className="block min-w-0 flex-1 rounded-lg border bg-muted/30 px-3 py-2 text-xs break-all">
+                    {command}
+                </code>
+                <Button
+                    variant="outline"
+                    aria-label={`${t(copied ? 'Copied' : 'Copy')}: ${label}`}
+                    onClick={async () => {
+                        if (!(await copy(command))) {
+                            toast.error(
+                                t(
+                                    'Copy failed. Select the command and copy it manually.',
+                                ),
+                            );
+                        }
+                    }}
+                >
+                    <Copy className="size-3.5" />
+                    {t(copied ? 'Copied' : 'Copy')}
+                </Button>
+            </div>
+        </div>
     );
 }

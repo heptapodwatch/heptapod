@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Actions;
 
+use Heptapod\Events\LiveSignal;
 use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Settings\InstanceSettings;
 
@@ -22,5 +23,6 @@ final readonly class SetUpdateChecksEnabled
         }
         $this->settings->updates_enabled = $enabled;
         $this->settings->save();
+        LiveSignal::forUpdates();
     }
 }

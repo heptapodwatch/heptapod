@@ -12,6 +12,7 @@ use Heptapod\Contracts\Http\FetchFailure;
 use Heptapod\Contracts\Http\FetchRequest;
 use Heptapod\Contracts\Http\OutboundHttp;
 use Heptapod\Contracts\Http\RedirectPolicy;
+use Heptapod\Events\LiveSignal;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -50,7 +51,8 @@ final readonly class CheckForUpdates
             }
         }
         $status = $release !== null ? 'reachable' : ($result->status === 200 ? 'invalid_response' : 'unreachable');
-        $oldStatus = DB::table('update_checks')->where('id', 1)->value('status');
+        $old = DB::table('update_checks')->where('id', 1)->first(['status', 'latest_version']);
+        $oldStatus = $old?->status;
         if ($oldStatus !== $status && $status !== 'reachable') {
             Log::warning('Release update source status changed', ['state' => $status, 'http_status' => $result->status]);
         }
@@ -60,5 +62,8 @@ final readonly class CheckForUpdates
             'published_at' => $release['published_at'] ?? null,
             'last_success_at' => $release === null ? DB::table('update_checks')->where('id', 1)->value('last_success_at') : $now,
         ]);
+        if ([$oldStatus, $old?->latest_version] !== [$status, $release['latest_version'] ?? null]) {
+            LiveSignal::forUpdates();
+        }
     }
 }

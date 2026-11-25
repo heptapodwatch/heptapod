@@ -52,6 +52,12 @@ final readonly class LiveSignal
         self::afterCommit(new self('backup.changed', [], now()->toIso8601String(), null));
     }
 
+    /** The release check's outcome or setting changed; the shell reloads only its version line. */
+    public static function forUpdates(): void
+    {
+        self::afterCommit(new self('updates.changed', [], now()->toIso8601String(), null));
+    }
+
     public static function forClient(Client $client): void
     {
         self::forClients([$client->id]);

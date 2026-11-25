@@ -12,6 +12,7 @@ use Heptapod\Models\User;
 use Heptapod\Queries\RunningNowReader;
 use Heptapod\Queries\RunsReader;
 use Heptapod\Queries\ShellHealthReader;
+use Heptapod\Queries\UpdateStatusReader;
 use Heptapod\SystemHealth\SystemIssueKind;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -75,6 +76,12 @@ class HandleInertiaRequests extends Middleware
                 'canViewUpdates' => $user instanceof User && $user->hasAnyRole(['Owner', 'Admin']),
                 'canManageChannels' => $user instanceof User && $user->hasAnyRole(['Owner', 'Admin']),
             ],
+            // The sidebar footer's version; only viewers who may open Updates & backups learn of a newer release.
+            'appVersion' => static fn (): ?array => $user instanceof User ? [
+                'installed_version' => config()->string('heptapod.version'),
+                'available_version' => $user->hasAnyRole(['Owner', 'Admin']) && ($updates = app(UpdateStatusReader::class)->read())['update_status'] === 'available'
+                    ? $updates['latest_version'] : null,
+            ] : null,
             'overallHealth' => fn (): ?array => $user instanceof User ? app(ShellHealthReader::class)->read($user)->toArray() : null,
             ...($user instanceof User && $user->hasAnyRole(['Owner', 'Admin', 'Member'])
                 // Inline, not deferred: a deferred group costs every visit a second request that reruns the page controller.

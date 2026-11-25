@@ -8,9 +8,12 @@ use Heptapod\Contracts\Http\FetchFailureKind;
 use Heptapod\Contracts\Http\FetchRequest;
 use Heptapod\Contracts\Http\FetchResult;
 use Heptapod\Contracts\Http\OutboundHttp;
+use Heptapod\Events\LiveSignal;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\Testing\FakeOutboundHttp;
+use Illuminate\Support\Facades\Event as FrameworkEvent;
+use Inertia\Testing\AssertableInertia as Assert;
 
 it('does not contact the release source when disabled by server configuration', function (): void {
     config(['heptapod.updates.enabled_by_server' => false]);
@@ -75,4 +78,31 @@ it('preserves Admin read access while restricting validated release-check change
     $this->patchJson(route('settings.updates.update'), ['enabled' => 'invalid'])->assertUnprocessable()->assertJsonValidationErrors('enabled');
     $this->patchJson(route('settings.updates.update'), ['enabled' => false])->assertOk()->assertJsonPath('update_status', 'disabled_by_user');
     expect(app(InstanceSettings::class)->updates_enabled)->toBeFalse();
+});
+
+it('nudges only Owners and Admins in the shell, and only while checks are on and a newer release is out', function (): void {
+    config(['heptapod.version' => 'v1.2.2', 'heptapod.updates.enabled_by_server' => true]);
+    $fake = (new FakeOutboundHttp)->respondUsing(static fn (FetchRequest $request): FetchResult => new FetchResult(
+        status: 200, body: json_encode(['tag_name' => 'v1.2.3', 'html_url' => config('heptapod.updates.release_page_url').'/tag/v1.2.3',
+            'published_at' => '2026-10-04T18:00:00Z'], JSON_THROW_ON_ERROR),
+    ));
+    app()->instance(OutboundHttp::class, $fake);
+    FrameworkEvent::fake([LiveSignal::class]);
+    $this->artisan('heptapod:check-updates')->assertSuccessful();
+    $this->artisan('heptapod:check-updates')->assertSuccessful();
+    // Open tabs reload the footer once for the new release, not on every unchanged daily check.
+    FrameworkEvent::assertDispatchedTimes(LiveSignal::class, 1);
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $this->actingAs($owner)->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page
+        ->where('appVersion', ['installed_version' => 'v1.2.2', 'available_version' => 'v1.2.3']));
+    $member = User::factory()->create();
+    $member->assignRole('Member');
+    $response = $this->actingAs($member)->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page
+        ->where('appVersion', ['installed_version' => 'v1.2.2', 'available_version' => null]));
+    expect($response->getContent())->not->toContain('v1.2.3');
+
+    $this->actingAs($owner)->patchJson(route('settings.updates.update'), ['enabled' => false])->assertOk();
+    FrameworkEvent::assertDispatchedTimes(LiveSignal::class, 2);
+    $this->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page->where('appVersion.available_version', null));
 });
