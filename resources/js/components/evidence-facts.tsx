@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { InfoTooltip } from '@/components/info-tooltip';
 import { cn } from '@/lib/utils';
 
 export function EvidenceFacts({
@@ -7,6 +8,8 @@ export function EvidenceFacts({
 }: {
     rows: {
         label: string;
+        /** Explains the label in an info button beside it. */
+        hint?: string;
         value: ReactNode;
         mono?: boolean;
         failed?: boolean;
@@ -25,6 +28,7 @@ export function EvidenceFacts({
                 <div key={row.label} className="contents">
                     <dt className="pt-px text-xs text-foreground-faint">
                         {row.label}
+                        {row.hint && <InfoTooltip>{row.hint}</InfoTooltip>}
                     </dt>
                     <dd
                         className={cn(

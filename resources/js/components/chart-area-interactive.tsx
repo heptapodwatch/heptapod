@@ -104,15 +104,13 @@ export function ChartAreaInteractive({
             onFinish: () => setLoading(null),
         });
     };
-    const slowMoments = (
+    const p95Label = (
         <span className="inline-flex items-center gap-0.5">
-            {t('Slow moments')}
+            {t('p95')}
             <InfoTooltip>
                 {[
-                    t('response_time.slow_moments_hint'),
-                    ...(active === 'all'
-                        ? [t('response_time.slow_moments_weekly_hint')]
-                        : []),
+                    t('p95.hint'),
+                    ...(active === 'all' ? [t('p95.weekly_hint')] : []),
                 ].join(' ')}
             </InfoTooltip>
         </span>
@@ -187,7 +185,7 @@ export function ChartAreaInteractive({
                                 color: 'var(--chart-2)',
                             },
                             p95_ms: {
-                                label: slowMoments,
+                                label: p95Label,
                                 color: 'var(--chart-3)',
                             },
                         }}
@@ -264,7 +262,7 @@ export function ChartAreaInteractive({
                                                 <span className="text-muted-foreground">
                                                     {t(
                                                         name === 'p95_ms'
-                                                            ? 'Slow moments'
+                                                            ? 'p95'
                                                             : 'Average',
                                                     )}
                                                 </span>

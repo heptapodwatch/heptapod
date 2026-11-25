@@ -240,7 +240,8 @@ export function PerformanceEvidence({
                             mono: true,
                         },
                         {
-                            label: 'p95',
+                            label: t('p95'),
+                            hint: t('p95.hint'),
                             value:
                                 latest?.p95 == null
                                     ? '—'
