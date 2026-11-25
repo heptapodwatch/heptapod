@@ -14,7 +14,7 @@ First decide: **has someone decided to build this?** Then write a brief; otherwi
 The brief is the spec. The implementer builds from it alone, the reviewer checks against its acceptance criteria, and anything outside it is out of scope.
 
 1. **Read the code before asking:** the pages, actions, addons and `lang/` keys involved, today's behavior, the nearest pattern. Never ask what the code answers.
-2. **Settle only consequential forks** with the requester: behavior, scope edges, wording, permissions, defaults. One question at a time, with your recommendation; name each interpretation instead of picking one silently. Push back when the idea leaves the product scope in `AGENTS.md`.
+2. **Settle only consequential forks** with the requester: behavior, scope edges, wording, permissions, defaults. One question at a time, with your recommendation; name each interpretation instead of picking one silently.
 3. **Write the sections** Problem, Outcome, Acceptance criteria, Non-goals, Affected areas, Required evidence (and Open questions only for forks deliberately deferred):
    - the outcome is user-visible;
    - each criterion is observable and testable, and covers EN/DE copy and the `docs/` page (or why none);
@@ -27,8 +27,8 @@ Once work starts, a material new requirement is a scope change: agree on it and 
 
 ## Park an idea
 
-An idea keeps a problem from being forgotten; it is not a spec. Say who runs into what (one example), why it matters and what is unknown. Mark numbers as measured or assumed. Optional directions are short and explicitly undecided. No acceptance criteria, screens, API shapes or file paths: whoever picks it up chooses the solution and then writes a brief. Name the problem in the title, not the feature.
+An idea keeps a problem from being forgotten; it is not a spec. Say who runs into what (one example), why it matters and what is unknown. Mark numbers as measured or assumed. Optional directions are short and explicitly undecided. No acceptance criteria, screens, API shapes or file paths: whoever picks it up chooses the solution and then writes a brief. Name the problem in the title, not the feature. The authorized destination is an `idea`-labelled issue; publishing it still needs the OK below.
 
 ## Either way
 
-Use the product terms (Down, Failed, Check error). Examples are synthetic: no host names, local paths, internal URLs, personal addresses or customer sites. Publishing outside the workspace, such as a public issue, needs the requester's explicit OK on the full draft.
+Push back when the request leaves the product scope in `AGENTS.md` (monitoring, reporting, opt-in notifications), and say so when an idea touches its edge. Use the product terms (Down, Failed, Check error). Examples are synthetic: no host names, local paths, internal URLs, personal addresses or customer sites. Publishing outside the workspace, such as a public issue, needs the requester's explicit OK on the full draft.
