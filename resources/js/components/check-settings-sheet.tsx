@@ -152,6 +152,20 @@ function DraftCheckSettingsSheet({
     );
 }
 
+/**
+ * Opens a saved check's sheet at its top: the facts come first, and focusing the first field (or a fact's time tooltip)
+ * would scroll past them on mobile.
+ */
+function focusSheetTitle(event: Event) {
+    event.preventDefault();
+    const title = (
+        event.currentTarget as HTMLElement
+    ).querySelector<HTMLElement>('[data-slot="sheet-title"]');
+    if (!title) throw new Error('A check settings sheet needs its title.');
+    title.tabIndex = -1;
+    title.focus();
+}
+
 /** For roles without `can_update`: the same sheet with only the facts, no fields and no Save. */
 function ReadOnlyCheckSettingsSheet({
     check,
@@ -171,17 +185,7 @@ function ReadOnlyCheckSettingsSheet({
                     title={t('Check settings')}
                     description={t(check.label_key)}
                     onSubmit={(event) => event.preventDefault()}
-                    contentProps={{
-                        // No field to start on: focus Close, not the first fact's time tooltip.
-                        onOpenAutoFocus: (event) => {
-                            event.preventDefault();
-                            (event.currentTarget as HTMLElement)
-                                .querySelector<HTMLElement>(
-                                    '[data-sheet-form] button',
-                                )
-                                ?.focus();
-                        },
-                    }}
+                    contentProps={{ onOpenAutoFocus: focusSheetTitle }}
                     footer={
                         <FormSecondaryAction onClick={() => setOpen(false)}>
                             {t('Close')}
@@ -498,6 +502,9 @@ function SavedCheckSettingsSheet({
                     title={t(isHealth ? 'Edit health check' : 'Check settings')}
                     description={t(check.label_key)}
                     onSubmit={submit}
+                    contentProps={
+                        facts ? { onOpenAutoFocus: focusSheetTitle } : undefined
+                    }
                     footer={
                         <>
                             <FormSecondaryAction

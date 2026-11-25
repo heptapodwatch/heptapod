@@ -31,7 +31,10 @@ const presets = [
     ['For 7 days', 10080],
 ] as const;
 
-/** The check header's Snooze menu (presets, Until a date…); while snoozed, End snooze in its place. */
+/**
+ * The check header's Snooze menu: presets and Until a date…, or End snooze while snoozed. The trigger keeps one width
+ * for both labels, so snoozing never moves Run check and More actions.
+ */
 export function CheckSnoozeActions({
     siteId,
     check,
@@ -42,20 +45,7 @@ export function CheckSnoozeActions({
     const { t } = useTranslation();
     const [customOpen, setCustomOpen] = useState(false);
     const route = { site: siteId, check: check.id };
-    if (isSnoozed(check, Date.now())) {
-        return (
-            <Button
-                variant="outline"
-                onClick={() =>
-                    router.delete(checkUnsnooze.url(route), {
-                        preserveScroll: true,
-                    })
-                }
-            >
-                {t('End snooze')}
-            </Button>
-        );
-    }
+    const snoozed = isSnoozed(check, Date.now());
     const snoozeFor = (minutes: number) =>
         router.post(
             checkSnooze.url(route),
@@ -67,22 +57,56 @@ export function CheckSnoozeActions({
             <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                     <Button variant="outline">
-                        {t('Snooze')}
+                        <span className="grid">
+                            {[false, true].map((state) => (
+                                <span
+                                    key={String(state)}
+                                    aria-hidden={state !== snoozed || undefined}
+                                    className={
+                                        state === snoozed
+                                            ? 'col-start-1 row-start-1'
+                                            : 'invisible col-start-1 row-start-1'
+                                    }
+                                >
+                                    {t(
+                                        state
+                                            ? 'site_sections.snoozed'
+                                            : 'Snooze',
+                                    )}
+                                </span>
+                            ))}
+                        </span>
                         <ChevronDown aria-hidden />
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    {presets.map(([label, minutes]) => (
+                    {snoozed ? (
                         <DropdownMenuItem
-                            key={minutes}
-                            onSelect={() => snoozeFor(minutes)}
+                            onSelect={() =>
+                                router.delete(checkUnsnooze.url(route), {
+                                    preserveScroll: true,
+                                })
+                            }
                         >
-                            {t(label)}
+                            {t('End snooze')}
                         </DropdownMenuItem>
-                    ))}
-                    <DropdownMenuItem onSelect={() => setCustomOpen(true)}>
-                        {t('Until a date…')}
-                    </DropdownMenuItem>
+                    ) : (
+                        <>
+                            {presets.map(([label, minutes]) => (
+                                <DropdownMenuItem
+                                    key={minutes}
+                                    onSelect={() => snoozeFor(minutes)}
+                                >
+                                    {t(label)}
+                                </DropdownMenuItem>
+                            ))}
+                            <DropdownMenuItem
+                                onSelect={() => setCustomOpen(true)}
+                            >
+                                {t('Until a date…')}
+                            </DropdownMenuItem>
+                        </>
+                    )}
                 </DropdownMenuContent>
             </DropdownMenu>
             <SnoozeUntilSheet
