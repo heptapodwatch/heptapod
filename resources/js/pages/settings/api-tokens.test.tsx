@@ -31,7 +31,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
             },
             post: async () => {
                 posts.push(transform(data));
-                return { token: 'secret' };
+                return { token: 'secret', expires_at: null };
             },
             get: () => new Promise(() => {}),
             delete: async () => null,
@@ -74,12 +74,43 @@ const page: Heptapod.Data.Ui.ApiTokenSettingsData = {
             expires_at: null,
         },
     ],
-    abilities: ['checks:run', 'monitors:read'],
+    abilities: [
+        'identity:read',
+        'monitors:read',
+        'checks:read',
+        'checks:run',
+        'checks:write',
+        'maintenance:read',
+        'maintenance:write',
+    ],
     presets: {
         read: ['monitors:read'],
         write: ['monitors:read'],
         manage: ['monitors:read'],
         'agent-read': ['monitors:read'],
+    },
+    starting_points: {
+        'read-everything': [
+            'identity:read',
+            'monitors:read',
+            'checks:read',
+            'maintenance:read',
+        ],
+        'deploy-automation': [
+            'monitors:read',
+            'checks:read',
+            'checks:run',
+            'maintenance:read',
+            'maintenance:write',
+        ],
+        'full-access': [
+            'identity:read',
+            'monitors:read',
+            'checks:read',
+            'checks:run',
+            'maintenance:read',
+            'maintenance:write',
+        ],
     },
     clients: [],
     timezone: 'Europe/Berlin',
@@ -107,7 +138,13 @@ it.each([
         fireEvent.change(screen.getByLabelText('Name'), {
             target: { value: 'Agent' },
         });
-        const expiry = screen.getByLabelText('Expires at (optional)');
+        fireEvent.click(
+            screen.getByLabelText(
+                'All clients you can access, including future clients',
+            ),
+        );
+        fireEvent.click(screen.getByLabelText('Custom date'));
+        const expiry = screen.getByLabelText('Expires at');
         fireEvent.change(expiry, { target: { value: typed } });
         expect(screen.queryByText(/Enter UTC/)).toBeNull();
         await act(async () => {
@@ -117,20 +154,119 @@ it.each([
     },
 );
 
-it('names token abilities in words and keeps the API scope in the tooltip', () => {
+it('issues exactly the edited checklist with the chosen client access and a 30-day default expiry', async () => {
     render(
         <TooltipProvider>
             <ApiTokens tokensPage={page} />
         </TooltipProvider>,
     );
-    const abilities = screen.getAllByRole('list', { name: 'Can' })[0]!;
+    fireEvent.click(
+        screen.getAllByRole('button', { name: /Create token/ })[0]!,
+    );
+    fireEvent.change(screen.getByLabelText('Name'), {
+        target: { value: 'Deploy' },
+    });
+    fireEvent.click(screen.getByLabelText('Deploy automation'));
+    // Leave out the maintenance lookup and add the identity read: the grant is the checklist, not the starting point.
+    const area = (name: string) => within(screen.getByRole('group', { name }));
+    fireEvent.click(
+        area('api_tokens.area.maintenance').getByRole('checkbox', {
+            name: 'api_tokens.matrix.read',
+        }),
+    );
+    fireEvent.click(
+        area('api_tokens.area.identity').getByRole('checkbox', {
+            name: 'api_tokens.matrix.read',
+        }),
+    );
+    // A consequential grant announces its side effect with the checkbox, not only in the summary below.
+    const change = area('api_tokens.area.checks').getByRole('checkbox', {
+        name: 'api_tokens.matrix.change',
+    });
     expect(
-        within(abilities)
-            .getAllByRole('listitem')
-            .map((item) => item.textContent),
-    ).toEqual([
-        'api_tokens.ability.checks_run',
-        'api_tokens.ability.monitors_read',
+        document.getElementById(change.getAttribute('aria-describedby')!)
+            ?.textContent,
+    ).toBe(
+        'api_tokens.ability.checks_write. api_tokens.ability.checks_write.consequence',
+    );
+    const form = screen.getByLabelText('Name').closest('form')!;
+    await act(async () => {
+        fireEvent.submit(form);
+    });
+    // Client access has no default.
+    expect(posts).toEqual([]);
+    expect(
+        screen.getByText('Choose which clients the token can reach.'),
+    ).not.toBeNull();
+    fireEvent.click(
+        screen.getByLabelText(
+            'All clients you can access, including future clients',
+        ),
+    );
+    await act(async () => {
+        fireEvent.submit(form);
+    });
+    expect(posts).toEqual([
+        {
+            name: 'Deploy',
+            abilities: [
+                'identity:read',
+                'monitors:read',
+                'checks:read',
+                'checks:run',
+                'maintenance:write',
+            ],
+            client_id: null,
+            expires_at: null,
+            expires_in_days: 30,
+        },
     ]);
-    expect(abilities.textContent).not.toContain('checks:run');
+});
+
+it('lists stored grants as area pills that expand inline, with Full access and the legacy wildcard labelled', () => {
+    render(
+        <TooltipProvider>
+            <ApiTokens
+                tokensPage={{
+                    ...page,
+                    tokens: [
+                        {
+                            ...page.tokens[0]!,
+                            abilities: [
+                                'monitors:read',
+                                'checks:read',
+                                'maintenance:read',
+                            ],
+                        },
+                        { ...page.tokens[0]!, id: 2, abilities: ['*'] },
+                        {
+                            ...page.tokens[0]!,
+                            id: 3,
+                            abilities: [...page.abilities].reverse(),
+                        },
+                    ],
+                }}
+            />
+        </TooltipProvider>,
+    );
+    const pills = () =>
+        screen
+            .getAllByText(/ · /)
+            .map((pill) => pill.textContent)
+            .filter((text) => text?.startsWith('api_tokens.area.'));
+    expect(pills()).toEqual([
+        'api_tokens.area.monitors · api_tokens.level.read',
+    ]);
+    const more = screen.getByRole('button', {
+        name: 'api_tokens.grants.more_areas',
+    });
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(more);
+    expect(pills()).toHaveLength(3);
+    const less = screen.getByRole('button', {
+        name: 'api_tokens.grants.show_less',
+    });
+    expect(less.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText('Full access')).not.toBeNull();
+    expect(screen.getByText('api_tokens.ability.all')).not.toBeNull();
 });

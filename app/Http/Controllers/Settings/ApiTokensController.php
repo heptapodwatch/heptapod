@@ -60,7 +60,7 @@ final class ApiTokensController extends Controller
                 'last_used_at' => $token->last_used_at?->toIso8601String(), 'expires_at' => $token->expires_at?->toIso8601String()];
         })->all();
 
-        return new ApiTokenSettingsData(array_values($tokens), CreateApiToken::Abilities, $create->presets($user),
+        return new ApiTokenSettingsData(array_values($tokens), $create->allowedAbilities($user), $create->presets($user), $create->startingPoints($user),
             array_values($clients->map(static fn (Client $client): array => ['id' => $client->id, 'name' => $client->displayName(), 'short_name' => $client->short_name, 'accent_color' => $client->accent_color, 'avatar' => app(ResolveClientAvatar::class)($client), 'is_internal' => $client->is_internal])->all()), $user->resolvedTimezone());
     }
 
@@ -68,16 +68,19 @@ final class ApiTokensController extends Controller
     {
         $user = $this->user($request);
         $presets = $create->presets($user);
-        /** @var array{name: string, abilities?: list<string>, preset?: string, client_id?: int|null, expires_at?: string|null} $data */
+        /** @var array{name: string, abilities?: list<string>, preset?: string, client_id?: int|null, expires_at?: string|null, expires_in_days?: int|null} $data */
         $data = Validator::make($request->all(), ['name' => ['required', 'string', 'max:255'],
             'abilities' => ['required_without:preset', 'prohibits:preset', 'array', 'min:1'], 'abilities.*' => ['required', 'string'],
             'preset' => ['required_without:abilities', Rule::in(array_keys($presets))],
-            'client_id' => ['nullable', 'integer', 'exists:clients,id'], 'expires_at' => ['nullable', 'date', 'after:now']])->validate();
+            'client_id' => ['nullable', 'integer', 'exists:clients,id'], 'expires_at' => ['nullable', 'date', 'after:now'],
+            // The form's 30-day choice: counted from server time, never from the browser clock.
+            'expires_in_days' => ['nullable', 'integer', Rule::in([30]), 'prohibits:expires_at']])->validate();
         $abilities = $data['abilities'] ?? $presets[$data['preset'] ?? ''] ?? throw new \LogicException('Token abilities are required.');
         $plainTextToken = $create($user, $data['name'], $abilities, $data['client_id'] ?? null,
-            isset($data['expires_at']) ? CarbonImmutable::parse($data['expires_at']) : null);
+            isset($data['expires_at']) ? CarbonImmutable::parse($data['expires_at']) : null, $data['expires_in_days'] ?? null);
+        $expiresAt = PersonalAccessToken::findToken($plainTextToken)?->expires_at;
 
-        return response()->json(['token' => $plainTextToken], 201)->header('Cache-Control', 'no-store');
+        return response()->json(['token' => $plainTextToken, 'expires_at' => $expiresAt?->toIso8601String()], 201)->header('Cache-Control', 'no-store');
     }
 
     public function destroy(Request $request, int $token, RevokeApiToken $revoke): JsonResponse

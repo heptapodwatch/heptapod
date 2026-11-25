@@ -114,6 +114,16 @@ it('refuses client writes to Members, client-constrained tokens and tokens witho
     expect(Client::query()->where('name', 'Nope')->exists())->toBeFalse()->and($client->refresh()->archived_at)->toBeNull();
 });
 
+it('keeps tokens from the legacy API presets out of client management', function (string $preset): void {
+    $owner = User::factory()->owner()->create();
+    $token = $this->actingAs($owner)->postJson(route('settings.api-tokens.store'), ['name' => $preset, 'preset' => $preset])->assertCreated()->json('token');
+    $client = Client::factory()->create();
+
+    clientApi('POST', '/api/clients', $token, ['name' => 'Legacy client'])->assertForbidden();
+    clientApi('POST', '/api/clients/'.$client->id.'/archive', $token, ['sites' => 'pause'])->assertForbidden();
+    expect(Client::query()->where('name', 'Legacy client')->exists())->toBeFalse()->and($client->refresh()->archived_at)->toBeNull();
+})->with(['read', 'agent-read', 'write', 'manage']);
+
 it('keeps the internal client unarchivable and its name fixed', function (): void {
     $token = clientToken(User::factory()->owner()->create(), ['clients:write']);
 

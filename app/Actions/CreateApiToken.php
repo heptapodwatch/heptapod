@@ -26,7 +26,14 @@ final class CreateApiToken
     /** Abilities only Owners and Admins can issue. */
     public const array AdminAbilities = ['monitors:write', 'checks:write', 'checks:run', 'maintenance:write', 'clients:write'];
 
-    /** @return array{read: list<string>, write: list<string>, manage: list<string>, agent-read: list<string>} */
+    /** The UI starting point for CI deploys: open a window, request a run, and the reads to look up IDs and poll the receipt. */
+    public const array DeployAutomation = ['monitors:read', 'checks:read', 'checks:run', 'maintenance:read', 'maintenance:write'];
+
+    /**
+     * Frozen API preset aliases of the settings endpoint; never append abilities here.
+     *
+     * @return array{read: list<string>, write: list<string>, manage: list<string>, agent-read: list<string>}
+     */
     public function presets(User $user): array
     {
         $allowed = $this->allowedAbilities($user);
@@ -36,12 +43,30 @@ final class CreateApiToken
             'agent-read' => array_values(array_intersect(self::AgentReadPreset, $allowed))];
     }
 
-    /** @param list<string> $abilities */
-    public function __invoke(User $user, string $name, array $abilities, ?int $clientId = null, ?DateTimeInterface $expiresAt = null): string
+    /**
+     * The token form's starting points, in checklist order; they only fill the checklist, the checked abilities are the grant.
+     *
+     * @return array{read-everything: list<string>, deploy-automation: list<string>|null, full-access: list<string>}
+     */
+    public function startingPoints(User $user): array
+    {
+        $allowed = $this->allowedAbilities($user);
+
+        return ['read-everything' => array_values(array_filter($allowed, static fn (string $ability): bool => str_ends_with($ability, ':read'))),
+            'deploy-automation' => array_diff(self::DeployAutomation, $allowed) === [] ? array_values(array_intersect($allowed, self::DeployAutomation)) : null,
+            // Every ability the role may issue today, listed: never `*`, so a later ability is not granted silently.
+            'full-access' => $allowed];
+    }
+
+    /**
+     * @param  list<string>  $abilities
+     * @param  int|null  $expiresInDays  a lifetime counted from server time at issuance, instead of $expiresAt
+     */
+    public function __invoke(User $user, string $name, array $abilities, ?int $clientId = null, ?DateTimeInterface $expiresAt = null, ?int $expiresInDays = null): string
     {
         $authenticated = $user;
 
-        return DB::transaction(function () use ($authenticated, $name, $abilities, $clientId, $expiresAt): string {
+        return DB::transaction(function () use ($authenticated, $name, $abilities, $clientId, $expiresAt, $expiresInDays): string {
             // NotificationLocks level 0: a change of who may write what holds the access-structure lock exclusive, first.
             NotificationLocks::accessExclusive();
             // Removal, access changes and password resets hold the user FOR UPDATE while they delete its tokens: a token is
@@ -50,8 +75,8 @@ final class CreateApiToken
             NotificationLocks::users([$authenticated->id]);
             $user = User::query()->findOrFail($authenticated->id);
             abort_if($user->disabled_at !== null || $user->getAuthPassword() !== $authenticated->getAuthPassword(), 403);
-            $allowed = $user->hasRole('Owner') ? ['*', ...$this->allowedAbilities($user)] : $this->allowedAbilities($user);
-            Validator::make(['name' => $name, 'abilities' => $abilities], ['name' => ['required', 'string', 'max:255'], 'abilities' => ['required', 'array', 'min:1'], 'abilities.*' => ['string', 'distinct', Rule::in($allowed)]])->validate();
+            // No new `*`: existing wildcard tokens keep working, new grants name their abilities.
+            Validator::make(['name' => $name, 'abilities' => $abilities], ['name' => ['required', 'string', 'max:255'], 'abilities' => ['required', 'array', 'min:1'], 'abilities.*' => ['string', 'distinct', Rule::in($this->allowedAbilities($user))]])->validate();
 
             if ($clientId !== null && ! $user->canAccessClient($clientId)) {
                 throw ValidationException::withMessages(['client_id' => __('validation.exists', ['attribute' => 'client_id'])]);
@@ -59,7 +84,7 @@ final class CreateApiToken
             if ($expiresAt instanceof DateTimeInterface && $expiresAt <= now()) {
                 throw ValidationException::withMessages(['expires_at' => __('validation.after', ['attribute' => 'expires_at', 'date' => 'now'])]);
             }
-            $created = $user->createToken($name, $abilities, $expiresAt);
+            $created = $user->createToken($name, $abilities, $expiresInDays === null ? $expiresAt : now()->addDays($expiresInDays));
             $created->accessToken->forceFill(['client_id' => $clientId])->save();
 
             return $created->plainTextToken;
@@ -67,7 +92,7 @@ final class CreateApiToken
     }
 
     /** @return list<string> */
-    private function allowedAbilities(User $user): array
+    public function allowedAbilities(User $user): array
     {
         return $user->hasAnyRole(['Owner', 'Admin']) ? self::Abilities
             : array_values(array_diff(self::Abilities, self::AdminAbilities));

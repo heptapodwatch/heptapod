@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Heptapod\Actions\CreateApiToken;
+use Heptapod\Contracts\CheckKey;
 use Heptapod\Enums\ClientScope;
+use Heptapod\Models\Check;
 use Heptapod\Models\Client;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
@@ -14,26 +16,49 @@ beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-20T12:00:00Z'));
 });
 
-it('issues the minimal read-only preset documented for agents', function (): void {
-    $skill = file_get_contents(base_path('.agents/skills/heptapod-api/SKILL.md'));
-    expect($skill)->toBeString();
-    expect(preg_match('/preset `([^`]+)` \(([^)]+)\)/', $skill, $matches))->toBe(1);
-    $preset = $matches[1];
-    $abilities = array_map(fn (string $ability): string => trim($ability, ' `'), explode(',', $matches[2]));
-    expect($abilities)->toHaveCount(6);
-    foreach ($abilities as $ability) {
-        expect($ability)->toEndWith(':read');
-    }
+it('issues the read-everything starting point with a 30-day lifetime counted on the server', function (): void {
+    $abilities = ['identity:read', 'monitors:read', 'checks:read', 'incidents:read', 'uptime:read', 'downtime:read', 'tags:read',
+        'maintenance:read', 'activity:read', 'upcoming:read', 'clients:read'];
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
+    $store = route('settings.api-tokens.store');
 
     $this->actingAs($owner)->getJson(route('settings.api-tokens.data'))
-        ->assertOk()->assertJsonPath('presets.'.$preset, $abilities);
-    $this->postJson(route('settings.api-tokens.store'), ['name' => 'Agent reader', 'preset' => $preset])
-        ->assertCreated()->assertJsonStructure(['token']);
+        ->assertOk()->assertJsonPath('starting_points.read-everything', $abilities);
+    $this->postJson($store, ['name' => 'Agent reader', 'abilities' => $abilities, 'expires_in_days' => 30])
+        ->assertCreated()->assertJsonPath('expires_at', '2026-11-19T12:00:00+00:00');
+    $this->postJson($store, ['name' => 'Both', 'abilities' => $abilities, 'expires_in_days' => 30, 'expires_at' => now()->addDay()->toIso8601String()])
+        ->assertUnprocessable()->assertJsonValidationErrors('expires_in_days');
+    $this->postJson($store, ['name' => 'Long', 'abilities' => $abilities, 'expires_in_days' => 3650])
+        ->assertUnprocessable()->assertJsonValidationErrors('expires_in_days');
 
-    expect($owner->tokens()->sole()->abilities)->toBe($abilities);
+    $token = $owner->tokens()->sole();
+    expect($token->abilities)->toBe($abilities)->and($token->expires_at?->toIso8601String())->toBe('2026-11-19T12:00:00+00:00');
+    // Callers that pass neither keep the endpoint's no-expiry default.
+    $this->postJson($store, ['name' => 'Unattended', 'abilities' => ['monitors:read']])->assertCreated()->assertJsonPath('expires_at', null);
 });
+
+it('offers every role its grantable abilities and the deploy starting point only to Owners and Admins', function (string $role, bool $privileged): void {
+    $user = User::factory()->create();
+    $user->assignRole($role);
+    $data = $this->actingAs($user)->getJson(route('settings.api-tokens.data'))->assertOk()->json();
+
+    expect($data['starting_points']['read-everything'])->toHaveCount(11)
+        ->and($data['starting_points']['deploy-automation'])->toBe($privileged ? ['monitors:read', 'checks:read', 'maintenance:read', 'maintenance:write', 'checks:run'] : null)
+        ->and(in_array('checks:run', $data['abilities'], true))->toBe($privileged)
+        ->and($data['abilities'])->not->toContain('*');
+})->with([['Owner', true], ['Admin', true], ['Member', false]]);
+
+it('issues the full-access starting point as exactly the role\'s current abilities, never the wildcard', function (string $role, int $count): void {
+    $user = User::factory()->create();
+    $user->assignRole($role);
+    $data = $this->actingAs($user)->getJson(route('settings.api-tokens.data'))->assertOk()->json();
+    $full = $data['starting_points']['full-access'];
+
+    expect($full)->toBe($data['abilities'])->toHaveCount($count)->not->toContain('*');
+    $this->postJson(route('settings.api-tokens.store'), ['name' => 'Full', 'abilities' => $full])->assertCreated();
+    expect($user->tokens()->sole()->abilities)->toBe($full);
+})->with([['Owner', 19], ['Admin', 19], ['Member', 14]]);
 
 it('rejects session authentication with a forged bearer header', function (): void {
     $owner = User::factory()->create();
@@ -59,22 +84,64 @@ it('intersects a token client constraint with current access on every API reques
     $this->getJson('/api/monitors/'.$firstSite->id)->assertNotFound();
 });
 
-it('maps token presets from one supported ability list and keeps role limits', function (): void {
+it('keeps the legacy API presets as frozen aliases with role limits', function (): void {
+    $historical = ['identity:read', 'monitors:read', 'monitors:write', 'checks:read', 'checks:write', 'checks:snooze', 'incidents:read',
+        'incidents:note', 'uptime:read', 'downtime:read', 'tags:read', 'tags:write', 'maintenance:read', 'maintenance:write'];
+    $expected = [
+        'read' => ['identity:read', 'monitors:read', 'checks:read', 'incidents:read', 'uptime:read', 'downtime:read', 'tags:read', 'clients:read', 'maintenance:read'],
+        'agent-read' => ['identity:read', 'monitors:read', 'checks:read', 'incidents:read', 'activity:read', 'upcoming:read'],
+        'write' => $historical,
+        'manage' => $historical,
+    ];
     $admin = User::factory()->create();
     $admin->assignRole('Admin');
-    $data = $this->actingAs($admin)->getJson(route('settings.api-tokens.data'))->assertOk()->json();
-    expect($data['presets']['read'])->toContain('monitors:read', 'maintenance:read')->not->toContain('monitors:write', 'maintenance:write');
-    expect($data['presets']['write'])->toContain('maintenance:write');
-    expect($data['presets']['manage'])->toContain('monitors:write', 'maintenance:write');
-    $this->postJson(route('settings.api-tokens.store'), ['name' => 'reader', 'preset' => 'read'])->assertCreated();
-    expect($admin->tokens()->firstOrFail()->abilities)->toBe($data['presets']['read']);
+    $this->actingAs($admin);
+    foreach ($expected as $preset => $abilities) {
+        $this->postJson(route('settings.api-tokens.store'), ['name' => $preset, 'preset' => $preset])->assertCreated();
+        expect($admin->tokens()->where('name', $preset)->sole()->abilities)->toBe($abilities);
+    }
     $member = User::factory()->create();
     $member->assignRole('Member');
-    $memberData = $this->actingAs($member)->getJson(route('settings.api-tokens.data'))->assertOk()->json();
-    expect($memberData['presets']['read'])->toContain('maintenance:read');
-    expect($memberData['presets']['manage'])->not->toContain('monitors:write', 'maintenance:write');
-    $this->postJson(route('settings.api-tokens.store'), ['name' => 'scoped manager', 'preset' => 'manage'])->assertCreated();
-    expect($member->tokens()->firstOrFail()->abilities)->toBe($memberData['presets']['manage']);
+    $this->actingAs($member)->postJson(route('settings.api-tokens.store'), ['name' => 'scoped manager', 'preset' => 'manage'])->assertCreated();
+    expect($member->tokens()->sole()->abilities)->toBe(array_values(array_diff($historical, ['monitors:write', 'checks:write', 'maintenance:write'])));
+});
+
+it('lets a deploy token request a run and open a window but not change configuration', function (): void {
+    $site = Site::factory()->create();
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::Uptime]);
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $token = $this->actingAs($owner)->postJson(route('settings.api-tokens.store'), ['name' => 'CI deploy',
+        'abilities' => ['monitors:read', 'checks:read', 'checks:run', 'maintenance:read', 'maintenance:write']])->assertCreated()->json('token');
+    app('auth')->forgetGuards();
+    $this->withToken($token);
+
+    $this->postJson('/api/checks/'.$check->id.'/request-run')->assertOk();
+    $this->postJson('/api/monitors/'.$site->id.'/start-maintenance', ['stop_maintenance_after_seconds' => 300, 'name' => 'Deploy'])->assertOk();
+    $this->postJson('/api/checks/'.$check->id.'/disable')->assertForbidden();
+    $this->postJson('/api/checks/'.$check->id.'/snooze', ['minutes' => 5])->assertForbidden();
+    $this->putJson('/api/monitors/'.$site->id, ['url' => 'https://changed.test'])->assertForbidden();
+
+    expect($check->refresh()->enabled)->toBeTrue()->and($check->claim_token)->not->toBeNull()
+        ->and($site->refresh()->url)->not->toBe('https://changed.test');
+});
+
+it('rejects new wildcard, role-exceeding, expired and empty grants through settings and the token command', function (): void {
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $member = User::factory()->create();
+    $member->assignRole('Member');
+    $store = route('settings.api-tokens.store');
+
+    $this->actingAs($owner)->postJson($store, ['name' => 'wildcard', 'abilities' => ['*']])->assertUnprocessable()->assertJsonValidationErrors('abilities.0');
+    expect(fn () => $this->artisan('heptapod:token:create', ['user' => $owner->email, '--name' => 'wildcard', '--abilities' => '*'])->run())->toThrow(ValidationException::class);
+    $this->postJson($store, ['name' => 'empty', 'abilities' => []])->assertUnprocessable()->assertJsonValidationErrors('abilities');
+    $this->postJson($store, ['name' => 'expired', 'abilities' => ['monitors:read'], 'expires_at' => now()->subMinute()->toIso8601String()])
+        ->assertUnprocessable()->assertJsonValidationErrors('expires_at');
+    $this->actingAs($member)->postJson($store, ['name' => 'deploy', 'abilities' => ['checks:run', 'maintenance:write']])
+        ->assertUnprocessable()->assertJsonValidationErrors(['abilities.0', 'abilities.1']);
+
+    expect($owner->tokens()->count())->toBe(0)->and($member->tokens()->count())->toBe(0);
 });
 
 it('shows a new secret once and lists or revokes only own token metadata', function (): void {
@@ -103,5 +170,7 @@ it('rejects granting a token a client outside the current member scope', functio
 
     expect(fn () => app(CreateApiToken::class)($member, 'hidden', ['monitors:read'], $client->id))
         ->toThrow(ValidationException::class);
+    $this->actingAs($member)->postJson(route('settings.api-tokens.store'), ['name' => 'hidden', 'abilities' => ['monitors:read'], 'client_id' => $client->id])
+        ->assertUnprocessable()->assertJsonValidationErrors('client_id');
     expect($member->tokens()->count())->toBe(0);
 });

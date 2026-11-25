@@ -13,7 +13,7 @@ The app monitors websites (uptime, certificates, domains, DNS, broken links and 
 
 - **Origin:** ask the user for the instance URL; never guess it. Only that origin ever receives the token.
 - **Contract:** `GET <origin>/api/openapi.json` (no token) owns paths, limits, errors and abilities (`x-sanctum-abilities`). Read it before calling a new operation.
-- **Token:** ask for a short-lived read-only token: **Settings → API tokens**, preset `agent-read` (`identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `activity:read`, `upcoming:read`), with an expiry and, for a one-client task, a client constraint. Ask for one extra ability only when an authorized task needs it (`checks:run`, `maintenance:read`, `maintenance:write`, `clients:read`). Never ask for `*`, `monitors:write` or `checks:write`.
+- **Token:** ask for a short-lived token: **Settings → API tokens**, starting point **Read everything** (`identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `uptime:read`, `downtime:read`, `tags:read`, `maintenance:read`, `activity:read`, `upcoming:read`, `clients:read`), with **One client** for a one-client task and a short expiry. Ask for **Request check runs** (`checks:run`) or **Manage maintenance windows** (`maintenance:write`) only when an authorized task needs it. Never ask for broad write (`monitors:write`, `checks:write`, `clients:write`) or `*`.
 - Keep the token in an environment variable; never print it, write it to a file or put it in a URL.
 
 ```sh
