@@ -1,3 +1,4 @@
+import { usePage } from '@inertiajs/react';
 import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -41,6 +42,7 @@ export function KeyboardShortcutsDialog({
     shortcuts: Shortcut[];
 }) {
     const { t } = useTranslation();
+    const version = usePage().props.heptapodVersion;
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-h-[min(640px,90dvh)] overflow-y-auto">
@@ -86,6 +88,11 @@ export function KeyboardShortcutsDialog({
                         </dl>
                     </section>
                 ))}
+                {version && version !== 'unknown' && (
+                    <p className="font-mono text-xs text-muted-foreground">
+                        {t('Heptapod :version', { version })}
+                    </p>
+                )}
             </DialogContent>
         </Dialog>
     );

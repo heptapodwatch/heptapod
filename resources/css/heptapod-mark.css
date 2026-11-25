@@ -1,7 +1,12 @@
 /* The Heptapod lockup (mark + outlined wordmark) and the mark's states. Brand kit: wordmark-ui.svg, mark.svg. */
 :root {
-    /* The brand accent. Only the mark uses it (the hover glow); never a button, link or status colour. */
-    --mark-accent: #9fd6ff;
+    /* The brand accent, turquoise as in the launch video. Only the mark uses it (the hover glow); never a button,
+       link or status colour. Dark uses the video's bright turquoise. */
+    --mark-accent: #79ad95;
+}
+
+.dark {
+    --mark-accent: #9ad0b8;
 }
 
 .hp-brand {
@@ -106,6 +111,52 @@
     }
     100% {
         fill: currentColor;
+    }
+}
+
+/* A newer Heptapod release (Owners and Admins only), on the resting H: the top ghost bar lights in the urgency
+   colour, warning for an update and danger for a security update. The -a options fade in once and hold; the -b
+   options breathe from the ghost and back. Under reduced motion the held state shows still (the rule at the end
+   stops every animation). The tooltip says it is about Heptapod itself, since these colours mean Warning and Down
+   for sites. */
+.hp-mark[data-update] .hp-a {
+    opacity: 1;
+}
+
+.hp-mark:is([data-update='update-a'], [data-update='update-b']) .hp-a {
+    fill: var(--status-warn);
+}
+
+.hp-mark:is([data-update='security-a'], [data-update='security-b']) .hp-a {
+    fill: var(--status-down);
+}
+
+.hp-mark:is([data-update='update-a'], [data-update='security-a']) .hp-a {
+    animation: hp-update-in 900ms ease-out both;
+}
+
+.hp-mark[data-update='update-b'] .hp-a {
+    animation: hp-update-breath 4.8s ease-in-out infinite;
+}
+
+.hp-mark[data-update='security-b'] .hp-a {
+    animation: hp-update-breath 2.4s ease-in-out infinite;
+}
+
+@keyframes hp-update-in {
+    from {
+        opacity: 0.16;
+        fill: currentColor;
+    }
+}
+
+@keyframes hp-update-breath {
+    0%,
+    100% {
+        opacity: 0.16;
+    }
+    50% {
+        opacity: 1;
     }
 }
 

@@ -1,7 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
-import { HeptapodMark } from '@/components/heptapod-mark';
+import { HeptapodMark, type MarkUpdate } from '@/components/heptapod-mark';
 import {
     Tooltip,
     TooltipContent,
@@ -19,6 +19,8 @@ export type BrandState = {
     /** Null during the recovered one-shot: it only confirms, there is nothing to open. */
     href: string | null;
     label: string;
+    /** Owners and Admins only: a newer release is out. */
+    update: { mark: MarkUpdate; label: string } | null;
 };
 
 /** The Heptapod lockup: the live mark and the outlined lowercase wordmark. Size follows `--brand-mark-h`. */
@@ -34,6 +36,7 @@ export default function AppLogo({
             <HeptapodMark
                 downCount={brand?.downCount ?? 0}
                 recovered={brand?.recovered ?? false}
+                update={brand?.update?.mark}
             />
             {!markOnly && <span className="hp-word" />}
         </span>
@@ -51,7 +54,9 @@ export function BrandLink({
 }: Omit<ComponentProps<typeof Link>, 'href'> & { markOnly?: boolean }) {
     const brand = useBrandState();
     const { t } = useTranslation();
-    const label = `Heptapod · ${brand.label}`;
+    const label = [`Heptapod · ${brand.label}`, brand.update?.label]
+        .filter(Boolean)
+        .join(' · ');
     const content = <AppLogo brand={brand} markOnly={markOnly} />;
     const trigger =
         brand.href === null ? (
@@ -81,6 +86,16 @@ export function BrandLink({
             <TooltipContent side="right" align="start">
                 <TooltipDetails
                     subject="Heptapod"
+                    facts={
+                        brand.update
+                            ? [
+                                  brand.update.label,
+                                  t(
+                                      'An update of Heptapod itself, not of a site. Details in Updates & backups.',
+                                  ),
+                              ]
+                            : undefined
+                    }
                     status={{
                         state: brand.downCount > 0 ? 'down' : 'ok',
                         label:
@@ -100,10 +115,28 @@ export function BrandLink({
 /** The shell brand: the Down count from the shared health prop, the recovered one-shot and the link target. */
 export function useBrandState(): BrandState {
     const { t } = useTranslation();
-    const downCount = usePage().props.overallHealth?.down_site_count ?? 0;
+    const { overallHealth, appUpdate, markPreview } = usePage().props;
+    const downCount = overallHealth?.down_site_count ?? 0;
     const recovered = useRecovered(downCount);
+    const available =
+        appUpdate?.status === 'available' && appUpdate.latest !== null;
+    const update: BrandState['update'] =
+        available || markPreview
+            ? {
+                  mark:
+                      markPreview ??
+                      (appUpdate?.security ? 'security-a' : 'update-a'),
+                  label: t(
+                      appUpdate?.security
+                          ? 'Heptapod :version includes a security fix.'
+                          : 'Heptapod :version is available.',
+                      { version: appUpdate?.latest ?? '…' },
+                  ),
+              }
+            : null;
     if (downCount > 0) {
         return {
+            update,
             downCount,
             recovered,
             href: '/sites?filter[state]=down',
@@ -111,6 +144,7 @@ export function useBrandState(): BrandState {
         };
     }
     return {
+        update,
         downCount,
         recovered,
         href: recovered ? null : '/sites',

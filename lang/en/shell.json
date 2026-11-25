@@ -33,5 +33,8 @@
     "run.backup": "Backup",
     "run.openImport": "Open import",
     "run.openBackups": "Open backups",
-    ":version available": ":version available"
+    "Heptapod :version is available.": "Heptapod :version is available.",
+    "Heptapod :version": "Heptapod :version",
+    "Heptapod :version includes a security fix.": "Heptapod :version includes a security fix.",
+    "An update of Heptapod itself, not of a site. Details in Updates & backups.": "An update of Heptapod itself, not of a site. Details in Updates & backups."
 }

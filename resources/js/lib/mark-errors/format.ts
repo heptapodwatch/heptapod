@@ -24,7 +24,7 @@ export type Level = keyof typeof LEVELS | number;
  */
 export const PALETTE = {
   bone: '#e6e9ec',
-  accent: '#9fd6ff', // brand Ice blue: running, attention. The one place to change it.
+  accent: '#79ad95', // brand turquoise: running, attention. The one place to change it.
   ok: '#79ad95', // up, passed, recovered
   warn: '#dd8a43', // warning, late, reconnecting
   down: '#e6574d', // down, failed

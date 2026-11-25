@@ -30,7 +30,6 @@ import {
     team as teamNotifications,
 } from '@/routes/settings/notifications';
 import { edit as systemHealth } from '@/routes/settings/system';
-import { edit as updates } from '@/routes/settings/updates';
 
 /** At most three run rows; the rest is one "N more · Runs" row (UI rules, Sidebar footer). */
 const RUN_ROWS = 3;
@@ -351,56 +350,5 @@ export function SidebarStatus() {
             </div>
             <SidebarSeparator className="mx-0" />
         </>
-    );
-}
-
-/**
- * The installed version, quiet at the foot of the sidebar. When a newer release is out, viewers who may open
- * Updates & backups see it there instead, with the attention dot; the shared prop gives nobody else that version.
- */
-export function SidebarVersion() {
-    const { t } = useTranslation();
-    const { appVersion, auth } = usePage().props;
-    if (!appVersion) return null;
-    const available = appVersion.available_version;
-    if (available !== null) {
-        const label = t(':version available', { version: available });
-        return (
-            <SidebarMenu>
-                <StatusRow
-                    leading={
-                        // Not a monitoring Warning: the dot only borrows the attention style, so it stays silent.
-                        <span aria-hidden="true" className="inline-flex">
-                            <StatusDot state="warning" />
-                        </span>
-                    }
-                    label={label}
-                    href={updates.url()}
-                    tooltip={label}
-                />
-            </SidebarMenu>
-        );
-    }
-    if (appVersion.installed_version === 'unknown') return null;
-    if (!auth.canViewUpdates) {
-        // Plain text for viewers who cannot open Updates & backups: no tab stop, no tooltip.
-        return (
-            <p className="flex h-8 items-center gap-2 p-2 font-mono text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-                <span className="size-4 shrink-0" />
-                {appVersion.installed_version}
-            </p>
-        );
-    }
-    return (
-        <SidebarMenu>
-            <StatusRow
-                className="group-data-[collapsible=icon]:hidden"
-                buttonClassName="font-mono"
-                leading={null}
-                label={appVersion.installed_version}
-                href={updates.url()}
-                tooltip={t('Version')}
-            />
-        </SidebarMenu>
     );
 }

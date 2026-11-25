@@ -23,11 +23,21 @@ declare module '@inertiajs/core' {
             sidebarOpen: boolean;
             liveChannels: string[];
             overallHealth: Heptapod.Data.Ui.ShellHealthData | null;
-            /** Null for guests; `available_version` only for Owners and Admins while a newer release is out. */
-            appVersion: {
-                installed_version: string;
-                available_version: string | null;
+            /** The installed version; null for guests. */
+            heptapodVersion: string | null;
+            /** Owners and Admins only; `latest` is set only while an update is available. */
+            appUpdate: {
+                status: string;
+                latest: string | null;
+                security: boolean;
             } | null;
+            /** Throwaway: a forced mark option on local stacks (`?mark=`). */
+            markPreview:
+                | 'update-a'
+                | 'update-b'
+                | 'security-a'
+                | 'security-b'
+                | null;
             lateRunsCount?: number;
             runningNow?: Heptapod.Data.Ui.RunningNowData | null;
             notificationAttention: {

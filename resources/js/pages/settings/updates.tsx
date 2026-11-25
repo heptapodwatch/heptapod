@@ -77,6 +77,9 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
         setRefreshFailed(false);
     }, [updatesPage]);
     const updates = page.updates;
+    const available =
+        updates.update_status === 'available' &&
+        updates.latest_version !== null;
     const backups = page.backups;
     const acceptedRun =
         backups?.latest_run?.id === acceptedId
@@ -284,47 +287,73 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                 }}
             />
             <FormSection title={t('Version')} description="">
-                <div className="flex flex-wrap items-center gap-3">
-                    <span className="font-mono text-stat break-all tabular-nums">
-                        {updates.installed_version === 'unknown'
-                            ? t('Unknown')
-                            : updates.installed_version}
-                    </span>
-                    <span className="text-cell">
-                        {t(releaseLabels[updates.update_status] ?? 'Unknown')}
-                        {updates.update_status === 'available' &&
-                            updates.latest_version !== null &&
-                            ` · ${updates.latest_version}`}
-                        {updates.update_status === 'available' &&
-                            updates.published_at !== null && (
-                                <>
-                                    {' · '}
-                                    {t('Published')}{' '}
-                                    <AbsoluteTime
-                                        value={updates.published_at}
-                                    />
-                                </>
-                            )}
-                    </span>
-                </div>
-                {updates.update_status === 'available' &&
-                    updates.latest_version !== null && (
-                        <div className="space-y-2">
-                            <p className="text-cell">
-                                {t(
-                                    'Back up first, then run the command for your installation in its directory.',
-                                )}
-                            </p>
-                            <UpgradeCommand
-                                label={t('One-line installer')}
-                                command={`sudo ./scripts/upgrade.sh --to ${updates.latest_version}`}
-                            />
-                            <UpgradeCommand
-                                label={t('Git checkout')}
-                                command={`git fetch --tags && git checkout ${updates.latest_version} && ./scripts/upgrade.sh`}
-                            />
-                        </div>
+                <p className="text-cell">
+                    {t(':version installed', {
+                        version:
+                            updates.installed_version === 'unknown'
+                                ? t('Unknown')
+                                : updates.installed_version,
+                    })}
+                    {' · '}
+                    {available ? (
+                        <>
+                            {t(':version available', {
+                                version: updates.latest_version,
+                            })}
+                            {updates.releases !== null &&
+                                ` · ${t(
+                                    updates.releases_truncated
+                                        ? 'updates.behind_at_least'
+                                        : 'updates.behind',
+                                    {
+                                        count: updates.releases.length,
+                                        formattedCount: number(
+                                            updates.releases.length,
+                                        ),
+                                    },
+                                )}`}
+                        </>
+                    ) : (
+                        t(releaseLabels[updates.update_status] ?? 'Unknown')
                     )}
+                </p>
+                {available && updates.security && (
+                    <Alert tone="warning">
+                        <AlertTitle>
+                            {t('This update includes a security fix.')}
+                        </AlertTitle>
+                        <AlertDescription>
+                            {t(
+                                'Read the security items below and upgrade soon.',
+                            )}
+                        </AlertDescription>
+                    </Alert>
+                )}
+                {available && updates.releases !== null && (
+                    <ul className="divide-y divide-border-soft rounded-lg border">
+                        {updates.releases.map((release) => (
+                            <SkippedRelease
+                                key={release.tag}
+                                release={release}
+                            />
+                        ))}
+                    </ul>
+                )}
+                {available && (
+                    <div className="space-y-2">
+                        <p className="text-cell">
+                            {t(
+                                'To upgrade, run this on the server. It backs up first and installs the latest release.',
+                            )}{' '}
+                            <InfoTooltip>
+                                {t(
+                                    'For a Git checkout or another installation directory, follow How to upgrade.',
+                                )}
+                            </InfoTooltip>
+                        </p>
+                        <UpgradeCommand />
+                    </div>
+                )}
                 {updates.update_status === 'disabled_by_user' &&
                     auth.canManageInstance && (
                         <p className="text-cell">
@@ -333,38 +362,6 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                             )}
                         </p>
                     )}
-                <dl className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-                    <div>
-                        <dt>{t('Status evaluated at')}</dt>
-                        <dd>{timestamp(updates.evaluated_at)}</dd>
-                    </div>
-                    <div>
-                        <dt>{t('Last release check')}</dt>
-                        <dd>
-                            {timestamp(updates.checked_at)}
-                            {updates.http_status !== null &&
-                                ` · ${t('HTTP :status', { status: updates.http_status })}`}
-                        </dd>
-                    </div>
-                    <div>
-                        <dt>{t('Last successful release check')}</dt>
-                        <dd>{timestamp(updates.last_success_at)}</dd>
-                    </div>
-                    <div>
-                        <dt>{t('Last observed release')}</dt>
-                        <dd>
-                            {updates.latest_version ?? t('Unknown')}
-                            {updates.published_at !== null && (
-                                <> · {timestamp(updates.published_at)}</>
-                            )}
-                        </dd>
-                    </div>
-                </dl>
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                    {t(
-                        'Refresh reads cached release checks; it does not contact the release source or install an update.',
-                    )}
-                </p>
                 <div className="flex flex-wrap gap-2">
                     {auth.canManageInstance && (
                         <Button
@@ -379,23 +376,7 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                             )}
                         </Button>
                     )}
-                    {updates.release_url !== null && (
-                        <Button variant="outline" asChild>
-                            <a
-                                href={updates.release_url}
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                <ExternalLink className="size-3.5" />
-                                {updates.update_status === 'available'
-                                    ? t("What's new in :version", {
-                                          version: updates.latest_version,
-                                      })
-                                    : t('Last observed release notes')}
-                            </a>
-                        </Button>
-                    )}
-                    {updates.update_status === 'available' && (
+                    {available ? (
                         <Button variant="outline" asChild>
                             <a
                                 href={upgradeDocsUrl}
@@ -406,8 +387,59 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                                 {t('How to upgrade')}
                             </a>
                         </Button>
+                    ) : (
+                        updates.release_url !== null && (
+                            <Button variant="outline" asChild>
+                                <a
+                                    href={updates.release_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    <ExternalLink className="size-3.5" />
+                                    {t('Last observed release notes')}
+                                </a>
+                            </Button>
+                        )
                     )}
                 </div>
+                <Disclosure
+                    className="text-xs"
+                    triggerClassName="text-cell font-medium"
+                    summary={t('Check details')}
+                >
+                    <dl className="mt-2 grid gap-2 text-muted-foreground sm:grid-cols-2">
+                        <div>
+                            <dt>{t('Status evaluated at')}</dt>
+                            <dd>{timestamp(updates.evaluated_at)}</dd>
+                        </div>
+                        <div>
+                            <dt>{t('Last release check')}</dt>
+                            <dd>
+                                {timestamp(updates.checked_at)}
+                                {updates.http_status !== null &&
+                                    ` · ${t('HTTP :status', { status: updates.http_status })}`}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>{t('Last successful release check')}</dt>
+                            <dd>{timestamp(updates.last_success_at)}</dd>
+                        </div>
+                        <div>
+                            <dt>{t('Last observed release')}</dt>
+                            <dd>
+                                {updates.latest_version ?? t('Unknown')}
+                                {updates.published_at !== null && (
+                                    <> · {timestamp(updates.published_at)}</>
+                                )}
+                            </dd>
+                        </div>
+                    </dl>
+                    <p className="mt-2 leading-relaxed text-muted-foreground">
+                        {t(
+                            'Refresh reads cached release checks; it does not contact the release source or install an update.',
+                        )}
+                    </p>
+                </Disclosure>
             </FormSection>
             <FormSection
                 title={t('Backups')}
@@ -717,55 +749,86 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                 <code className="block rounded-lg border bg-muted/30 px-4 py-3 text-xs break-all">
                     docs/deploy/operations.md
                 </code>
-                <p className="text-xs text-muted-foreground">
-                    {t(
-                        'Read the runbook first, then run sudo ./scripts/upgrade.sh in the installation directory.',
-                    )}{' '}
-                    <InfoTooltip>
-                        {t(
-                            'This applies to installations from the one-line installer. In a Git checkout, run git fetch --tags && git checkout <tag> first, then ./scripts/upgrade.sh (add --build only for source-built installs).',
-                        )}
-                    </InfoTooltip>
-                </p>
             </FormSection>
         </PageContainer>
     );
 }
 
-/** One upgrade command, selectable and copyable; a failed copy leaves the visible text to select by hand. */
-function UpgradeCommand({
-    label,
-    command,
-}: {
-    label: string;
-    command: string;
-}) {
+/** The bundle upgrade goes to the latest release by default, so the command never carries a tag. */
+const upgradeCommand = 'cd /opt/heptapod && sudo ./scripts/upgrade.sh';
+
+/** The upgrade command, selectable and copyable; a failed copy leaves the visible text to select by hand. */
+function UpgradeCommand() {
     const { t } = useTranslation();
     const [copied, copy] = useClipboard();
     return (
-        <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">{label}</p>
-            <div className="flex items-start gap-2">
-                <code className="block min-w-0 flex-1 rounded-lg border bg-muted/30 px-3 py-2 text-xs break-all">
-                    {command}
-                </code>
-                <Button
-                    variant="outline"
-                    aria-label={`${t(copied ? 'Copied' : 'Copy')}: ${label}`}
-                    onClick={async () => {
-                        if (!(await copy(command))) {
-                            toast.error(
-                                t(
-                                    'Copy failed. Select the command and copy it manually.',
-                                ),
-                            );
-                        }
-                    }}
-                >
-                    <Copy className="size-3.5" />
-                    {t(copied ? 'Copied' : 'Copy')}
+        <div className="flex items-start gap-2">
+            <code className="block min-w-0 flex-1 rounded-lg border bg-muted/30 px-3 py-2 text-xs break-all">
+                {upgradeCommand}
+            </code>
+            <Button
+                variant="outline"
+                onClick={async () => {
+                    if (!(await copy(upgradeCommand))) {
+                        toast.error(
+                            t(
+                                'Copy failed. Select the command and copy it manually.',
+                            ),
+                        );
+                    }
+                }}
+            >
+                <Copy className="size-3.5" />
+                {t(copied ? 'Copied' : 'Copy')}
+            </Button>
+        </div>
+    );
+}
+
+/** One release between the installed and the latest: its headline and the items an Owner must read first. */
+function SkippedRelease({
+    release,
+}: {
+    release: NonNullable<Page['updates']['releases']>[number];
+}) {
+    const { t } = useTranslation();
+    return (
+        <li className={cn(listRowPadding, 'space-y-2')}>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <p className="text-cell">
+                    <span className="font-mono font-medium">{release.tag}</span>
+                    {' · '}
+                    <AbsoluteTime value={release.published_at} />
+                </p>
+                <Button variant="ghost" size="xs" asChild>
+                    <a href={release.url} target="_blank" rel="noreferrer">
+                        <ExternalLink />
+                        {t('Release notes')}
+                    </a>
                 </Button>
             </div>
+            {release.headline !== null && (
+                <p className="text-cell">{release.headline}</p>
+            )}
+            <ReleaseItems
+                title={t('Before you upgrade')}
+                items={release.before}
+            />
+            <ReleaseItems title={t('Security')} items={release.security} />
+        </li>
+    );
+}
+
+function ReleaseItems({ title, items }: { title: string; items: string[] }) {
+    if (items.length === 0) return null;
+    return (
+        <div className="space-y-1 text-xs">
+            <p className="font-medium">{title}</p>
+            <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
+                {items.map((item) => (
+                    <li key={item}>{item}</li>
+                ))}
+            </ul>
         </div>
     );
 }

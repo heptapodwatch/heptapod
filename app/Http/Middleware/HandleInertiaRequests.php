@@ -76,12 +76,20 @@ class HandleInertiaRequests extends Middleware
                 'canViewUpdates' => $user instanceof User && $user->hasAnyRole(['Owner', 'Admin']),
                 'canManageChannels' => $user instanceof User && $user->hasAnyRole(['Owner', 'Admin']),
             ],
-            // The sidebar footer's version; only viewers who may open Updates & backups learn of a newer release.
-            'appVersion' => static fn (): ?array => $user instanceof User ? [
-                'installed_version' => config()->string('heptapod.version'),
-                'available_version' => $user->hasAnyRole(['Owner', 'Admin']) && ($updates = app(UpdateStatusReader::class)->read())['update_status'] === 'available'
-                    ? $updates['latest_version'] : null,
-            ] : null,
+            // The installed version for the help dialog; release checks stay with Owners and Admins, who may open Updates & backups.
+            'heptapodVersion' => $user instanceof User ? config()->string('heptapod.version') : null,
+            'appUpdate' => static function () use ($user): ?array {
+                if (! $user instanceof User || ! $user->hasAnyRole(['Owner', 'Admin'])) {
+                    return null;
+                }
+                $updates = app(UpdateStatusReader::class)->read();
+
+                return ['status' => $updates['update_status'], 'security' => $updates['security'],
+                    'latest' => $updates['update_status'] === 'available' ? $updates['latest_version'] : null];
+            },
+            // Throwaway: lets Jonas compare the mark's update options on a local stack (`?mark=update-b`).
+            'markPreview' => app()->isLocal() && in_array($request->query('mark'), ['update-a', 'update-b', 'security-a', 'security-b'], true)
+                ? $request->query('mark') : null,
             'overallHealth' => fn (): ?array => $user instanceof User ? app(ShellHealthReader::class)->read($user)->toArray() : null,
             ...($user instanceof User && $user->hasAnyRole(['Owner', 'Admin', 'Member'])
                 // Inline, not deferred: a deferred group costs every visit a second request that reruns the page controller.

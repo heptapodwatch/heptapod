@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { BrandLink } from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
-import { SidebarStatus, SidebarVersion } from '@/components/sidebar-status';
+import { SidebarStatus } from '@/components/sidebar-status';
 import {
     Sidebar,
     SidebarContent,
@@ -179,7 +179,6 @@ export function AppSidebar({
                     items={items.filter((item) => item.group === 'Footer')}
                 />
                 <NavUser />
-                <SidebarVersion />
             </SidebarFooter>
         </Sidebar>
     );
