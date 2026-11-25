@@ -357,7 +357,9 @@ it('serves the Lighthouse tab\'s last successful scores for the launchpad card o
     $card = siteDeferredProps('/sites/'.$site->id, 'lighthouse')['lighthouse'];
     expect($card['check_type'])->toBe('lighthouse')
         ->and($card['last_successful_at'])->toBe($run->ended_at->toIso8601String())
-        ->and(array_intersect_key($card['last_successful_metrics'], $scores))->toEqual($scores);
+        ->and(array_intersect_key($card['last_successful_metrics'], $scores))->toEqual($scores)
+        // The weekly score history belongs to the Lighthouse tab; the card never reads it.
+        ->and($card)->not->toHaveKey('scores');
     $lighthouse->update(['enabled' => false]);
     expect(siteDeferredProps('/sites/'.$site->id, 'lighthouse')['lighthouse'])->toBeNull();
 });

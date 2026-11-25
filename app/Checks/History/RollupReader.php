@@ -17,12 +17,6 @@ use RuntimeException;
  */
 final class RollupReader implements DailyRollupReader
 {
-    /** @return list<array{bucket_start: CarbonImmutable, metric_averages: array<string, float>}> */
-    public function daily(int $checkId, CarbonImmutable $from, CarbonImmutable $until): array
-    {
-        return $this->read($checkId, 'daily', $from, $until);
-    }
-
     /**
      * UTC bucket starts in [from, until); bounds must be aligned. Empty buckets have null uptime and no metrics.
      * Numeric object leaves use dotted paths (e.g. curl.total_time). p95 applies only to this bucket, never an arbitrary range.
@@ -156,8 +150,7 @@ final class RollupReader implements DailyRollupReader
     }
 
     /**
-     * Monday-aligned UTC weeks from daily rollups, from the first week with data until the week holding the day before
-     * `until`. Averages merge sums and counts; daily p95s cannot be merged, so `metric_p95_max` is the slowest day's p95.
+     * Monday-aligned UTC weeks from daily rollups (see DailyRollupReader); daily p95s cannot be merged.
      *
      * @param  list<string>  $metrics
      * @return list<array{bucket_start: CarbonImmutable, metric_averages: array<string, float>, metric_p95_max: array<string, float>}>

@@ -11,6 +11,7 @@ import { CronTasksDetail } from '@/components/cron-tasks-detail';
 import { ApplicationHealthDetail } from '@/components/application-health-detail';
 import { ChartAreaInteractive } from '@/components/chart-area-interactive';
 import { MonthlyUptime } from '@/components/monthly-uptime';
+import { LighthouseScoreHistory } from '@/components/lighthouse-score-history';
 import { PerformanceEvidence } from '@/components/performance-evidence';
 import { ResponseBreakdown } from '@/components/response-breakdown';
 import { useCheckHeadline } from '@/hooks/use-check-headline';
@@ -114,6 +115,12 @@ export function CheckDetail({
                         origin={new URL(page.header.url).origin}
                         requestedHost={new URL(page.header.url).hostname}
                     />
+                    {page.history?.check_type === 'lighthouse' &&
+                        page.history.scores && (
+                            <LighthouseScoreHistory
+                                weeks={page.history.scores}
+                            />
+                        )}
                 </>
             )}
         </>

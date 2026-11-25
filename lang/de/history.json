@@ -11,5 +11,8 @@
     "history.since": "Seit {{date}}",
     "history.monthly_uptime": "Erreichbarkeit pro Monat",
     "history.monthly_uptime_description": "Unterbrechungen in Minuten pro Monat und die Erreichbarkeit jedes Monats.",
-    "history.interrupted_minutes": "Unterbrechungen in Minuten"
+    "history.interrupted_minutes": "Unterbrechungen in Minuten",
+    "history.score_history": "Verlauf der Bewertungen",
+    "history.score_history_description": "Durchschnitt pro Woche und Kategorie; die Änderung vergleicht mit derselben Woche vor einem Jahr.",
+    "history.year_change": "{{change}} in einem Jahr"
 }

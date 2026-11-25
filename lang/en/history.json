@@ -11,5 +11,8 @@
     "history.since": "Since {{date}}",
     "history.monthly_uptime": "Monthly uptime",
     "history.monthly_uptime_description": "Interrupted minutes per month and each month's uptime.",
-    "history.interrupted_minutes": "Interrupted minutes"
+    "history.interrupted_minutes": "Interrupted minutes",
+    "history.score_history": "Score history",
+    "history.score_history_description": "Weekly average per category; the change compares with the same week a year ago.",
+    "history.year_change": "{{change}} in a year"
 }

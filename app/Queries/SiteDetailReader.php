@@ -358,7 +358,7 @@ final readonly class SiteDetailReader
             phase_series: Lazy::closure(fn (): array => $check->type === CheckKey::Uptime ? $this->checkPhases($getMetrics()) : []),
             response_p95_hourly: Lazy::closure(static fn (): ?MetricSeriesData => $getHourly()['p95'] ?? null),
             client: Lazy::closure(fn (): ClientData => $this->client($user, $site)),
-            history: Lazy::closure(fn (): ?CheckHistoryData => $this->checkHistory($user, $check)),
+            history: Lazy::closure(fn (): ?CheckHistoryData => $this->checkHistory($user, $check, charts: true)),
             maintenance: Lazy::closure(fn (): ?MaintenanceSiteHeaderData => $this->maintenance($user, $siteId)),
             performance_noise: Lazy::closure(fn (): ?PerformanceNoiseData => $check->type === CheckKey::Performance ? $this->performanceNoise($check, $getRuns()) : null),
             performance_unavailable: Lazy::closure(fn (): ?CheckRunPresentationPartData => $this->performanceAvailability->forCheck($check, $suppression)),
@@ -484,7 +484,8 @@ final readonly class SiteDetailReader
         return $this->presentations->forRun($check, $run);
     }
 
-    public function checkHistory(User $user, Check $check): ?CheckHistoryData
+    /** @param  bool  $charts  Includes the projection's lazy chart series (the check tab draws them, the overview does not). */
+    public function checkHistory(User $user, Check $check, bool $charts = false): ?CheckHistoryData
     {
         $type = in_array($check->type, $this->registry->keys(), true) ? $this->registry->get($check->type) : null;
         $projection = $type instanceof CheckHistoryProvider ? $type->history($check->id, Gate::forUser($user)->allows('update', $check)) : null;
@@ -494,7 +495,7 @@ final readonly class SiteDetailReader
         $site = $check->site ?? throw new \LogicException('A check must belong to a site.');
         $context = RedactionContext::forSite($site, $check);
 
-        return $projection->redacted($context->secrets, $context->urls);
+        return ($charts ? $projection->include('*') : $projection)->redacted($context->secrets, $context->urls);
     }
 
     public function detail(Check $check): ?CheckDetailData

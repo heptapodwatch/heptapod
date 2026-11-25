@@ -5,15 +5,20 @@ declare(strict_types=1);
 namespace Heptapod\Addons\Lighthouse;
 
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\DailyRollupReader;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Spatie\LaravelData\Lazy;
 
 final readonly class LighthousePersistence implements RunPersistence
 {
+    /** Weekly scores cover at most three years (156 weeks). */
+    private const int ScoreHistoryDays = 1092;
+
     public function __construct(private DailyRollupReader $dailyRollupReader) {}
 
     public function stage(CheckContext $context, string $dataset, array $rows): void
@@ -111,18 +116,24 @@ final readonly class LighthousePersistence implements RunPersistence
         /** @var (\stdClass&object{id: int, ended_at: string, metrics: string, evidence: string})|null $run */
         /** @var array<string, mixed> $evidence */
         $evidence = $run === null ? [] : json_decode($run->evidence, true, flags: JSON_THROW_ON_ERROR);
-        $until = CarbonImmutable::now('UTC')->startOfDay()->addDay();
-        $scores = [];
-        foreach ($this->dailyRollupReader->daily($checkId, $until->subDays(90), $until) as $bucket) {
-            $average = $bucket['metric_averages'];
-            $scores[] = [
-                'day' => $bucket['bucket_start']->toDateString(),
-                'performance' => $average['performance_score'] ?? null,
-                'accessibility' => $average['accessibility_score'] ?? null,
-                'best_practices' => $average['best_practices_score'] ?? null,
-                'seo' => $average['seo_score'] ?? null,
-            ];
-        }
+        // Only the Lighthouse tab draws the weekly scores; the site overview's card never runs this query.
+        $scores = Lazy::create(function () use ($checkId): array {
+            $until = CarbonImmutable::now('UTC')->startOfDay()->addDay();
+            $scores = [];
+            $metrics = ['performance_score', 'accessibility_score', 'best_practices_score', 'seo_score'];
+            foreach ($this->dailyRollupReader->weekly($checkId, $metrics, $until->subDays(self::ScoreHistoryDays)->startOfWeek(CarbonInterface::MONDAY), $until) as $bucket) {
+                $average = $bucket['metric_averages'];
+                $scores[] = [
+                    'week' => $bucket['bucket_start']->toIso8601String(),
+                    'performance' => $average['performance_score'] ?? null,
+                    'accessibility' => $average['accessibility_score'] ?? null,
+                    'best_practices' => $average['best_practices_score'] ?? null,
+                    'seo' => $average['seo_score'] ?? null,
+                ];
+            }
+
+            return $scores;
+        });
 
         return new LighthouseHistoryData($run?->id, $run === null ? null : CarbonImmutable::parse($run->ended_at)->utc()->toIso8601String(),
             $run === null ? null : LighthouseMetrics::from(json_decode($run->metrics, true, flags: JSON_THROW_ON_ERROR)),

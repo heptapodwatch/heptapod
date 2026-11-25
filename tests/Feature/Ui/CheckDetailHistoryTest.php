@@ -256,19 +256,23 @@ it('retains last measured Lighthouse scores after an errored run with 90 UTC sco
         'result' => RunResult::Errored, 'metrics' => [], 'evidence' => ['issues' => [], 'score_drops' => []],
     ]);
     $check->update(['latest_run_id' => $failed->id, 'latest_run_ended_at' => $failed->ended_at]);
-    CheckRunRollupDaily::factory()->for($check)->create([
-        'bucket_start' => now()->subDays(89)->startOfDay(),
-        'metric_sums' => ['performance_score' => 80], 'metric_counts' => ['performance_score' => 1],
-    ]);
+    // Weekly averages over UTC weeks from Monday; three years back at most.
+    foreach (['2026-09-28' => 80, '2026-10-04' => 90, '2025-10-01' => 60, '2023-09-20' => 10] as $day => $score) {
+        CheckRunRollupDaily::factory()->for($check)->create([
+            'bucket_start' => CarbonImmutable::parse($day.'T00:00:00Z'),
+            'metric_sums' => ['performance_score' => $score], 'metric_counts' => ['performance_score' => 1],
+        ]);
+    }
 
     $props = $this->actingAs($user)->get('/sites/'.$check->site_id.'/checks/'.$check->id)->assertOk()->inertiaProps();
     expect($props['history']['last_successful_run_id'])->toBe($successful->id)
         ->and($props['history']['last_successful_at'])->toBe($successful->ended_at->toIso8601String())
         ->and($props['history']['last_successful_metrics']['performance_score'])->toBe(80)
         ->and($props['history']['last_successful_device'])->toBe('mobile')
-        ->and($props['history']['scores'])->toHaveCount(90)
-        ->and($props['history']['scores'][0]['day'])->toBe('2026-07-07')
-        ->and($props['history']['scores'][0]['performance'])->toEqual(80);
+        ->and($props['history']['scores'])->toHaveCount(53)
+        ->and($props['history']['scores'][0])->toEqual(['week' => '2025-09-29T00:00:00+00:00', 'performance' => 60, 'accessibility' => null, 'best_practices' => null, 'seo' => null])
+        ->and($props['history']['scores'][52]['week'])->toBe('2026-09-28T00:00:00+00:00')
+        ->and($props['history']['scores'][52]['performance'])->toEqual(85);
 });
 
 it('shows bounded crawl findings, incomplete reasons and exact weekly changes', function (): void {

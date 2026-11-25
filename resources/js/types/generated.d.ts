@@ -361,8 +361,8 @@ readonly last_successful_run_id: number | null,
 readonly last_successful_at: string | null,
 readonly last_successful_metrics: Heptapod.Addons.Lighthouse.LighthouseMetrics | null,
 readonly last_successful_device: string | null,
-readonly scores: {
-day: string,
+readonly scores?: {
+week: string,
 performance: number | null,
 accessibility: number | null,
 best_practices: number | null,
