@@ -36,5 +36,7 @@
     "Heptapod :version is available.": "Heptapod :version is available.",
     "Heptapod :version": "Heptapod :version",
     "Heptapod :version includes a security fix.": "Heptapod :version includes a security fix.",
-    "An update of Heptapod itself, not of a site. Details in Updates & backups.": "An update of Heptapod itself, not of a site. Details in Updates & backups."
+    "An update of Heptapod itself, not of a site. Details in Updates & backups.": "An update of Heptapod itself, not of a site. Details in Updates & backups.",
+    ":version is available.": ":version is available.",
+    ":version includes a security fix.": ":version includes a security fix."
 }

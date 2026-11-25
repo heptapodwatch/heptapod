@@ -19,8 +19,9 @@ export type BrandState = {
     /** Null during the recovered one-shot: it only confirms, there is nothing to open. */
     href: string | null;
     label: string;
-    /** Owners and Admins only: a newer release is out. */
-    update: { mark: MarkUpdate; label: string } | null;
+    /** Owners and Admins only: a newer release is out. `label` is the full sentence for screen readers; the tooltip
+     * shows `headline` under its "Heptapod" title. */
+    update: { mark: MarkUpdate; label: string; headline: string } | null;
 };
 
 /** The Heptapod lockup: the live mark and the outlined lowercase wordmark. Size follows `--brand-mark-h`. */
@@ -129,6 +130,12 @@ export function useBrandState(): BrandState {
                       : 'Heptapod :version is available.',
                   { version: appUpdate.latest },
               ),
+              headline: t(
+                  appUpdate.security
+                      ? ':version includes a security fix.'
+                      : ':version is available.',
+                  { version: appUpdate.latest },
+              ),
           }
         : null;
     if (downCount > 0) {
@@ -192,7 +199,7 @@ function useRecovered(downCount: number): boolean {
  * The update line of the mark's tooltip, tied to the lit bar: a bar-shaped marker and the headline in the bar's colour
  * (the tooltip's own status tokens, AA on its dark surface), the explanation muted below.
  */
-function UpdateNotice({ mark, label }: NonNullable<BrandState['update']>) {
+function UpdateNotice({ mark, headline }: NonNullable<BrandState['update']>) {
     const { t } = useTranslation();
     const security = mark === 'security';
     return (
@@ -211,7 +218,7 @@ function UpdateNotice({ mark, label }: NonNullable<BrandState['update']>) {
                         security ? 'bg-status-down' : 'bg-status-warn',
                     )}
                 />
-                {label}
+                {headline}
             </span>
             <span className="block">
                 {t(

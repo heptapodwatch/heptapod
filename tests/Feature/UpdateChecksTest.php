@@ -145,7 +145,7 @@ it('explains the skipped releases as capped plain text from the fixed note secti
 it('renders each skipped release note as safe HTML on the Updates page only, capped with a pointer to GitHub', function (): void {
     config(['heptapod.version' => 'v1.2.0', 'heptapod.updates.enabled_by_server' => true]);
     $body = "Headline.\n\n## Improved\n- **Bold** item with [docs](https://heptapod.watch/docs/) and [bad](javascript:alert(1)).\n\n"
-        ."<script>alert(1)</script><iframe src=\"https://x.test\"></iframe>\n\n![tracking pixel](https://x.test/p.png)\n\n`code`";
+        ."<script>alert(1)</script><iframe src=\"https://x.test\"></iframe>\n\n![tracking *pixel* `<b>`](https://x.test/p.png)\n\n`code`";
     app()->instance(OutboundHttp::class, fakeReleaseSource([
         releaseItem('v1.2.2', $body),
         releaseItem('v1.2.1', 'Long.'."\n\n".str_repeat('word ', 5000)),
@@ -159,7 +159,9 @@ it('renders each skipped release note as safe HTML on the Updates page only, cap
     expect($html)->toContain('<h2>Improved</h2>')->toContain('<strong>Bold</strong>')->toContain('<code>code</code>')
         ->toContain('<a target="_blank" rel="noopener noreferrer nofollow" href="https://heptapod.watch/docs/">docs</a>')
         // The unsafe link keeps its text but loses its target; raw HTML and the image never reach the page.
-        ->toContain('<a target="_blank" rel="noopener noreferrer nofollow">bad</a>')->toContain('tracking pixel')
+        ->toContain('<a target="_blank" rel="noopener noreferrer nofollow">bad</a>')
+        // The image is its description as escaped plain text, inline markup flattened.
+        ->toContain('tracking pixel &lt;b&gt;')->not->toContain('<em>pixel')
         ->not->toContain('javascript:')->not->toContain('<script')->not->toContain('<iframe')->not->toContain('<img')->not->toContain('x.test');
     // 16 KiB of markdown are stored and rendered; the rest is on GitHub.
     expect(strlen(strip_tags($response->json('releases.1.notes_html'))))->toBeLessThanOrEqual(16384)->toBeGreaterThan(16000);
@@ -169,6 +171,16 @@ it('renders each skipped release note as safe HTML on the Updates page only, cap
     // The shell prop and System health read the status without any note.
     expect($this->get(route('sites.index'))->getContent())->not->toContain('Headline.')->not->toContain('notes_html')
         ->and($this->getJson(route('settings.system.data'))->assertOk()->getContent())->not->toContain('notes_html')->not->toContain('tracking pixel');
+});
+
+it('records a release whose note holds a NUL, which PostgreSQL jsonb would reject', function (): void {
+    config(['heptapod.version' => 'v1.2.0', 'heptapod.updates.enabled_by_server' => true]);
+    app()->instance(OutboundHttp::class, fakeReleaseSource([releaseItem('v1.2.1', "Fixed.\n\n## Fixed\n- Null\u{0}byte\u{7} gone.\r\n"), releaseItem('v1.2.0', 'Installed.')]));
+    $this->artisan('heptapod:check-updates')->assertSuccessful();
+    expect(DB::table('update_checks')->value('status'))->toBe('reachable')
+        ->and(DB::table('update_checks')->value('releases'))->not->toContain('\u0000')->not->toContain('\u0007');
+    $this->actingAs(User::factory()->owner()->create())->getJson(route('settings.updates.status'))->assertOk()
+        ->assertJsonPath('latest_version', 'v1.2.1')->assertJsonPath('releases.0.headline', 'Fixed.');
 });
 
 it('says the count is a lower bound when the fetched page never reaches the installed release', function (): void {

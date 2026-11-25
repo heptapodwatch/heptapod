@@ -10,9 +10,11 @@ use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\Extension\CommonMark\Node\Inline\Image;
 use League\CommonMark\Extension\CommonMark\Node\Inline\Link;
 use League\CommonMark\MarkdownConverter;
+use League\CommonMark\Node\Inline\AbstractStringContainer;
 use League\CommonMark\Node\Node;
 use League\CommonMark\Renderer\ChildNodeRendererInterface;
 use League\CommonMark\Renderer\NodeRendererInterface;
+use League\CommonMark\Util\Xml;
 
 /**
  * Reads a Heptapod release note: the parts an Owner needs before upgrading as plain text, and the full note as
@@ -72,10 +74,17 @@ final class ReleaseNotes
             'before' => array_slice($before, 0, self::MaxItems), 'security' => array_slice($security, 0, self::MaxItems)];
     }
 
-    /** @return array{body: string, body_truncated: bool} */
+    /**
+     * The stored note: C0 control characters other than tab and newline removed first (the database refuses a null
+     * byte in a JSON column, so one would lose the whole check), then capped.
+     *
+     * @return array{body: string, body_truncated: bool}
+     */
     public static function body(string $markdown): array
     {
-        return ['body' => mb_strcut($markdown, 0, self::MaxNotesBytes, 'UTF-8'), 'body_truncated' => strlen($markdown) > self::MaxNotesBytes];
+        $clean = (string) preg_replace('/[\x00-\x08\x0B-\x1F]/', '', $markdown);
+
+        return ['body' => mb_strcut($clean, 0, self::MaxNotesBytes, 'UTF-8'), 'body_truncated' => strlen($clean) > self::MaxNotesBytes];
     }
 
     /**
@@ -90,7 +99,14 @@ final class ReleaseNotes
         {
             public function render(Node $node, ChildNodeRendererInterface $childRenderer): string
             {
-                return $childRenderer->renderNodes($node->children());
+                $text = '';
+                foreach ($node->iterator() as $child) {
+                    if ($child instanceof AbstractStringContainer) {
+                        $text .= $child->getLiteral();
+                    }
+                }
+
+                return Xml::escape($text);
             }
         }, 10);
         $environment->addEventListener(DocumentParsedEvent::class, static function (DocumentParsedEvent $event): void {

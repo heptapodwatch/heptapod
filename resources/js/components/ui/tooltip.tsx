@@ -51,7 +51,7 @@ const tooltipStatusClass: Partial<Record<SiteState, string>> = {
 }
 
 const tooltipPanelClass =
-  "tooltip-panel z-50 w-fit max-w-[min(28rem,calc(100vw-1rem))] rounded-[6px] border border-tooltip-border bg-tooltip-surface px-[9px] py-1.5 font-mono text-xs leading-[17px] text-tooltip-subject shadow-overlay wrap-anywhere"
+  "tooltip-panel z-50 w-fit max-w-[min(28rem,var(--radix-tooltip-content-available-width,calc(100vw-1rem)))] rounded-[6px] border border-tooltip-border bg-tooltip-surface px-[9px] py-1.5 font-mono text-xs leading-[17px] text-tooltip-subject shadow-overlay wrap-anywhere"
 
 function TooltipDetails({ subject, facts, status, hint }: TooltipDetailsProps) {
   return (
