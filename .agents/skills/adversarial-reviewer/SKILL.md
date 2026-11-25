@@ -5,6 +5,8 @@ description: Stress-test a code change for concrete correctness defects, unsafe 
 
 <!-- Adapted from emdash-cms/emdash skills/adversarial-reviewer/SKILL.md (MIT). -->
 
+<!-- Authoring rule: a project skill states product intent, judgement and short decision guides. Name the canonical component, contract or check once; if a rule can be made a default, type, guard or test, give it that owner instead of specifying it twice. -->
+
 # Adversarial code review
 
 Look for defects that survive an ordinary review. Treat the implementation's assumptions as claims to verify, while keeping every finding tied to evidence.
@@ -27,10 +29,9 @@ Choose the checks that fit the change instead of mechanically applying every cat
 - **State and concurrency:** stale reads, lost updates, time-of-check/time-of-use races, duplicate delivery, non-idempotent retries, leaked listeners, and shared mutable state.
 - **Authorization and trust:** missing permission checks, confused caller identity, CSRF, unsafe redirects, injection, path traversal, secret exposure, and trust transferred across a boundary without validation.
 - **Data integrity:** partial writes, migration restart behavior, dialect differences, uniqueness assumptions, destructive cascades, and old/new version compatibility.
-- **Resources and performance:** unbounded collections, repeated round trips, retained resources, public status page regressions, and work that scales with attacker-controlled input.
+- **Resources and performance:** unbounded collections, repeated round trips, retained resources, and work that scales with attacker-controlled input.
 
-- **Monitoring operations:** queue job idempotency/uniqueness, scheduler drift/double dispatch, check-result storage growth, and timezone/DST in schedules.
-- **Reinvented wheels:** check the gate report's own-code inventory against the Laravel/React ecosystem; self-built code a maintained package or native platform feature covers, without a strong "package alternative checked → why not" justification, is a finding (security-critical logic always).
+- **Monitoring operations:** duplicate scheduler or queue dispatch, stale claimed work, unbounded run retention, and calendar/DST behavior in schedules. Package choice follows `AGENTS.md`.
 
 Trace concrete inputs and event sequences through the real implementation. Run focused tests or a minimal reproduction when that is the fastest way to establish a claim. Do not infer a bug solely from an unfamiliar pattern.
 
