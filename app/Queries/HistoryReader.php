@@ -9,9 +9,11 @@ use Carbon\CarbonInterface;
 use Heptapod\Checks\History\RetentionPolicy;
 use Heptapod\Checks\History\RollupReader;
 use Heptapod\Contracts\CheckKey;
+use Heptapod\Data\Ui\MonthlyUptimeData;
 use Heptapod\Data\Ui\ResponseTimeBucketData;
 use Heptapod\Data\Ui\ResponseTimeSeriesData;
 use Heptapod\Data\Ui\UptimeBucketData;
+use Heptapod\Data\Ui\UptimeMonthData;
 use Heptapod\Enums\BucketStatus;
 use Heptapod\Enums\ResponseTimeRange;
 use Heptapod\Maintenance\MaintenanceTargets;
@@ -164,5 +166,30 @@ final readonly class HistoryReader
         $average = $recent['metric_averages'][$metric] ?? null;
 
         return new ResponseTimeSeriesData($range, $points, $average === null ? null : round(1000 * $average, 2));
+    }
+
+    /**
+     * Calendar months in the viewer's time zone since the check's first result, the newest 24 drawn. Each month's
+     * interrupted time and uptime come from the same incident intervals; null before the first result.
+     */
+    public function monthlyUptime(Check $check, string $timezone): ?MonthlyUptimeData
+    {
+        if ($check->first_result_at === null) {
+            return null;
+        }
+        $now = CarbonImmutable::now('UTC');
+        $since = $check->first_result_at->utc();
+        $start = $since->setTimezone($timezone)->startOfMonth()->max($now->setTimezone($timezone)->startOfMonth()->subMonths(23));
+        $windows = [];
+        for ($month = $start; $month->lessThan($now); $month = $month->addMonth()->startOfMonth()) {
+            $windows[] = [$month->utc(), $month->addMonth()->startOfMonth()->utc()->min($now)];
+        }
+        $months = [];
+        foreach ($this->uptimeReader->seriesWithDowntime([$check->id], $windows) as $index => $month) {
+            $months[] = new UptimeMonthData($windows[$index][0]->setTimezone($timezone)->toIso8601String(), $month['uptime'], $month['downtime_seconds']);
+        }
+        $ranges = $this->uptimeReader->percentagesForRanges([$check->id], ['days90' => $now->subDays(90), 'days365' => $now->subDays(365), 'all' => $since], $now);
+
+        return new MonthlyUptimeData($since->toIso8601String(), $months, $ranges['days90'], $ranges['days365'], $ranges['all']);
     }
 }

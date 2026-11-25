@@ -10,6 +10,7 @@ import { DnsComparison } from '@/components/dns-comparison';
 import { CronTasksDetail } from '@/components/cron-tasks-detail';
 import { ApplicationHealthDetail } from '@/components/application-health-detail';
 import { ChartAreaInteractive } from '@/components/chart-area-interactive';
+import { MonthlyUptime } from '@/components/monthly-uptime';
 import { PerformanceEvidence } from '@/components/performance-evidence';
 import { ResponseBreakdown } from '@/components/response-breakdown';
 import { useCheckHeadline } from '@/hooks/use-check-headline';
@@ -63,6 +64,9 @@ export function CheckDetail({
                 <>
                     {page.response_time && (
                         <ChartAreaInteractive series={page.response_time} />
+                    )}
+                    {page.monthly_uptime && (
+                        <MonthlyUptime data={page.monthly_uptime} />
                     )}
                     {check.key === 'uptime' &&
                         page.phase_series.some((series) =>

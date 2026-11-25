@@ -37,6 +37,7 @@ use Heptapod\Data\Ui\CheckTabPageData;
 use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\MaintenanceSiteHeaderData;
 use Heptapod\Data\Ui\MetricSeriesData;
+use Heptapod\Data\Ui\MonthlyUptimeData;
 use Heptapod\Data\Ui\PerformanceNoiseData;
 use Heptapod\Data\Ui\ResponsePointData;
 use Heptapod\Data\Ui\ResponseTimeSeriesData;
@@ -352,6 +353,7 @@ final readonly class SiteDetailReader
             check_settings: Lazy::closure(fn (): CheckSettingsData => $this->checkSettings($site, [$check], static fn (): bool => $getCanUpdate())[0]
                 ?? throw new \LogicException('Scoped site projection must contain its check.')),
             detail: Lazy::closure(fn (): ?CheckDetailData => $this->detail($check)),
+            monthly_uptime: Lazy::closure(fn (): ?MonthlyUptimeData => $check->type === CheckKey::Uptime ? $this->history->monthlyUptime($check, $user->resolvedTimezone()) : null),
             response_time: Lazy::closure(fn (): ?ResponseTimeSeriesData => $check->type === CheckKey::Uptime ? $this->history->responseTime($checkId, $responseRange) : null),
             phase_series: Lazy::closure(fn (): array => $check->type === CheckKey::Uptime ? $this->checkPhases($getMetrics()) : []),
             response_p95_hourly: Lazy::closure(static fn (): ?MetricSeriesData => $getHourly()['p95'] ?? null),

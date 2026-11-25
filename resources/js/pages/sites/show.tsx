@@ -64,6 +64,7 @@ export default function SiteShow(page: SitePage) {
                   'detail',
                   'history',
                   'response_time',
+                  'monthly_uptime',
                   'response_p95_hourly',
                   'performance_noise',
               ]

@@ -82,6 +82,20 @@ final class UptimeReader
      */
     public function series(array $checkIds, array $bounds, ?Closure $countWork = null): array
     {
+        return array_column($this->seriesWithDowntime($checkIds, $bounds, $countWork), 'uptime');
+    }
+
+    /**
+     * series() with each window's counted downtime: the same incident intervals minus pauses and maintenance, so the
+     * downtime and the percentage always agree.
+     *
+     * @param  list<int>  $checkIds
+     * @param  list<array{CarbonImmutable, CarbonImmutable}>  $bounds  Chronological, non-overlapping windows.
+     * @param  Closure(): void|null  $countWork
+     * @return list<array{uptime: float|null, downtime_seconds: int}>
+     */
+    public function seriesWithDowntime(array $checkIds, array $bounds, ?Closure $countWork = null): array
+    {
         if ($bounds === []) {
             return [];
         }
@@ -146,7 +160,7 @@ final class UptimeReader
             $countWork?->__invoke();
             $runningChecks += $fullChecks[$index];
             $time = $monitored[$index] + $runningChecks * ($until - $from);
-            $series[] = $time === 0 ? null : 100 * (1 - $downtime[$index] / $time);
+            $series[] = ['uptime' => $time === 0 ? null : 100 * (1 - $downtime[$index] / $time), 'downtime_seconds' => intdiv($downtime[$index], 1000)];
         }
 
         return $series;

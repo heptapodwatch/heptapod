@@ -7,5 +7,9 @@
     "response_time.weekly_values": "Werte pro Woche",
     "response_time.week_of": "Woche vom {{date}}",
     "p95.hint": "95 von 100 Prüfungen haben schneller geantwortet. So sehen Sie, wie langsam die Website im ungünstigsten Fall wird, ohne dass ein einzelner Ausreißer das Bild bestimmt.",
-    "p95.weekly_hint": "Pro Woche: der langsamste Tag."
+    "p95.weekly_hint": "Pro Woche: der langsamste Tag.",
+    "history.since": "Seit {{date}}",
+    "history.monthly_uptime": "Erreichbarkeit pro Monat",
+    "history.monthly_uptime_description": "Unterbrechungen in Minuten pro Monat und die Erreichbarkeit jedes Monats.",
+    "history.interrupted_minutes": "Unterbrechungen in Minuten"
 }

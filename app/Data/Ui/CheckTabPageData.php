@@ -34,6 +34,8 @@ final class CheckTabPageData extends Data
         public readonly ClosureLazy|array $metrics,
         public readonly ClosureLazy|CheckSettingsData $check_settings,
         public readonly ClosureLazy|CheckDetailData|null $detail,
+        /** The uptime check's months and long-range uptime; null for other checks and before the first result. */
+        public readonly ClosureLazy|MonthlyUptimeData|null $monthly_uptime,
         /** The uptime check's response time for the range in `?response_range` (24h by default); null for other checks. */
         public readonly ClosureLazy|ResponseTimeSeriesData|null $response_time,
         public readonly ClosureLazy|array $phase_series,

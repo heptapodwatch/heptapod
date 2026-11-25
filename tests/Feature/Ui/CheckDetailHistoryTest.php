@@ -14,6 +14,7 @@ use Heptapod\Models\CheckRun;
 use Heptapod\Models\CheckRunRollupDaily;
 use Heptapod\Models\CheckRunRollupHourly;
 use Heptapod\Models\Event;
+use Heptapod\Models\Incident;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -109,6 +110,34 @@ it('shows a fresh uptime check without long-range values', function (): void {
 
     expect($this->actingAs($user)->get($url.'all')->assertOk()->inertiaProps()['response_time']['points'])->toBe([])
         ->and(array_filter(array_column($this->get($url.'90d')->inertiaProps()['response_time']['points'], 'average_ms')))->toBe([]);
+});
+
+it('counts monthly interrupted minutes from the same incidents as the monthly uptime, in the viewer time zone', function (): void {
+    $user = User::factory()->create(['timezone' => 'Europe/Berlin']);
+    $user->assignRole('Owner');
+    $since = CarbonImmutable::parse('2026-08-10T00:00:00Z');
+    $site = Site::factory()->create(['created_at' => $since]);
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::Uptime, 'created_at' => $since, 'first_result_at' => $since]);
+    $incident = static fn (string $from, string $until) => Incident::factory()->for($check)->for($site)->create([
+        'cause' => 'failed', 'opened_at' => $from, 'first_failure_at' => $from, 'resolved_at' => $until,
+    ]);
+    // 23:50-00:10 Berlin time: ten minutes in August and ten in September.
+    $incident('2026-08-31T21:50:00Z', '2026-08-31T22:10:00Z');
+    $incident('2026-09-15T10:00:00Z', '2026-09-15T10:30:00Z');
+
+    $props = $this->actingAs($user)->get('/sites/'.$site->id.'/checks/'.$check->id)->assertOk()->inertiaProps();
+    $monthly = $props['monthly_uptime'];
+    $august = CarbonImmutable::parse('2026-08-31T22:00:00Z')->diffInSeconds($since);
+    expect(array_column($monthly['months'], 'month'))->toBe(['2026-08-01T00:00:00+02:00', '2026-09-01T00:00:00+02:00', '2026-10-01T00:00:00+02:00'])
+        ->and(array_column($monthly['months'], 'interrupted_seconds'))->toBe([600, 2400, 0])
+        ->and($monthly['months'][0]['uptime'])->toEqualWithDelta(100 * (1 - 600 / abs($august)), 1e-9)
+        ->and($monthly['months'][1]['uptime'])->toEqualWithDelta(100 * (1 - 2400 / (30 * 86400)), 1e-9)
+        ->and($monthly['months'][2]['uptime'])->toEqual(100)
+        ->and($monthly['since'])->toBe('2026-08-10T00:00:00+00:00')
+        ->and($monthly['all'])->toEqual($monthly['days90']);
+
+    $fresh = Check::factory()->create(['type' => CheckKey::Uptime, 'first_result_at' => null]);
+    expect($this->get('/sites/'.$fresh->site_id.'/checks/'.$fresh->id)->inertiaProps()['monthly_uptime'])->toBeNull();
 });
 
 it('retains redacted last valid health components when the latest endpoint attempt fails', function (): void {

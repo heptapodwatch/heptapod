@@ -7,5 +7,9 @@
     "response_time.weekly_values": "Weekly values",
     "response_time.week_of": "Week of {{date}}",
     "p95.hint": "95 of 100 checks answered faster than this. It shows how slow the site gets at its worst, without one outlier taking over.",
-    "p95.weekly_hint": "Per week: the slowest day."
+    "p95.weekly_hint": "Per week: the slowest day.",
+    "history.since": "Since {{date}}",
+    "history.monthly_uptime": "Monthly uptime",
+    "history.monthly_uptime_description": "Interrupted minutes per month and each month's uptime.",
+    "history.interrupted_minutes": "Interrupted minutes"
 }

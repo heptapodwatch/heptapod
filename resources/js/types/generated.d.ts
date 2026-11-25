@@ -1123,6 +1123,7 @@ readonly runs: Heptapod.Data.Ui.CheckRunData[],
 readonly metrics: Heptapod.Data.Ui.MetricSeriesData[],
 readonly check_settings: Heptapod.Data.Ui.CheckSettingsData,
 readonly detail: Heptapod.Contracts.CheckDetailData | null,
+readonly monthly_uptime: Heptapod.Data.Ui.MonthlyUptimeData | null,
 readonly response_time: Heptapod.Data.Ui.ResponseTimeSeriesData | null,
 readonly phase_series: Heptapod.Data.Ui.MetricSeriesData[],
 readonly response_p95_hourly: Heptapod.Data.Ui.MetricSeriesData | null,
@@ -1675,6 +1676,13 @@ readonly key: string,
 readonly unit: string,
 readonly points: Heptapod.Data.Ui.ResponsePointData[],
 };
+export type MonthlyUptimeData = {
+readonly since: string,
+readonly months: Heptapod.Data.Ui.UptimeMonthData[],
+readonly days90: number | null,
+readonly days365: number | null,
+readonly all: number | null,
+};
 export type NotificationChannelData = {
 readonly id: number,
 readonly channel: string,
@@ -2181,6 +2189,11 @@ readonly errored_count: number,
 readonly status: Heptapod.Enums.BucketStatus,
 readonly incident_count: number,
 readonly failed_seconds: number,
+};
+export type UptimeMonthData = {
+readonly month: string,
+readonly uptime: number | null,
+readonly interrupted_seconds: number,
 };
 }
 }
