@@ -95,6 +95,10 @@ export function PageHeader({
                     )}
                     {metadata}
                     <div className="flex min-w-0 items-center gap-3">
+                        {/* The hidden heading comes first in reading order; sr-only takes it out of the flex flow. */}
+                        {visibleTitle !== undefined && (
+                            <Heading className="sr-only">{title}</Heading>
+                        )}
                         {leading}
                         <div className="min-w-0 flex-1 space-y-2">
                             <div className="flex flex-wrap items-center gap-2">
@@ -119,12 +123,7 @@ export function PageHeader({
                                         </Heading>
                                     </TooltipHint>
                                 ) : (
-                                    <>
-                                        <Heading className="sr-only">
-                                            {title}
-                                        </Heading>
-                                        {visibleTitle}
-                                    </>
+                                    visibleTitle
                                 )}
                                 {count !== undefined && (
                                     <Badge

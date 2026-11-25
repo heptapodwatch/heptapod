@@ -89,13 +89,6 @@ $rawButtonOwners = [
     'resources/js/components/recipient-settings/recipient-settings.tsx' => [1, 'Channel row name: the row tab stop (rowTargetClick).'],
     'resources/js/components/text-link.tsx' => [1, 'TextLinkButton primitive: a button that looks like a text link.'],
 ];
-/**
- * <header> elements that are not AppLayout page headers. Also exempt by path: pages/auth/ (AuthLayout's own header pattern),
- * pages/invitations/ (guest invitation card) and pages/dev/ (the component catalog's sticky header).
- */
-$headerElementOwners = [
-    'resources/js/components/app-mobile-header.tsx' => 'The 52 px mobile shell bar (banner landmark), not a page header.',
-];
 /** Per file: the one error key a button action returns (no form field holds it), and why it has no field link. */
 $actionErrorKeys = [
     'resources/js/pages/sites/settings.tsx' => 'icon', // Refresh icon refused (unavailable / throttled): rendered in ActionNoteSlot beside the Refresh button.
@@ -430,21 +423,6 @@ foreach ($files as $path) {
         && preg_match_all('~[\'"`](Refresh(?:ing…| (?!session\b)[a-z]+)?)[\'"`]~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
         foreach ($matches[1] as [$text, $offset]) {
             $failures[] = sprintf('%s:%d: local refresh action "%s"; pass PageHeader refresh={{ onRefresh, refreshing }}', $path, substr_count($source, "\n", 0, $offset) + 1, $text);
-        }
-    }
-    // Every AppLayout page header is PageHeader (heptapod-ui-rules Pages), so header actions share one placement. The
-    // attribute is the marker; '[data-page-header]' selectors that read it stay allowed.
-    if ($path !== 'resources/js/components/page-header.tsx') {
-        if (preg_match_all('~(?<=\s)data-page-header(?=[\s=/>])~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
-            foreach ($matches[0] as [, $offset]) {
-                $failures[] = sprintf('%s:%d: hand-built page header (data-page-header); render it through PageHeader', $path, substr_count($source, "\n", 0, $offset) + 1);
-            }
-        }
-        if (! array_key_exists($path, $headerElementOwners) && ! preg_match('~^resources/js/pages/(?:auth|invitations|dev)/~', $path)
-            && preg_match_all('~<header\b~', $source, $matches, PREG_OFFSET_CAPTURE) > 0) {
-            foreach ($matches[0] as [, $offset]) {
-                $failures[] = sprintf('%s:%d: <header> element outside PageHeader; render the page header through PageHeader', $path, substr_count($source, "\n", 0, $offset) + 1);
-            }
         }
     }
     // One Clear filters per screen (heptapod-ui-rules Filters): FilterBar renders it while a filter differs from its default; the
@@ -912,11 +890,6 @@ foreach ($calloutTintExceptions as $path => $reason) {
         $failures[] = "{$path}: callout-tint exception no longer exists ({$reason})";
     }
 }
-foreach ($headerElementOwners as $path => $reason) {
-    if (! is_file($root.'/'.$path) || ! str_contains((string) file_get_contents($root.'/'.$path), '<header')) {
-        $failures[] = "{$path}: <header> exception no longer applies ({$reason})";
-    }
-}
 foreach ($inlineActionErrorExceptions as $path => $reason) {
     if (! is_file($root.'/'.$path)) {
         $failures[] = "{$path}: inline-action-error exception no longer exists ({$reason})";
@@ -956,5 +929,9 @@ if ($failures !== []) {
 passthru('cd '.escapeshellarg($root).' && node scripts/check-form-selects.mjs', $formSelectStatus);
 if ($formSelectStatus !== 0) {
     exit($formSelectStatus);
+}
+passthru('cd '.escapeshellarg($root).' && node scripts/check-page-headers.mjs', $pageHeaderStatus);
+if ($pageHeaderStatus !== 0) {
+    exit($pageHeaderStatus);
 }
 printf("UI primitives: %d files checked; 0 native prompts, 0 hand-styled link underlines, 0 link hover colour changes, 0 other focus rings, 0 hand-rolled disabled opacity recipes, 0 local filled status dots, 0 local section titles or typography overrides, 0 local display-time presets, 0 large action buttons, 0 local horizontal navigation or step progress, 0 enabled cursor overrides, 0 local row density overrides or raw tables, 0 native date/time inputs, 0 hand-tinted callouts or notices above the page header, 0 raw palette text colours, 0 local spinners, 0 irreversible confirmations without destructive, 0 native checkbox/radio/number/details/select controls or raw inputs/textareas/buttons, 0 forms with browser validation, 0 hand-rolled error lines, 0 off-token control heights, 0 arbitrary or off-scale font sizes, 0 native title tooltips, 0 local list pagers, 0 local motion, 0 local tooltip providers, 0 site headers or second layouts on incident pages, 0 multi-line picker triggers, 0 local row emphasis, 0 switch rows without a row label, 0 inline action notes outside ActionNoteSlot.\n", count($files));
