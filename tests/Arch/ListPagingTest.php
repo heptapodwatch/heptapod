@@ -21,7 +21,6 @@ const BoundedDetailLists = [
     'Heptapod\Addons\Dns\DnsSnapshot::$issues' => 'issues of the seven record types',
     'Heptapod\Addons\Dns\DnsSnapshot::$dns_records' => 'records of the seven record types (capped at 200 in the snapshot)',
     'Heptapod\Addons\Domain\DomainSnapshot::$nameservers' => 'a domain\'s registered nameservers',
-    'Heptapod\Addons\Lighthouse\LighthouseHistoryData::$scores' => 'a chart series, not a list',
     'Heptapod\Addons\Sitemap\SitemapSnapshot::$notes' => 'coverage notes of one run',
     'Heptapod\Addons\Sitemap\SitemapSnapshot::$sitemapIndexes' => 'at most 20 sitemap indexes, five issues each',
     'Heptapod\Addons\Sitemap\SitemapSnapshot::$sitemaps' => 'at most 20 sitemaps, five issues each',
