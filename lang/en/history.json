@@ -1,0 +1,12 @@
+{
+    "1 year": "1 year",
+    "history.all": "All",
+    "Slow moments": "Slow moments",
+    "response_time.five_minute_values": "5-minute values",
+    "response_time.hourly_values": "Hourly values",
+    "response_time.daily_values": "Daily values (UTC days)",
+    "response_time.weekly_values": "Weekly values",
+    "response_time.slow_moments_hint": "95 of 100 checks answered faster than this. It shows how slow the site gets at its worst, without one single outlier taking over.",
+    "response_time.slow_moments_weekly_hint": "Slow moments: the slowest day of each week.",
+    "response_time.week_of": "Week of {{date}}"
+}

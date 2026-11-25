@@ -13,4 +13,6 @@ enum ResponseTimeRange: string
     case Days7 = '7d';
     case Days30 = '30d';
     case Days90 = '90d';
+    case Year1 = '1y';
+    case All = 'all';
 }

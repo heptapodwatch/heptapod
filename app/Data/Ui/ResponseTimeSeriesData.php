@@ -12,7 +12,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 final class ResponseTimeSeriesData extends Data
 {
     /**
-     * @param  list<ResponseTimeBucketData>  $points  24h uses recent minute buckets; longer ranges use daily rollups.
+     * @param  list<ResponseTimeBucketData>  $points  24h: 5-minute buckets from raw runs; 7d: hourly rollups; 30d-1y: UTC days; all: UTC weeks.
      * @param  float|null  $recent_average_ms  Weighted response time over the previous 15 minutes, not an average of bucket averages.
      */
     public function __construct(

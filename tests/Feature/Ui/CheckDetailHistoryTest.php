@@ -12,6 +12,7 @@ use Heptapod\Contracts\RunResult;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\CheckRunRollupDaily;
+use Heptapod\Models\CheckRunRollupHourly;
 use Heptapod\Models\Event;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
@@ -48,7 +49,7 @@ it('projects only scoped, bounded and redacted uptime observations', function ()
         ->and($response->inertiaProps()['history']['runs'][0]['total_time_ms'])->toEqual(420)
         ->and($response->inertiaProps()['history']['recent_failures'])->toHaveCount(1)
         ->and($response->inertiaProps()['history']['recent_failures'][0]['run_id'])->toBe($failure->id)
-        ->and($response->inertiaProps()['response_times'])->toHaveCount(4)
+        ->and($response->inertiaProps()['response_time']['key'])->toBe('24h')
         ->and($response->inertiaProps()['history']['recent_failures'][0]['ended_at'])->toBe($failure->ended_at->toIso8601String())
         ->and($response->inertiaProps()['failure_threshold'])->toBe(3)
         ->and(array_values(array_filter($response->inertiaProps()['phase_series'][0]['points'], static fn (array $point): bool => $point['value'] !== null)))
@@ -57,6 +58,57 @@ it('projects only scoped, bounded and redacted uptime observations', function ()
         ->and(json_encode($response->inertiaProps(), JSON_THROW_ON_ERROR))->not->toContain('private-uptime-token', '418');
     $this->get('/sites/'.$other->site_id.'/checks/'.$other->id)->assertOk();
     $this->get('/sites/'.$site->id.'/checks/'.$other->id)->assertNotFound();
+});
+
+it('loads only the requested response-time range, with average and slow moments, within its bounded window', function (): void {
+    // 2026-10-04T00:30Z is a Sunday: the current UTC week started Monday 2026-09-28.
+    $user = User::factory()->create();
+    $user->assignRole('Owner');
+    $check = Check::factory()->create(['type' => CheckKey::Uptime]);
+    $daily = static fn (string $day, float $sum, int $count, float $p95) => CheckRunRollupDaily::factory()->for($check)->create([
+        'bucket_start' => CarbonImmutable::parse($day.'T00:00:00Z'), 'metric_sums' => ['total_time_in_seconds' => $sum],
+        'metric_counts' => ['total_time_in_seconds' => $count], 'metric_p95' => ['total_time_in_seconds' => $p95],
+    ]);
+    $daily('2026-10-03', 0.4, 2, 0.5);
+    $daily('2026-10-02', 0.9, 3, 0.7);
+    $daily('2026-10-04', 9.0, 1, 9.0);
+    $daily('2025-09-30', 3.0, 1, 3.0);
+    $daily('2023-09-20', 7.0, 1, 7.0);
+    CheckRunRollupHourly::factory()->for($check)->create(['bucket_start' => CarbonImmutable::parse('2026-10-03T23:00:00Z'),
+        'metric_sums' => ['total_time_in_seconds' => 0.6], 'metric_counts' => ['total_time_in_seconds' => 3], 'metric_p95' => ['total_time_in_seconds' => 0.25]]);
+    foreach ([0.1, 0.2, 0.3] as $seconds) {
+        CheckRun::factory()->for($check)->create(['started_at' => now()->subMinutes(3), 'ended_at' => now()->subMinutes(2), 'metrics' => ['total_time_in_seconds' => $seconds]]);
+    }
+    $range = fn (string $key): array => $this->actingAs($user)->get('/sites/'.$check->site_id.'/checks/'.$check->id.'?response_range='.$key)
+        ->assertOk()->inertiaProps()['response_time'];
+    $values = static fn (array $series): array => array_values(array_filter(array_map(
+        static fn (array $point): ?array => $point['average_ms'] === null ? null : [$point['time'], round($point['average_ms']), round($point['p95_ms'])],
+        $series['points'])));
+
+    $day = $range('24h');
+    expect($day['key'])->toBe('24h')->and($values($day))->toBe([['2026-10-04T00:25:00+00:00', 200.0, 290.0]]);
+    expect($values($range('7d')))->toBe([['2026-10-03T23:00:00+00:00', 200.0, 250.0]])->and($range('7d')['points'])->toHaveCount(168);
+    // UTC days up to yesterday: today's still-growing rollup is not drawn, and 1 year ends 365 days back.
+    $month = $range('30d');
+    expect($month['points'])->toHaveCount(30)->and($values($month))->toBe([['2026-10-02T00:00:00+00:00', 300.0, 700.0], ['2026-10-03T00:00:00+00:00', 200.0, 500.0]]);
+    expect($values($range('1y')))->toHaveCount(2)->and($range('1y')['points'])->toHaveCount(365);
+    // All: Monday weeks from the first held week; averages merge sums and counts, slow moments take the slowest day.
+    $all = $range('all');
+    expect($all['points'][0]['time'])->toBe('2025-09-29T00:00:00+00:00')->and($all['points'])->toHaveCount(53)
+        ->and(array_slice($values($all), -1))->toBe([['2026-09-28T00:00:00+00:00', 260.0, 700.0]])
+        ->and($values($all)[0])->toBe(['2025-09-29T00:00:00+00:00', 3000.0, 3000.0]);
+
+    $this->get('/sites/'.$check->site_id.'/checks/'.$check->id.'?response_range=5y')->assertSessionHasErrors('response_range');
+});
+
+it('shows a fresh uptime check without long-range values', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole('Owner');
+    $check = Check::factory()->create(['type' => CheckKey::Uptime]);
+    $url = '/sites/'.$check->site_id.'/checks/'.$check->id.'?response_range=';
+
+    expect($this->actingAs($user)->get($url.'all')->assertOk()->inertiaProps()['response_time']['points'])->toBe([])
+        ->and(array_filter(array_column($this->get($url.'90d')->inertiaProps()['response_time']['points'], 'average_ms')))->toBe([]);
 });
 
 it('retains redacted last valid health components when the latest endpoint attempt fails', function (): void {

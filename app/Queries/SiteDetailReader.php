@@ -50,6 +50,7 @@ use Heptapod\Data\Ui\UptimeBucketData;
 use Heptapod\Enums\AlertSensitivity;
 use Heptapod\Enums\FreshnessSuppression;
 use Heptapod\Enums\NotificationCategory;
+use Heptapod\Enums\ResponseTimeRange;
 use Heptapod\Events\Notifications\EffectiveAlertSensitivity;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
@@ -196,7 +197,7 @@ final readonly class SiteDetailReader
         $getClient = function () use ($user, $site, &$client): ClientData {
             return $client ??= $this->client($user, $site);
         };
-        /** @return array{uptime: list<UptimeBucketData>, response_times: list<ResponseTimeSeriesData>, uptime_percentage: ?float} */
+        /** @return array{uptime: list<UptimeBucketData>, uptime_percentage: ?float} */
         $getHistory = function () use ($user, $siteId, &$history): array {
             return $history ??= $this->history->read($user, $siteId);
         };
@@ -294,7 +295,7 @@ final readonly class SiteDetailReader
         return ['hours24' => $hours24, 'days7' => $ranges['days7'], 'days30' => $site->uptime, 'days90' => $ranges['days90']];
     }
 
-    public function checkPage(User $user, int $siteId, int $checkId): CheckTabPageData
+    public function checkPage(User $user, int $siteId, int $checkId, ResponseTimeRange $responseRange = ResponseTimeRange::Hours24): CheckTabPageData
     {
         $storedSite = $this->storedSite($user, $siteId);
         $site = $this->sites->rows(collect([$storedSite]), includePresentations: true)[0];
@@ -351,7 +352,7 @@ final readonly class SiteDetailReader
             check_settings: Lazy::closure(fn (): CheckSettingsData => $this->checkSettings($site, [$check], static fn (): bool => $getCanUpdate())[0]
                 ?? throw new \LogicException('Scoped site projection must contain its check.')),
             detail: Lazy::closure(fn (): ?CheckDetailData => $this->detail($check)),
-            response_times: Lazy::closure(fn (): array => $this->history->read($user, $siteId, $checkId)['response_times']),
+            response_time: Lazy::closure(fn (): ?ResponseTimeSeriesData => $check->type === CheckKey::Uptime ? $this->history->responseTime($checkId, $responseRange) : null),
             phase_series: Lazy::closure(fn (): array => $check->type === CheckKey::Uptime ? $this->checkPhases($getMetrics()) : []),
             response_p95_hourly: Lazy::closure(static fn (): ?MetricSeriesData => $getHourly()['p95'] ?? null),
             client: Lazy::closure(fn (): ClientData => $this->client($user, $site)),

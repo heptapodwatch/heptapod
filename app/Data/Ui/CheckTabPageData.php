@@ -21,7 +21,6 @@ final class CheckTabPageData extends Data
     /**
      * @param  ClosureLazy|list<CheckRunData>  $runs
      * @param  ClosureLazy|list<MetricSeriesData>  $metrics
-     * @param  ClosureLazy|list<ResponseTimeSeriesData>  $response_times
      * @param  ClosureLazy|list<MetricSeriesData>  $phase_series
      */
     public function __construct(
@@ -35,7 +34,8 @@ final class CheckTabPageData extends Data
         public readonly ClosureLazy|array $metrics,
         public readonly ClosureLazy|CheckSettingsData $check_settings,
         public readonly ClosureLazy|CheckDetailData|null $detail,
-        public readonly ClosureLazy|array $response_times,
+        /** The uptime check's response time for the range in `?response_range` (24h by default); null for other checks. */
+        public readonly ClosureLazy|ResponseTimeSeriesData|null $response_time,
         public readonly ClosureLazy|array $phase_series,
         public readonly ClosureLazy|MetricSeriesData|null $response_p95_hourly,
         public readonly ClosureLazy|ClientData $client,

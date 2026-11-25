@@ -63,7 +63,7 @@ export default function SiteShow(page: SitePage) {
                   'phase_series',
                   'detail',
                   'history',
-                  'response_times',
+                  'response_time',
                   'response_p95_hourly',
                   'performance_noise',
               ]

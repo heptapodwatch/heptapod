@@ -61,12 +61,9 @@ export function CheckDetail({
                 <ApplicationHealthDetail history={page.history} />
             ) : (
                 <>
-                    {check.key === 'uptime' &&
-                        page.response_times.length > 0 && (
-                            <ChartAreaInteractive
-                                series={page.response_times}
-                            />
-                        )}
+                    {page.response_time && (
+                        <ChartAreaInteractive series={page.response_time} />
+                    )}
                     {check.key === 'uptime' &&
                         page.phase_series.some((series) =>
                             series.points.some((point) => point.value !== null),

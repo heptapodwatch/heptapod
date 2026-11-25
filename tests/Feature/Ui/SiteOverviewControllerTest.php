@@ -87,7 +87,7 @@ it('serves scoped overview history and incident links without secrets', function
         ->where('site.identity.id', $site->id)->where('client.id', $client->id)->where('client.name', $client->name)->where('site.checks.0.open_incident_id', $incident->id)
         ->where('site.state', 'check-error')->where('can_manage', false)->has('history', 90)->has('incidents', 1)
         // 388acc030 removes check-only charts from the site overview.
-        ->where('incidents.0.cause', 'errored')->missing('response_times')->missing('phase_series')
+        ->where('incidents.0.cause', 'errored')->missing('response_time')->missing('phase_series')
         // The rail lists the checks; events live in Activity, what is coming in Upcoming.
         ->missing('events')->missing('upcoming'));
     expect(json_encode($response->inertiaProps(), JSON_THROW_ON_ERROR))->not->toContain($secret);
@@ -189,7 +189,7 @@ it('serves per-check runs, masked settings and stored hourly p95 without exposin
 
     $response = $this->actingAs($user)->get('/sites/'.$site->id.'/checks/'.$check->id)->assertOk()->assertInertia(fn (Assert $page): Assert => $page
         ->component('sites/show')->where('header.id', $site->id)->where('check.id', $check->id)->where('client.id', $client->id)->has('runs', 1)->where('metrics', [])
-        ->where('check_settings.settings.secret', '********')->where('detail', null)->has('response_times', 4)
+        ->where('check_settings.settings.secret', '********')->where('detail', null)->where('response_time', null)
         ->where('response_p95_hourly.points.167.value', 300));
     expect(json_encode($response->inertiaProps(), JSON_THROW_ON_ERROR))->not->toContain($secret);
     // Only the performance evidence reads the raw metric series.
@@ -288,7 +288,7 @@ it('returns only requested props when polling a site overview', function (): voi
 
     $initial = $this->actingAs($user)->get('/sites/'.$site->id)->assertOk();
     $response = $this->get('/sites/'.$site->id, ['X-Inertia' => 'true', 'X-Inertia-Version' => $initial->inertiaPage()['version'], 'X-Inertia-Partial-Component' => 'sites/show', 'X-Inertia-Partial-Data' => 'site'])->assertOk();
-    $response->assertJsonPath('props.site.id', $site->id)->assertJsonMissingPath('props.history')->assertJsonMissingPath('props.events')->assertJsonMissingPath('props.response_times');
+    $response->assertJsonPath('props.site.id', $site->id)->assertJsonMissingPath('props.history')->assertJsonMissingPath('props.events')->assertJsonMissingPath('props.response_time');
 });
 
 /** @return array<string, mixed> the deferred props a site page loads after its first render */

@@ -1,0 +1,12 @@
+{
+    "1 year": "1 Jahr",
+    "history.all": "Gesamt",
+    "Slow moments": "Langsamste Momente",
+    "response_time.five_minute_values": "Werte pro 5 Minuten",
+    "response_time.hourly_values": "Werte pro Stunde",
+    "response_time.daily_values": "Werte pro Tag (UTC-Tage)",
+    "response_time.weekly_values": "Werte pro Woche",
+    "response_time.slow_moments_hint": "95 von 100 Prüfungen haben schneller geantwortet. So sehen Sie, wie langsam die Website im ungünstigsten Fall wird, ohne dass ein einzelner Ausreißer das Bild bestimmt.",
+    "response_time.slow_moments_weekly_hint": "Langsamste Momente: der langsamste Tag jeder Woche.",
+    "response_time.week_of": "Woche vom {{date}}"
+}

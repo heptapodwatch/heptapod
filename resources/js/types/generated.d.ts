@@ -1123,7 +1123,7 @@ readonly runs: Heptapod.Data.Ui.CheckRunData[],
 readonly metrics: Heptapod.Data.Ui.MetricSeriesData[],
 readonly check_settings: Heptapod.Data.Ui.CheckSettingsData,
 readonly detail: Heptapod.Contracts.CheckDetailData | null,
-readonly response_times: Heptapod.Data.Ui.ResponseTimeSeriesData[],
+readonly response_time: Heptapod.Data.Ui.ResponseTimeSeriesData | null,
 readonly phase_series: Heptapod.Data.Ui.MetricSeriesData[],
 readonly response_p95_hourly: Heptapod.Data.Ui.MetricSeriesData | null,
 readonly client: Heptapod.Data.Ui.ClientData,
@@ -1772,7 +1772,6 @@ export type ResponseTimeBucketData = {
 readonly time: string,
 readonly average_ms: number | null,
 readonly p95_ms: number | null,
-readonly maximum_ms: number | null,
 readonly failure_count: number,
 readonly error_count: number,
 readonly warning_count: number,
@@ -2206,7 +2205,7 @@ export type IncidentResolutionReason = 'check_disabled' | 'site_paused' | 'site_
 export type NotificationCategory = 'outage' | 'failure' | 'check_error' | 'warning' | 'expiring' | 'recovery' | 'changes' | 'system' | 'report';
 export type NotificationMode = 'immediate' | 'digest' | 'off';
 export type RecipientKind = 'team' | 'user' | 'client';
-export type ResponseTimeRange = '24h' | '7d' | '30d' | '90d';
+export type ResponseTimeRange = '24h' | '7d' | '30d' | '90d' | '1y' | 'all';
 export type SiteIconBacking = 'none' | 'light-backing-in-dark' | 'dark-backing-in-light';
 export type SiteStatus = 'maintenance' | 'paused' | 'disabled' | 'unavailable' | 'down' | 'failed' | 'check-error' | 'warning' | 'pending' | 'ok';
 export type SiteStatusAttention = ['down', 'failed', 'check-error', 'warning'];
