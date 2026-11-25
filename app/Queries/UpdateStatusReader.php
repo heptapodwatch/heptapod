@@ -9,9 +9,13 @@ use Composer\Semver\Comparator;
 use Composer\Semver\VersionParser;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 final readonly class UpdateStatusReader
 {
+    /** Heptapod publishes only plain `vX.Y.Z` tags; the tag is pasted into shell commands, so nothing else may reach the UI. */
+    public const string ReleaseTag = '/^v\d+\.\d+\.\d+$/D';
+
     public function __construct(private InstanceSettings $settings) {}
 
     /** @return array{installed_version: string, update_status: string, enabled: bool, enabled_by_server: bool, http_status: int|null, checked_at: string|null, last_success_at: string|null, latest_version: string|null, release_url: string|null, published_at: string|null, evaluated_at: string} */
@@ -21,6 +25,12 @@ final readonly class UpdateStatusReader
         $allowed = config()->boolean('heptapod.updates.enabled_by_server');
         $check = DB::table('update_checks')->where('id', 1)->first();
         /** @var (\stdClass&object{status: string, http_status: int|null, checked_at: string|null, last_success_at: string|null, latest_version: string|null, release_url: string|null, published_at: string|null})|null $check */
+        if ($check?->latest_version !== null && preg_match(self::ReleaseTag, $check->latest_version) !== 1) {
+            // Stored before ingestion required the published format: never shown, never offered as an update.
+            Log::warning('Stored release tag is not a published vX.Y.Z tag; ignoring it.');
+            $check->status = 'invalid_response';
+            $check->latest_version = $check->release_url = $check->published_at = null;
+        }
         $status = match (true) {
             ! $allowed => 'disabled_by_server',
             ! $this->settings->updates_enabled => 'disabled_by_user',

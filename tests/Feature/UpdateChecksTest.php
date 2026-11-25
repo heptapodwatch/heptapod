@@ -8,11 +8,10 @@ use Heptapod\Contracts\Http\FetchFailureKind;
 use Heptapod\Contracts\Http\FetchRequest;
 use Heptapod\Contracts\Http\FetchResult;
 use Heptapod\Contracts\Http\OutboundHttp;
-use Heptapod\Events\LiveSignal;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\Testing\FakeOutboundHttp;
-use Illuminate\Support\Facades\Event as FrameworkEvent;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
 it('does not contact the release source when disabled by server configuration', function (): void {
@@ -87,11 +86,7 @@ it('nudges only Owners and Admins in the shell, and only while checks are on and
             'published_at' => '2026-10-04T18:00:00Z'], JSON_THROW_ON_ERROR),
     ));
     app()->instance(OutboundHttp::class, $fake);
-    FrameworkEvent::fake([LiveSignal::class]);
     $this->artisan('heptapod:check-updates')->assertSuccessful();
-    $this->artisan('heptapod:check-updates')->assertSuccessful();
-    // Open tabs reload the footer once for the new release, not on every unchanged daily check.
-    FrameworkEvent::assertDispatchedTimes(LiveSignal::class, 1);
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
     $this->actingAs($owner)->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page
@@ -103,6 +98,27 @@ it('nudges only Owners and Admins in the shell, and only while checks are on and
     expect($response->getContent())->not->toContain('v1.2.3');
 
     $this->actingAs($owner)->patchJson(route('settings.updates.update'), ['enabled' => false])->assertOk();
-    FrameworkEvent::assertDispatchedTimes(LiveSignal::class, 2);
     $this->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page->where('appVersion.available_version', null));
+});
+
+it('never offers a release tag that is not a published vX.Y.Z tag', function (): void {
+    config(['heptapod.version' => 'v1.2.2', 'heptapod.updates.enabled_by_server' => true]);
+    // Composer's parser accepts this (build metadata), but it would land in a copyable shell command.
+    $tag = 'v1.2.3+pwned;touch';
+    app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static fn (FetchRequest $request): FetchResult => new FetchResult(
+        status: 200, body: json_encode(['tag_name' => $tag, 'html_url' => config('heptapod.updates.release_page_url').'/tag/v1.2.3',
+            'published_at' => '2026-10-04T18:00:00Z'], JSON_THROW_ON_ERROR),
+    )));
+    $this->artisan('heptapod:check-updates')->assertSuccessful();
+    expect(DB::table('update_checks')->value('status'))->toBe('invalid_response');
+
+    // A tag stored before ingestion enforced the format is ignored on read.
+    DB::table('update_checks')->where('id', 1)->update(['status' => 'reachable', 'latest_version' => $tag,
+        'release_url' => config('heptapod.updates.release_page_url').'/tag/v1.2.3', 'published_at' => now()]);
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+    $this->actingAs($owner)->getJson(route('settings.updates.status'))->assertOk()
+        ->assertJsonPath('update_status', 'invalid_response')->assertJsonPath('latest_version', null)->assertJsonPath('release_url', null);
+    $this->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page->where('appVersion.available_version', null));
+    expect($this->get(route('settings.updates.edit'))->getContent())->not->toContain('pwned');
 });

@@ -325,13 +325,14 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                             />
                         </div>
                     )}
-                {updates.update_status === 'disabled_by_user' && (
-                    <p className="text-cell">
-                        {t(
-                            'Turn on release checks to see new versions here: once a day Heptapod asks GitHub for the latest release, sending only its version in the user agent.',
-                        )}
-                    </p>
-                )}
+                {updates.update_status === 'disabled_by_user' &&
+                    auth.canManageInstance && (
+                        <p className="text-cell">
+                            {t(
+                                'Turn on release checks to see new versions here: once a day Heptapod asks GitHub for the latest release, sending only its version in the user agent.',
+                            )}
+                        </p>
+                    )}
                 <dl className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
                     <div>
                         <dt>{t('Status evaluated at')}</dt>

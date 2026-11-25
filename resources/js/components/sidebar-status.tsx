@@ -368,7 +368,12 @@ export function SidebarVersion() {
         return (
             <SidebarMenu>
                 <StatusRow
-                    leading={<StatusDot state="warning" />}
+                    leading={
+                        // Not a monitoring Warning: the dot only borrows the attention style, so it stays silent.
+                        <span aria-hidden="true" className="inline-flex">
+                            <StatusDot state="warning" />
+                        </span>
+                    }
                     label={label}
                     href={updates.url()}
                     tooltip={label}
@@ -377,6 +382,15 @@ export function SidebarVersion() {
         );
     }
     if (appVersion.installed_version === 'unknown') return null;
+    if (!auth.canViewUpdates) {
+        // Plain text for viewers who cannot open Updates & backups: no tab stop, no tooltip.
+        return (
+            <p className="flex h-8 items-center gap-2 p-2 font-mono text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+                <span className="size-4 shrink-0" />
+                {appVersion.installed_version}
+            </p>
+        );
+    }
     return (
         <SidebarMenu>
             <StatusRow
@@ -384,7 +398,7 @@ export function SidebarVersion() {
                 buttonClassName="font-mono"
                 leading={null}
                 label={appVersion.installed_version}
-                href={auth.canViewUpdates ? updates.url() : undefined}
+                href={updates.url()}
                 tooltip={t('Version')}
             />
         </SidebarMenu>

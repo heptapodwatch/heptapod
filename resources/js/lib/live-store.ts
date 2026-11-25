@@ -195,8 +195,7 @@ export function receiveLiveSignal(signal: LiveSignal) {
         signal.topic === 'state.changed' ||
         signal.topic === 'import.progress' ||
         signal.topic === 'import.changed' ||
-        signal.topic === 'backup.changed' ||
-        signal.topic === 'updates.changed'
+        signal.topic === 'backup.changed'
     ) {
         stateListeners.forEach((listener) => listener(signal));
     }

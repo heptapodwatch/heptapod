@@ -6,13 +6,12 @@ namespace Heptapod\Actions;
 
 use Carbon\CarbonImmutable;
 use Carbon\Exceptions\InvalidFormatException;
-use Composer\Semver\VersionParser;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\Http\FetchFailure;
 use Heptapod\Contracts\Http\FetchRequest;
 use Heptapod\Contracts\Http\OutboundHttp;
 use Heptapod\Contracts\Http\RedirectPolicy;
-use Heptapod\Events\LiveSignal;
+use Heptapod\Queries\UpdateStatusReader;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -40,7 +39,7 @@ final readonly class CheckForUpdates
                 $payload = json_decode($result->body, true, flags: JSON_THROW_ON_ERROR);
                 if (! is_array($payload) || ! is_string($payload['tag_name'] ?? null)
                     || ! is_string($payload['html_url'] ?? null) || ! is_string($payload['published_at'] ?? null)
-                    || ! (new VersionParser)->isValid($payload['tag_name'])
+                    || preg_match(UpdateStatusReader::ReleaseTag, $payload['tag_name']) !== 1
                     || preg_match('~^'.preg_quote(config()->string('heptapod.updates.release_page_url'), '~').'/tag/[^/?#]+$~', $payload['html_url']) !== 1) {
                     throw new \UnexpectedValueException('GitHub release data is invalid.');
                 }
@@ -51,8 +50,7 @@ final readonly class CheckForUpdates
             }
         }
         $status = $release !== null ? 'reachable' : ($result->status === 200 ? 'invalid_response' : 'unreachable');
-        $old = DB::table('update_checks')->where('id', 1)->first(['status', 'latest_version']);
-        $oldStatus = $old?->status;
+        $oldStatus = DB::table('update_checks')->where('id', 1)->value('status');
         if ($oldStatus !== $status && $status !== 'reachable') {
             Log::warning('Release update source status changed', ['state' => $status, 'http_status' => $result->status]);
         }
@@ -62,8 +60,5 @@ final readonly class CheckForUpdates
             'published_at' => $release['published_at'] ?? null,
             'last_success_at' => $release === null ? DB::table('update_checks')->where('id', 1)->value('last_success_at') : $now,
         ]);
-        if ([$oldStatus, $old?->latest_version] !== [$status, $release['latest_version'] ?? null]) {
-            LiveSignal::forUpdates();
-        }
     }
 }

@@ -64,7 +64,6 @@ export default function AppSidebarLayout({
     return (
         <LiveProvider>
             <ShellHealthLive />
-            <ShellVersionLive enabled={props.auth.canViewUpdates} />
             {props.runningNow !== undefined && <RunningNowShell />}
             <AppShell variant="sidebar">
                 <AppSidebar
@@ -106,13 +105,5 @@ export default function AppSidebarLayout({
  */
 function ShellHealthLive() {
     useLiveReload(['state.changed'], ['overallHealth']);
-    return null;
-}
-
-/** The sidebar's update nudge follows the daily release check and the Owner's setting; no polling for a daily change. */
-function ShellVersionLive({ enabled }: { enabled: boolean }) {
-    useLiveReload(['updates.changed'], ['appVersion'], undefined, enabled, {
-        pollFallback: false,
-    });
     return null;
 }
