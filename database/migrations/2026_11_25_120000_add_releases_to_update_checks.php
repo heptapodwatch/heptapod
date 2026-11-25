@@ -12,9 +12,8 @@ return new class extends Migration
     {
         Schema::table('update_checks', function (Blueprint $table): void {
             // The newest page of releases as plain text parsed from their notes; null when the list could not be read.
+            // Additive only: `release_url` stays (unused now) so an older release still runs against this schema.
             $table->jsonb('releases')->nullable();
-            // Release links are built from the configured release page and the tag, never stored from the source.
-            $table->dropColumn('release_url');
         });
     }
 
@@ -22,7 +21,6 @@ return new class extends Migration
     {
         Schema::table('update_checks', function (Blueprint $table): void {
             $table->dropColumn('releases');
-            $table->string('release_url')->nullable();
         });
     }
 };

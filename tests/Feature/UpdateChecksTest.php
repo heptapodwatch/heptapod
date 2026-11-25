@@ -170,6 +170,20 @@ it('still records the latest release when the list fails, and drops the older no
         ->assertJsonPath('releases', null)->assertJsonPath('security', false);
 });
 
+it('treats a list that cannot explain the latest release as unavailable', function (string $listBody): void {
+    config(['heptapod.version' => 'v1.2.0', 'heptapod.updates.enabled_by_server' => true]);
+    app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static fn (FetchRequest $request): FetchResult => new FetchResult(status: 200,
+        body: str_ends_with($request->url, '/latest') ? json_encode(releaseItem('v1.2.2', 'New.'), JSON_THROW_ON_ERROR) : $listBody)));
+    $this->artisan('heptapod:check-updates')->assertSuccessful();
+    $this->actingAs(User::factory()->owner()->create())->getJson(route('settings.updates.status'))->assertOk()
+        ->assertJsonPath('update_status', 'available')->assertJsonPath('latest_version', 'v1.2.2')
+        ->assertJsonPath('release_url', config('heptapod.updates.release_page_url').'/tag/v1.2.2')
+        ->assertJsonPath('releases', null);
+})->with([
+    'an object, which decodes like an empty list' => ['{}'],
+    'a list without the latest release' => [fn (): string => json_encode([releaseItem('v1.2.1', 'Older.')], JSON_THROW_ON_ERROR)],
+]);
+
 it('never offers a release tag that is not a published vX.Y.Z tag', function (string $tag, string $marker): void {
     config(['heptapod.version' => 'v1.2.2', 'heptapod.updates.enabled_by_server' => true]);
     app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static fn (FetchRequest $request): FetchResult => new FetchResult(

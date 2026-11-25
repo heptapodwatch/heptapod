@@ -41,7 +41,7 @@ final readonly class CheckForUpdates
             try {
                 /** @var mixed $payload */
                 $payload = json_decode($result->body, true, flags: JSON_THROW_ON_ERROR);
-                if (! is_array($payload) || ! UpdateStatusReader::isReleaseTag($payload['tag_name'] ?? null)
+                if (! is_array($payload) || ! is_string($payload['tag_name'] ?? null) || ! UpdateStatusReader::isReleaseTag($payload['tag_name'])
                     || ! is_string($payload['published_at'] ?? null)) {
                     throw new \UnexpectedValueException('GitHub release data is invalid.');
                 }
@@ -50,7 +50,7 @@ final readonly class CheckForUpdates
                 $release = null;
             }
         }
-        $releases = $release === null ? null : $this->releases($url, $context);
+        $releases = $release === null ? null : $this->releases($url, $release['latest_version'], $context);
         if ($release !== null && $releases === null) {
             Log::warning('Release list could not be read; release details are unavailable until the next check.');
         }
@@ -71,11 +71,12 @@ final readonly class CheckForUpdates
     /**
      * The newest page of releases with their notes as plain text, from the list endpoint beside `/latest`.
      * `page_full` is counted before filtering, so the reader knows whether older releases may be missing.
-     * Null when the source has no list endpoint or the read fails.
+     * Null when the source has no list endpoint, the read fails, or the page is not a JSON array holding the tag
+     * `/latest` confirmed: a list that misses the latest release cannot explain it.
      *
      * @return array{page_full: bool, items: list<array{tag: string, published_at: string, headline: string|null, before: list<string>, security: list<string>}>}|null
      */
-    private function releases(string $latestUrl, CheckContext $context): ?array
+    private function releases(string $latestUrl, string $latestTag, CheckContext $context): ?array
     {
         if (! str_ends_with($latestUrl, '/latest')) {
             return null;
@@ -109,6 +110,11 @@ final readonly class CheckForUpdates
             }
             $items[] = ['tag' => $item['tag_name'], 'published_at' => $published,
                 ...ReleaseNotes::parse(is_string($item['body'] ?? null) ? $item['body'] : '')];
+        }
+
+        // Also rejects `{}`, which decodes like an empty list.
+        if (! in_array($latestTag, array_column($items, 'tag'), true)) {
+            return null;
         }
 
         return ['page_full' => count($payload) >= self::ReleasePage, 'items' => $items];
