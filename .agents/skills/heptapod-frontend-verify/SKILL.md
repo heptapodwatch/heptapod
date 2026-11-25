@@ -14,7 +14,7 @@ Rendered proof shows the changed action working, replayably. `AGENTS.md` "Delive
 1. **Right state:** the dev scenario that shows the change (`scripts/dev-up.sh <scenario>`), with the URL and login it prints. Seed missing states only through real entry points and record them.
 2. **Own session:** your own `AGENT_BROWSER_SESSION`; close only that one.
 3. **The action itself**, not just a page load, at the locales and viewports the risk calls for. Pick edge states that could break it (empty, error, long text) and name those that do not apply.
-4. **Inspect:** open every screenshot and confirm it shows the promised behavior. Check console and relevant requests; only Vite debug and React DevTools info may appear.
-5. **Report for replay:** scenario, URL, locale, viewport, steps, screenshot paths (outside the tracked tree), console output. Then `scripts/smoke.sh`, demo owner back to EN, stack on `attention`.
+4. **Inspect:** open every screenshot and confirm it shows the promised behavior. Check the console and relevant requests for errors.
+5. **Report for replay:** scenario, URL, locale, viewport, steps, screenshot paths (outside the tracked tree), console output. Smoke and stack handback follow `AGENTS.md`.
 
 A stack or browser that will not start is a blocker; never substitute weaker proof. Manual proof never replaces a requested regression test (`test-audit`).
