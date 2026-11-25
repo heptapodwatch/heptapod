@@ -79,6 +79,7 @@ const page: Heptapod.Data.Ui.ApiTokenSettingsData = {
         'monitors:read',
         'checks:read',
         'checks:run',
+        'checks:write',
         'maintenance:read',
         'maintenance:write',
     ],
@@ -178,6 +179,16 @@ it('issues exactly the edited checklist with the chosen client access and a 30-d
             name: 'api_tokens.matrix.read',
         }),
     );
+    // A consequential grant announces its side effect with the checkbox, not only in the summary below.
+    const change = area('api_tokens.area.checks').getByRole('checkbox', {
+        name: 'api_tokens.matrix.change',
+    });
+    expect(
+        document.getElementById(change.getAttribute('aria-describedby')!)
+            ?.textContent,
+    ).toBe(
+        'api_tokens.ability.checks_write. api_tokens.ability.checks_write.consequence',
+    );
     const form = screen.getByLabelText('Name').closest('form')!;
     await act(async () => {
         fireEvent.submit(form);
@@ -245,10 +256,9 @@ it('lists stored grants as area pills that expand inline, with Full access and t
             .filter((text) => text?.startsWith('api_tokens.area.'));
     expect(pills()).toEqual([
         'api_tokens.area.monitors · api_tokens.level.read',
-        'api_tokens.area.checks · api_tokens.level.read',
     ]);
     const more = screen.getByRole('button', {
-        name: 'api_tokens.grants.show_all',
+        name: 'api_tokens.grants.more_areas',
     });
     expect(more.getAttribute('aria-expanded')).toBe('false');
     fireEvent.click(more);

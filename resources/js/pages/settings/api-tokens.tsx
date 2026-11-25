@@ -49,6 +49,7 @@ import {
 import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import { Badge } from '@/components/ui/badge';
 import { AbsoluteTime } from '@/components/absolute-time';
+import { cn } from '@/lib/utils';
 import { data as readData, destroy, store } from '@/routes/settings/api-tokens';
 
 type TokenPage = Heptapod.Data.Ui.ApiTokenSettingsData;
@@ -538,7 +539,7 @@ function SecretDialog({
 }
 
 const tokenColumns =
-    'min-[87.5rem]:grid-cols-[minmax(8rem,0.9fr)_minmax(0,2fr)_8.5rem_6.5rem_6.5rem_4.5rem] min-[87.5rem]:gap-x-3';
+    'min-[87.5rem]:grid-cols-[minmax(8rem,1fr)_minmax(0,1.4fr)_8rem_7.5rem_9.5rem_4.5rem] min-[87.5rem]:gap-x-3';
 
 export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
     const { t } = useTranslation();
@@ -774,7 +775,16 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
                         {
                             label: 'Expires',
                             value: (
-                                <span className="inline-flex flex-col items-end min-[87.5rem]:items-start">
+                                <span
+                                    className={cn(
+                                        'inline-flex items-center gap-1.5 whitespace-nowrap',
+                                        token.expires_at !== null &&
+                                            new Date(
+                                                token.expires_at,
+                                            ).getTime() <= Date.now() &&
+                                            'text-muted-foreground',
+                                    )}
+                                >
                                     {date(
                                         token.expires_at,
                                         'No expiry',

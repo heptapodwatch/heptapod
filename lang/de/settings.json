@@ -460,7 +460,7 @@
     "api_tokens.action.snooze": "Stummschalten",
     "api_tokens.action.note": "Notizen hinzufügen",
     "api_tokens.grants.more": "+{{count}}",
-    "api_tokens.grants.show_all_one": "{{count}} Berechtigung anzeigen",
-    "api_tokens.grants.show_all_other": "Alle {{count}} Berechtigungen anzeigen",
-    "api_tokens.grants.show_less": "Weniger anzeigen"
+    "api_tokens.grants.show_less": "Weniger anzeigen",
+    "api_tokens.grants.more_areas_one": "{{count}} weiteren Bereich anzeigen",
+    "api_tokens.grants.more_areas_other": "{{count}} weitere Bereiche anzeigen"
 }

@@ -107,9 +107,11 @@ export function AbilityMatrix({
                     />
                     {word}
                 </label>
-                {/* The plain ability name describes the checkbox; the visible word stays its name. */}
+                {/* The plain ability name and its consequence describe the checkbox; the visible word stays its name. */}
                 <span id={`${baseId}-${ability}`} className="sr-only">
                     {t(abilityLabel(ability))}
+                    {abilityConsequences[ability] &&
+                        `. ${t(abilityConsequences[ability])}`}
                 </span>
             </span>
         ) : (
@@ -231,41 +233,46 @@ export function TokenGrant({
                 ),
         }))
         .filter((group) => group.abilities.length > 0);
-    const shown = expanded ? groups : groups.slice(0, 2);
+    // One pill fits the narrowest grant column (DE at 1440 and 390); the rest is always behind "+N".
+    const shown = expanded ? groups : groups.slice(0, 1);
     const hidden = groups.length - shown.length;
     return (
-        <span className="flex min-w-0 items-center justify-end gap-1 min-[87.5rem]:justify-start">
-            {/* Only the pills clip in a narrow column; the toggle stays reachable. */}
-            <span
-                className={cn(
-                    'flex min-w-0 flex-wrap items-center justify-end gap-1 min-[87.5rem]:justify-start',
-                    !expanded &&
-                        'min-[87.5rem]:flex-nowrap min-[87.5rem]:overflow-hidden',
-                )}
-            >
-                {shown.map((group) => (
+        <span
+            className={cn(
+                'flex min-w-0 items-center justify-end gap-1 min-[87.5rem]:justify-start',
+                expanded && 'flex-wrap',
+            )}
+        >
+            {shown.map((group) => {
+                const text = `${t(`api_tokens.area.${group.area}`)} · ${group.abilities.map((ability) => t(`api_tokens.level.${levelOf(ability)}`)).join(', ')}`;
+                return (
                     <TooltipHint
                         key={group.area}
-                        content={group.abilities.join(', ')}
+                        content={`${text} (${group.abilities.join(', ')})`}
                     >
-                        <Badge className="font-normal">
-                            {`${t(`api_tokens.area.${group.area}`)} · ${group.abilities.map((ability) => t(`api_tokens.level.${levelOf(ability)}`)).join(', ')}`}
+                        <Badge
+                            className={cn(
+                                'min-w-0 shrink justify-start font-normal',
+                                expanded ? 'max-w-full' : 'max-w-36',
+                            )}
+                        >
+                            <span className="truncate">{text}</span>
                         </Badge>
                     </TooltipHint>
-                ))}
-            </span>
+                );
+            })}
             {(hidden > 0 || expanded) && (
                 <Button
                     type="button"
                     variant="ghost"
                     size="xs"
-                    className="shrink-0 self-end text-muted-foreground"
+                    className="shrink-0 text-muted-foreground"
                     aria-expanded={expanded}
                     aria-label={
                         expanded
                             ? undefined
-                            : t('api_tokens.grants.show_all', {
-                                  count: abilities.length,
+                            : t('api_tokens.grants.more_areas', {
+                                  count: hidden,
                               })
                     }
                     onClick={() => setExpanded(!expanded)}

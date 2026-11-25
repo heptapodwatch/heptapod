@@ -460,7 +460,7 @@
     "api_tokens.action.snooze": "Snooze",
     "api_tokens.action.note": "Add notes",
     "api_tokens.grants.more": "+{{count}}",
-    "api_tokens.grants.show_all_one": "Show all {{count}} permission",
-    "api_tokens.grants.show_all_other": "Show all {{count}} permissions",
-    "api_tokens.grants.show_less": "Show less"
+    "api_tokens.grants.show_less": "Show less",
+    "api_tokens.grants.more_areas_one": "Show {{count}} more area",
+    "api_tokens.grants.more_areas_other": "Show {{count}} more areas"
 }
