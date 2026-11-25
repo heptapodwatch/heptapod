@@ -96,7 +96,7 @@ $glossary = [
     'EN "worker" must read "Hintergrundprozess" in DE' => ['/\bworkers?\b/i', '/Worker/u'],
     'EN "agent" must read "KI-Agent" in DE' => ['/\bagents?\b/i', '/Agents\b|Coding-Agent/u'],
 ];
-// UI copy names API abilities in words; the raw scope ("checks:read") lives only in the TokenAbilities tooltip.
+// UI copy names API abilities in words; the raw scope ("checks:read") comes from code beside the name, never from a catalog value.
 foreach (['en', 'de'] as $locale) {
     foreach ($catalog[$locale] as $key => $value) {
         // Overflow is "Show all N" (a link to the full list) or "and N more" in running text, never a "+N more" counter.

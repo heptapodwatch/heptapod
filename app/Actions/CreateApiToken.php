@@ -26,7 +26,14 @@ final class CreateApiToken
     /** Abilities only Owners and Admins can issue. */
     public const array AdminAbilities = ['monitors:write', 'checks:write', 'checks:run', 'maintenance:write', 'clients:write'];
 
-    /** @return array{read: list<string>, write: list<string>, manage: list<string>, agent-read: list<string>} */
+    /** The UI starting point for CI deploys: open a window, request a run, and the reads to look up IDs and poll the receipt. */
+    public const array DeployAutomation = ['monitors:read', 'checks:read', 'checks:run', 'maintenance:read', 'maintenance:write'];
+
+    /**
+     * Frozen API preset aliases of the settings endpoint; never append abilities here.
+     *
+     * @return array{read: list<string>, write: list<string>, manage: list<string>, agent-read: list<string>}
+     */
     public function presets(User $user): array
     {
         $allowed = $this->allowedAbilities($user);
@@ -34,6 +41,19 @@ final class CreateApiToken
 
         return ['read' => array_values(array_intersect(self::ReadPreset, $allowed)), 'write' => $historical, 'manage' => $historical,
             'agent-read' => array_values(array_intersect(self::AgentReadPreset, $allowed))];
+    }
+
+    /**
+     * The token form's starting points, in checklist order; they only fill the checklist, the checked abilities are the grant.
+     *
+     * @return array{read-everything: list<string>, deploy-automation: list<string>|null}
+     */
+    public function startingPoints(User $user): array
+    {
+        $allowed = $this->allowedAbilities($user);
+
+        return ['read-everything' => array_values(array_filter($allowed, static fn (string $ability): bool => str_ends_with($ability, ':read'))),
+            'deploy-automation' => array_diff(self::DeployAutomation, $allowed) === [] ? array_values(array_intersect($allowed, self::DeployAutomation)) : null];
     }
 
     /** @param list<string> $abilities */
@@ -50,8 +70,8 @@ final class CreateApiToken
             NotificationLocks::users([$authenticated->id]);
             $user = User::query()->findOrFail($authenticated->id);
             abort_if($user->disabled_at !== null || $user->getAuthPassword() !== $authenticated->getAuthPassword(), 403);
-            $allowed = $user->hasRole('Owner') ? ['*', ...$this->allowedAbilities($user)] : $this->allowedAbilities($user);
-            Validator::make(['name' => $name, 'abilities' => $abilities], ['name' => ['required', 'string', 'max:255'], 'abilities' => ['required', 'array', 'min:1'], 'abilities.*' => ['string', 'distinct', Rule::in($allowed)]])->validate();
+            // No new `*`: existing wildcard tokens keep working, new grants name their abilities.
+            Validator::make(['name' => $name, 'abilities' => $abilities], ['name' => ['required', 'string', 'max:255'], 'abilities' => ['required', 'array', 'min:1'], 'abilities.*' => ['string', 'distinct', Rule::in($this->allowedAbilities($user))]])->validate();
 
             if ($clientId !== null && ! $user->canAccessClient($clientId)) {
                 throw ValidationException::withMessages(['client_id' => __('validation.exists', ['attribute' => 'client_id'])]);
@@ -67,7 +87,7 @@ final class CreateApiToken
     }
 
     /** @return list<string> */
-    private function allowedAbilities(User $user): array
+    public function allowedAbilities(User $user): array
     {
         return $user->hasAnyRole(['Owner', 'Admin']) ? self::Abilities
             : array_values(array_diff(self::Abilities, self::AdminAbilities));

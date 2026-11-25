@@ -155,6 +155,7 @@ Motion marks state transitions only, moves only transform and opacity, never ani
 
 - Clickable rows and cards use `rowTargetClass` (`resources/js/components/entity-link.tsx`) and have one keyboard target, never both the row and its name link.
 - Touch targets stay usable on mobile; text keeps WCAG AA contrast on every surface.
+- A grouped permission checklist (many independent grants, such as API token abilities) is `AbilityChecklist`: the checked boxes are exactly what is granted; starting points only fill them.
 
 ## Navigation
 

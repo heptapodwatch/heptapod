@@ -994,6 +994,10 @@ write: string[],
 manage: string[],
 'agent-read': string[],
 },
+readonly starting_points: {
+'read-everything': string[],
+'deploy-automation': string[] | null,
+},
 readonly clients: {
 id: number,
 name: string,

@@ -66,8 +66,8 @@ it('validates creates clears the one-time disclosure and revokes through the rea
     // Mask credential pixels before issuance, including automatic failure screenshots. No trace is enabled.
     $page->script('const style = document.createElement("style"); style.textContent = "#one-time-secret { opacity: 0 !important; }"; document.head.append(style); Object.defineProperty(navigator, "clipboard", {configurable: true, value: {writeText: async () => { throw new DOMException("Denied", "NotAllowedError"); }}});');
     $page->fill('token-name', str_repeat('x', 256))->keys('token-name', 'Enter')->assertSee('The name field must not be greater than 255 characters.');
-    $page->fill('token-name', 'Browser scoped read')->click('#token-client')->click('[role="option"]:has-text("'.$client->name.'")')
-        ->fill('token-expiry', '2000-01-02T03:04')->keys('token-name', 'Enter')->assertSee('The expires at field must be a date after now.')
+    $page->fill('token-name', 'Browser scoped read')->click('One client')->click('#token-client')->click('[role="option"]:has-text("'.$client->name.'")')
+        ->click('Custom date')->fill('token-expiry', '2000-01-02T03:04')->keys('token-name', 'Enter')->assertSee('The expires at field must be a date after now.')
         ->fill('token-expiry', '2030-01-02T03:04')->keys('token-name', 'Enter')->assertSee('Copy your token now');
     try {
         expect($page->script('(() => { const value = document.querySelector("#one-time-secret").value; return value.length > 40 && !JSON.stringify(history.state).includes(value) && !JSON.stringify(localStorage).includes(value) && !JSON.stringify(sessionStorage).includes(value); })()'))->toBeTrue();
@@ -111,7 +111,7 @@ it('does not redisclose an issued token after navigation and history return', fu
     $this->actingAs($user);
     $page = visit('/settings/api-tokens')->click('Create token');
     $page->script('const style = document.createElement("style"); style.textContent = "#one-time-secret { opacity: 0 !important; }"; document.head.append(style);');
-    $page->fill('token-name', 'Navigation token')->keys('token-name', 'Enter')->assertSee('Copy your token now');
+    $page->fill('token-name', 'Navigation token')->click('All clients you can access, including future clients')->keys('token-name', 'Enter')->assertSee('Copy your token now');
     try {
         $page->script('document.querySelector("a[href$=\\"/settings/profile\\"]").click();');
         $page->assertSee('Language')->assertDontSee('Copy your token now');

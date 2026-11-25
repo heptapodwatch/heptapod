@@ -74,12 +74,34 @@ const page: Heptapod.Data.Ui.ApiTokenSettingsData = {
             expires_at: null,
         },
     ],
-    abilities: ['checks:run', 'monitors:read'],
+    abilities: [
+        'identity:read',
+        'monitors:read',
+        'checks:read',
+        'checks:run',
+        'maintenance:read',
+        'maintenance:write',
+    ],
     presets: {
         read: ['monitors:read'],
         write: ['monitors:read'],
         manage: ['monitors:read'],
         'agent-read': ['monitors:read'],
+    },
+    starting_points: {
+        'read-everything': [
+            'identity:read',
+            'monitors:read',
+            'checks:read',
+            'maintenance:read',
+        ],
+        'deploy-automation': [
+            'monitors:read',
+            'checks:read',
+            'checks:run',
+            'maintenance:read',
+            'maintenance:write',
+        ],
     },
     clients: [],
     timezone: 'Europe/Berlin',
@@ -107,7 +129,13 @@ it.each([
         fireEvent.change(screen.getByLabelText('Name'), {
             target: { value: 'Agent' },
         });
-        const expiry = screen.getByLabelText('Expires at (optional)');
+        fireEvent.click(
+            screen.getByLabelText(
+                'All clients you can access, including future clients',
+            ),
+        );
+        fireEvent.click(screen.getByLabelText('Custom date'));
+        const expiry = screen.getByLabelText('Expires at');
         fireEvent.change(expiry, { target: { value: typed } });
         expect(screen.queryByText(/Enter UTC/)).toBeNull();
         await act(async () => {
@@ -117,20 +145,86 @@ it.each([
     },
 );
 
-it('names token abilities in words and keeps the API scope in the tooltip', () => {
+it('issues exactly the edited checklist with the chosen client access and a 30-day default expiry', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2030-01-01T00:00:00Z'));
     render(
         <TooltipProvider>
             <ApiTokens tokensPage={page} />
         </TooltipProvider>,
     );
-    const abilities = screen.getAllByRole('list', { name: 'Can' })[0]!;
+    fireEvent.click(
+        screen.getAllByRole('button', { name: /Create token/ })[0]!,
+    );
+    fireEvent.change(screen.getByLabelText('Name'), {
+        target: { value: 'Deploy' },
+    });
+    fireEvent.click(screen.getByLabelText('Deploy automation'));
+    // Leave out the maintenance lookup and add the identity read: the grant is the checklist, not the starting point.
+    fireEvent.click(screen.getByRole('checkbox', { name: /maintenance:read/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /identity:read/ }));
+    const form = screen.getByLabelText('Name').closest('form')!;
+    await act(async () => {
+        fireEvent.submit(form);
+    });
+    // Client access has no default.
+    expect(posts).toEqual([]);
     expect(
-        within(abilities)
+        screen.getByText('Choose which clients the token can reach.'),
+    ).not.toBeNull();
+    fireEvent.click(
+        screen.getByLabelText(
+            'All clients you can access, including future clients',
+        ),
+    );
+    await act(async () => {
+        fireEvent.submit(form);
+    });
+    vi.useRealTimers();
+    expect(posts).toEqual([
+        {
+            name: 'Deploy',
+            abilities: [
+                'identity:read',
+                'monitors:read',
+                'checks:read',
+                'checks:run',
+                'maintenance:write',
+            ],
+            client_id: null,
+            expires_at: '2030-01-31T00:00:00.000Z',
+        },
+    ]);
+});
+
+it('lists stored grants behind a count with plain names and raw scopes', () => {
+    render(
+        <TooltipProvider>
+            <ApiTokens
+                tokensPage={{
+                    ...page,
+                    tokens: [
+                        page.tokens[0]!,
+                        { ...page.tokens[0]!, id: 2, abilities: ['*'] },
+                    ],
+                }}
+            />
+        </TooltipProvider>,
+    );
+    expect(screen.queryAllByRole('list', { name: 'Can' })).toHaveLength(0);
+    fireEvent.click(screen.getByText('api_tokens.grants.count'));
+    fireEvent.click(screen.getByText('api_tokens.ability.all'));
+    const [scoped, wildcard] = screen.getAllByRole('list', { name: 'Can' });
+    expect(
+        within(scoped!)
             .getAllByRole('listitem')
             .map((item) => item.textContent),
     ).toEqual([
-        'api_tokens.ability.checks_run',
-        'api_tokens.ability.monitors_read',
+        'api_tokens.ability.checks_runchecks:run',
+        'api_tokens.ability.monitors_readmonitors:read',
     ]);
-    expect(abilities.textContent).not.toContain('checks:run');
+    expect(wildcard!.textContent).toBe('*');
+    expect(
+        screen.getByText('api_tokens.grants.replace_wildcard'),
+    ).not.toBeNull();
 });
