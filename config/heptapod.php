@@ -126,6 +126,7 @@ return [
         'enabled_by_server' => $updateChecksEnabled,
         'release_url' => env('HEPTAPOD_UPDATE_CHECK_URL', 'https://api.github.com/repos/heptapodwatch/heptapod/releases/latest'),
         'release_page_url' => 'https://github.com/heptapodwatch/heptapod/releases',
+        'source_url' => 'https://github.com/heptapodwatch/heptapod',
     ],
     'browser' => ['enabled' => $browserEnabled],
     // Crawl worker PHP memory_limit; the worker container budget (HORIZON_MEMORY_LIMIT) is derived from it.

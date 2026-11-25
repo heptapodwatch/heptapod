@@ -17,6 +17,8 @@ declare module '@inertiajs/core' {
             timezone: string;
             /** Rows one export holds (Table::RowLimit, app/Contracts/Export). */
             exportRowLimit: number;
+            /** The public repository (AGPL); the user menu links to it. */
+            sourceUrl: string;
             /** Only on pages with a zone field (Inertia `->with`): the default an empty zone follows. */
             instanceTimezone?: string;
             auth: Auth;

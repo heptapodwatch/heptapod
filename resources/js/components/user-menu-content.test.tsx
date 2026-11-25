@@ -8,6 +8,9 @@ vi.mock('@inertiajs/react', () => ({
         <button type="button">{children}</button>
     ),
     router: { flushAll: vi.fn(), visit: visits, patch: visits, post: visits },
+    usePage: () => ({
+        props: { sourceUrl: 'https://github.com/heptapodwatch/heptapod' },
+    }),
 }));
 vi.mock('react-i18next', () => {
     const t = (key: string) => key;
@@ -89,12 +92,18 @@ it('applies the chosen theme at once and keeps it on this device across a reload
     ).toBe('true');
 });
 
-it('offers identity, theme and log out, but no second Settings entry', async () => {
+it('offers identity, theme, the source code and log out, but no second Settings entry', async () => {
     await openMenu();
     expect(screen.getByText('test@example.test')).toBeTruthy();
     expect(
         screen.getAllByRole('menuitemradio').map((item) => item.textContent),
     ).toEqual(['System', 'Light', 'Dark']);
+    const source = screen.getByRole('menuitem', { name: 'Source code' });
+    expect(source.getAttribute('href')).toBe(
+        'https://github.com/heptapodwatch/heptapod',
+    );
+    expect(source.getAttribute('target')).toBe('_blank');
+    expect(source.getAttribute('rel')).toBe('noopener noreferrer');
     expect(screen.getByText('Log out')).toBeTruthy();
     expect(screen.queryByText('Settings')).toBeNull();
 });

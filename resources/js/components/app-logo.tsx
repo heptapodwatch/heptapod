@@ -60,6 +60,7 @@ export function BrandLink({
 }) {
     const brand = useBrandState();
     const { t } = useTranslation();
+    const version = usePage().props.heptapodVersion;
     const label = [`Heptapod · ${brand.label}`, brand.update?.label]
         .filter(Boolean)
         .join(' · ');
@@ -91,7 +92,17 @@ export function BrandLink({
             <TooltipTrigger asChild>{trigger}</TooltipTrigger>
             <TooltipContent side={tooltipSide} align="start">
                 <TooltipDetails
-                    subject="Heptapod"
+                    subject={
+                        <>
+                            Heptapod
+                            {version && version !== 'unknown' && (
+                                // The installed version, for everyone signed in; the update line names only the new one.
+                                <span className="ml-2 text-tooltip-muted">
+                                    {version}
+                                </span>
+                            )}
+                        </>
+                    }
                     facts={
                         brand.update
                             ? [<UpdateNotice key="update" {...brand.update} />]

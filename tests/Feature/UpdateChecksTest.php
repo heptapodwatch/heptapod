@@ -11,6 +11,8 @@ use Heptapod\Contracts\Http\OutboundHttp;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\Testing\FakeOutboundHttp;
+use Illuminate\Log\Events\MessageLogged;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -107,6 +109,15 @@ it('tells only Owners and Admins about a newer release in the shell, and only wh
     $this->actingAs($owner)->patchJson(route('settings.updates.update'), ['enabled' => false])->assertOk();
     $this->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page
         ->where('appUpdate', ['status' => 'disabled_by_user', 'security' => false, 'latest' => null]));
+
+    // The shell reads only the cache: after an upgrade, or with the cache cleared, it shows no update, never a stale one.
+    $this->patchJson(route('settings.updates.update'), ['enabled' => true])->assertOk();
+    config(['heptapod.version' => 'v1.2.3']);
+    $this->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page->where('appUpdate', null));
+    config(['heptapod.version' => 'v1.2.2']);
+    $this->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page->where('appUpdate.latest', 'v1.2.3'));
+    Cache::flush();
+    $this->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page->where('appUpdate', null));
 });
 
 it('explains the skipped releases as capped plain text from the fixed note sections', function (): void {
@@ -202,9 +213,14 @@ it('still records the latest release when the list fails, and drops the older no
     app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static fn (FetchRequest $request): FetchResult => str_ends_with($request->url, '/latest')
         ? new FetchResult(status: 200, body: json_encode($latest, JSON_THROW_ON_ERROR))
         : new FetchResult(status: 500, failure: new FetchFailure(FetchFailureKind::HttpStatus, 500))));
-    Log::spy();
+    $warnings = [];
+    Log::listen(static function (MessageLogged $entry) use (&$warnings): void {
+        if ($entry->level === 'warning') {
+            $warnings[] = $entry->message;
+        }
+    });
     $this->artisan('heptapod:check-updates')->assertSuccessful();
-    Log::shouldHaveReceived('warning')->with('Release list could not be read; release details are unavailable until the next check.')->once();
+    expect($warnings)->toBe(['Release list could not be read; release details are unavailable until the next check.']);
     $this->actingAs(User::factory()->owner()->create())->getJson(route('settings.updates.status'))->assertOk()
         ->assertJsonPath('update_status', 'available')->assertJsonPath('latest_version', 'v1.2.2')
         ->assertJsonPath('release_url', config('heptapod.updates.release_page_url').'/tag/v1.2.2')

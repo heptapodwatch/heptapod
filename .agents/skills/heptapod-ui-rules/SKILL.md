@@ -160,7 +160,7 @@ Motion marks state transitions only, moves only transform and opacity, never ani
 
 ## Navigation
 
-- One destination, one entry, one label: the nav title is also the PageHeader and document title. Settings has one entry, in the sidebar footer. The user menu holds identity, Theme and Log out only.
+- One destination, one entry, one label: the nav title is also the PageHeader and document title. Settings has one entry, in the sidebar footer. The user menu holds identity, Theme, Source code and Log out only.
 - `SectionTabs` is navigation between pages; `SegmentedControl` switches a filter or mode on one page.
 
 ### Sidebar footer

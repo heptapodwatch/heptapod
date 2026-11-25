@@ -60,6 +60,8 @@ final class UpdateStatusController extends Controller
      */
     private function withNotes(UpdateStatusReader $reader): array
     {
+        // This page reads the database anyway; it re-primes the shell summary (after a toggle, or a cleared cache).
+        $reader->primeShellSummary();
         $updates = $reader->read();
         if ($updates['releases'] === null) {
             return $updates;

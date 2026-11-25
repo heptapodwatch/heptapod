@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { router } from '@inertiajs/react';
-import { LogOut } from 'lucide-react';
+import { router, usePage } from '@inertiajs/react';
+import { ExternalLink, LogOut } from 'lucide-react';
 import {
     DropdownMenuLabel,
     DropdownMenuItem,
@@ -20,11 +20,12 @@ export const themeOptions = [
     { value: 'dark', label: 'Dark' },
 ] as const satisfies readonly { value: Appearance; label: string }[];
 
-/** Identity, the device theme and Log out. Settings has one entry: the sidebar footer item. */
+/** Identity, the device theme, the source code and Log out. Settings has one entry: the sidebar footer item. */
 export function UserMenuContent({ user }: { user: User }) {
     const { t } = useTranslation();
     const cleanup = useMobileNavigation();
     const { appearance, updateAppearance } = useAppearance();
+    const { sourceUrl } = usePage().props;
 
     const handleLogout = () => {
         cleanup();
@@ -63,6 +64,12 @@ export function UserMenuContent({ user }: { user: User }) {
                 ))}
             </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+                <a href={sourceUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink />
+                    {t('Source code')}
+                </a>
+            </DropdownMenuItem>
             <DropdownMenuItem data-test="logout-button" onSelect={handleLogout}>
                 <LogOut />
                 {t('Log out')}

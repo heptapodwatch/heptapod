@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Composer\Semver\Comparator;
 use Composer\Semver\VersionParser;
 use Heptapod\Settings\InstanceSettings;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -116,5 +117,31 @@ final readonly class UpdateStatusReader
         }
 
         return $notes;
+    }
+
+    /**
+     * The shell's update summary, from the cache only: the shell renders on every page, so it never queries the
+     * database. Missing (cleared cache, nothing checked yet) means the shell shows no update. The key carries the
+     * installed version and the server switch, so an upgrade or a server-side switch-off is a miss, never stale.
+     *
+     * @return array{status: string, latest: string|null, security: bool}|null
+     */
+    public function shellSummary(): ?array
+    {
+        /** @var array{status: string, latest: string|null, security: bool}|null */
+        return Cache::get($this->shellKey());
+    }
+
+    /** Writes the shell summary from the database; called by the check and by the Updates page and its actions. */
+    public function primeShellSummary(): void
+    {
+        $updates = $this->read();
+        Cache::forever($this->shellKey(), ['status' => $updates['update_status'], 'security' => $updates['security'],
+            'latest' => $updates['update_status'] === 'available' ? $updates['latest_version'] : null]);
+    }
+
+    private function shellKey(): string
+    {
+        return 'updates:shell:'.config()->string('heptapod.version').':'.(config()->boolean('heptapod.updates.enabled_by_server') ? 'on' : 'off');
     }
 }

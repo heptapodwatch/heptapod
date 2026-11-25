@@ -22,7 +22,7 @@ final readonly class CheckForUpdates
     /** At most this many of the newest releases are read for their notes. */
     public const int ReleasePage = 20;
 
-    public function __construct(private OutboundHttp $http, private InstanceSettings $settings) {}
+    public function __construct(private OutboundHttp $http, private InstanceSettings $settings, private UpdateStatusReader $reader) {}
 
     public function __invoke(): void
     {
@@ -66,6 +66,7 @@ final readonly class CheckForUpdates
             // Null when the list could not be read: the page then says so instead of showing older notes as complete.
             'releases' => $releases === null ? null : json_encode($releases, JSON_THROW_ON_ERROR),
         ]);
+        $this->reader->primeShellSummary();
     }
 
     /**

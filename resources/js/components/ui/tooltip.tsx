@@ -35,7 +35,7 @@ function TooltipTrigger({
 }
 
 export type TooltipDetailsProps = {
-  subject: string
+  subject: React.ReactNode
   facts?: readonly React.ReactNode[]
   status?: { state: SiteState; label: string }
   hint?: string

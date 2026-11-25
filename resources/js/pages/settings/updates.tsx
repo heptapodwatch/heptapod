@@ -319,7 +319,7 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                     )}
                 </p>
                 {available && updates.security && (
-                    <Alert tone="warning">
+                    <Alert tone="danger">
                         <AlertTitle>
                             {t('This update includes a security fix.')}
                         </AlertTitle>
@@ -336,14 +336,15 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                     </p>
                 )}
                 {available && updates.releases !== null && (
-                    <ul className="divide-y divide-border-soft rounded-lg border">
+                    // Each release is a short note with its own heading, not a data row: room and a hairline between them.
+                    <div className="divide-y divide-border-soft border-y border-border-soft">
                         {updates.releases.map((release) => (
                             <SkippedRelease
                                 key={release.tag}
                                 release={release}
                             />
                         ))}
-                    </ul>
+                    </div>
                 )}
                 {available && (
                     <div className="space-y-2">
@@ -794,9 +795,17 @@ function UpgradeCommand() {
     );
 }
 
-/** The server-rendered note: headings, lists, code and links in the page's own type scale; links as TextLink draws them. */
-const releaseNotesClass =
-    'mt-2 space-y-2 text-xs leading-relaxed text-muted-foreground [&_a]:text-foreground [&_a]:underline [&_a]:decoration-current/40 [&_a]:underline-offset-4 [&_a:hover]:no-underline [&_code]:font-mono [&_h1]:font-medium [&_h1]:text-foreground [&_h2]:font-medium [&_h2]:text-foreground [&_h3]:font-medium [&_h3]:text-foreground [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-4 [&_strong]:font-medium [&_strong]:text-foreground [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-4';
+/** The server-rendered note: headings, lists, code and links in the type scale of the page; links as TextLink draws them. */
+const releaseNotesClass = cn(
+    'max-w-prose text-xs leading-relaxed text-muted-foreground [&>*:first-child]:mt-0',
+    // Blocks: paragraphs and lists keep a little room; section headings get more above them and stand out.
+    '[&_ol]:mt-2 [&_p]:mt-2 [&_ul]:mt-2',
+    '[&_h1]:mt-5 [&_h1]:text-cell [&_h1]:font-medium [&_h1]:text-foreground [&_h2]:mt-5 [&_h2]:text-cell [&_h2]:font-medium [&_h2]:text-foreground [&_h3]:mt-4 [&_h3]:font-medium [&_h3]:text-foreground',
+    // Lists: spaced items; the bold lead of each bullet stays bold and dark so the eye can scan the leads.
+    '[&_li]:mt-1.5 [&_ol]:list-decimal [&_ol]:pl-4 [&_strong]:font-medium [&_strong]:text-foreground [&_ul]:list-disc [&_ul]:pl-4',
+    // Links as TextLink draws them; code in mono.
+    '[&_a]:text-foreground [&_a]:underline [&_a]:decoration-current/40 [&_a]:underline-offset-4 [&_a:hover]:no-underline [&_code]:font-mono',
+);
 
 /** One release between the installed and the latest: its headline and the items an Owner must read first. */
 function SkippedRelease({
@@ -806,13 +815,16 @@ function SkippedRelease({
 }) {
     const { t } = useTranslation();
     return (
-        <li className={cn(listRowPadding, 'space-y-2')}>
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                <p className="text-cell">
-                    <span className="font-mono font-medium">{release.tag}</span>
-                    {' · '}
-                    <AbsoluteTime value={release.published_at} />
-                </p>
+        <article className="space-y-3 py-5">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                    <SectionHeading level={3}>
+                        <span className="font-mono">{release.tag}</span>
+                    </SectionHeading>
+                    <span className="text-xs text-muted-foreground">
+                        <AbsoluteTime value={release.published_at} />
+                    </span>
+                </div>
                 <Button variant="ghost" size="xs" asChild>
                     <a href={release.url} target="_blank" rel="noreferrer">
                         <ExternalLink />
@@ -820,14 +832,17 @@ function SkippedRelease({
                     </a>
                 </Button>
             </div>
-            {release.headline !== null && (
-                <p className="text-cell">{release.headline}</p>
-            )}
-            <ReleaseItems
-                title={t('Before you upgrade')}
-                items={release.before}
-            />
-            <ReleaseItems title={t('Security')} items={release.security} />
+            {/* The summary: the headline and only the items to read before upgrading. */}
+            <div className="max-w-prose space-y-3">
+                {release.headline !== null && (
+                    <p className="text-cell">{release.headline}</p>
+                )}
+                <ReleaseItems
+                    title={t('Before you upgrade')}
+                    items={release.before}
+                />
+                <ReleaseItems title={t('Security')} items={release.security} />
+            </div>
             {release.notes_html !== null && (
                 <Disclosure
                     className="text-xs"
@@ -835,12 +850,15 @@ function SkippedRelease({
                     summary={t('Full release notes')}
                 >
                     <div
-                        className={releaseNotesClass}
+                        className={cn(
+                            'mt-3 border-l border-border-soft pl-4',
+                            releaseNotesClass,
+                        )}
                         // Rendered on the server by ReleaseNotes::html: raw HTML stripped, unsafe links unlinked, no images.
                         dangerouslySetInnerHTML={{ __html: release.notes_html }}
                     />
                     {release.notes_truncated && (
-                        <p className="mt-2">
+                        <p className="mt-3 pl-4">
                             <TextLink
                                 external
                                 href={release.url}
@@ -852,16 +870,16 @@ function SkippedRelease({
                     )}
                 </Disclosure>
             )}
-        </li>
+        </article>
     );
 }
 
 function ReleaseItems({ title, items }: { title: string; items: string[] }) {
     if (items.length === 0) return null;
     return (
-        <div className="space-y-1 text-xs">
+        <div className="space-y-1.5 text-xs leading-relaxed">
             <p className="font-medium">{title}</p>
-            <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
+            <ul className="list-disc space-y-1.5 pl-4 text-muted-foreground">
                 {items.map((item) => (
                     <li key={item}>{item}</li>
                 ))}

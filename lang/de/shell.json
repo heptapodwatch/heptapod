@@ -38,5 +38,6 @@
     "Heptapod :version includes a security fix.": "Heptapod :version enthält eine Sicherheitskorrektur.",
     "An update of Heptapod itself, not of a site. Details in Updates & backups.": "Ein Update von Heptapod selbst, nicht einer Website. Details unter Updates & Sicherungen.",
     ":version is available.": ":version ist verfügbar.",
-    ":version includes a security fix.": ":version enthält eine Sicherheitskorrektur."
+    ":version includes a security fix.": ":version enthält eine Sicherheitskorrektur.",
+    "Source code": "Quellcode"
 }
