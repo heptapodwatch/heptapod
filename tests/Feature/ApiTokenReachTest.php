@@ -49,6 +49,17 @@ it('offers every role its grantable abilities and the deploy starting point only
         ->and($data['abilities'])->not->toContain('*');
 })->with([['Owner', true], ['Admin', true], ['Member', false]]);
 
+it('issues the full-access starting point as exactly the role\'s current abilities, never the wildcard', function (string $role, int $count): void {
+    $user = User::factory()->create();
+    $user->assignRole($role);
+    $data = $this->actingAs($user)->getJson(route('settings.api-tokens.data'))->assertOk()->json();
+    $full = $data['starting_points']['full-access'];
+
+    expect($full)->toBe($data['abilities'])->toHaveCount($count)->not->toContain('*');
+    $this->postJson(route('settings.api-tokens.store'), ['name' => 'Full', 'abilities' => $full])->assertCreated();
+    expect($user->tokens()->sole()->abilities)->toBe($full);
+})->with([['Owner', 19], ['Admin', 19], ['Member', 14]]);
+
 it('rejects session authentication with a forged bearer header', function (): void {
     $owner = User::factory()->create();
     $owner->assignRole('Owner');

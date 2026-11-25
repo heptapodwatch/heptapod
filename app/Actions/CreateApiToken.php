@@ -46,14 +46,16 @@ final class CreateApiToken
     /**
      * The token form's starting points, in checklist order; they only fill the checklist, the checked abilities are the grant.
      *
-     * @return array{read-everything: list<string>, deploy-automation: list<string>|null}
+     * @return array{read-everything: list<string>, deploy-automation: list<string>|null, full-access: list<string>}
      */
     public function startingPoints(User $user): array
     {
         $allowed = $this->allowedAbilities($user);
 
         return ['read-everything' => array_values(array_filter($allowed, static fn (string $ability): bool => str_ends_with($ability, ':read'))),
-            'deploy-automation' => array_diff(self::DeployAutomation, $allowed) === [] ? array_values(array_intersect($allowed, self::DeployAutomation)) : null];
+            'deploy-automation' => array_diff(self::DeployAutomation, $allowed) === [] ? array_values(array_intersect($allowed, self::DeployAutomation)) : null,
+            // Every ability the role may issue today, listed: never `*`, so a later ability is not granted silently.
+            'full-access' => $allowed];
     }
 
     /**

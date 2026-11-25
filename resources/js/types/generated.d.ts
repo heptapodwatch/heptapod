@@ -997,6 +997,7 @@ manage: string[],
 readonly starting_points: {
 'read-everything': string[],
 'deploy-automation': string[] | null,
+'full-access': string[],
 },
 readonly clients: {
 id: number,

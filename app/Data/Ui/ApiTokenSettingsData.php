@@ -14,7 +14,7 @@ final class ApiTokenSettingsData extends Data
      * @param  list<array{id: int, name: string, abilities: list<string>, client_id: int|null, client_name: string|null, created_at: string|null, last_used_at: string|null, expires_at: string|null}>  $tokens
      * @param  list<string>  $abilities  the abilities this role may grant
      * @param  array{read: list<string>, write: list<string>, manage: list<string>, agent-read: list<string>}  $presets
-     * @param  array{read-everything: list<string>, deploy-automation: list<string>|null}  $starting_points
+     * @param  array{read-everything: list<string>, deploy-automation: list<string>|null, full-access: list<string>}  $starting_points
      * @param  list<array{id: int, name: string, short_name: string|null, accent_color: string|null, avatar: ClientAvatarData, is_internal: bool}>  $clients
      */
     public function __construct(

@@ -102,6 +102,14 @@ const page: Heptapod.Data.Ui.ApiTokenSettingsData = {
             'maintenance:read',
             'maintenance:write',
         ],
+        'full-access': [
+            'identity:read',
+            'monitors:read',
+            'checks:read',
+            'checks:run',
+            'maintenance:read',
+            'maintenance:write',
+        ],
     },
     clients: [],
     timezone: 'Europe/Berlin',
@@ -159,8 +167,17 @@ it('issues exactly the edited checklist with the chosen client access and a 30-d
     });
     fireEvent.click(screen.getByLabelText('Deploy automation'));
     // Leave out the maintenance lookup and add the identity read: the grant is the checklist, not the starting point.
-    fireEvent.click(screen.getByRole('checkbox', { name: /maintenance:read/ }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /identity:read/ }));
+    const area = (name: string) => within(screen.getByRole('group', { name }));
+    fireEvent.click(
+        area('api_tokens.area.maintenance').getByRole('checkbox', {
+            name: 'api_tokens.matrix.read',
+        }),
+    );
+    fireEvent.click(
+        area('api_tokens.area.identity').getByRole('checkbox', {
+            name: 'api_tokens.matrix.read',
+        }),
+    );
     const form = screen.getByLabelText('Name').closest('form')!;
     await act(async () => {
         fireEvent.submit(form);
@@ -195,34 +212,51 @@ it('issues exactly the edited checklist with the chosen client access and a 30-d
     ]);
 });
 
-it('lists stored grants behind a count with plain names and raw scopes', () => {
+it('lists stored grants as area pills that expand inline, with Full access and the legacy wildcard labelled', () => {
     render(
         <TooltipProvider>
             <ApiTokens
                 tokensPage={{
                     ...page,
                     tokens: [
-                        page.tokens[0]!,
+                        {
+                            ...page.tokens[0]!,
+                            abilities: [
+                                'monitors:read',
+                                'checks:read',
+                                'maintenance:read',
+                            ],
+                        },
                         { ...page.tokens[0]!, id: 2, abilities: ['*'] },
+                        {
+                            ...page.tokens[0]!,
+                            id: 3,
+                            abilities: [...page.abilities].reverse(),
+                        },
                     ],
                 }}
             />
         </TooltipProvider>,
     );
-    expect(screen.queryAllByRole('list', { name: 'Can' })).toHaveLength(0);
-    fireEvent.click(screen.getByText('api_tokens.grants.count'));
-    fireEvent.click(screen.getByText('api_tokens.ability.all'));
-    const [scoped, wildcard] = screen.getAllByRole('list', { name: 'Can' });
-    expect(
-        within(scoped!)
-            .getAllByRole('listitem')
-            .map((item) => item.textContent),
-    ).toEqual([
-        'api_tokens.ability.checks_runchecks:run',
-        'api_tokens.ability.monitors_readmonitors:read',
+    const pills = () =>
+        screen
+            .getAllByText(/ · /)
+            .map((pill) => pill.textContent)
+            .filter((text) => text?.startsWith('api_tokens.area.'));
+    expect(pills()).toEqual([
+        'api_tokens.area.monitors · api_tokens.level.read',
+        'api_tokens.area.checks · api_tokens.level.read',
     ]);
-    expect(wildcard!.textContent).toBe('*');
-    expect(
-        screen.getByText('api_tokens.grants.replace_wildcard'),
-    ).not.toBeNull();
+    const more = screen.getByRole('button', {
+        name: 'api_tokens.grants.show_all',
+    });
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(more);
+    expect(pills()).toHaveLength(3);
+    const less = screen.getByRole('button', {
+        name: 'api_tokens.grants.show_less',
+    });
+    expect(less.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText('Full access')).not.toBeNull();
+    expect(screen.getByText('api_tokens.ability.all')).not.toBeNull();
 });
