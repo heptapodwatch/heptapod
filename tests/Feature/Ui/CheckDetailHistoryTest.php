@@ -99,8 +99,41 @@ it('loads only the requested response-time range, with average and slow moments,
         ->and(array_slice($values($all), -1))->toBe([['2026-09-28T00:00:00+00:00', 260.0, 700.0]])
         ->and($values($all)[0])->toBe(['2025-09-29T00:00:00+00:00', 3000.0, 3000.0]);
 
-    $this->get('/sites/'.$check->site_id.'/checks/'.$check->id.'?response_range=5y')->assertSessionHasErrors('response_range');
+    // An unknown range opens the same check on 24 hours with a visible warning.
+    $this->get('/sites/'.$check->site_id.'/checks/'.$check->id.'?response_range=5y')
+        ->assertRedirect('/sites/'.$check->site_id.'/checks/'.$check->id)
+        ->assertInertiaFlash('toast', ['type' => 'warning', 'message' => 'Unknown time range. Showing 24 hours.']);
+    $page = $this->followingRedirects()->get('/sites/'.$check->site_id.'/checks/'.$check->id.'?response_range=5y')->assertOk();
+    expect($page->inertiaPage()['flash']['toast']['message'] ?? null)->toBe('Unknown time range. Showing 24 hours.')
+        ->and($page->inertiaProps()['response_time']['key'])->toBe('24h');
 });
+
+it('caps the weekly response and Lighthouse histories at exactly 156 weeks, counted back from the last included week', function (string $now, string $responseFirst, string $lighthouseFirst): void {
+    $this->travelTo(CarbonImmutable::parse($now));
+    $user = User::factory()->create();
+    $user->assignRole('Owner');
+    $uptime = Check::factory()->create(['type' => CheckKey::Uptime]);
+    $lighthouse = Check::factory()->for($uptime->site)->create(['type' => CheckKey::Lighthouse]);
+    // One row per day around both possible first weeks, plus yesterday and today.
+    $days = ['2023-10-08', '2023-10-09', '2023-10-15', '2023-10-16', CarbonImmutable::parse($now)->subDay()->toDateString(), CarbonImmutable::parse($now)->toDateString()];
+    foreach ($days as $day) {
+        CheckRunRollupDaily::factory()->for($uptime)->create(['bucket_start' => CarbonImmutable::parse($day.'T00:00:00Z'),
+            'metric_sums' => ['total_time_in_seconds' => 0.3], 'metric_counts' => ['total_time_in_seconds' => 1], 'metric_p95' => ['total_time_in_seconds' => 0.4]]);
+        CheckRunRollupDaily::factory()->for($lighthouse)->create(['bucket_start' => CarbonImmutable::parse($day.'T00:00:00Z'),
+            'metric_sums' => ['performance_score' => 80], 'metric_counts' => ['performance_score' => 1]]);
+    }
+    $this->actingAs($user);
+
+    $response = $this->get('/sites/'.$uptime->site_id.'/checks/'.$uptime->id.'?response_range=all')->assertOk()->inertiaProps()['response_time']['points'];
+    $scores = $this->get('/sites/'.$lighthouse->site_id.'/checks/'.$lighthouse->id)->assertOk()->inertiaProps()['history']['scores'];
+    expect($response)->toHaveCount(156)->and($response[0]['time'])->toBe($responseFirst)
+        ->and($scores)->toHaveCount(156)->and($scores[0]['week'])->toBe($lighthouseFirst);
+})->with([
+    // Sunday: yesterday and today share the week of Monday 2026-09-28.
+    'on a Sunday' => ['2026-10-04T00:30:00Z', '2023-10-09T00:00:00+00:00', '2023-10-09T00:00:00+00:00'],
+    // Monday: the response history still ends with last week; the Lighthouse history (today included) starts a new week.
+    'on a Monday' => ['2026-10-05T00:30:00Z', '2023-10-09T00:00:00+00:00', '2023-10-16T00:00:00+00:00'],
+]);
 
 it('shows a fresh uptime check without long-range values', function (): void {
     $user = User::factory()->create();

@@ -24,8 +24,8 @@ use Illuminate\Support\Facades\DB;
 
 final readonly class HistoryReader
 {
-    /** "All" reads at most three years of daily rollups (156 weeks). */
-    private const int AllDays = 1092;
+    /** "All" reads at most 156 weeks of daily rollups, counted back from the week of the last included day (yesterday). */
+    private const int AllWeeks = 156;
 
     public function __construct(private SitePolicy $policy, private RollupReader $history, private UptimeReader $uptimeReader) {}
 
@@ -146,7 +146,7 @@ final readonly class HistoryReader
                     $bucket['failed_count'], $bucket['errored_count'], $bucket['warning_count']);
             }
         } elseif ($range === ResponseTimeRange::All) {
-            foreach ($this->history->weekly($checkId, [$metric], $today->subDays(self::AllDays)->startOfWeek(CarbonInterface::MONDAY), $today) as $bucket) {
+            foreach ($this->history->weekly($checkId, [$metric], $today->subDay()->startOfWeek(CarbonInterface::MONDAY)->subWeeks(self::AllWeeks - 1), $today) as $bucket) {
                 $points[] = new ResponseTimeBucketData($bucket['bucket_start']->toIso8601String(),
                     $ms($bucket['metric_averages'][$metric] ?? null), $ms($bucket['metric_p95_max'][$metric] ?? null));
             }

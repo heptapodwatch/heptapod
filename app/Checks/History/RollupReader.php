@@ -49,8 +49,9 @@ final class RollupReader implements DailyRollupReader
                    coalesce(metric_counts, '{}'::jsonb) AS metric_counts, coalesce(metric_p95, '{}'::jsonb) AS metric_p95
             FROM generate_series(?::timestamptz, ?::timestamptz, interval '1 {$unit}', 'UTC') AS bucket
             LEFT JOIN check_run_rollups_{$period} ON check_id = ? AND bucket_start = bucket
+                AND bucket_start >= ?::timestamptz AND bucket_start < ?::timestamptz
             WHERE bucket < ?::timestamptz ORDER BY bucket
-            SQL, [$from->format('Y-m-d H:i:s.uP'), $until->format('Y-m-d H:i:s.uP'), $checkId, $until->format('Y-m-d H:i:s.uP')]);
+            SQL, [$from->format('Y-m-d H:i:s.uP'), $until->format('Y-m-d H:i:s.uP'), $checkId, $from->format('Y-m-d H:i:s.uP'), $until->format('Y-m-d H:i:s.uP'), $until->format('Y-m-d H:i:s.uP')]);
 
         $buckets = [];
         foreach ($rows as $row) {

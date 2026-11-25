@@ -207,7 +207,8 @@ it('holds site, check, and incident detail query budgets as related history grow
     $user = User::factory()->create();
     $user->assignRole('Owner');
     $site = Site::factory()->create();
-    $check = Check::factory()->for($site)->create();
+    // A monitored uptime check (first result 40 days ago), so the check page also reads its monthly uptime.
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::Uptime, 'first_result_at' => now()->subDays(40)]);
     $incident = Incident::factory()->for($check)->create();
     $eventCount = 0;
     $addHistory = static function (int $rows) use ($check, $incident, &$eventCount): void {
@@ -225,6 +226,7 @@ it('holds site, check, and incident detail query budgets as related history grow
     // pages, 36aca5a1a avatars and 25458fc44/0a385128 shell health are batched reads, not per-history-row queries.
     // Feed-visible events add their batched site, client, check and incident loads (incident page). The overview reads the site's repository links once.
     // The sidebar's late runs count is read inline, not in a second deferred request (two reads), and so is Running now (visible sites, check runs, imports, backup). Paged sub-lists count their rows once (uptime failures + open incident window, incident notifications).
+    // The uptime check's Monthly uptime adds eight bounded reads (two UptimeReader snapshots: the months and the 90-day/1-year/all ranges), 55 -> 63 on the check page; the budget stays 67.
     [$path, $budget, $rendered] = match ($page) {
         'site' => ['/sites/'.$site->id, 63, static fn (array $props): int => count($props['incidents'])],
         'check' => ['/sites/'.$site->id.'/checks/'.$check->id, 67, static fn (array $props): int => count($props['runs'])],

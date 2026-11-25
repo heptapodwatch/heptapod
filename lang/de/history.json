@@ -14,5 +14,6 @@
     "history.interrupted_minutes": "Unterbrechungen in Minuten",
     "history.score_history": "Verlauf der Bewertungen",
     "history.score_history_description": "Durchschnitt pro Woche und Kategorie; die Änderung vergleicht mit derselben Woche vor einem Jahr.",
-    "history.year_change": "{{change}} in einem Jahr"
+    "history.year_change": "{{change}} gegenüber dem Vorjahr",
+    "history.unknown_range": "Unbekannter Zeitraum. Es werden 24 Stunden angezeigt."
 }

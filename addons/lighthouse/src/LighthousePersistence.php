@@ -16,8 +16,8 @@ use Spatie\LaravelData\Lazy;
 
 final readonly class LighthousePersistence implements RunPersistence
 {
-    /** Weekly scores cover at most three years (156 weeks). */
-    private const int ScoreHistoryDays = 1092;
+    /** Weekly scores cover at most 156 weeks, counted back from the week of the last included day (today). */
+    private const int ScoreHistoryWeeks = 156;
 
     public function __construct(private DailyRollupReader $dailyRollupReader) {}
 
@@ -121,7 +121,7 @@ final readonly class LighthousePersistence implements RunPersistence
             $until = CarbonImmutable::now('UTC')->startOfDay()->addDay();
             $scores = [];
             $metrics = ['performance_score', 'accessibility_score', 'best_practices_score', 'seo_score'];
-            foreach ($this->dailyRollupReader->weekly($checkId, $metrics, $until->subDays(self::ScoreHistoryDays)->startOfWeek(CarbonInterface::MONDAY), $until) as $bucket) {
+            foreach ($this->dailyRollupReader->weekly($checkId, $metrics, $until->subDay()->startOfWeek(CarbonInterface::MONDAY)->subWeeks(self::ScoreHistoryWeeks - 1), $until) as $bucket) {
                 $average = $bucket['metric_averages'];
                 $scores[] = [
                     'week' => $bucket['bucket_start']->toIso8601String(),

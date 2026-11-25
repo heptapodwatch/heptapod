@@ -14,5 +14,6 @@
     "history.interrupted_minutes": "Interrupted minutes",
     "history.score_history": "Score history",
     "history.score_history_description": "Weekly average per category; the change compares with the same week a year ago.",
-    "history.year_change": "{{change}} in a year"
+    "history.year_change": "{{change}} vs. a year ago",
+    "history.unknown_range": "Unknown time range. Showing 24 hours."
 }
