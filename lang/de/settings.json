@@ -442,5 +442,7 @@
     "For a Git checkout or another installation directory, follow How to upgrade.": "Für einen Git-Checkout oder ein anderes Installationsverzeichnis folgen Sie der Anleitung zum Aktualisieren.",
     "Check details": "Details zur Prüfung",
     "Release notes": "Versionshinweise",
-    "Before you upgrade": "Vor dem Aktualisieren"
+    "Before you upgrade": "Vor dem Aktualisieren",
+    "Release details could not be loaded.": "Die Release-Details konnten nicht geladen werden.",
+    "Release notes :version": "Versionshinweise :version"
 }

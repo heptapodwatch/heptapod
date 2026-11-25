@@ -12,6 +12,7 @@ use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\Testing\FakeOutboundHttp;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Testing\AssertableInertia as Assert;
 
 it('does not contact the release source when disabled by server configuration', function (): void {
@@ -81,19 +82,28 @@ it('preserves Admin read access while restricting validated release-check change
 
 it('tells only Owners and Admins about a newer release in the shell, and only while checks are on', function (): void {
     config(['heptapod.version' => 'v1.2.2', 'heptapod.updates.enabled_by_server' => true]);
-    app()->instance(OutboundHttp::class, fakeReleaseSource([releaseItem('v1.2.3', 'A headline.'), releaseItem('v1.2.2', 'Installed.')]));
+    $fake = fakeReleaseSource([releaseItem('v1.2.3', 'A headline.'), releaseItem('v1.2.2', 'Installed.')]);
+    app()->instance(OutboundHttp::class, $fake);
     $this->artisan('heptapod:check-updates')->assertSuccessful();
-    $owner = User::factory()->create();
-    $owner->assignRole('Owner');
-    $this->actingAs($owner)->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page
-        ->where('appUpdate', ['status' => 'available', 'security' => false, 'latest' => 'v1.2.3'])
-        ->where('heptapodVersion', 'v1.2.2'));
+    // Exactly the latest release, then one bounded page of the list beside it.
+    expect(array_map(static fn (array $sent): string => $sent['request']->url, $fake->requests))->toBe([
+        'https://api.github.com/repos/heptapodwatch/heptapod/releases/latest',
+        'https://api.github.com/repos/heptapodwatch/heptapod/releases?per_page=20',
+    ]);
+    foreach (['Owner', 'Admin'] as $role) {
+        $viewer = User::factory()->create();
+        $viewer->assignRole($role);
+        $this->actingAs($viewer)->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page
+            ->where('appUpdate', ['status' => 'available', 'security' => false, 'latest' => 'v1.2.3'])
+            ->where('heptapodVersion', 'v1.2.2'));
+    }
     $member = User::factory()->create();
     $member->assignRole('Member');
     $response = $this->actingAs($member)->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page
         ->where('appUpdate', null)->where('heptapodVersion', 'v1.2.2'));
     expect($response->getContent())->not->toContain('v1.2.3');
 
+    $owner = User::factory()->owner()->create();
     $this->actingAs($owner)->patchJson(route('settings.updates.update'), ['enabled' => false])->assertOk();
     $this->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page
         ->where('appUpdate', ['status' => 'disabled_by_user', 'security' => false, 'latest' => null]));
@@ -109,49 +119,79 @@ it('explains the skipped releases as capped plain text from the fixed note secti
         releaseItem('v1.2.0', "Installed.\n\n## Fixed\n- Security: old news."),
         releaseItem('v1.2.4-rc.1', 'Pre-release tag.'),
         [...releaseItem('v1.2.3', 'Duplicate draft.'), 'draft' => true],
-        [...releaseItem('v1.1.9', 'Wrong page.'), 'html_url' => 'https://example.test/tag/v1.1.9'],
+        releaseItem('v123456.0.0', 'A major Composer cannot compare.'),
     ]));
     $this->artisan('heptapod:check-updates')->assertSuccessful();
-    $owner = User::factory()->create();
-    $owner->assignRole('Owner');
+    $owner = User::factory()->owner()->create();
     $response = $this->actingAs($owner)->getJson(route('settings.updates.status'))->assertOk()
         ->assertJsonPath('update_status', 'available')->assertJsonPath('security', true)->assertJsonPath('releases_truncated', false)
         ->assertJsonPath('releases.*.tag', ['v1.2.3', 'v1.2.2', 'v1.2.1'])
+        ->assertJsonPath('releases.0.url', config('heptapod.updates.release_page_url').'/tag/v1.2.3')
         ->assertJsonPath('releases.0.headline', 'Faster checks alert(1) and a calm page.')
         ->assertJsonPath('releases.0.before', [])->assertJsonPath('releases.0.security', [])
-        ->assertJsonPath('releases.1.security', ['Security: updated Go for an advisory. (#8)'])
+        // The prefix classifies the item and is not repeated under the Security heading.
+        ->assertJsonPath('releases.1.security', ['Updated Go for an advisory. (#8)'])
         ->assertJsonPath('releases.2.headline', 'Sessions end.')
         ->assertJsonPath('releases.2.security', ['Hardened headers.'])
         ->assertJsonPath('releases.2.before.1', 'logo Second step.');
     expect(mb_strlen($response->json('releases.2.before.0')))->toBe(400)
         ->and($response->json('releases.2.before.0'))->toStartWith('Everyone signs in again. word')->toEndWith('…')
         ->and($response->getContent())->not->toContain('<script')->not->toContain('javascript:')->not->toContain('onerror')
-        ->not->toContain('rc.1')->not->toContain('Duplicate draft')->not->toContain('Wrong page');
+        ->not->toContain('rc.1')->not->toContain('Duplicate draft')->not->toContain('v123456');
     $this->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page
         ->where('appUpdate', ['status' => 'available', 'security' => true, 'latest' => 'v1.2.3']));
 });
 
-it('never offers a release tag that is not a published vX.Y.Z tag', function (): void {
+it('says the count is a lower bound when the fetched page never reaches the installed release', function (): void {
+    config(['heptapod.version' => 'v1.0.0', 'heptapod.updates.enabled_by_server' => true]);
+    // A full page of 20 whose last entry is a pre-release: 19 stable releases, and older ones may be missing.
+    $items = array_map(static fn (int $minor): array => releaseItem('v2.'.$minor.'.0', 'Release.'), range(19, 1));
+    app()->instance(OutboundHttp::class, fakeReleaseSource([...$items, releaseItem('v2.0.0-rc.1', 'Pre-release.')]));
+    $this->artisan('heptapod:check-updates')->assertSuccessful();
+    $this->actingAs(User::factory()->owner()->create())->getJson(route('settings.updates.status'))->assertOk()
+        ->assertJsonCount(19, 'releases')->assertJsonPath('releases_truncated', true);
+});
+
+it('still records the latest release when the list fails, and drops the older notes instead of showing them as complete', function (): void {
+    config(['heptapod.version' => 'v1.2.0', 'heptapod.updates.enabled_by_server' => true]);
+    app()->instance(OutboundHttp::class, fakeReleaseSource([releaseItem('v1.2.1', 'Old notes.'), releaseItem('v1.2.0', 'Installed.')]));
+    $this->artisan('heptapod:check-updates')->assertSuccessful();
+    // The source's own link is never used, even when it names another tag.
+    $latest = [...releaseItem('v1.2.2', 'New.'), 'html_url' => config('heptapod.updates.release_page_url').'/tag/v9.9.9'];
+    app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static fn (FetchRequest $request): FetchResult => str_ends_with($request->url, '/latest')
+        ? new FetchResult(status: 200, body: json_encode($latest, JSON_THROW_ON_ERROR))
+        : new FetchResult(status: 500, failure: new FetchFailure(FetchFailureKind::HttpStatus, 500))));
+    Log::spy();
+    $this->artisan('heptapod:check-updates')->assertSuccessful();
+    Log::shouldHaveReceived('warning')->with('Release list could not be read; release details are unavailable until the next check.')->once();
+    $this->actingAs(User::factory()->owner()->create())->getJson(route('settings.updates.status'))->assertOk()
+        ->assertJsonPath('update_status', 'available')->assertJsonPath('latest_version', 'v1.2.2')
+        ->assertJsonPath('release_url', config('heptapod.updates.release_page_url').'/tag/v1.2.2')
+        ->assertJsonPath('releases', null)->assertJsonPath('security', false);
+});
+
+it('never offers a release tag that is not a published vX.Y.Z tag', function (string $tag, string $marker): void {
     config(['heptapod.version' => 'v1.2.2', 'heptapod.updates.enabled_by_server' => true]);
-    // Composer's parser accepts this (build metadata), but it would land in a copyable shell command.
-    $tag = 'v1.2.3+pwned;touch';
     app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static fn (FetchRequest $request): FetchResult => new FetchResult(
-        status: 200, body: json_encode(['tag_name' => $tag, 'html_url' => config('heptapod.updates.release_page_url').'/tag/v1.2.3',
-            'published_at' => '2026-10-04T18:00:00Z'], JSON_THROW_ON_ERROR),
+        status: 200, body: json_encode(['tag_name' => $tag, 'published_at' => '2026-10-04T18:00:00Z'], JSON_THROW_ON_ERROR),
     )));
     $this->artisan('heptapod:check-updates')->assertSuccessful();
     expect(DB::table('update_checks')->value('status'))->toBe('invalid_response');
 
-    // A tag stored before ingestion enforced the format is ignored on read.
-    DB::table('update_checks')->where('id', 1)->update(['status' => 'reachable', 'latest_version' => $tag,
-        'release_url' => config('heptapod.updates.release_page_url').'/tag/v1.2.3', 'published_at' => now()]);
-    $owner = User::factory()->create();
-    $owner->assignRole('Owner');
+    // A tag cached before the gate existed is dropped on read; the shell and the page still render.
+    DB::table('update_checks')->where('id', 1)->update(['status' => 'reachable', 'latest_version' => $tag, 'published_at' => now(),
+        'releases' => json_encode(['page_full' => false, 'items' => [['tag' => $tag, 'published_at' => '2026-10-04T18:00:00+00:00',
+            'headline' => 'Cached.', 'before' => [], 'security' => []]]], JSON_THROW_ON_ERROR)]);
+    $owner = User::factory()->owner()->create();
     $this->actingAs($owner)->getJson(route('settings.updates.status'))->assertOk()
-        ->assertJsonPath('update_status', 'invalid_response')->assertJsonPath('latest_version', null)->assertJsonPath('release_url', null);
-    $this->get(route('sites.index'))->assertInertia(fn (Assert $page): Assert => $page->where('appUpdate.latest', null));
-    expect($this->get(route('settings.updates.edit'))->getContent())->not->toContain('pwned');
-});
+        ->assertJsonPath('update_status', 'invalid_response')->assertJsonPath('latest_version', null)
+        ->assertJsonPath('release_url', null)->assertJsonPath('releases', null);
+    $this->get(route('sites.index'))->assertOk()->assertInertia(fn (Assert $page): Assert => $page->where('appUpdate.latest', null));
+    expect($this->get(route('settings.updates.edit'))->assertOk()->getContent())->not->toContain($marker);
+})->with([
+    'shell metacharacters' => ['v1.2.3+pwned;touch', 'pwned'],
+    'a major Composer cannot compare' => ['v123456.0.0', 'v123456'],
+]);
 
 /** @return array<string, mixed> */
 function releaseItem(string $tag, string $body): array
@@ -160,7 +200,7 @@ function releaseItem(string $tag, string $body): array
         'prerelease' => str_contains($tag, '-'), 'published_at' => '2026-10-04T18:00:00Z', 'body' => $body];
 }
 
-/** The latest endpoint answers with the newest stable item, the list endpoint with every item. @param list<array<string, mixed>> $items */
+/** The latest endpoint answers with the first item, the list endpoint with every item. @param list<array<string, mixed>> $items */
 function fakeReleaseSource(array $items): FakeOutboundHttp
 {
     return (new FakeOutboundHttp)->respondUsing(static fn (FetchRequest $request): FetchResult => new FetchResult(status: 200,

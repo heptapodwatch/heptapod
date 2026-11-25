@@ -120,20 +120,21 @@ export function useBrandState(): BrandState {
     const recovered = useRecovered(downCount);
     const available =
         appUpdate?.status === 'available' && appUpdate.latest !== null;
-    const update: BrandState['update'] =
-        available || markPreview
-            ? {
-                  mark:
-                      markPreview ??
-                      (appUpdate?.security ? 'security-a' : 'update-a'),
-                  label: t(
-                      appUpdate?.security
-                          ? 'Heptapod :version includes a security fix.'
-                          : 'Heptapod :version is available.',
-                      { version: appUpdate?.latest ?? '…' },
-                  ),
-              }
-            : null;
+    // The throwaway preview picks the option; its colour and wording then follow that option, not the data.
+    const mark: MarkUpdate | null =
+        markPreview ??
+        (available ? (appUpdate.security ? 'security-a' : 'update-a') : null);
+    const update: BrandState['update'] = mark
+        ? {
+              mark,
+              label: t(
+                  mark.startsWith('security')
+                      ? 'Heptapod :version includes a security fix.'
+                      : 'Heptapod :version is available.',
+                  { version: appUpdate?.latest ?? '…' },
+              ),
+          }
+        : null;
     if (downCount > 0) {
         return {
             update,

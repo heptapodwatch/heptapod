@@ -119,16 +119,15 @@ it('preserves release observations on request errors and recovers without wideni
 it('separates cached release metadata from current availability', function (string $state, string $message): void {
     config(['heptapod.version' => 'v1.2.2', 'heptapod.updates.enabled_by_server' => true]);
     DB::table('update_checks')->insert(['id' => 1, 'status' => $state, 'http_status' => $state === 'unreachable' ? 404 : 200,
-        'checked_at' => now(), 'last_success_at' => now()->subDay(), 'latest_version' => 'v1.2.3',
-        'release_url' => config('heptapod.updates.release_page_url').'/tag/v1.2.3', 'published_at' => now()->subDays(2)]);
+        'checked_at' => now(), 'last_success_at' => now()->subDay(), 'latest_version' => 'v1.2.3', 'published_at' => now()->subDays(2)]);
     $owner = User::factory()->create(['locale' => 'en']);
     $owner->assignRole('Owner');
     $this->actingAs($owner);
-    $page = visit('/settings/updates')->assertSee($message)->assertSee('v1.2.3')->assertSee('Last successful release check')->assertNoJavaScriptErrors();
+    $page = visit('/settings/updates')->assertSee($message)->assertSee('Check details')->assertNoJavaScriptErrors();
     if ($state !== 'reachable') {
-        $page->assertDontSee('Update available');
+        $page->assertDontSee('v1.2.3 available');
     }
-})->with([['reachable', 'Update available'], ['unreachable', 'Release source unavailable'], ['invalid_response', 'Release response invalid']]);
+})->with([['reachable', 'v1.2.3 available'], ['unreachable', 'Release source unavailable'], ['invalid_response', 'Release response invalid']]);
 
 it('recovers from a concurrent backup request without creating a duplicate', function (): void {
     $owner = User::factory()->create(['locale' => 'en']);

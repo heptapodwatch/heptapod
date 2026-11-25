@@ -11,8 +11,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('update_checks', function (Blueprint $table): void {
-            // The newest published releases as plain text parsed from their notes; null until a list was read.
+            // The newest page of releases as plain text parsed from their notes; null when the list could not be read.
             $table->jsonb('releases')->nullable();
+            // Release links are built from the configured release page and the tag, never stored from the source.
+            $table->dropColumn('release_url');
         });
     }
 
@@ -20,6 +22,7 @@ return new class extends Migration
     {
         Schema::table('update_checks', function (Blueprint $table): void {
             $table->dropColumn('releases');
+            $table->string('release_url')->nullable();
         });
     }
 };

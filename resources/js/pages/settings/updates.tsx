@@ -329,6 +329,11 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                         </AlertDescription>
                     </Alert>
                 )}
+                {available && updates.releases === null && (
+                    <p className="text-xs text-muted-foreground">
+                        {t('Release details could not be loaded.')}
+                    </p>
+                )}
                 {available && updates.releases !== null && (
                     <ul className="divide-y divide-border-soft rounded-lg border">
                         {updates.releases.map((release) => (
@@ -376,7 +381,23 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                             )}
                         </Button>
                     )}
-                    {available ? (
+                    {updates.release_url !== null && (
+                        <Button variant="outline" asChild>
+                            <a
+                                href={updates.release_url}
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                <ExternalLink className="size-3.5" />
+                                {available
+                                    ? t('Release notes :version', {
+                                          version: updates.latest_version,
+                                      })
+                                    : t('Last observed release notes')}
+                            </a>
+                        </Button>
+                    )}
+                    {available && (
                         <Button variant="outline" asChild>
                             <a
                                 href={upgradeDocsUrl}
@@ -387,19 +408,6 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                                 {t('How to upgrade')}
                             </a>
                         </Button>
-                    ) : (
-                        updates.release_url !== null && (
-                            <Button variant="outline" asChild>
-                                <a
-                                    href={updates.release_url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                >
-                                    <ExternalLink className="size-3.5" />
-                                    {t('Last observed release notes')}
-                                </a>
-                            </Button>
-                        )
                     )}
                 </div>
                 <Disclosure

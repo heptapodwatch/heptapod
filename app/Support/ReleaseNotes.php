@@ -41,8 +41,10 @@ final class ReleaseNotes
                 if ($section === 'before you upgrade') {
                     $before[] = $item;
                 }
-                if ($section === 'security' || preg_match('/^security:/i', $item) === 1) {
-                    $security[] = $item;
+                // The prefix only classifies the item; the list heading already says Security.
+                $prefixed = preg_match('/^security:\s*/i', $item, $prefix) === 1;
+                if ($section === 'security' || $prefixed) {
+                    $security[] = $prefixed ? ucfirst(substr($item, strlen($prefix[0]))) : $item;
                 }
 
                 continue;

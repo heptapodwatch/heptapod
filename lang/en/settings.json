@@ -442,5 +442,7 @@
     "For a Git checkout or another installation directory, follow How to upgrade.": "For a Git checkout or another installation directory, follow How to upgrade.",
     "Check details": "Check details",
     "Release notes": "Release notes",
-    "Before you upgrade": "Before you upgrade"
+    "Before you upgrade": "Before you upgrade",
+    "Release details could not be loaded.": "Release details could not be loaded.",
+    "Release notes :version": "Release notes :version"
 }
