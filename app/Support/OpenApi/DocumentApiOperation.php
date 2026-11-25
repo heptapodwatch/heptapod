@@ -99,7 +99,8 @@ final class DocumentApiOperation implements OperationTransformer
         $body = ApiContract::requestBodies()[$name] ?? null;
         if ($body !== null) {
             self::$applied['requestBodies:'.$name] = true;
-            $operation->requestBodyObject = RequestBodyObject::make()->setContent('application/json', RawSchema::schema($body))->required();
+            $operation->requestBodyObject = RequestBodyObject::make()->setContent('application/json', RawSchema::schema($body))
+                ->required(! in_array($name, ApiContract::OptionalRequestBodies, true));
         }
 
         $errorCodes = [];

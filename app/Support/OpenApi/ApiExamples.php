@@ -26,9 +26,9 @@ final class ApiExamples
             'frequency_in_minutes' => null, 'description' => 'Database backup'];
 
         return [
-            'createMonitor' => ['team_id' => 1, 'type' => 'http', 'url' => 'https://example.com', 'group_name' => 'Websites', 'tags' => ['production'],
+            'createMonitor' => ['team_id' => 1, 'type' => 'http', 'url' => 'https://example.com', 'client_id' => 2, 'group_name' => 'Websites', 'tags' => ['production'],
                 'checks' => ['uptime', 'broken_links', 'cron', 'certificate_health'], 'uptime_check_settings' => ['frequency_value' => 1, 'frequency_unit' => 'minute']],
-            'updateMonitor' => ['friendly_name' => 'Example shop', 'tags' => ['production', 'shop'], 'repositories' => [['url' => 'git@github.com:acme/example-shop.git', 'label' => 'Shop']]],
+            'updateMonitor' => ['client_id' => 2, 'friendly_name' => 'Example shop', 'tags' => ['production', 'shop'], 'repositories' => [['url' => 'git@github.com:acme/example-shop.git', 'label' => 'Shop']]],
             'createTag' => ['team_id' => 1, 'name' => 'production', 'monitors' => [1]],
             'createClient' => ['name' => 'Acme Ltd', 'short_name' => 'ACME', 'locale' => 'de', 'timezone' => 'Europe/Berlin'],
             'updateClient' => ['name' => 'Acme GmbH'],
@@ -74,10 +74,10 @@ final class ApiExamples
             'getMe' => [200 => ['id' => 1, 'name' => 'Ada Admin', 'email' => 'ada@example.com', 'photo_url' => 'https://monitoring.example.com/favicon.svg',
                 'teams' => [['id' => 1, 'name' => 'Heptapod', 'timezone' => 'Europe/Berlin', 'created_at' => '2026-09-30T12:00:00+00:00']]]],
             'listMonitors' => [200 => ['data' => [$monitor], 'links' => $links('monitors'), 'meta' => $meta('monitors')]],
-            'createMonitor' => [201 => $created],
+            'createMonitor' => [201 => [...$created, 'client_ref' => 'client:2', 'client_name' => 'Acme Ltd']],
             'getMonitor' => [200 => $monitor],
             'getMonitorByUrl' => [200 => $monitor],
-            'updateMonitor' => [200 => [...$monitor, 'label' => 'Example shop', 'tags' => ['production', 'shop']]],
+            'updateMonitor' => [200 => [...$monitor, 'client_ref' => 'client:2', 'client_name' => 'Acme Ltd', 'label' => 'Example shop', 'tags' => ['production', 'shop']]],
             'listTags' => [200 => ['data' => [$tag]]],
             'createTag' => [201 => $tag],
             'listClients' => [200 => ['data' => [$internal, $client], 'links' => $links('clients'), 'meta' => [...$meta('clients'), 'to' => 2, 'total' => 2]]],

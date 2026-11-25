@@ -328,6 +328,9 @@ final class ApiContract
         ];
     }
 
+    /** Operations of requestBodies() that also run without a body (every field optional). */
+    public const array OptionalRequestBodies = ['archiveClient', 'restoreClient'];
+
     /**
      * Request bodies replaced in full where inference covers only one validation branch.
      *
@@ -560,7 +563,8 @@ final class ApiContract
             'getMonitorByUrl' => 'The monitor whose stored URL equals the address in the path, URL-decoded once (the encoding of the Oh Dear SDK).',
             'updateMonitor' => 'Partial update: omitted fields and check settings keep their value, and a masked secret (`********`) keeps the stored secret. '
                 .'`client_id` moves the monitor to that client first (Owners and Admins): its open incidents end without a recovery notification, and a check that still fails opens a new incident under the new client. '
-                .'A missing, hidden or archived client, alerts still being sent, or a client changed meanwhile return 422 on `client_id`.',
+                .'A monitor of an archived client can only be moved, with `client_id` alone. A missing, hidden or archived target client, alerts still being sent, or a client changed meanwhile return 422 on `client_id`; '
+                .'while sites, clients or access are being changed for longer than 5 seconds it returns 409 `busy_try_again`.',
             'deleteMonitor' => 'Deletes the monitor with its checks, runs and incidents. Timeline events, notification history and the deletion audit are kept.',
             'listTags' => 'Monitor tags with the IDs of the monitors this token can see. A token limited to a client sees only the tags of its monitors.',
             'createTag' => 'Creates a tag and adds it to the listed monitors (`monitors`, or its alias `sites`).',
@@ -569,9 +573,10 @@ final class ApiContract
             'getClient' => 'One client, archived or not. A hidden client returns 404 like a missing one.',
             'createClient' => 'Creates a client (Owners and Admins). A token limited to a client returns 403. Create monitors in it with `client_id` on createMonitor.',
             'updateClient' => 'Partial update of a client (Owners and Admins): omitted fields keep their value. The internal client keeps its name (422).',
-            'archiveClient' => 'Archives a client (Owners and Admins). This pauses every monitor of the client, or with `move_to_client_id` first moves every monitor to that client instead. '
-                .'Archived clients and their monitors are hidden from lists until restored. The internal client cannot be archived (403). Repeats are harmless.',
-            'restoreClient' => 'Restores an archived client (Owners and Admins) and resumes the monitors its archive paused, unless `resume_sites` is false. Repeats are harmless.',
+            'archiveClient' => 'Archives a client (Owners and Admins). Without a body this pauses every monitor of the client. With `move_to_client_id` it first moves every monitor to that client, '
+                .'where they stay active and listed. An archived client and its paused monitors leave the default lists; listClients shows the client with `filter[include_archived]=true`, and getClient reads it. '
+                .'The internal client cannot be archived (403). Unknown body fields return 422. Repeats are harmless.',
+            'restoreClient' => 'Restores an archived client (Owners and Admins) and resumes the monitors its archive paused, unless `resume_sites` is false. Unknown body fields return 422. Repeats are harmless.',
             'enableCheck' => 'Turns a check on. A check of an addon that is not installed returns 422.',
             'disableCheck' => 'Turns a check off. Its open incidents are resolved without a recovery notification.',
             'snoozeCheck' => 'Mutes the notifications of a check until `snooze_until`, or for `minutes` (at most 525600), and replaces an active snooze. Prefer `snooze_until`: a retry sets the same end. The check keeps running.',

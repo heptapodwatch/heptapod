@@ -7,6 +7,7 @@ namespace Heptapod\Http\Controllers\Api;
 use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\CreateClient;
 use Heptapod\Actions\UpdateClient;
+use Heptapod\Concerns\RejectsUnsupportedFields;
 use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Http\Requests\Api\PaginationRequest;
@@ -23,7 +24,7 @@ use Illuminate\Validation\ValidationException;
 #[Group('Clients')]
 final class ClientController extends Controller
 {
-    use ResolvesApiPrincipal;
+    use RejectsUnsupportedFields, ResolvesApiPrincipal;
 
     /** The client fields the API writes; logos and site-icon avatars stay in the web app. */
     private const array Fields = ['name', 'short_name', 'locale', 'timezone', 'accent_color'];
@@ -53,6 +54,7 @@ final class ClientController extends Controller
         Gate::authorize('create', Client::class);
         // A token limited to one client cannot widen its own reach.
         abort_if($user->tokenClientConstraint() !== null, 403);
+        $this->rejectUnsupportedFields($request, self::Fields);
         /** @var array<string, mixed> $attributes */
         $attributes = $request->only(self::Fields);
 
@@ -63,6 +65,7 @@ final class ClientController extends Controller
     public function update(Request $request, Client $client, UpdateClient $update): ClientResource
     {
         Gate::authorize('update', $client);
+        $this->rejectUnsupportedFields($request, self::Fields);
         /** @var array<string, mixed> $attributes */
         $attributes = $request->only(self::Fields);
 

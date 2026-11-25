@@ -93,14 +93,15 @@ final class MonitorController extends Controller
     {
         /** @var array<string, mixed> $attributes */
         $attributes = $request->all();
-        // Early and unlocked, so a hidden monitor answers 404 like a missing one even while the access lock is busy.
-        Gate::authorize('update', $monitor);
+        // Early and unlocked, so a hidden monitor answers 404 like a missing one even while the access lock is busy. A move-only
+        // request out of an archived client is allowed as on the web; UpdateSiteSettings refuses other fields there.
+        Gate::authorize(array_key_exists('client_id', $attributes) ? 'move' : 'update', $monitor);
         $user = $this->principal($request);
-        /** @var array{client_id?: int} $data */
+        /** @var array{client_id?: int|numeric-string} $data */
         $data = Validator::make($attributes, ['client_id' => ['sometimes', 'required', 'integer', $policy->visibleClientRule($user, includeArchived: true)]])->validate();
         if (isset($data['client_id'])) {
             // MoveSiteToClient moves the site first, then the other fields are saved, as in the web site settings.
-            $move($user, $monitor, $attributes, [], $data['client_id']);
+            $move($user, $monitor, $attributes, [], (int) $data['client_id'], refuseWhenBusy: true);
             $site = $monitor->refresh();
         } else {
             $site = $authorize($user, 'update', static fn (): Site => $update($monitor, $attributes), $monitor);

@@ -17,22 +17,28 @@ final readonly class UpdateSiteSettings
     /**
      * @param  array<string, mixed>  $attributes
      * @param  array<string, mixed>  $timing
+     * @param  bool  $refuseWhenBusy  the API: a move waits for a structural change only as long as a guarded write, then 409 busy_try_again
      */
-    public function __invoke(User $user, Site $site, array $attributes, array $timing, ?int $clientId): void
+    public function __invoke(User $user, Site $site, array $attributes, array $timing, ?int $clientId, bool $refuseWhenBusy = false): void
     {
         if (! Gate::forUser($user)->allows('update', $site)) {
             abort_unless($clientId !== null, 403);
             abort_if(Arr::except($attributes, ['client_id']) !== [] || $timing !== [], 403);
         }
+        // Only the timing the caller validated and saves separately leaves the site attributes; UpdateSite rejects any other key.
         /** @var array<string, mixed> $siteAttributes */
-        $siteAttributes = Arr::except($attributes, ['client_id', 'alert_after_minutes', 'alert_recovery_checks', 'alert_confirms_other_checks', 'alert_reminders']);
+        $siteAttributes = Arr::except($attributes, ['client_id', ...array_keys($timing)]);
         if ($clientId === null) {
             // No move: a guarded write, decided under the shared access lock with the actor as the account is now.
             ($this->authorize)($user, 'update', fn () => $this->save($site, $siteAttributes, $timing), $site);
 
             return;
         }
-        NotificationLocks::transaction(function () use ($site, $siteAttributes, $timing, $clientId, $user): void {
+        NotificationLocks::transaction(function () use ($site, $siteAttributes, $timing, $clientId, $user, $refuseWhenBusy): void {
+            if ($refuseWhenBusy) {
+                // The move's own exclusive lock below then re-enters at once.
+                NotificationLocks::accessExclusiveOrBusy();
+            }
             // The move takes the exclusive access lock first and authorizes itself; the rest is decided under that lock.
             $site = ($this->move)($user, $site, $clientId);
             if ($siteAttributes === [] && $timing === []) {

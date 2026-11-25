@@ -173,3 +173,65 @@ it('refuses monitors in an archived client and moves of a site with pending aler
         ->assertUnprocessable()->assertJsonValidationErrors(['client_id' => __('sites.client_alerts_pending')]);
     expect($site->refresh()->client_id)->toBe($before)->and($site->friendly_name)->not->toBe('Not saved');
 });
+
+it('refuses restore to Members, other clients, tokens without clients:write and the internal client', function (): void {
+    $client = Client::factory()->create(['archived_at' => now()]);
+    $other = Client::factory()->create();
+    $owner = User::factory()->owner()->create();
+    $member = User::factory()->member()->create()->createToken('legacy', ['*'])->plainTextToken;
+    $readOnly = clientToken($owner, ['clients:read']);
+    $foreign = clientToken($owner, ['clients:write'], $other->id);
+    $broad = clientToken($owner, ['clients:write']);
+
+    clientApi('POST', '/api/clients/'.$client->id.'/restore', $readOnly)->assertForbidden();
+    clientApi('POST', '/api/clients/'.$client->id.'/restore', $member)->assertNotFound();
+    clientApi('POST', '/api/clients/'.$client->id.'/restore', $foreign)->assertNotFound();
+    clientApi('POST', '/api/clients/'.internalClient()->id.'/restore', $broad)->assertForbidden();
+    clientApi('POST', '/api/clients/'.$client->id.'/restore', $broad, ['resume' => false])->assertUnprocessable()->assertJsonValidationErrors(['resume']);
+    expect($client->refresh()->archived_at)->not->toBeNull();
+});
+
+it('refuses an unknown archive field instead of pausing every site', function (): void {
+    $client = Client::factory()->create();
+    $site = Site::factory()->for($client)->create();
+    $token = clientToken(User::factory()->owner()->create(), ['clients:write']);
+
+    // client_id is the web form's field; the API takes move_to_client_id.
+    clientApi('POST', '/api/clients/'.$client->id.'/archive', $token, ['client_id' => internalClient()->id])->assertUnprocessable()->assertJsonValidationErrors(['client_id' => __('api.unsupported_field')]);
+    clientApi('POST', '/api/clients', $token, ['name' => 'Logo Ltd', 'logo' => 'x'])->assertUnprocessable()->assertJsonValidationErrors(['logo']);
+    expect($client->refresh()->archived_at)->toBeNull()->and($site->refresh()->paused_at)->toBeNull()
+        ->and(Client::query()->where('name', 'Logo Ltd')->exists())->toBeFalse();
+});
+
+it('takes numeric-string client IDs like integers', function (): void {
+    $client = Client::factory()->create();
+    $target = Client::factory()->create();
+    $site = Site::factory()->for($client)->create();
+    $token = clientToken(User::factory()->owner()->create(), ['clients:write', 'monitors:write']);
+
+    $this->withToken($token)->putJson('/api/monitors/'.$site->id, ['client_id' => (string) $target->id])->assertOk()->assertJsonPath('client_ref', 'client:'.$target->id);
+    clientApi('POST', '/api/clients/'.$target->id.'/archive', $token, ['move_to_client_id' => (string) $client->id])->assertOk()->assertJsonPath('archived', true);
+    expect($site->refresh()->client_id)->toBe($client->id);
+});
+
+it('moves a monitor out of an archived client with client_id alone, as on the web', function (): void {
+    $site = Site::factory()->create(['paused_at' => now(), 'paused_by_archive_at' => now()]);
+    $site->client->update(['archived_at' => now()]);
+    $target = Client::factory()->create();
+    $this->withToken(clientToken(User::factory()->admin()->create(), ['monitors:write']));
+
+    $this->putJson('/api/monitors/'.$site->id, ['client_id' => $target->id, 'friendly_name' => 'Not yet'])->assertForbidden();
+    $this->putJson('/api/monitors/'.$site->id, ['client_id' => $target->id])->assertOk()->assertJsonPath('client_ref', 'client:'.$target->id);
+    expect($site->refresh()->paused_by_archive_at)->toBeNull()->and($site->friendly_name)->not->toBe('Not yet');
+});
+
+it('rejects alert timing fields on a monitor move like on any monitor update', function (): void {
+    $site = Site::factory()->create();
+    $before = $site->client_id;
+    $target = Client::factory()->create();
+    $this->withToken(clientToken(User::factory()->owner()->create(), ['monitors:write']));
+
+    $this->putJson('/api/monitors/'.$site->id, ['alert_after_minutes' => 30])->assertUnprocessable()->assertJsonValidationErrors(['alert_after_minutes']);
+    $this->putJson('/api/monitors/'.$site->id, ['client_id' => $target->id, 'alert_after_minutes' => 30])->assertUnprocessable()->assertJsonValidationErrors(['alert_after_minutes']);
+    expect($site->refresh()->client_id)->toBe($before);
+});

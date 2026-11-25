@@ -152,10 +152,25 @@ final class NotificationLocks
      */
     public static function accessShared(): void
     {
+        self::boundedAccess('pg_advisory_xact_lock_shared');
+    }
+
+    /**
+     * Level 0 exclusive for an API structural change: like accessShared it refuses as busy (409) after AccessSharedTimeout.
+     * A later accessExclusive() of the same transaction (the action's own) then returns at once: advisory locks re-enter.
+     */
+    public static function accessExclusiveOrBusy(): void
+    {
+        self::boundedAccess('pg_advisory_xact_lock');
+    }
+
+    /** @param 'pg_advisory_xact_lock'|'pg_advisory_xact_lock_shared' $function */
+    private static function boundedAccess(string $function): void
+    {
         $previous = DB::scalar("SELECT current_setting('lock_timeout')");
         DB::select("SELECT set_config('lock_timeout', ?, true)", [self::AccessSharedTimeout]);
         try {
-            DB::select('SELECT pg_advisory_xact_lock_shared('.self::AccessStructureKey.')');
+            DB::select('SELECT '.$function.'('.self::AccessStructureKey.')');
         } catch (QueryException $exception) {
             if ($exception->getCode() === '55P03') {
                 throw new ExpectedRefusal(status: 409, messageKey: 'errors.busy_try_again', errorCode: 'busy_try_again', retryAfterSeconds: 5, tone: 'info');

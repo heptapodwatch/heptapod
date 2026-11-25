@@ -516,11 +516,15 @@ it('completes an idempotent write that waited for a move of its site', function 
  * A structural change that holds the access-structure lock longer than a write waits for it: the write is refused as busy,
  * with its code and Retry-After, instead of running into the statement timeout.
  */
-it('refuses a write as busy while a structural change holds the access lock too long', function (): void {
+it('refuses a write as busy while a structural change holds the access lock too long', function (string $write): void {
     $fixture = siteWriteRaceFixture();
     $token = $fixture['owner']->createToken('owner', ['*'])->plainTextToken;
     DB::commit();
-    $request = siteWriteRaceRequest('POST', '/api/monitors/'.$fixture['site']->id.'/start-maintenance', token: $token);
+    // The API monitor move is a structural change itself, so it waits for the exclusive lock, bounded like a guarded write.
+    [$request, $lock] = match ($write) {
+        'start maintenance' => [siteWriteRaceRequest('POST', '/api/monitors/'.$fixture['site']->id.'/start-maintenance', token: $token), 'pg_advisory_xact_lock_shared'],
+        'move monitor' => [siteWriteRaceRequest('PUT', '/api/monitors/'.$fixture['site']->id, ['client_id' => $fixture['to']->id], token: $token), 'pg_advisory_xact_lock('],
+    };
     try {
         DB::beginTransaction();
         NotificationLocks::accessExclusive();
@@ -532,8 +536,9 @@ it('refuses a write as busy while a structural change holds the access lock too 
         expect($response['status'])->toBe(409, json_encode($response['body']))
             ->and($response['body'])->toMatchArray(['error' => 'busy_try_again', 'code' => 'busy_try_again'])
             ->and($response['headers']['retry-after'] ?? null)->toBe('5')
-            ->and($waitedOn)->toContain('pg_advisory_xact_lock_shared')
-            ->and(MaintenancePeriod::query()->where('site_id', $fixture['site']->id)->exists())->toBeFalse();
+            ->and($waitedOn)->toContain($lock)
+            ->and(MaintenancePeriod::query()->where('site_id', $fixture['site']->id)->exists())->toBeFalse()
+            ->and(Site::query()->findOrFail($fixture['site']->id)->client_id)->toBe($fixture['from']->id);
     } finally {
         $request->stop(1);
         if (DB::transactionLevel() > 0) {
@@ -541,7 +546,7 @@ it('refuses a write as busy while a structural change holds the access lock too 
         }
         DB::beginTransaction();
     }
-});
+})->with(['start maintenance', 'move monitor']);
 
 /*
  * A password reset commits while a signed-in web request waits for the access lock. The request is refused and its

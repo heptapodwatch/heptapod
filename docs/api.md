@@ -171,20 +171,22 @@ These endpoints manage site windows in UTC. Client and tag windows, time zones a
 
 These endpoints list and manage clients. There is no client delete; archive a client instead.
 
-| Endpoint                         | Ability         | Effect                                                                                                   |
-| -------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------- |
-| `GET /api/clients`               | `clients:read`  | Clients you can see, paged like the monitor list. `filter[include_archived]=true` adds archived clients. |
-| `GET /api/clients/{id}`          | `clients:read`  | One client, archived or not.                                                                             |
-| `POST /api/clients`              | `clients:write` | Creates a client: `name`, optional `short_name`, `locale`, `timezone`, `accent_color` (201).             |
-| `PUT /api/clients/{id}`          | `clients:write` | Changes the same fields. Omitted fields stay as they are.                                                |
-| `POST /api/clients/{id}/archive` | `clients:write` | Archives the client and pauses all its sites. With `move_to_client_id` it moves all sites there first.   |
-| `POST /api/clients/{id}/restore` | `clients:write` | Restores the client and resumes the sites its archive paused. `resume_sites: false` keeps them paused.   |
+| Endpoint                         | Ability         | Effect                                                                                                              |
+| -------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/clients`               | `clients:read`  | Clients you can see, paged like the monitor list. `filter[include_archived]=true` adds archived clients.            |
+| `GET /api/clients/{id}`          | `clients:read`  | One client, archived or not.                                                                                        |
+| `POST /api/clients`              | `clients:write` | Creates a client: `name`, optional `short_name`, `locale`, `timezone`, `accent_color` (201).                        |
+| `PUT /api/clients/{id}`          | `clients:write` | Changes the same fields. Omitted fields stay as they are.                                                           |
+| `POST /api/clients/{id}/archive` | `clients:write` | Archives the client and pauses all its sites. With `move_to_client_id` it moves them there first; they stay active. |
+| `POST /api/clients/{id}/restore` | `clients:write` | Restores the client and resumes the sites its archive paused. `resume_sites: false` keeps them paused.              |
 
 - The list includes **No client**, the built-in client for sites without one, as `is_internal: true` with the name `Internal`. It cannot be renamed or archived.
 - Create, change, archive and restore need an Owner or Admin. A token limited to a client cannot create clients (403) and only reaches its own client.
 - `POST /api/monitors` takes an optional `client_id`; without it the site goes to **No client**.
-- `PUT /api/monitors/{id}` with `client_id` moves the site, like **Client** in the site settings. Open incidents end without a recovery alert.
-- A missing, hidden or archived client, alerts still being sent, or a site changed meanwhile return 422 on `client_id`. A failed archive move returns 422 on `move_to_client_id`; sites moved before it stay moved.
+- An archived client leaves the list; `filter[include_archived]=true` shows it. Sites moved away before archiving stay visible under their new client.
+- Unknown body fields return 422.
+- `PUT /api/monitors/{id}` with `client_id` moves the site, like **Client** in the site settings. Open incidents end without a recovery alert. A site of an archived client can only be moved, with `client_id` alone.
+- A missing, hidden or archived client, alerts still being sent, or a site changed meanwhile return 422 on `client_id`. Alert timing fields are not part of the API (422). While sites, clients or access are being changed for more than 5 seconds, a move returns 409 `busy_try_again`. A failed archive move returns 422 on `move_to_client_id`; sites moved before it stay moved.
 
 ## Scheduled tasks
 
@@ -263,7 +265,7 @@ Tested operations:
 - Snooze `minutes` takes an integer or a digit-only string, at most 525600.
 - Implemented operations add 422 (`Error`) and 429 (`ErrorMessage`) responses.
 - Page size is 1–200, default 200. Mixing the two paging styles returns 422. `filter[team_id]` must be 1.
-- `getMe` returns the instance time zone as the team's `timezone`. Client and user time zones are not part of the API. They are set in the web UI, where an empty one follows the instance time zone; the web client form sends `timezone: null` to return a client to that default.
+- `getMe` returns the instance time zone as the team's `timezone`. User time zones are not part of the API. A client's own `timezone` is in the [client endpoints](#clients); `null` follows the instance time zone.
 - Run and summary check errors serialize as `failed`. Check snapshots keep `errored-or-timed-out`.
 - `ohdear_url` fields point to local report pages.
 - Tags expose their names and only accessible site IDs. There is no tag update or delete.

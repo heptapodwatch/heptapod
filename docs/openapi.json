@@ -5465,7 +5465,7 @@
         },
         "/clients/{client}/archive": {
             "post": {
-                "description": "Archives a client (Owners and Admins). This pauses every monitor of the client, or with `move_to_client_id` first moves every monitor to that client instead. Archived clients and their monitors are hidden from lists until restored. The internal client cannot be archived (403). Repeats are harmless.\n\nToken abilities: `clients:write`.",
+                "description": "Archives a client (Owners and Admins). Without a body this pauses every monitor of the client. With `move_to_client_id` it first moves every monitor to that client, where they stay active and listed. An archived client and its paused monitors leave the default lists; listClients shows the client with `filter[include_archived]=true`, and getClient reads it. The internal client cannot be archived (403). Unknown body fields return 422. Repeats are harmless.\n\nToken abilities: `clients:write`.",
                 "operationId": "archiveClient",
                 "parameters": [
                     {
@@ -5498,8 +5498,7 @@
                                 "type": "object"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
                 "responses": {
                     "200": {
@@ -5631,7 +5630,7 @@
         },
         "/clients/{client}/restore": {
             "post": {
-                "description": "Restores an archived client (Owners and Admins) and resumes the monitors its archive paused, unless `resume_sites` is false. Repeats are harmless.\n\nToken abilities: `clients:write`.",
+                "description": "Restores an archived client (Owners and Admins) and resumes the monitors its archive paused, unless `resume_sites` is false. Unknown body fields return 422. Repeats are harmless.\n\nToken abilities: `clients:write`.",
                 "operationId": "restoreClient",
                 "parameters": [
                     {
@@ -5662,8 +5661,7 @@
                                 "type": "object"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
                 "responses": {
                     "200": {
@@ -9552,6 +9550,7 @@
                                     "cron",
                                     "certificate_health"
                                 ],
+                                "client_id": 2,
                                 "group_name": "Websites",
                                 "tags": [
                                     "production"
@@ -10717,8 +10716,8 @@
                                             "unavailable_reason": null
                                         }
                                     ],
-                                    "client_name": "Internal",
-                                    "client_ref": "client:1",
+                                    "client_name": "Acme Ltd",
+                                    "client_ref": "client:2",
                                     "crawler_headers": null,
                                     "created_at": "2026-10-01 07:25:00",
                                     "description": null,
@@ -11538,7 +11537,7 @@
                 }
             },
             "put": {
-                "description": "Partial update: omitted fields and check settings keep their value, and a masked secret (`********`) keeps the stored secret. `client_id` moves the monitor to that client first (Owners and Admins): its open incidents end without a recovery notification, and a check that still fails opens a new incident under the new client. A missing, hidden or archived client, alerts still being sent, or a client changed meanwhile return 422 on `client_id`.\n\nToken abilities: `monitors:write`.",
+                "description": "Partial update: omitted fields and check settings keep their value, and a masked secret (`********`) keeps the stored secret. `client_id` moves the monitor to that client first (Owners and Admins): its open incidents end without a recovery notification, and a check that still fails opens a new incident under the new client. A monitor of an archived client can only be moved, with `client_id` alone. A missing, hidden or archived target client, alerts still being sent, or a client changed meanwhile return 422 on `client_id`; while sites, clients or access are being changed for longer than 5 seconds it returns 409 `busy_try_again`.\n\nToken abilities: `monitors:write`.",
                 "operationId": "updateMonitor",
                 "parameters": [
                     {
@@ -11555,6 +11554,7 @@
                     "content": {
                         "application/json": {
                             "example": {
+                                "client_id": 2,
                                 "friendly_name": "Example shop",
                                 "repositories": [
                                     {
@@ -12712,8 +12712,8 @@
                                             "unavailable_reason": null
                                         }
                                     ],
-                                    "client_name": "Internal",
-                                    "client_ref": "client:1",
+                                    "client_name": "Acme Ltd",
+                                    "client_ref": "client:2",
                                     "crawler_headers": null,
                                     "created_at": "2026-10-01 07:25:00",
                                     "description": null,
