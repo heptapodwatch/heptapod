@@ -15,8 +15,8 @@ it('can assign production roles and issue an owner token after migration without
         $assigned[$role] = $user;
         expect($user->hasRole($role))->toBeTrue();
         if ($role === 'Owner') {
-            $this->artisan('heptapod:token:create', ['user' => $user->email, '--name' => 'first-run', '--abilities' => '*'])->assertSuccessful();
-            expect($user->tokens()->sole()->abilities)->toBe(['*']);
+            $this->artisan('heptapod:token:create', ['user' => $user->email, '--name' => 'first-run', '--abilities' => 'monitors:read,monitors:write'])->assertSuccessful();
+            expect($user->tokens()->sole()->abilities)->toBe(['monitors:read', 'monitors:write']);
         }
     }
 
