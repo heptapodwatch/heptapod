@@ -57,7 +57,7 @@ One word per concept, in EN and DE (the glossary). State words (badges, filters,
 - Status is colour, shape and a translated word, through `StatusDot` / `StatusBadge`. The Down halo is for uptime only; system-health failures use the Check error shape. Runs never use the status marks (§ Runs).
 - A snoozed check keeps its result in counts and attention; only its alerts are silenced.
 - Charts show peaks, not averages that hide spikes.
-- A newer Heptapod release shows only to Owners and Admins, on the resting mark's top bar (warning colour, danger for a security fix), and the mark's tooltip names it an update of Heptapod itself, never a site state.
+- A newer Heptapod release shows only to Owners and Admins, on the resting mark's upper right stem (warning colour, danger for a security fix), and the mark's tooltip names it an update of Heptapod itself, never a site state.
 
 ## Tooltips
 

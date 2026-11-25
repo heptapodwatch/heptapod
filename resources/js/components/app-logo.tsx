@@ -207,7 +207,7 @@ function useRecovered(downCount: number): boolean {
 }
 
 /**
- * The update line of the mark's tooltip, tied to the lit bar: a bar-shaped marker and the headline in the bar's colour
+ * The update line of the mark's tooltip, tied to the lit stem: a stem-shaped marker and the headline in the stem's colour
  * (the tooltip's own status tokens, AA on its dark surface), the explanation muted below.
  */
 function UpdateNotice({ mark, headline }: NonNullable<BrandState['update']>) {
@@ -224,8 +224,8 @@ function UpdateNotice({ mark, headline }: NonNullable<BrandState['update']>) {
                 <span
                     aria-hidden="true"
                     className={cn(
-                        // Centred on the first 17px line when the headline wraps.
-                        'mt-1.5 h-1 w-2.5 shrink-0 rounded-full',
+                        // Upright like the lit stem; centred on the first 17px line when the headline wraps.
+                        'mt-1 h-2.5 w-1 shrink-0 rounded-full',
                         security ? 'bg-status-down' : 'bg-status-warn',
                     )}
                 />
