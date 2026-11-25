@@ -82,7 +82,12 @@ final class UptimeReader
      */
     public function series(array $checkIds, array $bounds, ?Closure $countWork = null): array
     {
-        return array_column($this->seriesWithDowntime($checkIds, $bounds, $countWork), 'uptime');
+        $series = [];
+        foreach ($this->windowTotals($checkIds, $bounds, $countWork) as [$time, $downtime]) {
+            $series[] = $time === 0 ? null : 100 * (1 - $downtime / $time);
+        }
+
+        return $series;
     }
 
     /**
@@ -91,10 +96,27 @@ final class UptimeReader
      *
      * @param  list<int>  $checkIds
      * @param  list<array{CarbonImmutable, CarbonImmutable}>  $bounds  Chronological, non-overlapping windows.
-     * @param  Closure(): void|null  $countWork
      * @return list<array{uptime: float|null, downtime_seconds: int}>
      */
-    public function seriesWithDowntime(array $checkIds, array $bounds, ?Closure $countWork = null): array
+    public function seriesWithDowntime(array $checkIds, array $bounds): array
+    {
+        $series = [];
+        foreach ($this->windowTotals($checkIds, $bounds) as [$time, $downtime]) {
+            $series[] = ['uptime' => $time === 0 ? null : 100 * (1 - $downtime / $time), 'downtime_seconds' => intdiv($downtime, 1000)];
+        }
+
+        return $series;
+    }
+
+    /**
+     * Monitored and down milliseconds per window, summed over the checks.
+     *
+     * @param  list<int>  $checkIds
+     * @param  list<array{CarbonImmutable, CarbonImmutable}>  $bounds
+     * @param  Closure(): void|null  $countWork
+     * @return list<array{int, int}>
+     */
+    private function windowTotals(array $checkIds, array $bounds, ?Closure $countWork = null): array
     {
         if ($bounds === []) {
             return [];
@@ -159,8 +181,7 @@ final class UptimeReader
         foreach ($timeBounds as $index => [$from, $until]) {
             $countWork?->__invoke();
             $runningChecks += $fullChecks[$index];
-            $time = $monitored[$index] + $runningChecks * ($until - $from);
-            $series[] = ['uptime' => $time === 0 ? null : 100 * (1 - $downtime[$index] / $time), 'downtime_seconds' => intdiv($downtime[$index], 1000)];
+            $series[] = [$monitored[$index] + $runningChecks * ($until - $from), $downtime[$index]];
         }
 
         return $series;
