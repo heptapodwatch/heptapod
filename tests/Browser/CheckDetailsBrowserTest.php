@@ -34,9 +34,9 @@ it('shows a registered addon summary and real run history without addon-specific
     $this->actingAs($user);
 
     $page = visit('/sites/'.$check->site_id.'/checks/'.$check->id);
-    $page->click('button:has-text("All settings")');
-    $page->assertSee('Sitemap')->assertSee('Check settings')->assertSee('Last result')->assertSee('History')
-        ->assertSee('Scheduled')->assertSee('Sitemap path')->assertDontSee('Using defaults')
+    $page->assertSee('Sitemap')->assertSee('Last result')->assertSee('History')->assertSee('Scheduled');
+    // The settings facts sit at the top of the settings sheet, opened from More actions.
+    $page->click('button[aria-label="More actions"]')->click('[role="menuitem"]:has-text("Configure check…")')->assertSee('Check settings')->assertSee('Sitemap path')->assertDontSee('Using defaults')
         // Site-wide actions live on the Overview only (the app sidebar still lists Maintenance).
         ->assertDontSeeIn('[data-page-header]', 'Maintenance')->assertSee('Run check')->assertNoJavaScriptErrors();
     expect($page->script('document.querySelectorAll("[data-check-detail=sitemap] tbody tr").length'))->toBe(1);
@@ -110,6 +110,7 @@ it('shows editable performance settings only once', function (): void {
     $this->actingAs($user);
 
     visit('/sites/'.$check->site_id.'/checks/'.$check->id)
+        ->assertCount('[data-check-configuration]', 0)->click('button[aria-label="More actions"]')->click('[role="menuitem"]:has-text("Configure check…")')
         ->assertSee('Check settings')->assertDontSee('Configuration')->assertNoJavaScriptErrors();
 });
 
@@ -133,12 +134,12 @@ it('keeps the last successful Lighthouse scores after a failed attempt', functio
 
     visit('/sites/'.$check->site_id.'/checks/'.$check->id)
         ->assertSee('Scores from last successful run')->assertSee('92')->assertSee('98')->assertSee('Mobile')
-        ->assertSee('Performance, 90 days')->assertSee('Check settings')->click('button:has-text("Edit")')
+        ->assertSee('Performance, 90 days')->click('button[aria-label="More actions"]')->click('[role="menuitem"]:has-text("Configure check…")')
         ->fill('input[name="notification_settings.performance"]', '70')
         ->click('button[type="submit"]')->assertNoJavaScriptErrors();
     expect($check->refresh()->executionConfig()['notification_settings']['performance'])->toBe(70);
     $page = visit('/sites/'.$check->site_id.'/checks/'.$check->id);
-    $page->click('button:has-text("Edit")')->fill('input[name="notification_settings.performance"]', '')
+    $page->click('button[aria-label="More actions"]')->click('[role="menuitem"]:has-text("Configure check…")')->fill('input[name="notification_settings.performance"]', '')
         ->click('button[type="submit"]')->assertNoJavaScriptErrors();
     expect($check->refresh()->executionConfig()['notification_settings']['performance'])->toBeNull();
 });
@@ -252,7 +253,7 @@ it('keeps unsaved health settings gated after a failed probe', function (): void
     $page->script('window.dispatchEvent(new Event("resize"))');
     // Below lg the site sections open from one switcher; it stays inside the viewport.
     expect($page->script('(() => { const button = [...document.querySelectorAll("button")].find((item) => item.textContent.startsWith("Switch site section")); const rect = button.getBoundingClientRect(); return rect.width > 0 && rect.left >= 0 && rect.right <= innerWidth; })()'))->toBeTrue();
-    $page->click('[data-check-detail=application_health] button:has-text("Edit")')
+    $page->click('button[aria-label="More actions"]')->click('[role="menuitem"]:has-text("Configure check…")')
         ->fill('input[name="result_url"]', 'http://127.0.0.1/new-health')
         ->assertSee('Edit health check')->assertCount('[data-slot=sheet-content] [role=tablist]', 0)
         ->assertSee('Not saved yet. Test successfully before saving.')
@@ -335,11 +336,11 @@ it('edits check settings through the authorized product sheet', function (): voi
     $this->actingAs($user);
 
     visit('/sites/'.$check->site_id.'/checks/'.$check->id)
-        ->click('[data-check-detail=uptime] button:has-text("Edit")')
+        ->click('button[aria-label="More actions"]')->click('[role="menuitem"]:has-text("Configure check…")')
         ->assertSee('GET')
         ->fill('input[name="timeout"]', '12')
         ->click('button[type="submit"]')
-        ->assertSee('Check settings')
+        ->assertSee('Run check')
         ->assertNoJavaScriptErrors();
     expect($check->refresh()->executionConfig()['timeout'])->toBe(12);
 });

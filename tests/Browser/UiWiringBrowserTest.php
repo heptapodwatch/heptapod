@@ -136,7 +136,7 @@ it('labels the live performance series in milliseconds and explains missing hist
     $page->assertSee($hasHistory ? 'p95 response time · ms' : 'History not available yet.')
         ->assertDontSee('sample_count ·')
         ->assertNoJavaScriptErrors();
-    $page->assertSee('Check settings')->assertDontSee('Configuration');
+    $page->click('button[aria-label="More actions"]')->click('[role="menuitem"]:has-text("Configure check…")')->assertSee('Check settings')->assertDontSee('Configuration');
 })->with([false, true]);
 
 it('navigates from Today attention to the selected site and all sites', function (): void {
@@ -525,9 +525,11 @@ it('shows only enabled check navigation and cards while retaining overview histo
     // The viewed turned-off check stays in the rail, muted with Off; other turned-off checks are not listed.
     $page = visit($disabledPath)->assertPresent('nav[aria-label="Site sections"] a[href="'.$disabledPath.'"][aria-current="page"]')->assertSee('History');
     if ($role === 'Owner') {
-        $page->click('button:text-is("Edit")')->assertSee('Check settings');
+        $page->click('button[aria-label="More actions"]')->click('[role="menuitem"]:has-text("Configure check…")')->assertSee('Check settings');
     } else {
-        $page->assertDontSee('Edit')->assertDontSee('Run check');
+        // Read-only roles open the same settings sheet without fields or Save.
+        $page->assertDontSee('Configure check…')->assertDontSee('Run check')->click('button:text-is("Check settings")')
+            ->assertPresent('[data-slot=sheet-content]')->assertCount('[data-slot=sheet-content] button[type="submit"]', 0);
     }
     $page->assertNoJavaScriptErrors();
 })->with(['Owner', 'Member']);
@@ -546,7 +548,7 @@ it('uses stored check switches and enabled tabs instead of settings Configure li
         ->assertDontSee('Notification schedule')->assertSee('Delete')->assertMissing('nav a[href="'.$path.'"]');
     $page->click('#settings-check-'.$dns->id)->click('#site-settings-save')->assertPresent('nav a[href="'.$path.'"]');
     expect($dns->fresh()->enabled)->toBeTrue();
-    $page->click('nav a[href="'.$path.'"]')->assertPathIs($path)->click('button:text-is("Edit")')
+    $page->click('nav a[href="'.$path.'"]')->assertPathIs($path)->click('button[aria-label="More actions"]')->click('[role="menuitem"]:has-text("Configure check…")')
         ->assertSee('Check settings')->assertNoJavaScriptErrors();
     $page->click('[data-slot=sheet-content] button:text-is("Cancel")');
     $page = visit('/sites/'.$site->id.'/settings')->click('#settings-check-'.$dns->id)->click('#site-settings-save')

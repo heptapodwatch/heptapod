@@ -75,7 +75,8 @@ export function SheetForm({
             className="w-full gap-0 sm:max-w-xl"
         >
             <SheetHeader className="shrink-0 border-b p-6 pr-12">
-                <SheetTitle>{title}</SheetTitle>
+                {/* outline-none: a check settings sheet focuses its title on open (no outline flash). */}
+                <SheetTitle className="outline-none">{title}</SheetTitle>
                 <SheetDescription>
                     {description}
                     {detail && (

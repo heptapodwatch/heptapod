@@ -408,6 +408,7 @@
     "For 1 day": "Für 1 Tag",
     "For 7 days": "Für 7 Tage",
     "Until a date…": "Bis zu einem Zeitpunkt…",
+    "Configure check…": "Prüfung konfigurieren…",
     "Turn check off…": "Prüfung ausschalten…",
     "Turn check off": "Prüfung ausschalten",
     "Turn off the {{check}} check?": "Prüfung „{{check}}“ ausschalten?",
@@ -417,7 +418,6 @@
     "Snooze until": "Stummschalten bis",
     "check_snooze.until_invalid": "Wählen Sie einen Zeitpunkt in der Zukunft, höchstens 365 Tage voraus.",
     "Turned off": "Ausgeschaltet",
-    "Snooze until…": "Stummschalten bis…",
     "run.progress.crawl": "{{done}} von {{total}} Seiten",
     "run.progress.lighthouse": "{{done}} von {{total}} Schritten",
     "run.progress.sitemap": "{{done}} von {{total}} URLs",
@@ -449,7 +449,6 @@
     "site_sections.expires_in_days_other": "Läuft in {{formattedCount}} Tagen ab",
     "site_sections.snoozed": "Stummgeschaltet",
     "site_sections.settings_description": "Adresse, Prüfungen, Alarme und Repositorys dieser Website verwalten.",
-    "site_sections.show_all_settings": "Alle Einstellungen",
     "site_sections.expires_on": "Läuft am {{date}} ab",
     "site_sections.valid_until": "Gültig bis {{date}}",
     "site_sections.expired_on": "Abgelaufen am {{date}}"

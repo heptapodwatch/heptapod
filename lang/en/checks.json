@@ -408,6 +408,7 @@
     "For 1 day": "For 1 day",
     "For 7 days": "For 7 days",
     "Until a date…": "Until a date…",
+    "Configure check…": "Configure check…",
     "Turn check off…": "Turn check off…",
     "Turn check off": "Turn check off",
     "Turn off the {{check}} check?": "Turn off the {{check}} check?",
@@ -417,7 +418,6 @@
     "Snooze until": "Snooze until",
     "check_snooze.until_invalid": "Choose a time in the future, at most 365 days ahead.",
     "Turned off": "Turned off",
-    "Snooze until…": "Snooze until…",
     "run.progress.crawl": "{{done}} of {{total}} pages",
     "run.progress.lighthouse": "{{done}} of {{total}} steps",
     "run.progress.sitemap": "{{done}} of {{total}} URLs",
@@ -449,7 +449,6 @@
     "site_sections.expires_in_days_other": "Expires in {{formattedCount}} days",
     "site_sections.snoozed": "Snoozed",
     "site_sections.settings_description": "Manage the address, checks, alerts and repositories of this site.",
-    "site_sections.show_all_settings": "All settings",
     "site_sections.expires_on": "Expires {{date}}",
     "site_sections.valid_until": "Valid until {{date}}",
     "site_sections.expired_on": "Expired {{date}}"

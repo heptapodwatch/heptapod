@@ -1,6 +1,12 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import {
+    cleanup,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+} from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { CheckDetail } from './check-detail';
 import { checkTabPageFixture, sites } from '@/fixtures/design';
@@ -18,12 +24,19 @@ vi.mock('@inertiajs/react', () => ({
     Link: ({ children, href }: { children: ReactNode; href: string }) => (
         <a href={href}>{children}</a>
     ),
-    // The header's closed Snooze until sheet holds its form; nothing here submits it.
-    useForm: <T,>(data: T) => ({ data, errors: {}, processing: false }),
+    // The header's sheets hold forms (Snooze until, check settings); nothing here submits them.
+    useForm: <T,>(data: T) => ({
+        data,
+        errors: {},
+        processing: false,
+        reset: () => {},
+        clearErrors: () => {},
+    }),
 }));
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }));
-vi.mock('@/components/check-configuration', () => ({
-    CheckConfiguration: () => null,
+vi.mock('@/components/check-settings-facts', () => ({
+    CheckScheduleSummary: () => null,
+    CheckSettingsFacts: () => null,
 }));
 vi.mock('@/components/check-history', () => ({ CheckHistory: () => null }));
 vi.mock('@/components/check-evidence', () => ({ CheckEvidence: () => null }));
@@ -83,7 +96,21 @@ function page(pending: boolean) {
     });
 }
 
-afterEach(cleanup);
+beforeEach(() => {
+    // The settings sheet's radio group measures itself.
+    vi.stubGlobal(
+        'ResizeObserver',
+        class {
+            observe() {}
+            unobserve() {}
+            disconnect() {}
+        },
+    );
+});
+afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+});
 
 it('shows the projected pending state in the check header with a muted previous result and no old change chip', () => {
     render(<CheckDetail page={page(true)} requestedRun={own} />, {
@@ -108,4 +135,58 @@ it('keeps the stored header and change chip when no accepted recheck is pending'
     expect(screen.getByText('Failed', { exact: true })).not.toBeNull();
     expect(screen.getByText('Old change chip')).not.toBeNull();
     expect(screen.queryByText(/Last result: Failed/)).toBeNull();
+});
+
+it('opens the check settings from More actions and returns focus to its trigger', async () => {
+    render(
+        <CheckDetail
+            page={page(false)}
+            primaryAction={<button type="button">Run check</button>}
+            requestedRun={own}
+        />,
+        { wrapper: TooltipProvider },
+    );
+    expect(document.querySelector('[data-check-configuration]')).toBeNull();
+    const trigger = screen.getByRole('button', { name: 'More actions' });
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+    expect(
+        await screen.findByRole('menuitem', { name: 'Turn check off…' }),
+    ).not.toBeNull();
+    const configure = screen.getByRole('menuitem', {
+        name: 'Configure check…',
+    });
+    configure.focus();
+    fireEvent.click(configure);
+    expect(screen.getByRole('button', { name: 'Save' })).not.toBeNull();
+
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+        key: 'Escape',
+    });
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+});
+
+it('opens the check settings read-only for roles that cannot change them', () => {
+    const readOnly = page(false);
+    render(
+        <CheckDetail
+            page={{
+                ...readOnly,
+                can_run: false,
+                check_settings: {
+                    ...readOnly.check_settings,
+                    can_update: false,
+                },
+            }}
+            requestedRun={own}
+        />,
+        { wrapper: TooltipProvider },
+    );
+    expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Check settings' }));
+    expect(
+        screen.getByRole('dialog', { name: 'Check settings' }),
+    ).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+    expect(screen.queryByRole('spinbutton')).toBeNull();
 });

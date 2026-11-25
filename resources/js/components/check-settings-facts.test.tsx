@@ -8,7 +8,10 @@ import {
 import type { ReactNode } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { I18nextProvider } from 'react-i18next';
-import { CheckConfiguration } from './check-configuration';
+import {
+    CheckScheduleSummary,
+    CheckSettingsFacts,
+} from './check-settings-facts';
 import { CronTasksDetail } from './cron-tasks-detail';
 import { CheckDetail } from './check-detail';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -116,7 +119,7 @@ it.each([
         const checkPage = page();
         render(
             <I18nextProvider i18n={i18n}>
-                <CheckConfiguration page={checkPage} />
+                <CheckScheduleSummary page={checkPage} />
                 <CronTasksDetail
                     page={checkPage}
                     history={{
@@ -185,7 +188,7 @@ it.each([
         });
         render(
             <I18nextProvider i18n={i18n}>
-                <CheckConfiguration
+                <CheckSettingsFacts
                     page={{
                         ...page(),
                         check_settings: {
@@ -209,12 +212,6 @@ it.each([
                 />
             </I18nextProvider>,
             { wrapper: TooltipProvider },
-        );
-
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: i18n.t('site_sections.show_all_settings'),
-            }),
         );
 
         expect(screen.getByText(speed)).not.toBeNull();
