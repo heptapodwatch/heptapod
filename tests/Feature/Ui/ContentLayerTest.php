@@ -254,8 +254,8 @@ it('keeps the stored performance outcome independent of the current chart window
     }
     $props = $this->actingAs($owner)->get('/sites/'.$uptime->site_id)->assertOk()->inertiaProps();
     $performance = collect($props['site']['checks'])->firstWhere('key', 'performance');
-    $chart = $this->get('/sites/'.$uptime->site_id.'/checks/'.$uptime->id)->assertOk()->inertiaProps()['response_times'][0];
-    expect($chart['key'])->toBe('24h')->and($chart['points'][0]['maximum_ms'])->toBe(999);
+    $chart = $this->get('/sites/'.$uptime->site_id.'/checks/'.$uptime->id)->assertOk()->inertiaProps()['response_time'];
+    expect($chart['key'])->toBe('24h')->and($chart['points'][0]['average_ms'])->toEqual(999)->and($chart['points'][0]['p95_ms'])->toEqual(999);
     if ($hasRecent) {
         expect($performance['summary_params']['average'])->toBe(999)->and($chart['recent_average_ms'])->toBe(400);
     } else {

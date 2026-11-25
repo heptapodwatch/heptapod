@@ -37,6 +37,7 @@ use Heptapod\Data\Ui\CheckTabPageData;
 use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\MaintenanceSiteHeaderData;
 use Heptapod\Data\Ui\MetricSeriesData;
+use Heptapod\Data\Ui\MonthlyUptimeData;
 use Heptapod\Data\Ui\PerformanceNoiseData;
 use Heptapod\Data\Ui\ResponsePointData;
 use Heptapod\Data\Ui\ResponseTimeSeriesData;
@@ -50,6 +51,7 @@ use Heptapod\Data\Ui\UptimeBucketData;
 use Heptapod\Enums\AlertSensitivity;
 use Heptapod\Enums\FreshnessSuppression;
 use Heptapod\Enums\NotificationCategory;
+use Heptapod\Enums\ResponseTimeRange;
 use Heptapod\Events\Notifications\EffectiveAlertSensitivity;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
@@ -196,7 +198,7 @@ final readonly class SiteDetailReader
         $getClient = function () use ($user, $site, &$client): ClientData {
             return $client ??= $this->client($user, $site);
         };
-        /** @return array{uptime: list<UptimeBucketData>, response_times: list<ResponseTimeSeriesData>, uptime_percentage: ?float} */
+        /** @return array{uptime: list<UptimeBucketData>, uptime_percentage: ?float} */
         $getHistory = function () use ($user, $siteId, &$history): array {
             return $history ??= $this->history->read($user, $siteId);
         };
@@ -294,7 +296,7 @@ final readonly class SiteDetailReader
         return ['hours24' => $hours24, 'days7' => $ranges['days7'], 'days30' => $site->uptime, 'days90' => $ranges['days90']];
     }
 
-    public function checkPage(User $user, int $siteId, int $checkId): CheckTabPageData
+    public function checkPage(User $user, int $siteId, int $checkId, ResponseTimeRange $responseRange = ResponseTimeRange::Hours24): CheckTabPageData
     {
         $storedSite = $this->storedSite($user, $siteId);
         $site = $this->sites->rows(collect([$storedSite]), includePresentations: true)[0];
@@ -351,11 +353,12 @@ final readonly class SiteDetailReader
             check_settings: Lazy::closure(fn (): CheckSettingsData => $this->checkSettings($site, [$check], static fn (): bool => $getCanUpdate())[0]
                 ?? throw new \LogicException('Scoped site projection must contain its check.')),
             detail: Lazy::closure(fn (): ?CheckDetailData => $this->detail($check)),
-            response_times: Lazy::closure(fn (): array => $this->history->read($user, $siteId, $checkId)['response_times']),
+            monthly_uptime: Lazy::closure(fn (): ?MonthlyUptimeData => $check->type === CheckKey::Uptime ? $this->history->monthlyUptime($check, $user->resolvedTimezone()) : null),
+            response_time: Lazy::closure(fn (): ?ResponseTimeSeriesData => $check->type === CheckKey::Uptime ? $this->history->responseTime($checkId, $responseRange) : null),
             phase_series: Lazy::closure(fn (): array => $check->type === CheckKey::Uptime ? $this->checkPhases($getMetrics()) : []),
             response_p95_hourly: Lazy::closure(static fn (): ?MetricSeriesData => $getHourly()['p95'] ?? null),
             client: Lazy::closure(fn (): ClientData => $this->client($user, $site)),
-            history: Lazy::closure(fn (): ?CheckHistoryData => $this->checkHistory($user, $check)),
+            history: Lazy::closure(fn (): ?CheckHistoryData => $this->checkHistory($user, $check, charts: true)),
             maintenance: Lazy::closure(fn (): ?MaintenanceSiteHeaderData => $this->maintenance($user, $siteId)),
             performance_noise: Lazy::closure(fn (): ?PerformanceNoiseData => $check->type === CheckKey::Performance ? $this->performanceNoise($check, $getRuns()) : null),
             performance_unavailable: Lazy::closure(fn (): ?CheckRunPresentationPartData => $this->performanceAvailability->forCheck($check, $suppression)),
@@ -481,7 +484,8 @@ final readonly class SiteDetailReader
         return $this->presentations->forRun($check, $run);
     }
 
-    public function checkHistory(User $user, Check $check): ?CheckHistoryData
+    /** @param  bool  $charts  Includes the projection's lazy chart series (the check tab draws them, the overview does not). */
+    public function checkHistory(User $user, Check $check, bool $charts = false): ?CheckHistoryData
     {
         $type = in_array($check->type, $this->registry->keys(), true) ? $this->registry->get($check->type) : null;
         $projection = $type instanceof CheckHistoryProvider ? $type->history($check->id, Gate::forUser($user)->allows('update', $check)) : null;
@@ -491,7 +495,7 @@ final readonly class SiteDetailReader
         $site = $check->site ?? throw new \LogicException('A check must belong to a site.');
         $context = RedactionContext::forSite($site, $check);
 
-        return $projection->redacted($context->secrets, $context->urls);
+        return ($charts ? $projection->include('*') : $projection)->redacted($context->secrets, $context->urls);
     }
 
     public function detail(Check $check): ?CheckDetailData

@@ -87,7 +87,7 @@ it('serves scoped overview history and incident links without secrets', function
         ->where('site.identity.id', $site->id)->where('client.id', $client->id)->where('client.name', $client->name)->where('site.checks.0.open_incident_id', $incident->id)
         ->where('site.state', 'check-error')->where('can_manage', false)->has('history', 90)->has('incidents', 1)
         // 388acc030 removes check-only charts from the site overview.
-        ->where('incidents.0.cause', 'errored')->missing('response_times')->missing('phase_series')
+        ->where('incidents.0.cause', 'errored')->missing('response_time')->missing('phase_series')
         // The rail lists the checks; events live in Activity, what is coming in Upcoming.
         ->missing('events')->missing('upcoming'));
     expect(json_encode($response->inertiaProps(), JSON_THROW_ON_ERROR))->not->toContain($secret);
@@ -189,7 +189,7 @@ it('serves per-check runs, masked settings and stored hourly p95 without exposin
 
     $response = $this->actingAs($user)->get('/sites/'.$site->id.'/checks/'.$check->id)->assertOk()->assertInertia(fn (Assert $page): Assert => $page
         ->component('sites/show')->where('header.id', $site->id)->where('check.id', $check->id)->where('client.id', $client->id)->has('runs', 1)->where('metrics', [])
-        ->where('check_settings.settings.secret', '********')->where('detail', null)->has('response_times', 4)
+        ->where('check_settings.settings.secret', '********')->where('detail', null)->where('response_time', null)
         ->where('response_p95_hourly.points.167.value', 300));
     expect(json_encode($response->inertiaProps(), JSON_THROW_ON_ERROR))->not->toContain($secret);
     // Only the performance evidence reads the raw metric series.
@@ -207,7 +207,8 @@ it('holds site, check, and incident detail query budgets as related history grow
     $user = User::factory()->create();
     $user->assignRole('Owner');
     $site = Site::factory()->create();
-    $check = Check::factory()->for($site)->create();
+    // A monitored uptime check (first result 40 days ago), so the check page also reads its monthly uptime.
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::Uptime, 'first_result_at' => now()->subDays(40)]);
     $incident = Incident::factory()->for($check)->create();
     $eventCount = 0;
     $addHistory = static function (int $rows) use ($check, $incident, &$eventCount): void {
@@ -225,6 +226,7 @@ it('holds site, check, and incident detail query budgets as related history grow
     // pages, 36aca5a1a avatars and 25458fc44/0a385128 shell health are batched reads, not per-history-row queries.
     // Feed-visible events add their batched site, client, check and incident loads (incident page). The overview reads the site's repository links once.
     // The sidebar's late runs count is read inline, not in a second deferred request (two reads), and so is Running now (visible sites, check runs, imports, backup). Paged sub-lists count their rows once (uptime failures + open incident window, incident notifications).
+    // The uptime check's Monthly uptime adds eight bounded reads (two UptimeReader snapshots: the months and the 90-day/1-year/all ranges), 55 -> 63 on the check page; the budget stays 67.
     [$path, $budget, $rendered] = match ($page) {
         'site' => ['/sites/'.$site->id, 63, static fn (array $props): int => count($props['incidents'])],
         'check' => ['/sites/'.$site->id.'/checks/'.$check->id, 67, static fn (array $props): int => count($props['runs'])],
@@ -288,7 +290,7 @@ it('returns only requested props when polling a site overview', function (): voi
 
     $initial = $this->actingAs($user)->get('/sites/'.$site->id)->assertOk();
     $response = $this->get('/sites/'.$site->id, ['X-Inertia' => 'true', 'X-Inertia-Version' => $initial->inertiaPage()['version'], 'X-Inertia-Partial-Component' => 'sites/show', 'X-Inertia-Partial-Data' => 'site'])->assertOk();
-    $response->assertJsonPath('props.site.id', $site->id)->assertJsonMissingPath('props.history')->assertJsonMissingPath('props.events')->assertJsonMissingPath('props.response_times');
+    $response->assertJsonPath('props.site.id', $site->id)->assertJsonMissingPath('props.history')->assertJsonMissingPath('props.events')->assertJsonMissingPath('props.response_time');
 });
 
 /** @return array<string, mixed> the deferred props a site page loads after its first render */
@@ -357,7 +359,9 @@ it('serves the Lighthouse tab\'s last successful scores for the launchpad card o
     $card = siteDeferredProps('/sites/'.$site->id, 'lighthouse')['lighthouse'];
     expect($card['check_type'])->toBe('lighthouse')
         ->and($card['last_successful_at'])->toBe($run->ended_at->toIso8601String())
-        ->and(array_intersect_key($card['last_successful_metrics'], $scores))->toEqual($scores);
+        ->and(array_intersect_key($card['last_successful_metrics'], $scores))->toEqual($scores)
+        // The weekly score history belongs to the Lighthouse tab; the card never reads it.
+        ->and($card)->not->toHaveKey('scores');
     $lighthouse->update(['enabled' => false]);
     expect(siteDeferredProps('/sites/'.$site->id, 'lighthouse')['lighthouse'])->toBeNull();
 });

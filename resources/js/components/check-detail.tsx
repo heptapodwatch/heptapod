@@ -10,6 +10,8 @@ import { DnsComparison } from '@/components/dns-comparison';
 import { CronTasksDetail } from '@/components/cron-tasks-detail';
 import { ApplicationHealthDetail } from '@/components/application-health-detail';
 import { ChartAreaInteractive } from '@/components/chart-area-interactive';
+import { MonthlyUptime } from '@/components/monthly-uptime';
+import { LighthouseScoreHistory } from '@/components/lighthouse-score-history';
 import { PerformanceEvidence } from '@/components/performance-evidence';
 import { ResponseBreakdown } from '@/components/response-breakdown';
 import { useCheckHeadline } from '@/hooks/use-check-headline';
@@ -61,12 +63,12 @@ export function CheckDetail({
                 <ApplicationHealthDetail history={page.history} />
             ) : (
                 <>
-                    {check.key === 'uptime' &&
-                        page.response_times.length > 0 && (
-                            <ChartAreaInteractive
-                                series={page.response_times}
-                            />
-                        )}
+                    {page.response_time && (
+                        <ChartAreaInteractive series={page.response_time} />
+                    )}
+                    {page.monthly_uptime && (
+                        <MonthlyUptime data={page.monthly_uptime} />
+                    )}
                     {check.key === 'uptime' &&
                         page.phase_series.some((series) =>
                             series.points.some((point) => point.value !== null),
@@ -113,6 +115,12 @@ export function CheckDetail({
                         origin={new URL(page.header.url).origin}
                         requestedHost={new URL(page.header.url).hostname}
                     />
+                    {page.history?.check_type === 'lighthouse' &&
+                        page.history.scores && (
+                            <LighthouseScoreHistory
+                                weeks={page.history.scores}
+                            />
+                        )}
                 </>
             )}
         </>

@@ -304,54 +304,6 @@ export function bucketForState(
         failed_seconds: failed_count * 60,
     };
 }
-const siteHistories: Record<number, UptimeBucketDto[]> = Object.fromEntries(
-    sites.map((site) => [
-        site.id,
-        Array.from({ length: 90 }, (_, day) => {
-            const state =
-                day < 3
-                    ? 'pending'
-                    : site.state === 'paused'
-                      ? 'paused'
-                      : day === 89
-                        ? runState(
-                              'uptime',
-                              site.checks.find(
-                                  (check) => check.key === 'uptime',
-                              )!.result,
-                          ) === 'down'
-                            ? 'down'
-                            : 'ok'
-                        : day === 41
-                          ? 'warning'
-                          : 'ok';
-            return bucketForState(
-                state,
-                new Date(
-                    Math.floor(snapshotNow / 86400000) * 86400000 -
-                        (89 - day) * 86400000,
-                ).toISOString(),
-                day < 3 || site.state === 'paused'
-                    ? null
-                    : day === 89 && site.state === 'down'
-                      ? 97.12
-                      : day === 41
-                        ? 100
-                        : 100,
-            );
-        }),
-    ]),
-);
-function overviewHistory(
-    site: SiteDto,
-    state: DesignPageProps['state'] = 'populated',
-): UptimeBucketDto[] {
-    const history = siteHistories[site.id];
-    if (!history) throw new Error(`Unknown site history ${site.id}`);
-    return state === 'empty'
-        ? history.map((bucket) => bucketForState('pending', bucket.date, null))
-        : history;
-}
 const baseSite = sites[22];
 if (!baseSite) throw new Error('Gallery requires the down-site fixture');
 export const gallerySites: SiteDto[] = states.map((state, index) => ({
@@ -1291,8 +1243,7 @@ export function incidentPageFixture(
 }
 function responseTimeSeries(
     site: SiteDto,
-    history = overviewHistory(site),
-): Heptapod.Data.Ui.ResponseTimeSeriesData[] {
+): Heptapod.Data.Ui.ResponseTimeSeriesData {
     const measured = site.state !== 'pending' && site.state !== 'paused';
     const lastMinute = Math.floor(snapshotNow / 60000) * 60000;
     const minutes: Heptapod.Data.Ui.ResponseTimeBucketData[] = Array.from(
@@ -1303,25 +1254,6 @@ function responseTimeSeries(
                 ? probeMetrics[site.id]![minute]!.total_time_in_seconds! * 1000
                 : null,
             p95_ms: null,
-            maximum_ms: null,
-            failure_count: 0,
-            error_count: 0,
-            warning_count: 0,
-        }),
-    );
-    const daily: Heptapod.Data.Ui.ResponseTimeBucketData[] = history.map(
-        (bucket, day) => ({
-            time: bucket.date,
-            average_ms:
-                bucket.uptime === null
-                    ? null
-                    : 182 +
-                      Math.round(
-                          Math.sin(day * 1.7) * 24 + Math.cos(day * 0.4) * 18,
-                      ) +
-                      (bucket.status === 'failed' ? 800 : 0),
-            p95_ms: null,
-            maximum_ms: null,
             failure_count: 0,
             error_count: 0,
             warning_count: 0,
@@ -1336,12 +1268,7 @@ function responseTimeSeries(
     const recent_average_ms = recent.length
         ? recent.reduce((sum, value) => sum + value, 0) / recent.length
         : null;
-    return [
-        { key: '24h', points: minutes, recent_average_ms },
-        { key: '7d', points: daily.slice(-7), recent_average_ms },
-        { key: '30d', points: daily.slice(-30), recent_average_ms },
-        { key: '90d', points: daily, recent_average_ms },
-    ];
+    return { key: '24h', points: minutes, recent_average_ms };
 }
 function checkSettingsFixture(
     site: SiteDto,
@@ -1498,7 +1425,8 @@ export function checkTabPageFixture(
             attention_reason: null,
         },
         detail,
-        response_times: responseTimeSeries(site),
+        response_time: responseTimeSeries(site),
+        monthly_uptime: null,
         phase_series: [],
         response_p95_hourly: null,
         history: null,

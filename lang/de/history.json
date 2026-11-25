@@ -1,0 +1,19 @@
+{
+    "1 year": "1 Jahr",
+    "history.all": "Gesamt",
+    "response_time.five_minute_values": "Werte pro 5 Minuten",
+    "response_time.hourly_values": "Werte pro Stunde",
+    "response_time.daily_values": "Werte pro Tag (UTC-Tage)",
+    "response_time.weekly_values": "Werte pro Woche",
+    "response_time.week_of": "Woche vom {{date}}",
+    "p95.hint": "95 von 100 Prüfungen haben schneller geantwortet. So sehen Sie, wie langsam die Website im ungünstigsten Fall wird, ohne dass ein einzelner Ausreißer das Bild bestimmt.",
+    "p95.weekly_hint": "Pro Woche: der langsamste Tag.",
+    "history.since": "Seit {{date}}",
+    "history.monthly_uptime": "Erreichbarkeit pro Monat",
+    "history.monthly_uptime_description": "Unterbrechungen in Minuten pro Monat und die Erreichbarkeit jedes Monats.",
+    "history.interrupted_minutes": "Unterbrechungen in Minuten",
+    "history.score_history": "Verlauf der Bewertungen",
+    "history.score_history_description": "Durchschnitt pro Woche und Kategorie; die Änderung vergleicht mit derselben Woche vor einem Jahr.",
+    "history.year_change": "{{change}} gegenüber dem Vorjahr",
+    "history.unknown_range": "Unbekannter Zeitraum. Es werden 24 Stunden angezeigt."
+}

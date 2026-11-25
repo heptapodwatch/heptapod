@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Heptapod\Queries;
 
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Heptapod\Checks\History\RetentionPolicy;
 use Heptapod\Checks\History\RollupReader;
 use Heptapod\Contracts\CheckKey;
+use Heptapod\Data\Ui\MonthlyUptimeData;
 use Heptapod\Data\Ui\ResponseTimeBucketData;
 use Heptapod\Data\Ui\ResponseTimeSeriesData;
 use Heptapod\Data\Ui\UptimeBucketData;
+use Heptapod\Data\Ui\UptimeMonthData;
 use Heptapod\Enums\BucketStatus;
 use Heptapod\Enums\ResponseTimeRange;
 use Heptapod\Maintenance\MaintenanceTargets;
@@ -21,9 +24,12 @@ use Illuminate\Support\Facades\DB;
 
 final readonly class HistoryReader
 {
+    /** "All" reads at most 156 weeks of daily rollups, counted back from the week of the last included day (yesterday). */
+    private const int AllWeeks = 156;
+
     public function __construct(private SitePolicy $policy, private RollupReader $history, private UptimeReader $uptimeReader) {}
 
-    /** @return array{uptime: list<UptimeBucketData>, response_times: list<ResponseTimeSeriesData>, uptime_percentage: ?float} */
+    /** @return array{uptime: list<UptimeBucketData>, uptime_percentage: ?float} */
     public function read(User $user, ?int $siteId = null, ?int $checkId = null): array
     {
         // The validated 92-day hourly minimum preserves all 90 local days, including UTC+14 boundaries.
@@ -119,29 +125,71 @@ final readonly class HistoryReader
             $status = BucketStatus::forUptime($interval->failed_seconds, $interval->outage, $errored, $warning, $succeeded, $interval->maintenance);
             $uptime[] = new UptimeBucketData($interval->date, $dailyUptime[$index], $succeeded, $warning, $failed, $errored, $status, $interval->incident_count, $interval->failed_seconds);
         }
-        if ($checkId === null) {
-            return ['uptime' => $uptime, 'response_times' => [], 'uptime_percentage' => $percentage];
-        }
 
-        $recent = $this->history->responsePeaks($checkIds, $until->subDay(), $until, 5, combine: true)[0] ?? [];
-        $recentSummary = $this->history->summarize($this->history->recentForChecks($checkIds, $until->subMinutes(15), $until));
-        $average = $recentSummary['metric_averages']['total_time_in_seconds'] ?? null;
-        $recentAverage = $average === null ? null : round(1000 * $average, 2);
+        return ['uptime' => $uptime, 'uptime_percentage' => $percentage];
+    }
+
+    /**
+     * One range of one check's response time: average and 95th percentile per bucket. Each range reads one bounded index
+     * range; past 7 days buckets are UTC days or weeks (local days would need hourly rollups, which deletion may remove).
+     */
+    public function responseTime(int $checkId, ResponseTimeRange $range): ResponseTimeSeriesData
+    {
+        $now = CarbonImmutable::now('UTC');
+        $today = $now->startOfDay();
+        $metric = 'total_time_in_seconds';
+        $ms = static fn (int|float|null $seconds): ?float => $seconds === null ? null : 1000 * $seconds;
         $points = [];
-        foreach ($intervals as $index => $interval) {
-            $average = $byTime[$bounds[$index]['rollup_from']]['metric_averages']['total_time_in_seconds'] ?? null;
-            $points[] = new ResponseTimeBucketData($interval->date, $average === null ? null : 1000 * $average, null);
+        if ($range === ResponseTimeRange::Hours24) {
+            foreach ($this->history->responseSamples($checkId, $now->subDay(), $now) as $bucket) {
+                $points[] = new ResponseTimeBucketData($bucket['bucket_start']->toIso8601String(), $bucket['average_ms'], $bucket['p95_ms'],
+                    $bucket['failed_count'], $bucket['errored_count'], $bucket['warning_count']);
+            }
+        } elseif ($range === ResponseTimeRange::All) {
+            foreach ($this->history->weekly($checkId, [$metric], $today->subDay()->startOfWeek(CarbonInterface::MONDAY)->subWeeks(self::AllWeeks - 1), $today) as $bucket) {
+                $points[] = new ResponseTimeBucketData($bucket['bucket_start']->toIso8601String(),
+                    $ms($bucket['metric_averages'][$metric] ?? null), $ms($bucket['metric_p95_max'][$metric] ?? null));
+            }
+        } else {
+            [$period, $from, $until] = match ($range) {
+                ResponseTimeRange::Days7 => ['hourly', $now->startOfHour()->subDays(7), $now->startOfHour()],
+                ResponseTimeRange::Days30 => ['daily', $today->subDays(30), $today],
+                ResponseTimeRange::Days90 => ['daily', $today->subDays(90), $today],
+                ResponseTimeRange::Year1 => ['daily', $today->subDays(365), $today],
+            };
+            foreach ($this->history->read($checkId, $period, $from, $until) as $bucket) {
+                $points[] = new ResponseTimeBucketData($bucket['bucket_start']->toIso8601String(),
+                    $ms($bucket['metric_averages'][$metric] ?? null), $ms($bucket['metric_p95'][$metric] ?? null));
+            }
         }
-        $minutePoints = [];
-        foreach ($recent as $bucket) {
-            $minutePoints[] = new ResponseTimeBucketData($bucket['bucket_start']->toIso8601String(), null, null,
-                $bucket['maximum_ms'], $bucket['failed_count'], $bucket['errored_count'], $bucket['warning_count']);
-        }
-        $responses = [new ResponseTimeSeriesData(ResponseTimeRange::Hours24, $minutePoints, $recentAverage)];
-        foreach ([[ResponseTimeRange::Days7, 7], [ResponseTimeRange::Days30, 30], [ResponseTimeRange::Days90, 90]] as [$range, $days]) {
-            $responses[] = new ResponseTimeSeriesData($range, array_slice($points, -$days), $recentAverage);
-        }
+        $recent = $this->history->summarize($this->history->recentForChecks([$checkId], $now->subMinutes(15), $now));
+        $average = $recent['metric_averages'][$metric] ?? null;
 
-        return ['uptime' => $uptime, 'response_times' => $responses, 'uptime_percentage' => $percentage];
+        return new ResponseTimeSeriesData($range, $points, $average === null ? null : round(1000 * $average, 2));
+    }
+
+    /**
+     * Calendar months in the viewer's time zone since the check's first result, the newest 24 drawn. Each month's
+     * interrupted time and uptime come from the same incident intervals; null before the first result.
+     */
+    public function monthlyUptime(Check $check, string $timezone): ?MonthlyUptimeData
+    {
+        if ($check->first_result_at === null) {
+            return null;
+        }
+        $now = CarbonImmutable::now('UTC');
+        $since = $check->first_result_at->utc();
+        $start = $since->setTimezone($timezone)->startOfMonth()->max($now->setTimezone($timezone)->startOfMonth()->subMonths(23));
+        $windows = [];
+        for ($month = $start; $month->lessThan($now); $month = $month->addMonth()->startOfMonth()) {
+            $windows[] = [$month->utc(), $month->addMonth()->startOfMonth()->utc()->min($now)];
+        }
+        $months = [];
+        foreach ($this->uptimeReader->seriesWithDowntime([$check->id], $windows) as $index => $month) {
+            $months[] = new UptimeMonthData($windows[$index][0]->setTimezone($timezone)->toIso8601String(), $month['uptime'], $month['downtime_seconds']);
+        }
+        $ranges = $this->uptimeReader->percentagesForRanges([$check->id], ['days90' => $now->subDays(90), 'days365' => $now->subDays(365), 'all' => $since], $now);
+
+        return new MonthlyUptimeData($since->toIso8601String(), $months, $ranges['days90'], $ranges['days365'], $ranges['all']);
     }
 }

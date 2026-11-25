@@ -17,12 +17,6 @@ use RuntimeException;
  */
 final class RollupReader implements DailyRollupReader
 {
-    /** @return list<array{bucket_start: CarbonImmutable, metric_averages: array<string, float>}> */
-    public function daily(int $checkId, CarbonImmutable $from, CarbonImmutable $until): array
-    {
-        return $this->read($checkId, 'daily', $from, $until);
-    }
-
     /**
      * UTC bucket starts in [from, until); bounds must be aligned. Empty buckets have null uptime and no metrics.
      * Numeric object leaves use dotted paths (e.g. curl.total_time). p95 applies only to this bucket, never an arbitrary range.
@@ -55,8 +49,9 @@ final class RollupReader implements DailyRollupReader
                    coalesce(metric_counts, '{}'::jsonb) AS metric_counts, coalesce(metric_p95, '{}'::jsonb) AS metric_p95
             FROM generate_series(?::timestamptz, ?::timestamptz, interval '1 {$unit}', 'UTC') AS bucket
             LEFT JOIN check_run_rollups_{$period} ON check_id = ? AND bucket_start = bucket
+                AND bucket_start >= ?::timestamptz AND bucket_start < ?::timestamptz
             WHERE bucket < ?::timestamptz ORDER BY bucket
-            SQL, [$from->format('Y-m-d H:i:s.uP'), $until->format('Y-m-d H:i:s.uP'), $checkId, $until->format('Y-m-d H:i:s.uP')]);
+            SQL, [$from->format('Y-m-d H:i:s.uP'), $until->format('Y-m-d H:i:s.uP'), $checkId, $from->format('Y-m-d H:i:s.uP'), $until->format('Y-m-d H:i:s.uP'), $until->format('Y-m-d H:i:s.uP')]);
 
         $buckets = [];
         foreach ($rows as $row) {
@@ -153,6 +148,81 @@ final class RollupReader implements DailyRollupReader
             SQL, [$period, $timezone, $timezone, ...$checkIds, $from->format('Y-m-d H:i:s.uP'), $until->format('Y-m-d H:i:s.uP')]);
 
         return $this->projectSeries($rows);
+    }
+
+    /**
+     * Monday-aligned UTC weeks from daily rollups (see DailyRollupReader); daily p95s cannot be merged.
+     *
+     * @param  list<string>  $metrics
+     * @return list<array{bucket_start: CarbonImmutable, metric_averages: array<string, float>, metric_p95_max: array<string, float>}>
+     */
+    public function weekly(int $checkId, array $metrics, CarbonImmutable $from, CarbonImmutable $until): array
+    {
+        $from = $from->utc();
+        $until = $until->utc();
+        if ($from->notEqualTo($from->startOfWeek(CarbonInterface::MONDAY)) || $until->notEqualTo($until->startOfDay())
+            || $from->greaterThanOrEqualTo($until) || $from->diffInDays($until) > 1110) {
+            throw new InvalidArgumentException('Weekly rollups require a Monday start, a day-aligned end and at most 1110 days.');
+        }
+        /** @var list<object{week: string, metric: string, average: float|null, p95_max: float|null}> $rows */
+        $rows = DB::select(<<<'SQL'
+            SELECT (date_trunc('week', r.bucket_start AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')::text AS week, m.key AS metric,
+                sum(m.value::double precision) / nullif(sum((r.metric_counts ->> m.key)::double precision), 0) AS average,
+                max((r.metric_p95 ->> m.key)::double precision) AS p95_max
+            FROM check_run_rollups_daily r CROSS JOIN LATERAL jsonb_each_text(r.metric_sums) m
+            WHERE r.check_id = ? AND r.bucket_start >= ? AND r.bucket_start < ? AND m.key = ANY(?::text[])
+            GROUP BY 1, 2 ORDER BY 1, 2
+            SQL, [$checkId, $from->format('Y-m-d H:i:s.uP'), $until->format('Y-m-d H:i:s.uP'), '{'.implode(',', $metrics).'}']);
+        if ($rows === []) {
+            return [];
+        }
+        $byWeek = [];
+        foreach ($rows as $row) {
+            $week = CarbonImmutable::parse($row->week)->utc()->toIso8601String();
+            if ($row->average !== null) {
+                $byWeek[$week]['metric_averages'][$row->metric] = $row->average;
+            }
+            if ($row->p95_max !== null) {
+                $byWeek[$week]['metric_p95_max'][$row->metric] = $row->p95_max;
+            }
+            $byWeek[$week] ??= [];
+        }
+        $weeks = [];
+        for ($week = CarbonImmutable::parse($rows[0]->week)->utc(); $week->lessThan($until); $week = $week->addWeek()) {
+            $bucket = $byWeek[$week->toIso8601String()] ?? [];
+            $weeks[] = ['bucket_start' => $week, 'metric_averages' => $bucket['metric_averages'] ?? [], 'metric_p95_max' => $bucket['metric_p95_max'] ?? []];
+        }
+
+        return $weeks;
+    }
+
+    /**
+     * One check's last day in 5-minute buckets from raw runs: average and 95th percentile of the total time, plus the
+     * non-OK counts for the failure marks. Bounded to 24 hours by validateRecentWindow().
+     *
+     * @return list<array{bucket_start: CarbonImmutable, average_ms: ?float, p95_ms: ?float, failed_count: int, errored_count: int, warning_count: int}>
+     */
+    public function responseSamples(int $checkId, CarbonImmutable $from, CarbonImmutable $until): array
+    {
+        $this->validateRecentWindow($from, $until);
+        /** @var list<object{bucket_start: string, average_ms: float|null, p95_ms: float|null, failed_count: int, errored_count: int, warning_count: int}> $rows */
+        $rows = DB::select(<<<'SQL'
+            SELECT date_bin(interval '5 minutes', ended_at, ?::timestamptz)::text AS bucket_start,
+                1000 * avg((metrics->>'total_time_in_seconds')::double precision)
+                    FILTER (WHERE jsonb_typeof(metrics->'total_time_in_seconds') = 'number') AS average_ms,
+                1000 * percentile_cont(0.95) WITHIN GROUP (ORDER BY (metrics->>'total_time_in_seconds')::double precision)
+                    FILTER (WHERE jsonb_typeof(metrics->'total_time_in_seconds') = 'number') AS p95_ms,
+                count(*) FILTER (WHERE result = 'failed')::int AS failed_count,
+                count(*) FILTER (WHERE result = 'errored-or-timed-out')::int AS errored_count,
+                count(*) FILTER (WHERE result = 'warning')::int AS warning_count
+            FROM check_runs WHERE check_id = ? AND ended_at >= ? AND ended_at < ?
+            GROUP BY 1 ORDER BY 1
+            SQL, [$from, $checkId, $from, $until]);
+
+        return array_map(static fn (object $row): array => [
+            'bucket_start' => CarbonImmutable::parse($row->bucket_start)->utc(), 'average_ms' => $row->average_ms, 'p95_ms' => $row->p95_ms,
+            'failed_count' => $row->failed_count, 'errored_count' => $row->errored_count, 'warning_count' => $row->warning_count,
+        ], $rows);
     }
 
     /**

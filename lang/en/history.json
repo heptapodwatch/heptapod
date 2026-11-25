@@ -1,0 +1,19 @@
+{
+    "1 year": "1 year",
+    "history.all": "All",
+    "response_time.five_minute_values": "5-minute values",
+    "response_time.hourly_values": "Hourly values",
+    "response_time.daily_values": "Daily values (UTC days)",
+    "response_time.weekly_values": "Weekly values",
+    "response_time.week_of": "Week of {{date}}",
+    "p95.hint": "95 of 100 checks answered faster than this. It shows how slow the site gets at its worst, without one outlier taking over.",
+    "p95.weekly_hint": "Per week: the slowest day.",
+    "history.since": "Since {{date}}",
+    "history.monthly_uptime": "Monthly uptime",
+    "history.monthly_uptime_description": "Interrupted minutes per month and each month's uptime.",
+    "history.interrupted_minutes": "Interrupted minutes",
+    "history.score_history": "Score history",
+    "history.score_history_description": "Weekly average per category; the change compares with the same week a year ago.",
+    "history.year_change": "{{change}} vs. a year ago",
+    "history.unknown_range": "Unknown time range. Showing 24 hours."
+}

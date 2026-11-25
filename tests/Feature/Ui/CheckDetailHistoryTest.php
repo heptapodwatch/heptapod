@@ -12,7 +12,9 @@ use Heptapod\Contracts\RunResult;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\CheckRunRollupDaily;
+use Heptapod\Models\CheckRunRollupHourly;
 use Heptapod\Models\Event;
+use Heptapod\Models\Incident;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -48,7 +50,7 @@ it('projects only scoped, bounded and redacted uptime observations', function ()
         ->and($response->inertiaProps()['history']['runs'][0]['total_time_ms'])->toEqual(420)
         ->and($response->inertiaProps()['history']['recent_failures'])->toHaveCount(1)
         ->and($response->inertiaProps()['history']['recent_failures'][0]['run_id'])->toBe($failure->id)
-        ->and($response->inertiaProps()['response_times'])->toHaveCount(4)
+        ->and($response->inertiaProps()['response_time']['key'])->toBe('24h')
         ->and($response->inertiaProps()['history']['recent_failures'][0]['ended_at'])->toBe($failure->ended_at->toIso8601String())
         ->and($response->inertiaProps()['failure_threshold'])->toBe(3)
         ->and(array_values(array_filter($response->inertiaProps()['phase_series'][0]['points'], static fn (array $point): bool => $point['value'] !== null)))
@@ -57,6 +59,118 @@ it('projects only scoped, bounded and redacted uptime observations', function ()
         ->and(json_encode($response->inertiaProps(), JSON_THROW_ON_ERROR))->not->toContain('private-uptime-token', '418');
     $this->get('/sites/'.$other->site_id.'/checks/'.$other->id)->assertOk();
     $this->get('/sites/'.$site->id.'/checks/'.$other->id)->assertNotFound();
+});
+
+it('loads only the requested response-time range, with average and slow moments, within its bounded window', function (): void {
+    // 2026-10-04T00:30Z is a Sunday: the current UTC week started Monday 2026-09-28.
+    $user = User::factory()->create();
+    $user->assignRole('Owner');
+    $check = Check::factory()->create(['type' => CheckKey::Uptime]);
+    $daily = static fn (string $day, float $sum, int $count, float $p95) => CheckRunRollupDaily::factory()->for($check)->create([
+        'bucket_start' => CarbonImmutable::parse($day.'T00:00:00Z'), 'metric_sums' => ['total_time_in_seconds' => $sum],
+        'metric_counts' => ['total_time_in_seconds' => $count], 'metric_p95' => ['total_time_in_seconds' => $p95],
+    ]);
+    $daily('2026-10-03', 0.4, 2, 0.5);
+    $daily('2026-10-02', 0.9, 3, 0.7);
+    $daily('2026-10-04', 9.0, 1, 9.0);
+    $daily('2025-09-30', 3.0, 1, 3.0);
+    $daily('2023-09-20', 7.0, 1, 7.0);
+    CheckRunRollupHourly::factory()->for($check)->create(['bucket_start' => CarbonImmutable::parse('2026-10-03T23:00:00Z'),
+        'metric_sums' => ['total_time_in_seconds' => 0.6], 'metric_counts' => ['total_time_in_seconds' => 3], 'metric_p95' => ['total_time_in_seconds' => 0.25]]);
+    foreach ([0.1, 0.2, 0.3] as $seconds) {
+        CheckRun::factory()->for($check)->create(['started_at' => now()->subMinutes(3), 'ended_at' => now()->subMinutes(2), 'metrics' => ['total_time_in_seconds' => $seconds]]);
+    }
+    $range = fn (string $key): array => $this->actingAs($user)->get('/sites/'.$check->site_id.'/checks/'.$check->id.'?response_range='.$key)
+        ->assertOk()->inertiaProps()['response_time'];
+    $values = static fn (array $series): array => array_values(array_filter(array_map(
+        static fn (array $point): ?array => $point['average_ms'] === null ? null : [$point['time'], round($point['average_ms']), round($point['p95_ms'])],
+        $series['points'])));
+
+    $day = $range('24h');
+    expect($day['key'])->toBe('24h')->and($values($day))->toBe([['2026-10-04T00:25:00+00:00', 200.0, 290.0]]);
+    expect($values($range('7d')))->toBe([['2026-10-03T23:00:00+00:00', 200.0, 250.0]])->and($range('7d')['points'])->toHaveCount(168);
+    // UTC days up to yesterday: today's still-growing rollup is not drawn, and 1 year ends 365 days back.
+    $month = $range('30d');
+    expect($month['points'])->toHaveCount(30)->and($values($month))->toBe([['2026-10-02T00:00:00+00:00', 300.0, 700.0], ['2026-10-03T00:00:00+00:00', 200.0, 500.0]]);
+    expect($values($range('1y')))->toHaveCount(2)->and($range('1y')['points'])->toHaveCount(365);
+    // All: Monday weeks from the first held week; averages merge sums and counts, slow moments take the slowest day.
+    $all = $range('all');
+    expect($all['points'][0]['time'])->toBe('2025-09-29T00:00:00+00:00')->and($all['points'])->toHaveCount(53)
+        ->and(array_slice($values($all), -1))->toBe([['2026-09-28T00:00:00+00:00', 260.0, 700.0]])
+        ->and($values($all)[0])->toBe(['2025-09-29T00:00:00+00:00', 3000.0, 3000.0]);
+
+    // An unknown range opens the same check on 24 hours with a visible warning.
+    $this->get('/sites/'.$check->site_id.'/checks/'.$check->id.'?response_range=5y')
+        ->assertRedirect('/sites/'.$check->site_id.'/checks/'.$check->id)
+        ->assertInertiaFlash('toast', ['type' => 'warning', 'message' => 'Unknown time range. Showing 24 hours.']);
+    $page = $this->followingRedirects()->get('/sites/'.$check->site_id.'/checks/'.$check->id.'?response_range=5y')->assertOk();
+    expect($page->inertiaPage()['flash']['toast']['message'] ?? null)->toBe('Unknown time range. Showing 24 hours.')
+        ->and($page->inertiaProps()['response_time']['key'])->toBe('24h');
+});
+
+it('caps the weekly response and Lighthouse histories at exactly 156 weeks, counted back from the last included week', function (string $now, string $responseFirst, string $lighthouseFirst): void {
+    $this->travelTo(CarbonImmutable::parse($now));
+    $user = User::factory()->create();
+    $user->assignRole('Owner');
+    $uptime = Check::factory()->create(['type' => CheckKey::Uptime]);
+    $lighthouse = Check::factory()->for($uptime->site)->create(['type' => CheckKey::Lighthouse]);
+    // One row per day around both possible first weeks, plus yesterday and today.
+    $days = ['2023-10-08', '2023-10-09', '2023-10-15', '2023-10-16', CarbonImmutable::parse($now)->subDay()->toDateString(), CarbonImmutable::parse($now)->toDateString()];
+    foreach ($days as $day) {
+        CheckRunRollupDaily::factory()->for($uptime)->create(['bucket_start' => CarbonImmutable::parse($day.'T00:00:00Z'),
+            'metric_sums' => ['total_time_in_seconds' => 0.3], 'metric_counts' => ['total_time_in_seconds' => 1], 'metric_p95' => ['total_time_in_seconds' => 0.4]]);
+        CheckRunRollupDaily::factory()->for($lighthouse)->create(['bucket_start' => CarbonImmutable::parse($day.'T00:00:00Z'),
+            'metric_sums' => ['performance_score' => 80], 'metric_counts' => ['performance_score' => 1]]);
+    }
+    $this->actingAs($user);
+
+    $response = $this->get('/sites/'.$uptime->site_id.'/checks/'.$uptime->id.'?response_range=all')->assertOk()->inertiaProps()['response_time']['points'];
+    $scores = $this->get('/sites/'.$lighthouse->site_id.'/checks/'.$lighthouse->id)->assertOk()->inertiaProps()['history']['scores'];
+    expect($response)->toHaveCount(156)->and($response[0]['time'])->toBe($responseFirst)
+        ->and($scores)->toHaveCount(156)->and($scores[0]['week'])->toBe($lighthouseFirst);
+})->with([
+    // Sunday: yesterday and today share the week of Monday 2026-09-28.
+    'on a Sunday' => ['2026-10-04T00:30:00Z', '2023-10-09T00:00:00+00:00', '2023-10-09T00:00:00+00:00'],
+    // Monday: the response history still ends with last week; the Lighthouse history (today included) starts a new week.
+    'on a Monday' => ['2026-10-05T00:30:00Z', '2023-10-09T00:00:00+00:00', '2023-10-16T00:00:00+00:00'],
+]);
+
+it('shows a fresh uptime check without long-range values', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole('Owner');
+    $check = Check::factory()->create(['type' => CheckKey::Uptime]);
+    $url = '/sites/'.$check->site_id.'/checks/'.$check->id.'?response_range=';
+
+    expect($this->actingAs($user)->get($url.'all')->assertOk()->inertiaProps()['response_time']['points'])->toBe([])
+        ->and(array_filter(array_column($this->get($url.'90d')->inertiaProps()['response_time']['points'], 'average_ms')))->toBe([]);
+});
+
+it('counts monthly interrupted minutes from the same incidents as the monthly uptime, in the viewer time zone', function (): void {
+    $user = User::factory()->create(['timezone' => 'Europe/Berlin']);
+    $user->assignRole('Owner');
+    $since = CarbonImmutable::parse('2026-08-10T00:00:00Z');
+    $site = Site::factory()->create(['created_at' => $since]);
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::Uptime, 'created_at' => $since, 'first_result_at' => $since]);
+    $incident = static fn (string $from, string $until) => Incident::factory()->for($check)->for($site)->create([
+        'cause' => 'failed', 'opened_at' => $from, 'first_failure_at' => $from, 'resolved_at' => $until,
+    ]);
+    // 23:50-00:10 Berlin time: ten minutes in August and ten in September.
+    $incident('2026-08-31T21:50:00Z', '2026-08-31T22:10:00Z');
+    $incident('2026-09-15T10:00:00Z', '2026-09-15T10:30:00Z');
+
+    $props = $this->actingAs($user)->get('/sites/'.$site->id.'/checks/'.$check->id)->assertOk()->inertiaProps();
+    $monthly = $props['monthly_uptime'];
+    $august = CarbonImmutable::parse('2026-08-31T22:00:00Z')->diffInSeconds($since);
+    expect(array_column($monthly['months'], 'month'))->toBe(['2026-08-01T00:00:00+02:00', '2026-09-01T00:00:00+02:00', '2026-10-01T00:00:00+02:00'])
+        ->and(array_column($monthly['months'], 'interrupted_seconds'))->toBe([600, 2400, 0])
+        ->and($monthly['months'][0]['uptime'])->toEqualWithDelta(100 * (1 - 600 / abs($august)), 1e-9)
+        ->and($monthly['months'][1]['uptime'])->toEqualWithDelta(100 * (1 - 2400 / (30 * 86400)), 1e-9)
+        ->and($monthly['months'][2]['uptime'])->toEqual(100)
+        ->and($monthly['since'])->toBe('2026-08-10T00:00:00+00:00')
+        ->and($monthly['all'])->toEqual($monthly['days90']);
+
+    $fresh = Check::factory()->create(['type' => CheckKey::Uptime, 'first_result_at' => null]);
+    expect($this->get('/sites/'.$fresh->site_id.'/checks/'.$fresh->id)->inertiaProps()['monthly_uptime'])->toBeNull();
 });
 
 it('retains redacted last valid health components when the latest endpoint attempt fails', function (): void {
@@ -175,19 +289,23 @@ it('retains last measured Lighthouse scores after an errored run with 90 UTC sco
         'result' => RunResult::Errored, 'metrics' => [], 'evidence' => ['issues' => [], 'score_drops' => []],
     ]);
     $check->update(['latest_run_id' => $failed->id, 'latest_run_ended_at' => $failed->ended_at]);
-    CheckRunRollupDaily::factory()->for($check)->create([
-        'bucket_start' => now()->subDays(89)->startOfDay(),
-        'metric_sums' => ['performance_score' => 80], 'metric_counts' => ['performance_score' => 1],
-    ]);
+    // Weekly averages over UTC weeks from Monday; three years back at most.
+    foreach (['2026-09-28' => 80, '2026-10-04' => 90, '2025-10-01' => 60, '2023-09-20' => 10] as $day => $score) {
+        CheckRunRollupDaily::factory()->for($check)->create([
+            'bucket_start' => CarbonImmutable::parse($day.'T00:00:00Z'),
+            'metric_sums' => ['performance_score' => $score], 'metric_counts' => ['performance_score' => 1],
+        ]);
+    }
 
     $props = $this->actingAs($user)->get('/sites/'.$check->site_id.'/checks/'.$check->id)->assertOk()->inertiaProps();
     expect($props['history']['last_successful_run_id'])->toBe($successful->id)
         ->and($props['history']['last_successful_at'])->toBe($successful->ended_at->toIso8601String())
         ->and($props['history']['last_successful_metrics']['performance_score'])->toBe(80)
         ->and($props['history']['last_successful_device'])->toBe('mobile')
-        ->and($props['history']['scores'])->toHaveCount(90)
-        ->and($props['history']['scores'][0]['day'])->toBe('2026-07-07')
-        ->and($props['history']['scores'][0]['performance'])->toEqual(80);
+        ->and($props['history']['scores'])->toHaveCount(53)
+        ->and($props['history']['scores'][0])->toEqual(['week' => '2025-09-29T00:00:00+00:00', 'performance' => 60, 'accessibility' => null, 'best_practices' => null, 'seo' => null])
+        ->and($props['history']['scores'][52]['week'])->toBe('2026-09-28T00:00:00+00:00')
+        ->and($props['history']['scores'][52]['performance'])->toEqual(85);
 });
 
 it('shows bounded crawl findings, incomplete reasons and exact weekly changes', function (): void {

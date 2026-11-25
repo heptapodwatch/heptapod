@@ -3,6 +3,7 @@ import {
     historySampleStatus,
     useHistorySampleSummary,
 } from '@/components/history-sample-marks';
+import { router } from '@inertiajs/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -13,6 +14,7 @@ import {
     XAxis,
     YAxis,
 } from 'recharts';
+import { InfoTooltip } from '@/components/info-tooltip';
 import {
     Card,
     CardAction,
@@ -39,54 +41,116 @@ import { SegmentedControl } from '@/components/segmented-control';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormat } from '@/hooks/use-format';
 
-const rangeLabels: Record<Heptapod.Enums.ResponseTimeRange, string> = {
-    '24h': '24 hours',
-    '7d': '7 days',
-    '30d': '30 days',
-    '90d': '90 days',
-};
+type Range = Heptapod.Enums.ResponseTimeRange;
+
+const ranges: { key: Range; label: string; caption: string }[] = [
+    {
+        key: '24h',
+        label: '24 hours',
+        caption: 'response_time.five_minute_values',
+    },
+    { key: '7d', label: '7 days', caption: 'response_time.hourly_values' },
+    { key: '30d', label: '30 days', caption: 'response_time.daily_values' },
+    { key: '90d', label: '90 days', caption: 'response_time.daily_values' },
+    { key: '1y', label: '1 year', caption: 'response_time.daily_values' },
+    {
+        key: 'all',
+        label: 'history.all',
+        caption: 'response_time.weekly_values',
+    },
+];
+// Past 7 days the buckets are UTC days or weeks, so their dates are UTC dates.
+const utcRanges: Range[] = ['30d', '90d', '1y', 'all'];
+// With this few measured points, dots show they are single measurements rather than a long, even line.
+const fewPoints = 3;
+
+/** The uptime check's response time: one range at a time, loaded by a partial reload of `response_time`. */
 export function ChartAreaInteractive({
     series,
-    loading = false,
 }: {
-    series: Heptapod.Data.Ui.ResponseTimeSeriesData[];
-    loading?: boolean;
+    series: Heptapod.Data.Ui.ResponseTimeSeriesData;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
-    const [range, setRange] = useState<Heptapod.Enums.ResponseTimeRange>('24h');
-    const active = series.find((period) => period.key === range) ?? series[0];
-    if (!active) throw new Error('Response chart requires at least one range');
-    const sampleSummary = useHistorySampleSummary(active.points);
-    const hasPeaks = active.points.some(
-        (point) =>
-            point.maximum_ms !== null ||
-            point.failure_count > 0 ||
-            point.error_count > 0 ||
-            point.warning_count > 0,
+    const [loading, setLoading] = useState<Range | null>(null);
+    const active = series.key;
+    const selected = loading ?? active;
+    const caption = ranges.find((range) => range.key === active)?.caption;
+    if (!caption) throw new Error('Unknown response-time range');
+    const timeZone = utcRanges.includes(active) ? 'UTC' : undefined;
+    const points = series.points;
+    const sampleSummary = useHistorySampleSummary(points);
+    const hasValues = points.some(
+        (point) => point.average_ms !== null || point.p95_ms !== null,
     );
-    const responseKey = hasPeaks ? 'maximum_ms' : 'average_ms';
-    const hasResponseValues = active.points.some(
-        (point) => point[responseKey] !== null || point.p95_ms !== null,
+    const marks = active === '24h';
+    // Hourly points: one tick where a new local day starts, so no day repeats on the axis.
+    const dayOf = (time: string) =>
+        format.date(time, { day: 'numeric', month: 'short' });
+    const dayTicks =
+        active === '7d'
+            ? points
+                  .filter(
+                      (point, index) =>
+                          index > 0 &&
+                          dayOf(point.time) !== dayOf(points[index - 1]!.time),
+                  )
+                  .map((point) => point.time)
+            : undefined;
+    const isEmpty =
+        !hasValues &&
+        !(
+            marks &&
+            points.some(
+                (point) =>
+                    point.failure_count > 0 ||
+                    point.error_count > 0 ||
+                    point.warning_count > 0,
+            )
+        );
+    const select = (value: string) => {
+        const range = ranges.find((item) => item.key === value);
+        if (!range) throw new Error('Unknown response-time range');
+        if (range.key === selected) return;
+        router.reload({
+            only: ['response_time'],
+            data: { response_range: range.key },
+            onStart: () => setLoading(range.key),
+            onFinish: () => setLoading(null),
+        });
+    };
+    const p95Label = (
+        <span className="inline-flex items-center gap-0.5">
+            {t('p95')}
+            <InfoTooltip>
+                {[
+                    t('p95.hint'),
+                    ...(active === 'all' ? [t('p95.weekly_hint')] : []),
+                ].join(' ')}
+            </InfoTooltip>
+        </span>
     );
-    const hasP95 = active.points.some((point) => point.p95_ms !== null);
+    const label = (value: unknown) => {
+        if (typeof value !== 'string')
+            throw new Error('Response chart requires a date label');
+        if (active === '24h' || active === '7d') return format.exact(value);
+        if (active === 'all')
+            return t('response_time.week_of', {
+                date: format.calendarDate(value, 'UTC'),
+            });
+        return format.calendarDate(value, 'UTC');
+    };
     return (
-        <Card className="@container/card min-w-0">
+        <Card className="@container/card min-w-0" data-response-chart>
             <CardHeader>
                 <CardTitle>{t('Response time')}</CardTitle>
                 <CardDescription>
-                    {t(
-                        hasPeaks
-                            ? '5-minute maximum'
-                            : active.key === '24h'
-                              ? 'Minute average'
-                              : 'Daily average',
-                    )}
-                    {active.recent_average_ms !== null && (
+                    {t(caption)}
+                    {series.recent_average_ms !== null && (
                         <>
                             {' '}
                             · {t('Last 15 minutes')}:{' '}
-                            {format.milliseconds(active.recent_average_ms)}{' '}
+                            {format.milliseconds(series.recent_average_ms)}{' '}
                             {t('ms')}
                         </>
                     )}
@@ -95,34 +159,15 @@ export function ChartAreaInteractive({
                     <div className="hidden @[640px]/card:block">
                         <SegmentedControl
                             label={t('Time range')}
-                            value={active.key}
-                            onValueChange={(value) => {
-                                const selection = series.find(
-                                    (series) => series.key === value,
-                                );
-                                if (!selection)
-                                    throw new Error(
-                                        'Unknown response-time range',
-                                    );
-                                setRange(selection.key);
-                            }}
-                            options={series.map((period) => ({
-                                value: period.key,
-                                label: t(rangeLabels[period.key]),
+                            value={selected}
+                            onValueChange={select}
+                            options={ranges.map((range) => ({
+                                value: range.key,
+                                label: t(range.label),
                             }))}
                         />
                     </div>
-                    <Select
-                        value={active.key}
-                        onValueChange={(value) => {
-                            const selection = series.find(
-                                (series) => series.key === value,
-                            );
-                            if (!selection)
-                                throw new Error('Unknown response-time range');
-                            setRange(selection.key);
-                        }}
-                    >
+                    <Select value={selected} onValueChange={select}>
                         <SelectTrigger
                             className="w-32 @[640px]/card:hidden"
                             aria-label={t('Time range')}
@@ -130,9 +175,9 @@ export function ChartAreaInteractive({
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            {series.map((period) => (
-                                <SelectItem key={period.key} value={period.key}>
-                                    {t(rangeLabels[period.key])}
+                            {ranges.map((range) => (
+                                <SelectItem key={range.key} value={range.key}>
+                                    {t(range.label)}
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -141,16 +186,8 @@ export function ChartAreaInteractive({
             </CardHeader>
             <CardContent>
                 {loading ? (
-                    <Skeleton className="h-64 w-full" />
-                ) : !active.points.some(
-                      (point) =>
-                          point.average_ms !== null ||
-                          point.p95_ms !== null ||
-                          point.maximum_ms !== null ||
-                          point.failure_count > 0 ||
-                          point.error_count > 0 ||
-                          point.warning_count > 0,
-                  ) ? (
+                    <Skeleton aria-busy="true" className="h-64 w-full" />
+                ) : isEmpty ? (
                     <p className="flex h-64 items-center justify-center text-center text-sm text-muted-foreground">
                         {t('No measurements in this range yet')}
                     </p>
@@ -158,16 +195,12 @@ export function ChartAreaInteractive({
                     <ChartContainer
                         className="aspect-auto h-64 w-full"
                         config={{
-                            maximum_ms: {
-                                label: t('Maximum'),
-                                color: 'var(--chart-2)',
-                            },
                             average_ms: {
                                 label: t('Average'),
                                 color: 'var(--chart-2)',
                             },
                             p95_ms: {
-                                label: t('p95'),
+                                label: p95Label,
                                 color: 'var(--chart-3)',
                             },
                         }}
@@ -178,8 +211,8 @@ export function ChartAreaInteractive({
                     >
                         <ComposedChart
                             accessibilityLayer
-                            data={active.points}
-                            margin={{ left: -20, right: 8, top: 8, bottom: 0 }}
+                            data={points}
+                            margin={{ left: 0, right: 24, top: 8, bottom: 0 }}
                         >
                             <CartesianGrid vertical={false} />
                             <XAxis
@@ -187,66 +220,66 @@ export function ChartAreaInteractive({
                                 tickLine={false}
                                 axisLine={false}
                                 minTickGap={40}
+                                ticks={dayTicks}
                                 tickFormatter={(value) =>
-                                    format.date(
-                                        String(value),
-                                        active.key === '24h'
-                                            ? ({
+                                    format.date(String(value), {
+                                        timeZone,
+                                        ...(active === '24h'
+                                            ? {
                                                   hour: '2-digit',
                                                   minute: '2-digit',
-                                              } as const)
-                                            : ({
-                                                  day: 'numeric',
-                                                  month: 'short',
-                                              } as const),
-                                    )
+                                              }
+                                            : active === 'all'
+                                              ? {
+                                                    month: 'short',
+                                                    year: '2-digit',
+                                                }
+                                              : {
+                                                    day: 'numeric',
+                                                    month: 'short',
+                                                }),
+                                    })
                                 }
                             />
                             <YAxis
+                                // Auto width keeps four-digit labels ("1,400") whole.
+                                width="auto"
                                 tickLine={false}
                                 axisLine={false}
                                 tickFormatter={(value) =>
                                     format.number(Number(value))
                                 }
-                                tick={hasResponseValues}
+                                tick={hasValues}
                                 // With no measured domain, Recharts needs an explicit display extent for error marks.
-                                allowDataOverflow={!hasResponseValues}
-                                domain={[0, hasResponseValues ? 'auto' : 1]}
+                                allowDataOverflow={!hasValues}
+                                domain={[0, hasValues ? 'auto' : 1]}
                             />
                             <ChartTooltip
                                 isAnimationActive={false}
                                 content={(tooltip) => (
                                     <ChartTooltipContent
                                         {...tooltip}
-                                        status={historySampleStatus(
-                                            active.points.filter(
-                                                (point) =>
-                                                    point.time ===
-                                                    tooltip.label,
-                                            ),
-                                            t,
-                                        )}
+                                        status={
+                                            marks
+                                                ? historySampleStatus(
+                                                      points.filter(
+                                                          (point) =>
+                                                              point.time ===
+                                                              tooltip.label,
+                                                      ),
+                                                      t,
+                                                  )
+                                                : undefined
+                                        }
                                         subject={t('Response time')}
-                                        labelFormatter={(value) => {
-                                            if (typeof value !== 'string') {
-                                                throw new Error(
-                                                    'Response chart requires a date label',
-                                                );
-                                            }
-                                            return active.key === '24h'
-                                                ? format.exact(value)
-                                                : format.calendarDate(value);
-                                        }}
+                                        labelFormatter={label}
                                         formatter={(value, name) => (
                                             <div className="flex w-full justify-between gap-4">
                                                 <span className="text-muted-foreground">
                                                     {t(
-                                                        name === 'maximum_ms'
-                                                            ? 'Maximum'
-                                                            : name ===
-                                                                'average_ms'
-                                                              ? 'Average'
-                                                              : 'p95',
+                                                        name === 'p95_ms'
+                                                            ? 'p95'
+                                                            : 'Average',
                                                     )}
                                                 </span>
                                                 <span className="font-mono tabular-nums">
@@ -260,34 +293,34 @@ export function ChartAreaInteractive({
                                     />
                                 )}
                             />
-                            {hasP95 && (
-                                <ChartLegend content={<ChartLegendContent />} />
-                            )}
-                            <HistorySampleMarks points={active.points} />
+                            <ChartLegend content={<ChartLegendContent />} />
+                            {marks && <HistorySampleMarks points={points} />}
                             <Area
-                                dataKey={responseKey}
+                                dataKey="average_ms"
                                 type="linear"
-                                stroke={`var(--color-${responseKey})`}
-                                fill={`var(--color-${responseKey})`}
+                                stroke="var(--color-average_ms)"
+                                fill="var(--color-average_ms)"
                                 fillOpacity={0.08}
                                 strokeWidth={1.5}
                                 isAnimationActive={false}
                                 dot={
-                                    active.points.filter(
-                                        (point) => point[responseKey] !== null,
-                                    ).length === 1
+                                    points.filter(
+                                        (point) => point.average_ms !== null,
+                                    ).length <= fewPoints
                                 }
                             />
-                            {hasP95 && (
-                                <Line
-                                    dataKey="p95_ms"
-                                    type="linear"
-                                    stroke="var(--color-p95_ms)"
-                                    strokeDasharray="3 3"
-                                    dot={false}
-                                    isAnimationActive={false}
-                                />
-                            )}
+                            <Line
+                                dataKey="p95_ms"
+                                type="linear"
+                                stroke="var(--color-p95_ms)"
+                                strokeDasharray="3 3"
+                                isAnimationActive={false}
+                                dot={
+                                    points.filter(
+                                        (point) => point.p95_ms !== null,
+                                    ).length <= fewPoints
+                                }
+                            />
                         </ComposedChart>
                     </ChartContainer>
                 )}
