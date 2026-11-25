@@ -32,7 +32,7 @@ The median decides, so in a well-populated window one slow request does not trig
 
 A Warning ends after three evaluations in a row below the recovery limit of both rules:
 
-- **Threshold** rule: at or below **Threshold** × (1 − **Recovery margin**). With the defaults this is 1900 ms, shown as **Recovers below** under **All settings** in **Check settings**.
+- **Threshold** rule: at or below **Threshold** × (1 − **Recovery margin**). With the defaults this is 1900 ms, shown as **Recovers below** at the top of the check's settings sheet.
 - **Usual level** rule: the same margin below the greater of the relative limit and the baseline median plus 200 ms.
 
 A value between the limit and the recovery limit keeps the Warning and resets recovery progress. A margin of 0 keeps the warning boundaries without a band. A change to the margin applies from the next evaluation and keeps the current counts.

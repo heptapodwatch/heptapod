@@ -5,10 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { ConfirmDialog, confirmVisit } from '@/components/confirm-dialog';
 import { FormSecondaryAction } from '@/components/form-section';
 import InputError from '@/components/input-error';
-import {
-    PageHeaderAction,
-    useInActionsMenu,
-} from '@/components/page-header-actions';
+import { PageHeaderAction } from '@/components/page-header-actions';
 import { SheetForm } from '@/components/sheet-form';
 import { Button } from '@/components/ui/button';
 import { DateTimeField } from '@/components/ui/date-time-field';
@@ -16,7 +13,6 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
@@ -35,118 +31,89 @@ const presets = [
     ['For 7 days', 10080],
 ] as const;
 
-/**
- * The check page's secondary actions. Active: one Snooze menu (presets, Until a date…, then Turn check off… for
- * Owner/Admin). Snoozed: End snooze. Inside the header's More actions (below 768 px) the choices are its own items.
- */
+/** The check header's Snooze menu (presets, Until a date…); while snoozed, End snooze in its place. */
 export function CheckSnoozeActions({
     siteId,
     check,
-    checkName,
-    canTurnOff,
-    onDone,
 }: {
     siteId: number;
     check: Heptapod.Data.Ui.CheckStripData;
-    checkName: string;
-    canTurnOff: boolean;
-    /** Closes the header's More actions after a choice. */
-    onDone: () => void;
 }) {
     const { t } = useTranslation();
-    const inMenu = useInActionsMenu();
-    const [confirmOff, setConfirmOff] = useState(false);
     const [customOpen, setCustomOpen] = useState(false);
     const route = { site: siteId, check: check.id };
     if (isSnoozed(check, Date.now())) {
         return (
-            <PageHeaderAction
+            <Button
                 variant="outline"
-                onClick={() => {
-                    onDone();
+                onClick={() =>
                     router.delete(checkUnsnooze.url(route), {
                         preserveScroll: true,
-                    });
-                }}
+                    })
+                }
             >
                 {t('End snooze')}
-            </PageHeaderAction>
+            </Button>
         );
     }
-    const snoozeFor = (minutes: number) => {
-        onDone();
+    const snoozeFor = (minutes: number) =>
         router.post(
             checkSnooze.url(route),
             { minutes },
             { preserveScroll: true },
         );
-    };
-    const items = inMenu ? (
-        <>
-            {presets.map(([label, minutes]) => (
-                <PageHeaderAction
-                    key={minutes}
-                    variant="outline"
-                    onClick={() => snoozeFor(minutes)}
-                >
-                    {t('Snooze')} · {t(label)}
-                </PageHeaderAction>
-            ))}
-            <PageHeaderAction
-                variant="outline"
-                onClick={() => {
-                    onDone();
-                    setCustomOpen(true);
-                }}
-            >
-                {t('Snooze until…')}
-            </PageHeaderAction>
-            {canTurnOff && (
-                <PageHeaderAction
-                    variant="outline"
-                    onClick={() => {
-                        onDone();
-                        setConfirmOff(true);
-                    }}
-                >
-                    {t('Turn check off…')}
-                </PageHeaderAction>
-            )}
-        </>
-    ) : (
-        <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                    {t('Snooze')}
-                    <ChevronDown aria-hidden />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-                {presets.map(([label, minutes]) => (
-                    <DropdownMenuItem
-                        key={minutes}
-                        onSelect={() => snoozeFor(minutes)}
-                    >
-                        {t(label)}
-                    </DropdownMenuItem>
-                ))}
-                <DropdownMenuItem onSelect={() => setCustomOpen(true)}>
-                    {t('Until a date…')}
-                </DropdownMenuItem>
-                {canTurnOff && (
-                    <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={() => setConfirmOff(true)}>
-                            {t('Turn check off…')}
-                        </DropdownMenuItem>
-                    </>
-                )}
-            </DropdownMenuContent>
-        </DropdownMenu>
-    );
     return (
         <>
-            {items}
+            <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                        {t('Snooze')}
+                        <ChevronDown aria-hidden />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    {presets.map(([label, minutes]) => (
+                        <DropdownMenuItem
+                            key={minutes}
+                            onSelect={() => snoozeFor(minutes)}
+                        >
+                            {t(label)}
+                        </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuItem onSelect={() => setCustomOpen(true)}>
+                        {t('Until a date…')}
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+            <SnoozeUntilSheet
+                open={customOpen}
+                onOpenChange={setCustomOpen}
+                url={checkSnooze.url(route)}
+            />
+        </>
+    );
+}
+
+/** "Turn check off…" in the check header's More actions, with its confirmation. */
+export function CheckTurnOffAction({
+    siteId,
+    checkId,
+    checkName,
+}: {
+    siteId: number;
+    checkId: number;
+    checkName: string;
+}) {
+    const { t } = useTranslation();
+    const [confirmOff, setConfirmOff] = useState(false);
+    return (
+        <>
+            <PageHeaderAction
+                variant="outline"
+                onClick={() => setConfirmOff(true)}
+            >
+                {t('Turn check off…')}
+            </PageHeaderAction>
             <ConfirmDialog
                 open={confirmOff}
                 onOpenChange={setConfirmOff}
@@ -156,17 +123,12 @@ export function CheckSnoozeActions({
                 onConfirm={() =>
                     confirmVisit((callbacks) =>
                         router.post(
-                            checkDisable.url(route),
+                            checkDisable.url({ site: siteId, check: checkId }),
                             {},
                             { preserveScroll: true, ...callbacks },
                         ),
                     )
                 }
-            />
-            <SnoozeUntilSheet
-                open={customOpen}
-                onOpenChange={setCustomOpen}
-                url={checkSnooze.url(route)}
             />
         </>
     );

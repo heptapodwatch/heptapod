@@ -4,7 +4,7 @@ import { router, useForm } from '@inertiajs/react';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { NumberField } from '@/components/ui/number-field';
 import { Label } from '@/components/ui/label';
-import { useId, useRef, useState } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { httpResponseMessage } from '@/hooks/use-http-request';
 import {
@@ -55,13 +55,21 @@ type SavedCheckSettingsProps = {
     reloadOnly?: string[];
     /** Accessible name of the trigger where several checks share one page. */
     triggerLabel?: string;
+    /** Replaces the Configure button (the check header's More actions item). */
+    trigger?: (open: () => void) => ReactNode;
+    /** Read-only facts at the top of the sheet; without `can_update` the sheet shows only these. */
+    facts?: ReactNode;
 };
 
 export function CheckSettingsSheet(
     props: SavedCheckSettingsProps | DraftCheckSettingsProps,
 ) {
     return 'discoveredUrls' in props ? (
-        <SavedCheckSettingsSheet {...props} />
+        props.check.can_update ? (
+            <SavedCheckSettingsSheet {...props} />
+        ) : (
+            <ReadOnlyCheckSettingsSheet {...props} />
+        )
     ) : (
         <DraftCheckSettingsSheet {...props} />
     );
@@ -144,11 +152,56 @@ function DraftCheckSettingsSheet({
     );
 }
 
+/** For roles without `can_update`: the same sheet with only the facts, no fields and no Save. */
+function ReadOnlyCheckSettingsSheet({
+    check,
+    trigger,
+    facts,
+}: SavedCheckSettingsProps) {
+    const { t } = useTranslation();
+    const [open, setOpen] = useState(false);
+    if (!trigger) {
+        throw new Error('A read-only check settings sheet needs its trigger.');
+    }
+    return (
+        <>
+            {trigger(() => setOpen(true))}
+            <Sheet open={open} onOpenChange={setOpen}>
+                <SheetForm
+                    title={t('Check settings')}
+                    description={t(check.label_key)}
+                    onSubmit={(event) => event.preventDefault()}
+                    contentProps={{
+                        // No field to start on: focus Close, not the first fact's time tooltip.
+                        onOpenAutoFocus: (event) => {
+                            event.preventDefault();
+                            (event.currentTarget as HTMLElement)
+                                .querySelector<HTMLElement>(
+                                    '[data-sheet-form] button',
+                                )
+                                ?.focus();
+                        },
+                    }}
+                    footer={
+                        <FormSecondaryAction onClick={() => setOpen(false)}>
+                            {t('Close')}
+                        </FormSecondaryAction>
+                    }
+                >
+                    {facts}
+                </SheetForm>
+            </Sheet>
+        </>
+    );
+}
+
 function SavedCheckSettingsSheet({
     check,
     discoveredUrls,
     reloadOnly,
     triggerLabel,
+    trigger,
+    facts,
 }: SavedCheckSettingsProps) {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
@@ -430,12 +483,16 @@ function SavedCheckSettingsSheet({
     };
     return (
         <>
-            <FormSecondaryAction
-                aria-label={triggerLabel}
-                onClick={() => setOpen(true)}
-            >
-                {t('Configure')}
-            </FormSecondaryAction>
+            {trigger ? (
+                trigger(() => setOpen(true))
+            ) : (
+                <FormSecondaryAction
+                    aria-label={triggerLabel}
+                    onClick={() => setOpen(true)}
+                >
+                    {t('Configure')}
+                </FormSecondaryAction>
+            )}
             <Sheet open={open} onOpenChange={changeOpen}>
                 <SheetForm
                     title={t(isHealth ? 'Edit health check' : 'Check settings')}
@@ -463,6 +520,7 @@ function SavedCheckSettingsSheet({
                         </>
                     }
                 >
+                    {facts}
                     {check.attention_reason && (
                         <Alert tone="warning">
                             <AlertTitle>{t('Needs attention')}</AlertTitle>

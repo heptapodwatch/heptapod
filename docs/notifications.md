@@ -192,7 +192,7 @@ Result: the header shows **Snoozed until …**, and the Sites list keeps the che
 
 ## When monitoring stops
 
-Turning a check off (**Turn check off…** in its Snooze menu, Owners and Admins), pausing a site or deleting it closes its open incidents without a recovery alert. Pending openings, reminders and recoveries of those incidents are not sent. Delivery views show **Monitoring stopped**. A send already in progress can still finish.
+Turning a check off (**Turn check off…** in its **More actions**, Owners and Admins), pausing a site or deleting it closes its open incidents without a recovery alert. Pending openings, reminders and recoveries of those incidents are not sent. Delivery views show **Monitoring stopped**. A send already in progress can still finish.
 
 Deleting a site removes its checks, runs and incidents. Timeline events and delivery history stay, without a link to the site.
 
