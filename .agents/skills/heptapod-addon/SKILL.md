@@ -7,7 +7,7 @@ description: Create or change a Heptapod check addon, its schemas, observations 
 
 # Check addons
 
-An addon is a Composer path package under `addons/*` (namespace `Heptapod\Addons\<Name>`) that implements `Heptapod\Contracts\CheckType` for one `CheckKey` and registers it from its own service provider. Core never imports an addon. The contracts in `app/Contracts`, the architecture tests and the uptime and performance addons are the specification; read them before editing.
+An addon is a Composer path package under `addons/*` (namespace `Heptapod\Addons\<Name>`) whose service provider registers one `Heptapod\Contracts\CheckType` implementation per `CheckKey` it owns (crawl registers two). Core never imports an addon. The contracts in `app/Contracts`, the architecture tests and the uptime and performance addons are the specification; read them before editing.
 
 ## Design decisions
 
