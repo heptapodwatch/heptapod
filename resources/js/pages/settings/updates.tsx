@@ -78,6 +78,7 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
         setRefreshFailed(false);
     }, [updatesPage]);
     const updates = page.updates;
+    const missingHeadingId = useId();
     const available =
         updates.update_status === 'available' &&
         updates.latest_version !== null;
@@ -336,15 +337,70 @@ export default function Updates({ updatesPage }: { updatesPage: Page }) {
                     </p>
                 )}
                 {available && updates.releases !== null && (
-                    // Each release is a short note with its own heading, not a data row: room and a hairline between them.
-                    <div className="divide-y divide-border-soft border-y border-border-soft">
-                        {updates.releases.map((release) => (
-                            <SkippedRelease
-                                key={release.tag}
-                                release={release}
-                            />
-                        ))}
-                    </div>
+                    <section
+                        aria-labelledby={missingHeadingId}
+                        className="space-y-3"
+                    >
+                        <div className="space-y-1">
+                            <SectionHeading level={3} id={missingHeadingId}>
+                                {t('Not installed yet')}
+                            </SectionHeading>
+                            <p className="text-xs text-muted-foreground">
+                                {t(
+                                    updates.releases_truncated
+                                        ? 'updates.missing_at_least'
+                                        : 'updates.missing',
+                                    {
+                                        count: updates.releases.length,
+                                        formattedCount: number(
+                                            updates.releases.length,
+                                        ),
+                                        version: updates.installed_version,
+                                    },
+                                )}
+                            </p>
+                        </div>
+                        {/* A quiet version track: dashed rail and hollow markers for releases not here yet, ending on the installed one. */}
+                        <div>
+                            {updates.releases.map((release, index) => (
+                                <div
+                                    key={release.tag}
+                                    className={trackRowClass}
+                                >
+                                    <span
+                                        aria-hidden="true"
+                                        className="relative flex justify-center"
+                                    >
+                                        <span
+                                            className={cn(
+                                                'absolute bottom-0 border-l border-dashed border-border-strong',
+                                                index === 0
+                                                    ? 'top-[30px]'
+                                                    : 'top-0',
+                                            )}
+                                        />
+                                        <span className="relative mt-[25px] size-2.5 rounded-full border-2 border-muted-foreground bg-background" />
+                                    </span>
+                                    <SkippedRelease release={release} />
+                                </div>
+                            ))}
+                            <div className={trackRowClass}>
+                                <span
+                                    aria-hidden="true"
+                                    className="relative flex justify-center"
+                                >
+                                    <span className="absolute top-0 h-6 border-l border-border-strong" />
+                                    <span className="relative mt-[19px] size-2.5 rounded-full bg-foreground" />
+                                </span>
+                                <p className="py-4 text-xs text-muted-foreground">
+                                    <span className="font-mono">
+                                        {updates.installed_version}
+                                    </span>{' '}
+                                    {t('Installed')}
+                                </p>
+                            </div>
+                        </div>
+                    </section>
                 )}
                 {available && (
                     <div className="space-y-2">
@@ -807,6 +863,9 @@ const releaseNotesClass = cn(
     '[&_a]:text-foreground [&_a]:underline [&_a]:decoration-current/40 [&_a]:underline-offset-4 [&_a:hover]:no-underline [&_code]:font-mono',
 );
 
+/** One row of the version track: a narrow rail column beside the text. */
+const trackRowClass = 'grid grid-cols-[0.625rem_minmax(0,1fr)] gap-x-4';
+
 /** One release between the installed and the latest: its headline and the items an Owner must read first. */
 function SkippedRelease({
     release,
@@ -815,10 +874,10 @@ function SkippedRelease({
 }) {
     const { t } = useTranslation();
     return (
-        <article className="space-y-3 py-5">
+        <article className="space-y-3 border-b border-border-soft py-5">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                 <div className="flex flex-wrap items-baseline gap-x-2">
-                    <SectionHeading level={3}>
+                    <SectionHeading level={4}>
                         <span className="font-mono">{release.tag}</span>
                     </SectionHeading>
                     <span className="text-xs text-muted-foreground">

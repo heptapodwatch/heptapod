@@ -480,5 +480,11 @@
     "api_tokens.grants.more": "+{{count}}",
     "api_tokens.grants.show_less": "Show less",
     "api_tokens.grants.more_areas_one": "Show {{count}} more area",
-    "api_tokens.grants.more_areas_other": "Show {{count}} more areas"
+    "api_tokens.grants.more_areas_other": "Show {{count}} more areas",
+    "Not installed yet": "Not installed yet",
+    "updates.missing_one": "{{formattedCount}} release after your :version, newest first.",
+    "updates.missing_other": "{{formattedCount}} releases after your :version, newest first.",
+    "updates.missing_at_least_one": "At least {{formattedCount}} release after your :version, newest first.",
+    "updates.missing_at_least_other": "At least {{formattedCount}} releases after your :version, newest first.",
+    "Installed": "Installed"
 }
