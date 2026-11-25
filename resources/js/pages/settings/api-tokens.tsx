@@ -1,10 +1,8 @@
 import { ActionNoteSlot } from '@/components/action-note-slot';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { AbsoluteTime } from '@/components/absolute-time';
 import { SectionHeading } from '@/components/section-heading';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ClientMark } from '@/components/client-mark';
-import { emptySelectValue } from '@/components/ui/select';
 import {
     EntityCombobox,
     clientComboboxOptions,
@@ -43,15 +41,30 @@ import {
     useHttpRequest,
 } from '@/hooks/use-http-request';
 import { zonedInstant } from '@/lib/date-time';
-import { TokenAbilities, abilityLabel } from '@/components/token-abilities';
+import {
+    AbilityMatrix,
+    TokenGrant,
+    abilityLabel,
+} from '@/components/token-abilities';
+import { TooltipHint, TruncatedText } from '@/components/truncated-text';
+import { Badge } from '@/components/ui/badge';
+import { AbsoluteTime } from '@/components/absolute-time';
+import { cn } from '@/lib/utils';
 import { data as readData, destroy, store } from '@/routes/settings/api-tokens';
 
 type TokenPage = Heptapod.Data.Ui.ApiTokenSettingsData;
 type Token = TokenPage['tokens'][number];
+type StartingPoint =
+    | 'read-everything'
+    | 'deploy-automation'
+    | 'full-access'
+    | 'empty';
 type Draft = {
     name: string;
-    preset: keyof TokenPage['presets'];
+    abilities: string[];
+    reach: '' | 'client' | 'all';
     client_id: string;
+    expiry: '30-days' | 'custom' | 'none';
     expires_at: string;
 };
 type Disclosure = {
@@ -74,19 +87,36 @@ function CreateToken({
     onClose: () => void;
 }) {
     const { t } = useTranslation();
+    const startingPoints: Record<StartingPoint, string[] | null> = {
+        ...page.starting_points,
+        empty: [],
+    };
     // Unmount the form after issuance: the request also holds its response in component memory.
-    const form = useHttpRequest<Draft, { token: string }>({
+    const form = useHttpRequest<
+        Draft,
+        { token: string; expires_at: string | null }
+    >({
         name: '',
-        preset: 'read',
+        abilities: page.starting_points['read-everything'],
+        reach: '',
         client_id: '',
+        expiry: '30-days',
         expires_at: '',
     });
+    // The starting point only fills the checklist; it shows as chosen while the checklist still matches it.
+    const startingPoint =
+        (Object.keys(startingPoints) as StartingPoint[]).find(
+            (key) =>
+                JSON.stringify(startingPoints[key]) ===
+                JSON.stringify(form.data.abilities),
+        ) ?? '';
     // The expiry is entered as a wall time in the account timezone, like every other date on this page.
-    const expiresAt = form.data.expires_at
+    const customExpiresAt = form.data.expires_at
         ? zonedInstant(form.data.expires_at, page.timezone)
         : null;
     const [failure, setFailure] = useState(false);
     const [expiryInvalid, setExpiryInvalid] = useState(false);
+    const [reachError, setReachError] = useState<string | null>(null);
     const mounted = useRef(true);
     const focus = useRef<string | undefined>(undefined);
     useEffect(() => {
@@ -101,27 +131,56 @@ function CreateToken({
             document.getElementById(focus.current)?.focus();
             focus.current = undefined;
         }
-    }, [form.processing, form.errors]);
+    }, [form.processing, form.errors, reachError, expiryInvalid]);
+    const abilitiesError =
+        form.errors.abilities ??
+        Object.entries(form.errors).find(([key]) =>
+            key.startsWith('abilities.'),
+        )?.[1];
     const submit = async (event: React.SubmitEvent<HTMLFormElement>) => {
         event.preventDefault();
-        // Unparsable typed expiry fails loud; never send the stale value.
-        if (expiryInvalid) return;
-        if (form.data.expires_at && expiresAt === null) return;
+        // Client access is a deliberate choice, never a silent default.
+        if (
+            form.data.reach === '' ||
+            (form.data.reach === 'client' && !form.data.client_id)
+        ) {
+            setReachError(
+                form.data.reach === ''
+                    ? 'Choose which clients the token can reach.'
+                    : 'Choose a client.',
+            );
+            focus.current =
+                form.data.reach === '' ? 'token-reach' : 'token-client';
+            return;
+        }
+        // Unparsable or missing custom expiry fails loud; never send a stale or empty value.
+        if (
+            form.data.expiry === 'custom' &&
+            (expiryInvalid || !customExpiresAt)
+        ) {
+            setExpiryInvalid(true);
+            focus.current = 'token-expiry';
+            return;
+        }
+        // The server counts the 30 days from its own clock; the browser clock never sets a lifetime.
         form.transform((draft) => ({
-            ...draft,
-            client_id: draft.client_id ? Number(draft.client_id) : null,
-            expires_at: expiresAt,
+            name: draft.name,
+            abilities: draft.abilities,
+            client_id:
+                draft.reach === 'client' ? Number(draft.client_id) : null,
+            expires_at: draft.expiry === 'custom' ? customExpiresAt : null,
+            expires_in_days: draft.expiry === '30-days' ? 30 : null,
         }));
         try {
             const result = await form.post(store.url(), {
                 onError: (errors) => {
                     const ids: Record<string, string> = {
                         name: 'token-name',
-                        preset: 'token-preset',
+                        abilities: 'token-abilities',
                         client_id: 'token-client',
                         expires_at: 'token-expiry',
                     };
-                    const first = Object.keys(errors)[0];
+                    const first = Object.keys(errors)[0]?.split('.')[0];
                     focus.current = first ? ids[first] : undefined;
                 },
             });
@@ -129,14 +188,15 @@ function CreateToken({
                 onCreated({
                     value: result.token,
                     name: form.data.name,
-                    abilities: page.presets[form.data.preset],
-                    client: form.data.client_id
-                        ? page.clients.find(
-                              (client) =>
-                                  client.id === Number(form.data.client_id),
-                          )!.name
-                        : null,
-                    expires_at: expiresAt,
+                    abilities: form.data.abilities,
+                    client:
+                        form.data.reach === 'client'
+                            ? page.clients.find(
+                                  (client) =>
+                                      client.id === Number(form.data.client_id),
+                              )!.name
+                            : null,
+                    expires_at: result.expires_at,
                 });
         } catch (error: unknown) {
             // Field errors are already shown. A lost issuance response is ambiguous: require a metadata check before another attempt.
@@ -210,106 +270,178 @@ function CreateToken({
                     />
                 </div>
                 <div className="space-y-1.5">
-                    <Label id="token-preset-label">{t('Preset')}</Label>
+                    <Label id="token-start-label">{t('Start from')}</Label>
                     <RadioGroup
-                        orientation="vertical"
-                        id="token-preset"
-                        aria-labelledby="token-preset-label"
-                        {...fieldErrorProps('token-preset', form.errors.preset)}
-                        value={String(form.data.preset)}
+                        id="token-start"
+                        aria-labelledby="token-start-label"
+                        value={startingPoint}
                         disabled={form.processing}
                         onValueChange={(value) =>
-                            form.setData('preset', value as Draft['preset'])
+                            form.setData(
+                                'abilities',
+                                startingPoints[value as StartingPoint] ?? [],
+                            )
                         }
                     >
-                        <RadioGroupItem value="agent-read">
-                            {t('Read for coding agents')}
+                        <RadioGroupItem value="read-everything">
+                            {t('Read everything')}
                         </RadioGroupItem>
-                        <RadioGroupItem value={String('read')}>
-                            {t('Read')}
+                        {startingPoints['deploy-automation'] && (
+                            <RadioGroupItem value="deploy-automation">
+                                {t('Deploy automation')}
+                            </RadioGroupItem>
+                        )}
+                        <RadioGroupItem value="full-access">
+                            {t('Full access')}
                         </RadioGroupItem>
-                        <RadioGroupItem value={String('write')}>
-                            {t('Write')}
+                        <RadioGroupItem value="empty">
+                            {t('Start empty')}
                         </RadioGroupItem>
-                        <RadioGroupItem value={String('manage')}>
-                            {t('Manage')}
+                    </RadioGroup>
+                </div>
+                <div
+                    id="token-abilities"
+                    tabIndex={-1}
+                    role="group"
+                    aria-labelledby="token-abilities-label"
+                    {...fieldErrorProps('token-abilities', abilitiesError)}
+                    className="space-y-1.5 outline-none"
+                >
+                    <p
+                        id="token-abilities-label"
+                        className="text-sm font-medium"
+                    >
+                        {t('Permissions')}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                        {t('The checked permissions are the grant.')}
+                    </p>
+                    <AbilityMatrix
+                        available={page.abilities}
+                        value={form.data.abilities}
+                        disabled={form.processing}
+                        onChange={(abilities) =>
+                            form.setData('abilities', abilities)
+                        }
+                    />
+                    <InputError
+                        field="token-abilities"
+                        message={abilitiesError}
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <Label id="token-reach-label">{t('Client access')}</Label>
+                    <RadioGroup
+                        orientation="vertical"
+                        id="token-reach"
+                        aria-labelledby="token-reach-label"
+                        {...fieldErrorProps(
+                            'token-reach',
+                            form.data.reach === '' ? reachError : null,
+                        )}
+                        value={form.data.reach}
+                        disabled={form.processing}
+                        onValueChange={(value) => {
+                            setReachError(null);
+                            form.setData('reach', value as Draft['reach']);
+                        }}
+                    >
+                        <RadioGroupItem
+                            value="client"
+                            disabled={page.clients.length === 0}
+                        >
+                            {t('One client')}
+                        </RadioGroupItem>
+                        <RadioGroupItem value="all">
+                            {t(
+                                'All clients you can access, including future clients',
+                            )}
                         </RadioGroupItem>
                     </RadioGroup>
                     <InputError
-                        field="token-preset"
-                        message={form.errors.preset}
+                        field="token-reach"
+                        message={form.data.reach === '' ? reachError : null}
                     />
-                    <p className="text-xs text-muted-foreground">
-                        {t('Effective abilities')}
-                    </p>
-                    <TokenAbilities
-                        abilities={page.presets[form.data.preset]}
-                    />
-                    {JSON.stringify(page.presets.write) ===
-                        JSON.stringify(page.presets.manage) && (
-                        <p className="text-xs text-muted-foreground">
-                            {t(
-                                'Write and Manage currently grant the same effective abilities for your role.',
-                            )}
-                        </p>
+                    {form.data.reach === 'client' && (
+                        <>
+                            <Label htmlFor="token-client">{t('Client')}</Label>
+                            <EntityCombobox
+                                id="token-client"
+                                options={clientComboboxOptions(page.clients)}
+                                value={form.data.client_id}
+                                disabled={form.processing}
+                                invalid={
+                                    !!(form.errors.client_id ?? reachError)
+                                }
+                                describedBy="token-client-error"
+                                onValueChange={(selected) => {
+                                    setReachError(null);
+                                    form.setData('client_id', selected);
+                                }}
+                            />
+                            <InputError
+                                id="token-client-error"
+                                message={form.errors.client_id ?? reachError}
+                            />
+                        </>
                     )}
                 </div>
                 <div className="space-y-1.5">
-                    <Label htmlFor="token-client">{t('Reach')}</Label>
-                    <EntityCombobox
-                        id="token-client"
-                        options={[
-                            {
-                                value: emptySelectValue,
-                                label: t('All currently accessible clients'),
-                            },
-                            ...clientComboboxOptions(page.clients),
-                        ]}
-                        value={String(form.data.client_id) || emptySelectValue}
-                        disabled={form.processing}
-                        invalid={!!form.errors.client_id}
-                        describedBy="token-client-error"
-                        onValueChange={(selected) => {
-                            const value =
-                                selected === emptySelectValue ? '' : selected;
-                            form.setData('client_id', value);
-                        }}
-                    />
-                    <InputError
-                        id="token-client-error"
-                        message={form.errors.client_id}
-                    />
-                </div>
-                <div className="space-y-1.5">
-                    <Label htmlFor="token-expiry">
-                        {t('Expires at (optional)')}
-                    </Label>
-                    <DateTimeField
-                        id="token-expiry"
-                        timezone={page.timezone}
-                        value={form.data.expires_at}
+                    <Label id="token-expiration-label">{t('Expiration')}</Label>
+                    <RadioGroup
+                        aria-labelledby="token-expiration-label"
+                        value={form.data.expiry}
                         disabled={form.processing}
                         onValueChange={(value) =>
-                            form.setData('expires_at', value)
+                            form.setData('expiry', value as Draft['expiry'])
                         }
-                        invalid={!!form.errors.expires_at || expiryInvalid}
-                        describedBy="token-expiry-help token-expiry-error"
-                        onInvalidChange={setExpiryInvalid}
-                    />
-                    <p
-                        id="token-expiry-help"
-                        className="text-xs text-muted-foreground"
                     >
-                        {t('Leave empty for no expiry.')}
-                    </p>
-                    <InputError
-                        id="token-expiry-error"
-                        message={
-                            expiryInvalid
-                                ? 'Enter the date and time in 24-hour format.'
-                                : form.errors.expires_at
-                        }
-                    />
+                        <RadioGroupItem value="30-days">
+                            {t('30 days')}
+                        </RadioGroupItem>
+                        <RadioGroupItem value="custom">
+                            {t('Custom date')}
+                        </RadioGroupItem>
+                        <RadioGroupItem value="none">
+                            {t('No expiry')}
+                        </RadioGroupItem>
+                    </RadioGroup>
+                    {form.data.expiry === 'custom' && (
+                        <>
+                            <Label htmlFor="token-expiry">
+                                {t('Expires at')}
+                            </Label>
+                            <DateTimeField
+                                id="token-expiry"
+                                timezone={page.timezone}
+                                value={form.data.expires_at}
+                                disabled={form.processing}
+                                onValueChange={(value) =>
+                                    form.setData('expires_at', value)
+                                }
+                                invalid={
+                                    !!form.errors.expires_at || expiryInvalid
+                                }
+                                describedBy="token-expiry-error"
+                                onInvalidChange={setExpiryInvalid}
+                            />
+                            <InputError
+                                id="token-expiry-error"
+                                message={
+                                    expiryInvalid
+                                        ? 'Enter the date and time in 24-hour format.'
+                                        : form.errors.expires_at
+                                }
+                            />
+                        </>
+                    )}
+                    {form.data.expiry === 'none' && (
+                        <p className="text-xs text-muted-foreground">
+                            {t(
+                                'For unattended jobs only. Revoke the token when the job ends.',
+                            )}
+                        </p>
+                    )}
                 </div>
             </SheetForm>
         </Sheet>
@@ -375,10 +507,12 @@ function SecretDialog({
                                 .join(', '),
                         },
                         {
-                            label: t('Reach'),
+                            label: t('Client access'),
                             value:
                                 secret.client ??
-                                t('All currently accessible clients'),
+                                t(
+                                    'All clients you can access, including future clients',
+                                ),
                         },
                         {
                             label: t('Expires'),
@@ -403,6 +537,9 @@ function SecretDialog({
         </Dialog>
     );
 }
+
+const tokenColumns =
+    'min-[87.5rem]:grid-cols-[minmax(8rem,1fr)_minmax(0,1.4fr)_8rem_7.5rem_9.5rem_4.5rem] min-[87.5rem]:gap-x-3';
 
 export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
     const { t } = useTranslation();
@@ -457,11 +594,19 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
             query.cancel();
         };
     }, [query.get, query.cancel]);
-    const date = (value: string | null, empty: string) =>
+    const date = (value: string | null, empty: string, label: string) =>
         value === null ? (
-            t(empty)
+            <span className="whitespace-nowrap text-muted-foreground">
+                {t(empty)}
+            </span>
         ) : (
-            <AbsoluteTime value={value} timezone={page.timezone} />
+            <AbsoluteTime
+                value={value}
+                timezone={page.timezone}
+                mode="calendarDate"
+                label={t(label)}
+                className="whitespace-nowrap"
+            />
         );
     const refresh = async () => {
         try {
@@ -538,16 +683,19 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
             )}
             <div className="@container/table overflow-hidden rounded-lg border">
                 {page.tokens.length > 0 && (
-                    <ListHeader className="grid-cols-[minmax(120px,1fr)_minmax(130px,1.3fr)_minmax(100px,.8fr)_minmax(90px,.7fr)_minmax(90px,.7fr)_minmax(90px,.7fr)_5.5rem] min-[87.5rem]:grid">
+                    <ListHeader
+                        className={`${tokenColumns} min-[87.5rem]:grid`}
+                    >
                         {[
                             'Name',
                             'Can',
-                            'Reach',
-                            'Created',
+                            'Client access',
                             'Last used',
                             'Expires',
                         ].map((label) => (
-                            <span key={label}>{t(label)}</span>
+                            <span key={label} className="truncate">
+                                {t(label)}
+                            </span>
                         ))}
                         <span />
                     </ListHeader>
@@ -562,105 +710,138 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
                         )}
                     />
                 )}
-                {page.tokens.map((token) => (
-                    <ListRow
-                        as="article"
-                        key={token.id}
-                        className="min-[87.5rem]:grid-cols-[minmax(120px,1fr)_minmax(130px,1.3fr)_minmax(100px,.8fr)_minmax(90px,.7fr)_minmax(90px,.7fr)_minmax(90px,.7fr)_5.5rem] min-[87.5rem]:items-start"
-                    >
-                        <SectionHeading className="break-words">
-                            {token.name}
-                        </SectionHeading>
-                        <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground min-[87.5rem]:hidden">
-                                {t('Can')}
-                            </span>
-                            <TokenAbilities abilities={token.abilities} />
-                        </div>
-                        {[
-                            {
-                                label: 'Reach',
-                                value:
-                                    token.client_id === null
-                                        ? t('All currently accessible clients')
-                                        : token.client_name === null
-                                          ? t('Client unavailable — no access')
-                                          : page.clients
-                                                .filter(
-                                                    (client) =>
-                                                        client.id ===
-                                                        token.client_id,
-                                                )
-                                                .map((client) => (
-                                                    <span
-                                                        key={client.id}
-                                                        className="inline-flex items-center gap-2"
-                                                    >
-                                                        <ClientMark
-                                                            client={client}
-                                                            small
-                                                        />
-                                                        {client.name}
-                                                    </span>
-                                                )),
-                            },
-                            {
-                                label: 'Created',
-                                value: date(token.created_at, 'Unknown'),
-                            },
-                            {
-                                label: 'Last used',
-                                value: date(token.last_used_at, 'Never used'),
-                            },
-                            {
-                                label: 'Expires',
-                                value: date(token.expires_at, 'No expiry'),
-                            },
-                        ].map(({ label, value }) => (
-                            <div
-                                key={label}
-                                className="flex justify-between gap-3 text-cell min-[87.5rem]:block"
-                            >
-                                <span className="text-xs text-muted-foreground min-[87.5rem]:hidden">
-                                    {t(label)}
-                                </span>
+                {page.tokens.map((token) => {
+                    const client = page.clients.find(
+                        (item) => item.id === token.client_id,
+                    );
+                    const cells = [
+                        {
+                            label: 'Can',
+                            value: (
+                                <TokenGrant
+                                    abilities={token.abilities}
+                                    grantable={page.abilities}
+                                />
+                            ),
+                        },
+                        {
+                            label: 'Client access',
+                            value: (
+                                <Badge className="max-w-full gap-1.5 py-0.5 pl-1 font-normal">
+                                    {token.client_id === null ? (
+                                        <TooltipHint
+                                            content={t(
+                                                'All clients you can access, including future clients',
+                                            )}
+                                        >
+                                            <span>{t('All clients')}</span>
+                                        </TooltipHint>
+                                    ) : (
+                                        <>
+                                            {client && (
+                                                <ClientMark
+                                                    client={client}
+                                                    small
+                                                />
+                                            )}
+                                            <TruncatedText
+                                                content={
+                                                    client?.name ??
+                                                    t(
+                                                        'Client unavailable — no access',
+                                                    )
+                                                }
+                                            >
+                                                <span className="truncate">
+                                                    {client?.name ??
+                                                        t(
+                                                            'Client unavailable — no access',
+                                                        )}
+                                                </span>
+                                            </TruncatedText>
+                                        </>
+                                    )}
+                                </Badge>
+                            ),
+                        },
+                        {
+                            label: 'Last used',
+                            value: date(
+                                token.last_used_at,
+                                'Never used',
+                                'Last used',
+                            ),
+                        },
+                        {
+                            label: 'Expires',
+                            value: (
                                 <span
-                                    className={
-                                        (label === 'Created' &&
-                                            token.created_at !== null) ||
-                                        (label === 'Last used' &&
-                                            token.last_used_at !== null) ||
-                                        (label === 'Expires' &&
-                                            token.expires_at !== null)
-                                            ? 'min-w-0 font-mono break-words tabular-nums'
-                                            : 'min-w-0 break-words'
-                                    }
-                                >
-                                    {value}
-                                    {label === 'Expires' &&
+                                    className={cn(
+                                        'inline-flex items-center gap-1.5 whitespace-nowrap',
                                         token.expires_at !== null &&
+                                            new Date(
+                                                token.expires_at,
+                                            ).getTime() <= Date.now() &&
+                                            'text-muted-foreground',
+                                    )}
+                                >
+                                    {date(
+                                        token.expires_at,
+                                        'No expiry',
+                                        'Expires',
+                                    )}
+                                    {token.expires_at !== null &&
                                         new Date(token.expires_at).getTime() <=
                                             Date.now() && (
-                                            <span className="block text-xs text-status-warn">
+                                            <span className="text-xs text-status-warn">
                                                 {t('Expired')}
                                             </span>
                                         )}
                                 </span>
-                            </div>
-                        ))}
-                        <Button
-                            data-test="revoke-token"
-                            variant="ghost"
-                            className="justify-self-end"
-                            onClick={() => {
-                                setRevoking(token);
-                                setRevokeError(null);
-                            }}
+                            ),
+                        },
+                    ];
+                    return (
+                        <ListRow
+                            as="article"
+                            key={token.id}
+                            className={`${tokenColumns} gap-y-2 min-[87.5rem]:items-center`}
                         >
-                            {t('Revoke')}
-                        </Button>
-                    </ListRow>
-                ))}
+                            {/* Created sits in the name's tooltip so the row stays on one line. */}
+                            <TooltipHint
+                                content={`${token.name} · ${t('Created')} ${token.created_at === null ? t('Unknown') : format.exact(token.created_at, page.timezone)}`}
+                            >
+                                <SectionHeading className="truncate">
+                                    {token.name}
+                                </SectionHeading>
+                            </TooltipHint>
+                            {cells.map(({ label, value }) => (
+                                <div
+                                    key={label}
+                                    className="flex min-w-0 items-center justify-between gap-3 text-cell min-[87.5rem]:block"
+                                >
+                                    <span className="shrink-0 text-xs text-muted-foreground min-[87.5rem]:hidden">
+                                        {t(label)}
+                                    </span>
+                                    <div className="flex min-w-0 justify-end min-[87.5rem]:justify-start">
+                                        {value}
+                                    </div>
+                                </div>
+                            ))}
+                            <Button
+                                data-test="revoke-token"
+                                variant="ghost"
+                                className="justify-self-end"
+                                onClick={() => {
+                                    setRevoking(token);
+                                    setRevokeError(null);
+                                }}
+                            >
+                                {t('Revoke')}
+                            </Button>
+                        </ListRow>
+                    );
+                })}
             </div>
             {page.tokens.length > 0 && (
                 <div className="mt-3">

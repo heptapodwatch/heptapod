@@ -8,43 +8,64 @@ The API lives at `https://your-instance.example/api`. Send a personal access tok
 ## Create a token
 
 1. Open **Settings → API tokens** (`/settings/api-tokens`) and select **Create token**.
-2. Enter a **Name** and choose a **Preset**. **Effective abilities** shows what the token gets.
-3. Optionally limit **Reach** to one client and set **Expires at (optional)**.
-4. Select **Create token** and copy the token. It is shown once.
+2. Enter a **Name**.
+3. Under **Start from**, pick **Read everything**, **Deploy automation** or **Start empty**. The starting point only fills **Permissions**.
+4. Check exactly the **Permissions** the job needs. The token gets the checked boxes, nothing else.
+5. Under **Client access**, choose **One client** and the client, or **All clients you can access, including future clients**.
+6. Under **Expiration**, keep **30 days**, set a **Custom date**, or choose **No expiry** for unattended jobs.
+7. Select **Create token** and copy the token. It is shown once.
+
+Result: the token appears in the list with its client access, dates and permissions. To change a token's permissions, create a replacement and revoke the old token.
 
 For an existing user, the instance checkout can create a token on the command line:
 
 ```sh
-docker compose exec app php artisan heptapod:token:create operator@example.com --name=automation --abilities=identity:read,monitors:read,monitors:write,checks:read,checks:write,uptime:read,downtime:read,tags:read,tags:write,maintenance:read,maintenance:write
+docker compose exec app php artisan heptapod:token:create operator@example.com --name=deploy --abilities=monitors:read,checks:read,checks:run,maintenance:read,maintenance:write
 ```
 
-The command rejects abilities the user's role cannot have.
+The command rejects `*` and abilities the user's role cannot have.
 
-## Presets
+## Starting points
 
-| Preset                     | API value    | Abilities                                                                                                                                          |
-| -------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Read for coding agents** | `agent-read` | `identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `activity:read`, `upcoming:read`                                                |
-| **Read**                   | `read`       | `identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `uptime:read`, `downtime:read`, `tags:read`, `clients:read`, `maintenance:read` |
-| **Write**                  | `write`      | The read abilities plus `monitors:write`, `checks:write`, `checks:snooze`, `incidents:note`, `tags:write`, `maintenance:write`                     |
-| **Manage**                 | `manage`     | The same as **Write**                                                                                                                              |
+| Starting point        | Abilities                                                                                                                                                                            | Roles        |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ |
+| **Read everything**   | `identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `uptime:read`, `downtime:read`, `tags:read`, `maintenance:read`, `activity:read`, `upcoming:read`, `clients:read` | All          |
+| **Deploy automation** | `checks:run` and `maintenance:write`, plus `monitors:read`, `checks:read` and `maintenance:read` to look up IDs, poll the run and list windows                                       | Owner, Admin |
+| **Start empty**       | None                                                                                                                                                                                 | All          |
 
-Each preset contains only the abilities the user's role can have. `checks:run` and `clients:write` are in no preset; grant them through `abilities` on the settings endpoint or the token command.
+Some permissions include more than their name:
+
+- `monitors:write` also deletes sites and places or moves them between clients (`client_id`).
+- `checks:write` also requests runs and snoozes checks.
+- `clients:write` includes archive and restore, which can pause or move sites.
+
+## API presets
+
+The settings endpoint also accepts these preset names. They are fixed and never gain new abilities. The form does not offer them.
+
+| API value    | Abilities                                                                                                                                                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `agent-read` | `identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `activity:read`, `upcoming:read`                                                                                                                                        |
+| `read`       | `identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `uptime:read`, `downtime:read`, `tags:read`, `clients:read`, `maintenance:read`                                                                                         |
+| `write`      | `identity:read`, `monitors:read`, `monitors:write`, `checks:read`, `checks:write`, `checks:snooze`, `incidents:read`, `incidents:note`, `uptime:read`, `downtime:read`, `tags:read`, `tags:write`, `maintenance:read`, `maintenance:write` |
+| `manage`     | The same as `write`                                                                                                                                                                                                                        |
+
+Each preset contains only the abilities the user's role can have.
 
 ## Token rules
 
 - Abilities are independent: write does not include read.
-- Only an Owner can issue `*`.
+- New tokens name their abilities: settings and the token command refuse `*`. An existing `*` token keeps matching every ability, still limited by your current role and client access, and is listed as **All abilities, including future ones**. Replace it with a token that names its abilities, then revoke it.
 - Members cannot get `monitors:write`, `checks:write`, `checks:run`, `maintenance:write` or `clients:write`. An older token with these abilities gets 403 on writes, or 404 for hidden resources.
 - Members can get `checks:snooze`. `checks:write` also allows snooze and unsnooze.
-- Every request uses the user's current role and client access. A token limited to a client reaches only what both allow. Without access to that client, it reaches no sites.
-- Tokens have no default expiry. `SANCTUM_EXPIRATION` sets a maximum age in minutes; rebuild the config cache after changing it. A token's own expiry still applies.
+- Every request uses the user's current role and client access. A token limited to a client reaches only what both allow. Without access to that client, it reaches no sites. A token for all clients also reaches clients you get access to later.
+- The form defaults to 30 days, counted from the server's time at creation. The settings endpoint sets no expiry unless you pass `expires_at` or `expires_in_days: 30`. The token command has no expiry option; its tokens do not expire on their own. `SANCTUM_EXPIRATION` sets a maximum age in minutes and can end a token earlier; rebuild the config cache after changing it.
 - Session cookies do not authenticate API requests.
 
 The settings endpoints `GET /settings/api-tokens/data`, `POST /settings/api-tokens` and `DELETE /settings/api-tokens/{id}` list, create and revoke the signed-in user's own tokens.
 
-- Creation takes `abilities` or a `preset`, an optional `client_id` and an optional `expires_at`.
-- `GET /settings/api-tokens/data` returns the abilities and preset mappings that token validation uses.
+- Creation takes `abilities` or a `preset`, an optional `client_id`, and an optional `expires_at` or `expires_in_days` (`30`). It returns the stored `expires_at`.
+- `GET /settings/api-tokens/data` returns the abilities your role can grant, the preset mappings and the starting points.
 - Creation returns the plaintext token once, with `Cache-Control: no-store`. Listings hold only metadata.
 
 ## Rate limits
@@ -77,7 +98,7 @@ A 429 response includes `Retry-After`.
 
 ## Coding agents
 
-To let Claude Code, Codex or another agent use your instance, see [Use Heptapod with your coding agent](https://heptapod.watch/docs/reference/coding-agents/). Start with the **Read for coding agents** preset. Add `checks:run` only if the agent should request runs, and the maintenance abilities only for maintenance windows.
+To let Claude Code, Codex or another agent use your instance, see [Use Heptapod with your coding agent](https://heptapod.watch/docs/reference/coding-agents/). Start from **Read everything** with **One client** and a short expiry. Add **Request check runs** (`checks:run`) only if the agent should request runs, and **Manage maintenance windows** (`maintenance:write`) only for maintenance windows.
 
 ## Agent endpoints
 

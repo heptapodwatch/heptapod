@@ -1,12 +1,12 @@
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { TooltipHint } from '@/components/truncated-text';
 import { Badge } from '@/components/ui/badge';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 
-/** Human label per API ability; the raw scope (`checks:read`) stays in the tooltip for API users. */
+/** Human label per API ability; the raw scope (`checks:read`) stays reachable in a tooltip for API users. */
 const abilityLabels: Record<string, string> = {
     '*': 'api_tokens.ability.all',
     'identity:read': 'api_tokens.ability.identity_read',
@@ -30,29 +30,258 @@ const abilityLabels: Record<string, string> = {
     'upcoming:read': 'api_tokens.ability.upcoming_read',
 };
 
+/** Consequential side effects, listed under the matrix while checked. */
+const abilityConsequences: Record<string, string> = {
+    'monitors:write': 'api_tokens.ability.monitors_write.consequence',
+    'checks:write': 'api_tokens.ability.checks_write.consequence',
+    'clients:write': 'api_tokens.ability.clients_write.consequence',
+};
+
+/** Matrix rows and grant pills, in display order; the key is the ability prefix. */
+const areas = [
+    'identity',
+    'monitors',
+    'checks',
+    'incidents',
+    'activity',
+    'upcoming',
+    'uptime',
+    'downtime',
+    'maintenance',
+    'tags',
+    'clients',
+];
+const areaOf = (ability: string) => ability.slice(0, ability.indexOf(':'));
+const verbOf = (ability: string) => ability.slice(ability.indexOf(':') + 1);
+/** `write` reads as "change"; any other verb is an area-specific action (run, snooze, note). */
+const levelOf = (ability: string) =>
+    verbOf(ability) === 'write' ? 'change' : verbOf(ability);
+const levels = ['read', 'change', 'run', 'snooze', 'note'];
+
 export function abilityLabel(ability: string): string {
     const label = abilityLabels[ability];
     if (!label) throw new Error(`Unknown API ability: ${ability}`);
     return label;
 }
 
-/** Token abilities as human chips; each chip names its API scope in the shared tooltip. */
-export function TokenAbilities({ abilities }: { abilities: string[] }) {
+/**
+ * The permission matrix, a form grid (not the data Table: no header band, no row hover). Rows are areas; Read and Change
+ * are columns; every other ability of an area is a named checkbox in its Actions cell. Each checkbox carries its own word,
+ * so every row reads by itself; below sm a row stacks. Checking one ability never checks another.
+ */
+export function AbilityMatrix({
+    available,
+    value,
+    onChange,
+    disabled,
+}: {
+    available: string[];
+    value: string[];
+    onChange: (abilities: string[]) => void;
+    disabled?: boolean;
+}) {
     const { t } = useTranslation();
+    const baseId = useId();
+    const unknown = available.filter(
+        (ability) => !areas.includes(areaOf(ability)),
+    );
+    if (unknown.length > 0)
+        throw new Error(`API abilities without an area: ${unknown.join(', ')}`);
+    const toggle = (ability: string, on: boolean) =>
+        onChange(
+            // Keep the server's ability order, whatever the click order.
+            available.filter((candidate) =>
+                candidate === ability ? on : value.includes(candidate),
+            ),
+        );
+    const cell = (ability: string | undefined, word: string) =>
+        ability ? (
+            <span className="w-fit">
+                <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 text-cell has-disabled:cursor-not-allowed has-disabled:text-disabled-foreground sm:min-h-8">
+                    <Checkbox
+                        value={ability}
+                        aria-describedby={`${baseId}-${ability}`}
+                        checked={value.includes(ability)}
+                        disabled={disabled}
+                        onCheckedChange={(on) => toggle(ability, on === true)}
+                    />
+                    {word}
+                </label>
+                {/* The plain ability name and its consequence describe the checkbox; the visible word stays its name. */}
+                <span id={`${baseId}-${ability}`} className="sr-only">
+                    {t(abilityLabel(ability))}
+                    {abilityConsequences[ability] &&
+                        `. ${t(abilityConsequences[ability])}`}
+                </span>
+            </span>
+        ) : (
+            <span className="hidden sm:block" />
+        );
+    const checked = value.filter((ability) => abilityConsequences[ability]);
     return (
-        <ul className="flex flex-wrap gap-1" aria-label={t('Can')}>
-            {abilities.map((ability) => (
-                <li key={ability}>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Badge variant="outline" tabIndex={0}>
-                                {t(abilityLabel(ability))}
-                            </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent>{ability}</TooltipContent>
-                    </Tooltip>
-                </li>
-            ))}
-        </ul>
+        <div className="space-y-2">
+            <div className="sm:grid sm:grid-cols-[minmax(0,1fr)_5.5rem_5.5rem_max-content] sm:gap-x-4">
+                {areas.map((area) => {
+                    const own = available.filter(
+                        (ability) => areaOf(ability) === area,
+                    );
+                    if (own.length === 0) return null;
+                    return (
+                        <div
+                            key={area}
+                            role="group"
+                            aria-labelledby={`${baseId}-${area}`}
+                            className="flex flex-col gap-x-4 border-t border-border-soft py-1.5 first:border-t-0 sm:col-span-4 sm:grid sm:grid-cols-subgrid sm:items-center"
+                        >
+                            <TooltipHint content={own.join(' · ')}>
+                                <span
+                                    id={`${baseId}-${area}`}
+                                    className="w-fit text-cell font-medium sm:font-normal"
+                                >
+                                    {t(`api_tokens.area.${area}`)}
+                                </span>
+                            </TooltipHint>
+                            <div className="flex gap-6 sm:contents">
+                                {cell(
+                                    own.find((a) => verbOf(a) === 'read'),
+                                    t('api_tokens.matrix.read'),
+                                )}
+                                {cell(
+                                    own.find((a) => verbOf(a) === 'write'),
+                                    t('api_tokens.matrix.change'),
+                                )}
+                            </div>
+                            <div className="flex flex-wrap gap-x-4">
+                                {own
+                                    .filter(
+                                        (a) =>
+                                            verbOf(a) !== 'read' &&
+                                            verbOf(a) !== 'write',
+                                    )
+                                    .map((ability) => (
+                                        <span key={ability}>
+                                            {cell(
+                                                ability,
+                                                t(
+                                                    `api_tokens.action.${verbOf(ability)}`,
+                                                ),
+                                            )}
+                                        </span>
+                                    ))}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+            {checked.length > 0 && (
+                <ul className="space-y-0.5 text-xs text-muted-foreground">
+                    {checked.map((ability) => (
+                        <li key={ability}>
+                            {t(abilityLabel(ability))}:{' '}
+                            {t(abilityConsequences[ability]!)}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+}
+
+/**
+ * A token's stored grant on one line: one pill per area with its levels and the raw scopes in the pill tooltip. More than
+ * two areas collapse behind "+N", which expands the row inline. A grant equal to everything the role may issue right now
+ * reads "Full access"; a later ability breaks that match. The legacy `*` keeps its own label.
+ */
+export function TokenGrant({
+    abilities,
+    grantable,
+}: {
+    abilities: string[];
+    grantable: string[];
+}) {
+    const { t } = useTranslation();
+    const [expanded, setExpanded] = useState(false);
+    if (abilities.includes('*'))
+        return (
+            <TooltipHint
+                content={`${t('api_tokens.ability.all')} (*). ${t('api_tokens.grants.replace_wildcard')}`}
+            >
+                <Badge className="max-w-full justify-start font-normal text-status-warn">
+                    <span className="truncate">
+                        {t('api_tokens.ability.all')}
+                    </span>
+                </Badge>
+            </TooltipHint>
+        );
+    if (
+        JSON.stringify([...abilities].sort()) ===
+        JSON.stringify([...grantable].sort())
+    )
+        return (
+            <TooltipHint content={abilities.join(', ')}>
+                <Badge className="font-normal">{t('Full access')}</Badge>
+            </TooltipHint>
+        );
+    const groups = areas
+        .map((area) => ({
+            area,
+            abilities: abilities
+                .filter((ability) => areaOf(ability) === area)
+                .sort(
+                    (a, b) =>
+                        levels.indexOf(levelOf(a)) - levels.indexOf(levelOf(b)),
+                ),
+        }))
+        .filter((group) => group.abilities.length > 0);
+    // One pill fits the narrowest grant column (DE at 1440 and 390); the rest is always behind "+N".
+    const shown = expanded ? groups : groups.slice(0, 1);
+    const hidden = groups.length - shown.length;
+    return (
+        <span
+            className={cn(
+                'flex min-w-0 items-center justify-end gap-1 min-[87.5rem]:justify-start',
+                expanded && 'flex-wrap',
+            )}
+        >
+            {shown.map((group) => {
+                const text = `${t(`api_tokens.area.${group.area}`)} · ${group.abilities.map((ability) => t(`api_tokens.level.${levelOf(ability)}`)).join(', ')}`;
+                return (
+                    <TooltipHint
+                        key={group.area}
+                        content={`${text} (${group.abilities.join(', ')})`}
+                    >
+                        <Badge
+                            className={cn(
+                                'min-w-0 shrink justify-start font-normal',
+                                expanded ? 'max-w-full' : 'max-w-36',
+                            )}
+                        >
+                            <span className="truncate">{text}</span>
+                        </Badge>
+                    </TooltipHint>
+                );
+            })}
+            {(hidden > 0 || expanded) && (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    className="shrink-0 text-muted-foreground"
+                    aria-expanded={expanded}
+                    aria-label={
+                        expanded
+                            ? undefined
+                            : t('api_tokens.grants.more_areas', {
+                                  count: hidden,
+                              })
+                    }
+                    onClick={() => setExpanded(!expanded)}
+                >
+                    {expanded
+                        ? t('api_tokens.grants.show_less')
+                        : t('api_tokens.grants.more', { count: hidden })}
+                </Button>
+            )}
+        </span>
     );
 }

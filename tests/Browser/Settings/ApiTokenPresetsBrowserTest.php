@@ -2,29 +2,41 @@
 
 declare(strict_types=1);
 
-use Carbon\CarbonImmutable;
+use Heptapod\Models\Client;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\Vite;
 
-it('offers the documented agent-read preset and issues only its read abilities', function (string $locale, string $createLabel, string $presetLabel): void {
-    $this->travelTo(CarbonImmutable::parse('2026-10-20T12:00:00Z'));
+it('issues exactly the edited starting point with explicit client access and the 30-day default expiry', function (string $locale, string $createLabel, string $deployLabel, string $oneClient, string $stored, int $width): void {
     Vite::useHotFile(storage_path('framework/testing.hot'));
     config(['broadcasting.default' => 'null']);
     $user = User::factory()->create(['locale' => $locale, 'timezone' => 'UTC']);
     $user->assignRole('Owner');
+    $client = Client::factory()->create(['name' => 'Deploy client']);
     $this->actingAs($user);
 
-    $page = visit('/settings/api-tokens')->resize(1440, 1000)->click($createLabel);
-    $page->click('#token-preset')->click('[role="option"]:has-text("agent-read")')->assertSee($presetLabel)
-        ->assertSee('activity:read')->assertSee('upcoming:read')->assertDontSee('maintenance:read');
-    $page->fill('token-name', 'Agent reader');
+    // The browser computes the default expiry from its own clock, which the server cannot freeze.
+    $before = now()->addDays(30)->subMinute();
+    $page = visit('/settings/api-tokens')->resize($width, 1000)->click($createLabel);
+    $page->fill('token-name', 'CI deploy')->click($deployLabel)
+        // Drop the maintenance lookup, add incident reads: the grant is the checklist.
+        ->click('[role="checkbox"][value="maintenance:read"]')->click('[role="checkbox"][value="incidents:read"]');
+    $page->keys('token-name', 'Enter')->assertPresent('#token-reach[aria-invalid="true"]');
+    expect($user->tokens()->count())->toBe(0);
+    $page->click($oneClient)->click('#token-client')->click('[role="option"]:has-text("Deploy client")');
     $page->script('const style = document.createElement("style"); style.textContent = "#one-time-secret { opacity: 0 !important; }"; document.head.append(style);');
-    $page->keys('token-name', 'Enter')->assertPresent('#one-time-secret')->assertNoJavaScriptErrors();
+    try {
+        $page->keys('token-name', 'Enter')->assertPresent('#one-time-secret')->assertNoJavaScriptErrors();
+        $page->click($stored);
+        expect($page->script('document.querySelector("#one-time-secret") === null'))->toBeTrue();
+    } finally {
+        $page->script('document.querySelector("#one-time-secret")?.remove();');
+    }
 
-    expect($user->tokens()->sole()->abilities)->toBe([
-        'identity:read', 'monitors:read', 'checks:read', 'incidents:read', 'activity:read', 'upcoming:read',
-    ]);
+    $token = $user->tokens()->sole();
+    expect($token->abilities)->toBe(['monitors:read', 'checks:read', 'incidents:read', 'maintenance:write', 'checks:run'])
+        ->and($token->getAttribute('client_id'))->toBe($client->id)
+        ->and($token->expires_at?->between($before, now()->addDays(30)->addMinute()))->toBeTrue();
 })->with([
-    'English agent preset' => ['en', 'Create token', 'Read for coding agents'],
-    'German agent preset' => ['de', 'Token erstellen', 'Lesen für KI-Agenten'],
+    'English desktop' => ['en', 'Create token', 'Deploy automation', 'One client', 'I have stored it', 1440],
+    'German mobile' => ['de', 'Token erstellen', 'Deploy-Automatisierung', 'Ein Kunde', 'Ich habe es gespeichert', 390],
 ]);

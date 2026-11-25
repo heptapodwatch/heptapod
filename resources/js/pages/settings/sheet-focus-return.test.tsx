@@ -55,6 +55,11 @@ it('returns focus to Create token after the token sheet closes', async () => {
                     manage: [],
                     'agent-read': [],
                 },
+                starting_points: {
+                    'read-everything': [],
+                    'deploy-automation': null,
+                    'full-access': [],
+                },
                 clients: [],
                 timezone: 'UTC',
             }}
