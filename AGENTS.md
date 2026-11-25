@@ -24,7 +24,7 @@ These rules take precedence over generated guidance below. Keep private machine 
 - Scope is monitoring, reporting and opt-in notifications. Never add assignees, owners, claiming, acknowledgement, on-call or task tracking. "Follow" means only "send me these alerts". Keep permission roles, engine claims/leases and record ownership distinct.
 - Wording: Down = an uptime outage; Failed = a check result; Check error = we could not check. Never call a non-uptime failure "Down". Webhook `severity` is urgency, not cause.
 - All user-facing text uses `lang/` JSON keys in EN and DE. German uses the formal "Sie"; buttons stay infinitives.
-- Build UI only from the shared components and rules in `.agents/skills/heptapod-ui-rules`: page container, page header, form section / sheet form, section tabs vs segmented control, table, empty state, filter bar. No per-page layout variants. A new pattern goes into the skill first.
+- Build UI only from the shared components and rules in `.agents/skills/heptapod-ui-rules`: page container, page header, form section / sheet form, section tabs vs segmented control, table, empty state, filter bar. No per-page layout variants. A new pattern goes into the skill first, as one short rule.
 - Live updates buffer foreign changes behind "N new changes"; the user's own successful action shows its result immediately.
 
 ## Delivery

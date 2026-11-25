@@ -3,51 +3,21 @@ name: heptapod-release-notes
 description: Write the GitHub release notes for a Heptapod version in the one shared shape. Use when preparing, drafting, publishing or rewriting release notes.
 ---
 
+<!-- Authoring rule: a project skill states product intent, judgement and short decision guides. Name the canonical component, contract or check once; if a rule can be made a default, type, guard or test, give it that owner instead of specifying it twice. -->
+
 # Release notes
 
-The reader runs a Heptapod instance and has 30 seconds. They want to know three things: what is new for them, whether something needs their action, and how to upgrade. Every release uses the same shape, so readers know where to look.
+The reader self-hosts Heptapod and has 30 seconds: what do I gain, must I act, how do I upgrade.
 
-## Shape
+**Shape:** title `Heptapod vX.Y.Z`; one headline sentence; then **Before you upgrade** (only when the reader must act: a manual step, a breaking change, an unsupported path), **New**, **Improved**, **Fixed** and **Upgrade**. Omit empty sections. For Upgrade, link or copy the bundle and Git commands from `docs/deploy/operations.md` unchanged.
 
-Title: `Heptapod vX.Y.Z`. Body, sections in this order:
+**Bullets:**
 
-```markdown
-One sentence: the headline of this release.
+- A bold lead that makes sense alone, plus at most one sentence, ending with `(#N)`.
+- The result the operator sees, not the mechanism: no class, job or config names.
+- Product terms: Down, Failed, Check error.
+- Omit refactors, tests, CI, contributor docs, agent skills and dependency bumps, except a security update that matters to operators ("Security: updated <component> for <advisory>" under Fixed).
+- More than about ten bullets: merge related ones.
+- Public: no host names, local paths, internal URLs or customer sites.
 
-## Before you upgrade
-- **What the reader must do or know.** One sentence why.
-
-## New
-- **What you can do now.** One sentence of context, only if the lead needs it. (#12)
-
-## Improved
-- **What works better.** (#14)
-
-## Fixed
-- **The problem that is gone, as the user saw it.** (#9)
-
-## Upgrade
-- **Bundle installs:** `cd /opt/heptapod && sudo ./scripts/upgrade.sh`
-- **Git installs:** `git fetch --tags && git checkout vX.Y.Z && ./scripts/upgrade.sh`
-```
-
-- Leave out a section that has no entries. "Before you upgrade" appears only when the reader must act: a manual step, a breaking change, an unsupported upgrade path.
-- The first release has an "Install" section instead of "Upgrade".
-- A short command block is allowed where a bullet tells the reader to run something new.
-
-## Bullets
-
-- One bullet = a bold lead plus at most one sentence. The lead alone must make sense.
-- Write the user-visible result, not the mechanism. No class names, job names, config internals or test details.
-- End with the PR reference `(#N)`. GitHub links it.
-- Use the product terms: Down = uptime outage, Failed = check result, Check error = could not check.
-- Leave out: refactors, tests, CI, contributor docs, agent skills, dependency bumps. Exception: a security update goes under "Fixed" as "Security: updated <component> for <advisory>".
-- More than about 10 bullets: merge related ones. A release that needs more is two topics. Say so in the headline.
-- The repository is public. No host names, local paths, internal URLs or customer sites. Examples use `example.com`.
-
-## Process
-
-1. Collect the changes: `git log --oneline <previous tag>..HEAD`, then read the PR and its issue for every user-visible commit.
-2. Write the draft to a file in the shape above.
-3. Show the draft to the requester and wait for an explicit OK.
-4. Create the release as a draft on the existing annotated tag: `gh release create vX.Y.Z -R heptapodwatch/heptapod --draft --verify-tag --title "Heptapod vX.Y.Z" --notes-file <file>`. Then run `gh workflow run release-bundle.yml -R heptapodwatch/heptapod -f tag=vX.Y.Z`; it attaches the bundle and publishes the release. To fix published notes, use `gh release edit vX.Y.Z --notes-file <file>`.
+Show the full draft to the requester and wait for an explicit OK before anything is published.
