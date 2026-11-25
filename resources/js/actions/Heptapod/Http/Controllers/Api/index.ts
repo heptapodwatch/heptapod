@@ -27,6 +27,9 @@ import UptimeController from './UptimeController'
 import UptimeMetricsController from './UptimeMetricsController'
 import DowntimeController from './DowntimeController'
 import TagController from './TagController'
+import ClientController from './ClientController'
+import ArchiveClientController from './ArchiveClientController'
+import RestoreClientController from './RestoreClientController'
 
 const Api = {
     OpenApiDocumentController: Object.assign(OpenApiDocumentController, OpenApiDocumentController),
@@ -58,6 +61,9 @@ const Api = {
     UptimeMetricsController: Object.assign(UptimeMetricsController, UptimeMetricsController),
     DowntimeController: Object.assign(DowntimeController, DowntimeController),
     TagController: Object.assign(TagController, TagController),
+    ClientController: Object.assign(ClientController, ClientController),
+    ArchiveClientController: Object.assign(ArchiveClientController, ArchiveClientController),
+    RestoreClientController: Object.assign(RestoreClientController, RestoreClientController),
 }
 
 export default Api

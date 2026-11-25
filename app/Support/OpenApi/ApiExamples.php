@@ -10,7 +10,8 @@ namespace Heptapod\Support\OpenApi;
  *
  * One small world keeps every ID consistent across operations, with the values of tests/Fixtures/OhDear (monitor 1 at
  * example.com, uptime check 100, run 200): broken links check 101 (run 201), cron check 102 whose task 400 failed
- * (run 202, incident 300; manual run attempt 700 recorded run 203), certificate check 103, maintenance window 500, tag 600.
+ * (run 202, incident 300; manual run attempt 700 recorded run 203), certificate check 103, maintenance window 500, tag 600;
+ * client 1 is the internal client ("No client"), client 2 the customer created by createClient.
  */
 final class ApiExamples
 {
@@ -29,6 +30,10 @@ final class ApiExamples
                 'checks' => ['uptime', 'broken_links', 'cron', 'certificate_health'], 'uptime_check_settings' => ['frequency_value' => 1, 'frequency_unit' => 'minute']],
             'updateMonitor' => ['friendly_name' => 'Example shop', 'tags' => ['production', 'shop'], 'repositories' => [['url' => 'git@github.com:acme/example-shop.git', 'label' => 'Shop']]],
             'createTag' => ['team_id' => 1, 'name' => 'production', 'monitors' => [1]],
+            'createClient' => ['name' => 'Acme Ltd', 'short_name' => 'ACME', 'locale' => 'de', 'timezone' => 'Europe/Berlin'],
+            'updateClient' => ['name' => 'Acme GmbH'],
+            'archiveClient' => ['move_to_client_id' => 1],
+            'restoreClient' => ['resume_sites' => true],
             'requestCheckRun' => ['httpClientHeaders' => [['name' => 'X-Monitor', 'value' => 'heptapod']]],
             'snoozeCheck' => ['snooze_until' => '2026-10-01T09:30:00Z'],
             'createMaintenancePeriod' => ['monitor_id' => 1, 'starts_at' => '2026-10-20 22:00', 'ends_at' => '2026-10-20 23:00', 'name' => 'Planned deploy'],
@@ -58,6 +63,9 @@ final class ApiExamples
         // A task has no ping fields until its first ping (CronTaskResource).
         $newTask = array_diff_key($task, ['latest_ping_at' => true, 'human_readable_latest_ping_at' => true]);
         $tag = ['id' => 600, 'team_id' => 1, 'team_name' => 'Heptapod', 'name' => 'production', 'slug' => 'production', 'created_at' => self::Created, 'updated_at' => self::Created, 'sites' => [1]];
+        $internal = ['id' => 1, 'name' => 'Internal', 'short_name' => null, 'locale' => 'en', 'timezone' => null, 'accent_color' => null, 'is_internal' => true, 'archived' => false,
+            'archived_at' => null, 'created_at' => self::Created, 'updated_at' => self::Created];
+        $client = [...$internal, 'id' => 2, 'name' => 'Acme Ltd', 'short_name' => 'ACME', 'locale' => 'de', 'timezone' => 'Europe/Berlin', 'is_internal' => false];
         $window = ['id' => 500, 'monitor_id' => 1, 'name' => 'Planned deploy', 'starts_at' => '2026-10-20 22:00:00', 'ends_at' => '2026-10-20 23:00:00', 'scope' => 'site', 'shared' => false];
         $note = ['note' => 'Backup host was rebooted; watching the next run.', 'note_author' => 'Ada Admin', 'note_updated_at' => '2026-10-01T07:40:00+00:00'];
 
@@ -72,6 +80,12 @@ final class ApiExamples
             'updateMonitor' => [200 => [...$monitor, 'label' => 'Example shop', 'tags' => ['production', 'shop']]],
             'listTags' => [200 => ['data' => [$tag]]],
             'createTag' => [201 => $tag],
+            'listClients' => [200 => ['data' => [$internal, $client], 'links' => $links('clients'), 'meta' => [...$meta('clients'), 'to' => 2, 'total' => 2]]],
+            'getClient' => [200 => $client],
+            'createClient' => [201 => $client],
+            'updateClient' => [200 => [...$client, 'name' => 'Acme GmbH']],
+            'archiveClient' => [200 => [...$client, 'archived' => true, 'archived_at' => '2026-10-02 08:00:00', 'updated_at' => '2026-10-02 08:00:00']],
+            'restoreClient' => [200 => [...$client, 'updated_at' => '2026-10-02 09:00:00']],
             'enableCheck' => [200 => ['id' => 101, 'type' => 'broken_links', 'enabled' => true]],
             'disableCheck' => [200 => ['id' => 101, 'type' => 'broken_links', 'enabled' => false]],
             'snoozeCheck' => [200 => $snoozedCheck],

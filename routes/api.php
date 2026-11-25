@@ -73,4 +73,14 @@ Route::middleware(['auth:sanctum', RequireApiToken::class, 'throttle:api'])->nam
     Route::get('monitors/{monitor}/downtime', Api\DowntimeController::class)->middleware(CheckAbilities::class.':downtime:read')->name('getDowntime');
     Route::get('tags', [Api\TagController::class, 'index'])->middleware(CheckAbilities::class.':tags:read')->name('listTags');
     Route::post('tags', [Api\TagController::class, 'store'])->middleware(CheckAbilities::class.':tags:write')->name('createTag');
+    Route::middleware(CheckAbilities::class.':clients:read')->group(function (): void {
+        Route::get('clients', [Api\ClientController::class, 'index'])->name('listClients');
+        Route::get('clients/{client}', [Api\ClientController::class, 'show'])->whereNumber('client')->name('getClient');
+    });
+    Route::middleware(CheckAbilities::class.':clients:write')->group(function (): void {
+        Route::post('clients', [Api\ClientController::class, 'store'])->name('createClient');
+        Route::put('clients/{client}', [Api\ClientController::class, 'update'])->whereNumber('client')->name('updateClient');
+        Route::post('clients/{client}/archive', Api\ArchiveClientController::class)->whereNumber('client')->name('archiveClient');
+        Route::post('clients/{client}/restore', Api\RestoreClientController::class)->whereNumber('client')->name('restoreClient');
+    });
 });

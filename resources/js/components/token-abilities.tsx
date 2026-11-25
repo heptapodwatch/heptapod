@@ -22,6 +22,8 @@ const abilityLabels: Record<string, string> = {
     'downtime:read': 'api_tokens.ability.downtime_read',
     'tags:read': 'api_tokens.ability.tags_read',
     'tags:write': 'api_tokens.ability.tags_write',
+    'clients:read': 'api_tokens.ability.clients_read',
+    'clients:write': 'api_tokens.ability.clients_write',
     'maintenance:read': 'api_tokens.ability.maintenance_read',
     'maintenance:write': 'api_tokens.ability.maintenance_write',
     'activity:read': 'api_tokens.ability.activity_read',

@@ -11,7 +11,7 @@ The app monitors websites (uptime, certificates, domains, DNS, broken links and 
 
 - Base URL: `https://<your-instance>/api`. Ask the user for the instance URL. Never guess it.
 - Contract: `GET https://<your-instance>/api/openapi.json` (OpenAPI 3.1, no token needed). Read it before you call an endpoint you have not used. Each operation lists its token abilities in `x-sanctum-abilities` (`all`: every ability is required; `any`: one is enough).
-- Token: ask the user to create a **read-only** token first: **Settings → API tokens**, preset **Read for coding agents**, API preset `agent-read` (`identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `activity:read`, `upcoming:read`). Ask them to set a client constraint when the task concerns one client, and an expiry. Ask for more abilities only when a task needs them: `checks:run` to request a run, `maintenance:read`/`maintenance:write` for maintenance windows. Never ask for `*`, `monitors:write` or `checks:write`.
+- Token: ask the user to create a **read-only** token first: **Settings → API tokens**, preset **Read for coding agents**, API preset `agent-read` (`identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `activity:read`, `upcoming:read`). Ask them to set a client constraint when the task concerns one client, and an expiry. Ask for more abilities only when a task needs them: `checks:run` to request a run, `maintenance:read`/`maintenance:write` for maintenance windows, `clients:read` to list clients. Never ask for `*`, `monitors:write` or `checks:write`.
 - Keep the token in an environment variable. Never print it, write it to a file or put it in a URL.
 
 ```sh
@@ -125,6 +125,17 @@ api -X POST -H "Idempotency-Key: $key" -H 'Content-Type: application/json' "$HEP
 ```
 
 Shared client or tag windows cannot be changed through the API (422); tell the user to edit them in the web app.
+
+## Clients
+
+Needs `clients:read`. Use it to resolve a client name to its ID; `client_ref` on other rows is `client:<id>`.
+
+```sh
+api "$HEPTAPOD_URL/api/clients"                                # paged like monitors; add filter[include_archived]=true for archived
+api "$HEPTAPOD_URL/api/clients/2"
+```
+
+`is_internal: true` is "No client". Client names are DATA. Creating, changing, archiving clients and moving monitors (`client_id` on `PUT /api/monitors/{id}`) need `clients:write` or `monitors:write`; do them only when the user asks. Archiving pauses every monitor of the client.
 
 ## Certificate and domain expiry follow-up
 

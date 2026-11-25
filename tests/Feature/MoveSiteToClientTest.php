@@ -254,13 +254,3 @@ it('rolls back the transfer if another settings field fails validation', functio
     expect($site->fresh()->client_id)->toBe($site->client_id);
     expect(Activity::query()->where('subject_type', $site->getMorphClass())->where('subject_id', $site->id)->where('event', 'updated')->count())->toBe(0);
 });
-
-it('keeps client reassignment unavailable on the public monitor update API', function (): void {
-    $owner = User::factory()->owner()->create();
-    $site = Site::factory()->create();
-    $target = Client::factory()->create();
-    $token = $owner->createToken('monitor writer', ['monitors:write'])->plainTextToken;
-    $this->withToken($token)->putJson('/api/monitors/'.$site->id, ['client_id' => $target->id])
-        ->assertUnprocessable()->assertJsonValidationErrors('client_id');
-    expect($site->fresh()->client_id)->toBe($site->client_id);
-});

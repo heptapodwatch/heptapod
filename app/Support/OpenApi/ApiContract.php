@@ -258,6 +258,15 @@ final class ApiContract
                 'created_at' => ['type' => ['string', 'null'], 'description' => 'UTC, Y-m-d H:i:s.'], 'updated_at' => ['type' => ['string', 'null'], 'description' => 'UTC, Y-m-d H:i:s.'],
                 'sites' => ['type' => 'array', 'items' => ['type' => 'integer'], 'description' => 'Accessible site IDs only.']]],
             'CronTaskResource' => self::cronTaskResource(),
+            'ClientResource' => ['type' => 'object', 'additionalProperties' => false,
+                'required' => ['id', 'name', 'short_name', 'locale', 'timezone', 'accent_color', 'is_internal', 'archived', 'archived_at', 'created_at', 'updated_at'], 'properties' => [
+                    'id' => ['type' => 'integer'], 'name' => ['type' => 'string', 'description' => self::ClientName.' The internal client is named `Internal` and shown as "No client" in the app.'],
+                    'short_name' => ['type' => ['string', 'null'], 'description' => 'Short label for the client avatar. '.self::Untrusted],
+                    'locale' => ['type' => 'string', 'enum' => ['en', 'de']], 'timezone' => ['type' => ['string', 'null'], 'description' => 'The client\'s own IANA time zone; null follows the instance.'],
+                    'accent_color' => ['type' => ['string', 'null']],
+                    'is_internal' => ['type' => 'boolean', 'description' => 'True for the one internal client that holds the monitors without a customer ("No client"). It cannot be archived or renamed.'],
+                    'archived' => ['type' => 'boolean'], 'archived_at' => ['type' => ['string', 'null'], 'description' => 'UTC, Y-m-d H:i:s.'],
+                    'created_at' => ['type' => ['string', 'null'], 'description' => 'UTC, Y-m-d H:i:s.'], 'updated_at' => ['type' => ['string', 'null'], 'description' => 'UTC, Y-m-d H:i:s.']]],
         ];
     }
 
@@ -347,6 +356,13 @@ final class ApiContract
                     'properties' => ['url' => ['type' => 'string', 'maxLength' => RepositoryUrl::MaxLength], 'label' => ['type' => ['string', 'null'], 'maxLength' => 255]]]],
             ...$fields->checkSettings()]];
 
+        // Mirrors the UpdateClient rules for the fields ClientController::Fields passes on.
+        $client = ['type' => 'object', 'additionalProperties' => false, 'properties' => [
+            'name' => ['type' => 'string', 'maxLength' => 255], 'short_name' => ['type' => ['string', 'null'], 'maxLength' => 8, 'description' => 'Short label for the client avatar.'],
+            'locale' => ['type' => 'string', 'enum' => ['en', 'de'], 'description' => 'Language of client reports and messages. Default `en`.'],
+            'timezone' => ['type' => ['string', 'null'], 'description' => 'IANA time zone of the client. Null follows the instance time zone.'],
+            'accent_color' => ['type' => 'string', 'enum' => ['#7C5E10', '#3B5068', '#2F5D4A', '#5B3A4A', '#4B4B57', '#3F4A3A', '#4A4A2F', '#3F3F46'], 'description' => 'Avatar colour.']]];
+
         // Mirrors the `date_format:Y-m-d H:i` rule of MaintenancePeriodController: windows have minute precision like the web form.
         $minuteUtc = ['type' => 'string', 'pattern' => '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}$', 'examples' => ['2026-10-20 22:00'],
             'description' => 'UTC wall time with minute precision, format `Y-m-d H:i`: no seconds, no `T`, no offset. Seconds return 422.'];
@@ -360,9 +376,19 @@ final class ApiContract
             'snoozeCheck' => ['oneOf' => [
                 ['type' => 'object', 'required' => ['minutes'], 'properties' => ['minutes' => ['type' => ['integer', 'string'], 'description' => 'Positive integer or digit-only string, at most 525600.']]],
                 ['type' => 'object', 'required' => ['snooze_until'], 'properties' => ['snooze_until' => ['type' => 'string', 'format' => 'date-time', 'description' => 'Absolute end with offset; the retry-safe form.']]]]],
-            'createMonitor' => [...$monitor, 'required' => ['team_id', 'type', 'url'],
+            'createMonitor' => [...$monitor, 'properties' => [...$monitor['properties'], 'client_id' => ['type' => ['integer', 'null'],
+                'description' => 'The client of the new monitor (listClients). Omitted or null: the internal client, shown as "No client". A missing, hidden or archived client returns 422.']],
+                'required' => ['team_id', 'type', 'url'],
                 'description' => 'Oh Dear monitor payload. Only HTTP monitors are supported; omitted `checks` enables the recommended defaults, `checks: []` disables them.'],
-            'updateMonitor' => [...$monitor, 'description' => 'Partial update: omitted fields and settings keep their value.'],
+            'updateMonitor' => [...$monitor, 'properties' => [...$monitor['properties'], 'client_id' => ['type' => 'integer',
+                'description' => 'Moves the monitor to this client (listClients) before the other fields are saved. Owners and Admins only.']],
+                'description' => 'Partial update: omitted fields and settings keep their value.'],
+            'createClient' => [...$client, 'required' => ['name']],
+            'updateClient' => [...$client, 'description' => 'Partial update: omitted fields keep their value.'],
+            'archiveClient' => ['type' => 'object', 'additionalProperties' => false, 'properties' => ['move_to_client_id' => ['type' => ['integer', 'null'],
+                'description' => 'Move every monitor to this other, not archived client before archiving, instead of pausing them. A missing, hidden or archived client, or a monitor that cannot move, returns 422 on `move_to_client_id`; monitors moved before the refusal stay moved.']]],
+            'restoreClient' => ['type' => 'object', 'additionalProperties' => false, 'properties' => ['resume_sites' => ['type' => 'boolean', 'default' => true,
+                'description' => 'Resume the monitors the archive paused. Default true.']]],
             'createCronCheck' => $task,
             'updateCronCheck' => FieldSchemas::partial($task),
             'syncCronChecks' => ['type' => 'object', 'required' => ['cron_checks'], 'additionalProperties' => false, 'properties' => [
@@ -409,6 +435,7 @@ final class ApiContract
             'findings' => [200 => $json(['$ref' => self::Ref.'FindingsPage'], 'One page of row-level findings from one retained run. Dialect: cursor.')],
             'getRun' => [200 => $json(['$ref' => self::Ref.'RunStatus'], 'The exact receipt of one manual run attempt.')],
             'listMonitors' => [200 => $json($paginated('MonitorResource'), 'Monitors. Dialect: page numbers (`page`/`per_page` or `page[number]`/`page[size]`).')],
+            'listClients' => [200 => $json($paginated('ClientResource'), 'Clients. Dialect: page numbers (`page`/`per_page` or `page[number]`/`page[size]`).')],
             'listCheckRuns' => [200 => $json($paginated('CheckRunResource'), 'Check runs, newest first. Dialect: page numbers.')],
             'createMaintenancePeriod' => [201 => $json(['$ref' => self::Ref.'MaintenancePeriodResource'], 'The scheduled window. With Idempotency-Key, a repeat returns the stored response.')],
             'startMaintenance' => [200 => $json(['$ref' => self::Ref.'MaintenancePeriodResource'], 'The started window. With Idempotency-Key, a repeat returns the first window with its original start and end.')],
@@ -487,6 +514,7 @@ final class ApiContract
         return [
             'Account' => 'The user the token belongs to, and this OpenAPI document.',
             'Monitors' => 'Monitored sites ("monitors" in the Oh Dear format): list, look up by URL, create, update and delete them, and the tags that group them.',
+            'Clients' => 'The clients that group monitors by customer: list, read, create and change them, archive and restore them. Move a monitor with `client_id` on updateMonitor.',
             'Checks' => 'The checks of a monitor (uptime, certificate, broken links and more): turn them on or off, snooze their notifications and read their latest summary.',
             'Check runs' => 'Request a run and read its exact receipt, page the run history, and read the row-level findings (broken links, mixed content, sitemap) of a retained run.',
             'Incidents' => 'An incident opens when a check keeps returning Failed or a Check error and closes on the first good result. Read it with its opening and current evidence and its timeline.',
@@ -526,13 +554,24 @@ final class ApiContract
             'getOpenApiDocument' => 'This OpenAPI 3.1 document. Public: it needs no token and holds no monitoring data.',
             'getMe' => 'The user the token belongs to, and the one virtual team (ID 1) with the instance name and time zone.',
             'listMonitors' => 'Monitors the token can see, by ID, each with its checks and check settings. Page with `page`/`per_page` or `page[number]`/`page[size]` (1–200, default 200).',
-            'createMonitor' => 'Creates an HTTP monitor in the internal client, shown as "No client" in the app. Without `checks` the recommended checks are turned on; `checks: []` creates it with none.',
+            'createMonitor' => 'Creates an HTTP monitor in the client `client_id`, or without it in the internal client (shown as "No client" in the app). A missing, hidden or archived client returns 422 on `client_id`. '
+                .'Without `checks` the recommended checks are turned on; `checks: []` creates it with none.',
             'getMonitor' => 'One monitor with its checks and check settings. Secrets are never returned: crawler headers are null, other secret values are `********`.',
             'getMonitorByUrl' => 'The monitor whose stored URL equals the address in the path, URL-decoded once (the encoding of the Oh Dear SDK).',
-            'updateMonitor' => 'Partial update: omitted fields and check settings keep their value, and a masked secret (`********`) keeps the stored secret.',
+            'updateMonitor' => 'Partial update: omitted fields and check settings keep their value, and a masked secret (`********`) keeps the stored secret. '
+                .'`client_id` moves the monitor to that client first (Owners and Admins): its open incidents end without a recovery notification, and a check that still fails opens a new incident under the new client. '
+                .'A missing, hidden or archived client, alerts still being sent, or a client changed meanwhile return 422 on `client_id`.',
             'deleteMonitor' => 'Deletes the monitor with its checks, runs and incidents. Timeline events, notification history and the deletion audit are kept.',
             'listTags' => 'Monitor tags with the IDs of the monitors this token can see. A token limited to a client sees only the tags of its monitors.',
             'createTag' => 'Creates a tag and adds it to the listed monitors (`monitors`, or its alias `sites`).',
+            'listClients' => 'Clients the token can see, by ID, without archived clients unless `filter[include_archived]=true`. The internal client (`is_internal: true`) holds the monitors shown as "No client" in the app. '
+                .'A token limited to a client sees only that client. Page with `page`/`per_page` or `page[number]`/`page[size]` (1–200, default 200).',
+            'getClient' => 'One client, archived or not. A hidden client returns 404 like a missing one.',
+            'createClient' => 'Creates a client (Owners and Admins). A token limited to a client returns 403. Create monitors in it with `client_id` on createMonitor.',
+            'updateClient' => 'Partial update of a client (Owners and Admins): omitted fields keep their value. The internal client keeps its name (422).',
+            'archiveClient' => 'Archives a client (Owners and Admins). This pauses every monitor of the client, or with `move_to_client_id` first moves every monitor to that client instead. '
+                .'Archived clients and their monitors are hidden from lists until restored. The internal client cannot be archived (403). Repeats are harmless.',
+            'restoreClient' => 'Restores an archived client (Owners and Admins) and resumes the monitors its archive paused, unless `resume_sites` is false. Repeats are harmless.',
             'enableCheck' => 'Turns a check on. A check of an addon that is not installed returns 422.',
             'disableCheck' => 'Turns a check off. Its open incidents are resolved without a recovery notification.',
             'snoozeCheck' => 'Mutes the notifications of a check until `snooze_until`, or for `minutes` (at most 525600), and replaces an active snooze. Prefer `snooze_until`: a retry sets the same end. The check keeps running.',
@@ -603,6 +642,8 @@ final class ApiContract
             'page' => $page,
             'per_page' => $perPage,
             'filter[team_id]' => 'Team filter of the Oh Dear format. The only team is 1.',
+            'filter[include_archived]' => '`true` also lists archived clients. Default `false`.',
+            'client' => 'The client ID.',
             'filter[repository_url]' => 'Only monitors linked to this repository. HTTPS and SSH remote forms are normalised like `repositories`; credentials or a non-repository address return 422.',
             'filter[started_after]' => 'Only runs started at or after this time. '.$utcFilter,
             'filter[started_before]' => 'Only runs started at or before this time. '.$utcFilter,
