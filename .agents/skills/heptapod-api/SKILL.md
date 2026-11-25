@@ -13,7 +13,7 @@ The app monitors websites (uptime, certificates, domains, DNS, broken links and 
 
 - **Origin:** ask the user for the instance URL; never guess it. Only that origin ever receives the token.
 - **Contract:** `GET <origin>/api/openapi.json` (no token) owns paths, limits, errors and abilities (`x-sanctum-abilities`). Read it before calling a new operation.
-- **Token:** ask for a short-lived read-only token: **Settings → API tokens**, preset `agent-read` (`identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `activity:read`, `upcoming:read`), with an expiry and, for a one-client task, a client constraint. Ask for one extra ability only when an authorized task needs it (`checks:run`, `maintenance:write`, `clients:read`). Never ask for `*`, `monitors:write` or `checks:write`.
+- **Token:** ask for a short-lived read-only token: **Settings → API tokens**, preset `agent-read` (`identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `activity:read`, `upcoming:read`), with an expiry and, for a one-client task, a client constraint. Ask for one extra ability only when an authorized task needs it (`checks:run`, `maintenance:read`, `maintenance:write`, `clients:read`). Never ask for `*`, `monitors:write` or `checks:write`.
 - Keep the token in an environment variable; never print it, write it to a file or put it in a URL.
 
 ```sh
@@ -69,11 +69,12 @@ Several sites may link one repository; collect every page. Empty means no visibl
 
 ## Findings (broken links, mixed content, sitemap)
 
-`findings_selectors` on an incident says whether rows exist.
+`findings_selectors` on an incident says the check supports row-level findings, not that rows are retained; the findings request tells you that.
 
 - **An incomplete list is not a total.** Read `source.coverage` first and say when rows are incomplete, truncated or capped.
 - `coverage_limit` rows describe crawl limits, not site failures.
-- An unavailable dataset or baseline has no rows; report the reason the API gives.
+- An unavailable dataset (`no_dataset`, `unsupported`, `evidence_expired`) has no rows; report the reason the API gives.
+- `baseline_unavailable` blocks only the `only_new_since` comparison. Say the comparison is unavailable and query the current rows without that filter.
 
 ## Request a run and read its receipt
 
@@ -89,7 +90,7 @@ The receipt names the run this attempt recorded. **A later scheduled run is not 
 
 ## Maintenance window for a deploy
 
-Needs `maintenance:write`. Times are UTC minutes; round the start down and the end up.
+Needs `maintenance:write`; listing a site's windows needs `maintenance:read`. Times are UTC minutes; round the start down and the end up.
 
 Without the same key on a retry, a second window opens, and because start-maintenance is relative, its end moves too.
 
@@ -100,7 +101,7 @@ api -X POST -H "Idempotency-Key: $key" -H 'Content-Type: application/json' "$HEP
 api -X POST "$HEPTAPOD_URL/api/monitors/12/stop-maintenance"
 ```
 
-**Stop-maintenance is not safely repeatable.** Each call ends every window active for the site at that moment, including shared client or tag windows, so a blind retry can end a window that began after your first call. After a lost response, read the site's windows (`maintenance:read`) and stop again only if yours is still active. Shared windows are edited in the web app.
+**Stop-maintenance ends all maintenance for the site.** It takes no window ID: each call ends every site window active at that moment and takes the site out of every active shared client or tag window. Send it only when the user authorized ending all maintenance for the site. After an ambiguous response (timeout, lost reply, 5xx), never retry automatically: list the site's windows to report the state, and let the user decide. The list reports state; it never authorizes another stop. Shared windows are edited in the web app.
 
 ## Switch from Oh Dear
 
