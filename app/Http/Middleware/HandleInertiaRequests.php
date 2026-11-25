@@ -87,9 +87,6 @@ class HandleInertiaRequests extends Middleware
                 return ['status' => $updates['update_status'], 'security' => $updates['security'],
                     'latest' => $updates['update_status'] === 'available' ? $updates['latest_version'] : null];
             },
-            // Throwaway: lets Jonas compare the mark's update options on a local stack (`?mark=update-b`).
-            'markPreview' => app()->isLocal() && $user instanceof User && $user->hasAnyRole(['Owner', 'Admin'])
-                && in_array($request->query('mark'), ['update-a', 'update-b', 'security-a', 'security-b'], true) ? $request->query('mark') : null,
             'overallHealth' => fn (): ?array => $user instanceof User ? app(ShellHealthReader::class)->read($user)->toArray() : null,
             ...($user instanceof User && $user->hasAnyRole(['Owner', 'Admin', 'Member'])
                 // Inline, not deferred: a deferred group costs every visit a second request that reruns the page controller.

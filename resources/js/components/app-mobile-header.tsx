@@ -17,7 +17,7 @@ export function AppMobileHeader({
         // Three columns keep the wordmark centred whether or not the runs glyph is shown.
         <header className="grid h-13 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-b px-4 md:hidden">
             <SidebarTrigger />
-            <BrandLink className="[--brand-mark-h:19px]" />
+            <BrandLink className="[--brand-mark-h:19px]" tooltipSide="bottom" />
             <div className="flex items-center gap-1 justify-self-end">
                 <MobileRunsTrigger />
                 {props.auth.user && (

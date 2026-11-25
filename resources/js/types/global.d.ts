@@ -31,13 +31,6 @@ declare module '@inertiajs/core' {
                 latest: string | null;
                 security: boolean;
             } | null;
-            /** Throwaway: a forced mark option on local stacks (`?mark=`). */
-            markPreview:
-                | 'update-a'
-                | 'update-b'
-                | 'security-a'
-                | 'security-b'
-                | null;
             lateRunsCount?: number;
             runningNow?: Heptapod.Data.Ui.RunningNowData | null;
             notificationAttention: {

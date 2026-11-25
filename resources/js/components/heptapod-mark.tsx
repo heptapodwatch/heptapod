@@ -45,8 +45,8 @@ const lit: Record<'h' | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9, Segment[]> = {
     9: ['a', 'b', 'c', 'd', 'f', 'g'],
 };
 
-/** How the resting mark tells Owners and Admins that a release is out; `-b` options are the throwaway comparisons. */
-export type MarkUpdate = 'update-a' | 'update-b' | 'security-a' | 'security-b';
+/** A newer Heptapod release, shown to Owners and Admins on the resting mark; a security release is more urgent. */
+export type MarkUpdate = 'update' | 'security';
 
 export function HeptapodMark({
     downCount,
