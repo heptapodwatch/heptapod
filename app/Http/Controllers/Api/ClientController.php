@@ -29,6 +29,22 @@ final class ClientController extends Controller
     /** The client fields the API writes; logos and site-icon avatars stay in the web app. */
     private const array Fields = ['name', 'short_name', 'locale', 'timezone', 'accent_color'];
 
+    /**
+     * The API keeps blank strings (bootstrap/app.php), which skip UpdateClient's non-implicit rules. As null they validate as
+     * in the web form: a blank name, locale or accent color fails, a blank short name or time zone clears it.
+     *
+     * @return array<string, mixed>
+     */
+    private function clientAttributes(Request $request): array
+    {
+        $this->rejectUnsupportedFields($request->all(), self::Fields);
+
+        /** @var array<string, mixed> $attributes */
+        $attributes = array_map(static fn (mixed $value): mixed => is_string($value) && trim($value) === '' ? null : $value, $request->only(self::Fields));
+
+        return $attributes;
+    }
+
     public function index(PaginationRequest $request, SitePolicy $policy): JsonResponse
     {
         $user = $this->principal($request);
@@ -54,21 +70,15 @@ final class ClientController extends Controller
         Gate::authorize('create', Client::class);
         // A token limited to one client cannot widen its own reach.
         abort_if($user->tokenClientConstraint() !== null, 403);
-        $this->rejectUnsupportedFields($request->all(), self::Fields);
-        /** @var array<string, mixed> $attributes */
-        $attributes = $request->only(self::Fields);
 
-        return new ClientResource($create($attributes))->response()->setStatusCode(201);
+        return new ClientResource($create($this->clientAttributes($request)))->response()->setStatusCode(201);
     }
 
     /** @throws ValidationException from the UpdateClient rules */
     public function update(Request $request, Client $client, UpdateClient $update): ClientResource
     {
         Gate::authorize('update', $client);
-        $this->rejectUnsupportedFields($request->all(), self::Fields);
-        /** @var array<string, mixed> $attributes */
-        $attributes = $request->only(self::Fields);
 
-        return new ClientResource($update($client, $attributes));
+        return new ClientResource($update($client, $this->clientAttributes($request)));
     }
 }

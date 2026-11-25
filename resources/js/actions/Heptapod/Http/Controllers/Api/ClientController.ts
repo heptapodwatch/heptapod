@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::index
-* @see app/Http/Controllers/Api/ClientController.php:32
+* @see app/Http/Controllers/Api/ClientController.php:48
 * @route '/api/clients'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::index
-* @see app/Http/Controllers/Api/ClientController.php:32
+* @see app/Http/Controllers/Api/ClientController.php:48
 * @route '/api/clients'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::index
-* @see app/Http/Controllers/Api/ClientController.php:32
+* @see app/Http/Controllers/Api/ClientController.php:48
 * @route '/api/clients'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::index
-* @see app/Http/Controllers/Api/ClientController.php:32
+* @see app/Http/Controllers/Api/ClientController.php:48
 * @route '/api/clients'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::index
-* @see app/Http/Controllers/Api/ClientController.php:32
+* @see app/Http/Controllers/Api/ClientController.php:48
 * @route '/api/clients'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::index
-* @see app/Http/Controllers/Api/ClientController.php:32
+* @see app/Http/Controllers/Api/ClientController.php:48
 * @route '/api/clients'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::index
-* @see app/Http/Controllers/Api/ClientController.php:32
+* @see app/Http/Controllers/Api/ClientController.php:48
 * @route '/api/clients'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ index.form = indexForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::show
-* @see app/Http/Controllers/Api/ClientController.php:43
+* @see app/Http/Controllers/Api/ClientController.php:59
 * @route '/api/clients/{client}'
 */
 export const show = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -97,7 +97,7 @@ show.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::show
-* @see app/Http/Controllers/Api/ClientController.php:43
+* @see app/Http/Controllers/Api/ClientController.php:59
 * @route '/api/clients/{client}'
 */
 show.url = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -130,7 +130,7 @@ show.url = (args: { client: number | { id: number } } | [client: number | { id: 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::show
-* @see app/Http/Controllers/Api/ClientController.php:43
+* @see app/Http/Controllers/Api/ClientController.php:59
 * @route '/api/clients/{client}'
 */
 show.get = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -140,7 +140,7 @@ show.get = (args: { client: number | { id: number } } | [client: number | { id: 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::show
-* @see app/Http/Controllers/Api/ClientController.php:43
+* @see app/Http/Controllers/Api/ClientController.php:59
 * @route '/api/clients/{client}'
 */
 show.head = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -150,7 +150,7 @@ show.head = (args: { client: number | { id: number } } | [client: number | { id:
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::show
-* @see app/Http/Controllers/Api/ClientController.php:43
+* @see app/Http/Controllers/Api/ClientController.php:59
 * @route '/api/clients/{client}'
 */
 const showForm = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -160,7 +160,7 @@ const showForm = (args: { client: number | { id: number } } | [client: number | 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::show
-* @see app/Http/Controllers/Api/ClientController.php:43
+* @see app/Http/Controllers/Api/ClientController.php:59
 * @route '/api/clients/{client}'
 */
 showForm.get = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -170,7 +170,7 @@ showForm.get = (args: { client: number | { id: number } } | [client: number | { 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::show
-* @see app/Http/Controllers/Api/ClientController.php:43
+* @see app/Http/Controllers/Api/ClientController.php:59
 * @route '/api/clients/{client}'
 */
 showForm.head = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -187,7 +187,7 @@ show.form = showForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::store
-* @see app/Http/Controllers/Api/ClientController.php:51
+* @see app/Http/Controllers/Api/ClientController.php:67
 * @route '/api/clients'
 */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -202,7 +202,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::store
-* @see app/Http/Controllers/Api/ClientController.php:51
+* @see app/Http/Controllers/Api/ClientController.php:67
 * @route '/api/clients'
 */
 store.url = (options?: RouteQueryOptions) => {
@@ -211,7 +211,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::store
-* @see app/Http/Controllers/Api/ClientController.php:51
+* @see app/Http/Controllers/Api/ClientController.php:67
 * @route '/api/clients'
 */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -221,7 +221,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::store
-* @see app/Http/Controllers/Api/ClientController.php:51
+* @see app/Http/Controllers/Api/ClientController.php:67
 * @route '/api/clients'
 */
 const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -231,7 +231,7 @@ const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::store
-* @see app/Http/Controllers/Api/ClientController.php:51
+* @see app/Http/Controllers/Api/ClientController.php:67
 * @route '/api/clients'
 */
 storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -243,7 +243,7 @@ store.form = storeForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::update
-* @see app/Http/Controllers/Api/ClientController.php:65
+* @see app/Http/Controllers/Api/ClientController.php:78
 * @route '/api/clients/{client}'
 */
 export const update = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -258,7 +258,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::update
-* @see app/Http/Controllers/Api/ClientController.php:65
+* @see app/Http/Controllers/Api/ClientController.php:78
 * @route '/api/clients/{client}'
 */
 update.url = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -291,7 +291,7 @@ update.url = (args: { client: number | { id: number } } | [client: number | { id
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::update
-* @see app/Http/Controllers/Api/ClientController.php:65
+* @see app/Http/Controllers/Api/ClientController.php:78
 * @route '/api/clients/{client}'
 */
 update.put = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -301,7 +301,7 @@ update.put = (args: { client: number | { id: number } } | [client: number | { id
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::update
-* @see app/Http/Controllers/Api/ClientController.php:65
+* @see app/Http/Controllers/Api/ClientController.php:78
 * @route '/api/clients/{client}'
 */
 const updateForm = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -316,7 +316,7 @@ const updateForm = (args: { client: number | { id: number } } | [client: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\ClientController::update
-* @see app/Http/Controllers/Api/ClientController.php:65
+* @see app/Http/Controllers/Api/ClientController.php:78
 * @route '/api/clients/{client}'
 */
 updateForm.put = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

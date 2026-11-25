@@ -220,7 +220,7 @@ it('refuses client IDs that are not JSON integers', function (string $id): void 
         ->assertUnprocessable()->assertJsonValidationErrors(['move_to_client_id']);
     expect($site->refresh()->client_id)->toBe($client->id)->and($client->refresh()->archived_at)->toBeNull()
         ->and(Site::query()->where('url', 'https://loose-id.test')->exists())->toBeFalse();
-})->with(['true' => 'true', 'numeric string' => '"1"', 'float' => '1.0']);
+})->with(['true' => 'true', 'numeric string' => '"1"', 'float' => '1.0', 'blank string' => '""', 'whitespace' => '"  "']);
 
 it('refuses archive and restore without an explicit, well-formed mode', function (string $operation, string $body): void {
     $client = Client::factory()->create(['archived_at' => $operation === 'restore' ? now() : null]);
@@ -241,11 +241,16 @@ it('refuses archive and restore without an explicit, well-formed mode', function
     'archive mode true' => ['archive', '{"sites":true}'],
     'archive move without a target' => ['archive', '{"sites":"move"}'],
     'archive pause with a target' => ['archive', '{"sites":"pause","move_to_client_id":1}'],
+    'archive pause with a blank target' => ['archive', '{"sites":"pause","move_to_client_id":""}'],
+    'archive pause with a null target' => ['archive', '{"sites":"pause","move_to_client_id":null}'],
+    'archive move with a blank target' => ['archive', '{"sites":"move","move_to_client_id":""}'],
+    'archive blank mode' => ['archive', '{"sites":""}'],
     'restore without a body' => ['restore', ''],
     'restore null' => ['restore', 'null'],
     'restore list' => ['restore', '[]'],
     'restore truncated JSON' => ['restore', '{"sites":"res'],
     'restore unknown choice' => ['restore', '{"sites":true}'],
+    'restore blank choice' => ['restore', '{"sites":""}'],
 ]);
 
 it('moves a monitor out of an archived client with client_id alone, as on the web', function (): void {
@@ -268,4 +273,16 @@ it('rejects alert timing fields on a monitor move like on any monitor update', f
     $this->putJson('/api/monitors/'.$site->id, ['alert_after_minutes' => 30])->assertUnprocessable()->assertJsonValidationErrors(['alert_after_minutes']);
     $this->putJson('/api/monitors/'.$site->id, ['client_id' => $target->id, 'alert_after_minutes' => 30])->assertUnprocessable()->assertJsonValidationErrors(['alert_after_minutes']);
     expect($site->refresh()->client_id)->toBe($before);
+});
+
+it('treats blank client fields like the web form and keeps a null client_id as No client', function (): void {
+    $client = Client::factory()->create(['locale' => 'de', 'timezone' => 'Europe/Berlin']);
+    $token = clientToken(User::factory()->owner()->create(), ['clients:write', 'monitors:write']);
+
+    clientApi('POST', '/api/clients', $token, ['name' => ''])->assertUnprocessable()->assertJsonValidationErrors(['name']);
+    clientApi('PUT', '/api/clients/'.$client->id, $token, ['locale' => ''])->assertUnprocessable()->assertJsonValidationErrors(['locale']);
+    clientApi('PUT', '/api/clients/'.$client->id, $token, ['timezone' => ''])->assertOk()->assertJsonPath('timezone', null);
+    $this->withToken($token)->postJson('/api/monitors', ['team_id' => 1, 'type' => 'http', 'url' => 'https://null-client.test', 'checks' => [], 'client_id' => null])
+        ->assertCreated()->assertJsonPath('client_ref', 'client:'.internalClient()->id);
+    expect(Client::query()->where('name', '')->exists())->toBeFalse()->and($client->refresh()->locale)->toBe('de');
 });

@@ -32,7 +32,8 @@ final class ArchiveClientController extends Controller
         $this->rejectUnsupportedFields($input, ['sites', 'move_to_client_id']);
         /** @var array{sites: 'pause'|'move', move_to_client_id?: int} $data */
         $data = Validator::make($input, ['sites' => ['required', 'string', Rule::in(['pause', 'move'])],
-            'move_to_client_id' => ['required_if:sites,move', 'prohibited_unless:sites,move', 'integer:strict', 'not_in:'.$client->id, $policy->visibleClientRule($user)]])->validate();
+            // missing_unless, not prohibited_unless: a blank string passes prohibited and skips every non-implicit rule.
+            'move_to_client_id' => ['required_if:sites,move', 'missing_unless:sites,move', 'integer:strict', 'not_in:'.$client->id, $policy->visibleClientRule($user)]])->validate();
         try {
             $archive($client, $user, $data['sites'] === 'move' ? $data['move_to_client_id'] ?? throw new \LogicException('Validated move needs a target.') : null);
         } catch (ValidationException $exception) {

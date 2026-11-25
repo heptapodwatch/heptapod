@@ -186,7 +186,7 @@ These endpoints list and manage clients. There is no client delete; archive a cl
 - Archive and restore have no default. A missing, empty or malformed body, an unknown mode or a move without `move_to_client_id` returns 422.
 - An archived client leaves the list; `filter[include_archived]=true` shows it. Sites moved away before archiving stay visible under their new client.
 - Moving a site does not change its pause state: a paused site stays paused under its new client.
-- Unknown body fields return 422. Client IDs in bodies are JSON integers; `"2"`, `true` or `2.0` return 422.
+- Unknown body fields return 422. Client IDs in bodies are JSON integer literals; `"2"`, `""`, `true` or `2.0` return 422. On create, an omitted or `null` `client_id` means **No client**.
 - `PUT /api/monitors/{id}` with `client_id` moves the site, like **Client** in the site settings. Open incidents end without a recovery alert. A site of an archived client can only be moved, with `client_id` alone.
 - A missing, hidden or archived client, alerts still being sent, or a site changed meanwhile return 422 on `client_id`. Alert timing fields are not part of the API (422). While sites, clients or access are being changed for more than 5 seconds, a move returns 409 `busy_try_again`. A failed archive move returns 422 on `move_to_client_id`; sites moved before it stay moved.
 

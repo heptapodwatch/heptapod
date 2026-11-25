@@ -73,7 +73,8 @@ final class MonitorController extends Controller
     {
         /** @var array{client_id?: int|null} $data */
         $data = Validator::make($request->all(), ['team_id' => ['required', 'integer', 'in:1'], 'type' => ['required', 'in:http'],
-            'client_id' => ['nullable', 'integer:strict', $policy->visibleClientRule($this->principal($request), includeArchived: true)]])->validate();
+            // Omitted or null: No client. Any other value must be filled, since a blank string skips the non-implicit rules after it.
+            'client_id' => [$request->input('client_id') === null ? 'nullable' : 'filled', 'integer:strict', $policy->visibleClientRule($this->principal($request), includeArchived: true)]])->validate();
         $client = isset($data['client_id']) ? Client::query()->findOrFail($data['client_id']) : Client::query()->where('is_internal', true)->firstOrFail();
         // Before the policy, which refuses an archived client with a bare 403.
         if ($client->archived_at !== null) {

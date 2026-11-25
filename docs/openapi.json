@@ -5506,7 +5506,7 @@
                                         "additionalProperties": false,
                                         "properties": {
                                             "move_to_client_id": {
-                                                "description": "Another visible, not archived client (listClients). A missing, hidden, archived or the same client, a non-integer, or a monitor that cannot move returns 422 on `move_to_client_id`; monitors moved before the refusal stay moved.",
+                                                "description": "Another visible, not archived client (listClients), as a JSON integer literal: `2`, not `\"2\"`, `2.0`, `true` or `\"\"`. Only with `sites: move`; with `pause` the key must be absent. A missing, hidden, archived or the same client, a non-integer, or a monitor that cannot move returns 422 on `move_to_client_id`; monitors moved before the refusal stay moved.",
                                                 "type": "integer"
                                             },
                                             "sites": {
@@ -9827,7 +9827,7 @@
                                         "uniqueItems": true
                                     },
                                     "client_id": {
-                                        "description": "The client of the new monitor (listClients). Omitted or null: the internal client, shown as \"No client\". A missing, hidden or archived client returns 422.",
+                                        "description": "The client of the new monitor (listClients), as a JSON integer literal: `2`, not `\"2\"`, `2.0`, `true` or `\"\"` (422). Omitted or null: the internal client, shown as \"No client\". A missing, hidden or archived client returns 422.",
                                         "type": [
                                             "integer",
                                             "null"
@@ -11831,7 +11831,7 @@
                                         "uniqueItems": true
                                     },
                                     "client_id": {
-                                        "description": "Moves the monitor to this client (listClients) before the other fields are saved. Owners and Admins only.",
+                                        "description": "Moves the monitor to this client (listClients) before the other fields are saved, as a JSON integer literal: `2`, not `\"2\"`, `2.0`, `true`, `\"\"` or null (422). Owners and Admins only.",
                                         "type": "integer"
                                     },
                                     "crawler_headers": {
