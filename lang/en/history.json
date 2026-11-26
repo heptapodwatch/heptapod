@@ -15,5 +15,10 @@
     "history.score_history": "Score history",
     "history.score_history_description": "Weekly average per category; the change compares with the same week a year ago.",
     "history.year_change": "{{change}} vs. a year ago",
-    "history.unknown_range": "Unknown time range. Showing 24 hours."
+    "history.unknown_range": "Unknown time range. Showing 24 hours.",
+    "response_time.view": "Response-time view",
+    "response_time.phase_values": "5-minute maximum per phase",
+    "response_time.phases_kept": "Phases are kept for 24 hours.",
+    "Phases": "Phases",
+    "response_time.total": "Total"
 }

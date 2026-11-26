@@ -56,7 +56,7 @@ $largeSidebarButtonExceptionCounts = [];
 /** Per file: the one call with a purpose-specific clock, keyed by a snippet of its whitespace-collapsed arguments; not a standalone display timestamp. */
 $dateTimeCallExceptions = [
     'resources/js/components/chart-area-interactive.tsx' => ["active === '24h'", 'Response chart axis: clock ticks for the 24-hour range, calendar ticks for longer ranges.'],
-    'resources/js/components/response-breakdown.tsx' => ["(String(value), { hour: '2-digit', minute: '2-digit', })", 'Response phase chart axis: compact hour/minute ticks.'],
+    'resources/js/components/response-phase-chart.tsx' => ["(String(value), { hour: '2-digit', minute: '2-digit', })", 'Response phase chart axis: compact hour/minute ticks.'],
     'resources/js/components/performance-evidence.tsx' => ["hourCycle: 'h23'", 'Performance chart axis: compact hour/minute ticks.'],
     'resources/js/components/ui/chart.tsx' => ['i18n.language', 'Numeric chart tooltip value: Number.toLocaleString, not a date formatter.'],
 ];

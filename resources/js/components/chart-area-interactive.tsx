@@ -37,9 +37,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { ResponsePhaseChart } from '@/components/response-phase-chart';
 import { SegmentedControl } from '@/components/segmented-control';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormat } from '@/hooks/use-format';
+import { cn } from '@/lib/utils';
 
 type Range = Heptapod.Enums.ResponseTimeRange;
 
@@ -64,16 +66,24 @@ const utcRanges: Range[] = ['30d', '90d', '1y', 'all'];
 // With this few measured points, dots show they are single measurements rather than a long, even line.
 const fewPoints = 3;
 
-/** The uptime check's response time: one range at a time, loaded by a partial reload of `response_time`. */
+/**
+ * The uptime check's response time: the total for one range at a time, loaded by a partial reload of `response_time`,
+ * or its phases, which are kept for 24 hours only.
+ */
 export function ChartAreaInteractive({
     series,
+    phases,
 }: {
     series: Heptapod.Data.Ui.ResponseTimeSeriesData;
+    phases: Heptapod.Data.Ui.MetricSeriesData[];
 }) {
     const { t } = useTranslation();
     const format = useFormat();
     const [loading, setLoading] = useState<Range | null>(null);
+    const [phasesChosen, setPhasesChosen] = useState(false);
     const active = series.key;
+    // Derived from the loaded range, so a failed reload can never leave Phases showing past 24 hours.
+    const view = phasesChosen && active === '24h' ? 'phases' : 'total';
     const selected = loading ?? active;
     const caption = ranges.find((range) => range.key === active)?.caption;
     if (!caption) throw new Error('Unknown response-time range');
@@ -112,6 +122,7 @@ export function ChartAreaInteractive({
         const range = ranges.find((item) => item.key === value);
         if (!range) throw new Error('Unknown response-time range');
         if (range.key === selected) return;
+        if (range.key !== '24h') setPhasesChosen(false);
         router.reload({
             only: ['response_time'],
             data: { response_range: range.key },
@@ -144,18 +155,56 @@ export function ChartAreaInteractive({
         <Card className="@container/card min-w-0" data-response-chart>
             <CardHeader>
                 <CardTitle>{t('Response time')}</CardTitle>
-                <CardDescription>
-                    {t(caption)}
-                    {series.recent_average_ms !== null && (
-                        <>
-                            {' '}
-                            · {t('Last 15 minutes')}:{' '}
-                            {format.milliseconds(series.recent_average_ms)}{' '}
-                            {t('ms')}
-                        </>
-                    )}
+                {/* Both captions share one cell, so switching views never changes the header height. */}
+                <CardDescription className="grid">
+                    {(
+                        [
+                            ['total', caption],
+                            ['phases', 'response_time.phase_values'],
+                        ] as const
+                    ).map(([key, text]) => (
+                        <span
+                            key={key}
+                            className={cn(
+                                '[grid-area:1/1]',
+                                key !== view && 'invisible',
+                            )}
+                            aria-hidden={key !== view || undefined}
+                        >
+                            {t(text)}
+                            {key === 'total' &&
+                                series.recent_average_ms !== null && (
+                                    <>
+                                        {' '}
+                                        · {t('Last 15 minutes')}:{' '}
+                                        {format.milliseconds(
+                                            series.recent_average_ms,
+                                        )}{' '}
+                                        {t('ms')}
+                                    </>
+                                )}
+                        </span>
+                    ))}
                 </CardDescription>
                 <CardAction>
+                    <SegmentedControl
+                        label={t('response_time.view')}
+                        value={view}
+                        onValueChange={(next) =>
+                            setPhasesChosen(next === 'phases')
+                        }
+                        options={[
+                            { value: 'total', label: t('response_time.total') },
+                            {
+                                value: 'phases',
+                                label: t('Phases'),
+                                disabledReason:
+                                    active === '24h'
+                                        ? undefined
+                                        : t('response_time.phases_kept'),
+                            },
+                        ]}
+                    />
                     <div className="hidden @[640px]/card:block">
                         <SegmentedControl
                             label={t('Time range')}
@@ -187,6 +236,8 @@ export function ChartAreaInteractive({
             <CardContent>
                 {loading ? (
                     <Skeleton aria-busy="true" className="h-64 w-full" />
+                ) : view === 'phases' ? (
+                    <ResponsePhaseChart series={phases} />
                 ) : isEmpty ? (
                     <p className="flex h-64 items-center justify-center text-center text-sm text-muted-foreground">
                         {t('No measurements in this range yet')}
