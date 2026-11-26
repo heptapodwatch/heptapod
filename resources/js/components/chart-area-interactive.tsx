@@ -80,8 +80,10 @@ export function ChartAreaInteractive({
     const { t } = useTranslation();
     const format = useFormat();
     const [loading, setLoading] = useState<Range | null>(null);
-    const [view, setView] = useState<'total' | 'phases'>('total');
+    const [phasesChosen, setPhasesChosen] = useState(false);
     const active = series.key;
+    // Derived from the loaded range, so a failed reload can never leave Phases showing past 24 hours.
+    const view = phasesChosen && active === '24h' ? 'phases' : 'total';
     const selected = loading ?? active;
     const caption = ranges.find((range) => range.key === active)?.caption;
     if (!caption) throw new Error('Unknown response-time range');
@@ -120,7 +122,7 @@ export function ChartAreaInteractive({
         const range = ranges.find((item) => item.key === value);
         if (!range) throw new Error('Unknown response-time range');
         if (range.key === selected) return;
-        if (range.key !== '24h') setView('total');
+        if (range.key !== '24h') setPhasesChosen(false);
         router.reload({
             only: ['response_time'],
             data: { response_range: range.key },
@@ -170,16 +172,17 @@ export function ChartAreaInteractive({
                             aria-hidden={key !== view || undefined}
                         >
                             {t(text)}
-                            {series.recent_average_ms !== null && (
-                                <>
-                                    {' '}
-                                    · {t('Last 15 minutes')}:{' '}
-                                    {format.milliseconds(
-                                        series.recent_average_ms,
-                                    )}{' '}
-                                    {t('ms')}
-                                </>
-                            )}
+                            {key === 'total' &&
+                                series.recent_average_ms !== null && (
+                                    <>
+                                        {' '}
+                                        · {t('Last 15 minutes')}:{' '}
+                                        {format.milliseconds(
+                                            series.recent_average_ms,
+                                        )}{' '}
+                                        {t('ms')}
+                                    </>
+                                )}
                         </span>
                     ))}
                 </CardDescription>
@@ -188,7 +191,7 @@ export function ChartAreaInteractive({
                         label={t('response_time.view')}
                         value={view}
                         onValueChange={(next) =>
-                            setView(next === 'phases' ? 'phases' : 'total')
+                            setPhasesChosen(next === 'phases')
                         }
                         options={[
                             { value: 'total', label: t('response_time.total') },
@@ -196,7 +199,7 @@ export function ChartAreaInteractive({
                                 value: 'phases',
                                 label: t('Phases'),
                                 disabledReason:
-                                    selected === '24h'
+                                    active === '24h'
                                         ? undefined
                                         : t('response_time.phases_kept'),
                             },
@@ -231,10 +234,10 @@ export function ChartAreaInteractive({
                 </CardAction>
             </CardHeader>
             <CardContent>
-                {view === 'phases' ? (
-                    <ResponsePhaseChart series={phases} />
-                ) : loading ? (
+                {loading ? (
                     <Skeleton aria-busy="true" className="h-64 w-full" />
+                ) : view === 'phases' ? (
+                    <ResponsePhaseChart series={phases} />
                 ) : isEmpty ? (
                     <p className="flex h-64 items-center justify-center text-center text-sm text-muted-foreground">
                         {t('No measurements in this range yet')}

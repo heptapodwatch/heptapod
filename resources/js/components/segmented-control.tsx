@@ -1,5 +1,5 @@
 import { ToggleGroup as ToggleGroupPrimitive } from 'radix-ui';
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import {
     Tooltip,
     TooltipContent,
@@ -67,22 +67,30 @@ export function SegmentedControl({
  */
 function DisabledOption({ option }: { option: SegmentedOption }) {
     const [open, setOpen] = useState(false);
+    const reasonId = useId();
     return (
-        <Tooltip open={open} onOpenChange={setOpen}>
-            <TooltipTrigger asChild onClick={() => setOpen(true)}>
-                <ToggleGroupPrimitive.Item
-                    data-slot="toggle-group-item"
-                    value={option.value}
-                    aria-disabled="true"
-                    className={cn(
-                        itemClassName,
-                        'inactive:pointer-events-auto',
-                    )}
-                >
-                    {option.label}
-                </ToggleGroupPrimitive.Item>
-            </TooltipTrigger>
-            <TooltipContent>{option.disabledReason}</TooltipContent>
-        </Tooltip>
+        <>
+            <Tooltip open={open} onOpenChange={setOpen}>
+                <TooltipTrigger asChild onClick={() => setOpen(true)}>
+                    <ToggleGroupPrimitive.Item
+                        data-slot="toggle-group-item"
+                        value={option.value}
+                        aria-disabled="true"
+                        // The reason stays the description while the tooltip is closed.
+                        aria-describedby={reasonId}
+                        className={cn(
+                            itemClassName,
+                            'inactive:pointer-events-auto',
+                        )}
+                    >
+                        {option.label}
+                    </ToggleGroupPrimitive.Item>
+                </TooltipTrigger>
+                <TooltipContent>{option.disabledReason}</TooltipContent>
+            </Tooltip>
+            <span id={reasonId} className="sr-only">
+                {option.disabledReason}
+            </span>
+        </>
     );
 }
