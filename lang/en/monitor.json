@@ -75,7 +75,6 @@
     "sparkline.errors_other": "{{count}} check errors in the last 24 h",
     "sparkline.warnings_one": "{{count}} warning in the last 24 h",
     "sparkline.warnings_other": "{{count}} warnings in the last 24 h",
-    "5-minute maximum": "5-minute maximum",
     "Maximum": "Maximum",
     "sparkline.bucket_failures_one": "{{count}} failure in this interval",
     "sparkline.bucket_failures_other": "{{count}} failures in this interval",

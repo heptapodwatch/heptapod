@@ -13,7 +13,6 @@ import { ChartAreaInteractive } from '@/components/chart-area-interactive';
 import { MonthlyUptime } from '@/components/monthly-uptime';
 import { LighthouseScoreHistory } from '@/components/lighthouse-score-history';
 import { PerformanceEvidence } from '@/components/performance-evidence';
-import { ResponseBreakdown } from '@/components/response-breakdown';
 import { useCheckHeadline } from '@/hooks/use-check-headline';
 import { usePage } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
@@ -64,15 +63,14 @@ export function CheckDetail({
             ) : (
                 <>
                     {page.response_time && (
-                        <ChartAreaInteractive series={page.response_time} />
+                        <ChartAreaInteractive
+                            series={page.response_time}
+                            phases={page.phase_series}
+                        />
                     )}
                     {page.monthly_uptime && (
                         <MonthlyUptime data={page.monthly_uptime} />
                     )}
-                    {check.key === 'uptime' &&
-                        page.phase_series.some((series) =>
-                            series.points.some((point) => point.value !== null),
-                        ) && <ResponseBreakdown series={page.phase_series} />}
                     <CheckEvidence
                         action={
                             sendable ? (

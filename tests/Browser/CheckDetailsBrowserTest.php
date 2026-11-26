@@ -56,7 +56,8 @@ it('shows the latest uptime attempt duration and measured response history', fun
 
     visit('/sites/'.$check->site_id.'/checks/'.$check->id)
         ->assertSee('Latest attempt')->assertSee('Duration')->assertSee('240 ms')->assertSee('HTTP 200')->assertSee('History')
-        ->assertSee('GET')->assertSee('2*')->assertSee('Failed checks before Down')->assertDontSee('Using defaults')->assertSee('Response-time breakdown')
+        ->assertSee('GET')->assertSee('2*')->assertSee('Failed checks before Down')->assertDontSee('Using defaults')
+        ->click('[data-response-chart] [role="radio"]:has-text("Phases")')->assertSee('5-minute maximum per phase')
         ->assertNoJavaScriptErrors();
 });
 

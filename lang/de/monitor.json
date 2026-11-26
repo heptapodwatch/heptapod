@@ -75,7 +75,6 @@
     "sparkline.errors_other": "{{count}} Prüffehler in den letzten 24 Std.",
     "sparkline.warnings_one": "{{count}} Warnung in den letzten 24 Std.",
     "sparkline.warnings_other": "{{count}} Warnungen in den letzten 24 Std.",
-    "5-minute maximum": "5-Minuten-Maximum",
     "Maximum": "Maximum",
     "sparkline.bucket_failures_one": "{{count}} fehlgeschlagener Lauf in diesem Intervall",
     "sparkline.bucket_failures_other": "{{count}} fehlgeschlagene Läufe in diesem Intervall",
