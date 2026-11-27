@@ -53,7 +53,7 @@ final readonly class RecordServerReport
                 $server->forceFill(['last_report_at' => $receivedAt, 'agent_version' => $report['agent']['version'], 'agent_os' => $report['agent']['os'],
                     'agent_arch' => $report['agent']['arch'], 'agent_distro' => $report['agent']['distro'], 'agent_kernel' => $report['agent']['kernel'],
                     'hostname' => $report['host']['hostname'], 'ips' => $report['host']['ips']])->save();
-                $this->issues->afterSample($server, $metrics, $observedAt);
+                $this->issues->afterSample($server, $metrics, $observedAt, $receivedAt);
             }
 
             return $stored ? ServerReportOutcome::Stored : ServerReportOutcome::Duplicate;

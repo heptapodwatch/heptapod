@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Heptapod\Contracts;
 
+use Carbon\CarbonImmutable;
+
 /** What core needs from the servers addon to deliver and show server issues. */
 interface ServerIssues
 {
@@ -14,9 +16,6 @@ interface ServerIssues
      */
     public function message(array $facts, string $serverName, bool $recovered, string $locale, string $timezone): ServerIssueMessage;
 
-    /**
-     * Whether a reporting server is this instance's own host. Its disk alert then speaks for the instance's disk, so the
-     * DiskSpaceLow system issue is not delivered as well.
-     */
-    public function monitorsInstanceHost(): bool;
+    /** Until when the server's alerts are snoozed; null when they are not, or the server is gone. Read live, never cached. */
+    public function snoozedUntil(int $serverId): ?CarbonImmutable;
 }

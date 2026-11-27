@@ -15,12 +15,12 @@ use Carbon\CarbonImmutable;
 interface ServerIssueAlerts
 {
     /**
-     * An issue opened. While the server is snoozed its openings wait until the snooze ends and send then, if the issue is
-     * still open.
+     * An issue opened. While the server is snoozed (ServerIssues::snoozedUntil) its openings wait until the snooze ends
+     * and send then, if the issue is still open.
      *
      * @param  ServerIssueFacts  $facts  what ServerIssues::message() renders the alert from later
      */
-    public function opened(int $issueId, int $serverId, string $serverName, CarbonImmutable $at, array $facts, ?CarbonImmutable $snoozedUntil): void;
+    public function opened(int $issueId, int $serverId, string $serverName, CarbonImmutable $at, array $facts): void;
 
     /**
      * An issue resolved. Openings still waiting are dropped; a recovery goes to the channels its opening reached, unless
@@ -31,10 +31,10 @@ interface ServerIssueAlerts
     public function resolved(int $issueId, int $serverId, string $serverName, CarbonImmutable $at, array $facts, ?string $silencedBy): void;
 
     /**
-     * A snooze set or changed: the waiting openings of these open issues wait until $until, or send now when the snooze
-     * ended (null).
+     * A snooze set, changed or ended: the held openings of these open issues are due now, so their next claim applies the
+     * server's current snooze.
      *
      * @param  list<int>  $openIssueIds
      */
-    public function snoozeChanged(array $openIssueIds, ?CarbonImmutable $until): void;
+    public function snoozeChanged(array $openIssueIds): void;
 }

@@ -15,7 +15,6 @@ use Heptapod\Contracts\Notifications\AlertMessage;
 use Heptapod\Contracts\Notifications\AlertSeverity;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Contracts\Notifications\SystemIssueNotification;
-use Heptapod\Contracts\ServerIssues;
 use Heptapod\Enums\HealthStatus;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\NotificationMode;
@@ -40,9 +39,6 @@ final readonly class SystemIssueMailer
     public const int RecheckSeconds = 300;
 
     public const string LogOnlyReason = 'mail_log_only';
-
-    /** A low disk on the instance's host, which a reporting server's disk alert already covers. */
-    public const string ServerHostReason = 'server_alerts_cover_host';
 
     /**
      * System sends per evaluation pass. Each synchronous send is bounded by its transport timeout, so a batch keeps the
@@ -121,20 +117,11 @@ final readonly class SystemIssueMailer
         return $channels->filter(static fn (NotificationDestination $channel): bool => self::ineligibility($channel) === null)->values()->toBase();
     }
 
-    /**
-     * One opening event per issue, and one pending delivery per current recipient the kind can reach. A low disk is
-     * recorded suppressed while a server on this instance's own host reports (its server disk alert speaks for the disk).
-     */
+    /** One opening event per issue, and one pending delivery per current recipient the kind can reach. */
     public function queueOpening(SystemIssue $issue): void
     {
         $event = $this->event($issue, 'system.issue_opened', $issue->opened_at, []);
-        $recipients = $this->recipients()->filter(fn (NotificationDestination $channel): bool => $this->reachesOnOpen($issue->kind, $channel));
-        if ($issue->kind === SystemIssueKind::DiskSpaceLow && app(ServerIssues::class)->monitorsInstanceHost()) {
-            $this->insertDeliveries($event, $recipients, suppressedBy: self::ServerHostReason);
-
-            return;
-        }
-        $this->insertDeliveries($event, $recipients);
+        $this->insertDeliveries($event, $this->recipients()->filter(fn (NotificationDestination $channel): bool => $this->reachesOnOpen($issue->kind, $channel)));
     }
 
     /**
@@ -224,15 +211,13 @@ final readonly class SystemIssueMailer
      * @param  Collection<int, NotificationDestination>  $channels
      * @param  string|null  $reason  ClaimNotificationDelivery::SystemProbeReason for transport probe rows
      * @param  int  $probeRound  a re-armed transport probe after a rejection (SystemTransportProbe); 0 otherwise
-     * @param  string|null  $suppressedBy  records the rows suppressed for this reason, never to send
      */
-    public function insertDeliveries(Event $event, Collection $channels, ?string $reason = null, int $probeRound = 0, ?string $suppressedBy = null): void
+    public function insertDeliveries(Event $event, Collection $channels, ?string $reason = null, int $probeRound = 0): void
     {
         $now = CarbonImmutable::now('UTC')->format('Y-m-d H:i:s.uP');
         DB::table('deliveries')->insertOrIgnore($channels->map(static fn (NotificationDestination $channel): array => [
             'event_id' => $event->id, 'destination_id' => $channel->id, 'probe_round' => $probeRound, 'state' => DeliveryState::Pending, 'next_attempt_at' => $now,
             'suppression_evaluated_at' => $now, 'last_reason' => $reason, 'origin' => 'system', 'category' => NotificationCategory::System->value,
-            'suppressed' => $suppressedBy !== null, 'suppression_reason' => $suppressedBy,
         ])->values()->all());
     }
 

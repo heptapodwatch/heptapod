@@ -9,9 +9,10 @@ use Heptapod\Contracts\Notifications\AlertSeverity;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Enums\IncidentCause;
 use Heptapod\Enums\IncidentResolutionReason;
-use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\RecipientKind;
 use Heptapod\Events\Notifications\AlertConfirmation;
+use Heptapod\Events\Notifications\DeliveryEligibility;
+use Heptapod\Events\Notifications\DeliveryRefusal;
 use Heptapod\Events\Notifications\NotificationEventTypes;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Events\Notifications\NotificationTiming;
@@ -24,7 +25,6 @@ use Heptapod\Models\Incident;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\NotificationSchedule;
-use Heptapod\Models\User;
 use Heptapod\Servers\ServerIssueMailer;
 use Heptapod\SystemHealth\SystemIssueMailer;
 use Illuminate\Database\Eloquent\Builder;
@@ -59,7 +59,7 @@ final readonly class ClaimNotificationDelivery
             'lease_until' => $at->addSeconds(SendNotification::LeaseSeconds), 'attempts' => $delivery->attempts + 1]);
     }
 
-    public function __construct(private NotificationTiming $timing, private NotificationEventTypes $types, private HandleDeferredUptimeOpening $deferredOpenings, private ServerIssueMailer $serverIssues) {}
+    public function __construct(private NotificationTiming $timing, private NotificationEventTypes $types, private HandleDeferredUptimeOpening $deferredOpenings, private ServerIssueMailer $serverIssues, private DeliveryEligibility $eligibility) {}
 
     public function __invoke(int $deliveryId): ?Delivery
     {
@@ -137,13 +137,16 @@ final readonly class ClaimNotificationDelivery
 
                 return null;
             }
-            if ($event->system_issue_id !== null) {
-                return $this->claimSystem($delivery, $destination, $at);
+            if ($event->system_issue_id !== null || $event->server_issue_id !== null) {
+                $refusal = $this->eligibility->refusal($event, $destination, $delivery, $at);
+                if ($refusal instanceof DeliveryRefusal) {
+                    DeliveryEligibility::refuse($delivery, $refusal, $at);
+
+                    return null;
+                }
+
+                return $event->system_issue_id !== null ? $this->claimSystem($delivery, $destination, $at) : $this->serverIssues->claim($delivery, $destination, $event, $at);
             }
-            if ($event->server_issue_id !== null) {
-                return $this->serverIssues->claim($delivery, $destination, $event, $at);
-            }
-            $recipient = $destination->user_id === null ? null : User::query()->findOrFail($destination->user_id);
             if ($event->type !== 'notification.digest' && ($event->site_id === null
                 || ($event->check_id === null && $event->check_type !== null)
                 || (in_array($event->type, ['incident.still_down', 'incident.resolved'], true) && $event->incident_id === null))) {
@@ -246,6 +249,12 @@ final readonly class ClaimNotificationDelivery
 
                 return null;
             }
+            $refusal = $this->eligibility->refusal($event, $destination, $delivery, $at);
+            if ($refusal instanceof DeliveryRefusal) {
+                DeliveryEligibility::refuse($delivery, $refusal, $at);
+
+                return null;
+            }
             if ($event->type === 'notification.digest') {
                 $sourceIds = $event->payload['delivery_ids'] ?? null;
                 if (! is_array($sourceIds) || array_any($sourceIds, static fn (mixed $id): bool => ! is_int($id))) {
@@ -264,16 +273,20 @@ final readonly class ClaimNotificationDelivery
                         continue;
                     }
                     $sourceEvent = $source->event ?? throw new \LogicException('Digest source event is missing.');
-                    if ($sourceEvent->server_issue_id !== null) {
-                        $ended = ServerIssueMailer::digestEnded($sourceEvent, $destination);
-                        if ($ended !== null) {
-                            $excludedReasons[] = $ended;
-                            if ($source->state === DeliveryState::Pending) {
-                                $source->update(['suppressed' => true, 'suppression_reason' => $ended, 'suppression_evaluated_at' => $at]);
-                            }
-
-                            continue;
+                    $refusal = $this->eligibility->refusal($sourceEvent, $destination, $source, $at);
+                    if ($refusal instanceof DeliveryRefusal) {
+                        $excludedReasons[] = $refusal->reason;
+                        if ($source->state === DeliveryState::Pending) {
+                            // A held source leaves this digest and waits for one after its hold.
+                            $source->update($refusal->retryAt instanceof CarbonImmutable
+                                ? ['digest_event_id' => null, 'next_attempt_at' => $refusal->retryAt, 'last_reason' => $refusal->reason]
+                                : ['suppressed' => true, 'suppression_reason' => $refusal->reason, 'suppression_evaluated_at' => $at]);
+                            $source->announceChanges();
                         }
+
+                        continue;
+                    }
+                    if ($sourceEvent->server_issue_id !== null) {
                         $included[] = $source->id;
                         $server = $sourceEvent->server_name ?? throw new \LogicException('A server issue event needs its server name.');
                         $sites['server:'.$server] = $server;
@@ -286,15 +299,6 @@ final readonly class ClaimNotificationDelivery
                         $excludedReasons[] = $reason;
                         if ($source->state === DeliveryState::Pending) {
                             $source->update(['suppressed' => true, 'suppression_reason' => $reason, 'suppression_evaluated_at' => $at]);
-                        }
-
-                        continue;
-                    }
-                    if ($recipient !== null && $recipient->disabled_at === null && (! $recipient->hasAnyRole(['Owner', 'Admin', 'Member']) || ! $recipient->canAccessClient($site->client_id))) {
-                        $excludedReasons[] = 'personal_site_access_revoked';
-                        if ($source->state === DeliveryState::Pending) {
-                            $source->update(['suppressed' => true, 'suppression_reason' => 'personal_site_access_revoked', 'suppression_evaluated_at' => $at]);
-                            $source->announceChanges();
                         }
 
                         continue;
@@ -316,21 +320,6 @@ final readonly class ClaimNotificationDelivery
                         'remaining_sites' => count($sites) - count($shown), 'delivery_ids' => $included]]);
                 }
             }
-            if ($event->site !== null) {
-                if ($recipient !== null && $recipient->disabled_at === null && (! $recipient->hasAnyRole(['Owner', 'Admin', 'Member']) || ! $recipient->canAccessClient($event->site->client_id))) {
-                    $delivery->update(['suppressed' => true, 'suppression_reason' => 'personal_site_access_revoked', 'suppression_evaluated_at' => $at]);
-                    $delivery->announceChanges();
-
-                    return null;
-                }
-                // Client channels follow site.client_id: a moved site no longer reaches its old client.
-                if ($destination->recipient_kind === RecipientKind::Client && $destination->client_id !== $event->site->client_id) {
-                    $delivery->update(['suppressed' => true, 'suppression_reason' => 'client_site_moved', 'suppression_evaluated_at' => $at]);
-                    $delivery->announceChanges();
-
-                    return null;
-                }
-            }
             if (in_array($event->type, ['incident.still_down', 'maintenance.catch_up'], true) && $event->site_id !== null
                 && MaintenancePeriod::forSite($event->site_id)->getQuery()->where('mute_alerts', true)
                     ->where('starts_at', '<=', $at->format('Y-m-d H:i:s.uP'))
@@ -350,21 +339,7 @@ final readonly class ClaimNotificationDelivery
                     return null;
                 }
             }
-            // System mail on account channels goes to the account address regardless of pause and verification (design 3.4).
-            $accountSystem = $destination->account_mail && $delivery->category === NotificationCategory::System;
-            if (! $destination->enabled && $delivery->origin !== 'manual' && ! $accountSystem) {
-                $delivery->update(['suppressed' => true, 'suppression_reason' => 'destination_disabled', 'suppression_evaluated_at' => $at]);
-                $delivery->announceChanges();
-
-                return null;
-            }
-            if (! $accountSystem && $destination->user_id !== null && $destination->user?->disabled_at !== null) {
-                $delivery->update(['suppressed' => true, 'suppression_reason' => 'personal_user_disabled', 'suppression_evaluated_at' => $at]);
-                $delivery->announceChanges();
-
-                return null;
-            }
-            if (! $accountSystem && ! $destination->addressVerified()) {
+            if (! DeliveryEligibility::accountSystem($destination, $delivery) && ! $destination->addressVerified()) {
                 $delivery->update(['state' => DeliveryState::Pending, 'next_attempt_at' => $at->addHour(), 'claim_token' => null, 'lease_until' => null,
                     'last_reason' => 'personal_email_unverified']);
                 $delivery->announceChanges();
@@ -471,17 +446,11 @@ final readonly class ClaimNotificationDelivery
     }
 
     /**
-     * System deliveries (design §3.4) skip site, access, maintenance and quiet hours. Eligibility is rechecked now;
+     * System deliveries (design §3.4) skip site, access, maintenance and quiet hours (eligibility: DeliveryEligibility);
      * account channels of Owners and opted-in Admins also skip pause and verification. Mail waits while the mailer only logs.
      */
     private function claimSystem(Delivery $delivery, NotificationDestination $destination, CarbonImmutable $at): ?Delivery
     {
-        $ineligible = SystemIssueMailer::ineligibility($destination);
-        if ($ineligible !== null) {
-            $delivery->update(['suppressed' => true, 'suppression_reason' => $ineligible, 'suppression_evaluated_at' => $at, 'claim_token' => null, 'lease_until' => null]);
-
-            return null;
-        }
         if ($destination->channel === 'mail' && ! SystemIssueMailer::canDeliver()) {
             $delivery->update(['state' => DeliveryState::Pending, 'last_reason' => SystemIssueMailer::LogOnlyReason, 'next_attempt_at' => $at->addSeconds(SystemIssueMailer::RecheckSeconds),
                 'claim_token' => null, 'lease_until' => null]);

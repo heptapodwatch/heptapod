@@ -5,25 +5,18 @@ declare(strict_types=1);
 namespace Heptapod\Addons\Servers;
 
 use Carbon\CarbonImmutable;
-use Heptapod\Contracts\Http\FetchException;
-use Heptapod\Contracts\Http\TargetResolutionException;
-use Heptapod\Contracts\Http\TargetResolver;
 use Heptapod\Contracts\ServerIssueMessage;
 use Heptapod\Contracts\ServerIssues;
-use Heptapod\Contracts\ServersAccess;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 /**
- * Server issue alerts as core delivers and shows them. Scoped to one request: an Activity page asks once per server
- * whether it still exists.
+ * Server issues as core delivers and shows them. Scoped to one request: an Activity page asks once per server whether it
+ * still exists.
  */
-final class ServerIssueTexts implements ServerIssues
+final class DatabaseServerIssues implements ServerIssues
 {
     /** @var array<int, true>|null the ids of the servers that exist, read once */
     private ?array $servers = null;
-
-    public function __construct(private readonly ServersAccess $access, private readonly TargetResolver $resolver) {}
 
     public function message(array $facts, string $serverName, bool $recovered, string $locale, string $timezone): ServerIssueMessage
     {
@@ -74,41 +67,11 @@ final class ServerIssueTexts implements ServerIssues
             $this->exists($serverId) ? route('servers.show', $serverId) : null);
     }
 
-    /**
-     * Rule: a server is the instance's own host when the public addresses its agent reports include one the APP_URL host
-     * resolves to. Only reporting servers count, so a host whose agent stopped leaves the disk alert to the system issue.
-     * A failed lookup (or a CDN in front of the instance) finds no host, so both alerts are sent rather than none.
-     */
-    public function monitorsInstanceHost(): bool
+    public function snoozedUntil(int $serverId): ?CarbonImmutable
     {
-        $host = parse_url(config()->string('app.url'), PHP_URL_HOST);
-        if (! is_string($host) || ! $this->access->enabled()) {
-            return false;
-        }
-        $reported = [];
-        $servers = DB::table('servers')->whereNotNull('ips')
-            ->whereRaw("last_report_at >= ?::timestamptz - make_interval(mins => coalesce((settings->>'no_report_minutes')::int, ?))",
-                [CarbonImmutable::now('UTC')->format('Y-m-d H:i:s.uP'), config()->integer('servers.thresholds.no_report_minutes')])
-            ->pluck('ips');
-        foreach ($servers as $ips) {
-            /** @var list<string> $list validated public addresses (ServerReportController) */
-            $list = is_string($ips) ? json_decode($ips, true, flags: JSON_THROW_ON_ERROR) : [];
-            foreach ($list as $ip) {
-                $reported[] = inet_pton($ip);
-            }
-        }
-        if ($reported === []) {
-            return false;
-        }
-        try {
-            $addresses = $this->resolver->resolve(trim($host, '[]'), microtime(true) + 3);
-        } catch (FetchException|TargetResolutionException $exception) {
-            Log::warning('The instance host could not be resolved to match it with a server.', ['host' => $host, 'error' => $exception->getMessage()]);
+        $until = DB::table('servers')->where('id', $serverId)->value('snoozed_until');
 
-            return false;
-        }
-
-        return array_intersect(array_map(inet_pton(...), $addresses), $reported) !== [];
+        return is_string($until) && CarbonImmutable::parse($until)->isFuture() ? CarbonImmutable::parse($until) : null;
     }
 
     /** Bounded by the servers table, which holds one row per monitored server. */

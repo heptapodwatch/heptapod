@@ -3,27 +3,33 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\CreateApiToken;
+use Heptapod\Actions\SendNotificationDelivery;
 use Heptapod\Addons\Channels\TemplateMail;
 use Heptapod\Addons\Servers\Actions\EvaluateServerIssues;
 use Heptapod\Addons\Servers\Server;
 use Heptapod\Addons\Servers\ServerIssue;
-use Heptapod\Contracts\DiskSpaceReader;
-use Heptapod\Contracts\Http\TargetResolver;
+use Heptapod\Contracts\CheckKey;
+use Heptapod\Contracts\CheckResult;
+use Heptapod\Contracts\Notifications\ChannelRegistry;
+use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Enums\NotificationMode;
+use Heptapod\Models\Check;
 use Heptapod\Models\Client;
+use Heptapod\Models\Delivery;
+use Heptapod\Models\Event;
 use Heptapod\Models\NotificationDestination;
-use Heptapod\Models\SystemIssue;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
-use Heptapod\SystemHealth\DiskSpaceIssues;
-use Heptapod\Testing\FakeDiskSpaceReader;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
@@ -67,15 +73,15 @@ function alertsServer(string $name = 'web-1', array $settings = []): array
 }
 
 /**
- * One agent report now. Calm by default: every mount 50 % full, RAM 50 % used, a 5-minute load of 1 on 4 vCPU.
+ * One agent report, observed now unless given. Calm by default: every mount 50 % full, RAM 50 % used, a 5-minute load of 1 on 4 vCPU.
  *
  * @param  array{disks?: array<string, float|int>, memory?: float|int, load?: float, ips?: list<string>}  $values
  */
-function alertsReport(TestCase $test, string $token, array $values = []): TestResponse
+function alertsReport(TestCase $test, string $token, array $values = [], ?CarbonImmutable $observedAt = null): TestResponse
 {
     $total = 100_000_000_000;
     $memory = 8_000_000_000;
-    $sample = ['sample_id' => (string) Str::uuid(), 'observed_at' => now()->utc()->format('Y-m-d\TH:i:s\Z'),
+    $sample = ['sample_id' => (string) Str::uuid(), 'observed_at' => ($observedAt ?? now())->utc()->format('Y-m-d\TH:i:s\Z'),
         'agent' => ['version' => '0.1.0', 'os' => 'linux', 'arch' => 'amd64', 'distro' => 'Debian 13', 'kernel' => '6.12.0-1-amd64'],
         'host' => ['hostname' => 'web-1', 'uptime_seconds' => 3600, 'reboot_required' => false, 'ips' => $values['ips'] ?? ['49.12.88.204']],
         'cpu' => ['cores' => 4, 'used_percent' => 20], 'load' => ['1' => 1.0, '5' => $values['load'] ?? 1.0, '15' => 1.0],
@@ -325,13 +331,21 @@ it('waits for quiet hours and collects into the daily digest as site warnings do
         ->and(collect(alertsWebhookBodies())->pluck('title')->all())->toBe(['Daily summary']);
 });
 
-it('lists server issues in Activity for Owners and Admins with a link to the server, never for Members or the API', function (): void {
+it('lists server issues in Activity for Owners and Admins with a link to the server, never for Members or through the API', function (): void {
     $owner = User::factory()->owner()->create();
     $member = User::factory()->create();
     $member->assignRole('Member');
     [$server, $token] = alertsServer();
     alertsMinutes($this, $token, 16, ['disks' => ['/' => 92]]);
     alertsMinutes($this, $token, 1);
+    // The API lists site activity only: an Owner's token, unlimited or limited to one client, never returns a server issue.
+    $apiTokens = array_map(static fn (?int $clientId): string => app(CreateApiToken::class)($owner, 'activity', ['activity:read'], $clientId),
+        [null, Client::factory()->create()->id]);
+    foreach ($apiTokens as $apiToken) {
+        $this->app['auth']->forgetGuards();
+        $types = collect($this->withToken($apiToken)->getJson('/api/activity')->assertOk()->json('data'))->pluck('event_type');
+        expect($types->filter(static fn (string $type): bool => str_starts_with($type, 'server.'))->all())->toBe([]);
+    }
 
     $this->actingAs($owner)->get('/activity')->assertOk()->assertInertia(fn (Assert $page): AssertableInertia => $page->has('events.data', 2)
         ->where('events.data.0.latest.type', 'server.issue_resolved')->where('events.data.0.latest.site_name', 'web-1')
@@ -369,34 +383,6 @@ it('shows open issues and the snooze on the server page and filters the list to 
         ->where('filters.state', 'attention')->has('servers', 1)->where('servers.0.name', 'busy'));
     $this->actingAs($owner)->get('/servers')->assertInertia(fn (Assert $page): AssertableInertia => $page->where('servers.0.name', 'busy')->where('servers.1.name', 'calm'));
 });
-
-it('does not alert twice for the Heptapod host: its low-disk system issue is recorded suppressed while the server reports', function (bool $sameHost): void {
-    config(['app.url' => 'https://monitor.example.test', 'backup.backup.destination.disks' => [], 'backup.backup.temporary_directory' => storage_path('app'),
-        'heptapod.system_issues.postgres_data_path' => '/fixture/postgres']);
-    $this->app->instance(TargetResolver::class, new class implements TargetResolver
-    {
-        public function resolve(string $host, ?float $deadline = null): array
-        {
-            return $host === 'monitor.example.test' ? ['49.12.88.204'] : ['203.0.113.10'];
-        }
-    });
-    $owner = systemIssueRecipient('Owner');
-    [, $token] = alertsServer();
-    alertsReport($this, $token, ['ips' => $sameHost ? ['2a01:4f8::1', '49.12.88.204'] : ['78.47.11.23']]);
-    $reader = new FakeDiskSpaceReader;
-    $this->app->instance(DiskSpaceReader::class, $reader);
-    foreach (app(DiskSpaceIssues::class)->paths() as $path) {
-        $reader->samples[$path] = ['free' => 30, 'total' => 100];
-    }
-    $reader->samples['/fixture/postgres'] = ['free' => 5, 'total' => 100];
-
-    $this->artisan('heptapod:evaluate-system-issues')->assertSuccessful();
-
-    $issue = SystemIssue::query()->where('kind', 'disk_space_low')->sole();
-    $opening = systemIssueDeliveries($issue->id, 'open')->where('deliveries.destination_id', systemIssueAccountChannel($owner)->id)->sole();
-    expect([(bool) $opening->suppressed, $opening->suppression_reason, $opening->state])
-        ->toBe($sameHost ? [true, 'server_alerts_cover_host', 'pending'] : [false, null, 'sent']);
-})->with(['the server reports the address the instance host resolves to' => [true], 'another host' => [false]]);
 
 it('does nothing while servers are off: no evaluation, no Servers row, and waiting deliveries never send', function (): void {
     $owner = systemIssueRecipient('Owner');
@@ -468,4 +454,187 @@ it('keeps Activity and the notification settings within a fixed number of querie
     $many = [$measure('/activity'), $measure(route('settings.notifications.team.data'))];
 
     expect(DB::table('events')->whereNotNull('server_issue_id')->count())->toBe(5)->and($many)->toBe($few);
+});
+
+/** Runs $change once, inside the claim that moves a delivery to this channel to Sending: after the claim's check, before the send. */
+function alertsAfterClaim(int $channelId, Closure $change): void
+{
+    $done = false;
+    Delivery::updated(static function (Delivery $delivery) use (&$done, $channelId, $change): void {
+        if (! $done && $delivery->destination_id === $channelId && $delivery->state === DeliveryState::Sending) {
+            $done = true;
+            $change();
+        }
+    });
+}
+
+/** The channel limited to another client and pointed at another address, as an edit in the settings would leave it. */
+function alertsLimitAndMove(NotificationDestination $channel): void
+{
+    $channel->refresh()->forceFill(['scope_client_id' => Client::factory()->create()->id,
+        'config' => app(ChannelRegistry::class)->get('webhook')->configSchema()->validateConfig(['url' => 'https://receiver.test/moved', 'secret' => 'private-webhook-secret'])])->save();
+}
+
+it('re-checks eligibility at send time: a server alert is not sent once its channel is limited to one client after the claim', function (): void {
+    $team = alertsTeamWebhook();
+    [, $token] = alertsServer();
+    alertsAfterClaim($team->id, static fn () => alertsLimitAndMove($team));
+
+    alertsMinutes($this, $token, 16, ['disks' => ['/' => 92]]);
+    dispatchNotifications();
+
+    expect(alertsDeliveries('opened')[$team->id])->toMatchObject(['suppressed' => true, 'suppression_reason' => 'servers_client_limited'])
+        ->and(Http::recorded())->toHaveCount(0);
+});
+
+it('re-checks eligibility at send time: a site alert is not sent once its team channel is limited to another client after the claim', function (): void {
+    $kept = notificationWebhook();
+    $moved = notificationWebhook();
+    $event = Event::factory()->create(['check_id' => Check::factory()->create(['type' => CheckKey::Performance])->id,
+        'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Warning]);
+    $deliveries = [];
+    foreach ([$kept, $moved] as $channel) {
+        $deliveries[$channel->id] = Delivery::query()->create(['event_id' => $event->id, 'destination_id' => $channel->id, 'category' => 'warning',
+            'next_attempt_at' => now(), 'suppression_evaluated_at' => now()]);
+    }
+    alertsAfterClaim($moved->id, static fn () => alertsLimitAndMove($moved));
+
+    app(SendNotificationDelivery::class)($deliveries[$kept->id]->id);
+    app(SendNotificationDelivery::class)($deliveries[$moved->id]->id);
+
+    expect($deliveries[$kept->id]->refresh()->state)->toBe(DeliveryState::Sent)
+        ->and($deliveries[$moved->id]->refresh()->only(['suppressed', 'suppression_reason']))->toBe(['suppressed' => true, 'suppression_reason' => 'channel_client_scope'])
+        ->and(Http::recorded()->map(static fn (array $pair): string => $pair[0]->url())->all())->toBe(['https://receiver.test/alerts']);
+});
+
+it('re-checks eligibility at send time: an Admin demoted after the claim gets no server alert', function (): void {
+    $admin = systemIssueRecipient('Admin');
+    $account = systemIssueAccountChannel($admin);
+    [, $token] = alertsServer();
+    alertsAfterClaim($account->id, static fn () => $admin->syncRoles(['Member']));
+
+    alertsMinutes($this, $token, 11, ['memory' => 95]);
+    dispatchNotifications();
+
+    expect(alertsDeliveries('opened')[$account->id])->toMatchObject(['suppressed' => true, 'suppression_reason' => 'servers_owner_or_admin_only']);
+    Mail::assertNothingSent();
+});
+
+it('evaluates only the newest sample: a late healthy sample never resolves a newer issue', function (): void {
+    [$server, $token] = alertsServer();
+    alertsMinutes($this, $token, 11, ['memory' => 95]);
+    expect(alertsOpen($server))->toBe(['memory_low:']);
+
+    // Observed three minutes ago, received now: stored, never evaluated.
+    alertsReport($this, $token, ['memory' => 50], now()->subMinutes(3));
+    expect(alertsOpen($server))->toBe(['memory_low:'])
+        ->and(DB::table('server_samples')->where('server_id', $server->id)->count())->toBe(12);
+
+    $this->travel(30)->seconds();
+    alertsReport($this, $token, ['memory' => 50]);
+    expect(alertsOpen($server))->toBe([]);
+});
+
+it('resolves "No report" at the receipt of the next sample, never before it opened, also for a sample observed earlier', function (): void {
+    [$server, $token] = alertsServer(settings: ['no_report_minutes' => 2]);
+    alertsReport($this, $token);
+    $reported = now();
+    $this->travelTo($reported->addMinutes(9));
+    app(EvaluateServerIssues::class)->noReports(now());
+    $issue = ServerIssue::query()->where('server_id', $server->id)->sole();
+    expect($issue->opened_at->equalTo($reported->addMinutes(2)))->toBeTrue();
+
+    // Observed one minute after the last report (before the issue opened), received now.
+    alertsReport($this, $token, [], $reported->addMinute());
+
+    expect($issue->refresh()->resolved_at?->equalTo(now()))->toBeTrue()
+        ->and($issue->resolved_at->greaterThanOrEqualTo($issue->opened_at))->toBeTrue();
+});
+
+it('silences a recovery that is still waiting when the server gets snoozed', function (): void {
+    $owner = systemIssueRecipient('Owner');
+    [$server, $token] = alertsServer();
+    alertsMinutes($this, $token, 11, ['memory' => 95]);
+    dispatchNotifications();
+    alertsMinutes($this, $token, 1);
+    expect(alertsDeliveries('resolved')->sole()->state)->toBe('pending');
+
+    $this->actingAs($owner)->post("/servers/{$server->id}/snooze", ['minutes' => 60])->assertRedirect();
+    dispatchNotifications();
+
+    expect(alertsDeliveries('resolved')->sole())->toMatchObject(['suppressed' => true, 'suppression_reason' => 'snooze']);
+    Mail::assertSent(TemplateMail::class, 1);
+});
+
+it('keeps a snoozed server out of the digest and holds its alerts when the channel switches from Digest to Immediately', function (): void {
+    $zone = app(InstanceSettings::class)->timezone;
+    $owner = systemIssueRecipient('Owner');
+    $digest = alertsTeamWebhook(mode: NotificationMode::Digest);
+    [$server, $token] = alertsServer();
+    $this->actingAs($owner)->post("/servers/{$server->id}/snooze", ['minutes' => 3 * 1440])->assertRedirect();
+    alertsMinutes($this, $token, 16, ['load' => 9.5]);
+
+    $this->travelTo(CarbonImmutable::parse('2026-11-28T08:00:00', $zone));
+    dispatchNotifications();
+    expect(DB::table('events')->where('type', 'notification.digest')->count())->toBe(0)
+        ->and(alertsWebhookBodies())->toBe([]);
+
+    $this->actingAs($owner)->putJson(route('notification-channels.preferences', $digest), ['preferences' => ['servers' => 'immediate']])->assertSuccessful();
+    dispatchNotifications();
+    expect(alertsDeliveries('opened')[$digest->id])->toMatchObject(['state' => 'pending', 'digest' => false, 'last_reason' => 'deferred_by_snooze'])
+        ->and(alertsWebhookBodies())->toBe([]);
+    Mail::assertNothingSent();
+
+    $this->actingAs($owner)->delete("/servers/{$server->id}/snooze")->assertRedirect();
+    dispatchNotifications();
+    expect(alertsDeliveries('opened')->pluck('state')->unique()->all())->toBe(['sent']);
+});
+
+it('skips a snoozed server in the recurring digest and ends the recurrence once its issue resolves', function (): void {
+    $zone = app(InstanceSettings::class)->timezone;
+    $owner = systemIssueRecipient('Owner');
+    $digest = alertsTeamWebhook(mode: NotificationMode::Digest);
+    [$server, $token] = alertsServer();
+    alertsMinutes($this, $token, 16, ['load' => 9.5]);
+    $digestCount = static fn (): int => DB::table('events')->where('type', 'notification.digest')->count();
+
+    $this->travelTo(CarbonImmutable::parse('2026-11-28T08:00:00', $zone));
+    dispatchNotifications();
+    expect($digestCount())->toBe(1);
+
+    $this->actingAs($owner)->post("/servers/{$server->id}/snooze", ['minutes' => 2 * 1440])->assertRedirect();
+    $this->travelTo(CarbonImmutable::parse('2026-11-29T08:00:00', $zone));
+    dispatchNotifications();
+    expect($digestCount())->toBe(1);
+
+    $this->actingAs($owner)->delete("/servers/{$server->id}/snooze")->assertRedirect();
+    alertsReport($this, $token);
+    expect(alertsOpen($server))->toBe([])
+        ->and(alertsDeliveries('opened')[$digest->id]->digest_recurrence_ended_at)->not->toBeNull();
+    $this->travelTo(CarbonImmutable::parse('2026-11-30T08:00:00', $zone));
+    dispatchNotifications();
+    expect($digestCount())->toBe(1);
+});
+
+it('removes every server alert and the Servers category on the way down, and restores them on the way up', function (): void {
+    systemIssueRecipient('Owner');
+    [, $token] = alertsServer();
+    alertsMinutes($this, $token, 11, ['memory' => 95]);
+    $migration = require __DIR__.'/../../database/migrations/2026_11_28_100000_create_server_issues.php';
+    expect(DB::table('events')->whereNotNull('server_issue_id')->count())->toBe(1);
+
+    $migration->down();
+
+    expect(Schema::hasColumn('events', 'server_issue_id'))->toBeFalse()->and(Schema::hasTable('server_issues'))->toBeFalse()
+        ->and(DB::table('notification_preferences')->where('category', 'servers')->count())->toBe(0)
+        ->and(DB::table('deliveries')->where('category', 'servers')->count())->toBe(0)
+        ->and(DB::table('notification_destinations')->whereRaw("jsonb_exists(default_preferences, 'servers')")->count())->toBe(0);
+    $channel = NotificationDestination::query()->value('id');
+    expect(fn () => DB::transaction(static fn () => DB::table('notification_preferences')->where('destination_id', $channel)->where('category', 'system')
+        ->update(['category' => 'servers'])))->toThrow(QueryException::class);
+
+    $migration->up();
+
+    expect(Schema::hasColumn('events', 'server_issue_id'))->toBeTrue()
+        ->and(DB::table('notification_preferences')->where('category', 'servers')->where('destination_id', $channel)->value('mode'))->toBe('immediate');
 });

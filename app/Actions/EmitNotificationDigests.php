@@ -11,6 +11,8 @@ use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Contracts\NotificationSuppression;
 use Heptapod\Contracts\SuppressionSubject;
 use Heptapod\Events\Notifications\AlertConfirmation;
+use Heptapod\Events\Notifications\DeliveryEligibility;
+use Heptapod\Events\Notifications\DeliveryRefusal;
 use Heptapod\Events\Notifications\NotificationEventTypes;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Events\Notifications\NotificationTiming;
@@ -18,8 +20,6 @@ use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\NotificationSchedule;
-use Heptapod\Models\User;
-use Heptapod\Servers\ServerIssueMailer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -37,7 +37,7 @@ final readonly class EmitNotificationDigests
     private const string ArchivedMoreCacheKey = 'heptapod:notifications:digests_archived_more';
 
     public function __construct(private NotificationSuppression $suppression, private NotificationTiming $timing,
-        private NotificationEventTypes $types) {}
+        private NotificationEventTypes $types, private DeliveryEligibility $eligibility) {}
 
     /** @return bool whether more digest work remains after this bounded pass */
     public function __invoke(bool $continuation = false): bool
@@ -107,19 +107,25 @@ final readonly class EmitNotificationDigests
                 $included = [];
                 $sites = [];
                 $servers = [];
-                $recipient = $destination->user_id === null ? null : User::query()->findOrFail($destination->user_id);
                 foreach ($sources as $source) {
                     $event = $source->event ?? throw new \LogicException('Digest source event is missing.');
-                    if ($event->server_issue_id !== null) {
-                        // A server issue stays in the digest while it is open and the channel may hear about servers.
-                        $ended = ServerIssueMailer::digestEnded($event, $destination);
-                        if ($ended === null) {
-                            $included[] = $source->id;
-                            $servers[$event->server_issue_id] = $event->server_name ?? throw new \LogicException('A server issue event needs its server name.');
-                        } elseif ($source->state === DeliveryState::Pending) {
-                            $source->update(['suppressed' => true, 'suppression_reason' => $ended, 'suppression_evaluated_at' => $at]);
+                    $refusal = $this->eligibility->refusal($event, $destination, $source, $at);
+                    if ($refusal instanceof DeliveryRefusal) {
+                        // A held item (a snoozed server) waits for a digest after its hold, unchanged.
+                        if (! $refusal->retryAt instanceof CarbonImmutable && $source->state === DeliveryState::Pending) {
+                            $source->update(['suppressed' => true, 'suppression_reason' => $refusal->reason, 'suppression_evaluated_at' => $at]);
                             $source->announceChanges();
+                        } elseif (! $refusal->retryAt instanceof CarbonImmutable && $event->server_issue_id !== null) {
+                            // A server issue that will not come back to this channel leaves the recurring read.
+                            $source->update(['digest_recurrence_ended_at' => $at]);
                         }
+
+                        continue;
+                    }
+                    if ($event->server_issue_id !== null) {
+                        // A server issue stays in the digest while it is open (DeliveryEligibility refuses a resolved one).
+                        $included[] = $source->id;
+                        $servers[$event->server_issue_id] = $event->server_name ?? throw new \LogicException('A server issue event needs its server name.');
 
                         continue;
                     }
@@ -150,14 +156,6 @@ final readonly class EmitNotificationDigests
                         default => false,
                     };
                     $site = $event->site ?? throw new \LogicException('Digest source site is missing.');
-                    if ($recipient !== null && $recipient->disabled_at === null && (! $recipient->hasAnyRole(['Owner', 'Admin', 'Member']) || ! $recipient->canAccessClient($site->client_id))) {
-                        if ($source->state === DeliveryState::Pending) {
-                            $source->update(['suppressed' => true, 'suppression_reason' => 'personal_site_access_revoked', 'suppression_evaluated_at' => $at]);
-                            $source->announceChanges();
-                        }
-
-                        continue;
-                    }
                     if ($decision->suppressed || ! $open) {
                         if ($source->state === DeliveryState::Pending) {
                             $source->update(['suppressed' => true, 'suppression_reason' => $decision->suppressed ? $decision->reason : 'digest_no_longer_open',

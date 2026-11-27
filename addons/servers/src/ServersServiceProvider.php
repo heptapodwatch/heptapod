@@ -26,7 +26,7 @@ final class ServersServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/servers.php', 'servers');
         $this->app->bind(SiteServers::class, DatabaseSiteServers::class);
-        $this->app->scoped(ServerIssues::class, ServerIssueTexts::class);
+        $this->app->scoped(ServerIssues::class, DatabaseServerIssues::class);
     }
 
     public function boot(): void

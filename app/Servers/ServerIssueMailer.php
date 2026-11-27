@@ -21,6 +21,7 @@ use Heptapod\Contracts\ServersAccess;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\NotificationMode;
 use Heptapod\Enums\RecipientKind;
+use Heptapod\Events\Notifications\DeliveryRefusal;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Events\Notifications\NotificationTiming;
 use Heptapod\Models\Delivery;
@@ -70,32 +71,47 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
         };
     }
 
-    /** Why a digest no longer carries this server issue for the channel; null while it does (open, servers on, channel eligible). */
-    public static function digestEnded(Event $event, NotificationDestination $channel): ?string
+    /**
+     * The server alert part of DeliveryEligibility: servers on, the channel may hear about servers, an opening's issue is
+     * still open, and the server is not snoozed. A snooze holds an opening until it ends and silences a recovery.
+     */
+    public function refusal(Event $event, NotificationDestination $channel, CarbonImmutable $at): ?DeliveryRefusal
     {
-        return match (true) {
-            ! app(ServersAccess::class)->enabled() => 'servers_disabled',
-            DB::table('events')->where('server_issue_id', $event->server_issue_id)->where('type', self::ResolvedType)->exists() => 'digest_no_longer_open',
-            default => self::ineligibility($channel),
+        $reason = match (true) {
+            ! $this->access->enabled() => 'servers_disabled',
+            default => self::ineligibility($channel) ?? ($channel->enabled ? null : 'destination_disabled'),
         };
+        if ($reason !== null) {
+            return new DeliveryRefusal($reason);
+        }
+        $opening = $event->type === self::OpenedType;
+        if ($opening && DB::table('events')->where('server_issue_id', $event->server_issue_id)->where('type', self::ResolvedType)->exists()) {
+            return new DeliveryRefusal('resolved_before_delivery');
+        }
+        $serverId = $event->payload['server_id'] ?? null;
+        $snoozedUntil = is_int($serverId) ? $this->issues->snoozedUntil($serverId) : null;
+        if ($snoozedUntil instanceof CarbonImmutable && $snoozedUntil->greaterThan($at)) {
+            return $opening ? new DeliveryRefusal(self::SnoozeReason, $snoozedUntil) : new DeliveryRefusal('snooze');
+        }
+
+        return null;
     }
 
-    public function opened(int $issueId, int $serverId, string $serverName, CarbonImmutable $at, array $facts, ?CarbonImmutable $snoozedUntil): void
+    public function opened(int $issueId, int $serverId, string $serverName, CarbonImmutable $at, array $facts): void
     {
         $now = CarbonImmutable::now('UTC');
         $recipients = $this->recipients();
         // NotificationLocks: the issue (the caller's), the channels in ascending id, then their new deliveries.
         NotificationLocks::channels($recipients->keys());
         $eventId = $this->event($issueId, self::OpenedType, $serverId, $serverName, $at, $facts);
-        $snoozed = $snoozedUntil instanceof CarbonImmutable && $snoozedUntil->greaterThan($now);
-        $from = $snoozed ? $snoozedUntil : $now;
         $schedules = NotificationSchedule::forChannels($recipients);
-        $this->insertDeliveries($eventId, array_values($recipients->map(function (NotificationDestination $channel) use ($schedules, $from, $snoozed): array {
+        // A snoozed server's openings are held by the claim (refusal), so they are planned like any other.
+        $this->insertDeliveries($eventId, array_values($recipients->map(function (NotificationDestination $channel) use ($schedules, $now): array {
             $schedule = $schedules[$channel->id];
             $digest = $channel->getAttribute('servers_mode') === NotificationMode::Digest->value;
 
-            return ['destination_id' => $channel->id, 'digest' => $digest, 'last_reason' => $snoozed ? self::SnoozeReason : null,
-                'next_attempt_at' => $digest ? $this->timing->nextDailyDigest($from, $schedule->effectiveDigestWeekdays(), $schedule->digest_time, $schedule->timezone()) : $from];
+            return ['destination_id' => $channel->id, 'digest' => $digest, 'last_reason' => null,
+                'next_attempt_at' => $digest ? $this->timing->nextDailyDigest($now, $schedule->effectiveDigestWeekdays(), $schedule->digest_time, $schedule->timezone()) : $now];
         })->all()));
     }
 
@@ -113,6 +129,9 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
         DB::table('deliveries')->where('event_id', $openingId)->where('suppressed', false)->whereNull('digest_event_id')
             ->whereIn('state', [DeliveryState::Pending->value, DeliveryState::Failed->value])
             ->update(['suppressed' => true, 'suppression_reason' => $silencedBy ?? 'resolved_before_delivery', 'suppression_evaluated_at' => $now->format('Y-m-d H:i:s.uP'), 'last_reason' => null]);
+        // A digest line of a resolved issue never comes back, so the recurring digest read stays bounded by the open issues.
+        DB::table('deliveries')->where('event_id', $openingId)->where('digest', true)->whereNull('digest_recurrence_ended_at')
+            ->update(['digest_recurrence_ended_at' => $now->format('Y-m-d H:i:s.uP')]);
         $eventId = $this->event($issueId, self::ResolvedType, $serverId, $serverName, $at, $facts);
         if ($silencedBy !== null) {
             return;
@@ -126,45 +145,30 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
         ])->all()));
     }
 
-    public function snoozeChanged(array $openIssueIds, ?CarbonImmutable $until): void
+    public function snoozeChanged(array $openIssueIds): void
     {
         $now = CarbonImmutable::now('UTC')->format('Y-m-d H:i:s.uP');
-        $waiting = DB::table('deliveries')->whereIn('event_id', DB::table('events')->select('id')->whereIn('server_issue_id', $openIssueIds)->where('type', self::OpenedType))
-            ->where('suppressed', false)->whereNull('digest_event_id')->whereIn('state', [DeliveryState::Pending->value, DeliveryState::Failed->value]);
-        if ($until instanceof CarbonImmutable) {
-            $waiting->where('next_attempt_at', '<', $until->utc()->format('Y-m-d H:i:s.uP'));
-        } else {
-            $waiting->where('last_reason', self::SnoozeReason)->where('next_attempt_at', '>', $now);
+        $held = DB::table('deliveries')->whereIn('event_id', DB::table('events')->select('id')->whereIn('server_issue_id', $openIssueIds)->where('type', self::OpenedType))
+            ->where('suppressed', false)->where('state', DeliveryState::Pending->value)->where('last_reason', self::SnoozeReason)->where('next_attempt_at', '>', $now);
+        $locked = NotificationLocks::deliveries((clone $held)->pluck('id'));
+        if ($locked !== []) {
+            DB::table('deliveries')->whereIn('id', $locked)->update(['next_attempt_at' => $now]);
         }
-        $locked = NotificationLocks::deliveries((clone $waiting)->pluck('id'));
-        if ($locked === []) {
-            return;
-        }
-        DB::table('deliveries')->whereIn('id', $locked)->update($until instanceof CarbonImmutable
-            ? ['next_attempt_at' => $until->utc()->format('Y-m-d H:i:s.uP'), 'last_reason' => self::SnoozeReason]
-            : ['next_attempt_at' => $now]);
     }
 
     /**
-     * ClaimNotificationDelivery for a server issue delivery, with its channel and row locked: eligibility again, an
-     * opening whose issue resolved meanwhile ends, a recovery waits for its opening's send, then quiet hours.
+     * ClaimNotificationDelivery for an eligible server issue delivery (DeliveryEligibility), with its channel and row
+     * locked: a recovery waits for its opening's send, then verification and quiet hours.
      */
     public function claim(Delivery $delivery, NotificationDestination $destination, Event $event, CarbonImmutable $at): ?Delivery
     {
-        $suppressed = $this->access->enabled() ? self::ineligibility($destination) : 'servers_disabled';
-        if ($suppressed === null && $event->type === self::OpenedType
-            && DB::table('events')->where('server_issue_id', $event->server_issue_id)->where('type', self::ResolvedType)->exists()) {
-            $suppressed = 'resolved_before_delivery';
-        }
+        $suppressed = null;
         $wait = null;
-        if ($suppressed === null && $event->type === self::ResolvedType) {
+        if ($event->type === self::ResolvedType) {
             $opening = DB::table('deliveries')->join('events', 'events.id', '=', 'deliveries.event_id')->where('events.server_issue_id', $event->server_issue_id)
                 ->where('events.type', self::OpenedType)->where('deliveries.destination_id', $delivery->destination_id)->value('deliveries.state');
             $suppressed = in_array($opening, [DeliveryState::Sent->value, DeliveryState::Sending->value], true) ? null : 'opening_not_delivered';
             $wait = $opening === DeliveryState::Sending->value ? ['next_attempt_at' => $at->addMinute()] : null;
-        }
-        if ($suppressed === null && ! $destination->enabled) {
-            $suppressed = 'destination_disabled';
         }
         if ($suppressed !== null) {
             $delivery->update(['suppressed' => true, 'suppression_reason' => $suppressed, 'suppression_evaluated_at' => $at, 'claim_token' => null, 'lease_until' => null]);

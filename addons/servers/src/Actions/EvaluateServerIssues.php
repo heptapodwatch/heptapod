@@ -17,8 +17,10 @@ use Illuminate\Support\Facades\DB;
  * Opens and resolves server issues; every caller holds the server row FOR UPDATE, so one server is evaluated by one
  * transaction at a time. Disk (per watched mount), RAM and load open once every sample across their duration is at or
  * above the threshold, and only a fresh sample below it resolves them: an issue stays open while reports stop. A gap
- * longer than GapSeconds between two samples (a missed report) breaks a streak. "No report" opens on the scheduled
- * pass once the newest report is older than the server's "No report after" and resolves with the next sample.
+ * longer than GapSeconds between two samples (a missed report) breaks a streak. Only the server's newest sample (by
+ * observed_at) is evaluated, so a late sample is stored but never closes or opens an issue. "No report" is about receipt:
+ * it opens on the scheduled pass once the last receipt is older than the server's "No report after" and resolves at the
+ * receipt of the next sample. An issue never resolves before it opened (server_issues_resolved_after_opening).
  *
  * @phpstan-type Metrics array{cpu: array{cores: int}, load: array{5: int|float}, memory: array{total_bytes: int, available_bytes: int}, filesystems: list<array{mount: string, total_bytes: int, free_bytes: int}>}
  */
@@ -34,12 +36,17 @@ final readonly class EvaluateServerIssues
      *
      * @param  Metrics  $metrics
      */
-    public function afterSample(Server $server, array $metrics, CarbonImmutable $observedAt): void
+    public function afterSample(Server $server, array $metrics, CarbonImmutable $observedAt, CarbonImmutable $receivedAt): void
     {
         $open = $this->openIssues($server);
         $noReport = $open[ServerIssueKind::NoReport->value.':'] ?? null;
         if ($noReport instanceof ServerIssue) {
-            $this->resolve($server, $noReport, $observedAt, ['reported_at' => $observedAt->utc()->toIso8601String()]);
+            $this->resolve($server, $noReport, $receivedAt, ['reported_at' => $receivedAt->utc()->toIso8601String()]);
+            unset($open[ServerIssueKind::NoReport->value.':']);
+        }
+        // Through the (server_id, observed_at) index: the sample just stored counts once.
+        if (DB::table('server_samples')->where('server_id', $server->id)->where('observed_at', '>=', $observedAt->utc()->format('Y-m-d H:i:s.uP'))->count() > 1) {
+            return;
         }
         $thresholds = ServerThresholdsData::of($server->settings);
         $ignored = $server->settings['ignored_mounts'] ?? [];
@@ -120,7 +127,7 @@ final readonly class EvaluateServerIssues
     public function snooze(Server $server, ?CarbonImmutable $until): void
     {
         $server->forceFill(['snoozed_until' => $until])->save();
-        $this->alerts->snoozeChanged(array_values(array_map(static fn (ServerIssue $issue): int => $issue->id, $this->openIssues($server))), $until);
+        $this->alerts->snoozeChanged(array_values(array_map(static fn (ServerIssue $issue): int => $issue->id, $this->openIssues($server))));
     }
 
     public function lock(int $serverId): ?Server
@@ -210,19 +217,21 @@ final readonly class EvaluateServerIssues
     private function open(Server $server, ServerIssueKind $kind, string $scope, CarbonImmutable $at, array $values): void
     {
         $issue = ServerIssue::query()->create(['server_id' => $server->id, 'kind' => $kind, 'scope' => $scope, 'opened_at' => $at, 'opened_values' => $values]);
-        $this->alerts->opened($issue->id, $server->id, $server->name, $at, $this->facts($issue), $server->snoozed_until);
+        $this->alerts->opened($issue->id, $server->id, $server->name, $at, $this->facts($issue));
     }
 
     /** @param array<string, string|int|float> $values */
     private function resolve(Server $server, ServerIssue $issue, CarbonImmutable $at, array $values, ?string $silencedBy = null): void
     {
+        // An opening observed slightly ahead of this clock (agent clock skew) still resolves after it opened.
+        $at = $at->max($issue->opened_at);
         $issue->update(['resolved_at' => $at, 'resolved_values' => $values]);
         // While snoozed an issue resolves without a recovery alert, as a snoozed check's events do.
         $snoozed = $server->snoozed_until !== null && $server->snoozed_until->isFuture();
         $this->alerts->resolved($issue->id, $server->id, $server->name, $at, $this->facts($issue), $silencedBy ?? ($snoozed ? 'snooze' : null));
     }
 
-    /** @return array<string, string|int|float|null> what the alert is rendered from (ServerIssueTexts) */
+    /** @return array<string, string|int|float|null> what the alert is rendered from (DatabaseServerIssues) */
     private function facts(ServerIssue $issue): array
     {
         $resolved = $issue->resolved_values ?? [];
