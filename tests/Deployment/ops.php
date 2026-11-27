@@ -19,6 +19,7 @@ use Heptapod\Models\Client;
 use Heptapod\Models\Incident;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
+use Heptapod\Settings\InstanceSettings;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
@@ -86,6 +87,11 @@ $alertsGuest = $request('GET', '/settings/alerts');
 verify($alertsGuest->getStatusCode() === 302 && $alertsGuest->getHeader('Location') === ['https://monitor.example.com:8443/login'], 'Alert sensitivity guest redirect must use the canonical HTTPS login origin');
 $emailGuest = $request('GET', '/settings/email');
 verify($emailGuest->getStatusCode() === 302 && $emailGuest->getHeader('Location') === ['https://monitor.example.com:8443/login'], 'Email settings guest redirect must use the canonical HTTPS login origin');
+// Servers are allowed by this stack's environment (ops.yaml) but switched off until an Owner turns them on: nothing exists yet.
+foreach ([['GET', '/servers'], ['GET', '/servers/1'], ['POST', '/agent/v1/report']] as [$method, $path]) {
+    $serversGuest = $request($method, $path);
+    verify($serversGuest->getStatusCode() === 404 && $serversGuest->getHeader('Location') === [], "Switched-off servers: guest {$method} {$path} must answer a raw 404: ".$serversGuest->getStatusCode());
+}
 $devLoginPage = $request('GET', '/dev-login');
 verify($devLoginPage->getStatusCode() === 404 && $devLoginPage->getHeader('Location') === [], 'Production must not serve /dev-login: '.$devLoginPage->getStatusCode());
 $loginLink = $request('POST', '/laravel-login-link-login', ['form_params' => ['email' => $user->email]]);
@@ -161,6 +167,48 @@ foreach (['csv' => 'text/csv; charset=UTF-8', 'md' => 'text/markdown; charset=UT
     verify($format !== 'csv' || str_starts_with((string) $export->getBody(), "\xEF\xBB\xBFID,"), 'Incidents CSV must start with the byte order mark and its header row');
 }
 $xsrf = urldecode(substr($cookies['XSRF-TOKEN'], strlen('XSRF-TOKEN=')));
+$serversSwitch = function (bool $on) use ($request, &$cookies): void {
+    $response = $request('PATCH', '/settings/instance', ['headers' => ['X-XSRF-TOKEN' => urldecode(substr($cookies['XSRF-TOKEN'], strlen('XSRF-TOKEN=')))],
+        'json' => ['name' => app(InstanceSettings::class)->name, 'servers_enabled' => $on]]);
+    verify($response->getStatusCode() === 302 && $response->getHeader('Location') === ['https://monitor.example.com:8443/settings/instance'], 'Servers switch must save and redirect to the canonical HTTPS settings origin: '.$response->getStatusCode().' '.$response->getHeaderLine('Location'));
+};
+// As the agent sends it: a JSON body and the bearer token, no Accept header.
+$serverReport = fn (?string $token): ResponseInterface => $request('POST', '/agent/v1/report', ['headers' => $token === null ? [] : ['Authorization' => 'Bearer '.$token],
+    'json' => ['sample_id' => (string) Str::uuid(), 'observed_at' => now()->utc()->format('Y-m-d\TH:i:s\Z'),
+        'agent' => ['version' => '0.1.0', 'os' => 'linux', 'arch' => 'amd64', 'distro' => 'Debian 13', 'kernel' => '6.12.0-1-amd64'],
+        'host' => ['hostname' => 'ops-server', 'uptime_seconds' => 3600, 'reboot_required' => null, 'ips' => ['192.0.2.10']],
+        'cpu' => ['cores' => 2, 'used_percent' => 12.5], 'load' => ['1' => 0.4, '5' => 0.3, '15' => 0.2],
+        'memory' => ['total_bytes' => 4294967296, 'available_bytes' => 2147483648],
+        'filesystems' => [['mount' => '/', 'total_bytes' => 42949672960, 'free_bytes' => 21474836480]], 'updates' => ['pending' => null, 'security' => null]]]);
+$agentError = fn (ResponseInterface $response, int $status, string $error): bool => $response->getStatusCode() === $status && $response->getHeader('Location') === []
+    && $response->getHeader('Content-Type') === ['application/json'] && json_decode((string) $response->getBody(), true, flags: JSON_THROW_ON_ERROR) === ['error' => $error];
+verify($request('GET', '/servers')->getStatusCode() === 404 && $agentError($serverReport(null), 404, 'not_found'), 'Switched-off servers must answer 404 to the Owner and the agent');
+verify($agentError($request('OPTIONS', '/agent/v1/report'), 404, 'not_found') && $agentError($request('PUT', '/agent/v1/report'), 404, 'not_found'), 'Switched-off agent endpoint must answer every method with the JSON 404');
+$serversSwitch(true);
+$serversPage = $request('GET', '/servers');
+verify($serversPage->getStatusCode() === 200 && str_contains((string) $serversPage->getBody(), 'https://monitor.example.com:8443'), 'Owner servers page must be served on the canonical HTTPS origin once switched on');
+$addServer = $request('POST', '/servers', ['headers' => ['X-XSRF-TOKEN' => urldecode(substr($cookies['XSRF-TOKEN'], strlen('XSRF-TOKEN=')))], 'form_params' => ['name' => 'ops-server']]);
+verify($addServer->getStatusCode() === 302 && preg_match('#^https://monitor\.example\.com:8443/servers/(\d+)$#', $addServer->getHeaderLine('Location'), $addedServer) === 1, 'Add server must redirect to the new server on the canonical HTTPS origin: '.$addServer->getHeaderLine('Location'));
+$serverPage = $request('GET', '/servers/'.$addedServer[1]);
+verify(preg_match('#<script\b[^>]*\bdata-page="app"[^>]*>(.*?)</script>#s', (string) $serverPage->getBody(), $serverPageMatch) === 1, 'Server page must embed Inertia page data');
+$serverToken = json_decode(html_entity_decode($serverPageMatch[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'), true, flags: JSON_THROW_ON_ERROR)['flash']['server_token'] ?? '';
+verify(preg_match('/^hpa_[0-9a-z]{26}_[A-Za-z0-9_-]{43}$/', $serverToken) === 1, 'The new server page must show its agent token once');
+verify($agentError($serverReport(null), 401, 'unauthorized'), 'Agent report without a token must answer the raw JSON 401');
+// Above 16 KiB the image's Caddy answers 413 with an empty body before PHP reads it; PHP's own 413 would be JSON.
+// /agent is reserved for agent traffic; any path below it (a trailing slash too, which Laravel still routes) is capped.
+foreach (['/agent/v1/report', '/agent/v1/report/', '/agent'] as $path) {
+    $oversize = $request('POST', $path, ['headers' => ['Authorization' => 'Bearer '.$serverToken, 'Content-Type' => 'application/json'],
+        'body' => json_encode(['padding' => str_repeat('x', 16 * 1024)], JSON_THROW_ON_ERROR)]);
+    verify($oversize->getStatusCode() === 413 && (string) $oversize->getBody() === '' && $oversize->getHeader('Content-Type') === [], 'An oversize agent report must be refused by the web server before PHP: '.$path.' '.$oversize->getStatusCode());
+}
+$acceptedReport = $serverReport($serverToken);
+verify($acceptedReport->getStatusCode() === 202 && json_decode((string) $acceptedReport->getBody(), true, flags: JSON_THROW_ON_ERROR) === ['interval_seconds' => 60], 'Agent report through nginx must be accepted: '.$acceptedReport->getStatusCode().' '.$acceptedReport->getBody());
+$tooSoon = $serverReport($serverToken);
+verify($agentError($tooSoon, 429, 'too_many_reports') && (int) $tooSoon->getHeaderLine('Retry-After') > 0, 'A second report within 20 s must answer the JSON 429 with Retry-After: '.$tooSoon->getStatusCode());
+$serversSwitch(false);
+verify($request('GET', '/servers/'.$addedServer[1])->getStatusCode() === 404 && $agentError($serverReport($serverToken), 404, 'not_found'), 'Switched-off servers must answer 404 again');
+verify(DB::table('server_samples')->where('server_id', (int) $addedServer[1])->count() === 1, 'Switching servers off must keep their data');
+echo "PASS: servers switched off answer 404s (agent JSON for every method); switched on, Add server, the shown-once token, the agent report, its JSON 401/429 and the web server's 413 before PHP work through nginx on the canonical HTTPS origin; off again keeps the data\n";
 if (in_array('--public-probe-only', $argv, true)) {
     $before = [Site::query()->count(), Check::query()->count(), CheckRun::query()->count(), Incident::query()->count()];
     $response = $request('POST', '/sites/probe', ['headers' => ['Accept' => 'application/json', 'X-XSRF-TOKEN' => $xsrf], 'json' => ['url' => 'https://example.com/']]);

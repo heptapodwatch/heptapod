@@ -27,8 +27,14 @@ vi.mock('@inertiajs/react', () => ({
 afterEach(cleanup);
 
 it('renders the OK status as visible text, not an icon alone', () => {
-    render(<StatusBadge state="ok" />);
+    const { container } = render(<StatusBadge state="ok" />);
     expect(screen.getByText('OK').textContent).toBe('OK');
+    // The word itself names the badge: no aria-label that would replace it, and the dot stays decorative.
+    const badge = container.querySelector('[data-slot="badge"]');
+    expect(badge?.hasAttribute('aria-label')).toBe(false);
+    expect(
+        badge?.querySelector('[role="img"]')?.closest('[aria-hidden]'),
+    ).not.toBeNull();
 });
 
 // TODO: Replace per-cell image assertions with the single summarized strip contract after test-free mode.

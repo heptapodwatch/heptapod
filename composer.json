@@ -38,6 +38,7 @@
     "heptapod/addon-domain": "^0.1",
     "heptapod/addon-lighthouse": "^0.1",
     "heptapod/addon-performance": "^0.1",
+    "heptapod/addon-servers": "^0.1",
     "heptapod/addon-sitemap": "^0.1",
     "heptapod/addon-uptime": "^0.1",
     "inertiajs/inertia-laravel": "^3.5",

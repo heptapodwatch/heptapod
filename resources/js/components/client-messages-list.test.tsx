@@ -198,10 +198,7 @@ it('shows each delivery outcome with the shared status tone', async () => {
     await screen.findAllByText('Broken links on shop.test: 2 found');
     expect(
         [...document.querySelectorAll('[data-slot="badge"][data-state]')].map(
-            (badge) => [
-                badge.getAttribute('data-state'),
-                badge.getAttribute('aria-label'),
-            ],
+            (badge) => [badge.getAttribute('data-state'), badge.textContent],
         ),
     ).toEqual(Object.values(outcomes));
 });

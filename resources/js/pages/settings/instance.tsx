@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CheckboxField } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useFormat } from '@/hooks/use-format';
 import { update } from '@/routes/settings/instance';
@@ -53,7 +54,9 @@ export default function Instance({
     const form = useForm({
         name: instancePage.name,
         timezone: instancePage.timezone,
+        servers_enabled: instancePage.servers_enabled,
     });
+
     const pendingErrorFocus = useRef(false);
     useEffect(() => {
         if (!form.processing && pendingErrorFocus.current) {
@@ -80,6 +83,12 @@ export default function Instance({
                 className="space-y-4"
                 onSubmit={(event) => {
                     event.preventDefault();
+                    // The environment's hard off: the switch is hidden and never sent.
+                    form.transform(({ servers_enabled, ...data }) =>
+                        instancePage.servers_enabled_by_server
+                            ? { ...data, servers_enabled }
+                            : data,
+                    );
                     form.patch(update.url(), {
                         preserveScroll: true,
                         onSuccess: ({ props }) => {
@@ -88,6 +97,7 @@ export default function Instance({
                             const saved = {
                                 name: page.name,
                                 timezone: page.timezone,
+                                servers_enabled: page.servers_enabled,
                             };
                             form.setDefaults(saved);
                             form.setData(saved);
@@ -182,6 +192,26 @@ export default function Instance({
                         </div>
                     </div>
                 </FormSection>
+                {instancePage.servers_enabled_by_server && (
+                    <FormSection
+                        title={t('instance.experimental.title')}
+                        description={t('instance.experimental.description')}
+                    >
+                        <CheckboxField
+                            checked={form.data.servers_enabled}
+                            disabled={form.processing}
+                            onCheckedChange={(checked) =>
+                                form.setData(
+                                    'servers_enabled',
+                                    checked === true,
+                                )
+                            }
+                            description={t('instance.servers.description')}
+                        >
+                            {t('instance.servers.label')}
+                        </CheckboxField>
+                    </FormSection>
+                )}
                 <FormSection
                     title={t('Defaults for new sites')}
                     description={t('Existing sites keep their settings.')}

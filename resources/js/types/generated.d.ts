@@ -397,6 +397,65 @@ readonly consecutive_improved_samples: number,
 readonly consecutive_normal_samples: number,
 };
 }
+namespace Servers {
+export type ServerState = 'awaiting' | 'reporting' | 'no_report';
+namespace Data {
+export type ServerPageData = {
+readonly server: Heptapod.Addons.Servers.Data.ServerRowData,
+readonly thresholds: Heptapod.Addons.Servers.Data.ServerThresholdsData,
+readonly history: {
+step_seconds: number,
+points: {
+at: string,
+cpu: number,
+load: number,
+memory: number | null,
+disks: Record<string, number>,
+}[],
+},
+readonly install: {
+endpoint: string,
+version: string,
+release_url: string,
+is_release: boolean,
+},
+};
+export type ServerRowData = {
+readonly id: number,
+readonly name: string,
+readonly state: Heptapod.Addons.Servers.ServerState,
+readonly last_report_at: string | null,
+readonly agent_version: string | null,
+readonly values: Heptapod.Addons.Servers.Data.ServerValuesData | null,
+};
+export type ServerThresholdsData = {
+readonly disk_used_percent: number,
+readonly memory_used_percent: number,
+readonly load_per_core: number,
+};
+export type ServerValuesData = {
+readonly observed_at: string,
+readonly cores: number,
+readonly cpu_used_percent: number,
+readonly load_5: number,
+readonly memory_total_bytes: number,
+readonly memory_available_bytes: number,
+readonly filesystems: {
+mount: string,
+total_bytes: number,
+free_bytes: number,
+}[],
+readonly uptime_seconds: number,
+readonly reboot_required: boolean | null,
+readonly updates_pending: number | null,
+readonly updates_security: number | null,
+};
+export type ServersPageData = {
+readonly servers: Heptapod.Addons.Servers.Data.ServerRowData[],
+readonly thresholds: Heptapod.Addons.Servers.Data.ServerThresholdsData,
+};
+}
+}
 namespace Sitemap {
 export type SitemapMetrics = {
 readonly totalIssuesCount: number,
@@ -1529,6 +1588,8 @@ keep_monthly_backups_for_months: number,
 keep_yearly_backups_for_years: number,
 delete_oldest_backups_when_using_more_megabytes_than: number | null,
 },
+readonly servers_enabled: boolean,
+readonly servers_enabled_by_server: boolean,
 };
 export type InvitationData = {
 readonly instance: string,

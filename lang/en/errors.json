@@ -65,6 +65,7 @@
     "errors.incidents.export_limit_reason_one": "{{formattedCount}} incident matches. Narrow the filters to {{max}} or fewer to export.",
     "errors.incidents.export_limit_reason_other": "{{formattedCount}} incidents match. Narrow the filters to {{max}} or fewer to export.",
     "errors.updates.disabled_by_server": "Update checks are disabled in this server’s environment and cannot be changed here.",
+    "errors.servers.disabled_by_server": "Servers are switched off in this server’s environment and cannot be switched on here.",
     "errors.members.already_removed": "This teammate was already removed. The list has been refreshed.",
     "errors.members.last_owner_reason": "Assign another Owner before changing this role or removing this account.",
     "errors.two_factor.qr_failed": "Could not load the QR code. Try again.",

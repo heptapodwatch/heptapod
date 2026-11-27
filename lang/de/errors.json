@@ -65,6 +65,7 @@
     "errors.incidents.export_limit_reason_one": "{{formattedCount}} Störung gefunden. Grenzen Sie die Filter auf höchstens {{max}} ein, um zu exportieren.",
     "errors.incidents.export_limit_reason_other": "{{formattedCount}} Störungen gefunden. Grenzen Sie die Filter auf höchstens {{max}} ein, um zu exportieren.",
     "errors.updates.disabled_by_server": "Update-Prüfungen sind in der Serverumgebung deaktiviert und können hier nicht geändert werden.",
+    "errors.servers.disabled_by_server": "Server sind in der Serverumgebung ausgeschaltet und können hier nicht eingeschaltet werden.",
     "errors.members.already_removed": "Dieses Teammitglied wurde bereits entfernt. Die Liste wurde aktualisiert.",
     "errors.members.last_owner_reason": "Weisen Sie zuerst eine weitere Rolle Inhaber zu, bevor Sie diese Rolle ändern oder das Konto entfernen.",
     "errors.two_factor.qr_failed": "Der QR-Code konnte nicht geladen werden. Versuchen Sie es erneut.",

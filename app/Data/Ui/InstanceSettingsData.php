@@ -37,6 +37,8 @@ final class InstanceSettingsData extends Data
         public readonly array $defaults,
         public readonly bool $retention_editable,
         public readonly array $retention,
+        public readonly bool $servers_enabled,
+        public readonly bool $servers_enabled_by_server,
     ) {}
 
     /** General and Email both show these facts; mail credentials only as configured or not. */
@@ -53,6 +55,7 @@ final class InstanceSettingsData extends Data
                 'password_configured' => filled($smtp['password'] ?? null)],
             config()->string('mail.default'), ! SystemIssueMailer::canDeliver(), config()->string('mail.from.name'), config()->string('mail.from.address'),
             filled(config('instance.heartbeat_url')), ReadSystemHealth::lastExternalPing(), url('/up'),
-            ['editable' => false, 'source' => 'check definitions'], false, $retention);
+            ['editable' => false, 'source' => 'check definitions'], false, $retention,
+            $settings->servers_enabled, config()->boolean('heptapod.servers.enabled_by_server'));
     }
 }

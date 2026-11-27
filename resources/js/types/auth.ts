@@ -22,6 +22,7 @@ export type Auth = {
     canManageInstance: boolean;
     canViewSystemHealth: boolean;
     canViewUpdates: boolean;
+    canViewServers: boolean;
 };
 
 export type Passkey = {

@@ -15,6 +15,12 @@
 	encode zstd gzip
 	header X-Content-Type-Options nosniff
 
+	# /agent is reserved for agent traffic, whose reports are at most 16 KiB (ingest contract v1): larger bodies on any
+	# path below it (a trailing slash included, which Laravel would still route) are refused here, before PHP reads them.
+	@agent path /agent /agent/*
+	request_body @agent {
+		max_size 16KiB
+	}
 	@reverb path /app/*
 	handle @reverb {
 		reverse_proxy reverb:8080
