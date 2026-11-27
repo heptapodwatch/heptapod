@@ -158,18 +158,18 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
 
     /**
      * The rest of DeliveryPlan for a server issue delivery that refusal() lets through: a recovery goes only after its
-     * opening was sent to this channel (a suppressed opening is final, so its recovery is too), then verification and
-     * quiet hours.
+     * opening was sent to this channel (an opening suppressed at its send is Pending again, so its recovery ends too), then
+     * verification and quiet hours.
      */
     public function plan(Delivery $delivery, NotificationDestination $destination, Event $event, CarbonImmutable $at): DeliveryDecision
     {
         if ($event->type === self::ResolvedType) {
             $opening = DB::table('deliveries')->join('events', 'events.id', '=', 'deliveries.event_id')->where('events.server_issue_id', $event->server_issue_id)
-                ->where('events.type', self::OpenedType)->where('deliveries.destination_id', $delivery->destination_id)->first(['deliveries.state', 'deliveries.suppressed']);
-            if ($opening === null || $opening->suppressed === true || ! in_array($opening->state, [DeliveryState::Sent->value, DeliveryState::Sending->value], true)) {
+                ->where('events.type', self::OpenedType)->where('deliveries.destination_id', $delivery->destination_id)->value('deliveries.state');
+            if (! in_array($opening, [DeliveryState::Sent->value, DeliveryState::Sending->value], true)) {
                 return DeliveryDecision::suppress('opening_not_delivered');
             }
-            if ($opening->state === DeliveryState::Sending->value) {
+            if ($opening === DeliveryState::Sending->value) {
                 return DeliveryDecision::hold($at->addMinute());
             }
         }
