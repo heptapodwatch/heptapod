@@ -61,7 +61,8 @@ func statBefore(t *testing.T) cpuTimes {
 func TestDebianSample(t *testing.T) {
 	sys := fixtureSystem(t, "debian13", "6.12.48+deb13-amd64", map[string][2]uint64{
 		"/":                {81923145728, 6549790720},
-		"/boot":            {1023303680, 870318080},
+		"/boot":            {1023303680, 870318080}, // /boot and /boot/efi are skipped even when statfs answers
+		"/boot/efi":        {535805952, 529530880},
 		"/var/lib/docker":  {163857235968, 47552321536},
 		"/srv/client data": {52710469632, 52710469632},
 		"/mnt/archive":     {1 << 30, 1 << 29}, // autofs, nfs4, fuse.sshfs and cifs are skipped even when statfs answers
@@ -88,7 +89,6 @@ func TestDebianSample(t *testing.T) {
 		"memory":{"total_bytes":8589934592,"available_bytes":1825361920},
 		"filesystems":[
 			{"mount":"/","total_bytes":81923145728,"free_bytes":6549790720},
-			{"mount":"/boot","total_bytes":1023303680,"free_bytes":870318080},
 			{"mount":"/srv/client data","total_bytes":52710469632,"free_bytes":52710469632},
 			{"mount":"/var/lib/docker","total_bytes":163857235968,"free_bytes":47552321536}],
 		"updates":{"pending":null,"security":null}}`
@@ -226,7 +226,7 @@ func TestSeveralHungMountsShareOneBudget(t *testing.T) {
 		calls[mount]++
 		mu.Unlock()
 		if mount != "/" {
-			<-release // /boot, /srv/client data and /var/lib/docker hang
+			<-release // /srv/client data, /var/lib/docker and /var/www hang
 		}
 		return 100, 50, nil
 	}
@@ -244,7 +244,7 @@ func TestSeveralHungMountsShareOneBudget(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	for _, mount := range []string{"/boot", "/srv/client data", "/var/lib/docker"} {
+	for _, mount := range []string{"/srv/client data", "/var/lib/docker", "/var/www"} {
 		if calls[mount] != 1 {
 			t.Errorf("hung mount %s was queried %d times, want once while its call is pending", mount, calls[mount])
 		}

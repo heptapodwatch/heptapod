@@ -18,3 +18,5 @@
 38 21 0:61 / /mnt/backup rw,relatime shared:19 - nfs4 backup.example:/export rw,vers=4.2
 39 21 0:62 / /mnt/remote rw,nosuid,nodev,relatime shared:20 - fuse.sshfs user@host:/ rw,user_id=0
 40 21 0:63 / /mnt/share rw,relatime shared:21 - cifs //nas/share rw
+41 28 254:5 / /boot/efi rw,relatime shared:22 - vfat /dev/sda5 rw,fmask=0077
+42 21 254:6 / /var/www rw,relatime shared:23 - ext4 /dev/sda6 rw
