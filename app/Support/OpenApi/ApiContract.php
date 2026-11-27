@@ -225,6 +225,8 @@ final class ApiContract
         return [
             'ServerItem' => ['type' => 'object', 'additionalProperties' => false, 'required' => array_keys($item), 'properties' => $item],
             'ServerIssue' => ['type' => 'object', 'additionalProperties' => false, 'required' => array_keys($issue), 'properties' => $issue],
+            'ServerSnooze' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['id', 'snoozed_until'], 'description' => 'The snooze receipt: only the server id and the snooze end, no server details.',
+                'properties' => ['id' => ['type' => 'integer'], 'snoozed_until' => [...$nullableDateTime, 'description' => 'Alerts wait until then; null once the snooze has ended.']]],
             'ServerDetail' => ['type' => 'object', 'additionalProperties' => false, 'required' => [...array_keys($item), 'thresholds', 'ignored_mounts', 'facts', 'sites', 'issues'],
                 'properties' => [...$item,
                     'thresholds' => ['type' => 'object', 'additionalProperties' => false, 'description' => 'The alert thresholds in effect: the server\'s own over the instance defaults. Each holds for its minutes before it alerts.',
@@ -511,8 +513,8 @@ final class ApiContract
             'listServers' => [200 => $json($paginated('ServerItem'), 'Servers by ID. Dialect: page numbers (`page`/`per_page` or `page[number]`/`page[size]`).')],
             'getServer' => [200 => $json(['$ref' => self::Ref.'ServerDetail'], 'One server with its thresholds, facts, linked sites and open issues.')],
             'listServerIssues' => [200 => $json($paginated('ServerIssue'), 'Issues of the server, open and resolved, newest opening first. Dialect: page numbers.')],
-            'snoozeServer' => [200 => $json(['$ref' => self::Ref.'ServerItem'], 'The snoozed server.')],
-            'unsnoozeServer' => [200 => $json(['$ref' => self::Ref.'ServerItem'], 'The server, no longer snoozed.')],
+            'snoozeServer' => [200 => $json(['$ref' => self::Ref.'ServerSnooze'], 'The snooze receipt.')],
+            'unsnoozeServer' => [200 => $json(['$ref' => self::Ref.'ServerSnooze'], 'The snooze receipt, snoozed_until null.')],
             'createMaintenancePeriod' => [201 => $json(['$ref' => self::Ref.'MaintenancePeriodResource'], 'The scheduled window. With Idempotency-Key, a repeat returns the stored response.')],
             'startMaintenance' => [200 => $json(['$ref' => self::Ref.'MaintenancePeriodResource'], 'The started window. With Idempotency-Key, a repeat returns the first window with its original start and end.')],
             'createCheckRun' => [202 => $json(['$ref' => self::Ref.'RunReceipt'], 'Run accepted. With Idempotency-Key, a repeat returns the stored response.', [
@@ -699,8 +701,8 @@ final class ApiContract
             'getServer' => 'One server with its alert thresholds, host facts (OS, uptime, reboot required, pending updates), the linked sites the token can see and its open issues.',
             'listServerIssues' => 'The issues of one server, open and resolved, newest opening first, with the values each opened and resolved on.',
             'snoozeServer' => 'Holds the alerts of a server until `snooze_until`, or for `minutes` (at most 525600), and replaces an active snooze; for example around a deploy or a reboot. '
-                .'Prefer `snooze_until`: a retry sets the same end. Issues keep opening and resolving; an opening is sent when the snooze ends if its issue is still open.',
-            'unsnoozeServer' => 'Ends the snooze of a server. Openings it held are sent now if their issue is still open. Repeats are harmless.',
+                .'Prefer `snooze_until`: a retry sets the same end. Issues keep opening and resolving; an opening is sent when the snooze ends if its issue is still open. Returns only the receipt (`id`, `snoozed_until`): `servers:snooze` alone reads no server details.',
+            'unsnoozeServer' => 'Ends the snooze of a server. Openings it held are sent now if their issue is still open. Repeats are harmless. Returns only the receipt.',
         ];
     }
 

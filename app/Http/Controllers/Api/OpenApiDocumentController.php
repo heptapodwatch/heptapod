@@ -8,6 +8,7 @@ use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Contracts\ServersAccess;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Support\OpenApi\DocumentApi;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\File;
 
@@ -15,11 +16,15 @@ use Illuminate\Support\Facades\File;
 #[Group('Account')]
 final class OpenApiDocumentController extends Controller
 {
-    public function __invoke(ServersAccess $servers): Response
+    public function __invoke(Request $request, ServersAccess $servers): Response
     {
         $document = File::get(base_path('docs/openapi.json'));
+        $served = $servers->enabled() ? $document : $this->withoutServers($document);
+        // The document changes with the servers switch: caches may keep it but must revalidate (ETag, 304) every time.
+        $response = response($served, 200, ['Content-Type' => 'application/json', 'Cache-Control' => 'no-cache'])->setEtag(hash('xxh128', $served));
+        $response->isNotModified($request);
 
-        return response($servers->enabled() ? $document : $this->withoutServers($document), 200, ['Content-Type' => 'application/json', 'Cache-Control' => 'public, max-age=300']);
+        return $response;
     }
 
     /**

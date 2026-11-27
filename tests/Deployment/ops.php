@@ -92,6 +92,27 @@ foreach ([['GET', '/servers'], ['GET', '/servers/1'], ['POST', '/agent/v1/report
     $serversGuest = $request($method, $path);
     verify($serversGuest->getStatusCode() === 404 && $serversGuest->getHeader('Location') === [], "Switched-off servers: guest {$method} {$path} must answer a raw 404: ".$serversGuest->getStatusCode());
 }
+// The servers API, as a client without cookies sees it: switched off, every operation answers before authentication
+// exactly like an unknown API path (status, raw headers, body with its own path), so the addon cannot be detected.
+$apiCall = fn (string $method, string $path, array $headers = []): ResponseInterface => $http->request($method, $path,
+    ['headers' => ['Host' => 'monitor.example.com:8443', 'Accept' => 'application/json', ...$headers]]);
+$apiSeen = static function (ResponseInterface $response, string $path): array {
+    $headers = array_diff_key(array_change_key_case($response->getHeaders()), ['date' => true, 'set-cookie' => true]);
+    ksort($headers);
+
+    return [$response->getStatusCode(), $headers, str_replace(ltrim($path, '/'), '{path}', (string) $response->getBody())];
+};
+$serverApiOperations = [['GET', '/api/servers'], ['GET', '/api/servers/1'], ['GET', '/api/servers/1/issues'], ['POST', '/api/servers/1/snooze'], ['POST', '/api/servers/1/unsnooze']];
+$serverApiSwitchedOff = function (string $when) use ($apiCall, $apiSeen, $serverApiOperations): void {
+    foreach ($serverApiOperations as [$method, $path]) {
+        foreach ([[], ['Authorization' => 'Bearer 1|not-a-token']] as $headers) {
+            $seen = $apiSeen($apiCall($method, $path, $headers), $path);
+            verify($seen[0] === 404 && ! isset($seen[1]['location']) && $seen === $apiSeen($apiCall($method, '/api/no-such-ops-route', $headers), '/api/no-such-ops-route'),
+                "Switched-off servers API ({$when}): {$method} {$path} must answer exactly like an unknown API path: ".$seen[0]);
+        }
+    }
+};
+$serverApiSwitchedOff('before first use');
 $devLoginPage = $request('GET', '/dev-login');
 verify($devLoginPage->getStatusCode() === 404 && $devLoginPage->getHeader('Location') === [], 'Production must not serve /dev-login: '.$devLoginPage->getStatusCode());
 $loginLink = $request('POST', '/laravel-login-link-login', ['form_params' => ['email' => $user->email]]);
@@ -185,6 +206,15 @@ $agentError = fn (ResponseInterface $response, int $status, string $error): bool
 verify($request('GET', '/servers')->getStatusCode() === 404 && $agentError($serverReport(null), 404, 'not_found'), 'Switched-off servers must answer 404 to the Owner and the agent');
 verify($agentError($request('OPTIONS', '/agent/v1/report'), 404, 'not_found') && $agentError($request('PUT', '/agent/v1/report'), 404, 'not_found'), 'Switched-off agent endpoint must answer every method with the JSON 404');
 $serversSwitch(true);
+// Switched on, the servers API answers like every other API route: a raw JSON 401 without a bearer token.
+foreach ($serverApiOperations as [$method, $path]) {
+    $serverApiGuest = $apiCall($method, $path);
+    verify($serverApiGuest->getStatusCode() === 401 && $serverApiGuest->getHeader('Location') === [] && $serverApiGuest->getHeader('Content-Type') === ['application/json']
+        && json_decode((string) $serverApiGuest->getBody(), true, flags: JSON_THROW_ON_ERROR) === ['error' => 'Unauthenticated.'], "{$method} {$path} must answer a raw 401 JSON without a bearer token once servers are on: ".$serverApiGuest->getStatusCode());
+}
+$openApiOn = $apiCall('GET', '/api/openapi.json');
+verify(str_contains((string) $openApiOn->getBody(), '"/servers/{server}/snooze"') && str_contains($openApiOn->getHeaderLine('Cache-Control'), 'no-cache'),
+    'Switched on, the served OpenAPI document must list the servers API and be revalidated: '.$openApiOn->getHeaderLine('Cache-Control'));
 $serversPage = $request('GET', '/servers');
 verify($serversPage->getStatusCode() === 200 && str_contains((string) $serversPage->getBody(), 'https://monitor.example.com:8443'), 'Owner servers page must be served on the canonical HTTPS origin once switched on');
 $addServer = $request('POST', '/servers', ['headers' => ['X-XSRF-TOKEN' => urldecode(substr($cookies['XSRF-TOKEN'], strlen('XSRF-TOKEN=')))], 'form_params' => ['name' => 'ops-server']]);
@@ -208,7 +238,9 @@ verify($agentError($tooSoon, 429, 'too_many_reports') && (int) $tooSoon->getHead
 $serversSwitch(false);
 verify($request('GET', '/servers/'.$addedServer[1])->getStatusCode() === 404 && $agentError($serverReport($serverToken), 404, 'not_found'), 'Switched-off servers must answer 404 again');
 verify(DB::table('server_samples')->where('server_id', (int) $addedServer[1])->count() === 1, 'Switching servers off must keep their data');
-echo "PASS: servers switched off answer 404s (agent JSON for every method); switched on, Add server, the shown-once token, the agent report, its JSON 401/429 and the web server's 413 before PHP work through nginx on the canonical HTTPS origin; off again keeps the data\n";
+$serverApiSwitchedOff('after use');
+verify(! str_contains((string) $apiCall('GET', '/api/openapi.json')->getBody(), '/servers'), 'Switched off, the served OpenAPI document must not list the servers API');
+echo "PASS: servers switched off answer 404s (agent JSON for every method, the API like an unknown API path); switched on, the API's raw 401, Add server, the shown-once token, the agent report, its JSON 401/429 and the web server's 413 before PHP work through nginx on the canonical HTTPS origin; off again keeps the data\n";
 if (in_array('--public-probe-only', $argv, true)) {
     $before = [Site::query()->count(), Check::query()->count(), CheckRun::query()->count(), Incident::query()->count()];
     $response = $request('POST', '/sites/probe', ['headers' => ['Accept' => 'application/json', 'X-XSRF-TOKEN' => $xsrf], 'json' => ['url' => 'https://example.com/']]);

@@ -18,6 +18,7 @@ use Heptapod\Addons\Servers\ServerState;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\ServersAccess;
 use Heptapod\Contracts\SiteDirectory;
+use Heptapod\Contracts\SnoozeEnd;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -126,7 +127,7 @@ final class ServersController
     public function snooze(Request $request, Server $server, SnoozeServer $snooze): RedirectResponse
     {
         Gate::authorize('update', $server);
-        $snooze($server, SnoozeServer::until($request->all()));
+        $snooze($server, SnoozeEnd::from($request->all()));
 
         return back();
     }

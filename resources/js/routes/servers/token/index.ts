@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::rotate
-* @see addons/servers/src/Http/ServersController.php:117
+* @see addons/servers/src/Http/ServersController.php:118
 * @route '/servers/{server}/token'
 */
 export const rotate = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ rotate.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::rotate
-* @see addons/servers/src/Http/ServersController.php:117
+* @see addons/servers/src/Http/ServersController.php:118
 * @route '/servers/{server}/token'
 */
 rotate.url = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ rotate.url = (args: { server: number | { id: number } } | [server: number | { id
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::rotate
-* @see addons/servers/src/Http/ServersController.php:117
+* @see addons/servers/src/Http/ServersController.php:118
 * @route '/servers/{server}/token'
 */
 rotate.post = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ rotate.post = (args: { server: number | { id: number } } | [server: number | { i
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::rotate
-* @see addons/servers/src/Http/ServersController.php:117
+* @see addons/servers/src/Http/ServersController.php:118
 * @route '/servers/{server}/token'
 */
 const rotateForm = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const rotateForm = (args: { server: number | { id: number } } | [server: number 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::rotate
-* @see addons/servers/src/Http/ServersController.php:117
+* @see addons/servers/src/Http/ServersController.php:118
 * @route '/servers/{server}/token'
 */
 rotateForm.post = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

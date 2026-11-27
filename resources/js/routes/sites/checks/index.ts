@@ -432,7 +432,7 @@ disable.form = disableForm
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::snooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:20
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 export const snooze = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -447,7 +447,7 @@ snooze.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::snooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:20
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 snooze.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
@@ -473,7 +473,7 @@ snooze.url = (args: { site: string | number, check: string | number } | [site: s
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::snooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:20
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 snooze.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -483,7 +483,7 @@ snooze.post = (args: { site: string | number, check: string | number } | [site: 
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::snooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:20
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 const snoozeForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -493,7 +493,7 @@ const snoozeForm = (args: { site: string | number, check: string | number } | [s
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::snooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:20
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 snoozeForm.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -505,7 +505,7 @@ snooze.form = snoozeForm
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::unsnooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:37
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:30
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 export const unsnooze = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -520,7 +520,7 @@ unsnooze.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::unsnooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:37
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:30
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 unsnooze.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
@@ -546,7 +546,7 @@ unsnooze.url = (args: { site: string | number, check: string | number } | [site:
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::unsnooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:37
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:30
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 unsnooze.delete = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -556,7 +556,7 @@ unsnooze.delete = (args: { site: string | number, check: string | number } | [si
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::unsnooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:37
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:30
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 const unsnoozeForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -571,7 +571,7 @@ const unsnoozeForm = (args: { site: string | number, check: string | number } | 
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::unsnooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:37
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:30
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 unsnoozeForm.delete = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

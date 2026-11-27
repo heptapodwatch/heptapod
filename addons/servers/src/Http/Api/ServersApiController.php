@@ -13,6 +13,7 @@ use Heptapod\Addons\Servers\ServerState;
 use Heptapod\Contracts\Http\PaginatedCollection;
 use Heptapod\Contracts\Http\PaginationRequest;
 use Heptapod\Contracts\SiteDirectory;
+use Heptapod\Contracts\SnoozeEnd;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -52,19 +53,27 @@ final class ServersApiController
         return PaginatedCollection::ofBodies($page);
     }
 
-    public function snooze(Request $request, Server $server, SnoozeServer $snooze, ServerReader $reader): JsonResponse
+    public function snooze(Request $request, Server $server, SnoozeServer $snooze): JsonResponse
     {
         Gate::authorize('update', $server);
-        $snooze($server, SnoozeServer::until($request->all()));
+        $snooze($server, SnoozeEnd::from($request->all()));
 
-        return response()->json(ServerApi::item($reader->server(CarbonImmutable::now(), $server->id)));
+        return $this->receipt($server);
     }
 
-    public function unsnooze(Server $server, SnoozeServer $snooze, ServerReader $reader): JsonResponse
+    public function unsnooze(Server $server, SnoozeServer $snooze): JsonResponse
     {
         Gate::authorize('update', $server);
         $snooze($server, null);
 
-        return response()->json(ServerApi::item($reader->server(CarbonImmutable::now(), $server->id)));
+        return $this->receipt($server);
+    }
+
+    /** What a snooze changed and nothing else: a token with only servers:snooze reads no server details. */
+    private function receipt(Server $server): JsonResponse
+    {
+        $until = $server->refresh()->snoozed_until;
+
+        return response()->json(['id' => $server->id, 'snoozed_until' => $until?->isFuture() === true ? $until->utc()->toIso8601String() : null]);
     }
 }

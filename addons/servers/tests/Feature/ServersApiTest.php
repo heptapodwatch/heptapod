@@ -169,7 +169,8 @@ it('snoozes and unsnoozes a server with the server page\'s choices and validatio
     $web = apiServer('web-1');
     $token = apiToken(apiUser('Admin'), ['servers:read', 'servers:snooze']);
 
-    serversApi('POST', "/api/servers/{$web->id}/snooze", $token, ['snooze_until' => '2026-11-27T08:30:00Z'])->assertOk()->assertJsonPath('snoozed_until', '2026-11-27T08:30:00+00:00');
+    serversApi('POST', "/api/servers/{$web->id}/snooze", $token, ['snooze_until' => '2026-11-27T08:30:00Z'])->assertOk()
+        ->assertExactJson(['id' => $web->id, 'snoozed_until' => '2026-11-27T08:30:00+00:00']);
     expect($web->refresh()->snoozed_until?->toIso8601String())->toBe('2026-11-27T08:30:00+00:00');
     serversApi('POST', "/api/servers/{$web->id}/snooze", $token, ['minutes' => '45'])->assertOk()->assertJsonPath('snoozed_until', '2026-11-27T07:45:00+00:00');
     serversApi('POST', "/api/servers/{$web->id}/snooze", $token, ['snooze_until' => '2026-11-27T08:30:00'])->assertUnprocessable()->assertJsonValidationErrors('snooze_until');
@@ -178,9 +179,21 @@ it('snoozes and unsnoozes a server with the server page\'s choices and validatio
     serversApi('POST', "/api/servers/{$web->id}/snooze", $token)->assertUnprocessable()->assertJsonValidationErrors('minutes');
     expect($web->refresh()->snoozed_until?->toIso8601String())->toBe('2026-11-27T07:45:00+00:00');
 
-    serversApi('POST', "/api/servers/{$web->id}/unsnooze", $token)->assertOk()->assertJsonPath('snoozed_until', null);
-    serversApi('POST', "/api/servers/{$web->id}/unsnooze", $token)->assertOk()->assertJsonPath('snoozed_until', null);
+    serversApi('POST', "/api/servers/{$web->id}/unsnooze", $token)->assertOk()->assertExactJson(['id' => $web->id, 'snoozed_until' => null]);
+    serversApi('POST', "/api/servers/{$web->id}/unsnooze", $token)->assertOk()->assertExactJson(['id' => $web->id, 'snoozed_until' => null]);
     expect($web->refresh()->snoozed_until)->toBeNull();
+});
+
+it('lets a token with only servers:snooze snooze, and read nothing but the receipt', function (): void {
+    $web = apiServer('web-1');
+    $token = apiToken(apiUser('Owner'), ['servers:snooze']);
+
+    $snoozed = serversApi('POST', "/api/servers/{$web->id}/snooze", $token, ['minutes' => 30])->assertOk();
+    expect($snoozed->json())->toBe(['id' => $web->id, 'snoozed_until' => '2026-11-27T07:30:00+00:00']);
+    expect(serversApi('POST', "/api/servers/{$web->id}/unsnooze", $token)->assertOk()->json())->toBe(['id' => $web->id, 'snoozed_until' => null]);
+    foreach (['/api/servers', "/api/servers/{$web->id}", "/api/servers/{$web->id}/issues"] as $uri) {
+        serversApi('GET', $uri, $token)->assertForbidden();
+    }
 });
 
 it('needs servers:read to read and servers:snooze to snooze', function (): void {
@@ -306,6 +319,17 @@ it('serves the OpenAPI document with the server operations only while servers ar
         ->and($raw)->toContain('"unrecorded_reasons": {}');
 });
 
+it('makes caches revalidate the served OpenAPI document, which changes with the servers switch', function (): void {
+    $on = $this->get('/api/openapi.json')->assertOk()->assertHeader('Cache-Control', 'no-cache, private');
+    $etag = (string) $on->headers->get('ETag');
+    expect($etag)->not->toBe('');
+    $this->get('/api/openapi.json', ['If-None-Match' => $etag])->assertStatus(304)->assertContent('');
+
+    apiSwitch(false);
+    $off = $this->get('/api/openapi.json', ['If-None-Match' => $etag])->assertOk();
+    expect($off->headers->get('ETag'))->not->toBe($etag)->and($off->getContent())->not->toContain('/servers');
+});
+
 it('names the server a monitor runs on only for Owner and Admin tokens with servers:read while servers are on', function (): void {
     $web = apiServer('web-1');
     $client = Client::factory()->create();
@@ -337,20 +361,31 @@ it('finds servers in the command palette by name, host name and IP, for Owners a
     apiServer('db-1', ['78.47.11.23']);
     $this->actingAs(apiUser('Admin'));
 
-    $this->getJson('/search?q=web-1')->assertOk()->assertJsonPath('servers.*.name', ['web-1'])->assertJsonPath('servers.0.issues.0.kind', 'disk_full')
-        ->assertJsonPath('servers.0.state', 'reporting');
+    $this->getJson('/search?q=web-1')->assertOk()->assertExactJsonStructure(['sites', 'clients', 'incidents', 'servers' => [['id', 'name', 'hostname', 'ips', 'state', 'issues', 'snoozed_until']]])
+        ->assertJsonPath('servers.0', ['id' => $web->id, 'name' => 'web-1', 'hostname' => 'web-1.example.com', 'ips' => ['49.12.88.204'], 'state' => 'reporting',
+            'issues' => [['kind' => 'disk_full']], 'snoozed_until' => null]);
     $this->getJson('/search?q=db-1.example')->assertOk()->assertJsonPath('servers.*.name', ['db-1']);
     $this->getJson('/search?q=49.12.88')->assertOk()->assertJsonPath('servers.*.name', ['web-1']);
     $this->getJson('/search?q=1')->assertOk()->assertJsonPath('servers.*.name', ['web-1', 'db-1']);
+    // At most 10, what needs attention first: the one bulk server with an open issue leads, the rest by name.
+    foreach (range(1, 11) as $n) {
+        $bulk = apiServer(sprintf('bulk-%02d', $n));
+        if ($n === 11) {
+            apiIssue($bulk, ServerIssueKind::MemoryLow, '2026-11-27T06:00:00Z');
+        }
+    }
+    $this->getJson('/search?q=bulk')->assertOk()->assertJsonPath('servers.*.name', ['bulk-11', ...array_map(static fn (int $n): string => sprintf('bulk-%02d', $n), range(1, 9))]);
 
     $serverQueries = function (): int {
         DB::flushQueryLog();
         DB::enableQueryLog();
         $this->getJson('/search?q=web')->assertOk();
-        $count = count(array_filter(DB::getQueryLog(), static fn (array $query): bool => preg_match('/\b(servers|server_samples|server_issues)\b/', $query['query']) === 1));
+        $queries = array_filter(DB::getQueryLog(), static fn (array $query): bool => preg_match('/\b(servers|server_samples|server_issues)\b/', $query['query']) === 1);
         DB::disableQueryLog();
+        // The palette never reads samples.
+        expect(implode(' ', array_column($queries, 'query')))->not->toContain('server_samples');
 
-        return $count;
+        return count($queries);
     };
     expect($serverQueries())->toBe(1);
 

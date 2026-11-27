@@ -175,8 +175,8 @@ final class ApiExamples
                 'resolved_at' => '2026-09-30T22:07:12+00:00', 'opened_values' => ['last_report_at' => '2026-09-30T22:02:00+00:00', 'minutes' => 2],
                 'resolved_values' => ['reported_at' => '2026-09-30T22:07:12+00:00']]],
                 'links' => $links('servers/1/issues'), 'meta' => [...$meta('servers/1/issues'), 'to' => 2, 'total' => 2]]],
-            'snoozeServer' => [200 => [...$server, 'snoozed_until' => '2026-10-01T08:30:00+00:00']],
-            'unsnoozeServer' => [200 => $server],
+            'snoozeServer' => [200 => ['id' => 1, 'snoozed_until' => '2026-10-01T08:30:00+00:00']],
+            'unsnoozeServer' => [200 => ['id' => 1, 'snoozed_until' => null]],
         ];
     }
 

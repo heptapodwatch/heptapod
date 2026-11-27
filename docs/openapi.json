@@ -3443,6 +3443,29 @@
                 "title": "ServerItem",
                 "type": "object"
             },
+            "ServerSnooze": {
+                "additionalProperties": false,
+                "description": "The snooze receipt: only the server id and the snooze end, no server details.",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "snoozed_until": {
+                        "description": "Alerts wait until then; null once the snooze has ended.",
+                        "format": "date-time",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "snoozed_until"
+                ],
+                "title": "ServerSnooze",
+                "type": "object"
+            },
             "TagResource": {
                 "additionalProperties": false,
                 "properties": {
@@ -17088,7 +17111,7 @@
         },
         "/servers/{server}/snooze": {
             "post": {
-                "description": "Holds the alerts of a server until `snooze_until`, or for `minutes` (at most 525600), and replaces an active snooze; for example around a deploy or a reboot. Prefer `snooze_until`: a retry sets the same end. Issues keep opening and resolving; an opening is sent when the snooze ends if its issue is still open.\n\nToken abilities: `servers:snooze`.",
+                "description": "Holds the alerts of a server until `snooze_until`, or for `minutes` (at most 525600), and replaces an active snooze; for example around a deploy or a reboot. Prefer `snooze_until`: a retry sets the same end. Issues keep opening and resolving; an opening is sent when the snooze ends if its issue is still open. Returns only the receipt (`id`, `snoozed_until`): `servers:snooze` alone reads no server details.\n\nToken abilities: `servers:snooze`.",
                 "operationId": "snoozeServer",
                 "parameters": [
                     {
@@ -17148,42 +17171,15 @@
                         "content": {
                             "application/json": {
                                 "example": {
-                                    "agent_version": "0.3.0",
-                                    "hostname": "web-1.example.com",
                                     "id": 1,
-                                    "ips": [
-                                        "203.0.113.10",
-                                        "2001:db8::10"
-                                    ],
-                                    "last_report_at": "2026-10-01T07:49:30+00:00",
-                                    "name": "web-1",
-                                    "open_issue_count": 1,
-                                    "snoozed_until": "2026-10-01T08:30:00+00:00",
-                                    "state": "reporting",
-                                    "values": {
-                                        "cpu_cores": 4,
-                                        "cpu_used_percent": 23.5,
-                                        "filesystems": [
-                                            {
-                                                "free_bytes": 7387343667,
-                                                "mount": "/",
-                                                "total_bytes": 85899345920,
-                                                "used_percent": 91.4
-                                            }
-                                        ],
-                                        "load_5": 1.2,
-                                        "memory_available_bytes": 3221225472,
-                                        "memory_total_bytes": 8589934592,
-                                        "memory_used_percent": 62.5,
-                                        "observed_at": "2026-10-01T07:49:30+00:00"
-                                    }
+                                    "snoozed_until": "2026-10-01T08:30:00+00:00"
                                 },
                                 "schema": {
-                                    "$ref": "#/components/schemas/ServerItem"
+                                    "$ref": "#/components/schemas/ServerSnooze"
                                 }
                             }
                         },
-                        "description": "The snoozed server.",
+                        "description": "The snooze receipt.",
                         "headers": {
                             "X-RateLimit-Limit": {
                                 "$ref": "#/components/headers/X-RateLimit-Limit"
@@ -17291,7 +17287,7 @@
         },
         "/servers/{server}/unsnooze": {
             "post": {
-                "description": "Ends the snooze of a server. Openings it held are sent now if their issue is still open. Repeats are harmless.\n\nToken abilities: `servers:snooze`.",
+                "description": "Ends the snooze of a server. Openings it held are sent now if their issue is still open. Repeats are harmless. Returns only the receipt.\n\nToken abilities: `servers:snooze`.",
                 "operationId": "unsnoozeServer",
                 "parameters": [
                     {
@@ -17309,42 +17305,15 @@
                         "content": {
                             "application/json": {
                                 "example": {
-                                    "agent_version": "0.3.0",
-                                    "hostname": "web-1.example.com",
                                     "id": 1,
-                                    "ips": [
-                                        "203.0.113.10",
-                                        "2001:db8::10"
-                                    ],
-                                    "last_report_at": "2026-10-01T07:49:30+00:00",
-                                    "name": "web-1",
-                                    "open_issue_count": 1,
-                                    "snoozed_until": null,
-                                    "state": "reporting",
-                                    "values": {
-                                        "cpu_cores": 4,
-                                        "cpu_used_percent": 23.5,
-                                        "filesystems": [
-                                            {
-                                                "free_bytes": 7387343667,
-                                                "mount": "/",
-                                                "total_bytes": 85899345920,
-                                                "used_percent": 91.4
-                                            }
-                                        ],
-                                        "load_5": 1.2,
-                                        "memory_available_bytes": 3221225472,
-                                        "memory_total_bytes": 8589934592,
-                                        "memory_used_percent": 62.5,
-                                        "observed_at": "2026-10-01T07:49:30+00:00"
-                                    }
+                                    "snoozed_until": null
                                 },
                                 "schema": {
-                                    "$ref": "#/components/schemas/ServerItem"
+                                    "$ref": "#/components/schemas/ServerSnooze"
                                 }
                             }
                         },
-                        "description": "The server, no longer snoozed.",
+                        "description": "The snooze receipt, snoozed_until null.",
                         "headers": {
                             "X-RateLimit-Limit": {
                                 "$ref": "#/components/headers/X-RateLimit-Limit"

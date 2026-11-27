@@ -39,7 +39,9 @@ export function isServerSnoozed(
 export function ServerStateBadge({
     server,
 }: {
-    server: Pick<ServerRow, 'state' | 'issues' | 'snoozed_until'>;
+    server: Pick<ServerRow, 'state' | 'snoozed_until'> & {
+        issues: Pick<ServerRow['issues'][number], 'kind'>[];
+    };
 }) {
     const { t } = useTranslation();
     const [issue, ...more] = server.issues;

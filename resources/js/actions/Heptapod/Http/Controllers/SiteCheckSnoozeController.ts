@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::store
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:20
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 export const store = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::store
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:20
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 store.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
@@ -42,7 +42,7 @@ store.url = (args: { site: string | number, check: string | number } | [site: st
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::store
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:20
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 store.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -52,7 +52,7 @@ store.post = (args: { site: string | number, check: string | number } | [site: s
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::store
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:20
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 const storeForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -62,7 +62,7 @@ const storeForm = (args: { site: string | number, check: string | number } | [si
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::store
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:20
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 storeForm.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -74,7 +74,7 @@ store.form = storeForm
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::destroy
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:37
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:30
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 export const destroy = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -89,7 +89,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::destroy
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:37
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:30
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 destroy.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
@@ -115,7 +115,7 @@ destroy.url = (args: { site: string | number, check: string | number } | [site: 
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::destroy
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:37
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:30
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 destroy.delete = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -125,7 +125,7 @@ destroy.delete = (args: { site: string | number, check: string | number } | [sit
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::destroy
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:37
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:30
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 const destroyForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -140,7 +140,7 @@ const destroyForm = (args: { site: string | number, check: string | number } | [
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::destroy
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:37
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:30
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 destroyForm.delete = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

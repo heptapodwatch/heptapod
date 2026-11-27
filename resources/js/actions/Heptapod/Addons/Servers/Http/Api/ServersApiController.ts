@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../../wayfinder'
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::index
-* @see addons/servers/src/Http/Api/ServersApiController.php:26
+* @see addons/servers/src/Http/Api/ServersApiController.php:27
 * @route '/api/servers'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::index
-* @see addons/servers/src/Http/Api/ServersApiController.php:26
+* @see addons/servers/src/Http/Api/ServersApiController.php:27
 * @route '/api/servers'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::index
-* @see addons/servers/src/Http/Api/ServersApiController.php:26
+* @see addons/servers/src/Http/Api/ServersApiController.php:27
 * @route '/api/servers'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::index
-* @see addons/servers/src/Http/Api/ServersApiController.php:26
+* @see addons/servers/src/Http/Api/ServersApiController.php:27
 * @route '/api/servers'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::index
-* @see addons/servers/src/Http/Api/ServersApiController.php:26
+* @see addons/servers/src/Http/Api/ServersApiController.php:27
 * @route '/api/servers'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::index
-* @see addons/servers/src/Http/Api/ServersApiController.php:26
+* @see addons/servers/src/Http/Api/ServersApiController.php:27
 * @route '/api/servers'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::index
-* @see addons/servers/src/Http/Api/ServersApiController.php:26
+* @see addons/servers/src/Http/Api/ServersApiController.php:27
 * @route '/api/servers'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ index.form = indexForm
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::show
-* @see addons/servers/src/Http/Api/ServersApiController.php:38
+* @see addons/servers/src/Http/Api/ServersApiController.php:39
 * @route '/api/servers/{server}'
 */
 export const show = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -97,7 +97,7 @@ show.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::show
-* @see addons/servers/src/Http/Api/ServersApiController.php:38
+* @see addons/servers/src/Http/Api/ServersApiController.php:39
 * @route '/api/servers/{server}'
 */
 show.url = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -130,7 +130,7 @@ show.url = (args: { server: number | { id: number } } | [server: number | { id: 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::show
-* @see addons/servers/src/Http/Api/ServersApiController.php:38
+* @see addons/servers/src/Http/Api/ServersApiController.php:39
 * @route '/api/servers/{server}'
 */
 show.get = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -140,7 +140,7 @@ show.get = (args: { server: number | { id: number } } | [server: number | { id: 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::show
-* @see addons/servers/src/Http/Api/ServersApiController.php:38
+* @see addons/servers/src/Http/Api/ServersApiController.php:39
 * @route '/api/servers/{server}'
 */
 show.head = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -150,7 +150,7 @@ show.head = (args: { server: number | { id: number } } | [server: number | { id:
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::show
-* @see addons/servers/src/Http/Api/ServersApiController.php:38
+* @see addons/servers/src/Http/Api/ServersApiController.php:39
 * @route '/api/servers/{server}'
 */
 const showForm = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -160,7 +160,7 @@ const showForm = (args: { server: number | { id: number } } | [server: number | 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::show
-* @see addons/servers/src/Http/Api/ServersApiController.php:38
+* @see addons/servers/src/Http/Api/ServersApiController.php:39
 * @route '/api/servers/{server}'
 */
 showForm.get = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -170,7 +170,7 @@ showForm.get = (args: { server: number | { id: number } } | [server: number | { 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::show
-* @see addons/servers/src/Http/Api/ServersApiController.php:38
+* @see addons/servers/src/Http/Api/ServersApiController.php:39
 * @route '/api/servers/{server}'
 */
 showForm.head = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -187,7 +187,7 @@ show.form = showForm
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::issues
-* @see addons/servers/src/Http/Api/ServersApiController.php:46
+* @see addons/servers/src/Http/Api/ServersApiController.php:47
 * @route '/api/servers/{server}/issues'
 */
 export const issues = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -202,7 +202,7 @@ issues.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::issues
-* @see addons/servers/src/Http/Api/ServersApiController.php:46
+* @see addons/servers/src/Http/Api/ServersApiController.php:47
 * @route '/api/servers/{server}/issues'
 */
 issues.url = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -235,7 +235,7 @@ issues.url = (args: { server: number | { id: number } } | [server: number | { id
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::issues
-* @see addons/servers/src/Http/Api/ServersApiController.php:46
+* @see addons/servers/src/Http/Api/ServersApiController.php:47
 * @route '/api/servers/{server}/issues'
 */
 issues.get = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -245,7 +245,7 @@ issues.get = (args: { server: number | { id: number } } | [server: number | { id
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::issues
-* @see addons/servers/src/Http/Api/ServersApiController.php:46
+* @see addons/servers/src/Http/Api/ServersApiController.php:47
 * @route '/api/servers/{server}/issues'
 */
 issues.head = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -255,7 +255,7 @@ issues.head = (args: { server: number | { id: number } } | [server: number | { i
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::issues
-* @see addons/servers/src/Http/Api/ServersApiController.php:46
+* @see addons/servers/src/Http/Api/ServersApiController.php:47
 * @route '/api/servers/{server}/issues'
 */
 const issuesForm = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -265,7 +265,7 @@ const issuesForm = (args: { server: number | { id: number } } | [server: number 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::issues
-* @see addons/servers/src/Http/Api/ServersApiController.php:46
+* @see addons/servers/src/Http/Api/ServersApiController.php:47
 * @route '/api/servers/{server}/issues'
 */
 issuesForm.get = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -275,7 +275,7 @@ issuesForm.get = (args: { server: number | { id: number } } | [server: number | 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::issues
-* @see addons/servers/src/Http/Api/ServersApiController.php:46
+* @see addons/servers/src/Http/Api/ServersApiController.php:47
 * @route '/api/servers/{server}/issues'
 */
 issuesForm.head = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -292,7 +292,7 @@ issues.form = issuesForm
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::snooze
-* @see addons/servers/src/Http/Api/ServersApiController.php:55
+* @see addons/servers/src/Http/Api/ServersApiController.php:56
 * @route '/api/servers/{server}/snooze'
 */
 export const snooze = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -307,7 +307,7 @@ snooze.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::snooze
-* @see addons/servers/src/Http/Api/ServersApiController.php:55
+* @see addons/servers/src/Http/Api/ServersApiController.php:56
 * @route '/api/servers/{server}/snooze'
 */
 snooze.url = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -340,7 +340,7 @@ snooze.url = (args: { server: number | { id: number } } | [server: number | { id
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::snooze
-* @see addons/servers/src/Http/Api/ServersApiController.php:55
+* @see addons/servers/src/Http/Api/ServersApiController.php:56
 * @route '/api/servers/{server}/snooze'
 */
 snooze.post = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -350,7 +350,7 @@ snooze.post = (args: { server: number | { id: number } } | [server: number | { i
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::snooze
-* @see addons/servers/src/Http/Api/ServersApiController.php:55
+* @see addons/servers/src/Http/Api/ServersApiController.php:56
 * @route '/api/servers/{server}/snooze'
 */
 const snoozeForm = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -360,7 +360,7 @@ const snoozeForm = (args: { server: number | { id: number } } | [server: number 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::snooze
-* @see addons/servers/src/Http/Api/ServersApiController.php:55
+* @see addons/servers/src/Http/Api/ServersApiController.php:56
 * @route '/api/servers/{server}/snooze'
 */
 snoozeForm.post = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -372,7 +372,7 @@ snooze.form = snoozeForm
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::unsnooze
-* @see addons/servers/src/Http/Api/ServersApiController.php:63
+* @see addons/servers/src/Http/Api/ServersApiController.php:64
 * @route '/api/servers/{server}/unsnooze'
 */
 export const unsnooze = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -387,7 +387,7 @@ unsnooze.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::unsnooze
-* @see addons/servers/src/Http/Api/ServersApiController.php:63
+* @see addons/servers/src/Http/Api/ServersApiController.php:64
 * @route '/api/servers/{server}/unsnooze'
 */
 unsnooze.url = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -420,7 +420,7 @@ unsnooze.url = (args: { server: number | { id: number } } | [server: number | { 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::unsnooze
-* @see addons/servers/src/Http/Api/ServersApiController.php:63
+* @see addons/servers/src/Http/Api/ServersApiController.php:64
 * @route '/api/servers/{server}/unsnooze'
 */
 unsnooze.post = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -430,7 +430,7 @@ unsnooze.post = (args: { server: number | { id: number } } | [server: number | {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::unsnooze
-* @see addons/servers/src/Http/Api/ServersApiController.php:63
+* @see addons/servers/src/Http/Api/ServersApiController.php:64
 * @route '/api/servers/{server}/unsnooze'
 */
 const unsnoozeForm = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -440,7 +440,7 @@ const unsnoozeForm = (args: { server: number | { id: number } } | [server: numbe
 
 /**
 * @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::unsnooze
-* @see addons/servers/src/Http/Api/ServersApiController.php:63
+* @see addons/servers/src/Http/Api/ServersApiController.php:64
 * @route '/api/servers/{server}/unsnooze'
 */
 unsnoozeForm.post = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
