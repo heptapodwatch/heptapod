@@ -1,5 +1,6 @@
 import { edit as profileEdit } from '@/routes/profile';
 import { index as runsIndex } from '@/routes/runs';
+import { index as serversIndex } from '@/routes/servers';
 import { edit as securityEdit } from '@/routes/security';
 import { edit as alertsEdit } from '@/routes/settings/alerts';
 import { edit as apiTokensEdit } from '@/routes/settings/api-tokens';
@@ -21,6 +22,7 @@ import {
     CalendarDays,
     Gauge,
     Globe,
+    HeartPulse,
     Import,
     KeyRound,
     Mail,
@@ -89,6 +91,13 @@ export const navigation: NavigationEntry[] = [
         shortcut: 'c',
     },
     {
+        title: 'servers.title',
+        href: serversIndex.url(),
+        icon: Server,
+        group: 'Primary',
+        permission: 'canViewServers',
+    },
+    {
         title: 'Maintenance',
         href: '/maintenance',
         icon: Wrench,
@@ -119,7 +128,7 @@ export const navigation: NavigationEntry[] = [
     {
         title: 'System health',
         href: systemEdit.url(),
-        icon: Server,
+        icon: HeartPulse,
         group: 'Operations',
         permission: 'canViewSystemHealth',
         shortcut: 'h',
