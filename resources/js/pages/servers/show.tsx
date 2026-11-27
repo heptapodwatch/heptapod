@@ -38,10 +38,37 @@ import { Disclosure } from '@/components/ui/disclosure';
 import { useClipboard } from '@/hooks/use-clipboard';
 import { destroy, index } from '@/routes/servers';
 import { rotate } from '@/routes/servers/token';
+import { agentInstallCommands } from '@/lib/server-agent-install';
+import { SectionHeading } from '@/components/section-heading';
 
 type Install = Heptapod.Addons.Servers.Data.ServerPageData['install'];
 
-/** The one-line install command with the token, shown once, and the step-by-step variant that checks the download first. */
+/** Copies a value; a refused clipboard says so next to the button. */
+function CopyButton({ value }: { value: string }) {
+    const { t } = useTranslation();
+    const [copied, copy] = useClipboard();
+    const [failed, setFailed] = useState(false);
+    const noteId = useId();
+    return (
+        <div className="space-y-1.5">
+            <Button
+                variant="outline"
+                aria-describedby={failed ? noteId : undefined}
+                onClick={async () => setFailed(!(await copy(value)))}
+            >
+                <Copy className="size-4" />
+                {t(copied === value ? 'Copied' : 'Copy')}
+            </Button>
+            <ActionNoteSlot id={noteId}>
+                {failed && (
+                    <InputError message={t('servers.install.copy_failed')} />
+                )}
+            </ActionNoteSlot>
+        </div>
+    );
+}
+
+/** The agent token, shown once, and the install command; the installer asks for the token on a hidden prompt. */
 function InstallCommand({
     install,
     token,
@@ -50,48 +77,37 @@ function InstallCommand({
     token: string;
 }) {
     const { t } = useTranslation();
-    const [copied, copy] = useClipboard();
-    const [failed, setFailed] = useState(false);
-    const copyNoteId = useId();
-    const options = `--endpoint ${install.endpoint} --version ${install.version} --token ${token}`;
-    const command = `curl -fsSL ${install.release_url}/install.sh | sudo sh -s -- ${options}`;
-    const verified = [
-        `curl -fsSLO ${install.release_url}/install.sh`,
-        `curl -fsSLO ${install.release_url}/SHA256SUMS`,
-        'sha256sum --check --ignore-missing SHA256SUMS',
-        `sudo sh install.sh ${options}`,
-    ].join('\n');
+    const commands = agentInstallCommands(install);
     return (
         <div className="space-y-4">
-            <ShownOnceSecret
-                label={t('servers.install.command')}
-                value={command}
-            />
-            <div className="space-y-1.5">
-                <Button
-                    variant="outline"
-                    aria-describedby={failed ? copyNoteId : undefined}
-                    onClick={async () => setFailed(!(await copy(command)))}
-                >
-                    <Copy className="size-4" />
-                    {t(copied ? 'Copied' : 'Copy')}
-                </Button>
-                <ActionNoteSlot id={copyNoteId}>
-                    {failed && (
-                        <InputError
-                            message={t('servers.install.copy_failed')}
-                        />
-                    )}
-                </ActionNoteSlot>
+            <ShownOnceSecret label={t('servers.install.token')} value={token} />
+            <CopyButton value={token} />
+            <div className="space-y-2">
+                <SectionHeading level={3}>
+                    {t('servers.install.command')}
+                </SectionHeading>
+                <pre className="overflow-x-auto rounded-md border bg-muted p-3 font-mono text-xs break-all whitespace-pre-wrap">
+                    {commands.install}
+                </pre>
+                <p className="text-xs text-muted-foreground">
+                    {t('servers.install.asks_token')}
+                </p>
+                <CopyButton value={commands.install} />
             </div>
             <Disclosure
                 summary={t('servers.install.verify_summary')}
                 triggerClassName="text-sm font-medium"
-                contentClassName="pt-2"
+                contentClassName="space-y-2 pt-2"
             >
                 <pre className="overflow-x-auto rounded-md border bg-muted p-3 font-mono text-xs break-all whitespace-pre-wrap">
-                    {verified}
+                    {commands.verified}
                 </pre>
+                <p className="text-xs text-muted-foreground">
+                    {t('servers.install.attestation')}{' '}
+                    <code className="font-mono break-all">
+                        {commands.attestation}
+                    </code>
+                </p>
             </Disclosure>
         </div>
     );
@@ -183,14 +199,16 @@ export default function ServerShow({
     const [confirming, setConfirming] = useState<'rotate' | 'remove' | null>(
         null,
     );
-    // The values refresh in place; the 14-day chart reloads only after a new report arrived.
+    // The values refresh in place. The 14-day chart is the expensive read (a scan of every disk sample): it loads with
+    // the page, after the first report, and then at most every 5 minutes.
     usePoll(15_000, { only: ['server'] });
-    const lastReportAt = useRef(server.last_report_at);
+    usePoll(300_000, { only: ['history'] });
+    const wasAwaiting = useRef(awaiting);
     useEffect(() => {
-        if (lastReportAt.current === server.last_report_at) return;
-        lastReportAt.current = server.last_report_at;
-        router.reload({ only: ['history'] });
-    }, [server.last_report_at]);
+        if (wasAwaiting.current && !awaiting)
+            router.reload({ only: ['history'] });
+        wasAwaiting.current = awaiting;
+    }, [awaiting]);
     return (
         <>
             <Head title={server.name} />

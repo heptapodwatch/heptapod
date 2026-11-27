@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerReportController::__invoke
-* @see addons/servers/src/Http/ServerReportController.php:24
+* @see addons/servers/src/Http/ServerReportController.php:32
 * @route '/agent/v1/report'
 */
 const ServerReportController = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ ServerReportController.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerReportController::__invoke
-* @see addons/servers/src/Http/ServerReportController.php:24
+* @see addons/servers/src/Http/ServerReportController.php:32
 * @route '/agent/v1/report'
 */
 ServerReportController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ ServerReportController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerReportController::__invoke
-* @see addons/servers/src/Http/ServerReportController.php:24
+* @see addons/servers/src/Http/ServerReportController.php:32
 * @route '/agent/v1/report'
 */
 ServerReportController.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ ServerReportController.post = (options?: RouteQueryOptions): RouteDefinition<'po
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerReportController::__invoke
-* @see addons/servers/src/Http/ServerReportController.php:24
+* @see addons/servers/src/Http/ServerReportController.php:32
 * @route '/agent/v1/report'
 */
 const ServerReportControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,7 +45,7 @@ const ServerReportControllerForm = (options?: RouteQueryOptions): RouteFormDefin
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerReportController::__invoke
-* @see addons/servers/src/Http/ServerReportController.php:24
+* @see addons/servers/src/Http/ServerReportController.php:32
 * @route '/agent/v1/report'
 */
 ServerReportControllerForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

@@ -2,7 +2,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import token from './token'
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerReportController::__invoke
-* @see addons/servers/src/Http/ServerReportController.php:24
+* @see addons/servers/src/Http/ServerReportController.php:32
 * @route '/agent/v1/report'
 */
 export const report = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -17,7 +17,7 @@ report.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerReportController::__invoke
-* @see addons/servers/src/Http/ServerReportController.php:24
+* @see addons/servers/src/Http/ServerReportController.php:32
 * @route '/agent/v1/report'
 */
 report.url = (options?: RouteQueryOptions) => {
@@ -26,7 +26,7 @@ report.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerReportController::__invoke
-* @see addons/servers/src/Http/ServerReportController.php:24
+* @see addons/servers/src/Http/ServerReportController.php:32
 * @route '/agent/v1/report'
 */
 report.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -36,7 +36,7 @@ report.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerReportController::__invoke
-* @see addons/servers/src/Http/ServerReportController.php:24
+* @see addons/servers/src/Http/ServerReportController.php:32
 * @route '/agent/v1/report'
 */
 const reportForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -46,7 +46,7 @@ const reportForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerReportController::__invoke
-* @see addons/servers/src/Http/ServerReportController.php:24
+* @see addons/servers/src/Http/ServerReportController.php:32
 * @route '/agent/v1/report'
 */
 reportForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -300,7 +300,7 @@ show.form = showForm
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::destroy
-* @see addons/servers/src/Http/ServersController.php:68
+* @see addons/servers/src/Http/ServersController.php:69
 * @route '/servers/{server}'
 */
 export const destroy = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -315,7 +315,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::destroy
-* @see addons/servers/src/Http/ServersController.php:68
+* @see addons/servers/src/Http/ServersController.php:69
 * @route '/servers/{server}'
 */
 destroy.url = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -348,7 +348,7 @@ destroy.url = (args: { server: number | { id: number } } | [server: number | { i
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::destroy
-* @see addons/servers/src/Http/ServersController.php:68
+* @see addons/servers/src/Http/ServersController.php:69
 * @route '/servers/{server}'
 */
 destroy.delete = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -358,7 +358,7 @@ destroy.delete = (args: { server: number | { id: number } } | [server: number | 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::destroy
-* @see addons/servers/src/Http/ServersController.php:68
+* @see addons/servers/src/Http/ServersController.php:69
 * @route '/servers/{server}'
 */
 const destroyForm = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -373,7 +373,7 @@ const destroyForm = (args: { server: number | { id: number } } | [server: number
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::destroy
-* @see addons/servers/src/Http/ServersController.php:68
+* @see addons/servers/src/Http/ServersController.php:69
 * @route '/servers/{server}'
 */
 destroyForm.delete = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

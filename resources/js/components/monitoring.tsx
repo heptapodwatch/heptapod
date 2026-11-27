@@ -134,9 +134,9 @@ export function StatusBadge({
 }) {
     const { t } = useTranslation();
     return (
+        // The visible word is the badge's text in the accessibility tree; an aria-label on a plain span hid it there.
         <Badge
             variant="outline"
-            aria-label={t(label ?? statusLabels[state])}
             data-state={state}
             className={statusBadgeClass[state]}
         >

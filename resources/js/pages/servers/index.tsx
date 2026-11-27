@@ -13,6 +13,7 @@ import InputError from '@/components/input-error';
 import { MonitoringTime } from '@/components/monitoring';
 import { PageContainer } from '@/components/page-container';
 import { PageHeader } from '@/components/page-header';
+import { PendingChanges } from '@/components/pending-changes';
 import {
     ServerGaugeCells,
     ServerGaugeLine,
@@ -34,6 +35,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useBufferedChanges } from '@/hooks/use-buffered-changes';
 import { useFormat } from '@/hooks/use-format';
 import { cn } from '@/lib/utils';
 import { show, store } from '@/routes/servers';
@@ -107,8 +109,10 @@ export default function ServersIndex({
     const format = useFormat();
     const size = useServerSize();
     const [adding, setAdding] = useState(false);
-    // New reports arrive every minute; refresh the values in place.
+    // New reports arrive every minute: values refresh in place, servers another tab added or removed wait behind
+    // "N new changes".
     usePoll(15_000, { only: ['servers'] });
+    const buffered = useBufferedChanges(servers, (server) => server.id);
     const reboot = (server: ServerRow) =>
         server.values?.reboot_required === true && (
             <span className="text-xs text-status-warn">
@@ -128,7 +132,7 @@ export default function ServersIndex({
                 <PageHeader
                     title={t('servers.title')}
                     description={t('servers.list.description')}
-                    count={format.number(servers.length)}
+                    count={format.number(buffered.rows.length)}
                     badge={
                         <Badge variant="outline">
                             {t('servers.experimental')}
@@ -136,7 +140,11 @@ export default function ServersIndex({
                     }
                     actions={addButton}
                 />
-                {servers.length === 0 ? (
+                <PendingChanges
+                    count={buffered.pendingCount}
+                    apply={buffered.apply}
+                />
+                {buffered.rows.length === 0 ? (
                     <EmptyState
                         icon={Server}
                         title={t('servers.list.empty_title')}
@@ -168,7 +176,7 @@ export default function ServersIndex({
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {servers.map((server) => (
+                                    {buffered.rows.map((server) => (
                                         <TableRow
                                             key={server.id}
                                             className={rowTargetClass}
@@ -215,7 +223,7 @@ export default function ServersIndex({
                             </Table>
                         </div>
                         <ul className="divide-y md:hidden">
-                            {servers.map((server) => (
+                            {buffered.rows.map((server) => (
                                 <li key={server.id}>
                                     <Link
                                         href={show.url(server.id)}
