@@ -47,6 +47,8 @@ services:
             REVERB_SCHEME: http
             TRUSTED_PROXIES: 172.31.106.0/24
             HEPTAPOD_BROWSER_ENABLED: 'false'
+            # Allowed here so ops.php can prove both states of the Owner's switch; production defaults to a hard off.
+            HEPTAPOD_SERVERS_ENABLED: 'true'
             HEPTAPOD_STORAGE_DISK: s3
             BACKUP_ARCHIVE_PASSWORD: ops-test-backup-password
             AWS_ACCESS_KEY_ID: ops-test-key

@@ -672,6 +672,18 @@ to v0.11.1 or earlier does not start Gotenberg again: that release's Settings �
 System health then shows the PDF renderer as unreachable. Nothing uses it, and it
 opens no system issue and sends no email.
 
+## Experimental servers
+
+Servers (an agent on each server reports disk, memory and CPU) are off by default.
+`HEPTAPOD_SERVERS_ENABLED=true` in `.env.prod` allows them after the app and scheduler
+containers are recreated; an Owner then switches them on in Settings › General ›
+Servers (experimental). `HEPTAPOD_SERVERS_ENABLED=false` is a hard off that the UI
+cannot override. While servers are off, `/servers` and the agent endpoint
+`POST /agent/v1/report` answer 404 and no server job runs; stored servers and samples
+are kept. Agents push to `/agent/v1/report` on `APP_URL`, so that HTTPS origin must be
+reachable from every monitored server, including instances behind a VPN. Samples are
+kept for 14 days; the hourly scheduled task `servers:prune-samples` deletes older ones.
+
 ## Running on a PaaS: roles, env, storage
 
 Use the same production app image for every role. Set `HEPTAPOD_ROLE` to `web`
