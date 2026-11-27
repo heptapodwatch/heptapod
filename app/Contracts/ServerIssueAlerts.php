@@ -31,8 +31,8 @@ interface ServerIssueAlerts
     public function resolved(int $issueId, int $serverId, string $serverName, CarbonImmutable $at, array $facts, ?string $silencedBy): void;
 
     /**
-     * A snooze set, changed or ended: the held openings of these open issues are due now, so their next claim applies the
-     * server's current snooze.
+     * A snooze set, changed or ended: the held openings and recurring digest lines of these open issues are due now, so
+     * their next claim or digest applies the server's current snooze.
      *
      * @param  list<int>  $openIssueIds
      */

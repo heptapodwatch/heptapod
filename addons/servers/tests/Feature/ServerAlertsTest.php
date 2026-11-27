@@ -923,3 +923,31 @@ it('lets a channel that already has this minute\'s digest wait for the next pass
     app(EmitNotificationDigests::class)();
     expect($digestsOf($first))->toBe(2)->and($late->refresh()->digest_event_id)->not->toBeNull();
 });
+
+it('puts a recurring server digest line back in the next digest when its snooze ends early', function (): void {
+    $zone = app(InstanceSettings::class)->timezone;
+    $owner = systemIssueRecipient('Owner');
+    $digest = alertsTeamWebhook(mode: NotificationMode::Digest);
+    [$server, $token] = alertsServer();
+    alertsMinutes($this, $token, 16, ['load' => 9.5]);
+    $digestCount = static fn (): int => DB::table('events')->where('type', 'notification.digest')->count();
+    $this->travelTo(CarbonImmutable::parse('2026-11-28T08:00:00', $zone));
+    dispatchNotifications();
+    expect($digestCount())->toBe(1);
+
+    // Snoozed for three days: the next morning's digest holds the recurring line until the snooze's end.
+    $this->actingAs($owner)->post("/servers/{$server->id}/snooze", ['minutes' => 3 * 1440])->assertRedirect();
+    $this->travelTo(CarbonImmutable::parse('2026-11-29T08:00:00', $zone));
+    dispatchNotifications();
+    $line = DB::table('deliveries')->join('events', 'events.id', '=', 'deliveries.event_id')->where('events.type', 'server.issue_opened')
+        ->where('deliveries.destination_id', $digest->id)->sole(['deliveries.id', 'deliveries.state', 'deliveries.next_attempt_at']);
+    expect($digestCount())->toBe(1)->and($line->state)->toBe('sent')
+        ->and(CarbonImmutable::parse($line->next_attempt_at)->greaterThan(now()->addDay()))->toBeTrue();
+
+    $this->travel(2)->hours();
+    $this->actingAs($owner)->delete("/servers/{$server->id}/snooze")->assertRedirect();
+    $this->travel(1)->minutes();
+    dispatchNotifications();
+
+    expect($digestCount())->toBe(2)->and(alertsWebhookBodies())->toHaveCount(2);
+});

@@ -149,8 +149,13 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
     public function snoozeChanged(array $openIssueIds): void
     {
         $now = CarbonImmutable::now('UTC')->format('Y-m-d H:i:s.uP');
+        // Held openings, and recurring digest lines held by assembly (a future next_attempt_at on a sent line is only ever a hold).
         $held = DB::table('deliveries')->whereIn('event_id', DB::table('events')->select('id')->whereIn('server_issue_id', $openIssueIds)->where('type', self::OpenedType))
-            ->where('suppressed', false)->where('state', DeliveryState::Pending->value)->where('last_reason', self::SnoozeReason)->where('next_attempt_at', '>', $now);
+            ->where('suppressed', false)->where('next_attempt_at', '>', $now)
+            ->where(static fn (Builder $rows): Builder => $rows->where(static fn (Builder $waiting): Builder => $waiting->where('state', DeliveryState::Pending->value)
+                ->where('last_reason', self::SnoozeReason))
+                ->orWhere(static fn (Builder $recurring): Builder => $recurring->where('state', DeliveryState::Sent->value)->where('digest', true)
+                    ->whereNull('digest_recurrence_ended_at')));
         $locked = NotificationLocks::deliveries((clone $held)->pluck('id'));
         if ($locked !== []) {
             DB::table('deliveries')->whereIn('id', $locked)->update(['next_attempt_at' => $now]);
