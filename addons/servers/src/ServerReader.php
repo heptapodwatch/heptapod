@@ -46,18 +46,7 @@ final readonly class ServerReader
      */
     public function page(CarbonImmutable $now, array $filters, string $sort): array
     {
-        $query = DB::query()->fromSub($this->query($now), 'servers');
-        $search = $filters['search'] ?? null;
-        if ($search !== null && $search !== '') {
-            $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search).'%';
-            $query->where(static fn (Builder $where): Builder => $where->where('name', 'ilike', $pattern)->orWhere('hostname', 'ilike', $pattern));
-        }
-        $state = $filters['state'] ?? null;
-        if ($state === self::NeedsAttention) {
-            $query->where('needs_attention', true);
-        } elseif ($state !== null) {
-            $query->where('state', $state);
-        }
+        $query = $this->filtered($now, $filters);
         $descending = str_starts_with($sort, '-');
         // A leading minus on a numeric expression puts the highest first in the ascending order.
         $query->orderByRaw(self::SortKeys[ltrim($sort, '-')].($descending ? ' DESC' : ' ASC').' NULLS LAST')->orderByRaw('lower(name)')->orderBy('id');
@@ -67,10 +56,55 @@ final readonly class ServerReader
             $page = $this->paging->paginate($query, 'servers', $page->lastPage());
         }
 
-        /** @var list<object{id: int}> $items */
-        $items = array_values($page->items());
+        return ['servers' => $this->rows($page->items()), 'pagination' => PaginationData::fromPaginator($page)];
+    }
 
-        return ['servers' => array_map($this->row(...), $items), 'pagination' => PaginationData::fromPaginator($page)];
+    /**
+     * Every server with its newest sample, filtered: the search matches the name, the host name or an IP address. The
+     * list, the API and the command palette read through it; the caller orders and bounds it.
+     *
+     * @param  array{search?: string|null, state?: string|null}  $filters  state: a ServerState, or `attention` for an open issue
+     */
+    public function filtered(CarbonImmutable $now, array $filters): Builder
+    {
+        $query = DB::query()->fromSub($this->query($now), 'servers');
+        $search = $filters['search'] ?? null;
+        if ($search !== null && $search !== '') {
+            $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search).'%';
+            $query->where(static fn (Builder $where): Builder => $where->where('name', 'ilike', $pattern)->orWhere('hostname', 'ilike', $pattern)
+                ->orWhereRaw('ips::text ILIKE ?', [$pattern]));
+        }
+        $state = $filters['state'] ?? null;
+        if ($state === self::NeedsAttention) {
+            $query->where('needs_attention', true);
+        } elseif ($state !== null) {
+            $query->where('state', $state);
+        }
+
+        return $query;
+    }
+
+    /**
+     * The servers the command palette shows for a search, what needs attention first.
+     *
+     * @return list<ServerRowData>
+     */
+    public function matching(CarbonImmutable $now, string $search, int $limit): array
+    {
+        return $this->rows($this->filtered($now, ['search' => $search])->orderByRaw(self::SortKeys['status'])->orderByRaw('lower(name)')->orderBy('id')
+            ->limit($limit)->get()->all());
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $items  rows of filtered()
+     * @return list<ServerRowData>
+     */
+    public function rows(array $items): array
+    {
+        /** @var list<object{id: int}> $items */
+        $items = array_values($items);
+
+        return array_map($this->row(...), $items);
     }
 
     /** The one server, with its newest sample. */
@@ -85,6 +119,13 @@ final readonly class ServerReader
         $row = $this->query($now)->whereRaw('servers.id = (SELECT server_id FROM server_sites WHERE site_id = ?)', [$siteId])->first();
 
         return $row === null ? null : $this->row($row);
+    }
+
+    /** The server's issues, open and resolved, newest opening first, through the server_issues_history index; the caller pages it. */
+    public function issues(int $serverId): Builder
+    {
+        return DB::table('server_issues')->where('server_id', $serverId)->orderByDesc('opened_at')->orderByDesc('id')
+            ->select(['id', 'kind', 'scope', 'opened_at', 'resolved_at', 'opened_values', 'resolved_values']);
     }
 
     /**

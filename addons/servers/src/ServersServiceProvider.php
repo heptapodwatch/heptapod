@@ -10,6 +10,7 @@ use Heptapod\Addons\Servers\Http\AgentResponses;
 use Heptapod\Addons\Servers\Http\EnsureServersEnabled;
 use Heptapod\Contracts\ServerIssues;
 use Heptapod\Contracts\ServersAccess;
+use Heptapod\Contracts\ServerSearch;
 use Heptapod\Contracts\SiteServers;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
@@ -26,6 +27,7 @@ final class ServersServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/servers.php', 'servers');
         $this->app->bind(SiteServers::class, DatabaseSiteServers::class);
+        $this->app->bind(ServerSearch::class, DatabaseServerSearch::class);
         $this->app->scoped(ServerIssues::class, DatabaseServerIssues::class);
     }
 

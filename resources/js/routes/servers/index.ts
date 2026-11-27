@@ -471,7 +471,7 @@ snooze.form = snoozeForm
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::unsnooze
-* @see addons/servers/src/Http/ServersController.php:139
+* @see addons/servers/src/Http/ServersController.php:134
 * @route '/servers/{server}/snooze'
 */
 export const unsnooze = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -486,7 +486,7 @@ unsnooze.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::unsnooze
-* @see addons/servers/src/Http/ServersController.php:139
+* @see addons/servers/src/Http/ServersController.php:134
 * @route '/servers/{server}/snooze'
 */
 unsnooze.url = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -519,7 +519,7 @@ unsnooze.url = (args: { server: number | { id: number } } | [server: number | { 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::unsnooze
-* @see addons/servers/src/Http/ServersController.php:139
+* @see addons/servers/src/Http/ServersController.php:134
 * @route '/servers/{server}/snooze'
 */
 unsnooze.delete = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -529,7 +529,7 @@ unsnooze.delete = (args: { server: number | { id: number } } | [server: number |
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::unsnooze
-* @see addons/servers/src/Http/ServersController.php:139
+* @see addons/servers/src/Http/ServersController.php:134
 * @route '/servers/{server}/snooze'
 */
 const unsnoozeForm = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -544,7 +544,7 @@ const unsnoozeForm = (args: { server: number | { id: number } } | [server: numbe
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::unsnooze
-* @see addons/servers/src/Http/ServersController.php:139
+* @see addons/servers/src/Http/ServersController.php:134
 * @route '/servers/{server}/snooze'
 */
 unsnoozeForm.delete = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -561,7 +561,7 @@ unsnooze.form = unsnoozeForm
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::destroy
-* @see addons/servers/src/Http/ServersController.php:147
+* @see addons/servers/src/Http/ServersController.php:142
 * @route '/servers/{server}'
 */
 export const destroy = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -576,7 +576,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::destroy
-* @see addons/servers/src/Http/ServersController.php:147
+* @see addons/servers/src/Http/ServersController.php:142
 * @route '/servers/{server}'
 */
 destroy.url = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -609,7 +609,7 @@ destroy.url = (args: { server: number | { id: number } } | [server: number | { i
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::destroy
-* @see addons/servers/src/Http/ServersController.php:147
+* @see addons/servers/src/Http/ServersController.php:142
 * @route '/servers/{server}'
 */
 destroy.delete = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -619,7 +619,7 @@ destroy.delete = (args: { server: number | { id: number } } | [server: number | 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::destroy
-* @see addons/servers/src/Http/ServersController.php:147
+* @see addons/servers/src/Http/ServersController.php:142
 * @route '/servers/{server}'
 */
 const destroyForm = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -634,7 +634,7 @@ const destroyForm = (args: { server: number | { id: number } } | [server: number
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::destroy
-* @see addons/servers/src/Http/ServersController.php:147
+* @see addons/servers/src/Http/ServersController.php:142
 * @route '/servers/{server}'
 */
 destroyForm.delete = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

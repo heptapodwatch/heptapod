@@ -28,6 +28,8 @@ const abilityLabels: Record<string, string> = {
     'maintenance:write': 'api_tokens.ability.maintenance_write',
     'activity:read': 'api_tokens.ability.activity_read',
     'upcoming:read': 'api_tokens.ability.upcoming_read',
+    'servers:read': 'api_tokens.ability.servers_read',
+    'servers:snooze': 'api_tokens.ability.servers_snooze',
 };
 
 /** Consequential side effects, listed under the matrix while checked. */
@@ -50,6 +52,8 @@ const areas = [
     'maintenance',
     'tags',
     'clients',
+    // Offered only while servers are on (CreateApiToken::allowedAbilities); an area without abilities is not shown.
+    'servers',
 ];
 const areaOf = (ability: string) => ability.slice(0, ability.indexOf(':'));
 const verbOf = (ability: string) => ability.slice(ability.indexOf(':') + 1);

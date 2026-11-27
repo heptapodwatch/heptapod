@@ -9,10 +9,10 @@ use Heptapod\Actions\CreateClient;
 use Heptapod\Actions\UpdateClient;
 use Heptapod\Concerns\RejectsUnsupportedFields;
 use Heptapod\Concerns\ResolvesApiPrincipal;
+use Heptapod\Contracts\Http\PaginatedCollection;
+use Heptapod\Contracts\Http\PaginationRequest;
 use Heptapod\Http\Controllers\Controller;
-use Heptapod\Http\Requests\Api\PaginationRequest;
 use Heptapod\Http\Resources\ClientResource;
-use Heptapod\Http\Resources\OhDear\PaginatedCollection;
 use Heptapod\Models\Client;
 use Heptapod\Policies\SitePolicy;
 use Illuminate\Http\JsonResponse;
@@ -51,7 +51,7 @@ final class ClientController extends Controller
         Validator::make($request->all(), ['filter' => ['sometimes', 'array:include_archived'], 'filter.include_archived' => ['sometimes', 'in:true,false,1,0']])->validate();
         $query = $policy->visibleClients($user, includeArchived: in_array($request->input('filter.include_archived'), ['true', '1'], true));
         $query->getQuery()->orderBy('clients.id');
-        $paginator = $query->paginate($request->pageSize(), ['*'], $request->pageParameter(), $request->pageNumber())->appends($request->except($request->pageParameter() === 'page' ? 'page' : 'page.number'));
+        $paginator = $request->paginate($query);
 
         return new PaginatedCollection($paginator, ClientResource::class)->response($request);
     }

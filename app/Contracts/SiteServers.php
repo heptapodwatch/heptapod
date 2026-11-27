@@ -18,6 +18,14 @@ interface SiteServers
     /** The server the site runs on, for its Overview card; null while the site is not linked. */
     public function ofSite(int $siteId): ?Data;
 
+    /**
+     * The server each of the sites runs on, by site id, for the monitors of the API; unlinked sites are left out.
+     *
+     * @param  list<int>  $siteIds
+     * @return array<int, array{id: int, name: string}>
+     */
+    public function serversOfSites(array $siteIds): array;
+
     /** The site's server and every server to pick from, for the Site settings field. */
     public function choices(int $siteId): ?Data;
 

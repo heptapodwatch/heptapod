@@ -9,10 +9,13 @@ use Heptapod\Checks\FreshnessSnapshot;
 use Heptapod\Checks\History\RollupReader;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckResult;
+use Heptapod\Contracts\ServersAccess;
+use Heptapod\Contracts\SiteServers;
 use Heptapod\Events\Notifications\EffectiveAlertSensitivity;
 use Heptapod\Models\Check;
 use Heptapod\Models\Site;
 use Heptapod\Models\SiteRepository;
+use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -25,8 +28,12 @@ final class MonitorResource extends JsonResource
     #[\Override]
     public static $wrap;
 
-    /** @param array<int, float|null>|null $responseTimes */
-    public function __construct(mixed $resource, private readonly ?array $responseTimes = null, private readonly ?FreshnessSnapshot $freshness = null)
+    /**
+     * @param  array<int, float|null>|null  $responseTimes
+     * @param  array<int, array{id: int, name: string}>|null  $servers  of servers(), for a page of monitors
+     */
+    public function __construct(mixed $resource, private readonly ?array $responseTimes = null, private readonly ?FreshnessSnapshot $freshness = null,
+        private readonly ?array $servers = null)
     {
         parent::__construct($resource);
     }
@@ -54,6 +61,23 @@ final class MonitorResource extends JsonResource
         }
 
         return $times;
+    }
+
+    /**
+     * The server each site runs on, by site id (Gap 2 of the servers addon): only for Owner and Admin tokens with
+     * `servers:read`, never one limited to a client, and only while servers are on (SiteServers fails closed).
+     *
+     * @param  Collection<int, Site>  $sites
+     * @return array<int, array{id: int, name: string}>
+     */
+    public static function servers(Request $request, Collection $sites): array
+    {
+        $user = $request->user();
+        if (! $user instanceof User || ! $user->tokenCan('servers:read') || ! app(ServersAccess::class)->allows($user)) {
+            return [];
+        }
+
+        return app(SiteServers::class)->serversOfSites(array_values($sites->map(static fn (Site $site): int => $site->id)->all()));
     }
 
     /** @return array<string, mixed> */
@@ -98,6 +122,10 @@ final class MonitorResource extends JsonResource
             'badge_id' => $site->badge_id, 'marked_for_deletion_at' => $site->marked_for_deletion_at?->utc()->format('Y-m-d H:i:s'),
             'crawler_headers' => null, 'send_report_to_emails' => $site->send_report_to_emails, 'include_check_types_in_report' => $site->include_check_types_in_report,
             'created_at' => $site->created_at?->utc()->format('Y-m-d H:i:s'), 'updated_at' => $site->updated_at?->utc()->format('Y-m-d H:i:s')];
+        $server = ($this->servers ?? self::servers($request, collect([$site])))[$site->id] ?? null;
+        if ($server !== null) {
+            $data['server'] = $server;
+        }
         foreach ($checks as $check) {
             if (! in_array($check->type, [CheckKey::MixedContent, CheckKey::Cron], true)) {
                 $data[$check->type->value.'_check_settings'] = (object) CheckResource::settings($check);

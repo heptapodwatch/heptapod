@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Heptapod\Http\Controllers\Api;
 use Heptapod\Http\Middleware\RequireApiToken;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
@@ -11,8 +12,11 @@ use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 // Public and token-free: the document holds no monitoring data. The global api-entry throttle (60/min per IP) applies.
 Route::get('openapi.json', Api\OpenApiDocumentController::class)->name('api.getOpenApiDocument');
 
-// Addons register routes in this group and use the same abilities and resource policies.
+// Addons register routes in this group (their routes/api.php) and use the same abilities and resource policies.
 Route::middleware(['auth:sanctum', RequireApiToken::class, 'throttle:api'])->name('api.')->group(function (): void {
+    foreach (File::glob(base_path('addons/*/routes/api.php')) as $addonRoutes) {
+        require $addonRoutes;
+    }
     Route::get('monitors/{monitor}/maintenance-periods', [Api\MaintenancePeriodController::class, 'index'])
         ->whereNumber('monitor')->middleware(CheckAbilities::class.':maintenance:read')->name('listMaintenancePeriods');
     Route::middleware(CheckAbilities::class.':maintenance:write')->group(function (): void {

@@ -103,6 +103,10 @@ api -X POST "$HEPTAPOD_URL/api/monitors/12/stop-maintenance"
 
 **Stop-maintenance ends all maintenance for the site.** It takes no window ID: each call ends every site window active at that moment and takes the site out of every active shared client or tag window. Send it only when the user authorized ending all maintenance for the site. After an ambiguous response (timeout, lost reply, 5xx), never retry automatically: list the site's windows to report the state, and let the user decide. The list reports state; it never authorizes another stop. Shared windows are edited in the web app.
 
+## Servers (experimental)
+
+Where servers are switched on, an Owner or Admin token with `servers:read` (never one limited to a client) reads servers, their latest values and their issues: `GET /api/servers?filter[state]=attention`, then `/api/servers/{id}` and `/api/servers/{id}/issues`; a 404 means servers are off. With `servers:snooze`, snooze a server's alerts around a deploy or reboot with `POST /api/servers/{id}/snooze` and an absolute `snooze_until`, and end it afterwards with `POST /api/servers/{id}/unsnooze`.
+
 ## Switch from Oh Dear
 
 The user leads; never run the import unless asked or print Oh Dear tokens. On the instance host the user dry-runs with a read-only Oh Dear token, which writes nothing: `printf '%s\n' "$OH_DEAR_READ_ONLY_TOKEN" | php artisan heptapod:import-ohdear --token-stdin --dry-run` (Docker: `docker compose exec -T app php artisan …`). Then **Settings → Import** shows the plan and starts the import; afterwards the user points cron tasks at their new ping URLs.

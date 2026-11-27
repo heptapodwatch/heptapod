@@ -2007,6 +2007,7 @@ export type SearchResultsData = {
 readonly sites: Heptapod.Data.Ui.SearchSiteData[],
 readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly incidents: Heptapod.Data.Ui.IncidentData[],
+readonly servers: Heptapod.Addons.Servers.Data.ServerRowData[],
 };
 export type SearchSiteData = {
 readonly id: number,

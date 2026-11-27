@@ -36,6 +36,7 @@ final class ApiExamples
             'restoreClient' => ['sites' => 'resume'],
             'requestCheckRun' => ['httpClientHeaders' => [['name' => 'X-Monitor', 'value' => 'heptapod']]],
             'snoozeCheck' => ['snooze_until' => '2026-10-01T09:30:00Z'],
+            'snoozeServer' => ['snooze_until' => '2026-10-01T08:30:00Z'],
             'createMaintenancePeriod' => ['monitor_id' => 1, 'starts_at' => '2026-10-20 22:00', 'ends_at' => '2026-10-20 23:00', 'name' => 'Planned deploy'],
             'updateMaintenancePeriod' => ['starts_at' => '2026-10-20 22:30', 'ends_at' => '2026-10-20 23:30', 'name' => 'Planned deploy'],
             'startMaintenance' => ['stop_maintenance_after_seconds' => 1800, 'name' => 'Deploy'],
@@ -142,6 +143,40 @@ final class ApiExamples
                 'ping_url' => 'https://monitoring.example.com/cron/6f1c2e9a-0b7d-4c55-9a3e-2d4f8b1c7e60', 'latest_result' => 'pending']]],
             'snoozeCronCheck' => [200 => [...self::maskedCronTask($task), 'active_snooze' => self::snooze(801, '2026-10-01 07:35:00', '2026-10-01 09:35:00', 'api')]],
             'unsnoozeCronCheck' => [200 => self::maskedCronTask($task)],
+            ...self::servers($links, $meta),
+        ];
+    }
+
+    /**
+     * Server 1 (web-1) runs monitor 1 and has its root disk almost full since 07:30.
+     *
+     * @param  \Closure(string): array<string, mixed>  $links
+     * @param  \Closure(string): array<string, mixed>  $meta
+     * @return array<string, array<int, mixed>>
+     */
+    private static function servers(\Closure $links, \Closure $meta): array
+    {
+        $issue = ['id' => 900, 'kind' => 'disk_full', 'scope' => '/', 'opened_at' => '2026-10-01T07:30:00+00:00', 'resolved_at' => null,
+            'opened_values' => ['value' => 91.4, 'threshold' => 90, 'minutes' => 15], 'resolved_values' => null];
+        $server = ['id' => 1, 'name' => 'web-1', 'hostname' => 'web-1.example.com', 'ips' => ['203.0.113.10', '2001:db8::10'], 'state' => 'reporting', 'open_issue_count' => 1,
+            'last_report_at' => '2026-10-01T07:49:30+00:00', 'agent_version' => '0.3.0', 'snoozed_until' => null,
+            'values' => ['observed_at' => '2026-10-01T07:49:30+00:00', 'cpu_cores' => 4, 'cpu_used_percent' => 23.5, 'load_5' => 1.2,
+                'memory_total_bytes' => 8589934592, 'memory_available_bytes' => 3221225472, 'memory_used_percent' => 62.5,
+                'filesystems' => [['mount' => '/', 'total_bytes' => 85899345920, 'free_bytes' => 7387343667, 'used_percent' => 91.4]]]];
+
+        return [
+            'listServers' => [200 => ['data' => [$server], 'links' => $links('servers'), 'meta' => $meta('servers')]],
+            'getServer' => [200 => [...$server, 'thresholds' => ['disk_percent' => 90, 'disk_minutes' => 15, 'mounts' => [], 'memory_percent' => 90, 'memory_minutes' => 10,
+                'load_per_core' => 2.0, 'load_minutes' => 15, 'no_report_minutes' => 2], 'ignored_mounts' => ['/boot/efi'],
+                'facts' => ['os' => 'linux', 'arch' => 'amd64', 'distro' => 'Ubuntu 24.04.1 LTS', 'kernel' => '6.8.0-45-generic', 'uptime_seconds' => 864000,
+                    'reboot_required' => false, 'updates_pending' => 3, 'updates_security' => 1],
+                'sites' => [['id' => 1, 'name' => 'example.com', 'url' => 'https://example.com']], 'issues' => [$issue]]],
+            'listServerIssues' => [200 => ['data' => [$issue, ['id' => 899, 'kind' => 'no_report', 'scope' => '', 'opened_at' => '2026-09-30T22:04:00+00:00',
+                'resolved_at' => '2026-09-30T22:07:12+00:00', 'opened_values' => ['last_report_at' => '2026-09-30T22:02:00+00:00', 'minutes' => 2],
+                'resolved_values' => ['reported_at' => '2026-09-30T22:07:12+00:00']]],
+                'links' => $links('servers/1/issues'), 'meta' => [...$meta('servers/1/issues'), 'to' => 2, 'total' => 2]]],
+            'snoozeServer' => [200 => [...$server, 'snoozed_until' => '2026-10-01T08:30:00+00:00']],
+            'unsnoozeServer' => [200 => $server],
         ];
     }
 

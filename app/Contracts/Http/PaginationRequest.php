@@ -2,9 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Heptapod\Http\Requests\Api;
+namespace Heptapod\Contracts\Http;
 
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\ValidationException;
 
 class PaginationRequest extends FormRequest
@@ -39,5 +42,19 @@ class PaginationRequest extends FormRequest
     public function pageParameter(): string
     {
         return is_array($this->query('page')) ? 'page[number]' : 'page';
+    }
+
+    /**
+     * The requested page of the ordered query; its links keep the other query parameters.
+     *
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  QueryBuilder|EloquentBuilder<TModel>  $query
+     * @return ($query is EloquentBuilder<TModel> ? LengthAwarePaginator<int, TModel> : LengthAwarePaginator<int, \stdClass>)
+     */
+    public function paginate(QueryBuilder|EloquentBuilder $query): LengthAwarePaginator
+    {
+        return $query->paginate($this->pageSize(), ['*'], $this->pageParameter(), $this->pageNumber())
+            ->appends($this->except($this->pageParameter() === 'page' ? 'page' : 'page.number'));
     }
 }

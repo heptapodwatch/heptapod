@@ -113,6 +113,11 @@ it('accounts for every registered API route in the Oh Dear spec or native allow-
         'api.updateClient',
         'api.archiveClient',
         'api.restoreClient',
+        'api.listServers',
+        'api.getServer',
+        'api.listServerIssues',
+        'api.snoozeServer',
+        'api.unsnoozeServer',
     ];
     $registered = collect(Route::getRoutes()->getRoutes())
         ->map(fn (Illuminate\Routing\Route $route): ?string => $route->getName())

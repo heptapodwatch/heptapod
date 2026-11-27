@@ -4,14 +4,11 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Heptapod\Addons\Servers\Server;
-use Heptapod\Models\Client;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Inertia\Support\SessionKey;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -56,18 +53,6 @@ it('shows servers to Owners and Admins only', function (string $role, bool $allo
     $this->post('/servers', ['name' => 'web-1'])->assertStatus($allowed ? 302 : 403);
     $this->get('/settings/profile')->assertInertia(fn (Assert $page): Assert => $page->where('auth.canViewServers', $allowed));
 })->with([['Owner', true], ['Admin', true], ['Member', false]]);
-
-it('never shows servers through an API token limited to one client, even an Owner\'s', function (bool $limited, bool $allowed): void {
-    $owner = serversUser('Owner');
-    $token = $owner->createToken('agent-tools', ['*']);
-    if ($limited) {
-        $token->accessToken->forceFill(['client_id' => Client::factory()->create()->id])->save();
-    }
-    // No servers API exists yet (a later lane); the policy behind it already refuses client-limited tokens.
-    Route::middleware(['api', 'auth:sanctum'])->get('api/servers-policy-probe', fn (): array => ['allowed' => Gate::allows('viewAny', Server::class)]);
-
-    $this->withToken($token->plainTextToken)->getJson('/api/servers-policy-probe')->assertOk()->assertExactJson(['allowed' => $allowed]);
-})->with(['unlimited' => [false, true], 'limited to one client' => [true, false]]);
 
 it('hides navigation and answers 404 while switched off, by the environment or by the Owner', function (string $switch): void {
     $server = Server::named('web-1');

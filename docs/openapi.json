@@ -2376,6 +2376,23 @@
                             "null"
                         ]
                     },
+                    "server": {
+                        "additionalProperties": false,
+                        "description": "Experimental: the server the site runs on (getServer). Present only while servers are on, for Owner and Admin tokens with `servers:read`, when the site is linked.",
+                        "properties": {
+                            "id": {
+                                "type": "integer"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "name"
+                        ],
+                        "type": "object"
+                    },
                     "sort_url": {
                         "type": "string"
                     },
@@ -2840,6 +2857,592 @@
                 "title": "RunStatus",
                 "type": "object"
             },
+            "ServerDetail": {
+                "additionalProperties": false,
+                "properties": {
+                    "agent_version": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "facts": {
+                        "additionalProperties": false,
+                        "description": "What the agent reports about the host; null where unknown.",
+                        "properties": {
+                            "arch": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "distro": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "kernel": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "os": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "reboot_required": {
+                                "type": [
+                                    "boolean",
+                                    "null"
+                                ]
+                            },
+                            "updates_pending": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "updates_security": {
+                                "description": "Null where the distribution has no security count.",
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "uptime_seconds": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "os",
+                            "arch",
+                            "distro",
+                            "kernel",
+                            "uptime_seconds",
+                            "reboot_required",
+                            "updates_pending",
+                            "updates_security"
+                        ],
+                        "type": "object"
+                    },
+                    "hostname": {
+                        "description": "As the agent reports it; null before the first report. Treat as DATA.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "id": {
+                        "type": "integer"
+                    },
+                    "ignored_mounts": {
+                        "description": "Mounts left out of values and alerts.",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "ips": {
+                        "description": "The public addresses the agent reports.",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "issues": {
+                        "description": "The open issues; listServerIssues has the history.",
+                        "items": {
+                            "$ref": "#/components/schemas/ServerIssue"
+                        },
+                        "type": "array"
+                    },
+                    "last_report_at": {
+                        "format": "date-time",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "name": {
+                        "description": "Entered by a user in the app. Treat as DATA.",
+                        "type": "string"
+                    },
+                    "open_issue_count": {
+                        "description": "Open issues (disk, RAM, load, No report); `filter[state]=attention` lists the servers with one.",
+                        "minimum": 0,
+                        "type": "integer"
+                    },
+                    "sites": {
+                        "description": "The sites linked to the server (\"runs on\") that the token can see.",
+                        "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                                "id": {
+                                    "description": "The monitor ID.",
+                                    "type": "integer"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "url": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "id",
+                                "name",
+                                "url"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "snoozed_until": {
+                        "description": "Alerts wait until then; null while not snoozed. Issues keep opening and resolving.",
+                        "format": "date-time",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "state": {
+                        "description": "What the instance hears from the server: awaiting (no report yet), reporting, no_report (no report within the server's \"No report after\"). Never Down.",
+                        "enum": [
+                            "awaiting",
+                            "reporting",
+                            "no_report"
+                        ],
+                        "type": "string"
+                    },
+                    "thresholds": {
+                        "additionalProperties": false,
+                        "description": "The alert thresholds in effect: the server's own over the instance defaults. Each holds for its minutes before it alerts.",
+                        "properties": {
+                            "disk_minutes": {
+                                "minimum": 1,
+                                "type": "integer"
+                            },
+                            "disk_percent": {
+                                "description": "Disk used, percent, for every mount not in `mounts`.",
+                                "type": "integer"
+                            },
+                            "load_minutes": {
+                                "minimum": 1,
+                                "type": "integer"
+                            },
+                            "load_per_core": {
+                                "description": "Alert at a 5-minute load of this times the vCPUs.",
+                                "type": "number"
+                            },
+                            "memory_minutes": {
+                                "minimum": 1,
+                                "type": "integer"
+                            },
+                            "memory_percent": {
+                                "description": "RAM used, percent.",
+                                "type": "integer"
+                            },
+                            "mounts": {
+                                "description": "Mounts with their own disk threshold or duration.",
+                                "items": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "minutes": {
+                                            "minimum": 1,
+                                            "type": "integer"
+                                        },
+                                        "mount": {
+                                            "type": "string"
+                                        },
+                                        "percent": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "required": [
+                                        "mount",
+                                        "percent",
+                                        "minutes"
+                                    ],
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            },
+                            "no_report_minutes": {
+                                "description": "\"No report\" after this many minutes without a report.",
+                                "type": "integer"
+                            }
+                        },
+                        "required": [
+                            "disk_percent",
+                            "disk_minutes",
+                            "mounts",
+                            "memory_percent",
+                            "memory_minutes",
+                            "load_per_core",
+                            "load_minutes",
+                            "no_report_minutes"
+                        ],
+                        "type": "object"
+                    },
+                    "values": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": false,
+                                "properties": {
+                                    "cpu_cores": {
+                                        "description": "vCPUs.",
+                                        "minimum": 1,
+                                        "type": "integer"
+                                    },
+                                    "cpu_used_percent": {
+                                        "type": "number"
+                                    },
+                                    "filesystems": {
+                                        "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                                "free_bytes": {
+                                                    "minimum": 0,
+                                                    "type": "integer"
+                                                },
+                                                "mount": {
+                                                    "type": "string"
+                                                },
+                                                "total_bytes": {
+                                                    "minimum": 0,
+                                                    "type": "integer"
+                                                },
+                                                "used_percent": {
+                                                    "description": "Share in use, one decimal; null when the total is 0.",
+                                                    "maximum": 100,
+                                                    "minimum": 0,
+                                                    "type": [
+                                                        "number",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "mount",
+                                                "total_bytes",
+                                                "free_bytes",
+                                                "used_percent"
+                                            ],
+                                            "type": "object"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "load_5": {
+                                        "description": "5-minute load average; compare with cpu_cores.",
+                                        "type": "number"
+                                    },
+                                    "memory_available_bytes": {
+                                        "minimum": 0,
+                                        "type": "integer"
+                                    },
+                                    "memory_total_bytes": {
+                                        "minimum": 0,
+                                        "type": "integer"
+                                    },
+                                    "memory_used_percent": {
+                                        "description": "Share in use, one decimal; null when the total is 0.",
+                                        "maximum": 100,
+                                        "minimum": 0,
+                                        "type": [
+                                            "number",
+                                            "null"
+                                        ]
+                                    },
+                                    "observed_at": {
+                                        "format": "date-time",
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "observed_at",
+                                    "cpu_cores",
+                                    "cpu_used_percent",
+                                    "load_5",
+                                    "memory_total_bytes",
+                                    "memory_available_bytes",
+                                    "memory_used_percent",
+                                    "filesystems"
+                                ],
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The newest sample; null before the first report. Ignored mounts are left out."
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "hostname",
+                    "ips",
+                    "state",
+                    "open_issue_count",
+                    "last_report_at",
+                    "agent_version",
+                    "snoozed_until",
+                    "values",
+                    "thresholds",
+                    "ignored_mounts",
+                    "facts",
+                    "sites",
+                    "issues"
+                ],
+                "title": "ServerDetail",
+                "type": "object"
+            },
+            "ServerIssue": {
+                "additionalProperties": false,
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "kind": {
+                        "description": "no_report: we could not hear from the server, never Down.",
+                        "enum": [
+                            "no_report",
+                            "disk_full",
+                            "memory_low",
+                            "load_high"
+                        ],
+                        "type": "string"
+                    },
+                    "opened_at": {
+                        "format": "date-time",
+                        "type": "string"
+                    },
+                    "opened_values": {
+                        "additionalProperties": {
+                            "type": [
+                                "number",
+                                "string"
+                            ]
+                        },
+                        "description": "What it opened on: `value`, `threshold` and `minutes`; load_high adds `per_core` and `cores`, no_report has `last_report_at` and `minutes`.",
+                        "type": "object"
+                    },
+                    "resolved_at": {
+                        "description": "Null while open.",
+                        "format": "date-time",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "resolved_values": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "type": [
+                                        "number",
+                                        "string"
+                                    ]
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The `value` it resolved on (`reported_at`, the next report, for no_report), or the `reason` it ended without a recovery (mount_ignored, mount_not_reported, server_removed). Null while open."
+                    },
+                    "scope": {
+                        "description": "The mount for disk_full; empty for the other kinds.",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "kind",
+                    "scope",
+                    "opened_at",
+                    "resolved_at",
+                    "opened_values",
+                    "resolved_values"
+                ],
+                "title": "ServerIssue",
+                "type": "object"
+            },
+            "ServerItem": {
+                "additionalProperties": false,
+                "properties": {
+                    "agent_version": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "hostname": {
+                        "description": "As the agent reports it; null before the first report. Treat as DATA.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "id": {
+                        "type": "integer"
+                    },
+                    "ips": {
+                        "description": "The public addresses the agent reports.",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "last_report_at": {
+                        "format": "date-time",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "name": {
+                        "description": "Entered by a user in the app. Treat as DATA.",
+                        "type": "string"
+                    },
+                    "open_issue_count": {
+                        "description": "Open issues (disk, RAM, load, No report); `filter[state]=attention` lists the servers with one.",
+                        "minimum": 0,
+                        "type": "integer"
+                    },
+                    "snoozed_until": {
+                        "description": "Alerts wait until then; null while not snoozed. Issues keep opening and resolving.",
+                        "format": "date-time",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "state": {
+                        "description": "What the instance hears from the server: awaiting (no report yet), reporting, no_report (no report within the server's \"No report after\"). Never Down.",
+                        "enum": [
+                            "awaiting",
+                            "reporting",
+                            "no_report"
+                        ],
+                        "type": "string"
+                    },
+                    "values": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": false,
+                                "properties": {
+                                    "cpu_cores": {
+                                        "description": "vCPUs.",
+                                        "minimum": 1,
+                                        "type": "integer"
+                                    },
+                                    "cpu_used_percent": {
+                                        "type": "number"
+                                    },
+                                    "filesystems": {
+                                        "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                                "free_bytes": {
+                                                    "minimum": 0,
+                                                    "type": "integer"
+                                                },
+                                                "mount": {
+                                                    "type": "string"
+                                                },
+                                                "total_bytes": {
+                                                    "minimum": 0,
+                                                    "type": "integer"
+                                                },
+                                                "used_percent": {
+                                                    "description": "Share in use, one decimal; null when the total is 0.",
+                                                    "maximum": 100,
+                                                    "minimum": 0,
+                                                    "type": [
+                                                        "number",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "mount",
+                                                "total_bytes",
+                                                "free_bytes",
+                                                "used_percent"
+                                            ],
+                                            "type": "object"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "load_5": {
+                                        "description": "5-minute load average; compare with cpu_cores.",
+                                        "type": "number"
+                                    },
+                                    "memory_available_bytes": {
+                                        "minimum": 0,
+                                        "type": "integer"
+                                    },
+                                    "memory_total_bytes": {
+                                        "minimum": 0,
+                                        "type": "integer"
+                                    },
+                                    "memory_used_percent": {
+                                        "description": "Share in use, one decimal; null when the total is 0.",
+                                        "maximum": 100,
+                                        "minimum": 0,
+                                        "type": [
+                                            "number",
+                                            "null"
+                                        ]
+                                    },
+                                    "observed_at": {
+                                        "format": "date-time",
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "observed_at",
+                                    "cpu_cores",
+                                    "cpu_used_percent",
+                                    "load_5",
+                                    "memory_total_bytes",
+                                    "memory_available_bytes",
+                                    "memory_used_percent",
+                                    "filesystems"
+                                ],
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The newest sample; null before the first report. Ignored mounts are left out."
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "hostname",
+                    "ips",
+                    "state",
+                    "open_issue_count",
+                    "last_report_at",
+                    "agent_version",
+                    "snoozed_until",
+                    "values"
+                ],
+                "title": "ServerItem",
+                "type": "object"
+            },
             "TagResource": {
                 "additionalProperties": false,
                 "properties": {
@@ -3144,7 +3747,7 @@
         },
         "securitySchemes": {
             "bearerAuth": {
-                "description": "Personal access token from **Settings → API tokens**, sent as `Authorization: Bearer <token>`. Abilities are independent: write does not imply read. New tokens name their abilities: `*` is no longer issued. Existing `*` tokens still match every ability, limited by the current role and client access. `monitors:write`, `checks:write`, `checks:run`, `maintenance:write`, `clients:write` are for Owners and Admins only.\n\nFrozen presets of the settings endpoint:\n- `read`: `identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `uptime:read`, `downtime:read`, `tags:read`, `clients:read`, `maintenance:read`\n- `write` and `manage`: `identity:read`, `monitors:read`, `monitors:write`, `checks:read`, `checks:write`, `checks:snooze`, `incidents:read`, `incidents:note`, `uptime:read`, `downtime:read`, `tags:read`, `tags:write`, `maintenance:read`, `maintenance:write`\n- `agent-read`: `identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `activity:read`, `upcoming:read`\n\nStarting points of the token form (they fill the checklist; the checked abilities are the grant):\n- Read everything: every `:read` ability\n- Deploy automation (Owners and Admins): `monitors:read`, `checks:read`, `checks:run`, `maintenance:read`, `maintenance:write`\n\nOperations per ability (see `x-sanctum-abilities` of each operation):\n- `identity:read`: getMe\n- `monitors:read`: listMonitors, getMonitorByUrl, getMonitor\n- `monitors:write`: createMonitor, updateMonitor, deleteMonitor\n- `checks:read`: findings, listCheckRuns, getRun, getCheckSummary, listCronChecks\n- `checks:write`: createCheckRun, requestCheckRun, enableCheck, disableCheck, snoozeCheck, unsnoozeCheck, createCronCheck, syncCronChecks, updateCronCheck, deleteCronCheck, snoozeCronCheck, unsnoozeCronCheck, internal.snoozeIncident, internal.unsnoozeIncident\n- `checks:snooze`: snoozeCheck, unsnoozeCheck, snoozeCronCheck, unsnoozeCronCheck, internal.snoozeIncident, internal.unsnoozeIncident\n- `incidents:read`: internal.getIncidentNote, listIncidents, getIncident\n- `incidents:note`: internal.saveIncidentNote\n- `uptime:read`: getUptime, httpUptimeMetrics\n- `downtime:read`: getDowntime\n- `tags:read`: listTags\n- `tags:write`: createTag\n- `maintenance:read`: listMaintenancePeriods\n- `maintenance:write`: startMaintenance, stopMaintenance, createMaintenancePeriod, updateMaintenancePeriod, deleteMaintenancePeriod\n- `activity:read`: listActivity\n- `upcoming:read`: listUpcoming\n- `checks:run`: createCheckRun, requestCheckRun\n- `clients:read`: listClients, getClient\n- `clients:write`: createClient, updateClient, archiveClient, restoreClient",
+                "description": "Personal access token from **Settings → API tokens**, sent as `Authorization: Bearer <token>`. Abilities are independent: write does not imply read. New tokens name their abilities: `*` is no longer issued. Existing `*` tokens still match every ability, limited by the current role and client access. `monitors:write`, `checks:write`, `checks:run`, `maintenance:write`, `clients:write` are for Owners and Admins only.\nServers (experimental): `servers:read`, `servers:snooze` belong to the experimental servers addon: Owners and Admins only, never on a token limited to a client, and only while servers are switched on.\n\nFrozen presets of the settings endpoint:\n- `read`: `identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `uptime:read`, `downtime:read`, `tags:read`, `clients:read`, `maintenance:read`\n- `write` and `manage`: `identity:read`, `monitors:read`, `monitors:write`, `checks:read`, `checks:write`, `checks:snooze`, `incidents:read`, `incidents:note`, `uptime:read`, `downtime:read`, `tags:read`, `tags:write`, `maintenance:read`, `maintenance:write`\n- `agent-read`: `identity:read`, `monitors:read`, `checks:read`, `incidents:read`, `activity:read`, `upcoming:read`\n\nStarting points of the token form (they fill the checklist; the checked abilities are the grant):\n- Read everything: every `:read` ability\n- Deploy automation (Owners and Admins): `monitors:read`, `checks:read`, `checks:run`, `maintenance:read`, `maintenance:write`\n\nOperations per ability (see `x-sanctum-abilities` of each operation):\n- `identity:read`: getMe\n- `monitors:read`: listMonitors, getMonitorByUrl, getMonitor\n- `monitors:write`: createMonitor, updateMonitor, deleteMonitor\n- `checks:read`: findings, listCheckRuns, getRun, getCheckSummary, listCronChecks\n- `checks:write`: createCheckRun, requestCheckRun, enableCheck, disableCheck, snoozeCheck, unsnoozeCheck, createCronCheck, syncCronChecks, updateCronCheck, deleteCronCheck, snoozeCronCheck, unsnoozeCronCheck, internal.snoozeIncident, internal.unsnoozeIncident\n- `checks:snooze`: snoozeCheck, unsnoozeCheck, snoozeCronCheck, unsnoozeCronCheck, internal.snoozeIncident, internal.unsnoozeIncident\n- `incidents:read`: internal.getIncidentNote, listIncidents, getIncident\n- `incidents:note`: internal.saveIncidentNote\n- `uptime:read`: getUptime, httpUptimeMetrics\n- `downtime:read`: getDowntime\n- `tags:read`: listTags\n- `tags:write`: createTag\n- `maintenance:read`: listMaintenancePeriods\n- `maintenance:write`: startMaintenance, stopMaintenance, createMaintenancePeriod, updateMaintenancePeriod, deleteMaintenancePeriod\n- `activity:read`: listActivity\n- `upcoming:read`: listUpcoming\n- `checks:run`: createCheckRun, requestCheckRun\n- `clients:read`: listClients, getClient\n- `clients:write`: createClient, updateClient, archiveClient, restoreClient\n- `servers:read`: listServers, getServer, listServerIssues\n- `servers:snooze`: snoozeServer, unsnoozeServer",
                 "scheme": "bearer",
                 "type": "http"
             }
@@ -15826,6 +16429,1012 @@
                 }
             }
         },
+        "/servers": {
+            "get": {
+                "description": "Servers by ID, each with its state, open issue count, snooze and newest values (disk per mount, RAM, 5-minute load, vCPUs). `filter[state]=attention` lists the servers with an open issue. Page with `page`/`per_page` or `page[number]`/`page[size]` (1–200, default 200).\n\nToken abilities: `servers:read`.",
+                "operationId": "listServers",
+                "parameters": [
+                    {
+                        "description": "Page number, from 1.",
+                        "in": "query",
+                        "name": "page",
+                        "schema": {
+                            "minimum": 1,
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Page size, 1–200 (default 200).",
+                        "in": "query",
+                        "name": "per_page",
+                        "schema": {
+                            "maximum": 200,
+                            "minimum": 1,
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "`attention` (an open issue), or a state: `awaiting`, `reporting`, `no_report`.",
+                        "in": "query",
+                        "name": "filter[state]",
+                        "schema": {
+                            "enum": [
+                                "attention",
+                                "awaiting",
+                                "reporting",
+                                "no_report"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Page number (bracket dialect). Use either page/per_page or page[number]/page[size]; mixing them returns 422.",
+                        "in": "query",
+                        "name": "page[number]",
+                        "schema": {
+                            "default": 1,
+                            "minimum": 1,
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Page size (bracket dialect). Use either page/per_page or page[number]/page[size]; mixing them returns 422.",
+                        "in": "query",
+                        "name": "page[size]",
+                        "schema": {
+                            "default": 200,
+                            "maximum": 200,
+                            "minimum": 1,
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "example": {
+                                    "data": [
+                                        {
+                                            "agent_version": "0.3.0",
+                                            "hostname": "web-1.example.com",
+                                            "id": 1,
+                                            "ips": [
+                                                "203.0.113.10",
+                                                "2001:db8::10"
+                                            ],
+                                            "last_report_at": "2026-10-01T07:49:30+00:00",
+                                            "name": "web-1",
+                                            "open_issue_count": 1,
+                                            "snoozed_until": null,
+                                            "state": "reporting",
+                                            "values": {
+                                                "cpu_cores": 4,
+                                                "cpu_used_percent": 23.5,
+                                                "filesystems": [
+                                                    {
+                                                        "free_bytes": 7387343667,
+                                                        "mount": "/",
+                                                        "total_bytes": 85899345920,
+                                                        "used_percent": 91.4
+                                                    }
+                                                ],
+                                                "load_5": 1.2,
+                                                "memory_available_bytes": 3221225472,
+                                                "memory_total_bytes": 8589934592,
+                                                "memory_used_percent": 62.5,
+                                                "observed_at": "2026-10-01T07:49:30+00:00"
+                                            }
+                                        }
+                                    ],
+                                    "links": {
+                                        "first": "https://monitoring.example.com/api/servers?page=1",
+                                        "last": "https://monitoring.example.com/api/servers?page=1",
+                                        "next": null,
+                                        "prev": null
+                                    },
+                                    "meta": {
+                                        "current_page": 1,
+                                        "from": 1,
+                                        "last_page": 1,
+                                        "path": "https://monitoring.example.com/api/servers",
+                                        "per_page": 200,
+                                        "to": 1,
+                                        "total": 1
+                                    }
+                                },
+                                "schema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "data": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/ServerItem"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "links": {
+                                            "$ref": "#/components/schemas/PaginationLinks"
+                                        },
+                                        "meta": {
+                                            "$ref": "#/components/schemas/PaginationMeta"
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ],
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "Servers by ID. Dialect: page numbers (`page`/`per_page` or `page[number]`/`page[size]`).",
+                        "headers": {
+                            "X-RateLimit-Limit": {
+                                "$ref": "#/components/headers/X-RateLimit-Limit"
+                            },
+                            "X-RateLimit-Remaining": {
+                                "$ref": "#/components/headers/X-RateLimit-Remaining"
+                            }
+                        }
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "Unauthenticated": {
+                                        "$ref": "#/components/examples/Unauthenticated"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/Unauthenticated"
+                                }
+                            }
+                        },
+                        "description": "Missing, invalid, expired or session-only credentials, or a disabled user."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "Forbidden": {
+                                        "$ref": "#/components/examples/Forbidden"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorMessage"
+                                }
+                            }
+                        },
+                        "description": "The token lacks a required ability, or the user's role or client access does not allow this action."
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "ValidationFailed": {
+                                        "$ref": "#/components/examples/ValidationFailed"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        },
+                        "description": "Invalid input."
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "TooManyRequests": {
+                                        "$ref": "#/components/examples/TooManyRequests"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/TooManyRequests"
+                                }
+                            }
+                        },
+                        "description": "Rate limited: 60 requests per minute per source IP before authentication, and 60 per minute per user and per token. See Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            },
+                            "X-RateLimit-Reset": {
+                                "$ref": "#/components/headers/X-RateLimit-Reset"
+                            }
+                        }
+                    }
+                },
+                "summary": "List servers",
+                "tags": [
+                    "Servers"
+                ],
+                "x-sanctum-abilities": {
+                    "all": [
+                        "servers:read"
+                    ],
+                    "any": []
+                }
+            }
+        },
+        "/servers/{server}": {
+            "get": {
+                "description": "One server with its alert thresholds, host facts (OS, uptime, reboot required, pending updates), the linked sites the token can see and its open issues.\n\nToken abilities: `servers:read`.",
+                "operationId": "getServer",
+                "parameters": [
+                    {
+                        "description": "The server ID.",
+                        "in": "path",
+                        "name": "server",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "example": {
+                                    "agent_version": "0.3.0",
+                                    "facts": {
+                                        "arch": "amd64",
+                                        "distro": "Ubuntu 24.04.1 LTS",
+                                        "kernel": "6.8.0-45-generic",
+                                        "os": "linux",
+                                        "reboot_required": false,
+                                        "updates_pending": 3,
+                                        "updates_security": 1,
+                                        "uptime_seconds": 864000
+                                    },
+                                    "hostname": "web-1.example.com",
+                                    "id": 1,
+                                    "ignored_mounts": [
+                                        "/boot/efi"
+                                    ],
+                                    "ips": [
+                                        "203.0.113.10",
+                                        "2001:db8::10"
+                                    ],
+                                    "issues": [
+                                        {
+                                            "id": 900,
+                                            "kind": "disk_full",
+                                            "opened_at": "2026-10-01T07:30:00+00:00",
+                                            "opened_values": {
+                                                "minutes": 15,
+                                                "threshold": 90,
+                                                "value": 91.4
+                                            },
+                                            "resolved_at": null,
+                                            "resolved_values": null,
+                                            "scope": "/"
+                                        }
+                                    ],
+                                    "last_report_at": "2026-10-01T07:49:30+00:00",
+                                    "name": "web-1",
+                                    "open_issue_count": 1,
+                                    "sites": [
+                                        {
+                                            "id": 1,
+                                            "name": "example.com",
+                                            "url": "https://example.com"
+                                        }
+                                    ],
+                                    "snoozed_until": null,
+                                    "state": "reporting",
+                                    "thresholds": {
+                                        "disk_minutes": 15,
+                                        "disk_percent": 90,
+                                        "load_minutes": 15,
+                                        "load_per_core": 2,
+                                        "memory_minutes": 10,
+                                        "memory_percent": 90,
+                                        "mounts": [],
+                                        "no_report_minutes": 2
+                                    },
+                                    "values": {
+                                        "cpu_cores": 4,
+                                        "cpu_used_percent": 23.5,
+                                        "filesystems": [
+                                            {
+                                                "free_bytes": 7387343667,
+                                                "mount": "/",
+                                                "total_bytes": 85899345920,
+                                                "used_percent": 91.4
+                                            }
+                                        ],
+                                        "load_5": 1.2,
+                                        "memory_available_bytes": 3221225472,
+                                        "memory_total_bytes": 8589934592,
+                                        "memory_used_percent": 62.5,
+                                        "observed_at": "2026-10-01T07:49:30+00:00"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/ServerDetail"
+                                }
+                            }
+                        },
+                        "description": "One server with its thresholds, facts, linked sites and open issues.",
+                        "headers": {
+                            "X-RateLimit-Limit": {
+                                "$ref": "#/components/headers/X-RateLimit-Limit"
+                            },
+                            "X-RateLimit-Remaining": {
+                                "$ref": "#/components/headers/X-RateLimit-Remaining"
+                            }
+                        }
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "Unauthenticated": {
+                                        "$ref": "#/components/examples/Unauthenticated"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/Unauthenticated"
+                                }
+                            }
+                        },
+                        "description": "Missing, invalid, expired or session-only credentials, or a disabled user."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "Forbidden": {
+                                        "$ref": "#/components/examples/Forbidden"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorMessage"
+                                }
+                            }
+                        },
+                        "description": "The token lacks a required ability, or the user's role or client access does not allow this action."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "NotFound": {
+                                        "$ref": "#/components/examples/NotFound"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorMessage"
+                                }
+                            }
+                        },
+                        "description": "Not found or not visible to this token."
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "TooManyRequests": {
+                                        "$ref": "#/components/examples/TooManyRequests"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/TooManyRequests"
+                                }
+                            }
+                        },
+                        "description": "Rate limited: 60 requests per minute per source IP before authentication, and 60 per minute per user and per token. See Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            },
+                            "X-RateLimit-Reset": {
+                                "$ref": "#/components/headers/X-RateLimit-Reset"
+                            }
+                        }
+                    }
+                },
+                "summary": "Get server",
+                "tags": [
+                    "Servers"
+                ],
+                "x-sanctum-abilities": {
+                    "all": [
+                        "servers:read"
+                    ],
+                    "any": []
+                }
+            }
+        },
+        "/servers/{server}/issues": {
+            "get": {
+                "description": "The issues of one server, open and resolved, newest opening first, with the values each opened and resolved on.\n\nToken abilities: `servers:read`.",
+                "operationId": "listServerIssues",
+                "parameters": [
+                    {
+                        "description": "The server ID.",
+                        "in": "path",
+                        "name": "server",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Page number, from 1.",
+                        "in": "query",
+                        "name": "page",
+                        "schema": {
+                            "minimum": 1,
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Page size, 1–200 (default 200).",
+                        "in": "query",
+                        "name": "per_page",
+                        "schema": {
+                            "maximum": 200,
+                            "minimum": 1,
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Page number (bracket dialect). Use either page/per_page or page[number]/page[size]; mixing them returns 422.",
+                        "in": "query",
+                        "name": "page[number]",
+                        "schema": {
+                            "default": 1,
+                            "minimum": 1,
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Page size (bracket dialect). Use either page/per_page or page[number]/page[size]; mixing them returns 422.",
+                        "in": "query",
+                        "name": "page[size]",
+                        "schema": {
+                            "default": 200,
+                            "maximum": 200,
+                            "minimum": 1,
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "example": {
+                                    "data": [
+                                        {
+                                            "id": 900,
+                                            "kind": "disk_full",
+                                            "opened_at": "2026-10-01T07:30:00+00:00",
+                                            "opened_values": {
+                                                "minutes": 15,
+                                                "threshold": 90,
+                                                "value": 91.4
+                                            },
+                                            "resolved_at": null,
+                                            "resolved_values": null,
+                                            "scope": "/"
+                                        },
+                                        {
+                                            "id": 899,
+                                            "kind": "no_report",
+                                            "opened_at": "2026-09-30T22:04:00+00:00",
+                                            "opened_values": {
+                                                "last_report_at": "2026-09-30T22:02:00+00:00",
+                                                "minutes": 2
+                                            },
+                                            "resolved_at": "2026-09-30T22:07:12+00:00",
+                                            "resolved_values": {
+                                                "reported_at": "2026-09-30T22:07:12+00:00"
+                                            },
+                                            "scope": ""
+                                        }
+                                    ],
+                                    "links": {
+                                        "first": "https://monitoring.example.com/api/servers/1/issues?page=1",
+                                        "last": "https://monitoring.example.com/api/servers/1/issues?page=1",
+                                        "next": null,
+                                        "prev": null
+                                    },
+                                    "meta": {
+                                        "current_page": 1,
+                                        "from": 1,
+                                        "last_page": 1,
+                                        "path": "https://monitoring.example.com/api/servers/1/issues",
+                                        "per_page": 200,
+                                        "to": 2,
+                                        "total": 2
+                                    }
+                                },
+                                "schema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "data": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/ServerIssue"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "links": {
+                                            "$ref": "#/components/schemas/PaginationLinks"
+                                        },
+                                        "meta": {
+                                            "$ref": "#/components/schemas/PaginationMeta"
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ],
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "Issues of the server, open and resolved, newest opening first. Dialect: page numbers.",
+                        "headers": {
+                            "X-RateLimit-Limit": {
+                                "$ref": "#/components/headers/X-RateLimit-Limit"
+                            },
+                            "X-RateLimit-Remaining": {
+                                "$ref": "#/components/headers/X-RateLimit-Remaining"
+                            }
+                        }
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "Unauthenticated": {
+                                        "$ref": "#/components/examples/Unauthenticated"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/Unauthenticated"
+                                }
+                            }
+                        },
+                        "description": "Missing, invalid, expired or session-only credentials, or a disabled user."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "Forbidden": {
+                                        "$ref": "#/components/examples/Forbidden"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorMessage"
+                                }
+                            }
+                        },
+                        "description": "The token lacks a required ability, or the user's role or client access does not allow this action."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "NotFound": {
+                                        "$ref": "#/components/examples/NotFound"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorMessage"
+                                }
+                            }
+                        },
+                        "description": "Not found or not visible to this token."
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "ValidationFailed": {
+                                        "$ref": "#/components/examples/ValidationFailed"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        },
+                        "description": "Invalid input."
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "TooManyRequests": {
+                                        "$ref": "#/components/examples/TooManyRequests"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/TooManyRequests"
+                                }
+                            }
+                        },
+                        "description": "Rate limited: 60 requests per minute per source IP before authentication, and 60 per minute per user and per token. See Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            },
+                            "X-RateLimit-Reset": {
+                                "$ref": "#/components/headers/X-RateLimit-Reset"
+                            }
+                        }
+                    }
+                },
+                "summary": "List server issues",
+                "tags": [
+                    "Servers"
+                ],
+                "x-sanctum-abilities": {
+                    "all": [
+                        "servers:read"
+                    ],
+                    "any": []
+                }
+            }
+        },
+        "/servers/{server}/snooze": {
+            "post": {
+                "description": "Holds the alerts of a server until `snooze_until`, or for `minutes` (at most 525600), and replaces an active snooze; for example around a deploy or a reboot. Prefer `snooze_until`: a retry sets the same end. Issues keep opening and resolving; an opening is sent when the snooze ends if its issue is still open.\n\nToken abilities: `servers:snooze`.",
+                "operationId": "snoozeServer",
+                "parameters": [
+                    {
+                        "description": "The server ID.",
+                        "in": "path",
+                        "name": "server",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "example": {
+                                "snooze_until": "2026-10-01T08:30:00Z"
+                            },
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "properties": {
+                                            "minutes": {
+                                                "description": "Positive integer or digit-only string, at most 525600.",
+                                                "type": [
+                                                    "integer",
+                                                    "string"
+                                                ]
+                                            }
+                                        },
+                                        "required": [
+                                            "minutes"
+                                        ],
+                                        "type": "object"
+                                    },
+                                    {
+                                        "properties": {
+                                            "snooze_until": {
+                                                "description": "Absolute end with offset; the retry-safe form.",
+                                                "format": "date-time",
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "snooze_until"
+                                        ],
+                                        "type": "object"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "example": {
+                                    "agent_version": "0.3.0",
+                                    "hostname": "web-1.example.com",
+                                    "id": 1,
+                                    "ips": [
+                                        "203.0.113.10",
+                                        "2001:db8::10"
+                                    ],
+                                    "last_report_at": "2026-10-01T07:49:30+00:00",
+                                    "name": "web-1",
+                                    "open_issue_count": 1,
+                                    "snoozed_until": "2026-10-01T08:30:00+00:00",
+                                    "state": "reporting",
+                                    "values": {
+                                        "cpu_cores": 4,
+                                        "cpu_used_percent": 23.5,
+                                        "filesystems": [
+                                            {
+                                                "free_bytes": 7387343667,
+                                                "mount": "/",
+                                                "total_bytes": 85899345920,
+                                                "used_percent": 91.4
+                                            }
+                                        ],
+                                        "load_5": 1.2,
+                                        "memory_available_bytes": 3221225472,
+                                        "memory_total_bytes": 8589934592,
+                                        "memory_used_percent": 62.5,
+                                        "observed_at": "2026-10-01T07:49:30+00:00"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/ServerItem"
+                                }
+                            }
+                        },
+                        "description": "The snoozed server.",
+                        "headers": {
+                            "X-RateLimit-Limit": {
+                                "$ref": "#/components/headers/X-RateLimit-Limit"
+                            },
+                            "X-RateLimit-Remaining": {
+                                "$ref": "#/components/headers/X-RateLimit-Remaining"
+                            }
+                        }
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "Unauthenticated": {
+                                        "$ref": "#/components/examples/Unauthenticated"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/Unauthenticated"
+                                }
+                            }
+                        },
+                        "description": "Missing, invalid, expired or session-only credentials, or a disabled user."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "Forbidden": {
+                                        "$ref": "#/components/examples/Forbidden"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorMessage"
+                                }
+                            }
+                        },
+                        "description": "The token lacks a required ability, or the user's role or client access does not allow this action."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "NotFound": {
+                                        "$ref": "#/components/examples/NotFound"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorMessage"
+                                }
+                            }
+                        },
+                        "description": "Not found or not visible to this token."
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "ValidationFailed": {
+                                        "$ref": "#/components/examples/ValidationFailed"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        },
+                        "description": "Invalid input."
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "TooManyRequests": {
+                                        "$ref": "#/components/examples/TooManyRequests"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/TooManyRequests"
+                                }
+                            }
+                        },
+                        "description": "Rate limited: 60 requests per minute per source IP before authentication, and 60 per minute per user and per token. See Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            },
+                            "X-RateLimit-Reset": {
+                                "$ref": "#/components/headers/X-RateLimit-Reset"
+                            }
+                        }
+                    }
+                },
+                "summary": "Snooze server",
+                "tags": [
+                    "Servers"
+                ],
+                "x-sanctum-abilities": {
+                    "all": [
+                        "servers:snooze"
+                    ],
+                    "any": []
+                }
+            }
+        },
+        "/servers/{server}/unsnooze": {
+            "post": {
+                "description": "Ends the snooze of a server. Openings it held are sent now if their issue is still open. Repeats are harmless.\n\nToken abilities: `servers:snooze`.",
+                "operationId": "unsnoozeServer",
+                "parameters": [
+                    {
+                        "description": "The server ID.",
+                        "in": "path",
+                        "name": "server",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "example": {
+                                    "agent_version": "0.3.0",
+                                    "hostname": "web-1.example.com",
+                                    "id": 1,
+                                    "ips": [
+                                        "203.0.113.10",
+                                        "2001:db8::10"
+                                    ],
+                                    "last_report_at": "2026-10-01T07:49:30+00:00",
+                                    "name": "web-1",
+                                    "open_issue_count": 1,
+                                    "snoozed_until": null,
+                                    "state": "reporting",
+                                    "values": {
+                                        "cpu_cores": 4,
+                                        "cpu_used_percent": 23.5,
+                                        "filesystems": [
+                                            {
+                                                "free_bytes": 7387343667,
+                                                "mount": "/",
+                                                "total_bytes": 85899345920,
+                                                "used_percent": 91.4
+                                            }
+                                        ],
+                                        "load_5": 1.2,
+                                        "memory_available_bytes": 3221225472,
+                                        "memory_total_bytes": 8589934592,
+                                        "memory_used_percent": 62.5,
+                                        "observed_at": "2026-10-01T07:49:30+00:00"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/ServerItem"
+                                }
+                            }
+                        },
+                        "description": "The server, no longer snoozed.",
+                        "headers": {
+                            "X-RateLimit-Limit": {
+                                "$ref": "#/components/headers/X-RateLimit-Limit"
+                            },
+                            "X-RateLimit-Remaining": {
+                                "$ref": "#/components/headers/X-RateLimit-Remaining"
+                            }
+                        }
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "Unauthenticated": {
+                                        "$ref": "#/components/examples/Unauthenticated"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/Unauthenticated"
+                                }
+                            }
+                        },
+                        "description": "Missing, invalid, expired or session-only credentials, or a disabled user."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "Forbidden": {
+                                        "$ref": "#/components/examples/Forbidden"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorMessage"
+                                }
+                            }
+                        },
+                        "description": "The token lacks a required ability, or the user's role or client access does not allow this action."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "NotFound": {
+                                        "$ref": "#/components/examples/NotFound"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorMessage"
+                                }
+                            }
+                        },
+                        "description": "Not found or not visible to this token."
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "TooManyRequests": {
+                                        "$ref": "#/components/examples/TooManyRequests"
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "#/components/schemas/TooManyRequests"
+                                }
+                            }
+                        },
+                        "description": "Rate limited: 60 requests per minute per source IP before authentication, and 60 per minute per user and per token. See Retry-After.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            },
+                            "X-RateLimit-Reset": {
+                                "$ref": "#/components/headers/X-RateLimit-Reset"
+                            }
+                        }
+                    }
+                },
+                "summary": "Unsnooze server",
+                "tags": [
+                    "Servers"
+                ],
+                "x-sanctum-abilities": {
+                    "all": [
+                        "servers:snooze"
+                    ],
+                    "any": []
+                }
+            }
+        },
         "/tags": {
             "get": {
                 "description": "Monitor tags with the IDs of the monitors this token can see. A token limited to a client sees only the tags of its monitors.\n\nToken abilities: `tags:read`.",
@@ -16471,6 +18080,10 @@
         {
             "description": "Scheduled tasks that ping the cron check of a monitor: list, create, change and delete them, sync a whole task set, snooze one task.",
             "name": "Cron tasks"
+        },
+        {
+            "description": "Experimental, may change or be removed: the servers that report through the Heptapod agent, with their latest values and issues (disk, RAM, load, No report). Snooze a server around a deploy or reboot. Owners and Admins only, never with a token limited to a client; while servers are switched off these operations answer 404.",
+            "name": "Servers"
         }
     ]
 }

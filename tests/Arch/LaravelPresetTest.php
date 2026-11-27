@@ -10,6 +10,7 @@ use Heptapod\Contracts\ExternalTimeoutException;
 use Heptapod\Contracts\Http\AutomatedCheckBlockReason;
 use Heptapod\Contracts\Http\FetchException;
 use Heptapod\Contracts\Http\FetchFailureKind;
+use Heptapod\Contracts\Http\PaginationRequest;
 use Heptapod\Contracts\Http\RedirectPolicy;
 use Heptapod\Contracts\Http\TargetResolutionException;
 use Heptapod\Contracts\Notifications\AlertSeverity;
@@ -98,7 +99,8 @@ pest()->presets()->custom('heptapodLaravel', fn (): array => [
 
     expect('Heptapod')
         ->not->toExtend(FormRequest::class)
-        ->ignoring('Heptapod\Http\Requests'),
+        // Addon API lists page through the same request as core's (Contracts, since addons use no core namespace).
+        ->ignoring(['Heptapod\Http\Requests', PaginationRequest::class]),
 
     expect('Heptapod\Console\Commands')
         ->classes()

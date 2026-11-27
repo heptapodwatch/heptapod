@@ -8,12 +8,14 @@ import {
     Moon,
     Plus,
     Search,
+    Server,
     Sun,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StatusBadge } from '@/components/monitoring';
 import { siteHost } from '@/components/entity-combobox';
+import { ServerStateBadge } from '@/components/server-values';
 import { Button } from '@/components/ui/button';
 import {
     CommandDialog,
@@ -39,11 +41,13 @@ import { logout, search as searchRoute } from '@/routes';
 import { show as siteShow, create as sitesCreate } from '@/routes/sites';
 import { show as clientShow } from '@/routes/clients';
 import { show as incidentShow } from '@/routes/incidents';
+import { show as serverShow } from '@/routes/servers';
 
 const empty: Heptapod.Data.Ui.SearchResultsData = {
     sites: [],
     clients: [],
     incidents: [],
+    servers: [],
 };
 
 export function CommandPaletteTrigger({
@@ -308,7 +312,8 @@ export function CommandPalette({
                         <>
                             {(results.sites.length > 0 ||
                                 results.clients.length > 0 ||
-                                results.incidents.length > 0) && (
+                                results.incidents.length > 0 ||
+                                results.servers.length > 0) && (
                                 <CommandSeparator />
                             )}
                             {results.sites.length > 0 && (
@@ -340,6 +345,37 @@ export function CommandPalette({
                                                 </span>
                                             </span>
                                             <StatusBadge state={site.state} />
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+                            {results.servers.length > 0 && (
+                                <CommandGroup heading={t('servers.title')}>
+                                    {results.servers.map((server) => (
+                                        <CommandItem
+                                            key={server.id}
+                                            value={`server ${server.id} ${server.name} ${server.hostname ?? ''} ${server.ips.join(' ')}`}
+                                            onSelect={() =>
+                                                navigate(
+                                                    serverShow.url(server.id),
+                                                )
+                                            }
+                                        >
+                                            <Server />
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block truncate">
+                                                    {server.name}
+                                                </span>
+                                                <span className="block truncate text-xs text-muted-foreground">
+                                                    {[
+                                                        server.hostname,
+                                                        server.ips[0],
+                                                    ]
+                                                        .filter(Boolean)
+                                                        .join(' · ')}
+                                                </span>
+                                            </span>
+                                            <ServerStateBadge server={server} />
                                         </CommandItem>
                                     ))}
                                 </CommandGroup>

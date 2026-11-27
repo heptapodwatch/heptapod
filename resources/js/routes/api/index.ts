@@ -2,7 +2,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import internal from './internal'
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:16
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:18
 * @route '/api/openapi.json'
 */
 export const getOpenApiDocument = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -17,7 +17,7 @@ getOpenApiDocument.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:16
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:18
 * @route '/api/openapi.json'
 */
 getOpenApiDocument.url = (options?: RouteQueryOptions) => {
@@ -26,7 +26,7 @@ getOpenApiDocument.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:16
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:18
 * @route '/api/openapi.json'
 */
 getOpenApiDocument.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -36,7 +36,7 @@ getOpenApiDocument.get = (options?: RouteQueryOptions): RouteDefinition<'get'> =
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:16
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:18
 * @route '/api/openapi.json'
 */
 getOpenApiDocument.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -46,7 +46,7 @@ getOpenApiDocument.head = (options?: RouteQueryOptions): RouteDefinition<'head'>
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:16
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:18
 * @route '/api/openapi.json'
 */
 const getOpenApiDocumentForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -56,7 +56,7 @@ const getOpenApiDocumentForm = (options?: RouteQueryOptions): RouteFormDefinitio
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:16
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:18
 * @route '/api/openapi.json'
 */
 getOpenApiDocumentForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -66,7 +66,7 @@ getOpenApiDocumentForm.get = (options?: RouteQueryOptions): RouteFormDefinition<
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:16
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:18
 * @route '/api/openapi.json'
 */
 getOpenApiDocumentForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -80,6 +80,457 @@ getOpenApiDocumentForm.head = (options?: RouteQueryOptions): RouteFormDefinition
 })
 
 getOpenApiDocument.form = getOpenApiDocumentForm
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::listServers
+* @see addons/servers/src/Http/Api/ServersApiController.php:26
+* @route '/api/servers'
+*/
+export const listServers = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: listServers.url(options),
+    method: 'get',
+})
+
+listServers.definition = {
+    methods: ["get","head"],
+    url: '/api/servers',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::listServers
+* @see addons/servers/src/Http/Api/ServersApiController.php:26
+* @route '/api/servers'
+*/
+listServers.url = (options?: RouteQueryOptions) => {
+    return listServers.definition.url + queryParams(options)
+}
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::listServers
+* @see addons/servers/src/Http/Api/ServersApiController.php:26
+* @route '/api/servers'
+*/
+listServers.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: listServers.url(options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::listServers
+* @see addons/servers/src/Http/Api/ServersApiController.php:26
+* @route '/api/servers'
+*/
+listServers.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: listServers.url(options),
+    method: 'head',
+})
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::listServers
+* @see addons/servers/src/Http/Api/ServersApiController.php:26
+* @route '/api/servers'
+*/
+const listServersForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: listServers.url(options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::listServers
+* @see addons/servers/src/Http/Api/ServersApiController.php:26
+* @route '/api/servers'
+*/
+listServersForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: listServers.url(options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::listServers
+* @see addons/servers/src/Http/Api/ServersApiController.php:26
+* @route '/api/servers'
+*/
+listServersForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: listServers.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+listServers.form = listServersForm
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::getServer
+* @see addons/servers/src/Http/Api/ServersApiController.php:38
+* @route '/api/servers/{server}'
+*/
+export const getServer = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: getServer.url(args, options),
+    method: 'get',
+})
+
+getServer.definition = {
+    methods: ["get","head"],
+    url: '/api/servers/{server}',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::getServer
+* @see addons/servers/src/Http/Api/ServersApiController.php:38
+* @route '/api/servers/{server}'
+*/
+getServer.url = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { server: args }
+    }
+
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { server: args.id }
+    }
+
+    if (Array.isArray(args)) {
+        args = {
+            server: args[0],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        server: typeof args.server === 'object'
+        ? args.server.id
+        : args.server,
+    }
+
+    return getServer.definition.url
+            .replace('{server}', parsedArgs.server.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::getServer
+* @see addons/servers/src/Http/Api/ServersApiController.php:38
+* @route '/api/servers/{server}'
+*/
+getServer.get = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: getServer.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::getServer
+* @see addons/servers/src/Http/Api/ServersApiController.php:38
+* @route '/api/servers/{server}'
+*/
+getServer.head = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: getServer.url(args, options),
+    method: 'head',
+})
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::getServer
+* @see addons/servers/src/Http/Api/ServersApiController.php:38
+* @route '/api/servers/{server}'
+*/
+const getServerForm = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: getServer.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::getServer
+* @see addons/servers/src/Http/Api/ServersApiController.php:38
+* @route '/api/servers/{server}'
+*/
+getServerForm.get = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: getServer.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::getServer
+* @see addons/servers/src/Http/Api/ServersApiController.php:38
+* @route '/api/servers/{server}'
+*/
+getServerForm.head = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: getServer.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+getServer.form = getServerForm
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::listServerIssues
+* @see addons/servers/src/Http/Api/ServersApiController.php:46
+* @route '/api/servers/{server}/issues'
+*/
+export const listServerIssues = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: listServerIssues.url(args, options),
+    method: 'get',
+})
+
+listServerIssues.definition = {
+    methods: ["get","head"],
+    url: '/api/servers/{server}/issues',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::listServerIssues
+* @see addons/servers/src/Http/Api/ServersApiController.php:46
+* @route '/api/servers/{server}/issues'
+*/
+listServerIssues.url = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { server: args }
+    }
+
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { server: args.id }
+    }
+
+    if (Array.isArray(args)) {
+        args = {
+            server: args[0],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        server: typeof args.server === 'object'
+        ? args.server.id
+        : args.server,
+    }
+
+    return listServerIssues.definition.url
+            .replace('{server}', parsedArgs.server.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::listServerIssues
+* @see addons/servers/src/Http/Api/ServersApiController.php:46
+* @route '/api/servers/{server}/issues'
+*/
+listServerIssues.get = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: listServerIssues.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::listServerIssues
+* @see addons/servers/src/Http/Api/ServersApiController.php:46
+* @route '/api/servers/{server}/issues'
+*/
+listServerIssues.head = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: listServerIssues.url(args, options),
+    method: 'head',
+})
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::listServerIssues
+* @see addons/servers/src/Http/Api/ServersApiController.php:46
+* @route '/api/servers/{server}/issues'
+*/
+const listServerIssuesForm = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: listServerIssues.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::listServerIssues
+* @see addons/servers/src/Http/Api/ServersApiController.php:46
+* @route '/api/servers/{server}/issues'
+*/
+listServerIssuesForm.get = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: listServerIssues.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::listServerIssues
+* @see addons/servers/src/Http/Api/ServersApiController.php:46
+* @route '/api/servers/{server}/issues'
+*/
+listServerIssuesForm.head = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: listServerIssues.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+listServerIssues.form = listServerIssuesForm
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::snoozeServer
+* @see addons/servers/src/Http/Api/ServersApiController.php:55
+* @route '/api/servers/{server}/snooze'
+*/
+export const snoozeServer = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: snoozeServer.url(args, options),
+    method: 'post',
+})
+
+snoozeServer.definition = {
+    methods: ["post"],
+    url: '/api/servers/{server}/snooze',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::snoozeServer
+* @see addons/servers/src/Http/Api/ServersApiController.php:55
+* @route '/api/servers/{server}/snooze'
+*/
+snoozeServer.url = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { server: args }
+    }
+
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { server: args.id }
+    }
+
+    if (Array.isArray(args)) {
+        args = {
+            server: args[0],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        server: typeof args.server === 'object'
+        ? args.server.id
+        : args.server,
+    }
+
+    return snoozeServer.definition.url
+            .replace('{server}', parsedArgs.server.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::snoozeServer
+* @see addons/servers/src/Http/Api/ServersApiController.php:55
+* @route '/api/servers/{server}/snooze'
+*/
+snoozeServer.post = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: snoozeServer.url(args, options),
+    method: 'post',
+})
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::snoozeServer
+* @see addons/servers/src/Http/Api/ServersApiController.php:55
+* @route '/api/servers/{server}/snooze'
+*/
+const snoozeServerForm = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: snoozeServer.url(args, options),
+    method: 'post',
+})
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::snoozeServer
+* @see addons/servers/src/Http/Api/ServersApiController.php:55
+* @route '/api/servers/{server}/snooze'
+*/
+snoozeServerForm.post = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: snoozeServer.url(args, options),
+    method: 'post',
+})
+
+snoozeServer.form = snoozeServerForm
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::unsnoozeServer
+* @see addons/servers/src/Http/Api/ServersApiController.php:63
+* @route '/api/servers/{server}/unsnooze'
+*/
+export const unsnoozeServer = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: unsnoozeServer.url(args, options),
+    method: 'post',
+})
+
+unsnoozeServer.definition = {
+    methods: ["post"],
+    url: '/api/servers/{server}/unsnooze',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::unsnoozeServer
+* @see addons/servers/src/Http/Api/ServersApiController.php:63
+* @route '/api/servers/{server}/unsnooze'
+*/
+unsnoozeServer.url = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { server: args }
+    }
+
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { server: args.id }
+    }
+
+    if (Array.isArray(args)) {
+        args = {
+            server: args[0],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        server: typeof args.server === 'object'
+        ? args.server.id
+        : args.server,
+    }
+
+    return unsnoozeServer.definition.url
+            .replace('{server}', parsedArgs.server.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::unsnoozeServer
+* @see addons/servers/src/Http/Api/ServersApiController.php:63
+* @route '/api/servers/{server}/unsnooze'
+*/
+unsnoozeServer.post = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: unsnoozeServer.url(args, options),
+    method: 'post',
+})
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::unsnoozeServer
+* @see addons/servers/src/Http/Api/ServersApiController.php:63
+* @route '/api/servers/{server}/unsnooze'
+*/
+const unsnoozeServerForm = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: unsnoozeServer.url(args, options),
+    method: 'post',
+})
+
+/**
+* @see \Heptapod\Addons\Servers\Http\Api\ServersApiController::unsnoozeServer
+* @see addons/servers/src/Http/Api/ServersApiController.php:63
+* @route '/api/servers/{server}/unsnooze'
+*/
+unsnoozeServerForm.post = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: unsnoozeServer.url(args, options),
+    method: 'post',
+})
+
+unsnoozeServer.form = unsnoozeServerForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MaintenancePeriodController::listMaintenancePeriods
@@ -1414,7 +1865,7 @@ getMonitorByUrl.form = getMonitorByUrlForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::getMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:63
+* @see app/Http/Controllers/Api/MonitorController.php:64
 * @route '/api/monitors/{monitor}'
 */
 export const getMonitor = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -1429,7 +1880,7 @@ getMonitor.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::getMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:63
+* @see app/Http/Controllers/Api/MonitorController.php:64
 * @route '/api/monitors/{monitor}'
 */
 getMonitor.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -1462,7 +1913,7 @@ getMonitor.url = (args: { monitor: number | { id: number } } | [monitor: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::getMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:63
+* @see app/Http/Controllers/Api/MonitorController.php:64
 * @route '/api/monitors/{monitor}'
 */
 getMonitor.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -1472,7 +1923,7 @@ getMonitor.get = (args: { monitor: number | { id: number } } | [monitor: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::getMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:63
+* @see app/Http/Controllers/Api/MonitorController.php:64
 * @route '/api/monitors/{monitor}'
 */
 getMonitor.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -1482,7 +1933,7 @@ getMonitor.head = (args: { monitor: number | { id: number } } | [monitor: number
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::getMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:63
+* @see app/Http/Controllers/Api/MonitorController.php:64
 * @route '/api/monitors/{monitor}'
 */
 const getMonitorForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1492,7 +1943,7 @@ const getMonitorForm = (args: { monitor: number | { id: number } } | [monitor: n
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::getMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:63
+* @see app/Http/Controllers/Api/MonitorController.php:64
 * @route '/api/monitors/{monitor}'
 */
 getMonitorForm.get = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1502,7 +1953,7 @@ getMonitorForm.get = (args: { monitor: number | { id: number } } | [monitor: num
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::getMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:63
+* @see app/Http/Controllers/Api/MonitorController.php:64
 * @route '/api/monitors/{monitor}'
 */
 getMonitorForm.head = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1519,7 +1970,7 @@ getMonitor.form = getMonitorForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::createMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:72
+* @see app/Http/Controllers/Api/MonitorController.php:73
 * @route '/api/monitors'
 */
 export const createMonitor = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -1534,7 +1985,7 @@ createMonitor.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::createMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:72
+* @see app/Http/Controllers/Api/MonitorController.php:73
 * @route '/api/monitors'
 */
 createMonitor.url = (options?: RouteQueryOptions) => {
@@ -1543,7 +1994,7 @@ createMonitor.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::createMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:72
+* @see app/Http/Controllers/Api/MonitorController.php:73
 * @route '/api/monitors'
 */
 createMonitor.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -1553,7 +2004,7 @@ createMonitor.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => (
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::createMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:72
+* @see app/Http/Controllers/Api/MonitorController.php:73
 * @route '/api/monitors'
 */
 const createMonitorForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1563,7 +2014,7 @@ const createMonitorForm = (options?: RouteQueryOptions): RouteFormDefinition<'po
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::createMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:72
+* @see app/Http/Controllers/Api/MonitorController.php:73
 * @route '/api/monitors'
 */
 createMonitorForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1575,7 +2026,7 @@ createMonitor.form = createMonitorForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::updateMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:93
+* @see app/Http/Controllers/Api/MonitorController.php:94
 * @route '/api/monitors/{monitor}'
 */
 export const updateMonitor = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -1590,7 +2041,7 @@ updateMonitor.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::updateMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:93
+* @see app/Http/Controllers/Api/MonitorController.php:94
 * @route '/api/monitors/{monitor}'
 */
 updateMonitor.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -1623,7 +2074,7 @@ updateMonitor.url = (args: { monitor: number | { id: number } } | [monitor: numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::updateMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:93
+* @see app/Http/Controllers/Api/MonitorController.php:94
 * @route '/api/monitors/{monitor}'
 */
 updateMonitor.put = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -1633,7 +2084,7 @@ updateMonitor.put = (args: { monitor: number | { id: number } } | [monitor: numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::updateMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:93
+* @see app/Http/Controllers/Api/MonitorController.php:94
 * @route '/api/monitors/{monitor}'
 */
 const updateMonitorForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1648,7 +2099,7 @@ const updateMonitorForm = (args: { monitor: number | { id: number } } | [monitor
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::updateMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:93
+* @see app/Http/Controllers/Api/MonitorController.php:94
 * @route '/api/monitors/{monitor}'
 */
 updateMonitorForm.put = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1665,7 +2116,7 @@ updateMonitor.form = updateMonitorForm
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::deleteMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:116
+* @see app/Http/Controllers/Api/MonitorController.php:117
 * @route '/api/monitors/{monitor}'
 */
 export const deleteMonitor = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -1680,7 +2131,7 @@ deleteMonitor.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::deleteMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:116
+* @see app/Http/Controllers/Api/MonitorController.php:117
 * @route '/api/monitors/{monitor}'
 */
 deleteMonitor.url = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -1713,7 +2164,7 @@ deleteMonitor.url = (args: { monitor: number | { id: number } } | [monitor: numb
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::deleteMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:116
+* @see app/Http/Controllers/Api/MonitorController.php:117
 * @route '/api/monitors/{monitor}'
 */
 deleteMonitor.delete = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -1723,7 +2174,7 @@ deleteMonitor.delete = (args: { monitor: number | { id: number } } | [monitor: n
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::deleteMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:116
+* @see app/Http/Controllers/Api/MonitorController.php:117
 * @route '/api/monitors/{monitor}'
 */
 const deleteMonitorForm = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -1738,7 +2189,7 @@ const deleteMonitorForm = (args: { monitor: number | { id: number } } | [monitor
 
 /**
 * @see \Heptapod\Http\Controllers\Api\MonitorController::deleteMonitor
-* @see app/Http/Controllers/Api/MonitorController.php:116
+* @see app/Http/Controllers/Api/MonitorController.php:117
 * @route '/api/monitors/{monitor}'
 */
 deleteMonitorForm.delete = (args: { monitor: number | { id: number } } | [monitor: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -3895,6 +4346,11 @@ restoreClient.form = restoreClientForm
 
 const api = {
     getOpenApiDocument: Object.assign(getOpenApiDocument, getOpenApiDocument),
+    listServers: Object.assign(listServers, listServers),
+    getServer: Object.assign(getServer, getServer),
+    listServerIssues: Object.assign(listServerIssues, listServerIssues),
+    snoozeServer: Object.assign(snoozeServer, snoozeServer),
+    unsnoozeServer: Object.assign(unsnoozeServer, unsnoozeServer),
     listMaintenancePeriods: Object.assign(listMaintenancePeriods, listMaintenancePeriods),
     startMaintenance: Object.assign(startMaintenance, startMaintenance),
     stopMaintenance: Object.assign(stopMaintenance, stopMaintenance),

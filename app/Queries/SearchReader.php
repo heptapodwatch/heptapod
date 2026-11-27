@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Heptapod\Queries;
 
+use Heptapod\Contracts\ServersAccess;
+use Heptapod\Contracts\ServerSearch;
 use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\SearchResultsData;
 use Heptapod\Data\Ui\SearchSiteData;
@@ -15,13 +17,14 @@ use Illuminate\Database\Query\Builder;
 
 final readonly class SearchReader
 {
-    public function __construct(private SitesReader $sites, private IncidentsReader $incidents, private SitePolicy $policy) {}
+    public function __construct(private SitesReader $sites, private IncidentsReader $incidents, private SitePolicy $policy, private ServersAccess $servers,
+        private ServerSearch $serverSearch) {}
 
     public function read(User $user, string $search): SearchResultsData
     {
         $clients = Client::forBrowsing($this->policy->visibleClients($user));
         if ($search === '') {
-            return new SearchResultsData([], [], []);
+            return new SearchResultsData([], [], [], []);
         }
         $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search).'%';
         $sites = $this->sites->projectedForSearch($user);
@@ -54,6 +57,7 @@ final readonly class SearchReader
         $incidents = $this->incidents->scopedForSearch($user, $pattern, $incidentId);
         $incidents->getQuery()->orderByDesc('opened_at')->orderByDesc('id')->limit(10);
 
-        return new SearchResultsData($rows, array_values($clientRows), $this->incidents->presentedRows($incidents->get()));
+        return new SearchResultsData($rows, array_values($clientRows), $this->incidents->presentedRows($incidents->get()),
+            $this->servers->allows($user) ? $this->serverSearch->matching($search, 10) : []);
     }
 }
