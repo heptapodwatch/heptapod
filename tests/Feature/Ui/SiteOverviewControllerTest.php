@@ -85,9 +85,9 @@ it('serves scoped overview history and incident links without secrets', function
     $response = $this->actingAs($user)->get('/sites/'.$site->id)->assertInertia(fn (Assert $page): Assert => $page
         ->component('sites/show')->where('header.id', $site->id)->where('header.name', $site->displayName())
         ->where('site.identity.id', $site->id)->where('client.id', $client->id)->where('client.name', $client->name)->where('site.checks.0.open_incident_id', $incident->id)
-        ->where('site.state', 'check-error')->where('can_manage', false)->has('history', 90)->has('incidents', 1)
+        ->where('site.state', 'check-error')->where('can_manage', false)->has('history', 90)->where('open_uptime_incident.id', $incident->id)
         // 388acc030 removes check-only charts from the site overview.
-        ->where('incidents.0.cause', 'errored')->missing('response_time')->missing('phase_series')
+        ->where('open_uptime_incident.cause', 'errored')->missing('response_time')->missing('phase_series')
         // The rail lists the checks; events live in Activity, what is coming in Upcoming.
         ->missing('events')->missing('upcoming'));
     expect(json_encode($response->inertiaProps(), JSON_THROW_ON_ERROR))->not->toContain($secret);
@@ -228,7 +228,7 @@ it('holds site, check, and incident detail query budgets as related history grow
     // The sidebar's late runs count is read inline, not in a second deferred request (two reads), and so is Running now (visible sites, check runs, imports, backup). Paged sub-lists count their rows once (uptime failures + open incident window, incident notifications).
     // The uptime check's Monthly uptime adds eight bounded reads (two UptimeReader snapshots: the months and the 90-day/1-year/all ranges), 55 -> 63 on the check page; the budget stays 67.
     [$path, $budget, $rendered] = match ($page) {
-        'site' => ['/sites/'.$site->id, 63, static fn (array $props): int => count($props['incidents'])],
+        'site' => ['/sites/'.$site->id, 63, static fn (array $props): int => $props['open_uptime_incident']['id'] === $incident->id ? 1 : 0],
         'check' => ['/sites/'.$site->id.'/checks/'.$check->id, 67, static fn (array $props): int => count($props['runs'])],
         'incident' => ['/incidents/'.$incident->id, 77, static fn (array $props): int => collect($props['timeline'])->where('event.type', 'incident.cause_changed')->count()],
     };
@@ -248,13 +248,34 @@ it('holds site, check, and incident detail query budgets as related history grow
     $addHistory($count);
     [$many, $manyRows] = $measure();
 
-    // The overview lists the newest 20 incidents, the check runs preview the newest 20; the incident timeline shows every cause change of the episode.
-    expect($fewRows)->toBe($page === 'site' ? 3 : 2)->and($manyRows)->toBe(match ($page) {
-        'site' => 20, 'incident' => 2 + $count, 'check' => 20,
+    // The overview shows the open uptime incident however many newer ones were resolved, the check runs preview the newest 20;
+    // the incident timeline shows every cause change of the episode.
+    expect($fewRows)->toBe($page === 'site' ? 1 : 2)->and($manyRows)->toBe(match ($page) {
+        'site' => 1, 'incident' => 2 + $count, 'check' => 20,
     });
     expect($many)->toBeLessThanOrEqual($few, $path.' grew from '.$few.' to '.$many.' queries as rendered rows grew from '.$fewRows.' to '.$manyRows)
         ->and($few)->toBeLessThanOrEqual($budget, $path.' used '.$few.' queries, over its budget of '.$budget);
 })->with(['site', 'check', 'incident'])->with([30, 300]);
+
+it('keeps an uptime incident resolved after the site row was read out of the Down banner', function (): void {
+    $this->withoutVite();
+    $user = User::factory()->create();
+    $user->assignRole('Owner');
+    $check = Check::factory()->create(['latest_run_result' => CheckResult::Failed]);
+    $incident = Incident::factory()->for($check)->create();
+    // The recovery lands between the check strip's open-incident read and the banner's own read.
+    $resolved = false;
+    DB::listen(static function ($query) use ($incident, &$resolved): void {
+        if (! $resolved && str_contains($query->sql, 'from "incidents" where "incidents"."check_id" in')) {
+            $resolved = true;
+            DB::table('incidents')->where('id', $incident->id)->update(['resolved_at' => now()]);
+        }
+    });
+
+    $this->actingAs($user)->get('/sites/'.$check->site_id)->assertInertia(fn (Assert $page): Assert => $page
+        ->where('site.checks.0.open_incident_id', $incident->id)->where('open_uptime_incident', null));
+    expect($resolved)->toBeTrue();
+});
 
 it('requires authentication for overview and check tabs', function (): void {
     $check = Check::factory()->create();

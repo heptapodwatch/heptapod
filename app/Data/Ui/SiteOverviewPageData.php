@@ -17,7 +17,7 @@ final class SiteOverviewPageData extends Data
 {
     /**
      * @param  ClosureLazy|list<UptimeBucketData>  $history
-     * @param  ClosureLazy|list<IncidentData>  $incidents
+     * @param  ClosureLazy|IncidentData|null  $open_uptime_incident  the uptime check's open incident, for the Down banner
      * @param  ClosureLazy|list<RunAllCheckData>  $run_all_checks
      * @param  ClosureLazy|array{hours24: ?float, days7: ?float, days30: ?float, days90: ?float}  $uptime_ranges
      * @param  ClosureLazy|array{queued: int, cooldown?: int, unavailable: int, results: list<array{check_id: int, status: string, reason: string|null}>}|null  $run_all_result
@@ -28,7 +28,7 @@ final class SiteOverviewPageData extends Data
         public readonly ClosureLazy|SiteRowData $site,
         public readonly ClosureLazy|SiteIdentityData $header,
         public readonly ClosureLazy|array $history,
-        public readonly ClosureLazy|array $incidents,
+        public readonly ClosureLazy|IncidentData|null $open_uptime_incident,
         public readonly ClosureLazy|ClientData $client,
         public readonly ClosureLazy|array $run_all_checks,
         public readonly ClosureLazy|bool $can_manage,

@@ -45,7 +45,7 @@ services:
             REVERB_HOST: reverb
             REVERB_PORT: 8080
             REVERB_SCHEME: http
-            TRUSTED_PROXIES: 172.31.106.0/24
+            TRUSTED_PROXIES: ${OPS_BACKEND_SUBNET:-172.31.106.0/24}
             HEPTAPOD_BROWSER_ENABLED: 'false'
             # Allowed here so ops.php can prove both states of the Owner's switch; production defaults to a hard off.
             HEPTAPOD_SERVERS_ENABLED: 'true'
@@ -182,6 +182,6 @@ networks:
             config: [{ subnet: 11.123.197.0/29 }]
     backend:
         ipam:
-            config: [{ subnet: 172.31.106.0/24 }]
+            config: [{ subnet: '${OPS_BACKEND_SUBNET:-172.31.106.0/24}' }]
 volumes:
     s3:

@@ -307,6 +307,7 @@ if [ "$resume" = true ]; then
     candidate_lighthouse=$(sed -n 's/^LIGHTHOUSE_IMAGE=//p' "$state/candidate.env")
     build=$(sed -n 's/^BUILD=//p' "$state/candidate.env")
     build_cache_keep=$(sed -n 's/^BUILD_CACHE_KEEP=//p' "$state/candidate.env")
+    release_version=$(sed -n 's/^RELEASE_VERSION=//p' "$state/candidate.env")
     for candidate in "$candidate_app" "$candidate_lighthouse"; do
         [ -n "$candidate" ] || continue
         if ! docker image inspect "$candidate" >/dev/null; then
@@ -404,6 +405,7 @@ if [ "$resume" = false ]; then
     rm -f "$state/release-intent"
     write_phase recorded
     if [ "$build" = true ]; then
+        release_version=
         candidate_app="$local_repository/app:$release_sha"
         candidate_lighthouse=
         [ -z "$release_dirty" ] || candidate_app="$candidate_app-dirty"
@@ -429,7 +431,7 @@ if [ "$resume" = false ]; then
     # Fully obtained candidates also need retirement if they fail and a later generation succeeds.
     docker image inspect --format '{{.Id}}' "$candidate_app" >> "$state/obsolete-images"
     if [ -n "$candidate_lighthouse" ]; then docker image inspect --format '{{.Id}}' "$candidate_lighthouse" >> "$state/obsolete-images"; fi
-    printf 'APP_IMAGE=%s\nLIGHTHOUSE_IMAGE=%s\nBUILD=%s\nBUILD_CACHE_KEEP=%s\nRELEASE_SHA=%s\n' "$candidate_app" "$candidate_lighthouse" "$build" "${build_cache_keep:-5GB}" "$release_sha" > "$state/candidate.env"
+    printf 'APP_IMAGE=%s\nLIGHTHOUSE_IMAGE=%s\nBUILD=%s\nBUILD_CACHE_KEEP=%s\nRELEASE_SHA=%s\nRELEASE_VERSION=%s\n' "$candidate_app" "$candidate_lighthouse" "$build" "${build_cache_keep:-5GB}" "$release_sha" "$release_version" > "$state/candidate.env"
     write_phase candidate-ready
     # The candidate's worker budget check under the configured Horizon cap, before maintenance and migrations.
     (APP_IMAGE=$candidate_app; export APP_IMAGE; require_worker_memory) || exit 1
