@@ -50,7 +50,7 @@ Webhook channels require HTTPS. Set `allow_insecure_http` to `true` only for a t
 | `severity`                    | Urgency, not cause: `down`, `recovered`, `warning`, `error` or `info`. Both an uptime outage and a non-uptime failure can be `down`, and both bypass quiet hours. |
 | `downtime_seconds`            | For uptime, the downtime. For other checks, how long the failure lasted, not proof that the site was down.                                                        |
 | `also_affected`, `rechecking` | Check keys grouped under an uptime outage, or waiting for a re-check after it. `[]` when empty.                                                                   |
-| `site_id`, `link`             | `null` on deliveries kept after the site was deleted. `site_label` keeps the label with a deleted-site marker.                                                    |
+| `site_id`, `link`             | Set for every site alert: an alert whose site was deleted before it went out is not sent.                                                                         |
 | `repositories`                | The site's repository links, `[{"url": …, "label": …}]`, for team and personal channels. Always `[]` for a client's channel.                                      |
 
 - Read the event type, check type and result to tell a Down site from a Failed check. Never label every `down` severity as an outage.

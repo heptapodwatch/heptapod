@@ -245,13 +245,13 @@ it('sends byte-identical signed webhook bodies and headers for every event shape
     expect(implode("\n=====\n", array_map(static fn (string $name, string $text): string => $name."\n".$text, array_keys($golden), $golden)))->toMatchSnapshot();
 })->with(['en', 'de']);
 
-it('sends a delivery claimed before its site was deleted with a null site id and link and the deleted-site label', function (string $locale, string $label): void {
-    $channel = webhookContractChannel($locale);
+it('sends nothing for a delivery claimed before its site was deleted', function (): void {
+    $channel = webhookContractChannel('en');
     $site = webhookContractSite('deleted-after-claim', 'Gone shop');
     $event = Event::factory()->create(['site_id' => $site->id, 'check_id' => webhookContractCheck($site, CheckKey::Performance)->id,
         'type' => 'check.result_changed', 'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Warning, 'payload' => []]);
     $delivery = Delivery::query()->create(['event_id' => $event->id, 'destination_id' => $channel->id, 'next_attempt_at' => now(), 'suppression_evaluated_at' => now()]);
-    // The site is deleted right after the claim commits, before the alert is built: the real race the claim guard cannot see.
+    // The site is deleted right after the claim commits, before the alert is built: the send decides again and drops it.
     $deleted = false;
     Delivery::updated(static function (Delivery $claimed) use ($delivery, $site, &$deleted): void {
         if ($claimed->id === $delivery->id && $claimed->state === DeliveryState::Sending && ! $deleted) {
@@ -263,13 +263,10 @@ it('sends a delivery claimed before its site was deleted with a null site id and
     $result = app(SendNotificationDelivery::class)($delivery->id);
 
     expect($deleted)->toBeTrue()->and(Site::query()->find($site->id))->toBeNull()->and($event->refresh()->site_id)->toBeNull();
-    expect($result?->status)->toBe(DeliveryState::Sent)->and($delivery->refresh()->state)->toBe(DeliveryState::Sent)->and($delivery->claim_token)->toBeNull();
-    $request = webhookContractRequest(Http::recorded()[0][0]);
-    expect($request['signature_valid'])->toBeTrue();
-    $body = json_decode($request['body'], true, flags: JSON_THROW_ON_ERROR);
-    expect([$body['site_id'], $body['link'], $body['site_label']])->toBe([null, null, $label])
-        ->and($body['site_url'])->not->toContain('hidden-site-token');
-})->with(['en' => ['en', 'Deleted site: Gone shop'], 'de' => ['de', 'Gelöschte Website: Gone shop']]);
+    expect($result)->toBeNull()->and($delivery->refresh()->only(['suppressed', 'suppression_reason', 'claim_token']))
+        ->toBe(['suppressed' => true, 'suppression_reason' => 'site_deleted', 'claim_token' => null])
+        ->and(Http::recorded())->toHaveCount(0);
+});
 
 it('sends System issue webhooks with the alert keys and null site and check fields', function (string $locale): void {
     $channel = webhookContractChannel($locale);

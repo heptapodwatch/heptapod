@@ -241,9 +241,13 @@ final class UptimeAlertEpisode
         return $query->first();
     }
 
-    public static function sendingOpening(Incident $incident, int $destinationId, CarbonImmutable $at): ?Delivery
+    public static function sendingOpening(Incident $incident, int $destinationId, CarbonImmutable $at, ?int $except = null): ?Delivery
     {
         $query = self::openings($incident)->where('destination_id', $destinationId)->where('state', DeliveryState::Sending->value)->where('lease_until', '>', $at->format('Y-m-d H:i:s.uP'));
+        if ($except !== null) {
+            // The delivery being decided is not another opening in flight, also at its own send.
+            $query->whereKeyNot($except);
+        }
         $query->getQuery()->orderBy('id');
 
         return $query->first();

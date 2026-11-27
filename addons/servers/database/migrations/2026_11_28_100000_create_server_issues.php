@@ -11,7 +11,8 @@ use Illuminate\Support\Facades\Schema;
  * Server alerts. Everything here is the servers addon's except the shared tables they reach the team through: events
  * (server_issue_id, server_name, events_site_required) and the Servers notification category (its notification_preferences
  * rows and the category CHECKs of notification_preferences and deliveries). Constraints on shared tables are added NOT
- * VALID, so nothing here scans or long-locks them; 2026_11_28_100001 builds their index concurrently and validates them.
+ * VALID, so nothing here scans or long-locks them; 2026_11_28_100001 builds their index concurrently and validates them,
+ * 2026_11_28_100002 writes every channel's Servers cell in batches.
  * down() is the removal path: it deletes every server alert and restores the shared tables.
  */
 return new class extends Migration
@@ -51,15 +52,7 @@ return new class extends Migration
         DB::statement('ALTER TABLE events DROP CONSTRAINT events_site_required');
         DB::statement('ALTER TABLE events ADD CONSTRAINT events_site_required '.$this->siteRequired(true).' NOT VALID');
         $this->categoryChecks([...self::Categories, 'servers'], [...self::Digestible, 'servers'], 'NOT VALID');
-
-        // Every channel has one cell per category (NotificationPreference). Personal channels of Owners and Admins start on,
-        // every other channel off (NotificationPreference::defaults); the cell joins the channel's baseline too.
-        $mode = "CASE WHEN d.recipient_kind = 'user' AND EXISTS (SELECT 1 FROM model_has_roles m JOIN roles r ON r.id = m.role_id
-            WHERE m.model_type = 'user' AND m.model_id = d.user_id AND r.name IN ('Owner', 'Admin')) THEN 'immediate' ELSE 'off' END";
-        DB::statement("INSERT INTO notification_preferences (destination_id, category, mode) SELECT d.id, 'servers', {$mode}
-            FROM notification_destinations d ON CONFLICT (destination_id, category) DO NOTHING");
-        DB::statement("UPDATE notification_destinations d SET default_preferences = d.default_preferences || jsonb_build_object('servers', {$mode})
-            WHERE d.default_preferences IS NOT NULL AND NOT jsonb_exists(d.default_preferences, 'servers')");
+        // Every channel's Servers cell is written in batches outside this transaction (2026_11_28_100002).
     }
 
     public function down(): void

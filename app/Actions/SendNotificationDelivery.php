@@ -5,100 +5,72 @@ declare(strict_types=1);
 namespace Heptapod\Actions;
 
 use Carbon\CarbonImmutable;
-use Heptapod\Contracts\Notifications\AlertNotification;
-use Heptapod\Contracts\Notifications\ChannelRecipient;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
 use Heptapod\Contracts\Notifications\DeliveryResult;
 use Heptapod\Contracts\Notifications\DeliveryState;
-use Heptapod\Events\Notifications\DeliveryEligibility;
-use Heptapod\Events\Notifications\DeliveryRefusal;
+use Heptapod\Events\Notifications\DeliveryDecision;
+use Heptapod\Events\Notifications\DeliveryDecisionKind;
+use Heptapod\Events\Notifications\DeliveryPlan;
 use Heptapod\Events\Notifications\NotificationLocks;
-use Heptapod\Events\Notifications\NotificationMessage;
 use Heptapod\Models\Delivery;
-use Heptapod\Models\NotificationDestination;
-use Heptapod\Servers\ServerIssueMailer;
-use Heptapod\SystemHealth\SystemIssueMailer;
 use Illuminate\Support\Facades\DB;
 
 final readonly class SendNotificationDelivery
 {
-    public function __construct(private ClaimNotificationDelivery $claim, private CompleteNotificationDelivery $complete, private ChannelRegistry $channels, private NotificationMessage $messages, private SystemIssueMailer $systemIssues, private ServerIssueMailer $serverIssues, private SendClientMessage $clientMessages, private DeliveryEligibility $eligibility) {}
+    public function __construct(private ClaimNotificationDelivery $claim, private CompleteNotificationDelivery $complete, private ChannelRegistry $channels, private DeliveryPlan $plan) {}
 
-    /** The transport outcome, or null when the claim did not hand out the delivery or the channel may no longer receive it. */
+    /** The transport outcome, or null when the claim did not hand out the delivery or the plan at the send stopped it. */
     public function __invoke(int $deliveryId): ?DeliveryResult
     {
         $claimed = ($this->claim)($deliveryId);
         if (! $claimed instanceof Delivery) {
             return null;
         }
-        $checked = $this->recheck($claimed);
-        if ($checked === null) {
+        $token = $claimed->claim_token ?? throw new \LogicException('Delivery claim has no token.');
+        $send = $this->decideAgain($claimed->id, $token);
+        if ($send === null) {
             return null;
         }
-        [$delivery, $destination] = $checked;
-        $event = $delivery->event()->getQuery()->firstOrFail();
-        // A manual send goes where it was approved: only the snapshot routes it, never the current channel config.
-        $recipient = $delivery->origin === 'manual'
-            ? ChannelRecipient::fromSnapshot($destination->destinationConfig(), $delivery->recipient_snapshot ?? throw new \LogicException('A manual delivery requires its recipient snapshot.'))
-            : ChannelRecipient::forChannel($destination->destinationConfig());
-        $notification = match (true) {
-            $event->system_issue_id !== null => $this->systemIssues->notification($event, $destination),
-            $event->server_issue_id !== null => $this->serverIssues->notification($event, $destination),
-            str_starts_with($event->type, 'client_message.') => $this->clientMessages->notification($event),
-            default => new AlertNotification($this->messages->build($event, $destination, $delivery->category, foldedRecovery: $delivery->folded_with_recovery), $delivery->event_id.':'.$destination->id),
-        };
+        $destination = $send->destination ?? throw new \LogicException('A Send decision names its channel.');
         // Never hold a transaction during provider I/O. A crash leaves a reclaimable lease.
         // At-least-once duplicate window: provider acceptance before the fenced ack
         // commits (including an expired lease). Providers without idempotency can resend.
-        $result = $this->channels->send($destination->channel, $recipient, $notification);
-        ($this->complete)($delivery->id, $delivery->claim_token ?? throw new \LogicException('Delivery claim has no token.'), $result);
+        $result = $this->channels->send($destination->channel, $send->recipient ?? throw new \LogicException('A Send decision names its recipient.'),
+            $send->notification ?? throw new \LogicException('A Send decision carries its payload.'));
+        ($this->complete)($claimed->id, $token, $result);
 
         return $result;
     }
 
     /**
-     * Deliveries re-check eligibility at send time: under the channel's row lock, the channel as it is now must still pass
-     * DeliveryEligibility (for a digest, with every item it carries), and the send uses exactly the configuration checked
-     * here, never one saved after it. A refused delivery is suppressed or held; a digest whose items changed goes back to
-     * the claim, which rebuilds it from the items that still pass.
-     *
-     * @return array{Delivery, NotificationDestination}|null
+     * DeliveryPlan once more, right before transmitting, under the claim's locks and on this worker's own claim: the
+     * payload goes out only as the plan renders it now, to the channel exactly as the plan read it. Any other decision
+     * is written instead (a digest whose items changed goes back to the claim) and nothing is sent.
      */
-    private function recheck(Delivery $claimed): ?array
+    private function decideAgain(int $deliveryId, string $token): ?DeliveryDecision
     {
-        return DB::transaction(function () use ($claimed): ?array {
-            // NotificationLocks: the channel, then the delivery (fenced by the claim's token).
-            NotificationLocks::channels([$claimed->destination_id]);
-            $query = Delivery::query()->whereKey($claimed->id)->where('state', DeliveryState::Sending->value)->where('claim_token', $claimed->claim_token);
+        return DB::transaction(function () use ($deliveryId, $token): ?DeliveryDecision {
+            if (! ClaimNotificationDelivery::lockSubject($deliveryId, skipBusyChannel: false)) {
+                return null;
+            }
+            $query = Delivery::query()->whereKey($deliveryId)->where('state', DeliveryState::Sending->value)->where('claim_token', $token);
             NotificationLocks::forUpdate($query->getQuery());
             $delivery = $query->first();
             if (! $delivery instanceof Delivery) {
                 return null;
             }
-            $destination = NotificationDestination::query()->findOrFail($delivery->destination_id);
+            $destination = $delivery->destination()->getQuery()->firstOrFail();
             $event = $delivery->event()->getQuery()->firstOrFail();
             $at = CarbonImmutable::now('UTC');
-            $refusal = $this->eligibility->refusal($event, $destination, $delivery, $at);
-            if ($refusal instanceof DeliveryRefusal) {
-                DeliveryEligibility::refuse($delivery, $refusal, $at);
+            $decision = $this->plan->decide($delivery, $destination, $event, $at, claimed: true);
+            if ($decision->kind !== DeliveryDecisionKind::Send) {
+                $this->plan->apply($delivery, $event, $decision, $at, claimed: true);
 
                 return null;
             }
-            if ($event->type === 'notification.digest') {
-                $sources = Delivery::query()->with('event.site');
-                $sources->getQuery()->whereIn('id', is_array($event->payload['delivery_ids'] ?? null) ? $event->payload['delivery_ids'] : []);
-                foreach ($sources->get() as $source) {
-                    $sourceEvent = $source->event ?? throw new \LogicException('Digest source event is missing.');
-                    if ($this->eligibility->refusal($sourceEvent, $destination, $source, $at) instanceof DeliveryRefusal) {
-                        $delivery->update(['state' => DeliveryState::Pending, 'next_attempt_at' => $at, 'claim_token' => null, 'lease_until' => null]);
-                        $delivery->announceChanges();
+            $delivery->save();
 
-                        return null;
-                    }
-                }
-            }
-
-            return [$delivery, $destination];
+            return $decision;
         });
     }
 }

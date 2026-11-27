@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Heptapod\Servers;
 
 use Carbon\CarbonImmutable;
-use Heptapod\Actions\ClaimNotificationDelivery;
 use Heptapod\Contracts\Mail\Cell;
 use Heptapod\Contracts\Mail\FactsBlock;
 use Heptapod\Contracts\Mail\MailModel;
@@ -21,7 +20,7 @@ use Heptapod\Contracts\ServersAccess;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\NotificationMode;
 use Heptapod\Enums\RecipientKind;
-use Heptapod\Events\Notifications\DeliveryRefusal;
+use Heptapod\Events\Notifications\DeliveryDecision;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Events\Notifications\NotificationTiming;
 use Heptapod\Models\Delivery;
@@ -72,26 +71,27 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
     }
 
     /**
-     * The server alert part of DeliveryEligibility: servers on, the channel may hear about servers, an opening's issue is
-     * still open, and the server is not snoozed. A snooze holds an opening until it ends and silences a recovery.
+     * The server alert part of DeliveryPlan, also for digest items: servers on, the channel may hear about servers, an
+     * opening's issue is still open, and the server is not snoozed. A snooze holds an opening until it ends and silences
+     * a recovery. Null when the alert may go.
      */
-    public function refusal(Event $event, NotificationDestination $channel, CarbonImmutable $at): ?DeliveryRefusal
+    public function refusal(Event $event, NotificationDestination $channel, CarbonImmutable $at): ?DeliveryDecision
     {
         $reason = match (true) {
             ! $this->access->enabled() => 'servers_disabled',
             default => self::ineligibility($channel) ?? ($channel->enabled ? null : 'destination_disabled'),
         };
         if ($reason !== null) {
-            return new DeliveryRefusal($reason);
+            return DeliveryDecision::suppress($reason);
         }
         $opening = $event->type === self::OpenedType;
         if ($opening && DB::table('events')->where('server_issue_id', $event->server_issue_id)->where('type', self::ResolvedType)->exists()) {
-            return new DeliveryRefusal('resolved_before_delivery');
+            return DeliveryDecision::suppress('resolved_before_delivery');
         }
         $serverId = $event->payload['server_id'] ?? null;
         $snoozedUntil = is_int($serverId) ? $this->issues->snoozedUntil($serverId) : null;
         if ($snoozedUntil instanceof CarbonImmutable && $snoozedUntil->greaterThan($at)) {
-            return $opening ? new DeliveryRefusal(self::SnoozeReason, $snoozedUntil) : new DeliveryRefusal('snooze');
+            return $opening ? DeliveryDecision::hold($snoozedUntil, self::SnoozeReason, setReason: true) : DeliveryDecision::suppress('snooze');
         }
 
         return null;
@@ -157,45 +157,34 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
     }
 
     /**
-     * ClaimNotificationDelivery for an eligible server issue delivery (DeliveryEligibility), with its channel and row
-     * locked: a recovery waits for its opening's send, then verification and quiet hours.
+     * The rest of DeliveryPlan for a server issue delivery that refusal() lets through: a recovery goes only after its
+     * opening was sent to this channel (a suppressed opening is final, so its recovery is too), then verification and
+     * quiet hours.
      */
-    public function claim(Delivery $delivery, NotificationDestination $destination, Event $event, CarbonImmutable $at): ?Delivery
+    public function plan(Delivery $delivery, NotificationDestination $destination, Event $event, CarbonImmutable $at): DeliveryDecision
     {
-        $suppressed = null;
-        $wait = null;
         if ($event->type === self::ResolvedType) {
             $opening = DB::table('deliveries')->join('events', 'events.id', '=', 'deliveries.event_id')->where('events.server_issue_id', $event->server_issue_id)
-                ->where('events.type', self::OpenedType)->where('deliveries.destination_id', $delivery->destination_id)->value('deliveries.state');
-            $suppressed = in_array($opening, [DeliveryState::Sent->value, DeliveryState::Sending->value], true) ? null : 'opening_not_delivered';
-            $wait = $opening === DeliveryState::Sending->value ? ['next_attempt_at' => $at->addMinute()] : null;
+                ->where('events.type', self::OpenedType)->where('deliveries.destination_id', $delivery->destination_id)->first(['deliveries.state', 'deliveries.suppressed']);
+            if ($opening === null || $opening->suppressed === true || ! in_array($opening->state, [DeliveryState::Sent->value, DeliveryState::Sending->value], true)) {
+                return DeliveryDecision::suppress('opening_not_delivered');
+            }
+            if ($opening->state === DeliveryState::Sending->value) {
+                return DeliveryDecision::hold($at->addMinute());
+            }
         }
-        if ($suppressed !== null) {
-            $delivery->update(['suppressed' => true, 'suppression_reason' => $suppressed, 'suppression_evaluated_at' => $at, 'claim_token' => null, 'lease_until' => null]);
-            $delivery->announceChanges();
-
-            return null;
-        }
-        if ($wait === null && ! $destination->addressVerified()) {
-            $wait = ['next_attempt_at' => $at->addHour(), 'last_reason' => 'personal_email_unverified'];
+        if (! $destination->addressVerified()) {
+            return DeliveryDecision::hold($at->addHour(), 'personal_email_unverified', setReason: true);
         }
         $due = $this->timing->afterQuietHours(NotificationSchedule::forChannel($destination), $at);
-        if ($wait === null && $due->greaterThan($at)) {
-            $wait = ['next_attempt_at' => $due];
-        }
-        if ($wait !== null) {
-            $delivery->update(['state' => DeliveryState::Pending, 'claim_token' => null, 'lease_until' => null, ...$wait]);
-            $delivery->announceChanges();
-
-            return null;
+        if ($due->greaterThan($at)) {
+            return DeliveryDecision::hold($due);
         }
         if (in_array($delivery->last_reason, [self::SnoozeReason, 'personal_email_unverified'], true)) {
             $delivery->last_reason = null;
         }
-        ClaimNotificationDelivery::startSending($delivery, $at);
-        $delivery->announceChanges();
 
-        return $delivery;
+        return DeliveryDecision::send();
     }
 
     /** The localized alert for one server issue delivery: the server issue mail, or its facts as lines elsewhere. */

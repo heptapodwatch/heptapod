@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Carbon\CarbonImmutable;
 use Heptapod\Actions\CreateApiToken;
 use Heptapod\Actions\SendNotificationDelivery;
+use Heptapod\Actions\SetNotificationDestinationEnabled;
 use Heptapod\Addons\Channels\TemplateMail;
 use Heptapod\Addons\Servers\Actions\EvaluateServerIssues;
 use Heptapod\Addons\Servers\Server;
@@ -19,6 +20,7 @@ use Heptapod\Models\Client;
 use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
 use Heptapod\Models\NotificationDestination;
+use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Console\Scheduling\Schedule;
@@ -621,8 +623,10 @@ it('removes every server alert and the Servers category on the way down, and res
     [, $token] = alertsServer();
     alertsMinutes($this, $token, 11, ['memory' => 95]);
     $migration = require __DIR__.'/../../database/migrations/2026_11_28_100000_create_server_issues.php';
+    $backfill = require __DIR__.'/../../database/migrations/2026_11_28_100002_backfill_servers_notification_cells.php';
     expect(DB::table('events')->whereNotNull('server_issue_id')->count())->toBe(1);
 
+    $backfill->down();
     $migration->down();
 
     expect(Schema::hasColumn('events', 'server_issue_id'))->toBeFalse()->and(Schema::hasTable('server_issues'))->toBeFalse()
@@ -634,7 +638,135 @@ it('removes every server alert and the Servers category on the way down, and res
         ->update(['category' => 'servers'])))->toThrow(QueryException::class);
 
     $migration->up();
+    $backfill->up();
 
     expect(Schema::hasColumn('events', 'server_issue_id'))->toBeTrue()
         ->and(DB::table('notification_preferences')->where('category', 'servers')->where('destination_id', $channel)->value('mode'))->toBe('immediate');
+});
+
+/** A queued warning about one site to this channel, as the planner leaves it. */
+function alertsSiteWarning(NotificationDestination $channel): Delivery
+{
+    $event = Event::factory()->create(['check_id' => Check::factory()->create(['type' => CheckKey::Performance])->id,
+        'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Warning]);
+
+    return Delivery::query()->create(['event_id' => $event->id, 'destination_id' => $channel->id, 'category' => 'warning',
+        'next_attempt_at' => now(), 'suppression_evaluated_at' => now()]);
+}
+
+/** Two open server issues as daily digest lines of a team webhook, and the digest pass of the next morning. */
+function alertsDigestOfTwo(TestCase $test): NotificationDestination
+{
+    $digest = alertsTeamWebhook(mode: NotificationMode::Digest);
+    [, $token] = alertsServer();
+    alertsMinutes($test, $token, 16, ['disks' => ['/' => 95], 'load' => 9.5]);
+    $test->travelTo(CarbonImmutable::parse('2026-11-28T08:00:00', app(InstanceSettings::class)->timezone));
+
+    return $digest;
+}
+
+it('holds an alert at the send when the account address became unverified after the claim', function (): void {
+    $owner = systemIssueRecipient('Owner');
+    $delivery = alertsSiteWarning(systemIssueAccountChannel($owner));
+    alertsAfterClaim($delivery->destination_id, static fn () => $owner->forceFill(['email' => 'moved@example.test', 'email_verified_at' => null])->save());
+
+    app(SendNotificationDelivery::class)($delivery->id);
+
+    expect($delivery->refresh()->only(['state', 'last_reason', 'attempts', 'suppressed']))
+        ->toBe(['state' => DeliveryState::Pending, 'last_reason' => 'personal_email_unverified', 'attempts' => 0, 'suppressed' => false]);
+    Mail::assertNothingSent();
+});
+
+it('suppresses an alert at the send when its site was deleted after the claim', function (): void {
+    $team = notificationWebhook();
+    $delivery = alertsSiteWarning($team);
+    $siteId = $delivery->event()->getQuery()->value('site_id');
+    alertsAfterClaim($team->id, static fn () => Site::query()->whereKey($siteId)->firstOrFail()->delete());
+
+    app(SendNotificationDelivery::class)($delivery->id);
+
+    expect($delivery->refresh()->only(['suppressed', 'suppression_reason']))->toBe(['suppressed' => true, 'suppression_reason' => 'site_deleted'])
+        ->and(Http::recorded())->toHaveCount(0);
+});
+
+it('suppresses a claimed alert at the send when its channel was paused after the claim', function (): void {
+    $team = notificationWebhook();
+    $delivery = alertsSiteWarning($team);
+    alertsAfterClaim($team->id, static fn () => app(SetNotificationDestinationEnabled::class)($team, false));
+
+    app(SendNotificationDelivery::class)($delivery->id);
+
+    expect($delivery->refresh()->only(['suppressed', 'suppression_reason']))->toBe(['suppressed' => true, 'suppression_reason' => 'destination_disabled'])
+        ->and(Http::recorded())->toHaveCount(0);
+});
+
+it('builds a leased digest again when one of its items was suppressed after the claim', function (): void {
+    $digest = alertsDigestOfTwo($this);
+    $sources = DB::table('deliveries')->join('events', 'events.id', '=', 'deliveries.event_id')->where('events.type', 'server.issue_opened')
+        ->where('deliveries.destination_id', $digest->id)->orderBy('deliveries.id')->get(['deliveries.id']);
+    alertsAfterClaim($digest->id, static fn () => Delivery::query()->whereKey($sources->first()->id)
+        ->update(['suppressed' => true, 'suppression_reason' => 'resolved_before_delivery']));
+
+    dispatchNotifications();
+    $digestDelivery = DB::table('deliveries')->join('events', 'events.id', '=', 'deliveries.event_id')->where('events.type', 'notification.digest')
+        ->sole(['deliveries.id', 'deliveries.state', 'deliveries.attempts', 'events.payload']);
+    expect([$digestDelivery->state, $digestDelivery->attempts])->toBe(['pending', 0])
+        ->and(alertsWebhookBodies())->toBe([]);
+
+    dispatchNotifications();
+
+    $sent = DB::table('deliveries')->join('events', 'events.id', '=', 'deliveries.event_id')->where('deliveries.id', $digestDelivery->id)->sole(['deliveries.state', 'events.payload']);
+    expect($sent->state)->toBe('sent')->and(json_decode($sent->payload, true)['delivery_ids'])->toBe([$sources->last()->id])
+        ->and(alertsWebhookBodies())->toHaveCount(1);
+});
+
+it('sends no stale digest when its channel was paused and resumed after the claim', function (): void {
+    $digest = alertsDigestOfTwo($this);
+    alertsAfterClaim($digest->id, static function () use ($digest): void {
+        app(SetNotificationDestinationEnabled::class)($digest, false);
+        app(SetNotificationDestinationEnabled::class)($digest, true);
+    });
+
+    dispatchNotifications();
+    dispatchNotifications();
+
+    expect(DB::table('deliveries')->join('events', 'events.id', '=', 'deliveries.event_id')->where('events.type', 'notification.digest')
+        ->sole(['deliveries.suppressed', 'deliveries.state']))->toMatchObject(['suppressed' => true, 'state' => 'pending'])
+        ->and(alertsWebhookBodies())->toBe([]);
+});
+
+it('ends an opening for good when its issue resolves between claim and send, and its recovery with it', function (): void {
+    $owner = systemIssueRecipient('Owner');
+    [, $token] = alertsServer();
+    alertsAfterClaim(systemIssueAccountChannel($owner)->id, fn () => alertsReport($this, $token));
+
+    alertsMinutes($this, $token, 11, ['memory' => 95]);
+    dispatchNotifications();
+    $this->travel(5)->minutes();
+    dispatchNotifications();
+    dispatchNotifications();
+
+    expect(alertsDeliveries('opened')->sole())->toMatchObject(['state' => 'pending', 'suppressed' => true, 'suppression_reason' => 'resolved_before_delivery',
+        'claim_token' => null, 'lease_until' => null])
+        ->and(alertsDeliveries('resolved')->sole())->toMatchObject(['suppressed' => true, 'suppression_reason' => 'opening_not_delivered', 'attempts' => 0]);
+    Mail::assertNothingSent();
+});
+
+it('keeps a recurring digest line when servers are off for one digest pass', function (): void {
+    $zone = app(InstanceSettings::class)->timezone;
+    $digest = alertsDigestOfTwo($this);
+    $digests = static fn (): int => DB::table('events')->where('type', 'notification.digest')->count();
+    dispatchNotifications();
+    expect($digests())->toBe(1);
+
+    alertsSwitch(false);
+    $this->travelTo(CarbonImmutable::parse('2026-11-29T08:00:00', $zone));
+    dispatchNotifications();
+    expect($digests())->toBe(1)
+        ->and(DB::table('deliveries')->where('destination_id', $digest->id)->where('digest', true)->whereNotNull('digest_recurrence_ended_at')->count())->toBe(0);
+
+    alertsSwitch(true);
+    $this->travelTo(CarbonImmutable::parse('2026-11-30T08:00:00', $zone));
+    dispatchNotifications();
+    expect($digests())->toBe(2)->and(alertsWebhookBodies())->toHaveCount(2);
 });

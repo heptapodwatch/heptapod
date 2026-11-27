@@ -11,8 +11,9 @@ use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Contracts\NotificationSuppression;
 use Heptapod\Contracts\SuppressionSubject;
 use Heptapod\Events\Notifications\AlertConfirmation;
-use Heptapod\Events\Notifications\DeliveryEligibility;
-use Heptapod\Events\Notifications\DeliveryRefusal;
+use Heptapod\Events\Notifications\DeliveryDecision;
+use Heptapod\Events\Notifications\DeliveryDecisionKind;
+use Heptapod\Events\Notifications\DeliveryPlan;
 use Heptapod\Events\Notifications\NotificationEventTypes;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Events\Notifications\NotificationTiming;
@@ -37,7 +38,7 @@ final readonly class EmitNotificationDigests
     private const string ArchivedMoreCacheKey = 'heptapod:notifications:digests_archived_more';
 
     public function __construct(private NotificationSuppression $suppression, private NotificationTiming $timing,
-        private NotificationEventTypes $types, private DeliveryEligibility $eligibility) {}
+        private NotificationEventTypes $types, private DeliveryPlan $plan) {}
 
     /** @return bool whether more digest work remains after this bounded pass */
     public function __invoke(bool $continuation = false): bool
@@ -109,30 +110,22 @@ final readonly class EmitNotificationDigests
                 $servers = [];
                 foreach ($sources as $source) {
                     $event = $source->event ?? throw new \LogicException('Digest source event is missing.');
-                    $refusal = $this->eligibility->refusal($event, $destination, $source, $at);
-                    if ($refusal instanceof DeliveryRefusal) {
-                        // A held item (a snoozed server) waits for a digest after its hold, unchanged.
-                        if (! $refusal->retryAt instanceof CarbonImmutable && $source->state === DeliveryState::Pending) {
+                    $refusal = $this->plan->sourceDecision($source, $event, $destination, $at);
+                    if ($refusal instanceof DeliveryDecision) {
+                        // A waiting item that may never go is suppressed. A held item (a snoozed server) and a sent one that
+                        // recurs stay as they are: a refusal skips this digest only; recurrence ends on terminal conditions
+                        // (ServerIssueMailer::resolved, an archived channel).
+                        if ($refusal->kind === DeliveryDecisionKind::Suppress && $source->state === DeliveryState::Pending) {
                             $source->update(['suppressed' => true, 'suppression_reason' => $refusal->reason, 'suppression_evaluated_at' => $at]);
                             $source->announceChanges();
-                        } elseif (! $refusal->retryAt instanceof CarbonImmutable && $event->server_issue_id !== null) {
-                            // A server issue that will not come back to this channel leaves the recurring read.
-                            $source->update(['digest_recurrence_ended_at' => $at]);
                         }
 
                         continue;
                     }
                     if ($event->server_issue_id !== null) {
-                        // A server issue stays in the digest while it is open (DeliveryEligibility refuses a resolved one).
+                        // A server issue stays in the digest while it is open (ServerIssueMailer::refusal refuses a resolved one).
                         $included[] = $source->id;
                         $servers[$event->server_issue_id] = $event->server_name ?? throw new \LogicException('A server issue event needs its server name.');
-
-                        continue;
-                    }
-                    if ($event->site_id === null || $event->check_id === null) {
-                        if ($source->state === DeliveryState::Pending) {
-                            $source->update(['suppressed' => true, 'suppression_reason' => $event->site_id === null ? 'site_deleted' : 'monitoring_stopped', 'suppression_evaluated_at' => $at]);
-                        }
 
                         continue;
                     }
