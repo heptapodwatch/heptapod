@@ -62,6 +62,8 @@ cat > "$fresh/bin/git" <<'SH'
 case "$1" in
     rev-parse) printf '%040d\n' 1 ;;
     describe) echo fixture ;;
+    tag) [ "$2" != --points-at ] || printf '%s\n' ${STUB_TAGS:-} ;;
+    cat-file) case " ${STUB_LIGHTWEIGHT_TAGS:-} " in *" ${3#refs/tags/} "*) echo commit ;; *) echo tag ;; esac ;;
     status) [ "${STUB_DIRTY:-false}" = false ] || echo ' M tracked-file' ;;
 esac
 SH
@@ -128,9 +130,23 @@ done
 validate_backup_name Heptapod /backups/upgrade-lifecycle-archive
 printf 'PASS: similar sibling prefix is allowed\n'
 # No shell selection is required after installation, including the own-TLS mode.
-./scripts/install.sh --domain own.example.com
+# A Git checkout on an annotated release tag pins that tag like a bundle install; off a tag the pin is dropped.
+STUB_TAGS=v9.9.7 ./scripts/install.sh --domain own.example.com
 [ "$(sed -n 's/^COMPOSE_FILE=//p' .env.prod)" = compose.prod.yaml ] || { echo 'Installer did not persist own-TLS COMPOSE_FILE' >&2; exit 1; }
 model | jq -e '.services.app.ports | any(.[]; .published == "443" and .target == 8443)' >/dev/null
+[ "$(grep '^HEPTAPOD_VERSION=' .env.prod)" = HEPTAPOD_VERSION=v9.9.7 ]
+model | jq -e '.services.app.environment.HEPTAPOD_VERSION == "v9.9.7"' > /dev/null
+env -u COMPOSE_FILE ./scripts/upgrade.sh
+if grep -q HEPTAPOD_VERSION .env.prod; then echo 'Upgrade off a release tag kept the pinned tag' >&2; exit 1; fi
+STUB_TAGS='v9.9.7 v9.9.10 v9.9.12-rc.1 v9.9.11' STUB_LIGHTWEIGHT_TAGS=v9.9.11 env -u COMPOSE_FILE ./scripts/upgrade.sh
+[ "$(grep '^HEPTAPOD_VERSION=' .env.prod)" = HEPTAPOD_VERSION=v9.9.10 ]
+# No exact annotated release tag is an empty result, also in a strict shell (the printed recovery block runs there too).
+for tags in '' v9.9.12-rc.1 v9.9.11; do
+    [ "$(STUB_TAGS=$tags STUB_LIGHTWEIGHT_TAGS=v9.9.11 bash -euo pipefail -c '. ./scripts/release-image.sh; release_tag_at HEAD; echo done')" = done ]
+done
+env -u COMPOSE_FILE ./scripts/upgrade.sh
+if grep -q HEPTAPOD_VERSION .env.prod; then echo 'Upgrade off a release tag kept the pinned tag' >&2; exit 1; fi
+printf 'PASS: a Git install on release tag v9.9.7 pins it as HEPTAPOD_VERSION; of several tags on HEAD the highest annotated release wins over a newer rc and a lightweight tag; an upgrade off a tag drops the pin\n'
 cp .env.prod before.env
 chmod 644 .env.prod
 cp .env.prod private-before.env
@@ -701,13 +717,21 @@ awk '
 grep -Eq "^APP_IMAGE=$local_repository/app:[a-f0-9]{40}-dirty$" .env.prod
 grep -Eq "^LIGHTHOUSE_IMAGE=$local_repository/lighthouse:[a-f0-9]{40}-dirty$" .env.prod
 printf 'PASS: explicit dirty source build and official pulls precede maintenance; local pins and build-cache retention preserved\n'
+STUB_TAGS=v9.9.7 env -u COMPOSE_FILE ./scripts/upgrade.sh
+[ "$(grep '^HEPTAPOD_VERSION=' .env.prod)" = HEPTAPOD_VERSION=v9.9.7 ]
+STUB_TAGS=v9.9.7 env -u COMPOSE_FILE ./scripts/upgrade.sh --build
+if grep -q HEPTAPOD_VERSION .env.prod; then echo 'Source build on a release tag pinned it over git describe' >&2; exit 1; fi
+model | jq -e '.services.app.environment | has("HEPTAPOD_VERSION") | not' > /dev/null
+printf 'PASS: a pulled Git upgrade on release tag v9.9.7 pins it; a --build upgrade on the same tag keeps the baked git describe\n'
 # Resume has already acquired images/archive. A stopped app and less than 12 GiB must not block the remaining DB work.
-cp "$lifecycle_state/current.env" "$lifecycle_state/candidate.env"
+# The candidate was recorded on v9.9.7; HEAD moved to v9.9.9 before the resume.
+sed 's/^RELEASE_VERSION=.*/RELEASE_VERSION=v9.9.7/' "$lifecycle_state/current.env" > "$lifecycle_state/candidate.env"
 printf 'preparing\n' > "$lifecycle_state/phase"
 rm "$lifecycle_state/release-intent"
 : > all-operations.log
-STUB_RUNNING=false STUB_FREE_KB=2 env -u COMPOSE_FILE ./scripts/upgrade.sh --resume
+STUB_TAGS=v9.9.9 STUB_RUNNING=false STUB_FREE_KB=2 env -u COMPOSE_FILE ./scripts/upgrade.sh --resume
 [ "$(cat "$lifecycle_state/phase")" = committed ]
+grep -qx 'HEPTAPOD_VERSION=v9.9.7' .env.prod || { echo 'Resume pinned the live HEAD tag instead of the recorded version' >&2; exit 1; }
 grep -q 'RUN_MIGRATIONS=0.*--name.*--entrypoint sh app' all-operations.log
 if grep -q 'exec -T app php artisan down' all-operations.log; then echo 'Resume depended on a running app' >&2; exit 1; fi
 cp "$lifecycle_state/current.env" "$lifecycle_state/candidate.env"
@@ -718,4 +742,4 @@ if STUB_MISSING_BACKUP=true STUB_RUNNING=false STUB_FREE_KB=1 env -u COMPOSE_FIL
 grep -q 'Cannot resume: cannot verify recorded lifecycle archive' missing-resume-backup.log
 if grep -q 'RUN_MIGRATIONS=1' all-operations.log; then echo 'Resume ran preparation without its archive' >&2; exit 1; fi
 cat missing-resume-backup.log
-printf 'PASS: resume uses only DB headroom, works without the app, and refuses a missing archive before preparation\n'
+printf 'PASS: resume pins the recorded version, uses only DB headroom, works without the app, and refuses a missing archive before preparation\n'

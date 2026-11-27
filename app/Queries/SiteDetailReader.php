@@ -35,6 +35,7 @@ use Heptapod\Data\Ui\CheckSettingsData;
 use Heptapod\Data\Ui\CheckStripData;
 use Heptapod\Data\Ui\CheckTabPageData;
 use Heptapod\Data\Ui\ClientData;
+use Heptapod\Data\Ui\IncidentData;
 use Heptapod\Data\Ui\MaintenanceSiteHeaderData;
 use Heptapod\Data\Ui\MetricSeriesData;
 use Heptapod\Data\Ui\MonthlyUptimeData;
@@ -209,11 +210,16 @@ final readonly class SiteDetailReader
             site: Lazy::closure(static fn (): SiteRowData => $site),
             header: Lazy::closure(fn (): SiteIdentityData => $this->header($user, $siteId)),
             history: Lazy::closure(static fn (): array => $getHistory()['uptime']),
-            incidents: Lazy::closure(function () use ($siteId): array {
+            open_uptime_incident: Lazy::closure(function () use ($uptime): ?IncidentData {
+                if ($uptime?->open_incident_id === null) {
+                    return null;
+                }
+                // The strip was read earlier; a recovery since then must not reach the Down banner.
                 $query = Incident::query()->with(['site', 'check']);
-                $query->getQuery()->where('site_id', $siteId)->orderByDesc('opened_at')->orderByDesc('id')->limit(20);
+                $query->getQuery()->whereNull('resolved_at');
+                $incident = $query->find($uptime->open_incident_id);
 
-                return $this->incidents->presentedRows($query->get());
+                return $incident === null ? null : $this->incidents->presentedRows(collect([$incident]))[0];
             }),
             client: Lazy::closure(static fn (): ClientData => $getClient()),
             run_all_checks: Lazy::closure(fn (): array => $this->runAllChecks($site, $storedSite->checks)),

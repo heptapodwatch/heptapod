@@ -74,7 +74,7 @@ export default function SiteShow(page: SitePage) {
                   'client',
                   'maintenance',
                   'history',
-                  'incidents',
+                  'open_uptime_incident',
                   'uptime_ranges',
                   'response_ms',
                   'lighthouse',
@@ -125,16 +125,7 @@ export default function SiteShow(page: SitePage) {
         (check) => check.enabled || (isCheck && check.id === page.check.id),
     );
     const canManage = isCheck ? page.can_run : page.can_manage;
-    const openUptime = isCheck
-        ? undefined
-        : page.incidents.find(
-              (incident) =>
-                  incident.resolved_at === null &&
-                  incident.check === 'uptime' &&
-                  site.checks.some(
-                      (check) => check.open_incident_id === incident.id,
-                  ),
-          );
+    const openUptime = isCheck ? null : page.open_uptime_incident;
     const uptimeCheck = site.checks.find((check) => check.key === 'uptime');
     const cooldownUntil = isCheck ? (page.cooldown_until ?? null) : null;
     const { active: inCooldown, remainingSeconds: cooldownSeconds } =

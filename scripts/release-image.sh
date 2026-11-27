@@ -119,8 +119,21 @@ validate_bundle_manifest() {
         ! grep -E '^\./(.*/)?\.\.?(/|$)|^\./(\.env\.prod|\.heptapod|releases|current|\.current\.tmp)(/|$)' "$1/MANIFEST" > /dev/null
 }
 
+# The highest annotated vX.Y.Z tag on commit $1; prereleases and lightweight tags never name an install.
+release_tag_at() {
+    command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1 || return 0
+    # awk, not grep: no matching tag is a normal result, not a failure under pipefail. The highest version is picked in awk
+    # too, because installs run with a minimal PATH (no sort or tail).
+    git tag --points-at "$1" | awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/' | while IFS= read -r tag; do
+        [ "$(git cat-file -t "refs/tags/$tag")" != tag ] || printf '%s\n' "$tag"
+    done | awk -F. '{ major = substr($1, 2) + 0; minor = $2 + 0; patch = $3 + 0
+        if (best == "" || major > bm || (major == bm && (minor > bn || (minor == bn && patch > bp)))) { best = $0; bm = major; bn = minor; bp = patch } }
+        END { if (best != "") print best }'
+}
+
 resolve_release_images() {
     release_browser=${1:?Pass the browser selection}
+    release_version=$(release_tag_at "$release_sha")
     default_app_repository=$(bash "$release_dir/scripts/image-reference.sh" app) || return 1
     registry=${HEPTAPOD_IMAGE_REGISTRY:-${default_app_repository%/*}}
     registry_host=${registry%%/*}
@@ -165,14 +178,15 @@ validate_image_keys() {
 pin_release_images() {
     # Compose accepts export, colon and whitespace dotenv spellings. Replace the whole managed definition.
     command -v sync >/dev/null 2>&1 || { echo 'sync (coreutils) is required to persist release pins. Install coreutils with your package manager and check command -v sync before rerunning: https://heptapod.watch/docs/running-it/hetzner/#other-linux-distributions' >&2; exit 1; }
-    # Published images are main builds and report sha-<short>; a bundle install reports its release tag instead.
-    release_version=
+    # Published images are main builds and report sha-<short>; a bundle install reports its release tag instead, a Git
+    # checkout the release_version its candidate was resolved with. Without one the image's own version applies (a
+    # --build bakes git describe), so a stale pinned tag is dropped.
     if [ -f "$release_dir/RELEASE" ]; then release_version=$(cat "$release_dir/RELEASE"); fi
     pin_tmp=$(mktemp .env.prod.XXXXXX)
-    awk -v app="$candidate_app" -v lighthouse="$candidate_lighthouse" -v version="$release_version" '
+    awk -v app="$candidate_app" -v lighthouse="$candidate_lighthouse" -v version="${release_version:-}" '
         /^[[:space:]]*(export[[:space:]]+)?APP_IMAGE[[:space:]]*[=:]/ { print "APP_IMAGE=" app; app_seen=1; next }
         /^[[:space:]]*(export[[:space:]]+)?LIGHTHOUSE_IMAGE[[:space:]]*[=:]/ { if (lighthouse != "") { print "LIGHTHOUSE_IMAGE=" lighthouse; lighthouse_seen=1; next } }
-        /^[[:space:]]*(export[[:space:]]+)?HEPTAPOD_VERSION[[:space:]]*[=:]/ { if (version != "") { print "HEPTAPOD_VERSION=" version; version_seen=1; next } }
+        /^[[:space:]]*(export[[:space:]]+)?HEPTAPOD_VERSION[[:space:]]*[=:]/ { if (version != "") { print "HEPTAPOD_VERSION=" version; version_seen=1 }; next }
         { print }
         END { if (!app_seen) print "APP_IMAGE=" app; if (lighthouse != "" && !lighthouse_seen) print "LIGHTHOUSE_IMAGE=" lighthouse; if (version != "" && !version_seen) print "HEPTAPOD_VERSION=" version }
     ' .env.prod > "$pin_tmp"
