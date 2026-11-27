@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Heptapod\Contracts\CheckDetailData;
 use Heptapod\Contracts\PaginationData;
 
-// heptapod-ui-rules "Lists and paging": a list never caps silently. Every list an addon detail hands the UI is one page with its
+// heptapod-ui-rules "Lists and paging": a list never caps silently. Every list an addon detail or a page hands the UI is one page with its
 // `<rows>_pagination` beside it (drawn by ListFooter), or bounded by nature for a named reason.
 
 /** Detail lists that cannot grow past a small fixed size. @var array<string, string> "Class::$property" => reason */
@@ -25,6 +25,9 @@ const BoundedDetailLists = [
     'Heptapod\Addons\Sitemap\SitemapSnapshot::$sitemapIndexes' => 'at most 20 sitemap indexes, five issues each',
     'Heptapod\Addons\Sitemap\SitemapSnapshot::$sitemaps' => 'at most 20 sitemaps, five issues each',
     'Heptapod\Addons\Uptime\UptimeHistoryData::$runs' => 'only the latest attempt is shown',
+    'Heptapod\Addons\CertificateHealth\CertificateSnapshot::$certificate_details.additional_domains' => 'the subject alternative names of one certificate',
+    'Heptapod\Addons\Dns\DnsComparisonData::$changes.added' => 'record changes of the seven record types (capped at 200 records in the snapshot)',
+    'Heptapod\Addons\Dns\DnsComparisonData::$changes.removed' => 'record changes of the seven record types (capped at 200 records in the snapshot)',
     'Heptapod\Addons\Crawl\CrawlSnapshot::$notes' => 'coverage notes of one run (at most 32, CrawlPersistence)',
     'Heptapod\Addons\Lighthouse\LighthouseHistoryData::$scores' => 'a chart of at most 156 weekly averages (LighthousePersistence)',
 ];
@@ -37,6 +40,13 @@ const CuratedConfiguration = 'admin-curated configuration, shown in full (heptap
 const BoundedPageLists = [
     // shortcut: lane A (servers manage) pages this list; remove the entry when it merges.
     'Heptapod\Addons\Servers\Data\ServersPageData::$servers' => 'paged in the servers manage lane',
+    'Heptapod\Addons\Servers\Data\ServerPageData::$history.points' => 'one chart point per step of the chosen window',
+    'Heptapod\Data\Ui\ImportOhDearRunPageData::$importRun.channels' => 'the notification channels of one import, admin-curated configuration shown in full',
+    'Heptapod\Data\Ui\ImportOhDearRunPageData::$importRun.common_notices' => 'one notice per notice kind the rows share',
+    'Heptapod\Data\Ui\ImportOhDearRunPageData::$importRun.sections' => 'the fixed import sections',
+    'Heptapod\Data\Ui\NotificationSettingsPageData::$schedule.digest_weekdays' => 'at most the seven weekdays',
+    'Heptapod\Data\Ui\SiteOverviewPageData::$run_all_result.results' => 'one result per check of the site',
+    'Heptapod\Data\Ui\UpdatesSettingsPageData::$updates.releases' => 'the newest 20 releases the update check reads (docs/deploy/operations.md)',
     'Heptapod\Data\Ui\ActivityPageData::$clients' => SelectChoices,
     'Heptapod\Data\Ui\AddSitePageData::$checks' => 'the installed check types',
     'Heptapod\Data\Ui\AddSitePageData::$clients' => SelectChoices,
@@ -80,7 +90,6 @@ const BoundedPageLists = [
     'Heptapod\Data\Ui\RunsIndexPageData::$finished' => 'the board\'s latest 20 finished runs; the history below pages through all of them',
     'Heptapod\Data\Ui\SecurityPageData::$passkeys' => 'the user\'s own passkeys, shown in full',
     'Heptapod\Data\Ui\SiteOverviewPageData::$history' => 'one uptime bucket per day of the last 91 days',
-    'Heptapod\Data\Ui\SiteOverviewPageData::$incidents' => 'the latest 20 incidents, read only to find the open uptime incident',
     'Heptapod\Data\Ui\SiteOverviewPageData::$repositories' => 'at most RepositoryUrl::MaxPerSite links',
     'Heptapod\Data\Ui\SiteOverviewPageData::$run_all_checks' => 'the checks of one site, one per check type',
     'Heptapod\Data\Ui\SiteSettingsPageData::$alert_sensitivity_presets' => 'the fixed alert sensitivity presets',
@@ -137,21 +146,33 @@ function addonDetailClasses(): array
     return $classes;
 }
 
-/**
- * Finds every `.<rows>_pagination` property actually passed into a `<ListFooter pagination={...}>` control
- * (directly, or through a component that forwards its `pagination` prop into `ListFooter`). Plain reads for
- * counts or exports do not satisfy this check.
- *
- * @return array<string, true>
- */
-function listFooterPaginationBindings(string $componentsDir): array
+/** @return array<string, string> every non-test `.tsx` under resources/js, path => source */
+function tsxSources(): array
 {
-    $sources = [];
-    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($componentsDir)) as $file) {
-        if ($file->isFile() && str_ends_with($file->getFilename(), '.tsx') && ! str_ends_with($file->getFilename(), '.test.tsx')) {
-            $sources[$file->getPathname()] = (string) file_get_contents($file->getPathname());
+    static $sources = null;
+    if ($sources === null) {
+        $sources = [];
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__, 2).'/resources/js')) as $file) {
+            if ($file->isFile() && str_ends_with($file->getFilename(), '.tsx') && ! str_ends_with($file->getFilename(), '.test.tsx')) {
+                $sources[$file->getPathname()] = (string) file_get_contents($file->getPathname());
+            }
         }
     }
+
+    return $sources;
+}
+
+/**
+ * Finds every `.<rows>_pagination` property that $within actually passes into a `<ListFooter pagination={...}>` control
+ * (directly, or through a component of $sources that forwards its `pagination` prop into `ListFooter`). Plain reads for
+ * counts or exports do not satisfy this check.
+ *
+ * @param  array<string, string>  $sources
+ * @param  array<string, string>  $within
+ * @return array<string, true>
+ */
+function listFooterPaginationBindings(array $sources, array $within): array
+{
     // Extract each top-level component function's body so we can trace pagination prop forwarding to ListFooter.
     $functions = [];
     foreach ($sources as $source) {
@@ -180,7 +201,7 @@ function listFooterPaginationBindings(string $componentsDir): array
 
     $bound = [];
     $tagPattern = '/<('.implode('|', array_map(static fn (string $tag): string => preg_quote($tag, '/'), array_keys($pagers))).')\b/';
-    foreach ($sources as $source) {
+    foreach ($within as $source) {
         if (preg_match_all($tagPattern, $source, $tags, PREG_OFFSET_CAPTURE) === 0) {
             continue;
         }
@@ -227,47 +248,135 @@ function pageDataClasses(): array
 }
 
 /**
- * Every promoted list (a top-level `list<…>` constructor `@param` or property `@var`) is bounded, paged by the pager $pagers names, or has a
- * `<rows>_pagination` PaginationData beside it that a ListFooter binds.
+ * The files that receive each page data class: the page an `Inertia::render('<page>', new <Class>(` renders, and every
+ * file that types its props with the generated `Heptapod.…<Class>`.
+ *
+ * @param  list<class-string>  $classes
+ * @return array<class-string, array<string, string>>
+ */
+function pageDataConsumers(array $classes): array
+{
+    $root = dirname(__DIR__, 2);
+    $rendered = [];
+    foreach ([...glob($root.'/app/{,*/,*/*/,*/*/*/}*.php', GLOB_BRACE) ?: [], ...glob($root.'/addons/*/src/{,*/,*/*/}*.php', GLOB_BRACE) ?: []] as $file) {
+        preg_match_all("/Inertia::render\\(\\s*'([^']+)'\\s*,\\s*new\\s+(\\w+)\\(/", (string) file_get_contents($file), $renders, PREG_SET_ORDER);
+        foreach ($renders as [, $page, $short]) {
+            $rendered[$short][] = $root.'/resources/js/pages/'.$page.'.tsx';
+        }
+    }
+    $consumers = [];
+    foreach ($classes as $class) {
+        $short = new ReflectionClass($class)->getShortName();
+        $type = '/\b'.preg_quote(str_replace('\\', '.', $class), '/').'\b/';
+        $consumers[$class] = array_filter(tsxSources(), static fn (string $source, string $path): bool => in_array($path, $rendered[$short] ?? [], true)
+            || preg_match($type, $source) === 1, ARRAY_FILTER_USE_BOTH);
+    }
+
+    return $consumers;
+}
+
+/**
+ * The top-level entries of the first `array{…}` shape in a PHPDoc type, key => type.
+ *
+ * @return array<string, string>
+ */
+function shapeEntries(string $type): array
+{
+    $start = strpos($type, 'array{');
+    if ($start === false) {
+        return [];
+    }
+    $entries = [];
+    $depth = 0;
+    $entry = '';
+    for ($i = $start + 6, $length = strlen($type); $i < $length; $i++) {
+        $char = $type[$i];
+        if ($depth === 0 && ($char === ',' || $char === '}')) {
+            if (preg_match('/^\s*(\w+)\??:\s*(.+)$/s', $entry, $match) === 1) {
+                $entries[$match[1]] = trim($match[2]);
+            }
+            $entry = '';
+            if ($char === '}') {
+                break;
+            }
+
+            continue;
+        }
+        $depth += match ($char) {
+            '{', '<', '(' => 1,
+            '}', '>', ')' => -1,
+            default => 0,
+        };
+        $entry .= $char;
+    }
+
+    return $entries;
+}
+
+/**
+ * Every promoted list (a top-level `list<…>` constructor `@param` or property `@var`, or a top-level `list<…>` entry of an
+ * `array{…}` shape param, keyed `Class::$param.entry`) is bounded, paged by the pager $pagers names and its consumers read,
+ * or has a `<rows>_pagination` PaginationData beside it that a ListFooter in its consumers binds.
  *
  * @param  list<class-string>  $classes
  * @param  array<string, string>  $bounded  "Class::$list" => reason
  * @param  array<string, string>  $pagers  "Class::$list" => the property that pages it
+ * @param  array<class-string, array<string, string>>|null  $consumers  the files receiving each class; null: any file
  * @return list<string>
  */
-function unpagedListViolations(array $classes, array $bounded, string $boundedName, array $pagers = []): array
+function unpagedListViolations(array $classes, array $bounded, string $boundedName, array $pagers = [], ?array $consumers = null): array
 {
-    $boundPagers = listFooterPaginationBindings(dirname(__DIR__, 2).'/resources/js');
+    $isList = static fn (string $type): bool => preg_match('/^(?:[\w\\\\]+\|)*list</', $type) === 1;
     $violations = [];
     $seen = [];
     foreach ($classes as $class) {
+        $within = $consumers === null ? tsxSources() : $consumers[$class];
+        $boundPagers = listFooterPaginationBindings(tsxSources(), $within);
         $reflection = new ReflectionClass($class);
         $constructor = $reflection->getConstructor();
         $doc = (string) $constructor?->getDocComment();
         foreach ($constructor?->getParameters() ?? [] as $parameter) {
             $name = $parameter->getName();
-            $key = $class.'::$'.$name;
             $types = explode('|', ltrim((string) $parameter->getType(), '?'));
-            if (! $parameter->isPromoted() || ! in_array('array', $types, true) || (preg_match('/@param\s+(?:[\w\\\\]+\|)*list<.*\$'.$name.'\b/', $doc) !== 1
-                && preg_match('/@var\s+(?:[\w\\\\]+\|)*list</', (string) $reflection->getProperty($name)->getDocComment()) !== 1)) {
+            if (! $parameter->isPromoted() || ! in_array('array', $types, true)) {
                 continue;
             }
-            $seen[] = $key;
-            if (array_key_exists($key, $bounded)) {
-                continue;
-            }
-            if (array_key_exists($key, $pagers)) {
-                if (! $reflection->hasProperty($pagers[$key])) {
-                    $violations[] = "{$key}: its pager {$pagers[$key]} is not a property of the class.";
+            $docType = preg_match('/@param\s+(.+?)\s+\$'.$name.'\b/', $doc, $param) === 1 ? $param[1]
+                : (preg_match('/@var\s+(.+?)(?:\s|\*\/)/', (string) $reflection->getProperty($name)->getDocComment(), $var) === 1 ? $var[1] : '');
+            // [key, pager property name, its PaginationData type or null]
+            $lists = [];
+            if ($isList($docType)) {
+                $pageType = $reflection->hasProperty($name.'_pagination') ? (string) $reflection->getProperty($name.'_pagination')->getType() : '';
+                $lists[] = [$class.'::$'.$name, $name, in_array(PaginationData::class, explode('|', ltrim($pageType, '?')), true)];
+            } else {
+                $entries = shapeEntries($docType);
+                foreach ($entries as $entry => $entryType) {
+                    if ($isList($entryType)) {
+                        $lists[] = [$class.'::$'.$name.'.'.$entry, $entry, ($entries[$entry.'_pagination'] ?? '') === 'PaginationData'];
+                    }
                 }
-
-                continue;
             }
-            $pageType = $reflection->hasProperty($name.'_pagination') ? (string) $reflection->getProperty($name.'_pagination')->getType() : '';
-            if (! in_array(PaginationData::class, explode('|', ltrim($pageType, '?')), true)) {
-                $violations[] = "{$key} is a list without {$name}_pagination: page it through ListPaging, or name its bound in {$boundedName}.";
-            } elseif (! isset($boundPagers[$name.'_pagination'])) {
-                $violations[] = "{$key}: no ListFooter (or ListFooter wrapper) binds pagination={{...{$name}_pagination}}.";
+            foreach ($lists as [$key, $rows, $paged]) {
+                $seen[] = $key;
+                if (array_key_exists($key, $bounded)) {
+                    continue;
+                }
+                if (array_key_exists($key, $pagers)) {
+                    $pager = $pagers[$key];
+                    $read = '/(?<![\'"\w])(?:\w+\.)?'.preg_quote($pager, '/').'\b(?!\s*[,:=\'"])/';
+                    if (! $reflection->hasProperty($pager)) {
+                        $violations[] = "{$key}: its pager {$pager} is not a property of the class.";
+                    } elseif (array_filter($within, static fn (string $source): bool => preg_match($read, $source) === 1) === []) {
+                        $violations[] = "{$key}: no file receiving {$class} reads its pager {$pager}.";
+                    }
+
+                    continue;
+                }
+                if (! $paged) {
+                    $violations[] = "{$key} is a list without {$rows}_pagination: page it through ListPaging, or name its bound in {$boundedName}.";
+                } elseif (! isset($boundPagers[$rows.'_pagination'])) {
+                    $violations[] = "{$key}: no ListFooter (or ListFooter wrapper) in a file receiving {$class} binds pagination={{...{$rows}_pagination}}.";
+                }
             }
         }
     }
@@ -288,7 +397,7 @@ test('every addon detail list is paged or bounded by nature', function (): void 
 test('every page data list is paged or bounded by nature', function (): void {
     $classes = pageDataClasses();
     expect(count($classes))->toBeGreaterThan(30);
-    $violations = unpagedListViolations($classes, BoundedPageLists, 'BoundedPageLists', PagedPageLists);
+    $violations = unpagedListViolations($classes, BoundedPageLists, 'BoundedPageLists', PagedPageLists, pageDataConsumers($classes));
     expect($violations)->toBeEmpty(implode(PHP_EOL, $violations));
 });
 

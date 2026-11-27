@@ -120,5 +120,5 @@ it('keeps fixed-seed page props within the JSON payload budget', function (strin
     // Measured bytes for this seed: 70,005 / 15,677 / 21,335; allow about 20% growth.
     'sites list' => ['/sites', 'sites/index', 'sites', 84_100],
     'sites history' => ['/sites', 'sites/index', 'sites_history', 18_900],
-    'site overview' => ['/sites/1', 'sites/show', 'site,header,history,incidents,client,run_all_checks,can_manage,uptime_ranges,run_all_result,maintenance,response_ms,alert_channels,lighthouse,can_move,resume_at,repositories', 25_700],
+    'site overview' => ['/sites/1', 'sites/show', 'site,header,history,open_uptime_incident,client,run_all_checks,can_manage,uptime_ranges,run_all_result,maintenance,response_ms,alert_channels,lighthouse,can_move,resume_at,repositories', 25_700],
 ]);

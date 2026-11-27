@@ -2011,7 +2011,7 @@ export type SiteOverviewPageData = {
 readonly site: Heptapod.Data.Ui.SiteRowData,
 readonly header: Heptapod.Data.Ui.SiteIdentityData,
 readonly history: Heptapod.Data.Ui.UptimeBucketData[],
-readonly incidents: Heptapod.Data.Ui.IncidentData[],
+readonly open_uptime_incident: Heptapod.Data.Ui.IncidentData | null,
 readonly client: Heptapod.Data.Ui.ClientData,
 readonly run_all_checks: Heptapod.Data.Ui.RunAllCheckData[],
 readonly can_manage: boolean,
