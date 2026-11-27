@@ -513,7 +513,7 @@ it('re-checks eligibility at send time: an Admin demoted after the claim gets no
     $admin = systemIssueRecipient('Admin');
     $account = systemIssueAccountChannel($admin);
     [, $token] = alertsServer();
-    alertsAfterClaim($account->id, static fn () => $admin->syncRoles(['Member']));
+    alertsAfterClaim($account->id, static fn (): User => $admin->syncRoles(['Member']));
 
     alertsMinutes($this, $token, 11, ['memory' => 95]);
     dispatchNotifications();
