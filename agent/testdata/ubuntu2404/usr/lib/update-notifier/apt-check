@@ -1,0 +1,4 @@
+#!/bin/sh
+# Fixture for Ubuntu's apt-check: records each run next to itself and prints "pending;security" to stderr like the real one.
+echo run >> "$(dirname "$0")/runs"
+printf '7;3' >&2
