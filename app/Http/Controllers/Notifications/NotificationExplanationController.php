@@ -28,7 +28,7 @@ final class NotificationExplanationController extends Controller
         $data = Validator::make($request->all(), [
             'check_id' => ['required', 'integer'],
             'category' => ['required', Rule::in(array_values(array_diff(array_map(static fn (NotificationCategory $category): string => $category->value,
-                NotificationCategory::grid()), [NotificationCategory::System->value])))],
+                NotificationCategory::grid()), [NotificationCategory::System->value, NotificationCategory::Servers->value])))],
             'at' => ['required', 'date_format:Y-m-d\TH:i:sP'],
             'recovery_origin' => ['sometimes', 'prohibited_unless:category,recovery',
                 Rule::in([CheckResult::Failed->value, CheckResult::Errored->value, CheckResult::Warning->value])],

@@ -185,7 +185,7 @@
     "servers.alert.fact.resolved": "Behoben",
     "servers.issue.more": "{{name}} +{{count}}",
     "servers.issue_notice.limit": "{{minutes}} Min. lang bei oder über {{threshold}}.",
-    "servers.issue_notice.load_high": "Last über 5 Minuten {{minutes}} Min. lang bei oder über {{threshold}}.",
+    "servers.issue_notice.load_high": "Last (5 Min.) {{minutes}} Min. lang bei oder über {{threshold}}.",
     "servers.issue_notice.no_report": "{{minutes}} Min. oder länger kein Bericht.",
     "servers.issue_notice.since": "Seit",
     "servers.issue_notice.snoozed": "Benachrichtigungen sind stummgeschaltet bis",

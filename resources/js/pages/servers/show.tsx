@@ -78,7 +78,10 @@ function IssueNotice({
             ? t('servers.issue_notice.no_report', { minutes })
             : issue.kind === 'load_high'
               ? t('servers.issue_notice.load_high', {
-                    threshold: format.number(value('threshold')),
+                    threshold: format.number(value('threshold'), {
+                        minimumFractionDigits: 1,
+                        maximumFractionDigits: 2,
+                    }),
                     minutes,
                 })
               : t('servers.issue_notice.limit', {
