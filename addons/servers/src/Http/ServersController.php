@@ -7,6 +7,7 @@ namespace Heptapod\Addons\Servers\Http;
 use Carbon\CarbonImmutable;
 use Heptapod\Addons\Servers\Actions\RemoveServer;
 use Heptapod\Addons\Servers\Data\ServerPageData;
+use Heptapod\Addons\Servers\Data\ServerRowData;
 use Heptapod\Addons\Servers\Data\ServersPageData;
 use Heptapod\Addons\Servers\Data\ServerThresholdsData;
 use Heptapod\Addons\Servers\Server;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\LaravelData\Lazy;
 
 final class ServersController
 {
@@ -45,7 +47,8 @@ final class ServersController
         $version = config()->string('heptapod.version');
 
         return Inertia::render('servers/show', new ServerPageData(
-            $reader->rows($now, $server->id)[0], ServerThresholdsData::defaults(), $reader->history($server->id, $now),
+            Lazy::closure(static fn (): ServerRowData => $reader->rows($now, $server->id)[0]), ServerThresholdsData::defaults(),
+            Lazy::closure(static fn (): array => $reader->history($server->id, $now)),
             ['endpoint' => rtrim(config()->string('app.url'), '/'), 'version' => $version,
                 'release_url' => config()->string('servers.agent_release_url').'/'.$version,
                 // A source or development build has no agent release of its own.

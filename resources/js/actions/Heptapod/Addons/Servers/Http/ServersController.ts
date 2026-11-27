@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::index
-* @see addons/servers/src/Http/ServersController.php:22
+* @see addons/servers/src/Http/ServersController.php:25
 * @route '/servers'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::index
-* @see addons/servers/src/Http/ServersController.php:22
+* @see addons/servers/src/Http/ServersController.php:25
 * @route '/servers'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::index
-* @see addons/servers/src/Http/ServersController.php:22
+* @see addons/servers/src/Http/ServersController.php:25
 * @route '/servers'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::index
-* @see addons/servers/src/Http/ServersController.php:22
+* @see addons/servers/src/Http/ServersController.php:25
 * @route '/servers'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::index
-* @see addons/servers/src/Http/ServersController.php:22
+* @see addons/servers/src/Http/ServersController.php:25
 * @route '/servers'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::index
-* @see addons/servers/src/Http/ServersController.php:22
+* @see addons/servers/src/Http/ServersController.php:25
 * @route '/servers'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::index
-* @see addons/servers/src/Http/ServersController.php:22
+* @see addons/servers/src/Http/ServersController.php:25
 * @route '/servers'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ index.form = indexForm
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::store
-* @see addons/servers/src/Http/ServersController.php:29
+* @see addons/servers/src/Http/ServersController.php:32
 * @route '/servers'
 */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -97,7 +97,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::store
-* @see addons/servers/src/Http/ServersController.php:29
+* @see addons/servers/src/Http/ServersController.php:32
 * @route '/servers'
 */
 store.url = (options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::store
-* @see addons/servers/src/Http/ServersController.php:29
+* @see addons/servers/src/Http/ServersController.php:32
 * @route '/servers'
 */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -116,7 +116,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::store
-* @see addons/servers/src/Http/ServersController.php:29
+* @see addons/servers/src/Http/ServersController.php:32
 * @route '/servers'
 */
 const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -126,7 +126,7 @@ const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::store
-* @see addons/servers/src/Http/ServersController.php:29
+* @see addons/servers/src/Http/ServersController.php:32
 * @route '/servers'
 */
 storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -138,7 +138,7 @@ store.form = storeForm
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::show
-* @see addons/servers/src/Http/ServersController.php:40
+* @see addons/servers/src/Http/ServersController.php:43
 * @route '/servers/{server}'
 */
 export const show = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -153,7 +153,7 @@ show.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::show
-* @see addons/servers/src/Http/ServersController.php:40
+* @see addons/servers/src/Http/ServersController.php:43
 * @route '/servers/{server}'
 */
 show.url = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -186,7 +186,7 @@ show.url = (args: { server: number | { id: number } } | [server: number | { id: 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::show
-* @see addons/servers/src/Http/ServersController.php:40
+* @see addons/servers/src/Http/ServersController.php:43
 * @route '/servers/{server}'
 */
 show.get = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -196,7 +196,7 @@ show.get = (args: { server: number | { id: number } } | [server: number | { id: 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::show
-* @see addons/servers/src/Http/ServersController.php:40
+* @see addons/servers/src/Http/ServersController.php:43
 * @route '/servers/{server}'
 */
 show.head = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -206,7 +206,7 @@ show.head = (args: { server: number | { id: number } } | [server: number | { id:
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::show
-* @see addons/servers/src/Http/ServersController.php:40
+* @see addons/servers/src/Http/ServersController.php:43
 * @route '/servers/{server}'
 */
 const showForm = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -216,7 +216,7 @@ const showForm = (args: { server: number | { id: number } } | [server: number | 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::show
-* @see addons/servers/src/Http/ServersController.php:40
+* @see addons/servers/src/Http/ServersController.php:43
 * @route '/servers/{server}'
 */
 showForm.get = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -226,7 +226,7 @@ showForm.get = (args: { server: number | { id: number } } | [server: number | { 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::show
-* @see addons/servers/src/Http/ServersController.php:40
+* @see addons/servers/src/Http/ServersController.php:43
 * @route '/servers/{server}'
 */
 showForm.head = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -243,7 +243,7 @@ show.form = showForm
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::rotateToken
-* @see addons/servers/src/Http/ServersController.php:56
+* @see addons/servers/src/Http/ServersController.php:60
 * @route '/servers/{server}/token'
 */
 export const rotateToken = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -258,7 +258,7 @@ rotateToken.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::rotateToken
-* @see addons/servers/src/Http/ServersController.php:56
+* @see addons/servers/src/Http/ServersController.php:60
 * @route '/servers/{server}/token'
 */
 rotateToken.url = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -291,7 +291,7 @@ rotateToken.url = (args: { server: number | { id: number } } | [server: number |
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::rotateToken
-* @see addons/servers/src/Http/ServersController.php:56
+* @see addons/servers/src/Http/ServersController.php:60
 * @route '/servers/{server}/token'
 */
 rotateToken.post = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -301,7 +301,7 @@ rotateToken.post = (args: { server: number | { id: number } } | [server: number 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::rotateToken
-* @see addons/servers/src/Http/ServersController.php:56
+* @see addons/servers/src/Http/ServersController.php:60
 * @route '/servers/{server}/token'
 */
 const rotateTokenForm = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -311,7 +311,7 @@ const rotateTokenForm = (args: { server: number | { id: number } } | [server: nu
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::rotateToken
-* @see addons/servers/src/Http/ServersController.php:56
+* @see addons/servers/src/Http/ServersController.php:60
 * @route '/servers/{server}/token'
 */
 rotateTokenForm.post = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -323,7 +323,7 @@ rotateToken.form = rotateTokenForm
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::destroy
-* @see addons/servers/src/Http/ServersController.php:65
+* @see addons/servers/src/Http/ServersController.php:68
 * @route '/servers/{server}'
 */
 export const destroy = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -338,7 +338,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::destroy
-* @see addons/servers/src/Http/ServersController.php:65
+* @see addons/servers/src/Http/ServersController.php:68
 * @route '/servers/{server}'
 */
 destroy.url = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -371,7 +371,7 @@ destroy.url = (args: { server: number | { id: number } } | [server: number | { i
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::destroy
-* @see addons/servers/src/Http/ServersController.php:65
+* @see addons/servers/src/Http/ServersController.php:68
 * @route '/servers/{server}'
 */
 destroy.delete = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -381,7 +381,7 @@ destroy.delete = (args: { server: number | { id: number } } | [server: number | 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::destroy
-* @see addons/servers/src/Http/ServersController.php:65
+* @see addons/servers/src/Http/ServersController.php:68
 * @route '/servers/{server}'
 */
 const destroyForm = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -396,7 +396,7 @@ const destroyForm = (args: { server: number | { id: number } } | [server: number
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::destroy
-* @see addons/servers/src/Http/ServersController.php:65
+* @see addons/servers/src/Http/ServersController.php:68
 * @route '/servers/{server}'
 */
 destroyForm.delete = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

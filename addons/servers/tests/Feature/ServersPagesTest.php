@@ -168,6 +168,21 @@ it('charts the peaks of the last 14 days only', function (): void {
         ->and(array_column($history['points'], 'cpu'))->toEqual([30, 60, 10]);
 });
 
+it('refreshes the values without recomputing the 14-day chart', function (): void {
+    $this->actingAs(serversUser('Owner'));
+    $this->post('/servers', ['name' => 'web-1']);
+    $server = Server::query()->sole();
+    storeServerSample($server, now());
+    $version = $this->get("/servers/{$server->id}")->inertiaPage()['version'];
+
+    DB::enableQueryLog();
+    $this->get("/servers/{$server->id}", ['X-Inertia' => 'true', 'X-Inertia-Version' => $version,
+        'X-Inertia-Partial-Component' => 'servers/show', 'X-Inertia-Partial-Data' => 'server'])
+        ->assertOk()->assertJsonPath('props.server.values.cpu_used_percent', 20)->assertJsonMissingPath('props.history');
+
+    expect(collect(DB::getQueryLog())->filter(fn (array $query): bool => str_contains($query['query'], 'jsonb_array_elements')))->toBeEmpty();
+});
+
 it('removes a server with its samples', function (): void {
     $this->actingAs(serversUser('Owner'));
     $this->post('/servers', ['name' => 'web-1']);

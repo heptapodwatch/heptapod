@@ -1,6 +1,6 @@
 import { Head, router, usePage, usePoll } from '@inertiajs/react';
 import { Copy } from 'lucide-react';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActionNoteSlot } from '@/components/action-note-slot';
 import { ConfirmDialog, confirmVisit } from '@/components/confirm-dialog';
@@ -183,7 +183,14 @@ export default function ServerShow({
     const [confirming, setConfirming] = useState<'rotate' | 'remove' | null>(
         null,
     );
-    usePoll(15_000, { only: ['server', 'history'] });
+    // The values refresh in place; the 14-day chart reloads only after a new report arrived.
+    usePoll(15_000, { only: ['server'] });
+    const lastReportAt = useRef(server.last_report_at);
+    useEffect(() => {
+        if (lastReportAt.current === server.last_report_at) return;
+        lastReportAt.current = server.last_report_at;
+        router.reload({ only: ['history'] });
+    }, [server.last_report_at]);
     return (
         <>
             <Head title={server.name} />
