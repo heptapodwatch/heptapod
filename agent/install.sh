@@ -144,7 +144,7 @@ while [ "$waited" -lt 90 ]; do
             echo "Optional provenance check (needs the GitHub CLI): gh attestation verify $binary --repo $repository"
             exit 0
             ;;
-        *'heptapod-agent: '* | *'rejected'* | *'not found'* | *'failed'* | *'rate limited'* | *'instance error'*)
+        *'heptapod-agent: '* | *'rejected'* | *'not found'* | *'send failed'* | *'collect failed'* | *'rate limited'* | *'instance error'*)
             printf '%s\n' "$log" >&2
             fail "installed, but the first report did not go through (see above); the service keeps retrying"
             ;;
