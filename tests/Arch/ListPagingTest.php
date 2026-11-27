@@ -38,8 +38,6 @@ const CuratedConfiguration = 'admin-curated configuration, shown in full (heptap
 
 /** Page lists a user never walks page by page. @var array<string, string> "Class::$property" => reason */
 const BoundedPageLists = [
-    // shortcut: lane A (servers manage) pages this list; remove the entry when it merges.
-    'Heptapod\Addons\Servers\Data\ServersPageData::$servers' => 'paged in the servers manage lane',
     'Heptapod\Addons\Servers\Data\ServerPageData::$history.points' => 'one chart point per step of the chosen window',
     'Heptapod\Data\Ui\ImportOhDearRunPageData::$importRun.channels' => 'the notification channels of one import, admin-curated configuration shown in full',
     'Heptapod\Data\Ui\ImportOhDearRunPageData::$importRun.common_notices' => 'one notice per notice kind the rows share',
@@ -118,6 +116,7 @@ const PagedPageLists = [
     'Heptapod\Data\Ui\SitesIndexPageData::$sites' => ['pagination', 'ListFooter'],
     'Heptapod\Data\Ui\SitesIndexPageData::$sites_history' => ['pagination', 'ListFooter'],
     'Heptapod\Data\Ui\UpcomingIndexPageData::$items' => ['next_page_url', 'ListFooter'],
+    'Heptapod\Addons\Servers\Data\ServersPageData::$servers' => ['pagination', 'ListFooter'],
 ];
 
 /** Catalog strings that announce a cap or progress count but describe no UI list. @var array<string, string> key => reason */
@@ -250,7 +249,7 @@ function listFooterPaginationBindings(array $sources, array $within): array
     foreach ($within as $source) {
         foreach (openingTagAttributes($source, $controls) as $attrs) {
             if (preg_match('/\bpagination=\{\s*([^}]+)\}/s', $attrs, $prop) === 1
-                && preg_match_all('/\.([a-z0-9_]+_pagination)\b/', $prop[1], $props) > 0) {
+                && preg_match_all('/(?<![\w$])(?:\w+\.)?([a-z0-9_]+_pagination)\b/', $prop[1], $props) > 0) {
                 foreach ($props[1] as $propName) {
                     $bound[$propName] = true;
                 }
