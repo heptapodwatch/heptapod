@@ -112,6 +112,10 @@
             "whois",
             "wordmark"
         ],
-        "paths": [".worktrees", "tests/Deployment/fixtures/image-retention"]
+        "paths": [
+            ".worktrees",
+            "agent/testdata",
+            "tests/Deployment/fixtures/image-retention"
+        ]
     }
 }

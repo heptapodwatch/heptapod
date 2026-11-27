@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       dev-image: ${{ steps.paths.outputs.dev-image }}
+      agent: ${{ steps.paths.outputs.agent }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -30,6 +31,7 @@ jobs:
           BEFORE: ${{ github.event.before }}
         run: |
           dev_image=false
+          agent=false
           if [ -n "$PR_BASE" ]; then
             base=$(git merge-base "$PR_BASE" "$HEAD")
           elif [ "$GITHUB_REF" = refs/heads/main ]; then
@@ -39,7 +41,8 @@ jobs:
           fi
           if [ -z "$base" ] || ! git cat-file -e "$base^{tree}" 2>/dev/null; then
             dev_image=true
-            echo 'No usable comparison base; running the development image gate.' >> "$GITHUB_STEP_SUMMARY"
+            agent=true
+            echo 'No usable comparison base; running the development image and agent gates.' >> "$GITHUB_STEP_SUMMARY"
           else
             git diff --name-only "$base" "$HEAD" > "$RUNNER_TEMP/changed-paths"
             while IFS= read -r path; do
@@ -47,9 +50,16 @@ jobs:
                 # Docker COPY inputs plus the validators that can change this gate's outcome.
                 docker/dev/*|docker/php-extensions.txt|package.json|package-lock.json|.dockerignore|addons/*/composer.json|.hadolint.yaml|.hadolint.yml|.trivyignore|trivy.yaml|.github/workflows/ci.yml|scripts/ci-summary.sh|scripts/with-heavy-slot.sh) dev_image=true ;;
               esac
+              case "$path" in
+                agent/*|.github/workflows/ci.yml) agent=true ;;
+              esac
             done < "$RUNNER_TEMP/changed-paths"
           fi
           echo "dev-image=$dev_image" >> "$GITHUB_OUTPUT"
+          echo "agent=$agent" >> "$GITHUB_OUTPUT"
+          if [ "$agent" = false ]; then
+            echo 'Server agent tests and builds skipped: nothing under agent/ changed.' >> "$GITHUB_STEP_SUMMARY"
+          fi
           if [ "$dev_image" = false ]; then
             echo 'Development image build, Dockerfile lint, addon binaries and vulnerability report skipped: no image or validation inputs changed.' >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -448,9 +458,35 @@ jobs:
           bash scripts/ci-summary.sh status 'Development addon binaries' "$BINARY_OUTCOME"
           bash scripts/ci-summary.sh trivy 'Development vulnerabilities (report-only)' "$SCAN_OUTCOME" "$RUNNER_TEMP/trivy-dev.json"
 
+  agent:
+    needs: [changes]
+    if: needs.changes.outputs.agent == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: agent/go.mod
+          cache: false
+      - name: Vet and test the server agent in random order
+        working-directory: agent
+        run: |
+          go vet ./...
+          go test -count=1 -shuffle=on -v ./...
+      - name: Lint the agent scripts
+        run: shellcheck -s sh agent/install.sh agent/build.sh
+      - name: Build the static release binaries
+        run: |
+          sh agent/build.sh 0.0.0-ci "$RUNNER_TEMP/agent"
+          test "$("$RUNNER_TEMP/agent/heptapod-agent-linux-amd64" --version)" = 0.0.0-ci
+          (cd "$RUNNER_TEMP/agent" && sha256sum -c SHA256SUMS)
+
   gate:
     if: always()
-    needs: [changes, checks, dev-image, php-gate, php-tests, vitest]
+    needs: [agent, changes, checks, dev-image, php-gate, php-tests, vitest]
     runs-on: ubuntu-latest
     steps:
       - name: Require every gate
@@ -461,5 +497,8 @@ jobs:
             ([.changes, .checks, .["php-gate"], .["php-tests"], .vitest] | all(.result == "success")) and
             (if .changes.outputs["dev-image"] == "true" then .["dev-image"].result == "success"
              elif .changes.outputs["dev-image"] == "false" then .["dev-image"].result == "skipped"
+             else false end) and
+            (if .changes.outputs.agent == "true" then .agent.result == "success"
+             elif .changes.outputs.agent == "false" then .agent.result == "skipped"
              else false end)
           ' <<< "$NEEDS"
