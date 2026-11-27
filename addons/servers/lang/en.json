@@ -9,7 +9,7 @@
     "servers.add.description": "Name the server; the next page shows the command that installs its agent.",
     "servers.add.submit": "Add server",
     "servers.column.server": "Server",
-    "servers.column.disk": "Disk",
+    "servers.column.disk": "Disk used",
     "servers.column.memory": "RAM used",
     "servers.column.load": "Load",
     "servers.column.last_report": "Last report",
@@ -72,5 +72,9 @@
     "servers.removed": ":name removed.",
     "servers.install.token": "Agent token",
     "servers.install.asks_token": "The installer asks for the token at its hidden “Agent token:” prompt.",
-    "servers.install.attestation": "With the GitHub CLI you can also check the build provenance before running it:"
+    "servers.install.attestation": "With the GitHub CLI you can also check the build provenance before running it:",
+    "servers.list.load": "{{load}} / {{cores}}",
+    "servers.list.legend": "Disk and RAM: share in use. Load: against the CPU cores.",
+    "servers.list.legend_detail_ring": "Share in use. Grey: fine · orange: near the alert threshold · red: at or above it. The tick marks the threshold. Load is shown relative to the CPU cores.",
+    "servers.list.legend_detail_value": "Share in use. Orange: near the alert threshold · red: at or above it. Load is shown relative to the CPU cores."
 }

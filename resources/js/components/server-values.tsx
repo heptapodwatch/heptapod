@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InfoTooltip } from '@/components/info-tooltip';
 import { StatusBadge } from '@/components/monitoring';
@@ -198,25 +199,65 @@ export function ServerGaugeRow({
     );
 }
 
-/** A table value: the small ring with the bare number and, near or over the threshold, the word. */
-function SmallGauge({ gauge }: { gauge: ServerGauge }) {
-    const format = useFormat();
+/** The list's value variants (temporary `?list=a|b` switch): a, the Lighthouse ring; b, the plain tinted number. */
+export type ServerListVariant = 'a' | 'b';
+
+/** A list value: the ring (a) or the tinted number (b), then the state word near or over the threshold. */
+function ListValue({
+    gauge,
+    variant,
+}: {
+    gauge: ServerGauge;
+    variant: ServerListVariant;
+}) {
+    const percent = usePercent();
+    const tone = gaugeTone(gauge.value, gauge.threshold);
     return (
-        <span className="inline-flex flex-col items-center gap-0.5">
-            <ScoreRing
-                size="sm"
-                score={gauge.value}
-                label={`${gauge.label} (%)`}
-                text={format.number(Math.round(gauge.value))}
-                tone={gaugeTone(gauge.value, gauge.threshold)}
-                threshold={gauge.threshold}
-            />
+        <span className="inline-flex flex-col items-center gap-1">
+            {variant === 'a' ? (
+                <ScoreRing
+                    score={gauge.value}
+                    label={gauge.label}
+                    text={percent(gauge.value)}
+                    tone={tone}
+                    threshold={gauge.threshold}
+                />
+            ) : (
+                <span
+                    className={cn(
+                        'font-mono text-sm tabular-nums',
+                        toneTextClass[tone],
+                    )}
+                >
+                    {percent(gauge.value)}
+                </span>
+            )}
             <GaugeWord gauge={gauge} />
         </span>
     );
 }
 
-/** The list's three values: the fullest disk, RAM used and load; none until the first report. */
+/** Load as the raw 1-minute load against the cores ("1.8 / 4 vCPU"): it has no alert threshold, and it can exceed the cores. */
+function ListLoad({ values }: { values: ServerValues }) {
+    const { t } = useTranslation();
+    const format = useFormat();
+    return (
+        <span className="font-mono text-sm whitespace-nowrap tabular-nums">
+            {t('servers.list.load', {
+                load: format.number(values.load_1, {
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 2,
+                }),
+                cores: t('servers.gauge.cores', {
+                    count: values.cores,
+                    formattedCount: format.number(values.cores),
+                }),
+            })}
+        </span>
+    );
+}
+
+/** The list's disk (the fullest mount) and RAM used; none until the first report. */
 function useListGauges(
     values: ServerValues | null,
     thresholds: Thresholds,
@@ -230,50 +271,82 @@ function useListGauges(
             undefined,
         ),
         gauges.find((gauge) => gauge.key === 'memory'),
-        gauges.find((gauge) => gauge.key === 'load'),
     ];
 }
 
-/** The list row's value columns (desktop table). */
+/** One line above the list that says what the values and colours mean. */
+export function ServerListLegend({ variant }: { variant: ServerListVariant }) {
+    const { t } = useTranslation();
+    return (
+        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+            {t('servers.list.legend')}
+            <InfoTooltip>
+                {t(
+                    variant === 'a'
+                        ? 'servers.list.legend_detail_ring'
+                        : 'servers.list.legend_detail_value',
+                )}
+            </InfoTooltip>
+        </p>
+    );
+}
+
+/** The list row's value columns (desktop table): Disk used, RAM used, Load. */
 export function ServerGaugeCells({
     values,
     thresholds,
+    variant,
 }: {
     values: ServerValues | null;
     thresholds: Thresholds;
+    variant: ServerListVariant;
 }) {
-    return useListGauges(values, thresholds).map((gauge, index) => (
-        <TableCell key={index} className="text-center">
-            {gauge !== undefined && <SmallGauge gauge={gauge} />}
-        </TableCell>
-    ));
+    const [disk, memory] = useListGauges(values, thresholds);
+    return (
+        <>
+            {[disk, memory].map((gauge, index) => (
+                <TableCell key={index} className="text-center">
+                    {gauge !== undefined && (
+                        <ListValue gauge={gauge} variant={variant} />
+                    )}
+                </TableCell>
+            ))}
+            <TableCell className="text-center">
+                {values !== null && <ListLoad values={values} />}
+            </TableCell>
+        </>
+    );
 }
 
 /** The list card's values (below md). */
 export function ServerGaugeLine({
     values,
     thresholds,
+    variant,
 }: {
     values: ServerValues;
     thresholds: Thresholds;
+    variant: ServerListVariant;
 }) {
     const { t } = useTranslation();
-    const labels = [
-        t('servers.column.disk'),
-        t('servers.column.memory'),
-        t('servers.column.load'),
-    ];
+    const [disk, memory] = useListGauges(values, thresholds);
+    const cell = (label: string, value: ReactNode) => (
+        <span className="flex flex-col items-center justify-end gap-1 text-center">
+            {value}
+            <span className="text-xs text-muted-foreground">{label}</span>
+        </span>
+    );
     return (
-        <span className="grid grid-cols-3 gap-3 text-xs text-muted-foreground">
-            {useListGauges(values, thresholds).map((gauge, index) => (
-                <span
-                    key={labels[index]}
-                    className="flex flex-col items-center gap-1"
-                >
-                    {gauge !== undefined && <SmallGauge gauge={gauge} />}
-                    {labels[index]}
-                </span>
-            ))}
+        <span className="grid grid-cols-3 items-end gap-3">
+            {cell(
+                t('servers.column.disk'),
+                disk && <ListValue gauge={disk} variant={variant} />,
+            )}
+            {cell(
+                t('servers.column.memory'),
+                memory && <ListValue gauge={memory} variant={variant} />,
+            )}
+            {cell(t('servers.column.load'), <ListLoad values={values} />)}
         </span>
     );
 }

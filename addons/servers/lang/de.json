@@ -9,7 +9,7 @@
     "servers.add.description": "Benennen Sie den Server; die nächste Seite zeigt den Befehl, der seinen Agenten installiert.",
     "servers.add.submit": "Server hinzufügen",
     "servers.column.server": "Server",
-    "servers.column.disk": "Festplatte",
+    "servers.column.disk": "Festplatte belegt",
     "servers.column.memory": "RAM belegt",
     "servers.column.load": "Last",
     "servers.column.last_report": "Letzter Bericht",
@@ -72,5 +72,9 @@
     "servers.removed": ":name entfernt.",
     "servers.install.token": "Agenten-Token",
     "servers.install.asks_token": "Das Installationsprogramm fragt nach dem Token (verdeckte Eingabe „Agent token:“).",
-    "servers.install.attestation": "Mit der GitHub CLI können Sie vor dem Ausführen auch die Build-Herkunft prüfen:"
+    "servers.install.attestation": "Mit der GitHub CLI können Sie vor dem Ausführen auch die Build-Herkunft prüfen:",
+    "servers.list.load": "{{load}} / {{cores}}",
+    "servers.list.legend": "Festplatte und RAM: belegter Anteil. Last: gemessen an den CPU-Kernen.",
+    "servers.list.legend_detail_ring": "Belegter Anteil. Grau: in Ordnung · Orange: nahe an der Alarmschwelle · Rot: auf oder über ihr. Der Strich markiert die Schwelle. Die Last wird an den CPU-Kernen gemessen.",
+    "servers.list.legend_detail_value": "Belegter Anteil. Orange: nahe an der Alarmschwelle · Rot: auf oder über ihr. Die Last wird an den CPU-Kernen gemessen."
 }

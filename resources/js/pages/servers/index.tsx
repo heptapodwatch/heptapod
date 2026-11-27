@@ -1,4 +1,4 @@
-import { Head, Link, useForm, usePoll } from '@inertiajs/react';
+import { Head, Link, useForm, usePage, usePoll } from '@inertiajs/react';
 import { Plus, Server } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +17,8 @@ import { PendingChanges } from '@/components/pending-changes';
 import {
     ServerGaugeCells,
     ServerGaugeLine,
+    ServerListLegend,
+    type ServerListVariant,
     ServerStateBadge,
     useServerSize,
 } from '@/components/server-values';
@@ -109,6 +111,12 @@ export default function ServersIndex({
     const format = useFormat();
     const size = useServerSize();
     const [adding, setAdding] = useState(false);
+    // Temporary review switch between the two list designs (`?list=a|b`); the PO removes the losing one before merge.
+    const { url } = usePage();
+    const variant: ServerListVariant =
+        new URLSearchParams(url.split('?')[1] ?? '').get('list') === 'b'
+            ? 'b'
+            : 'a';
     // New reports arrive every minute: values refresh in place, servers another tab added or removed wait behind
     // "N new changes".
     usePoll(15_000, { only: ['servers'] });
@@ -152,122 +160,137 @@ export default function ServersIndex({
                         action={addButton}
                     />
                 ) : (
-                    <div className="overflow-hidden rounded-lg border">
-                        <div className="hidden md:block">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>
-                                            {t('servers.column.server')}
-                                        </TableHead>
-                                        <TableHead>{t('Status')}</TableHead>
-                                        <TableHead className="text-center">
-                                            {t('servers.column.disk')}
-                                        </TableHead>
-                                        <TableHead className="text-center">
-                                            {t('servers.column.memory')}
-                                        </TableHead>
-                                        <TableHead className="text-center">
-                                            {t('servers.column.load')}
-                                        </TableHead>
-                                        <TableHead className="text-right">
-                                            {t('servers.column.last_report')}
-                                        </TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {buffered.rows.map((server) => (
-                                        <TableRow
-                                            key={server.id}
-                                            className={rowTargetClass}
-                                            onClick={openRowTarget(
-                                                show.url(server.id),
+                    <>
+                        <ServerListLegend variant={variant} />
+                        <div className="overflow-hidden rounded-lg border">
+                            <div className="hidden md:block">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>
+                                                {t('servers.column.server')}
+                                            </TableHead>
+                                            <TableHead>{t('Status')}</TableHead>
+                                            <TableHead className="text-center">
+                                                {t('servers.column.disk')}
+                                            </TableHead>
+                                            <TableHead className="text-center">
+                                                {t('servers.column.memory')}
+                                            </TableHead>
+                                            <TableHead className="text-center">
+                                                {t('servers.column.load')}
+                                            </TableHead>
+                                            <TableHead className="text-right">
+                                                {t(
+                                                    'servers.column.last_report',
+                                                )}
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {buffered.rows.map((server) => (
+                                            <TableRow
+                                                key={server.id}
+                                                className={rowTargetClass}
+                                                onClick={openRowTarget(
+                                                    show.url(server.id),
+                                                )}
+                                            >
+                                                <TableCell column="name">
+                                                    <EntityLink
+                                                        name={server.name}
+                                                        href={show.url(
+                                                            server.id,
+                                                        )}
+                                                    />
+                                                    {server.values && (
+                                                        <span className="block font-mono text-xs text-muted-foreground tabular-nums">
+                                                            {size(
+                                                                server.values,
+                                                            )}
+                                                        </span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span className="flex flex-col items-start gap-1">
+                                                        <ServerStateBadge
+                                                            server={server}
+                                                        />
+                                                        {reboot(server)}
+                                                    </span>
+                                                </TableCell>
+                                                <ServerGaugeCells
+                                                    values={server.values}
+                                                    thresholds={thresholds}
+                                                    variant={variant}
+                                                />
+                                                <TableCell className="text-right">
+                                                    {server.last_report_at && (
+                                                        <MonitoringTime
+                                                            value={
+                                                                server.last_report_at
+                                                            }
+                                                            className="font-mono text-xs tabular-nums"
+                                                        />
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                            <ul className="divide-y md:hidden">
+                                {buffered.rows.map((server) => (
+                                    <li key={server.id}>
+                                        <Link
+                                            href={show.url(server.id)}
+                                            className={cn(
+                                                'block space-y-2',
+                                                listCardPadding,
+                                                rowTargetClass,
                                             )}
                                         >
-                                            <TableCell column="name">
-                                                <EntityLink
-                                                    name={server.name}
-                                                    href={show.url(server.id)}
-                                                />
-                                                {server.values && (
-                                                    <span className="block font-mono text-xs text-muted-foreground tabular-nums">
-                                                        {size(server.values)}
-                                                    </span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell>
-                                                <span className="flex flex-col items-start gap-1">
-                                                    <ServerStateBadge
-                                                        server={server}
+                                            <span className="flex items-start justify-between gap-3">
+                                                <span className="min-w-0">
+                                                    <EntityLink
+                                                        name={server.name}
+                                                        insideLink
                                                     />
-                                                    {reboot(server)}
+                                                    {server.values && (
+                                                        <span className="block font-mono text-xs text-muted-foreground tabular-nums">
+                                                            {size(
+                                                                server.values,
+                                                            )}
+                                                        </span>
+                                                    )}
                                                 </span>
-                                            </TableCell>
-                                            <ServerGaugeCells
-                                                values={server.values}
-                                                thresholds={thresholds}
-                                            />
-                                            <TableCell className="text-right">
-                                                {server.last_report_at && (
-                                                    <MonitoringTime
-                                                        value={
-                                                            server.last_report_at
-                                                        }
-                                                        className="font-mono text-xs tabular-nums"
-                                                    />
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                        <ul className="divide-y md:hidden">
-                            {buffered.rows.map((server) => (
-                                <li key={server.id}>
-                                    <Link
-                                        href={show.url(server.id)}
-                                        className={cn(
-                                            'block space-y-2',
-                                            listCardPadding,
-                                            rowTargetClass,
-                                        )}
-                                    >
-                                        <span className="flex items-start justify-between gap-3">
-                                            <span className="min-w-0">
-                                                <EntityLink
-                                                    name={server.name}
-                                                    insideLink
+                                                <ServerStateBadge
+                                                    server={server}
                                                 />
-                                                {server.values && (
-                                                    <span className="block font-mono text-xs text-muted-foreground tabular-nums">
-                                                        {size(server.values)}
-                                                    </span>
-                                                )}
                                             </span>
-                                            <ServerStateBadge server={server} />
-                                        </span>
-                                        {reboot(server)}
-                                        {server.values && (
-                                            <ServerGaugeLine
-                                                values={server.values}
-                                                thresholds={thresholds}
-                                            />
-                                        )}
-                                        {server.last_report_at && (
-                                            <span className="block text-right font-mono text-xs text-muted-foreground tabular-nums">
-                                                {
-                                                    format.monitorTime(
-                                                        server.last_report_at,
-                                                    ).label
-                                                }
-                                            </span>
-                                        )}
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
+                                            {reboot(server)}
+                                            {server.values && (
+                                                <ServerGaugeLine
+                                                    values={server.values}
+                                                    thresholds={thresholds}
+                                                    variant={variant}
+                                                />
+                                            )}
+                                            {server.last_report_at && (
+                                                <span className="block text-right font-mono text-xs text-muted-foreground tabular-nums">
+                                                    {
+                                                        format.monitorTime(
+                                                            server.last_report_at,
+                                                        ).label
+                                                    }
+                                                </span>
+                                            )}
+                                        </Link>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </>
                 )}
             </PageContainer>
             {adding && <AddServerSheet onClose={() => setAdding(false)} />}
