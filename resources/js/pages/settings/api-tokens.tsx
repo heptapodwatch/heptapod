@@ -87,10 +87,6 @@ function CreateToken({
     onClose: () => void;
 }) {
     const { t } = useTranslation();
-    const startingPoints: Record<StartingPoint, string[] | null> = {
-        ...page.starting_points,
-        empty: [],
-    };
     // Unmount the form after issuance: the request also holds its response in component memory.
     const form = useHttpRequest<
         Draft,
@@ -103,6 +99,19 @@ function CreateToken({
         expiry: '30-days',
         expires_at: '',
     });
+    // A token limited to one client gets fewer abilities (servers belong to no client); the rest is not offered.
+    const offered = (reach: Draft['reach']) =>
+        reach === 'client' ? page.client_abilities : page.abilities;
+    const available = offered(form.data.reach);
+    const startingPoints: Record<StartingPoint, string[] | null> = {
+        ...page.starting_points,
+        empty: [],
+    };
+    for (const key of Object.keys(startingPoints) as StartingPoint[])
+        startingPoints[key] =
+            startingPoints[key]?.filter((ability) =>
+                available.includes(ability),
+            ) ?? null;
     // The starting point only fills the checklist; it shows as chosen while the checklist still matches it.
     const startingPoint =
         (Object.keys(startingPoints) as StartingPoint[]).find(
@@ -317,7 +326,7 @@ function CreateToken({
                         {t('The checked permissions are the grant.')}
                     </p>
                     <AbilityMatrix
-                        available={page.abilities}
+                        available={available}
                         value={form.data.abilities}
                         disabled={form.processing}
                         onChange={(abilities) =>
@@ -343,7 +352,15 @@ function CreateToken({
                         disabled={form.processing}
                         onValueChange={(value) => {
                             setReachError(null);
-                            form.setData('reach', value as Draft['reach']);
+                            const reach = value as Draft['reach'];
+                            form.setData({
+                                ...form.data,
+                                reach,
+                                abilities: form.data.abilities.filter(
+                                    (ability) =>
+                                        offered(reach).includes(ability),
+                                ),
+                            });
                         }}
                     >
                         <RadioGroupItem

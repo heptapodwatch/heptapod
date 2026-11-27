@@ -48,6 +48,19 @@ function apiToken(User $user, array $abilities, ?int $clientId = null): string
     return app(CreateApiToken::class)($user, 'agent', $abilities, $clientId);
 }
 
+/**
+ * A client-limited token stored with server abilities, as issued before CreateApiToken refused that pair: still denied.
+ *
+ * @param  list<string>  $abilities
+ */
+function storedClientToken(User $user, array $abilities, int $clientId): string
+{
+    $token = $user->createToken('stored', $abilities);
+    $token->accessToken->forceFill(['client_id' => $clientId])->save();
+
+    return $token->plainTextToken;
+}
+
 /** A reporting server with one stored sample, as ingest leaves it: root 90 % used, RAM 75 % used, load 3 on 2 vCPU. */
 function apiServer(string $name, array $ips = ['203.0.113.10']): Server
 {
@@ -187,7 +200,7 @@ it('needs servers:read to read and servers:snooze to snooze', function (): void 
 it('denies a token limited to one client and a Member, even with a wildcard token, like the server pages', function (string $who): void {
     $web = apiServer('web-1');
     $token = match ($who) {
-        'Owner limited to one client' => apiToken(apiUser('Owner'), ['servers:read', 'servers:snooze'], Client::factory()->create()->id),
+        'Owner limited to one client' => storedClientToken(apiUser('Owner'), ['servers:read', 'servers:snooze'], Client::factory()->create()->id),
         'Member with a wildcard token' => apiUser('Member')->createToken('legacy', ['*'])->plainTextToken,
     };
 
@@ -225,21 +238,50 @@ it('offers the servers abilities to Owners and Admins only while servers are on,
     serversApi('GET', "/api/servers/{$server->id}", $token)->assertOk();
 });
 
-it('answers 404 on every server operation while switched off, before the token is checked', function (string $switch): void {
+it('answers every server operation while switched off exactly like an unknown API route, before the token is checked', function (string $switch): void {
+    config(['app.debug' => false]);
     $web = apiServer('web-1');
     $token = apiToken(apiUser('Owner'), ['servers:read', 'servers:snooze']);
     $switch === 'environment' ? config(['heptapod.servers.enabled_by_server' => false]) : apiSwitch(false);
+    // Status, body (its path written as {path}) and header names, as a client sees them.
+    $seen = static function (string $method, string $uri, ?string $bearer): array {
+        $response = serversApi($method, $uri, $bearer, $method === 'POST' ? ['minutes' => 30] : []);
+        $headers = array_diff(array_keys($response->headers->all()), ['date']);
+        sort($headers);
+
+        return [$response->status(), str_replace(ltrim($uri, '/'), '{path}', (string) $response->getContent()), $headers];
+    };
 
     foreach ([$token, null] as $bearer) {
-        foreach (['/api/servers', "/api/servers/{$web->id}", "/api/servers/{$web->id}/issues"] as $uri) {
-            serversApi('GET', $uri, $bearer)->assertNotFound();
-        }
-        foreach (['snooze', 'unsnooze'] as $action) {
-            serversApi('POST', "/api/servers/{$web->id}/{$action}", $bearer, ['minutes' => 30])->assertNotFound();
+        $operations = [['GET', '/api/servers'], ['GET', "/api/servers/{$web->id}"], ['GET', "/api/servers/{$web->id}/issues"],
+            ['POST', "/api/servers/{$web->id}/snooze"], ['POST', "/api/servers/{$web->id}/unsnooze"]];
+        foreach ($operations as [$method, $uri]) {
+            expect($seen($method, $uri, $bearer))->toBe($seen($method, '/api/no-such-route', $bearer))
+                ->and($seen($method, $uri, $bearer)[0])->toBe(404);
         }
     }
     expect($web->refresh()->snoozed_until)->toBeNull();
 })->with(['environment', 'Owner toggle']);
+
+it('never grants the servers abilities to a token limited to one client, and offers them only without a limit', function (): void {
+    $owner = apiUser('Owner');
+    $client = Client::factory()->create();
+    $create = app(CreateApiToken::class);
+
+    expect($create->allowedAbilities($owner, limitedToClient: true))->not->toContain('servers:read')->not->toContain('servers:snooze')
+        ->and($create->allowedAbilities($owner))->toContain('servers:read', 'servers:snooze');
+    $page = $this->actingAs($owner)->getJson('/settings/api-tokens/data')->assertOk();
+    expect($page->json('abilities'))->toContain('servers:read')
+        ->and($page->json('client_abilities'))->toBe(array_values(array_diff($page->json('abilities'), ['servers:read', 'servers:snooze'])));
+
+    foreach ([['servers:read'], ['monitors:read', 'servers:snooze']] as $abilities) {
+        $this->postJson('/settings/api-tokens', ['name' => 'limited', 'abilities' => $abilities, 'client_id' => $client->id])
+            ->assertUnprocessable()->assertJsonValidationErrors('abilities.'.(count($abilities) - 1));
+    }
+    expect(DB::table('personal_access_tokens')->where('name', 'limited')->exists())->toBeFalse();
+    $this->postJson('/settings/api-tokens', ['name' => 'limited', 'abilities' => ['monitors:read'], 'client_id' => $client->id])->assertCreated();
+    $this->postJson('/settings/api-tokens', ['name' => 'all clients', 'abilities' => ['servers:read'], 'client_id' => null])->assertCreated();
+});
 
 it('serves the OpenAPI document with the server operations only while servers are on', function (): void {
     $on = $this->getJson('/api/openapi.json')->assertOk()->json();
@@ -272,7 +314,7 @@ it('names the server a monitor runs on only for Owner and Admin tokens with serv
     DB::table('server_sites')->insert(['site_id' => $linked->id, 'server_id' => $web->id, 'created_at' => now()]);
     $owner = apiUser('Owner');
     $reader = apiToken($owner, ['monitors:read', 'servers:read']);
-    $without = [apiToken($owner, ['monitors:read']), apiToken($owner, ['monitors:read', 'servers:read'], $client->id), apiUser('Member')->createToken('legacy', ['*'])->plainTextToken];
+    $without = [apiToken($owner, ['monitors:read']), storedClientToken($owner, ['monitors:read', 'servers:read'], $client->id), apiUser('Member')->createToken('legacy', ['*'])->plainTextToken];
     $server = ['id' => $web->id, 'name' => 'web-1'];
 
     serversApi('GET', "/api/monitors/{$linked->id}", $reader)->assertOk()->assertJsonPath('server', $server);

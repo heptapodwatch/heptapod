@@ -1109,6 +1109,7 @@ last_used_at: string | null,
 expires_at: string | null,
 }[],
 readonly abilities: string[],
+readonly client_abilities: string[],
 readonly presets: {
 read: string[],
 write: string[],

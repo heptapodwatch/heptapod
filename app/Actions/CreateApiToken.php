@@ -22,7 +22,7 @@ final readonly class CreateApiToken
 
     public const array Abilities = [...self::HistoricalAbilities, 'activity:read', 'upcoming:read', 'checks:run', 'clients:read', 'clients:write', ...self::ServerAbilities];
 
-    /** The experimental servers addon's: Owners and Admins only, and offered only while servers are on (ServersAccess). */
+    /** The experimental servers addon's: Owners and Admins only, never with a client limit, and only while servers are on (ServersAccess). */
     public const array ServerAbilities = ['servers:read', 'servers:snooze'];
 
     public const array ReadPreset = ['identity:read', 'monitors:read', 'checks:read', 'incidents:read', 'uptime:read', 'downtime:read', 'tags:read', 'clients:read', 'maintenance:read'];
@@ -82,7 +82,7 @@ final readonly class CreateApiToken
             $user = User::query()->findOrFail($authenticated->id);
             abort_if($user->disabled_at !== null || $user->getAuthPassword() !== $authenticated->getAuthPassword(), 403);
             // No new `*`: existing wildcard tokens keep working, new grants name their abilities.
-            Validator::make(['name' => $name, 'abilities' => $abilities], ['name' => ['required', 'string', 'max:255'], 'abilities' => ['required', 'array', 'min:1'], 'abilities.*' => ['string', 'distinct', Rule::in($this->allowedAbilities($user))]])->validate();
+            Validator::make(['name' => $name, 'abilities' => $abilities], ['name' => ['required', 'string', 'max:255'], 'abilities' => ['required', 'array', 'min:1'], 'abilities.*' => ['string', 'distinct', Rule::in($this->allowedAbilities($user, $clientId !== null))]])->validate();
 
             if ($clientId !== null && ! $user->canAccessClient($clientId)) {
                 throw ValidationException::withMessages(['client_id' => __('validation.exists', ['attribute' => 'client_id'])]);
@@ -97,10 +97,15 @@ final readonly class CreateApiToken
         });
     }
 
-    /** @return list<string> */
-    public function allowedAbilities(User $user): array
+    /**
+     * The abilities the user may grant; with $limitedToClient, those a token limited to one client can use (servers
+     * belong to no client, as in ServersAccess::allows).
+     *
+     * @return list<string>
+     */
+    public function allowedAbilities(User $user, bool $limitedToClient = false): array
     {
-        $abilities = $this->servers->enabled() ? self::Abilities : array_values(array_diff(self::Abilities, self::ServerAbilities));
+        $abilities = $this->servers->enabled() && ! $limitedToClient ? self::Abilities : array_values(array_diff(self::Abilities, self::ServerAbilities));
 
         return $user->hasAnyRole(['Owner', 'Admin']) ? $abilities
             : array_values(array_diff($abilities, [...self::AdminAbilities, ...self::ServerAbilities]));

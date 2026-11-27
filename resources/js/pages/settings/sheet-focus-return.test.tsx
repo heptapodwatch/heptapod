@@ -49,6 +49,7 @@ it('returns focus to Create token after the token sheet closes', async () => {
             tokensPage={{
                 tokens: [],
                 abilities: [],
+                client_abilities: [],
                 presets: {
                     read: [],
                     write: [],

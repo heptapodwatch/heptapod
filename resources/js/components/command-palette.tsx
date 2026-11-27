@@ -11,7 +11,13 @@ import {
     Server,
     Sun,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type ComponentProps } from 'react';
+import {
+    useEffect,
+    useRef,
+    useState,
+    type ComponentProps,
+    type ReactNode,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { StatusBadge } from '@/components/monitoring';
 import { siteHost } from '@/components/entity-combobox';
@@ -49,6 +55,43 @@ const empty: Heptapod.Data.Ui.SearchResultsData = {
     incidents: [],
     servers: [],
 };
+
+/** A search result: a leading visual, a truncated title, a muted meta line (two clamped lines for incidents) and an optional badge. */
+function PaletteResult({
+    value,
+    onSelect,
+    visual,
+    title,
+    meta,
+    metaLines = 1,
+    badge,
+}: {
+    value: string;
+    onSelect: () => void;
+    visual: ReactNode;
+    title: string;
+    meta: ReactNode;
+    metaLines?: 1 | 2;
+    badge?: ReactNode;
+}) {
+    return (
+        <CommandItem value={value} onSelect={onSelect}>
+            {visual}
+            <span className="min-w-0 flex-1">
+                <span className="block truncate">{title}</span>
+                <span
+                    className={cn(
+                        'text-xs text-muted-foreground',
+                        metaLines === 2 ? 'line-clamp-2' : 'block truncate',
+                    )}
+                >
+                    {meta}
+                </span>
+            </span>
+            {badge}
+        </CommandItem>
+    );
+}
 
 export function CommandPaletteTrigger({
     onClick,
@@ -319,40 +362,41 @@ export function CommandPalette({
                             {results.sites.length > 0 && (
                                 <CommandGroup heading={t('Sites')}>
                                     {results.sites.map((site) => (
-                                        <CommandItem
+                                        <PaletteResult
                                             key={site.id}
                                             value={`${site.name} ${site.url}`}
                                             onSelect={() =>
                                                 navigate(siteShow.url(site.id))
                                             }
-                                        >
-                                            <SiteAvatar
-                                                name={site.name}
-                                                iconUrl={site.icon_url}
-                                                iconBacking={site.icon_backing}
-                                            />
-                                            <span className="min-w-0 flex-1">
-                                                <span className="block truncate">
-                                                    {site.name}
-                                                </span>
-                                                <span className="block truncate text-xs text-muted-foreground">
-                                                    {[
-                                                        site.client_name,
-                                                        siteHost(site.url),
-                                                    ]
-                                                        .filter(Boolean)
-                                                        .join(' · ')}
-                                                </span>
-                                            </span>
-                                            <StatusBadge state={site.state} />
-                                        </CommandItem>
+                                            visual={
+                                                <SiteAvatar
+                                                    name={site.name}
+                                                    iconUrl={site.icon_url}
+                                                    iconBacking={
+                                                        site.icon_backing
+                                                    }
+                                                />
+                                            }
+                                            title={site.name}
+                                            meta={[
+                                                site.client_name,
+                                                siteHost(site.url),
+                                            ]
+                                                .filter(Boolean)
+                                                .join(' · ')}
+                                            badge={
+                                                <StatusBadge
+                                                    state={site.state}
+                                                />
+                                            }
+                                        />
                                     ))}
                                 </CommandGroup>
                             )}
                             {results.servers.length > 0 && (
                                 <CommandGroup heading={t('servers.title')}>
                                     {results.servers.map((server) => (
-                                        <CommandItem
+                                        <PaletteResult
                                             key={server.id}
                                             value={`server ${server.id} ${server.name} ${server.hostname ?? ''} ${server.ips.join(' ')}`}
                                             onSelect={() =>
@@ -360,23 +404,20 @@ export function CommandPalette({
                                                     serverShow.url(server.id),
                                                 )
                                             }
-                                        >
-                                            <Server />
-                                            <span className="min-w-0 flex-1">
-                                                <span className="block truncate">
-                                                    {server.name}
-                                                </span>
-                                                <span className="block truncate text-xs text-muted-foreground">
-                                                    {[
-                                                        server.hostname,
-                                                        server.ips[0],
-                                                    ]
-                                                        .filter(Boolean)
-                                                        .join(' · ')}
-                                                </span>
-                                            </span>
-                                            <ServerStateBadge server={server} />
-                                        </CommandItem>
+                                            visual={<Server />}
+                                            title={server.name}
+                                            meta={[
+                                                server.hostname,
+                                                server.ips[0],
+                                            ]
+                                                .filter(Boolean)
+                                                .join(' · ')}
+                                            badge={
+                                                <ServerStateBadge
+                                                    server={server}
+                                                />
+                                            }
+                                        />
                                     ))}
                                 </CommandGroup>
                             )}
@@ -406,7 +447,7 @@ export function CommandPalette({
                             {results.incidents.length > 0 && (
                                 <CommandGroup heading={t('Incidents')}>
                                     {results.incidents.map((incident) => (
-                                        <CommandItem
+                                        <PaletteResult
                                             key={incident.id}
                                             value={`${incident.site_name} INC-${incident.id}`}
                                             onSelect={() =>
@@ -416,41 +457,35 @@ export function CommandPalette({
                                                     ),
                                                 )
                                             }
-                                        >
-                                            <SiteAvatar
-                                                name={incident.site_name}
-                                                iconUrl={incident.icon_url}
-                                                iconBacking={
-                                                    incident.icon_backing
-                                                }
-                                            />
-                                            <span className="min-w-0 flex-1">
-                                                <span className="block truncate">
-                                                    INC-{incident.id} ·{' '}
-                                                    {incident.site_name}
-                                                </span>
-                                                <span className="line-clamp-2 text-xs text-muted-foreground">
-                                                    {format.issueHeadline(
-                                                        {
-                                                            ...incident,
-                                                            fallback:
-                                                                incident.summary
-                                                                    ? format.summary(
-                                                                          incident.summary,
-                                                                          incident.summary_params,
-                                                                      )
-                                                                    : t(
-                                                                          incident.cause ===
-                                                                              'errored'
-                                                                              ? 'Check could not run'
-                                                                              : 'Check failed',
-                                                                      ),
-                                                        },
-                                                        true,
-                                                    )}
-                                                </span>
-                                            </span>
-                                        </CommandItem>
+                                            visual={
+                                                <SiteAvatar
+                                                    name={incident.site_name}
+                                                    iconUrl={incident.icon_url}
+                                                    iconBacking={
+                                                        incident.icon_backing
+                                                    }
+                                                />
+                                            }
+                                            title={`INC-${incident.id} · ${incident.site_name}`}
+                                            meta={format.issueHeadline(
+                                                {
+                                                    ...incident,
+                                                    fallback: incident.summary
+                                                        ? format.summary(
+                                                              incident.summary,
+                                                              incident.summary_params,
+                                                          )
+                                                        : t(
+                                                              incident.cause ===
+                                                                  'errored'
+                                                                  ? 'Check could not run'
+                                                                  : 'Check failed',
+                                                          ),
+                                                },
+                                                true,
+                                            )}
+                                            metaLines={2}
+                                        />
                                     ))}
                                 </CommandGroup>
                             )}
