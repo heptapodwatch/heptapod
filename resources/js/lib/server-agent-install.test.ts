@@ -59,7 +59,9 @@ function run(
         chmodSync(join(bin, 'mktemp'), 0o755);
     }
     try {
+        // From inside the throwaway root: a broken chain must never write into the checkout.
         execFileSync('sh', ['-c', command], {
+            cwd: root,
             env: {
                 PATH: `${bin}:${process.env.PATH ?? ''}`,
                 TMPDIR: join(root, 'tmp'),
