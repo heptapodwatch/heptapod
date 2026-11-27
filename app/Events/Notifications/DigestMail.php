@@ -68,7 +68,7 @@ final readonly class DigestMail
         $shown = array_slice($rows, 0, self::ShownItems);
         // The rows share one byte budget; a shortened label keeps its distinguishing end, else falls back to its site ID.
         $items = MailRowBudget::fit(array_map(static fn (array $row): array => ['text' => $labels[$row['site']], 'key' => $row['site'],
-            'meta' => ($row['meta'] ?? __('checks.'.($row['check']->value ?? throw new \LogicException('A site digest row needs its check.')).'.label', locale: $locale)).' · '.__($row['category'] === null ? 'emails.digest_unclassified' : 'recipient_settings.category.'.$row['category']->value.'.label', locale: $locale),
+            'meta' => ($row['meta'] ?? __('checks.'.($row['check']->value ?? throw new \LogicException('A site digest row needs its check.')).'.label', locale: $locale)).' · '.__($row['category'] instanceof NotificationCategory ? 'recipient_settings.category.'.$row['category']->value.'.label' : 'emails.digest_unclassified', locale: $locale),
         ], $shown), array_map(static fn (int $id): string => SiteLabels::withId($id, $sites[$id]), array_combine(array_keys($sites), array_keys($sites))) + $servers);
         $at = $digest->occurred_at->setTimezone($destination->resolvedTimezone());
         $at->locale($locale);

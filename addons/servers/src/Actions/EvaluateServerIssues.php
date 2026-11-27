@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
  * Opens and resolves server issues; every caller holds the server row FOR UPDATE, so one server is evaluated by one
  * transaction at a time. Disk (per watched mount), RAM and load open once every sample across their duration is at or
  * above the threshold, and only a fresh sample below it resolves them: an issue stays open while reports stop. A gap
- * longer than GapSeconds between two samples (a missed report) breaks a streak. "No report" opens on the scheduler's
+ * longer than GapSeconds between two samples (a missed report) breaks a streak. "No report" opens on the scheduled
  * pass once the newest report is older than the server's "No report after" and resolves with the next sample.
  *
  * @phpstan-type Metrics array{cpu: array{cores: int}, load: array{5: int|float}, memory: array{total_bytes: int, available_bytes: int}, filesystems: list<array{mount: string, total_bytes: int, free_bytes: int}>}
@@ -70,7 +70,7 @@ final readonly class EvaluateServerIssues
     }
 
     /**
-     * The scheduler's pass: "No report" for every server whose newest report is older than its "No report after", opened
+     * The scheduled pass: "No report" for every server whose newest report is older than its "No report after", opened
      * at the moment it became due. Reads the servers through their row, so the servers table bounds it.
      */
     public function noReports(CarbonImmutable $now): void
@@ -86,7 +86,7 @@ final readonly class EvaluateServerIssues
             DB::transaction(function () use ($serverId, $now): void {
                 $server = $this->lock($serverId);
                 $last = $server?->last_report_at;
-                if ($server === null || $last === null) {
+                if (! $server instanceof Server || $last === null) {
                     return;
                 }
                 $minutes = ServerThresholdsData::of($server->settings)->no_report_minutes;
@@ -110,7 +110,7 @@ final readonly class EvaluateServerIssues
     public function end(Server $server, string $reason, CarbonImmutable $at, ?ServerIssueKind $kind = null, ?array $scopes = null): void
     {
         foreach ($this->openIssues($server) as $issue) {
-            if (($kind === null || $issue->kind === $kind) && ($scopes === null || in_array($issue->scope, $scopes, true))) {
+            if ((! $kind instanceof ServerIssueKind || $issue->kind === $kind) && ($scopes === null || in_array($issue->scope, $scopes, true))) {
                 $this->resolve($server, $issue, $at, ['reason' => $reason], $reason);
             }
         }
@@ -159,11 +159,11 @@ final readonly class EvaluateServerIssues
                 continue;
             }
             $custom = array_find($thresholds->mounts, static fn (array $mount): bool => $mount['mount'] === $filesystem['mount']);
-            $measures[] = ['kind' => ServerIssueKind::DiskFull, 'scope' => $filesystem['mount'], 'value' => self::diskUsed($filesystem),
+            $measures[] = ['kind' => ServerIssueKind::DiskFull, 'scope' => $filesystem['mount'], 'value' => $this->diskUsed($filesystem),
                 'threshold' => $custom['percent'] ?? $thresholds->disk_percent, 'minutes' => $custom['minutes'] ?? $thresholds->disk_minutes, 'extra' => []];
         }
         if ($metrics['memory']['total_bytes'] > 0) {
-            $measures[] = ['kind' => ServerIssueKind::MemoryLow, 'scope' => '', 'value' => self::memoryUsed($metrics),
+            $measures[] = ['kind' => ServerIssueKind::MemoryLow, 'scope' => '', 'value' => $this->memoryUsed($metrics),
                 'threshold' => $thresholds->memory_percent, 'minutes' => $thresholds->memory_minutes, 'extra' => []];
         }
         $cores = $metrics['cpu']['cores'];
@@ -233,13 +233,13 @@ final readonly class EvaluateServerIssues
     }
 
     /** @param array{total_bytes: int, free_bytes: int} $filesystem */
-    private static function diskUsed(array $filesystem): float
+    private function diskUsed(array $filesystem): float
     {
         return 100 - 100 * $filesystem['free_bytes'] / $filesystem['total_bytes'];
     }
 
     /** @param Metrics $metrics */
-    private static function memoryUsed(array $metrics): float
+    private function memoryUsed(array $metrics): float
     {
         return 100 - 100 * $metrics['memory']['available_bytes'] / $metrics['memory']['total_bytes'];
     }

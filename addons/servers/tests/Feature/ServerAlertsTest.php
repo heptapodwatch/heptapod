@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -332,23 +333,23 @@ it('lists server issues in Activity for Owners and Admins with a link to the ser
     alertsMinutes($this, $token, 16, ['disks' => ['/' => 92]]);
     alertsMinutes($this, $token, 1);
 
-    $this->actingAs($owner)->get('/activity')->assertOk()->assertInertia(fn (Assert $page) => $page->has('events.data', 2)
+    $this->actingAs($owner)->get('/activity')->assertOk()->assertInertia(fn (Assert $page): AssertableInertia => $page->has('events.data', 2)
         ->where('events.data.0.latest.type', 'server.issue_resolved')->where('events.data.0.latest.site_name', 'web-1')
         ->where('events.data.0.latest.server_id', $server->id)->where('events.data.0.latest.message', 'Resolved: Disk almost full (/)')
         ->where('events.data.0.latest.severity', 'recovered')
         ->where('events.data.1.latest.type', 'server.issue_opened')->where('events.data.1.latest.message', 'Disk almost full: / at 92%')
         ->where('events.data.1.latest.severity', 'warning'));
-    $this->actingAs($owner)->get('/activity?q=web-1')->assertInertia(fn (Assert $page) => $page->has('events.data', 2));
-    $this->actingAs($owner)->get('/activity?q=elsewhere')->assertInertia(fn (Assert $page) => $page->has('events.data', 0));
-    $this->actingAs($member)->get('/activity')->assertInertia(fn (Assert $page) => $page->has('events.data', 0));
+    $this->actingAs($owner)->get('/activity?q=web-1')->assertInertia(fn (Assert $page): AssertableInertia => $page->has('events.data', 2));
+    $this->actingAs($owner)->get('/activity?q=elsewhere')->assertInertia(fn (Assert $page): AssertableInertia => $page->has('events.data', 0));
+    $this->actingAs($member)->get('/activity')->assertInertia(fn (Assert $page): AssertableInertia => $page->has('events.data', 0));
 
     alertsSwitch(false);
-    $this->actingAs($owner)->get('/activity')->assertInertia(fn (Assert $page) => $page->has('events.data', 0));
+    $this->actingAs($owner)->get('/activity')->assertInertia(fn (Assert $page): AssertableInertia => $page->has('events.data', 0));
 
     alertsSwitch(true);
     $server->delete();
     $this->app->forgetScopedInstances();
-    $this->actingAs($owner)->get('/activity')->assertInertia(fn (Assert $page) => $page->where('events.data.0.latest.server_id', null)
+    $this->actingAs($owner)->get('/activity')->assertInertia(fn (Assert $page): AssertableInertia => $page->where('events.data.0.latest.server_id', null)
         ->where('events.data.0.latest.site_name', 'web-1'));
 });
 
@@ -360,13 +361,13 @@ it('shows open issues and the snooze on the server page and filters the list to 
     alertsReport($this, $calmToken);
     $this->actingAs($owner)->post("/servers/{$busy->id}/snooze", ['minutes' => 60]);
 
-    $this->actingAs($owner)->get("/servers/{$busy->id}")->assertInertia(fn (Assert $page) => $page
+    $this->actingAs($owner)->get("/servers/{$busy->id}")->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('server.issues.0.kind', 'disk_full')->where('server.issues.0.scope', '/')->where('server.issues.0.values.threshold', 90)
         ->where('server.issues.1.kind', 'load_high')->has('server.issues', 2)
         ->where('server.snoozed_until', now()->addHour()->toIso8601String()));
-    $this->actingAs($owner)->get('/servers?filter[state]=attention')->assertInertia(fn (Assert $page) => $page
+    $this->actingAs($owner)->get('/servers?filter[state]=attention')->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('filters.state', 'attention')->has('servers', 1)->where('servers.0.name', 'busy'));
-    $this->actingAs($owner)->get('/servers')->assertInertia(fn (Assert $page) => $page->where('servers.0.name', 'busy')->where('servers.1.name', 'calm'));
+    $this->actingAs($owner)->get('/servers')->assertInertia(fn (Assert $page): AssertableInertia => $page->where('servers.0.name', 'busy')->where('servers.1.name', 'calm'));
 });
 
 it('does not alert twice for the Heptapod host: its low-disk system issue is recorded suppressed while the server reports', function (bool $sameHost): void {

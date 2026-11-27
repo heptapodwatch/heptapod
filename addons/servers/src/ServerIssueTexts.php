@@ -27,9 +27,9 @@ final class ServerIssueTexts implements ServerIssues
 
     public function message(array $facts, string $serverName, bool $recovered, string $locale, string $timezone): ServerIssueMessage
     {
-        $kind = ServerIssueKind::from(self::text($facts, 'kind'));
-        $scope = self::text($facts, 'scope');
-        $resolution = $recovered ? self::text($facts, 'resolution') : null;
+        $kind = ServerIssueKind::from($this->text($facts, 'kind'));
+        $scope = $this->text($facts, 'scope');
+        $resolution = $recovered ? $this->text($facts, 'resolution') : null;
         $back = $resolution === 'recovered';
         $percent = static fn (string $key): string => self::number($facts, $key, $locale, \NumberFormatter::PERCENT);
         $params = match ($kind) {
@@ -38,7 +38,7 @@ final class ServerIssueTexts implements ServerIssues
             ServerIssueKind::LoadHigh => ['value' => self::number($facts, 'value', $locale), 'threshold' => self::number($facts, 'threshold', $locale),
                 'per_core' => self::number($facts, 'per_core', $locale), 'cores' => self::number($facts, 'cores', $locale),
                 'minutes' => self::number($facts, 'minutes', $locale), 'resolved_value' => $back ? self::number($facts, 'resolved_value', $locale) : ''],
-            ServerIssueKind::NoReport => ['time' => self::time($facts, 'last_report_at', $timezone), 'minutes' => self::number($facts, 'minutes', $locale)],
+            ServerIssueKind::NoReport => ['time' => $this->time($facts, 'last_report_at', $timezone), 'minutes' => self::number($facts, 'minutes', $locale)],
         };
         $name = __('servers.issue.'.$kind->value, locale: $locale).($scope === '' ? '' : ' ('.$scope.')');
         $lead = match ($resolution) {
@@ -61,9 +61,9 @@ final class ServerIssueTexts implements ServerIssues
                 'value' => __('servers.alert.load_limit', $params, $locale)],
             default => ['label' => __('servers.alert.fact.alert_at', locale: $locale), 'value' => __('servers.alert.limit', $params, $locale)],
         };
-        $rows[] = ['label' => __('servers.alert.fact.since', locale: $locale), 'value' => self::time($facts, 'opened_at', $timezone)];
+        $rows[] = ['label' => __('servers.alert.fact.since', locale: $locale), 'value' => $this->time($facts, 'opened_at', $timezone)];
         if ($recovered) {
-            $rows[] = ['label' => __('servers.alert.fact.resolved', locale: $locale), 'value' => self::time($facts, 'resolved_at', $timezone)];
+            $rows[] = ['label' => __('servers.alert.fact.resolved', locale: $locale), 'value' => $this->time($facts, 'resolved_at', $timezone)];
         }
         $serverId = $facts['server_id'] ?? null;
         if (! is_int($serverId)) {
@@ -124,7 +124,7 @@ final class ServerIssueTexts implements ServerIssues
     }
 
     /** @param array<string, mixed> $facts */
-    private static function text(array $facts, string $key): string
+    private function text(array $facts, string $key): string
     {
         $value = $facts[$key] ?? null;
 
@@ -146,8 +146,8 @@ final class ServerIssueTexts implements ServerIssues
     }
 
     /** @param array<string, mixed> $facts */
-    private static function time(array $facts, string $key, string $timezone): string
+    private function time(array $facts, string $key, string $timezone): string
     {
-        return CarbonImmutable::parse(self::text($facts, $key))->setTimezone($timezone)->format('Y-m-d H:i T');
+        return CarbonImmutable::parse($this->text($facts, $key))->setTimezone($timezone)->format('Y-m-d H:i T');
     }
 }

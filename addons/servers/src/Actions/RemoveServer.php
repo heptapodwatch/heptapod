@@ -20,7 +20,7 @@ final readonly class RemoveServer
     {
         DB::transaction(function () use ($server): void {
             $locked = $this->issues->lock($server->id);
-            if ($locked === null) {
+            if (! $locked instanceof Server) {
                 return;
             }
             $this->issues->end($locked, 'server_removed', CarbonImmutable::now('UTC'));
