@@ -352,7 +352,7 @@ it('lists server issues in Activity for Owners and Admins with a link to the ser
         ->where('events.data.0.latest.server_id', $server->id)->where('events.data.0.latest.message', 'Resolved: Disk almost full (/)')
         ->where('events.data.0.latest.severity', 'recovered')
         ->where('events.data.1.latest.type', 'server.issue_opened')->where('events.data.1.latest.message', 'Disk almost full: / at 92%')
-        ->where('events.data.1.latest.severity', 'warning'));
+        ->where('events.data.1.latest.severity', 'down'));
     $this->actingAs($owner)->get('/activity?q=web-1')->assertInertia(fn (Assert $page): AssertableInertia => $page->has('events.data', 2));
     $this->actingAs($owner)->get('/activity?q=elsewhere')->assertInertia(fn (Assert $page): AssertableInertia => $page->has('events.data', 0));
     $this->actingAs($member)->get('/activity')->assertInertia(fn (Assert $page): AssertableInertia => $page->has('events.data', 0));

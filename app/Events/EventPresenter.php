@@ -174,14 +174,23 @@ final readonly class EventPresenter
             is_int($event->payload['run_id'] ?? null) ? $event->payload['run_id'] : null, $event->check_id);
     }
 
-    /** A server issue (servers addon) names its server where other events name their site, and links to it while it exists. */
+    /**
+     * A server issue (servers addon) names its server where other events name their site, and links to it while it exists.
+     * Its tone is the server page's: Failed for a value at its threshold, Check error for "No report" (we could not hear).
+     */
     private function presentServerIssue(Event $event): EventData
     {
         $user = request()->user();
         $message = $this->serverIssues->message($event, app()->getLocale(), User::viewerTimezone($user instanceof User ? $user : null));
         $serverId = $event->payload['server_id'] ?? null;
 
-        return new EventData($event->id, $event->type === ServerIssueMailer::ResolvedType ? AlertSeverity::Recovered : AlertSeverity::Warning,
+        $severity = match (true) {
+            $event->type === ServerIssueMailer::ResolvedType => AlertSeverity::Recovered,
+            ($event->payload['kind'] ?? null) === 'no_report' => AlertSeverity::Error,
+            default => AlertSeverity::Down,
+        };
+
+        return new EventData($event->id, $severity,
             null, $event->server_name ?? throw new \LogicException('A server issue event needs its server name.'), null, null, $event->type,
             $event->occurred_at->toIso8601String(), $message->summary, [], null, '',
             server_id: $message->url !== null && is_int($serverId) ? $serverId : null);
