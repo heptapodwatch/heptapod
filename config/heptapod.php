@@ -10,6 +10,10 @@ $updateChecksEnabled = filter_var(env('HEPTAPOD_UPDATE_CHECK_ENABLED', true), FI
 if ($updateChecksEnabled === null) {
     throw new InvalidArgumentException('HEPTAPOD_UPDATE_CHECK_ENABLED must be true or false.');
 }
+$serversEnabled = filter_var(env('HEPTAPOD_SERVERS_ENABLED', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+if ($serversEnabled === null) {
+    throw new InvalidArgumentException('HEPTAPOD_SERVERS_ENABLED must be true or false.');
+}
 
 $metadataJson = file_get_contents(__DIR__.'/outbound-metadata.json');
 if ($metadataJson === false) {
@@ -128,6 +132,8 @@ return [
         'release_page_url' => 'https://github.com/heptapodwatch/heptapod/releases',
         'source_url' => 'https://github.com/heptapodwatch/heptapod',
     ],
+    // Experimental: a hard off for servers that the Owner's toggle in Settings → General cannot override.
+    'servers' => ['enabled_by_server' => $serversEnabled],
     'browser' => ['enabled' => $browserEnabled],
     // Crawl worker PHP memory_limit; the worker container budget (HORIZON_MEMORY_LIMIT) is derived from it.
     'worker_memory' => ['crawl_php_limit_mib' => $crawlPhpLimitMiB],

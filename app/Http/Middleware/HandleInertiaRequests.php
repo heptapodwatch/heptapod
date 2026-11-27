@@ -4,6 +4,7 @@ namespace Heptapod\Http\Middleware;
 
 use Heptapod\Contracts\Export\Table;
 use Heptapod\Contracts\Mail\MailDeliveryMode;
+use Heptapod\Contracts\ServersAccess;
 use Heptapod\Data\Ui\RunningNowData;
 use Heptapod\Enums\RecipientKind;
 use Heptapod\Live\LiveChannels;
@@ -76,6 +77,9 @@ class HandleInertiaRequests extends Middleware
                 'canViewSystemHealth' => $user instanceof User && $user->hasAnyRole(['Owner', 'Admin']),
                 'canViewUpdates' => $user instanceof User && $user->hasAnyRole(['Owner', 'Admin']),
                 'canManageChannels' => $user instanceof User && $user->hasAnyRole(['Owner', 'Admin']),
+                // Lazy, and the role before the switch: only Owners and Admins of an instance that allows servers read the setting.
+                'canViewServers' => static fn (): bool => $user instanceof User && app(ServersAccess::class)->allows($user)
+                    && app(ServersAccess::class)->enabled(),
             ],
             // The installed version for the help dialog; release checks stay with Owners and Admins, who may open Updates & backups.
             'heptapodVersion' => $user instanceof User ? config()->string('heptapod.version') : null,

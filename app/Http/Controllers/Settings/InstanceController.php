@@ -43,11 +43,12 @@ final class InstanceController extends Controller
     public function update(Request $request, SaveInstanceSettings $save): JsonResponse|RedirectResponse
     {
         $this->owner($request);
-        /** @var array{name: string, mail_design?: string, timezone?: string} $data */
+        /** @var array{name: string, mail_design?: string, timezone?: string, servers_enabled?: bool} $data */
         $data = Validator::make($request->all(), ['name' => ['required', 'string', 'max:120'], 'mail_design' => ['sometimes', 'required', Rule::enum(MailDesign::class)],
-            'timezone' => ['sometimes', 'required', 'string', 'timezone:all']],
+            'timezone' => ['sometimes', 'required', 'string', 'timezone:all'], 'servers_enabled' => ['sometimes', 'boolean:strict']],
             attributes: ['mail_design' => __('instance.mail_design.label')])->validate();
-        $save($data['name'], isset($data['mail_design']) ? MailDesign::from($data['mail_design']) : null, $data['timezone'] ?? null);
+        $save($data['name'], isset($data['mail_design']) ? MailDesign::from($data['mail_design']) : null, $data['timezone'] ?? null,
+            $data['servers_enabled'] ?? null);
 
         if ($request->expectsJson()) {
             return response()->json(['name' => $data['name'], 'mail_design' => app(InstanceSettings::class)->mail_design->value]);

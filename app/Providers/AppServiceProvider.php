@@ -39,6 +39,7 @@ use Heptapod\Contracts\MonitorOutageGuard;
 use Heptapod\Contracts\NotificationSuppression;
 use Heptapod\Contracts\OhDear\OhDearClientFactory;
 use Heptapod\Contracts\PublicSuffixList;
+use Heptapod\Contracts\ServersAccess;
 use Heptapod\Contracts\SiteCheckSettingsReader;
 use Heptapod\Events\LiveSignal;
 use Heptapod\Events\Notifications\NotificationEventTypes;
@@ -74,6 +75,7 @@ use Heptapod\Observers\CheckLiveObserver;
 use Heptapod\Observers\ClientLiveObserver;
 use Heptapod\Observers\IncidentLiveObserver;
 use Heptapod\Observers\SiteLiveObserver;
+use Heptapod\Policies\InstanceServersAccess;
 use Heptapod\Queries\GenericSiteIcons;
 use Heptapod\Settings\InstanceMailBranding;
 use Heptapod\Support\AreaTranslationLoader;
@@ -137,6 +139,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(DiskSpaceReader::class, NativeDiskSpaceReader::class);
         $this->app->bind(ListPaging::class, RequestListPaging::class);
         $this->app->bind(MailBrandingSource::class, InstanceMailBranding::class);
+        $this->app->bind(ServersAccess::class, InstanceServersAccess::class);
         $this->app->bind(DatabaseClock::class, PostgresDatabaseClock::class);
         $this->app->scoped(GenericSiteIcons::class);
         // Alert keys depend on the installed registry and config for this request only.

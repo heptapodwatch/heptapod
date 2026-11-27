@@ -94,6 +94,7 @@
             <directory>addons/sitemap/src</directory>
             <directory>addons/crawl/src</directory>
             <directory>addons/lighthouse/src</directory>
+            <directory>addons/servers/src</directory>
         </include>
         <exclude>
             <directory>.worktrees</directory>
@@ -112,6 +113,7 @@
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
+        <env name="HEPTAPOD_SERVERS_ENABLED" value="false" force="true"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>

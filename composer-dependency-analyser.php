@@ -40,4 +40,5 @@ return (new Configuration)
     ->ignoreErrorsOnPackage('heptapod/addon-domain', [ErrorType::PROD_DEPENDENCY_ONLY_IN_DEV])
     ->ignoreErrorsOnPackage('heptapod/addon-sitemap', [ErrorType::PROD_DEPENDENCY_ONLY_IN_DEV])
     ->ignoreErrorsOnPackage('heptapod/addon-crawl', [ErrorType::PROD_DEPENDENCY_ONLY_IN_DEV])
-    ->ignoreErrorsOnPackage('heptapod/addon-lighthouse', [ErrorType::PROD_DEPENDENCY_ONLY_IN_DEV]);
+    ->ignoreErrorsOnPackage('heptapod/addon-lighthouse', [ErrorType::PROD_DEPENDENCY_ONLY_IN_DEV])
+    ->ignoreErrorsOnPackage('heptapod/addon-servers', [ErrorType::PROD_DEPENDENCY_ONLY_IN_DEV]);
