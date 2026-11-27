@@ -160,6 +160,7 @@ it('snoozes and unsnoozes a server with the server page\'s choices and validatio
     expect($web->refresh()->snoozed_until?->toIso8601String())->toBe('2026-11-27T08:30:00+00:00');
     serversApi('POST', "/api/servers/{$web->id}/snooze", $token, ['minutes' => '45'])->assertOk()->assertJsonPath('snoozed_until', '2026-11-27T07:45:00+00:00');
     serversApi('POST', "/api/servers/{$web->id}/snooze", $token, ['snooze_until' => '2026-11-27T08:30:00'])->assertUnprocessable()->assertJsonValidationErrors('snooze_until');
+    serversApi('POST', "/api/servers/{$web->id}/snooze", $token, ['snooze_until' => '2026-11-27T06:30:00Z'])->assertUnprocessable()->assertJsonValidationErrors('snooze_until');
     serversApi('POST', "/api/servers/{$web->id}/snooze", $token, ['minutes' => 525601])->assertUnprocessable()->assertJsonValidationErrors('minutes');
     serversApi('POST', "/api/servers/{$web->id}/snooze", $token)->assertUnprocessable()->assertJsonValidationErrors('minutes');
     expect($web->refresh()->snoozed_until?->toIso8601String())->toBe('2026-11-27T07:45:00+00:00');
