@@ -11,14 +11,14 @@ export function agentInstallCommands(install: Install) {
         `curl -fsSLO --proto '=https' ${install.release_url}/${file}`;
     const run = `sudo sh install.sh --version ${install.version} --endpoint ${install.endpoint}`;
     const steps = (...commands: string[]) =>
-        ['cd "$(mktemp -d)"', ...commands].join(' \\\n  && ');
+        ['d=$(mktemp -d)', 'cd "$d"', ...commands].join(' \\\n  && ');
     return {
         install: steps(download('install.sh'), run),
         verified: steps(
             download('install.sh'),
             download('SHA256SUMS'),
-            // install.sh's own line; without one, sha256sum finds nothing to check and fails.
-            "grep ' install.sh$' SHA256SUMS | sha256sum -c -",
+            // install.sh's exact record; without one, sha256sum finds nothing to check and fails.
+            "grep -x '[0-9a-f]\\{64\\}  install.sh' SHA256SUMS | sha256sum -c -",
             run,
         ),
         attestation:

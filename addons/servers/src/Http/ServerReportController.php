@@ -26,6 +26,9 @@ final class ServerReportController
 
     private const int SecondsPerReport = 20;
 
+    /** Contract v1: JSON nested deeper than this is rejected with 422 (a report needs four levels). */
+    private const int MaxJsonDepth = 16;
+
     /** Strings the agent sends are single-line text; NUL and other control characters never reach PostgreSQL. */
     private const string Text = 'not_regex:/[\x00-\x1F\x7F]/';
 
@@ -34,7 +37,8 @@ final class ServerReportController
         if (strlen($request->getContent()) > self::MaxBodyBytes) {
             return AgentResponses::error(413);
         }
-        if (preg_match('#^application/json\s*(;\s*charset="?utf-8"?\s*)?$#iD', (string) $request->headers->get('Content-Type')) !== 1) {
+        $mediaType = array_map(trim(...), explode(';', strtolower((string) $request->headers->get('Content-Type'))));
+        if ($mediaType !== ['application/json'] && $mediaType !== ['application/json', 'charset=utf-8']) {
             return AgentResponses::error(415);
         }
         $token = ServerToken::parse($request->bearerToken());
@@ -58,7 +62,7 @@ final class ServerReportController
 
         // The raw body, decoded here: the framework's input layer (trimming, empty strings to null) never touches it.
         try {
-            $decoded = json_decode($request->getContent(), true, 16, JSON_THROW_ON_ERROR);
+            $decoded = json_decode($request->getContent(), true, self::MaxJsonDepth, JSON_THROW_ON_ERROR);
         } catch (\JsonException) {
             return AgentResponses::error(422);
         }

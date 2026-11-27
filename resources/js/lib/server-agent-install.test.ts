@@ -31,9 +31,13 @@ afterEach(() => {
 
 /**
  * Runs a generated command with `curl` serving files from a local release directory (a missing file fails like a
- * 404) and `sudo` only logging that it was reached. Returns whether sudo ran.
+ * 404) and `sudo` only logging that it was reached; `failMktemp` makes `mktemp` fail. Returns whether sudo ran.
  */
-function run(command: string, release: Record<string, string>): boolean {
+function run(
+    command: string,
+    release: Record<string, string>,
+    failMktemp = false,
+): boolean {
     const root = mkdtempSync(join(tmpdir(), 'agent-install-'));
     roots.push(root);
     const bin = join(root, 'bin');
@@ -50,6 +54,10 @@ function run(command: string, release: Record<string, string>): boolean {
     writeFileSync(join(bin, 'sudo'), `#!/bin/sh\necho "$*" >> "${log}"\n`);
     chmodSync(join(bin, 'curl'), 0o755);
     chmodSync(join(bin, 'sudo'), 0o755);
+    if (failMktemp) {
+        writeFileSync(join(bin, 'mktemp'), '#!/bin/sh\nexit 1\n');
+        chmodSync(join(bin, 'mktemp'), 0o755);
+    }
     try {
         execFileSync('sh', ['-c', command], {
             env: {
@@ -100,9 +108,30 @@ it('runs the verified install only when install.sh matches its own checksum line
     ).toBe(false);
 });
 
+it('checks only the exact install.sh record, never a decoy line that merely ends in install.sh', () => {
+    const decoy = sums(script).replace('install.sh', 'evil install.sh');
+    expect(
+        run(commands.verified, {
+            'install.sh': script,
+            SHA256SUMS: decoy + sums(script),
+        }),
+    ).toBe(true);
+    expect(
+        run(commands.verified, { 'install.sh': script, SHA256SUMS: decoy }),
+    ).toBe(false);
+});
+
+it('stops before sudo when no fresh directory can be made', () => {
+    const release = { 'install.sh': script, SHA256SUMS: sums(script) };
+    expect(run(commands.install, release, true)).toBe(false);
+    expect(run(commands.verified, release, true)).toBe(false);
+});
+
 it('works in a fresh directory, never in the shell it was pasted into', () => {
     for (const command of [commands.install, commands.verified]) {
-        expect(command.startsWith('cd "$(mktemp -d)" \\\n  && ')).toBe(true);
+        expect(
+            command.startsWith('d=$(mktemp -d) \\\n  && cd "$d" \\\n  && '),
+        ).toBe(true);
         expect(command).toContain(
             'sudo sh install.sh --version v0.19.0 --endpoint https://monitor.example.com/agent/v1/report',
         );

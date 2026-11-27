@@ -62,7 +62,8 @@ it('stores a valid sample, refreshes liveness and tells the agent its interval',
     [$server, $token] = addReportingServer($this);
     $sample = serverSample(['unknown' => 'dropped', 'cpu' => ['vendor' => 'dropped']]);
 
-    reportSample($this, $token, $sample)->assertStatus(202)->assertExactJson(['interval_seconds' => 60]);
+    reportSample($this, $token, $sample)->assertStatus(202)->assertExactJson(['interval_seconds' => 60])
+        ->assertHeader('Cache-Control', 'no-store, private');
 
     $stored = DB::table('server_samples')->where('server_id', $server->id)->sole();
     expect($stored->sample_id)->toBe($sample['sample_id'])
@@ -87,7 +88,7 @@ it('answers a duplicate sample with 200 and does not count it as a new report', 
     reportSample($this, $token, $sample)->assertStatus(202);
     $this->travel(30)->seconds();
 
-    reportSample($this, $token, $sample)->assertOk()->assertExactJson(['interval_seconds' => 60]);
+    reportSample($this, $token, $sample)->assertOk()->assertExactJson(['interval_seconds' => 60])->assertHeader('Cache-Control', 'no-store, private');
 
     expect(DB::table('server_samples')->count())->toBe(1)
         ->and($server->refresh()->last_report_at?->equalTo(now()->subSeconds(30)))->toBeTrue();
@@ -149,9 +150,13 @@ it('accepts only the media type application/json, with an optional UTF-8 charset
 })->with([
     'plain' => ['application/json', 202],
     'with charset' => ['application/json; charset=utf-8', 202],
+    'upper case, spaces around the semicolon' => ['Application/JSON ; Charset=UTF-8', 202],
     'text' => ['text/plain', 415],
     'another JSON type' => ['application/vnd.foo+json', 415],
     'another charset' => ['application/json; charset=latin1', 415],
+    'quoted charset' => ['application/json; charset="utf-8"', 415],
+    'a second parameter' => ['application/json; charset=utf-8; boundary=x', 415],
+    'missing' => ['', 415],
 ]);
 
 it('decodes the raw body itself, so surrounding control characters are refused, not trimmed', function (string $body): void {
@@ -165,6 +170,8 @@ it('decodes the raw body itself, so surrounding control characters are refused, 
     'empty agent version' => [fn (): string => json_encode(serverSample(['agent' => ['version' => '']]), JSON_THROW_ON_ERROR)],
     'not JSON' => ['{"sample_id":'],
     'a JSON list' => ['[1,2,3]'],
+    // Under an unknown key, so only the depth limit can refuse it: the object plus 16 nested lists is 17 levels.
+    'nested deeper than 16 levels' => [fn (): string => json_encode(serverSample(['extra' => json_decode(str_repeat('[', 16).'1'.str_repeat(']', 16))]), JSON_THROW_ON_ERROR)],
 ]);
 
 it('rejects invalid fields with a generic 422 and stores nothing', function (array $overrides): void {

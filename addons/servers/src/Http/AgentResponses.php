@@ -33,13 +33,14 @@ final readonly class AgentResponses
             return self::error(404);
         }
         $response = $next($request);
+        // Nothing an agent receives is cacheable, accepted reports included.
+        $response->headers->set('Cache-Control', 'no-store, private');
         if ($response->getStatusCode() < 400) {
             return $response;
         }
         $response->setContent(self::body($response->getStatusCode()));
         $response->headers->remove('Content-Length');
         $response->headers->set('Content-Type', 'application/json');
-        $response->headers->set('Cache-Control', 'no-store, private');
 
         return $response;
     }
