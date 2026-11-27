@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -20,7 +22,7 @@ const (
 	firstFailureWait     = 30 * time.Second
 	maxFailureWait       = 10 * time.Minute
 	minWait              = 20 * time.Second // the instance accepts one sample per 20 s
-	maxWait              = time.Hour
+	maxInterval          = time.Hour
 	requestTimeout       = 10 * time.Second
 	maxBufferedSampleAge = 9 * time.Minute // the instance rejects samples older than 10 minutes
 )
@@ -39,7 +41,7 @@ func newSender(endpoint, token string) sender {
 	}}
 }
 
-// reply is what one POST produced: a status with its body, or a transport error.
+// reply is what one POST produced: a status with its headers (and the body of a success), or a transport error.
 type reply struct {
 	status     int
 	body       []byte
@@ -61,11 +63,13 @@ func (s sender) post(ctx context.Context, body []byte) reply {
 		return reply{err: err}
 	}
 	defer response.Body.Close()
-	responseBody, err := io.ReadAll(io.LimitReader(response.Body, 4096))
-	if err != nil {
-		return reply{err: err}
+	out := reply{status: response.StatusCode, retryAfter: response.Header.Get("Retry-After")}
+	// Only a success carries a body we use; a slow or broken one keeps the default interval instead of
+	// turning a received status into a network error.
+	if out.status == http.StatusAccepted || out.status == http.StatusOK {
+		out.body, _ = io.ReadAll(io.LimitReader(response.Body, 4096))
 	}
-	return reply{status: response.StatusCode, body: responseBody, retryAfter: response.Header.Get("Retry-After")}
+	return out
 }
 
 // schedule turns replies into the contract's response table: how long to wait, whether to resend the same sample,
@@ -115,7 +119,8 @@ func (s *schedule) decide(r reply, now time.Time) (string, decision) {
 	case r.status == http.StatusNotFound:
 		return "not-found", decision{wait: notFoundWait, logLine: "endpoint not found (HTTP 404): servers are off on the instance or this server was removed; retrying every 15 minutes"}
 	case r.status == http.StatusRequestEntityTooLarge || r.status == http.StatusUnprocessableEntity:
-		return "invalid", decision{wait: s.interval, logLine: fmt.Sprintf("sample rejected (HTTP %d), dropped: %s", r.status, capRunes(strings.TrimSpace(string(r.body)), 500))}
+		// The body is never logged: an instance may echo request data, including the Authorization header.
+		return "invalid", decision{wait: s.interval, logLine: fmt.Sprintf("sample rejected (HTTP %d), dropped", r.status)}
 	case r.status == http.StatusTooManyRequests:
 		wait := retryAfter(r.retryAfter, now, s.interval)
 		return "rate-limited", decision{wait: wait, logLine: fmt.Sprintf("rate limited (HTTP 429); next in %s", wait)}
@@ -134,18 +139,23 @@ func (s *schedule) failure(message string) (string, decision) {
 }
 
 // retryAfter reads the header as delta seconds or an HTTP date, and falls back to the interval if it is neither.
+// Long delays are honoured; values beyond what a Duration holds saturate instead of overflowing.
 func retryAfter(header string, now time.Time, fallback time.Duration) time.Duration {
-	if seconds, err := strconv.Atoi(strings.TrimSpace(header)); err == nil && seconds >= 0 {
-		return min(max(time.Duration(seconds)*time.Second, time.Second), maxWait)
+	seconds, err := strconv.ParseUint(strings.TrimSpace(header), 10, 64)
+	if errors.Is(err, strconv.ErrRange) || (err == nil && seconds > uint64(math.MaxInt64/time.Second)) {
+		return math.MaxInt64
+	}
+	if err == nil {
+		return max(time.Duration(seconds)*time.Second, time.Second)
 	}
 	if date, err := http.ParseTime(header); err == nil {
-		return min(max(date.Sub(now), time.Second), maxWait)
+		return max(date.Sub(now), time.Second)
 	}
 	return fallback
 }
 
 func clamp(wait time.Duration) time.Duration {
-	return min(max(wait, minWait), maxWait)
+	return min(max(wait, minWait), maxInterval)
 }
 
 // run sends a sample per interval until ctx ends. At most one unsent sample is kept, and only while it is fresh enough.

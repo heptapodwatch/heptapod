@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -33,12 +34,14 @@ func TestScheduleFollowsContractResponseTable(t *testing.T) {
 		{status: 401, wait: 10 * time.Minute}, // logged once
 		{status: 404, wait: 15 * time.Minute, logs: true},
 		{status: 404, wait: 15 * time.Minute},
-		{status: 413, body: `{"message":"too large"}`, wait: 20 * time.Second, logs: true},
+		{status: 413, body: `{"message":"too large", "echo":"Bearer hpa_srv1_secret"}`, wait: 20 * time.Second, logs: true},
 		{status: 422, body: `{"message":"observed_at is stale"}`, wait: 20 * time.Second, logs: true},
 		{status: 422, body: `{"message":"observed_at is stale"}`, wait: 20 * time.Second, logs: true},
 		{status: 429, retryAfter: "45", wait: 45 * time.Second, logs: true},
 		{status: 429, retryAfter: "Fri, 27 Nov 2026 07:02:00 GMT", wait: 2 * time.Minute},
 		{status: 429, wait: 20 * time.Second}, // no Retry-After: the current interval
+		{status: 429, retryAfter: "7200", wait: 2 * time.Hour},
+		{status: 429, retryAfter: "99999999999999999999", wait: math.MaxInt64}, // saturates, never overflows
 		{status: 500, wait: 30 * time.Second, keepSample: true, logs: true},
 		{status: 502, wait: time.Minute, keepSample: true, logs: true},
 		{status: 503, wait: 2 * time.Minute, keepSample: true, logs: true},
@@ -73,6 +76,9 @@ func TestScheduleFollowsContractResponseTable(t *testing.T) {
 			t.Errorf("step %d (HTTP %d): got wait %s keep %v log %q; want wait %s keep %v log %v",
 				i, current.status, got.wait, got.keepSample, got.logLine, current.wait, current.keepSample, current.logs)
 		}
+		if strings.Contains(got.logLine, "hpa_") || strings.Contains(got.logLine, "message") {
+			t.Errorf("step %d (HTTP %d) logged response body content: %q", i, current.status, got.logLine)
+		}
 	}
 
 	request := received[0]
@@ -80,6 +86,38 @@ func TestScheduleFollowsContractResponseTable(t *testing.T) {
 		request.Header.Get("Authorization") != "Bearer hpa_srv1_secret" || request.Header.Get("Content-Type") != "application/json" ||
 		bodies[0] != `{"sample_id":"s"}` {
 		t.Fatalf("unexpected request %s %s %v %q", request.Method, request.URL.Path, request.Header, bodies[0])
+	}
+}
+
+// TestStatusIsActedOnWithoutWaitingForASlowBody: a 401 whose body never finishes is still a 401, not a network error.
+func TestStatusIsActedOnWithoutWaitingForASlowBody(t *testing.T) {
+	release := make(chan struct{})
+	instance := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		io.WriteString(w, `{"message":`)
+		w.(http.Flusher).Flush()
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+	}))
+	defer instance.Close()
+	defer close(release)
+	out := newSender(instance.URL, "hpa_x")
+	out.client.Timeout = time.Second
+	var plan schedule
+	if got := plan.next(out.post(context.Background(), []byte(`{}`)), time.Now()); got.wait != 10*time.Minute || got.keepSample {
+		t.Fatalf("slow 401 body: got %+v, want the 10-minute token wait", got)
+	}
+}
+
+func TestRejectionLogNeverContainsTheResponseBody(t *testing.T) {
+	var plan schedule
+	for _, status := range []int{413, 422} {
+		got := plan.next(reply{status: status, body: []byte(`{"echo":"Bearer hpa_srv1_secret"}`)}, time.Now())
+		if got.logLine == "" || strings.Contains(got.logLine, "hpa_") {
+			t.Fatalf("HTTP %d logged %q", status, got.logLine)
+		}
 	}
 }
 

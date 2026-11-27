@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -23,8 +24,9 @@ func fixtureSystem(t *testing.T, fixture, kernel string, disks map[string][2]uin
 		t.Fatal(err)
 	}
 	return &system{
-		root:  root,
-		uname: func() (string, string, error) { return "web-1", kernel, nil },
+		root:          root,
+		statfsTimeout: 2 * time.Second,
+		uname:         func() (string, string, error) { return "web-1", kernel, nil },
 		statfs: func(path string) (uint64, uint64, error) {
 			disk, ok := disks["/"+strings.TrimPrefix(strings.TrimPrefix(path, root), "/")]
 			if !ok {
@@ -61,7 +63,10 @@ func TestDebianSample(t *testing.T) {
 		"/boot":            {1023303680, 870318080},
 		"/var/lib/docker":  {163857235968, 47552321536},
 		"/srv/client data": {52710469632, 52710469632},
-		"/mnt/archive":     {0, 0},
+		"/mnt/archive":     {1 << 30, 1 << 29}, // autofs, nfs4, fuse.sshfs and cifs are skipped even when statfs answers
+		"/mnt/backup":      {1 << 30, 1 << 29},
+		"/mnt/remote":      {1 << 30, 1 << 29},
+		"/mnt/share":       {1 << 30, 1 << 29},
 		"/home":            {4096, 4096},
 	})
 	got, _, err := sys.collect(context.Background(), statBefore(t), observedAt)
@@ -73,7 +78,7 @@ func TestDebianSample(t *testing.T) {
 	}
 	got.SampleID, got.Agent.Arch = "", ""
 	// cpu: busy 13500-12100 of total 94100-91600 jiffies = 56 %; memory in KiB*1024; /tmp and /etc/heptapod-agent
-	// are bind mounts of /, /home is hidden by ProtectHome's tmpfs, /mnt/archive (autofs) has no size.
+	// are bind mounts of /, /home is hidden by ProtectHome's tmpfs, /mnt/* are automount and network filesystems.
 	want := `{"sample_id":"","observed_at":"2026-11-27T07:00:00Z",
 		"agent":{"version":"dev","os":"linux","arch":"","distro":"Debian GNU/Linux 13 (trixie)","kernel":"6.12.48+deb13-amd64"},
 		"host":{"hostname":"web-1","uptime_seconds":3542400,"reboot_required":true,"ips":["203.0.113.10","2001:db8::1"]},
@@ -97,6 +102,7 @@ func TestDebianRebootRequired(t *testing.T) {
 	}{
 		{"running the newest kernel", "6.12.57+deb13-amd64", []string{"vmlinuz-6.12.48+deb13-amd64", "vmlinuz-6.12.57+deb13-amd64"}, "false"},
 		{"newer kernel installed", "6.12.9+deb13-amd64", []string{"vmlinuz-6.12.9+deb13-amd64", "vmlinuz-6.12.10+deb13-amd64"}, "true"},
+		{"only older kernels left in /boot", "6.12.57+deb13-amd64", []string{"vmlinuz-6.12.48+deb13-amd64"}, "false"},
 		{"no kernel images in /boot", "6.12.57+deb13-amd64", nil, "null"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -154,6 +160,55 @@ func TestUbuntuSampleRunsAptCheckOnlyWhenPackagesChange(t *testing.T) {
 	assertJSON(t, got.Host.RebootRequired, "false")
 	if data, _ := os.ReadFile(runs); strings.Count(string(data), "run") != 2 {
 		t.Fatal("apt-check did not rerun after dpkg changed")
+	}
+}
+
+func TestFailedAptCheckIsRetriedAfterFifteenMinutes(t *testing.T) {
+	sys := fixtureSystem(t, "ubuntu2404", "6.8.0-88-generic", nil)
+	script := filepath.Join(sys.root, "usr/lib/update-notifier/apt-check")
+	working, _ := os.ReadFile(script)
+	os.WriteFile(script, []byte("#!/bin/sh\necho 'E: lock held' >&2\nexit 1\n"), 0o755)
+	updatesAt := func(at time.Time) string {
+		got, _, err := sys.collect(context.Background(), statBefore(t), at)
+		if err != nil {
+			t.Fatal(err)
+		}
+		value, _ := json.Marshal(got.Updates)
+		return string(value)
+	}
+
+	if got := updatesAt(observedAt); got != `{"pending":null,"security":null}` {
+		t.Fatalf("failed apt-check reported %s", got)
+	}
+	os.WriteFile(script, working, 0o755)
+	if got := updatesAt(observedAt.Add(14 * time.Minute)); got != `{"pending":null,"security":null}` {
+		t.Fatalf("apt-check reran before the retry interval: %s", got)
+	}
+	if got := updatesAt(observedAt.Add(15 * time.Minute)); got != `{"pending":7,"security":3}` {
+		t.Fatalf("apt-check not retried after 15 minutes: %s", got)
+	}
+}
+
+func TestHungMountDoesNotBlockTheSample(t *testing.T) {
+	sys := fixtureSystem(t, "ubuntu2404", "6.8.0-88-generic", nil)
+	sys.statfsTimeout = 200 * time.Millisecond
+	release := make(chan struct{})
+	defer close(release)
+	var calls atomic.Int32
+	sys.statfs = func(string) (uint64, uint64, error) {
+		calls.Add(1)
+		<-release
+		return 1, 1, nil
+	}
+	for range 2 {
+		got, _, err := sys.collect(context.Background(), statBefore(t), observedAt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertJSON(t, got.Filesystems, `[]`)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("a hung mount was queried %d times, want once until it returns", calls.Load())
 	}
 }
 

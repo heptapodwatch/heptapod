@@ -15,3 +15,6 @@
 35 21 254:4 / /srv/client\040data rw,relatime shared:17 - ext4 /dev/sda4 rw
 36 21 0:60 / /mnt/archive rw,relatime shared:18 - autofs systemd-1 rw,fd=50
 37 21 254:1 / /etc/heptapod-agent ro,relatime shared:1 - ext4 /dev/sda1 ro,errors=remount-ro
+38 21 0:61 / /mnt/backup rw,relatime shared:19 - nfs4 backup.example:/export rw,vers=4.2
+39 21 0:62 / /mnt/remote rw,nosuid,nodev,relatime shared:20 - fuse.sshfs user@host:/ rw,user_id=0
+40 21 0:63 / /mnt/share rw,relatime shared:21 - cifs //nas/share rw

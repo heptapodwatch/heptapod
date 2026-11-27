@@ -12,6 +12,11 @@ NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectKernelLogs=yes
+RestrictSUIDSGID=yes
 CapabilityBoundingSet=
 # AF_NETLINK lists the interface addresses (a read-only route dump); the agent opens no other socket kinds.
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK

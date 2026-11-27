@@ -18,10 +18,10 @@ Everything comes from files any user may read, plus `statfs`. The agent needs no
 | Reboot required                  | see below                                        |
 | Pending and security updates     | see below                                        |
 
-- **Filesystems.** The agent reports at most 16 real filesystems, one per device. It skips tmpfs, devtmpfs, overlay, squashfs, proc, sysfs, cgroup and nsfs mounts, and everything under `/proc`, `/sys`, `/dev` and `/run`. Mounts it cannot reach from its sandbox are left out, among them a separate `/home` (the unit sets `ProtectHome=yes`). A disk below a folder only root can open, such as `/var/lib/docker`, still works: `statfs` only needs access to the folder above it.
+- **Filesystems.** The agent reports at most 16 real filesystems, one per device. It skips tmpfs, devtmpfs, overlay, squashfs, proc, sysfs, cgroup and nsfs mounts, and everything under `/proc`, `/sys`, `/dev` and `/run`. It also skips automount points and network filesystems (NFS, CIFS/SMB, sshfs and other FUSE mounts, Ceph, GlusterFS, 9p). A disk that does not answer `statfs` within 2 seconds is left out, so a hung mount never stops the report. Mounts it cannot reach from its sandbox are left out, among them a separate `/home` (the unit sets `ProtectHome=yes`). A disk below a folder only root can open, such as `/var/lib/docker`, still works: `statfs` only needs access to the folder above it.
 - **IP addresses.** The agent reports at most 16 public unicast addresses. Loopback, link-local, private (RFC 1918, IPv6 ULA) and shared (100.64.0.0/10) addresses are left out. The instance uses the addresses only to suggest which sites run on this server.
-- **Reboot required.** If `/run/reboot-required` exists, the agent reports `true`. Ubuntu, and Debian with unattended-upgrades, create this file. On Ubuntu its absence means `false`. On Debian the agent also compares the running kernel with the newest `/boot/vmlinuz-*`. Elsewhere the value is `null` (unknown).
-- **Updates.** On Ubuntu the agent runs `/usr/lib/update-notifier/apt-check`. That is the script behind the login message, and the agent's only subprocess. It runs again only after `/var/lib/dpkg/status` or `/var/lib/apt/lists` changes. Debian and other distributions report both counts as `null`: they have no count that works without root and without network, and the agent never runs `apt update`.
+- **Reboot required.** If `/run/reboot-required` exists, the agent reports `true`. Ubuntu, and Debian with unattended-upgrades, create this file. On Ubuntu its absence means `false`. On Debian the agent also reports `true` when a `/boot/vmlinuz-*` newer than the running kernel is installed. Elsewhere the value is `null` (unknown).
+- **Updates.** On Ubuntu the agent runs `/usr/lib/update-notifier/apt-check`. That is the script behind the login message, and the agent's only subprocess. It runs again only after `/var/lib/dpkg/status` or `/var/lib/apt/lists` changes; a failed run is retried after 15 minutes. Debian and other distributions report both counts as `null`: they have no count that works without root and without network, and the agent never runs `apt update`.
 
 ## What it never does
 
@@ -30,6 +30,7 @@ Everything comes from files any user may read, plus `statfs`. The agent needs no
 - It sends no logs, process lists, package lists, file contents or traces.
 - It runs no subprocess except `apt-check` on Ubuntu.
 - It does not follow redirects, and it sends its token only over HTTPS. Plain HTTP is allowed only to `localhost`, for testing.
+- It never logs response bodies or the token.
 
 ## Permissions
 
@@ -38,6 +39,7 @@ The systemd unit is in [`packaging/heptapod-agent.service`](packaging/heptapod-a
 - `DynamicUser=yes`: a throwaway user without a home, created for each start;
 - `NoNewPrivileges=yes` and an empty `CapabilityBoundingSet=`;
 - `ProtectSystem=strict`, `ProtectHome=yes` and `PrivateTmp=yes`: the whole file system is read-only, and `/home` and `/root` are hidden;
+- `PrivateDevices=yes`, `ProtectKernelModules=yes`, `ProtectKernelTunables=yes`, `ProtectKernelLogs=yes` and `RestrictSUIDSGID=yes`: no device nodes, no access to kernel modules, tunables or the kernel log, no setuid files;
 - `RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK`: AF_NETLINK is only used to list the interface addresses;
 - `LoadCredential=token:/etc/heptapod-agent/token`: systemd hands the root-only token to the service. The agent never reads it from arguments or environment variables.
 
@@ -45,30 +47,33 @@ The agent reads the endpoint URL from `/etc/heptapod-agent/endpoint`. The instan
 
 ## Install, upgrade, uninstall
 
-You need root, systemd, amd64 or arm64, `curl` or `wget`, and `sha256sum`. The install command for a server is shown in Heptapod when you add the server. It has this form:
+You need root, systemd, amd64 or arm64, `curl` and `sha256sum`. Heptapod shows the install command when you add a server. It has this form:
 
 ```sh
-curl -fsSLO https://github.com/heptapodwatch/heptapod/releases/download/vX.Y.Z/install.sh
-sudo sh install.sh --version vX.Y.Z --endpoint https://heptapod.example.com/agent/v1/report --token hpa_...
+curl -fsSLO --proto '=https' https://github.com/heptapodwatch/heptapod/releases/download/vX.Y.Z/install.sh
+sudo sh install.sh --version vX.Y.Z --endpoint https://heptapod.example.com/agent/v1/report
 ```
 
-Without `--token`, the script reads the token from stdin, or asks for it, so it stays out of your shell history:
+The script then asks for the agent token and hides your input. To pass the token from a file instead, redirect it to stdin:
 
 ```sh
 sudo sh install.sh --version vX.Y.Z --endpoint https://heptapod.example.com/agent/v1/report < token.txt
 ```
 
+`--token hpa_...` also works, but then the token ends up in your shell history and in sudo's log, so the script warns about it.
+
 The script:
 
-1. downloads `heptapod-agent-linux-<arch>` and `SHA256SUMS` from the GitHub release `vX.Y.Z` and checks the checksum;
-2. installs the binary as `/usr/local/bin/heptapod-agent`;
-3. writes the endpoint (`/etc/heptapod-agent/endpoint`) and the token (`/etc/heptapod-agent/token`, mode 0600, root only);
-4. prints a dry-run sample, then installs, enables and starts `heptapod-agent.service`;
-5. waits up to 90 seconds for the first accepted report.
+1. downloads `heptapod-agent-linux-<arch>` and `SHA256SUMS` from the GitHub release `vX.Y.Z` over HTTPS only (redirects included), and checks the checksum;
+2. checks the endpoint and the token with the new binary (`heptapod-agent --check-config`) before it changes anything;
+3. installs the binary as `/usr/local/bin/heptapod-agent`;
+4. writes the endpoint (`/etc/heptapod-agent/endpoint`) and the token (`/etc/heptapod-agent/token`, mode 0600, root only);
+5. prints a dry-run sample, then installs, enables and starts `heptapod-agent.service`;
+6. waits up to 90 seconds for the service's first accepted report.
 
 The binary and the script come from the GitHub release, never from your Heptapod instance. The instance only hands out the endpoint and the token.
 
-**Upgrade.** Run the script again with the new `--version`. Without `--endpoint` and `--token`, it keeps the installed ones.
+**Upgrade.** Download the new version's `install.sh` and run it with the new `--version`. Without `--endpoint`, it keeps the installed endpoint. At the token prompt, press Enter to keep the installed token.
 
 **Uninstall.**
 
@@ -80,10 +85,18 @@ This stops and disables the service and removes the unit, the binary and `/etc/h
 
 ## Verifying the download
 
-The install script checks the binary against `SHA256SUMS` from the same release. The release workflow also signs build provenance for the binaries and `install.sh` with GitHub artifact attestations. To check that a binary was built from this repository by its release workflow, use the [GitHub CLI](https://cli.github.com/):
+The checksum check inside the script only catches damaged downloads: `SHA256SUMS` comes from the same place as the binary. To check that `install.sh` and the binary were built from this repository by its release workflow, verify their GitHub artifact attestations with the [GitHub CLI](https://cli.github.com/). Check the script before you run it with `sudo`:
 
 ```sh
-gh attestation verify /usr/local/bin/heptapod-agent --repo heptapodwatch/heptapod
+gh attestation verify install.sh --repo heptapodwatch/heptapod \
+  --signer-workflow heptapodwatch/heptapod/.github/workflows/release-bundle.yml
+```
+
+After the install, check the binary the same way:
+
+```sh
+gh attestation verify /usr/local/bin/heptapod-agent --repo heptapodwatch/heptapod \
+  --signer-workflow heptapodwatch/heptapod/.github/workflows/release-bundle.yml
 ```
 
 ## Debugging

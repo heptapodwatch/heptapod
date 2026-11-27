@@ -19,6 +19,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unicode/utf8"
@@ -82,15 +83,29 @@ type system struct {
 	uname          func() (hostname, kernel string, err error)
 	statfs         func(path string) (total, free uint64, err error)
 	interfaceAddrs func() ([]netip.Addr, error)
+	statfsTimeout  time.Duration
 
-	// apt-check costs about a second of CPU, so its result is kept until dpkg or the apt lists change.
-	aptCheckKey   string
-	aptCheckValue updates
+	// A statfs that outlived statfsTimeout may never return (a hung mount); that mount is skipped until it does.
+	stuckMounts sync.Map
+
+	// apt-check costs about a second of CPU, so a count is kept until dpkg or the apt lists change.
+	// A failed run is retried after aptCheckRetry.
+	aptCheck aptCheckResult
 }
+
+type aptCheckResult struct {
+	key string
+	ok  bool
+	at  time.Time
+	updates
+}
+
+const aptCheckRetry = 15 * time.Minute
 
 func hostSystem() *system {
 	return &system{
-		root: "/",
+		root:          "/",
+		statfsTimeout: 2 * time.Second,
 		uname: func() (string, string, error) {
 			var u syscall.Utsname
 			if err := syscall.Uname(&u); err != nil {
@@ -235,7 +250,7 @@ func (s *system) collect(ctx context.Context, before cpuTimes, now time.Time) (s
 	}
 	out.Host.IPs = reportableIPs(addrs)
 	out.Host.RebootRequired = s.rebootRequired(osRelease["ID"], kernel)
-	out.Updates = s.updates(ctx, osRelease["ID"])
+	out.Updates = s.updates(ctx, osRelease["ID"], now)
 	return out, after, nil
 }
 
@@ -338,6 +353,13 @@ func (s *system) uptime() (uint64, error) {
 
 var pseudoFilesystems = []string{"tmpfs", "devtmpfs", "overlay", "squashfs", "proc", "sysfs", "cgroup", "cgroup2", "nsfs"}
 
+// Automount points and network filesystems can hang statfs or trigger a mount; they are not this server's disks.
+var remoteFilesystems = []string{"autofs", "nfs", "nfs4", "cifs", "smb3", "smbfs", "sshfs", "ceph", "glusterfs", "9p", "fuse"}
+
+func skippedFilesystem(fsType string) bool {
+	return slices.Contains(pseudoFilesystems, fsType) || slices.Contains(remoteFilesystems, fsType) || strings.HasPrefix(fsType, "fuse.")
+}
+
 type mountEntry struct{ device, mount, fsType string }
 
 func (s *system) filesystems() ([]filesystem, error) {
@@ -347,8 +369,8 @@ func (s *system) filesystems() ([]filesystem, error) {
 	}
 	out := []filesystem{}
 	for _, entry := range realMounts(parseMountinfo(data)) {
-		total, free, err := s.statfs(filepath.Join(s.root, entry.mount))
-		// Mounts the sandboxed agent cannot reach (e.g. below ProtectHome) are not reported.
+		total, free, err := s.statfsWithin(filepath.Join(s.root, entry.mount))
+		// Mounts the sandboxed agent cannot reach (e.g. below ProtectHome) or that hang are not reported.
 		if err != nil || total == 0 {
 			continue
 		}
@@ -358,6 +380,33 @@ func (s *system) filesystems() ([]filesystem, error) {
 		}
 	}
 	return out, nil
+}
+
+// statfsWithin runs statfs in its own goroutine so one hung mount cannot stop the sample.
+func (s *system) statfsWithin(path string) (uint64, uint64, error) {
+	if _, stuck := s.stuckMounts.Load(path); stuck {
+		return 0, 0, errors.New("statfs still pending")
+	}
+	type result struct {
+		total, free uint64
+		err         error
+	}
+	done := make(chan result, 1)
+	s.stuckMounts.Store(path, true)
+	go func() {
+		total, free, err := s.statfs(path)
+		s.stuckMounts.Delete(path)
+		done <- result{total, free, err}
+	}()
+	timer := time.NewTimer(s.statfsTimeout)
+	defer timer.Stop()
+	select {
+	case r := <-done:
+		return r.total, r.free, r.err
+	case <-timer.C:
+		log.Printf("statfs %s did not return within %s; skipping it", path, s.statfsTimeout)
+		return 0, 0, errors.New("statfs timed out")
+	}
 }
 
 // parseMountinfo returns the visible mount per mount point: a later mount on the same point hides the earlier one.
@@ -401,7 +450,7 @@ func unescapeMount(path string) string {
 func realMounts(entries []mountEntry) []mountEntry {
 	byDevice := map[string]mountEntry{}
 	for _, entry := range entries {
-		if slices.Contains(pseudoFilesystems, entry.fsType) || !filepath.IsAbs(entry.mount) || len(entry.mount) > 256 || underVirtualTree(entry.mount) {
+		if skippedFilesystem(entry.fsType) || !filepath.IsAbs(entry.mount) || len(entry.mount) > 256 || underVirtualTree(entry.mount) {
 			continue
 		}
 		if kept, seen := byDevice[entry.device]; seen && len(kept.mount) <= len(entry.mount) {
@@ -445,8 +494,8 @@ func reportableIPs(addrs []netip.Addr) []string {
 	return ips
 }
 
-// rebootRequired uses Ubuntu's (and unattended-upgrades') flag file, then on Debian compares the running kernel
-// with the newest installed one. Elsewhere it is unknown.
+// rebootRequired uses Ubuntu's (and unattended-upgrades') flag file, then on Debian checks whether a kernel newer
+// than the running one is installed. Elsewhere it is unknown.
 func (s *system) rebootRequired(distroID, runningKernel string) *bool {
 	if _, err := os.Stat(filepath.Join(s.root, "run/reboot-required")); err == nil {
 		return new(true)
@@ -465,7 +514,7 @@ func (s *system) rebootRequired(distroID, runningKernel string) *bool {
 				newest = candidate
 			}
 		}
-		return new(newest != runningKernel)
+		return new(compareVersions(newest, runningKernel) > 0)
 	}
 	return nil
 }
@@ -512,19 +561,20 @@ const aptCheckPath = "usr/lib/update-notifier/apt-check"
 
 // updates runs Ubuntu's apt-check, the only update count available without root or network.
 // Debian and other distributions report both counts as unknown.
-func (s *system) updates(ctx context.Context, distroID string) updates {
+func (s *system) updates(ctx context.Context, distroID string, now time.Time) updates {
 	if distroID != "ubuntu" {
 		return updates{}
 	}
 	key := s.modTime("var/lib/dpkg/status") + "|" + s.modTime("var/lib/apt/lists")
-	if key == s.aptCheckKey {
-		return s.aptCheckValue
+	if key == s.aptCheck.key && (s.aptCheck.ok || now.Sub(s.aptCheck.at) < aptCheckRetry) {
+		return s.aptCheck.updates
 	}
-	s.aptCheckKey, s.aptCheckValue = key, runAptCheck(ctx, filepath.Join(s.root, aptCheckPath))
-	return s.aptCheckValue
+	value, ok := runAptCheck(ctx, filepath.Join(s.root, aptCheckPath))
+	s.aptCheck = aptCheckResult{key: key, ok: ok, at: now, updates: value}
+	return value
 }
 
-func runAptCheck(ctx context.Context, path string) updates {
+func runAptCheck(ctx context.Context, path string) (updates, bool) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	var stderr bytes.Buffer
@@ -532,13 +582,14 @@ func runAptCheck(ctx context.Context, path string) updates {
 	command.Stderr = &stderr
 	if err := command.Run(); err != nil {
 		log.Printf("apt-check failed, updates unknown: %v: %s", err, capRunes(strings.TrimSpace(stderr.String()), 200))
-		return updates{}
+		return updates{}, false
 	}
 	value, err := parseAptCheck(stderr.Bytes())
 	if err != nil {
 		log.Printf("apt-check: %v", err)
+		return updates{}, false
 	}
-	return value
+	return value, true
 }
 
 func (s *system) modTime(path string) string {

@@ -34,6 +34,7 @@ func main() {
 	dryRun := flag.Bool("dry-run", false, "with --once: print the sample as JSON instead of sending it")
 	printUnit := flag.Bool("print-unit", false, "print the systemd unit this binary expects and exit")
 	printVersion := flag.Bool("version", false, "print the version and exit")
+	checkConfig := flag.String("check-config", "", "validate the endpoint and token files in this directory and exit")
 	flag.Parse()
 	log.SetFlags(0)
 
@@ -44,6 +45,12 @@ func main() {
 		fmt.Println(version)
 	case *printUnit:
 		fmt.Print(unitFile)
+	case *checkConfig != "":
+		endpoint, _, err := loadConfig(filepath.Join(*checkConfig, "endpoint"), *checkConfig)
+		if err != nil {
+			fatalf("%v", err)
+		}
+		fmt.Printf("config ok: reporting to %s\n", endpoint)
 	case *once != *dryRun:
 		fatalf("--once and --dry-run go together; without both the agent runs as a service")
 	case *once:
