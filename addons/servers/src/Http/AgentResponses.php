@@ -12,7 +12,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Global middleware for /agent/*: switched off, every method answers 404 before routing; switched on, every refusal
- * (the controller's, the throttle's, the fallback's 404 for a wrong method) is one small JSON word, never an HTML page.
+ * (from the controller, the throttle or the web fallback route for a wrong method) is one small JSON word, never a page.
  */
 final readonly class AgentResponses
 {
