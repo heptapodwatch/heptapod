@@ -738,3 +738,6 @@ architecture (the command deletes only its own test volumes):
 ```sh
 APP_IMAGE=heptapod-app:ci COMPOSE_PROJECT_NAME=heptapod-ops-proof OPS_PORT=10680 scripts/with-heavy-slot.sh sh tests/Deployment/ops.sh
 ```
+
+The proof's backend network uses `172.31.106.0/24`, which is also its trusted proxy range. Where that range collides
+with an existing bridge, set `OPS_BACKEND_SUBNET` to a free private /24, e.g. `OPS_BACKEND_SUBNET=10.231.106.0/24`.
