@@ -9,10 +9,35 @@ vi.mock('@inertiajs/react', () => ({
 afterEach(cleanup);
 
 const thresholds = {
-    disk_used_percent: 90,
-    memory_used_percent: 90,
+    disk_percent: 90,
+    disk_minutes: 15,
+    mounts: [],
+    memory_percent: 90,
+    memory_minutes: 10,
     load_per_core: 2,
+    load_minutes: 15,
+    no_report_minutes: 2,
 };
+
+function server(load5: number): Heptapod.Addons.Servers.Data.ServerRowData {
+    return {
+        id: 1,
+        name: 'web-1',
+        state: 'reporting',
+        last_report_at: '2026-10-21T12:00:00Z',
+        agent_version: '0.1.0',
+        values: values(load5),
+        thresholds,
+        ignored_mounts: [],
+        site_count: 0,
+        hostname: 'web-1',
+        agent_os: 'linux',
+        agent_arch: 'amd64',
+        agent_distro: 'Debian 13',
+        agent_kernel: '6.12',
+        ips: [],
+    };
+}
 
 /** One sample of a 4-vCPU server: its load alert sits at 8.0, its near band starts at 6.0 (75 %). */
 function values(load5: number): Heptapod.Addons.Servers.Data.ServerValuesData {
@@ -36,10 +61,7 @@ function loadCell(load5: number) {
         <table>
             <tbody>
                 <tr>
-                    <ServerGaugeCells
-                        values={values(load5)}
-                        thresholds={thresholds}
-                    />
+                    <ServerGaugeCells server={server(load5)} />
                 </tr>
             </tbody>
         </table>,

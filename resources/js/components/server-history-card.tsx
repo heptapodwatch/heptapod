@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import { SegmentedControl } from '@/components/segmented-control';
 import {
+    diskThreshold,
     diskUsedPercent,
     memoryUsedPercent,
     usePercent,
@@ -51,9 +52,15 @@ function nearestThreshold(
     thresholds: Thresholds,
 ): Metric {
     if (values === null) return 'disk';
-    const disk = Math.max(0, ...values.filesystems.map(diskUsedPercent));
-    return thresholds.memory_used_percent - memoryUsedPercent(values) <
-        thresholds.disk_used_percent - disk
+    const diskGap = Math.min(
+        Infinity,
+        ...values.filesystems.map(
+            (filesystem) =>
+                diskThreshold(thresholds, filesystem.mount) -
+                diskUsedPercent(filesystem),
+        ),
+    );
+    return thresholds.memory_percent - memoryUsedPercent(values) < diskGap
         ? 'memory'
         : 'disk';
 }
@@ -89,11 +96,18 @@ export function ServerHistoryCard({
             ]),
         ),
     }));
+    // Mounts with their own thresholds: the line marks the lowest, where the first disk alerts.
     const threshold =
         metric === 'disk'
-            ? thresholds.disk_used_percent
+            ? mounts.length === 0
+                ? thresholds.disk_percent
+                : Math.min(
+                      ...mounts.map((mount) =>
+                          diskThreshold(thresholds, mount),
+                      ),
+                  )
             : metric === 'memory'
-              ? thresholds.memory_used_percent
+              ? thresholds.memory_percent
               : undefined;
     const config: ChartConfig =
         metric === 'disk'

@@ -1,4 +1,6 @@
 import * as React from "react"
+import { ArrowUpDown } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { SiteState } from "@/types/monitoring"
 import { RowHintProvider, useRowHints } from "@/components/truncated-text"
@@ -137,6 +139,25 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
 }
 
 /**
+ * A header the server sorts by (`?sort=`), as the Sites table's: `sortKey` sorts, a second click sends `-sortKey` to reverse it;
+ * `aria-sort` names the current direction. `justify` follows the column's text alignment.
+ */
+function SortableTableHead({ sortKey, sort, onSort, justify = "start", className, children, ...props }: React.ComponentProps<"th"> & { sortKey: string; sort: string; onSort: (sort: string) => void; justify?: "start" | "center" | "end" }) {
+  return (
+    <TableHead aria-sort={sort === sortKey ? "ascending" : sort === `-${sortKey}` ? "descending" : "none"} className={className} {...props}>
+      <Button
+        variant="ghost"
+        className={cn("max-w-full gap-1 px-1 text-xs has-[>svg]:px-1", { start: "-ml-3 @[900px]/table:-ml-1", center: "", end: "-mr-3 @[900px]/table:-mr-1" }[justify])}
+        onClick={() => onSort(sort === sortKey ? `-${sortKey}` : sortKey)}
+      >
+        <span className="whitespace-nowrap">{children}</span>
+        <ArrowUpDown className="size-3" />
+      </Button>
+    </TableHead>
+  )
+}
+
+/**
  * Column roles for cells with unbounded text. Cells are nowrap by default, so in the auto table layout one long
  * unbreakable value sets its column's minimum and starves the wrapping column. A role bounds the cell's content box:
  * the primary text column wraps and never narrows below a readable minimum; a name column (one line that truncates with
@@ -193,6 +214,7 @@ export {
   TableBody,
   TableFooter,
   TableHead,
+  SortableTableHead,
   TableRow,
   TableCell,
   TableCaption,

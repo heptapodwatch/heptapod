@@ -7,6 +7,7 @@ namespace Heptapod\Addons\Servers;
 use Heptapod\Addons\Servers\Http\AgentResponses;
 use Heptapod\Addons\Servers\Http\EnsureServersEnabled;
 use Heptapod\Contracts\ServersAccess;
+use Heptapod\Contracts\SiteServers;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
@@ -21,6 +22,7 @@ final class ServersServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/servers.php', 'servers');
+        $this->app->bind(SiteServers::class, DatabaseSiteServers::class);
     }
 
     public function boot(): void

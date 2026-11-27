@@ -11,6 +11,7 @@ import {
     responseTimeSummary,
     UptimeBar,
 } from '@/components/monitoring';
+import { SiteServerCard } from '@/components/server-manage';
 import { Sparkline } from '@/components/sparkline';
 import { StatTile } from '@/components/stat-tile';
 import { TextLink } from '@/components/text-link';
@@ -25,6 +26,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormat } from '@/hooks/use-format';
 import { checkState } from '@/lib/status';
+import { settings as siteSettings } from '@/routes/sites';
 import { show as checkShow } from '@/routes/sites/checks';
 
 type Page = Heptapod.Data.Ui.SiteOverviewPageData;
@@ -35,18 +37,47 @@ type Check = Heptapod.Data.Ui.CheckStripData;
  * site's repository links. The rail beside it lists every check with its state, so nothing here repeats it.
  */
 export function SiteOverviewContent({ page }: { page: Page }) {
+    const { t } = useTranslation();
     const uptime = page.site.checks.find((check) => check.key === 'uptime');
     return (
         <>
             {uptime && <SiteLaunchpad page={page} uptime={uptime} />}
-            {uptime?.enabled && (
-                <AlertChannelsLine
-                    siteId={page.site.id}
-                    checkId={uptime.id}
-                    category="outage"
-                    count={page.alert_channels}
-                    canOpenSettings={page.can_move}
-                />
+            {/* One row of cards on every site: Alerts, and Server where the site runs on a linked one. */}
+            {(uptime?.enabled || page.server) && (
+                <div className="@container/routing">
+                    <div className="grid gap-4 @[44rem]/routing:grid-cols-2">
+                        {uptime?.enabled && (
+                            <Card className="min-w-0">
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t('alert_channels.card_title')}
+                                    </CardTitle>
+                                    {page.can_move && (
+                                        <CardAction>
+                                            <Button asChild variant="ghost">
+                                                <Link
+                                                    href={`${siteSettings.url(page.site.id, { query: { category: 'outage', check: uptime.id } })}#alerts`}
+                                                >
+                                                    {t('Details')}
+                                                </Link>
+                                            </Button>
+                                        </CardAction>
+                                    )}
+                                </CardHeader>
+                                <CardContent>
+                                    <AlertChannelsLine
+                                        siteId={page.site.id}
+                                        checkId={uptime.id}
+                                        category="outage"
+                                        count={page.alert_channels}
+                                        canOpenSettings={false}
+                                    />
+                                </CardContent>
+                            </Card>
+                        )}
+                        {page.server && <SiteServerCard server={page.server} />}
+                    </div>
+                </div>
             )}
             <SiteRepositories repositories={page.repositories} />
         </>

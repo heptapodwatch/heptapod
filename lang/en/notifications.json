@@ -221,5 +221,6 @@
     "alert_channels.outage_none": "No channel hears about outages",
     "alert_channels.failure_one": "Failure alerts go to 1 channel",
     "alert_channels.failure_other": "Failure alerts go to {{formattedCount}} channels",
-    "alert_channels.failure_none": "No channel hears about failures"
+    "alert_channels.failure_none": "No channel hears about failures",
+    "alert_channels.card_title": "Alerts"
 }

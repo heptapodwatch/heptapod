@@ -221,5 +221,6 @@
     "alert_channels.outage_none": "Kein Kanal erhält Ausfälle",
     "alert_channels.failure_one": "Alarme zu fehlgeschlagenen Prüfungen gehen an 1 Kanal",
     "alert_channels.failure_other": "Alarme zu fehlgeschlagenen Prüfungen gehen an {{formattedCount}} Kanäle",
-    "alert_channels.failure_none": "Kein Kanal erhält fehlgeschlagene Prüfungen"
+    "alert_channels.failure_none": "Kein Kanal erhält fehlgeschlagene Prüfungen",
+    "alert_channels.card_title": "Alarme"
 }

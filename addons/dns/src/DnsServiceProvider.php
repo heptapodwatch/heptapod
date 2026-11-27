@@ -7,6 +7,7 @@ namespace Heptapod\Addons\Dns;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\DnsResolver;
 use Heptapod\Contracts\OhDearImportMapping;
+use Heptapod\Contracts\SiteAddressLookup;
 use Illuminate\Support\ServiceProvider;
 
 final class DnsServiceProvider extends ServiceProvider
@@ -15,6 +16,7 @@ final class DnsServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/dns.php', 'dns');
         $this->app->bind(DnsResolver::class, SpatieDnsResolver::class);
+        $this->app->bind(SiteAddressLookup::class, DnsSiteAddresses::class);
     }
 
     public function boot(CheckRegistry $registry): void

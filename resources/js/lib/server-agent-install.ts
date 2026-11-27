@@ -1,4 +1,5 @@
-type Install = Heptapod.Addons.Servers.Data.ServerPageData['install'];
+/** An install with a known agent release (ServerPageData's install with its version and release URL set). */
+type Release = { endpoint: string; version: string; release_url: string };
 
 /**
  * The agent's install commands, in the one place that knows the installer's flags (agent/install.sh). The token is
@@ -6,7 +7,7 @@ type Install = Heptapod.Addons.Servers.Data.ServerPageData['install'];
  * directory and joins every step with `&&`, so a failed download or checksum stops it before sudo, without closing the
  * shell it was pasted into.
  */
-export function agentInstallCommands(install: Install) {
+export function agentInstallCommands(install: Release) {
     const download = (file: string) =>
         `curl -fsSLO --proto '=https' ${install.release_url}/${file}`;
     const run = `sudo sh install.sh --version ${install.version} --endpoint ${install.endpoint}`;

@@ -1,0 +1,1072 @@
+import { Link as InertiaLink, router, useForm } from '@inertiajs/react';
+import { ArrowRight } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { AbsoluteTime } from '@/components/absolute-time';
+import { siteComboboxOptions, siteHost } from '@/components/entity-combobox';
+import { EvidenceFacts } from '@/components/evidence-facts';
+import { FormSecondaryAction } from '@/components/form-section';
+import { InfoTooltip } from '@/components/info-tooltip';
+import InputError from '@/components/input-error';
+import { ListFooter } from '@/components/list-footer';
+import { StatusDot, statusColor } from '@/components/monitoring';
+import { RowActions } from '@/components/row-actions';
+import { SectionHeading } from '@/components/section-heading';
+import { ScoreRing } from '@/components/score-ring';
+import {
+    diskThreshold,
+    diskUsedPercent,
+    memoryUsedPercent,
+    ServerStateBadge,
+    usePercent,
+} from '@/components/server-values';
+import { SheetForm } from '@/components/sheet-form';
+import { TextLink } from '@/components/text-link';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardAction,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import { CheckboxField } from '@/components/ui/checkbox';
+import { Combobox, MultiCombobox } from '@/components/ui/combobox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    NumberField,
+    type NumberFieldValue,
+} from '@/components/ui/number-field';
+import { Sheet } from '@/components/ui/sheet';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ListRow } from '@/components/ui/table';
+import { useFormat } from '@/hooks/use-format';
+import { statusLabels } from '@/lib/status';
+import { cn } from '@/lib/utils';
+import { show as serverShow, update } from '@/routes/servers';
+import {
+    destroy as unlinkSite,
+    store as linkSites,
+} from '@/routes/servers/sites';
+import { show as siteShow } from '@/routes/sites';
+
+type ServerRow = Heptapod.Addons.Servers.Data.ServerRowData;
+type Thresholds = Heptapod.Addons.Servers.Data.ServerThresholdsData;
+type DirectorySite = Heptapod.Contracts.DirectorySiteData;
+type Link = Heptapod.Addons.Servers.Data.ServerLinkData;
+type Filesystem =
+    Heptapod.Addons.Servers.Data.ServerValuesData['filesystems'][number];
+
+type MountLimit = {
+    mount: string;
+    percent: NumberFieldValue;
+    minutes: NumberFieldValue;
+};
+type SettingsForm = {
+    name: string;
+    mounts: MountLimit[];
+    ignored_mounts: string[];
+    memory_percent: NumberFieldValue;
+    memory_minutes: NumberFieldValue;
+    load_per_core: NumberFieldValue;
+    load_minutes: NumberFieldValue;
+    no_report_minutes: NumberFieldValue;
+};
+
+/** Every mount the server reported or the user ignored: ignored ones are hidden from the values but kept here. */
+function knownMounts(server: ServerRow): string[] {
+    return [
+        ...new Set([
+            ...(server.values?.filesystems ?? []).map(
+                (filesystem) => filesystem.mount,
+            ),
+            ...server.ignored_mounts,
+        ]),
+    ].sort();
+}
+
+function settingsOf(server: ServerRow): SettingsForm {
+    const { thresholds } = server;
+    return {
+        name: server.name,
+        mounts: knownMounts(server).map((mount) => {
+            const custom = thresholds.mounts.find(
+                (limit) => limit.mount === mount,
+            );
+            return {
+                mount,
+                percent: custom?.percent ?? thresholds.disk_percent,
+                minutes: custom?.minutes ?? thresholds.disk_minutes,
+            };
+        }),
+        ignored_mounts: server.ignored_mounts,
+        memory_percent: thresholds.memory_percent,
+        memory_minutes: thresholds.memory_minutes,
+        load_per_core: thresholds.load_per_core,
+        load_minutes: thresholds.load_minutes,
+        no_report_minutes: thresholds.no_report_minutes,
+    };
+}
+
+/** "Default" or "Custom" with a reset to the instance default; the default is named while custom. */
+function DefaultMark({
+    isDefault,
+    defaultText,
+    onReset,
+}: {
+    isDefault: boolean;
+    defaultText: string;
+    onReset: () => void;
+}) {
+    const { t } = useTranslation();
+    return (
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <Badge variant="outline">
+                {t(
+                    isDefault
+                        ? 'servers.settings.default'
+                        : 'servers.settings.custom',
+                )}
+            </Badge>
+            {!isDefault && (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    aria-label={t('servers.settings.reset_to', {
+                        value: defaultText,
+                    })}
+                    onClick={onReset}
+                >
+                    {t('servers.settings.reset')}
+                </Button>
+            )}
+        </span>
+    );
+}
+
+/** One threshold: its label and Default/Custom mark, then the value and, where it has one, its duration. */
+function ThresholdRow({
+    id,
+    label,
+    value,
+    unit,
+    step,
+    min,
+    max,
+    minutes,
+    onChange,
+    isDefault,
+    defaultText,
+    onReset,
+    hint,
+    errors,
+}: {
+    id: string;
+    label: string;
+    value: NumberFieldValue;
+    unit: string;
+    step?: number;
+    min: number;
+    max: number;
+    minutes?: NumberFieldValue;
+    onChange: (
+        value: NumberFieldValue,
+        minutes: NumberFieldValue | undefined,
+    ) => void;
+    isDefault: boolean;
+    defaultText: string;
+    onReset: () => void;
+    hint?: string;
+    errors: (string | undefined)[];
+}) {
+    const { t } = useTranslation();
+    const error = errors.find(Boolean);
+    return (
+        <div className="space-y-2 border-t pt-3 first:border-t-0 first:pt-0">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label htmlFor={id}>{label}</Label>
+                <DefaultMark
+                    isDefault={isDefault}
+                    defaultText={defaultText}
+                    onReset={onReset}
+                />
+            </div>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:flex">
+                <NumberField
+                    id={id}
+                    className="sm:w-40"
+                    unit={unit}
+                    step={step}
+                    min={min}
+                    max={max}
+                    value={value}
+                    invalid={error !== undefined}
+                    onValueChange={(next) => onChange(next, minutes)}
+                />
+                {minutes !== undefined && (
+                    <>
+                        <span className="text-sm text-muted-foreground">
+                            {t('servers.settings.for')}
+                        </span>
+                        <NumberField
+                            id={`${id}-minutes`}
+                            aria-label={t('servers.settings.duration', {
+                                label,
+                            })}
+                            className="sm:w-40"
+                            unit={t('servers.settings.minutes_unit')}
+                            min={1}
+                            max={1440}
+                            value={minutes}
+                            onValueChange={(next) => onChange(value, next)}
+                        />
+                    </>
+                )}
+            </div>
+            {(hint || !isDefault) && (
+                <p className="text-xs text-muted-foreground">
+                    {[
+                        hint,
+                        !isDefault &&
+                            t('servers.settings.default_is', {
+                                value: defaultText,
+                            }),
+                    ]
+                        .filter(Boolean)
+                        .join(' ')}
+                </p>
+            )}
+            <InputError message={error} />
+        </div>
+    );
+}
+
+/** Settings…: read-only facts, the name, the mounts to show and the alert thresholds of this server. */
+export function ServerSettingsSheet({
+    open,
+    onOpenChange,
+    server,
+    defaults,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    server: ServerRow;
+    defaults: Thresholds;
+}) {
+    const { t } = useTranslation();
+    const format = useFormat();
+    const percent = usePercent();
+    const form = useForm<SettingsForm>(settingsOf(server));
+    // Opening shows the server as it is now, not a draft left from an earlier opening.
+    useEffect(() => {
+        if (open) {
+            form.setDefaults(settingsOf(server));
+            form.reset();
+            form.clearErrors();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open]);
+    const { data } = form;
+    const set = (patch: Partial<SettingsForm>) =>
+        form.setData({ ...data, ...patch });
+    const minutes = (value: number) =>
+        t('servers.settings.minutes', {
+            count: value,
+            formattedCount: format.number(value),
+        });
+    const limitText = (value: number, duration: number) =>
+        t('servers.settings.limit', {
+            value: percent(value),
+            duration: minutes(duration),
+        });
+    const filesystems = new Map(
+        (server.values?.filesystems ?? []).map((filesystem) => [
+            filesystem.mount,
+            filesystem,
+        ]),
+    );
+    const cores = server.values?.cores ?? null;
+    const errors = form.errors as Record<string, string | undefined>;
+    const loadPerCore =
+        typeof data.load_per_core === 'number' ? data.load_per_core : null;
+    return (
+        <Sheet
+            open={open}
+            onOpenChange={(next) => !form.processing && onOpenChange(next)}
+        >
+            <SheetForm
+                title={t('servers.settings.title')}
+                description={t('servers.settings.description')}
+                aria-busy={form.processing}
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    form.patch(update.url(server.id), {
+                        preserveScroll: true,
+                        onSuccess: () => onOpenChange(false),
+                    });
+                }}
+                footer={
+                    <>
+                        <FormSecondaryAction
+                            disabled={form.processing}
+                            onClick={() => onOpenChange(false)}
+                        >
+                            {t('Cancel')}
+                        </FormSecondaryAction>
+                        <Button type="submit" disabled={form.processing}>
+                            {t('Save')}
+                        </Button>
+                    </>
+                }
+            >
+                <EvidenceFacts
+                    rows={[
+                        {
+                            label: t('servers.facts.agent'),
+                            value: server.agent_version ?? '—',
+                            mono: true,
+                        },
+                        {
+                            label: t('servers.facts.system'),
+                            value:
+                                [
+                                    server.agent_distro,
+                                    server.agent_os && server.agent_arch
+                                        ? `${server.agent_os}/${server.agent_arch}`
+                                        : null,
+                                    server.agent_kernel,
+                                ]
+                                    .filter(Boolean)
+                                    .join(' · ') || '—',
+                        },
+                        {
+                            label: t('servers.facts.hostname'),
+                            value: server.hostname ?? '—',
+                            mono: true,
+                        },
+                        {
+                            label: t('servers.facts.ips'),
+                            value:
+                                server.ips.length > 0 ? (
+                                    <span className="flex flex-col">
+                                        {server.ips.map((ip) => (
+                                            <span key={ip}>{ip}</span>
+                                        ))}
+                                    </span>
+                                ) : (
+                                    '—'
+                                ),
+                            mono: true,
+                        },
+                        {
+                            label: t('servers.last_report'),
+                            value: server.last_report_at ? (
+                                <AbsoluteTime value={server.last_report_at} />
+                            ) : (
+                                '—'
+                            ),
+                        },
+                    ]}
+                />
+                <div className="space-y-1.5">
+                    <Label htmlFor="server-settings-name">{t('Name')}</Label>
+                    <Input
+                        id="server-settings-name"
+                        required
+                        maxLength={120}
+                        value={data.name}
+                        aria-invalid={!!errors.name}
+                        onChange={(event) => set({ name: event.target.value })}
+                    />
+                    <InputError message={errors.name} />
+                </div>
+                {data.mounts.length > 0 && (
+                    <section className="space-y-2">
+                        <div className="space-y-1">
+                            <SectionHeading level={3}>
+                                {t('servers.mounts.title')}
+                            </SectionHeading>
+                            <p className="text-sm text-muted-foreground">
+                                {t('servers.mounts.description')}
+                            </p>
+                        </div>
+                        {data.mounts.map(({ mount }) => {
+                            const filesystem = filesystems.get(mount);
+                            return (
+                                <CheckboxField
+                                    key={mount}
+                                    checked={
+                                        !data.ignored_mounts.includes(mount)
+                                    }
+                                    onCheckedChange={(checked) =>
+                                        set({
+                                            ignored_mounts:
+                                                checked === true
+                                                    ? data.ignored_mounts.filter(
+                                                          (ignored) =>
+                                                              ignored !== mount,
+                                                      )
+                                                    : [
+                                                          ...data.ignored_mounts,
+                                                          mount,
+                                                      ],
+                                        })
+                                    }
+                                    description={
+                                        filesystem &&
+                                        t('servers.gauge.disk_meta', {
+                                            free: format.bytes(
+                                                filesystem.free_bytes,
+                                            ),
+                                            total: format.bytes(
+                                                filesystem.total_bytes,
+                                            ),
+                                        })
+                                    }
+                                >
+                                    <span className="font-mono text-xs">
+                                        {mount}
+                                    </span>
+                                </CheckboxField>
+                            );
+                        })}
+                    </section>
+                )}
+                <section className="space-y-3">
+                    <div className="space-y-1">
+                        <SectionHeading level={3}>
+                            {t('servers.settings.thresholds')}
+                        </SectionHeading>
+                        <p className="text-sm text-muted-foreground">
+                            {t('servers.settings.thresholds_description')}
+                        </p>
+                    </div>
+                    {data.mounts.map((limit, index) =>
+                        data.ignored_mounts.includes(limit.mount) ? null : (
+                            <ThresholdRow
+                                key={limit.mount}
+                                id={`server-disk-${index}`}
+                                label={t('servers.gauge.disk', {
+                                    mount: limit.mount,
+                                })}
+                                value={limit.percent}
+                                unit="%"
+                                min={1}
+                                max={100}
+                                minutes={limit.minutes}
+                                onChange={(value, duration) =>
+                                    set({
+                                        mounts: data.mounts.map((other, at) =>
+                                            at === index
+                                                ? {
+                                                      ...other,
+                                                      percent: value,
+                                                      minutes:
+                                                          duration ??
+                                                          other.minutes,
+                                                  }
+                                                : other,
+                                        ),
+                                    })
+                                }
+                                isDefault={
+                                    limit.percent === defaults.disk_percent &&
+                                    limit.minutes === defaults.disk_minutes
+                                }
+                                defaultText={limitText(
+                                    defaults.disk_percent,
+                                    defaults.disk_minutes,
+                                )}
+                                onReset={() =>
+                                    set({
+                                        mounts: data.mounts.map((other, at) =>
+                                            at === index
+                                                ? {
+                                                      ...other,
+                                                      percent:
+                                                          defaults.disk_percent,
+                                                      minutes:
+                                                          defaults.disk_minutes,
+                                                  }
+                                                : other,
+                                        ),
+                                    })
+                                }
+                                errors={[
+                                    errors[`mounts.${index}.percent`],
+                                    errors[`mounts.${index}.minutes`],
+                                ]}
+                            />
+                        ),
+                    )}
+                    <ThresholdRow
+                        id="server-memory"
+                        label={t('servers.gauge.memory')}
+                        value={data.memory_percent}
+                        unit="%"
+                        min={1}
+                        max={100}
+                        minutes={data.memory_minutes}
+                        onChange={(value, duration) =>
+                            set({
+                                memory_percent: value,
+                                memory_minutes: duration ?? null,
+                            })
+                        }
+                        isDefault={
+                            data.memory_percent === defaults.memory_percent &&
+                            data.memory_minutes === defaults.memory_minutes
+                        }
+                        defaultText={limitText(
+                            defaults.memory_percent,
+                            defaults.memory_minutes,
+                        )}
+                        onReset={() =>
+                            set({
+                                memory_percent: defaults.memory_percent,
+                                memory_minutes: defaults.memory_minutes,
+                            })
+                        }
+                        errors={[errors.memory_percent, errors.memory_minutes]}
+                    />
+                    <ThresholdRow
+                        id="server-load"
+                        label={t('servers.gauge.load')}
+                        value={data.load_per_core}
+                        unit={t('servers.settings.per_core_unit')}
+                        step={0.5}
+                        min={0.1}
+                        max={100}
+                        minutes={data.load_minutes}
+                        onChange={(value, duration) =>
+                            set({
+                                load_per_core: value,
+                                load_minutes: duration ?? null,
+                            })
+                        }
+                        isDefault={
+                            data.load_per_core === defaults.load_per_core &&
+                            data.load_minutes === defaults.load_minutes
+                        }
+                        defaultText={t('servers.settings.load_limit', {
+                            factor: format.number(defaults.load_per_core),
+                            duration: minutes(defaults.load_minutes),
+                        })}
+                        onReset={() =>
+                            set({
+                                load_per_core: defaults.load_per_core,
+                                load_minutes: defaults.load_minutes,
+                            })
+                        }
+                        hint={
+                            cores === null || loadPerCore === null
+                                ? undefined
+                                : t('servers.settings.load_hint', {
+                                      load: format.number(loadPerCore * cores, {
+                                          minimumFractionDigits: 1,
+                                          maximumFractionDigits: 1,
+                                      }),
+                                      count: cores,
+                                      formattedCount: format.number(cores),
+                                  })
+                        }
+                        errors={[errors.load_per_core, errors.load_minutes]}
+                    />
+                    <ThresholdRow
+                        id="server-no-report"
+                        label={t('servers.settings.no_report_after')}
+                        value={data.no_report_minutes}
+                        unit={t('servers.settings.minutes_unit')}
+                        min={2}
+                        max={60}
+                        onChange={(value) => set({ no_report_minutes: value })}
+                        isDefault={
+                            data.no_report_minutes ===
+                            defaults.no_report_minutes
+                        }
+                        defaultText={minutes(defaults.no_report_minutes)}
+                        onReset={() =>
+                            set({
+                                no_report_minutes: defaults.no_report_minutes,
+                            })
+                        }
+                        errors={[errors.no_report_minutes]}
+                    />
+                </section>
+            </SheetForm>
+        </Sheet>
+    );
+}
+
+function SuggestionReason({
+    site,
+    address,
+}: {
+    site: DirectorySite;
+    address: string;
+}) {
+    const { t } = useTranslation();
+    return (
+        <>
+            {t('servers.link.reason_before', { host: siteHost(site.url) })}{' '}
+            <span className="font-mono">{address}</span>{' '}
+            {t('servers.link.reason_after')}
+        </>
+    );
+}
+
+/** "Link site…": the DNS suggestions first (checked), then a search over every other site. Read when it opens. */
+export function LinkSitesSheet({
+    open,
+    onOpenChange,
+    server,
+    link,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    server: ServerRow;
+    link: Link | null | undefined;
+}) {
+    const { t } = useTranslation();
+    const [declined, setDeclined] = useState<number[]>([]);
+    const [picked, setPicked] = useState<string[]>([]);
+    const [processing, setProcessing] = useState(false);
+    const [error, setError] = useState<string | undefined>();
+    useEffect(() => {
+        if (!open) return;
+        setDeclined([]);
+        setPicked([]);
+        setError(undefined);
+        router.reload({ only: ['link'] });
+    }, [open]);
+    const suggestions = link?.suggestions ?? [];
+    const suggested = new Set(suggestions.map(({ site }) => site.id));
+    const movesFrom = new Map(
+        (link?.linked_elsewhere ?? []).map((entry) => [
+            entry.site_id,
+            entry.server_name,
+        ]),
+    );
+    const others = (link?.sites ?? []).filter(
+        (site) => !suggested.has(site.id),
+    );
+    const options = siteComboboxOptions(others).map((option) => {
+        const from = movesFrom.get(Number(option.value));
+        if (from === undefined) return option;
+        const secondary = [
+            option.secondary,
+            t('servers.link.moves_from', { server: from }),
+        ]
+            .filter(Boolean)
+            .join(' · ');
+        return { ...option, secondary, searchText: secondary };
+    });
+    const siteIds = [
+        ...suggestions
+            .map(({ site }) => site.id)
+            .filter((id) => !declined.includes(id)),
+        ...picked.map(Number),
+    ];
+    const moving = others.filter(
+        (site) => picked.includes(String(site.id)) && movesFrom.has(site.id),
+    );
+    return (
+        <Sheet
+            open={open}
+            onOpenChange={(next) => !processing && onOpenChange(next)}
+        >
+            <SheetForm
+                title={t('servers.link.title', { name: server.name })}
+                description={t('servers.link.description')}
+                aria-busy={processing}
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    router.post(
+                        linkSites.url(server.id),
+                        { site_ids: siteIds },
+                        {
+                            preserveScroll: true,
+                            onStart: () => setProcessing(true),
+                            onFinish: () => setProcessing(false),
+                            onError: (errors) => setError(errors.site_ids),
+                            onSuccess: () => onOpenChange(false),
+                        },
+                    );
+                }}
+                footer={
+                    <>
+                        <FormSecondaryAction
+                            disabled={processing}
+                            onClick={() => onOpenChange(false)}
+                        >
+                            {t('Cancel')}
+                        </FormSecondaryAction>
+                        <Button
+                            type="submit"
+                            disabled={processing || siteIds.length === 0}
+                        >
+                            {siteIds.length === 0
+                                ? t('servers.link.submit_none')
+                                : t('servers.link.submit', {
+                                      count: siteIds.length,
+                                  })}
+                        </Button>
+                    </>
+                }
+            >
+                {link === undefined || link === null ? (
+                    <div className="space-y-2" aria-hidden>
+                        <Skeleton className="h-5 w-40" />
+                        <Skeleton className="h-9 w-full" />
+                    </div>
+                ) : (
+                    <>
+                        {suggestions.length > 0 && (
+                            <section className="space-y-2">
+                                <SectionHeading
+                                    level={3}
+                                    className="flex items-center gap-1"
+                                >
+                                    {t('servers.link.suggested')}
+                                    <InfoTooltip>
+                                        {t('servers.link.suggested_detail')}
+                                    </InfoTooltip>
+                                </SectionHeading>
+                                {suggestions.map(({ site, address }) => (
+                                    <CheckboxField
+                                        key={site.id}
+                                        checked={!declined.includes(site.id)}
+                                        onCheckedChange={(checked) =>
+                                            setDeclined((current) =>
+                                                checked === true
+                                                    ? current.filter(
+                                                          (id) =>
+                                                              id !== site.id,
+                                                      )
+                                                    : [...current, site.id],
+                                            )
+                                        }
+                                        description={
+                                            <SuggestionReason
+                                                site={site}
+                                                address={address}
+                                            />
+                                        }
+                                    >
+                                        {site.name}
+                                        {site.client_name && (
+                                            <span className="text-xs text-muted-foreground">
+                                                {' '}
+                                                · {site.client_name}
+                                            </span>
+                                        )}
+                                    </CheckboxField>
+                                ))}
+                            </section>
+                        )}
+                        <div className="space-y-2">
+                            <Label id="server-link-sites">
+                                {t(
+                                    suggestions.length > 0
+                                        ? 'servers.link.other_sites'
+                                        : 'servers.link.sites',
+                                )}
+                            </Label>
+                            <MultiCombobox
+                                labelledBy="server-link-sites"
+                                options={options}
+                                values={picked}
+                                onValuesChange={setPicked}
+                                invalid={error !== undefined}
+                                placeholder={t('servers.link.placeholder')}
+                            />
+                            {moving.map((site) => (
+                                <p
+                                    key={site.id}
+                                    className="text-xs text-muted-foreground"
+                                >
+                                    {t('servers.link.moves', {
+                                        site: site.name,
+                                        server: movesFrom.get(site.id),
+                                    })}
+                                </p>
+                            ))}
+                            <InputError message={error} />
+                        </div>
+                    </>
+                )}
+            </SheetForm>
+        </Sheet>
+    );
+}
+
+/**
+ * The shared link line (alert-routing pattern): state icon, name link, the state word in its colour, then one fact.
+ * The server page lists its sites with it; the site Overview names its server the same way.
+ */
+function LinkLine({ site, fact }: { site: DirectorySite; fact: ReactNode }) {
+    const { t } = useTranslation();
+    return (
+        <p className="flex min-h-4 min-w-0 flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+            <span aria-hidden className="inline-flex">
+                <StatusDot state={site.state} />
+            </span>
+            <TextLink variant="secondary" href={siteShow.url(site.id)}>
+                {site.name}
+            </TextLink>
+            <span aria-hidden>·</span>
+            <span style={{ color: statusColor[site.state] }}>
+                {t(statusLabels[site.state])}
+            </span>
+            {fact && (
+                <>
+                    <span aria-hidden>·</span>
+                    <span>{fact}</span>
+                </>
+            )}
+        </p>
+    );
+}
+
+/** The server page's linked sites, problem sites first, one page at a time, each with Unlink. */
+export function LinkedSitesCard({
+    server,
+    sites,
+    pagination,
+    onLinkSites,
+}: {
+    server: ServerRow;
+    sites: DirectorySite[];
+    pagination: Heptapod.Contracts.PaginationData;
+    onLinkSites: () => void;
+}) {
+    const { t } = useTranslation();
+    const format = useFormat();
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>
+                    {t('servers.linked.title')}
+                    {pagination.total > 0 && (
+                        <span className="ml-2 font-mono text-xs text-muted-foreground tabular-nums">
+                            {format.number(pagination.total)}
+                        </span>
+                    )}
+                </CardTitle>
+                <CardDescription>
+                    {pagination.total > 0
+                        ? t('servers.linked.description')
+                        : t('servers.linked.empty')}
+                </CardDescription>
+            </CardHeader>
+            {sites.length > 0 ? (
+                <>
+                    <ul>
+                        {sites.map((site) => (
+                            <li key={site.id}>
+                                <ListRow className="grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3">
+                                    <LinkLine
+                                        site={site}
+                                        fact={site.client_name}
+                                    />
+                                    <RowActions
+                                        label={site.name}
+                                        actions={[
+                                            {
+                                                label: t('servers.unlink'),
+                                                onSelect: () =>
+                                                    router.delete(
+                                                        unlinkSite.url({
+                                                            server: server.id,
+                                                            site: site.id,
+                                                        }),
+                                                        {
+                                                            preserveScroll: true,
+                                                        },
+                                                    ),
+                                            },
+                                        ]}
+                                    />
+                                </ListRow>
+                            </li>
+                        ))}
+                    </ul>
+                    <CardContent>
+                        <ListFooter
+                            count={t('servers.linked.count', {
+                                count: pagination.total,
+                                formattedCount: format.number(pagination.total),
+                            })}
+                            pagination={pagination}
+                            only={['linked_sites', 'linked_sites_pagination']}
+                        />
+                    </CardContent>
+                </>
+            ) : (
+                <CardContent>
+                    <Button variant="outline" onClick={onLinkSites}>
+                        {t('servers.link.action')}
+                    </Button>
+                </CardContent>
+            )}
+        </Card>
+    );
+}
+
+/** The site Overview's Server card: the server the site runs on, its state and its fullest disk and RAM rings. */
+export function SiteServerCard({ server }: { server: ServerRow }) {
+    const { t } = useTranslation();
+    const percent = usePercent();
+    const values = server.values;
+    const fullest = values?.filesystems.reduce<Filesystem | undefined>(
+        (top, filesystem) =>
+            top === undefined ||
+            diskUsedPercent(filesystem) > diskUsedPercent(top)
+                ? filesystem
+                : top,
+        undefined,
+    );
+    const rings = values
+        ? [
+              ...(fullest
+                  ? [
+                        {
+                            label: t('servers.gauge.disk', {
+                                mount: fullest.mount,
+                            }),
+                            value: diskUsedPercent(fullest),
+                            threshold: diskThreshold(
+                                server.thresholds,
+                                fullest.mount,
+                            ),
+                            failedWord: t('servers.gauge.almost_full'),
+                        },
+                    ]
+                  : []),
+              {
+                  label: t('servers.gauge.memory'),
+                  value: memoryUsedPercent(values),
+                  threshold: server.thresholds.memory_percent,
+                  failedWord: t('servers.gauge.low_memory'),
+              },
+          ]
+        : [];
+    return (
+        <Card className="min-w-0">
+            <CardHeader>
+                <CardTitle>{t('servers.site.card_title')}</CardTitle>
+                <CardAction>
+                    <Button asChild variant="ghost">
+                        <InertiaLink href={serverShow.url(server.id)}>
+                            {t('servers.site.open_server')}
+                            <ArrowRight aria-hidden="true" />
+                        </InertiaLink>
+                    </Button>
+                </CardAction>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <p className="flex flex-wrap items-center gap-x-2 text-sm">
+                    <span className="font-medium">{server.name}</span>
+                    <ServerStateBadge server={server} />
+                </p>
+                {rings.length > 0 && (
+                    <div className="grid grid-cols-2 gap-4">
+                        {rings.map((ring) => {
+                            const tone =
+                                ring.value >= ring.threshold
+                                    ? 'failed'
+                                    : ring.value >= ring.threshold - 10
+                                      ? 'warning'
+                                      : 'neutral';
+                            return (
+                                <div
+                                    key={ring.label}
+                                    className="grid justify-items-center gap-1.5 text-center"
+                                >
+                                    <ScoreRing
+                                        score={ring.value}
+                                        label={ring.label}
+                                        text={percent(ring.value)}
+                                        tone={tone}
+                                        threshold={ring.threshold}
+                                    />
+                                    <span className="text-xs text-muted-foreground">
+                                        {ring.label}
+                                    </span>
+                                    {tone !== 'neutral' && (
+                                        <span
+                                            className={cn(
+                                                'text-xs font-medium',
+                                                tone === 'failed'
+                                                    ? 'text-status-down'
+                                                    : 'text-status-warn',
+                                            )}
+                                        >
+                                            {tone === 'failed'
+                                                ? ring.failedWord
+                                                : t(
+                                                      'servers.gauge.near_threshold',
+                                                  )}
+                                        </span>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                    {t('servers.site.sites_on_server', {
+                        count: server.site_count,
+                    })}
+                </p>
+            </CardContent>
+        </Card>
+    );
+}
+
+/** Site settings: the server the site runs on, or "Not linked"; a draft of the page's one form. */
+export function SiteServerField({
+    choices,
+    value,
+    onValueChange,
+    disabled,
+    error,
+}: {
+    choices: Heptapod.Addons.Servers.Data.SiteServerChoicesData;
+    /** The server id, or 'none' for "Not linked". */
+    value: string;
+    onValueChange: (value: string) => void;
+    disabled?: boolean;
+    error?: string;
+}) {
+    const { t } = useTranslation();
+    return (
+        <div className="space-y-2">
+            <Label htmlFor="site-server">{t('servers.site.field')}</Label>
+            <Combobox
+                id="site-server"
+                options={[
+                    { value: 'none', label: t('servers.site.not_linked') },
+                    ...choices.servers.map((server) => ({
+                        value: String(server.id),
+                        label: server.name,
+                        secondary: server.ips.join(' · ') || undefined,
+                    })),
+                ]}
+                value={value}
+                onValueChange={onValueChange}
+                disabled={disabled}
+                invalid={error !== undefined}
+            />
+            <p className="text-xs text-muted-foreground">
+                {t('servers.site.field_help')}
+            </p>
+            <InputError message={error} />
+        </div>
+    );
+}
