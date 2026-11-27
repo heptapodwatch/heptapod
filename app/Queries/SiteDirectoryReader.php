@@ -13,13 +13,14 @@ use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 
 /** Two reads each: the projected sites (visibility first, as the search does) and their clients' names. */
 final readonly class SiteDirectoryReader implements SiteDirectory
 {
     public function __construct(private SitesReader $sites, private ListPaging $paging) {}
 
-    public function visible(Authenticatable $user, ?array $siteIds = null): array
+    public function visible(Authenticatable $user, array $siteIds): array
     {
         if ($siteIds === []) {
             return [];
@@ -28,9 +29,32 @@ final readonly class SiteDirectoryReader implements SiteDirectory
         return $this->rows(array_values($this->query($user, $siteIds)->get()->all()));
     }
 
+    /** The same match as the command palette's site search (SearchReader): name or URL, case-insensitive. */
+    public function search(Authenticatable $user, string $search, array $exceptSiteIds, int $limit): array
+    {
+        $sites = $this->query($user, null);
+        if ($search !== '') {
+            $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search).'%';
+            $sites->getQuery()->where(static function (QueryBuilder $query) use ($pattern): void {
+                $query->where('name', 'ilike', $pattern)->orWhere('url', 'ilike', $pattern);
+            });
+        }
+        if ($exceptSiteIds !== []) {
+            $sites->getQuery()->whereNotIn('id', $exceptSiteIds);
+        }
+        $sites->getQuery()->limit($limit);
+
+        return $this->rows(array_values($sites->get()->all()));
+    }
+
     public function page(Authenticatable $user, array $siteIds, string $list): array
     {
-        $page = $this->paging->paginate($this->query($user, $siteIds), $list);
+        $query = $this->query($user, $siteIds);
+        $page = $this->paging->paginate($query, $list);
+        // A page beyond the end (sites unlinked meanwhile) shows the last page.
+        if ($page->currentPage() > $page->lastPage()) {
+            $page = $this->paging->paginate($query, $list, $page->lastPage());
+        }
         /** @var list<Site> $items */
         $items = array_values($page->items());
 

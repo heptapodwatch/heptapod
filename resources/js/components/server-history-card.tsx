@@ -96,19 +96,32 @@ export function ServerHistoryCard({
             ]),
         ),
     }));
-    // Mounts with their own thresholds: the line marks the lowest, where the first disk alerts.
-    const threshold =
-        metric === 'disk'
-            ? mounts.length === 0
-                ? thresholds.disk_percent
-                : Math.min(
-                      ...mounts.map((mount) =>
-                          diskThreshold(thresholds, mount),
-                      ),
-                  )
+    // Each disk alerts at its own threshold: one dashed line per mount in that mount's colour, or one red line while they
+    // all share it.
+    const diskLines = mounts.map((mount, index) => ({
+        y: diskThreshold(thresholds, mount),
+        color: `var(${diskColors[index % diskColors.length]})`,
+    }));
+    const shared =
+        new Set(diskLines.map((line) => line.y)).size <= 1
+            ? (diskLines[0]?.y ?? thresholds.disk_percent)
+            : undefined;
+    const thresholdLines =
+        metric === 'cpu'
+            ? []
             : metric === 'memory'
-              ? thresholds.memory_percent
-              : undefined;
+              ? [{ y: thresholds.memory_percent, color: 'var(--status-down)' }]
+              : shared === undefined
+                ? diskLines
+                : [{ y: shared, color: 'var(--status-down)' }];
+    const thresholdText =
+        metric === 'cpu'
+            ? null
+            : metric === 'disk' && shared === undefined
+              ? t('servers.history.thresholds')
+              : t('servers.history.threshold', {
+                    percent: percent(thresholdLines[0]!.y),
+                });
     const config: ChartConfig =
         metric === 'disk'
             ? Object.fromEntries(
@@ -140,9 +153,9 @@ export function ServerHistoryCard({
             <CardHeader>
                 <CardTitle>{title}</CardTitle>
                 <CardDescription>
-                    {threshold === undefined
+                    {thresholdText === null
                         ? t('servers.history.window')
-                        : `${t('servers.history.window')} · ${t('servers.history.threshold', { percent: percent(threshold) })}`}
+                        : `${t('servers.history.window')} · ${thresholdText}`}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -198,14 +211,15 @@ export function ServerHistoryCard({
                                     percent(value)
                                 }
                             />
-                            {threshold !== undefined && (
+                            {thresholdLines.map((line, index) => (
                                 <ReferenceLine
-                                    y={threshold}
-                                    stroke="var(--status-down)"
+                                    key={index}
+                                    y={line.y}
+                                    stroke={line.color}
                                     strokeDasharray="4 4"
                                     ifOverflow="extendDomain"
                                 />
-                            )}
+                            ))}
                             <ChartTooltip
                                 isAnimationActive={false}
                                 content={(tooltip) => (

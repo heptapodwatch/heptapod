@@ -55,6 +55,10 @@ final readonly class ServerReader
         // A leading minus on a numeric expression puts the highest first in the ascending order.
         $query->orderByRaw(self::SortKeys[ltrim($sort, '-')].($descending ? ' DESC' : ' ASC').' NULLS LAST')->orderByRaw('lower(name)')->orderBy('id');
         $page = $this->paging->paginate($query, 'servers');
+        // A page beyond the end (a server removed meanwhile, an old link) shows the last page.
+        if ($page->currentPage() > $page->lastPage()) {
+            $page = $this->paging->paginate($query, 'servers', $page->lastPage());
+        }
 
         /** @var list<object> $items */
         $items = array_values($page->items());
@@ -113,7 +117,7 @@ final readonly class ServerReader
     private function row(object $row): ServerRowData
     {
         /** @var object{id: int, name: string, last_report_at: string|null, agent_version: string|null, settings: string, site_count: int, hostname: string|null, agent_os: string|null, agent_arch: string|null, agent_distro: string|null, agent_kernel: string|null, ips: string|null, observed_at: string|null, metrics: string|null, state: string} $row */
-        /** @var array{mounts?: list<array{mount: string, percent: int, minutes: int}>, memory_percent?: int, memory_minutes?: int, load_per_core?: int|float, load_minutes?: int, no_report_minutes?: int, ignored_mounts?: list<string>} $settings */
+        /** @var array{mounts?: list<array{mount: string, percent?: int, minutes?: int}>, memory_percent?: int, memory_minutes?: int, load_per_core?: int|float, load_minutes?: int, no_report_minutes?: int, ignored_mounts?: list<string>} $settings */
         $settings = json_decode($row->settings, true, flags: JSON_THROW_ON_ERROR);
         $ignored = $settings['ignored_mounts'] ?? [];
         /** @var list<string> $ips */

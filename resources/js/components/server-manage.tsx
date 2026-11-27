@@ -53,6 +53,7 @@ import { cn } from '@/lib/utils';
 import { show as serverShow, update } from '@/routes/servers';
 import {
     destroy as unlinkSite,
+    index as sitesIndex,
     store as linkSites,
 } from '@/routes/servers/sites';
 import { show as siteShow } from '@/routes/sites';
@@ -635,56 +636,125 @@ export function LinkSitesSheet({
     open,
     onOpenChange,
     server,
-    link,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     server: ServerRow;
-    link: Link | null | undefined;
 }) {
     const { t } = useTranslation();
     const [declined, setDeclined] = useState<number[]>([]);
-    const [picked, setPicked] = useState<string[]>([]);
+    // Picked sites stay chips while later searches return other sites; the server they would move from goes with them.
+    const [picked, setPicked] = useState<
+        Map<number, { site: DirectorySite; from?: string }>
+    >(new Map());
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | undefined>();
+    const [query, setQuery] = useState('');
+    // The suggestions come with the sheet's first read; each search replaces only the sites to pick from.
+    const [suggestions, setSuggestions] = useState<Link['suggestions'] | null>(
+        null,
+    );
+    const [found, setFound] = useState<Link | null>(null);
+    const [failed, setFailed] = useState(false);
     useEffect(() => {
         if (!open) return;
         setDeclined([]);
-        setPicked([]);
+        setPicked(new Map());
         setError(undefined);
-        router.reload({ only: ['link'] });
+        setQuery('');
+        setSuggestions(null);
+        setFound(null);
+        setFailed(false);
     }, [open]);
-    const suggestions = link?.suggestions ?? [];
-    const suggested = new Set(suggestions.map(({ site }) => site.id));
+    useEffect(() => {
+        if (!open) return;
+        const controller = new AbortController();
+        const timer = setTimeout(
+            async () => {
+                try {
+                    const response = await fetch(
+                        sitesIndex.url(server.id, {
+                            query: query.trim() ? { q: query.trim() } : {},
+                        }),
+                        {
+                            signal: controller.signal,
+                            headers: { Accept: 'application/json' },
+                        },
+                    );
+                    if (!response.ok)
+                        throw new Error(
+                            'Link choices request failed: ' + response.status,
+                        );
+                    const data: Link = await response.json();
+                    setFound(data);
+                    if (!query.trim()) setSuggestions(data.suggestions);
+                } catch (failure) {
+                    if (!controller.signal.aborted) {
+                        console.error(failure);
+                        setFailed(true);
+                    }
+                }
+            },
+            query ? 150 : 0,
+        );
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
+    }, [open, query, server.id]);
+    const suggested = new Set((suggestions ?? []).map(({ site }) => site.id));
     const movesFrom = new Map(
-        (link?.linked_elsewhere ?? []).map((entry) => [
+        (found?.linked_elsewhere ?? []).map((entry) => [
             entry.site_id,
             entry.server_name,
         ]),
     );
-    const others = (link?.sites ?? []).filter(
-        (site) => !suggested.has(site.id),
+    const results = (found?.sites ?? []).filter(
+        (site) => !suggested.has(site.id) && !picked.has(site.id),
     );
-    const options = siteComboboxOptions(others).map((option) => {
-        const from = movesFrom.get(Number(option.value));
-        if (from === undefined) return option;
+    const option = (site: DirectorySite, from: string | undefined) => {
+        const [base] = siteComboboxOptions([site]);
+        if (from === undefined) return base!;
         const secondary = [
-            option.secondary,
+            base!.secondary,
             t('servers.link.moves_from', { server: from }),
         ]
             .filter(Boolean)
             .join(' · ');
-        return { ...option, secondary, searchText: secondary };
-    });
+        return { ...base!, secondary, searchText: secondary };
+    };
+    const options = [
+        ...[...picked.values()].map(({ site, from }) => option(site, from)),
+        ...results.map((site) => option(site, movesFrom.get(site.id))),
+    ];
     const siteIds = [
-        ...suggestions
+        ...(suggestions ?? [])
             .map(({ site }) => site.id)
             .filter((id) => !declined.includes(id)),
-        ...picked.map(Number),
+        ...picked.keys(),
     ];
-    const moving = others.filter(
-        (site) => picked.includes(String(site.id)) && movesFrom.has(site.id),
+    const moving = [...picked.values()].filter(
+        ({ from }) => from !== undefined,
     );
+    const pick = (values: string[]) =>
+        setPicked((current) => {
+            const known = new Map([
+                ...current,
+                ...results.map(
+                    (site) =>
+                        [
+                            site.id,
+                            { site, from: movesFrom.get(site.id) },
+                        ] as const,
+                ),
+            ]);
+            return new Map(
+                values.map((value) => [
+                    Number(value),
+                    known.get(Number(value))!,
+                ]),
+            );
+        });
     return (
         <Sheet
             open={open}
@@ -729,7 +799,9 @@ export function LinkSitesSheet({
                     </>
                 }
             >
-                {link === undefined || link === null ? (
+                {failed ? (
+                    <InputError message={t('servers.link.loading_failed')} />
+                ) : suggestions === null ? (
                     <div className="space-y-2" aria-hidden>
                         <Skeleton className="h-5 w-40" />
                         <Skeleton className="h-9 w-full" />
@@ -790,8 +862,9 @@ export function LinkSitesSheet({
                             <MultiCombobox
                                 labelledBy="server-link-sites"
                                 options={options}
-                                values={picked}
-                                onValuesChange={setPicked}
+                                values={[...picked.keys()].map(String)}
+                                onValuesChange={pick}
+                                onQueryChange={setQuery}
                                 id="server-link-picker"
                                 invalid={error !== undefined}
                                 describedBy={
@@ -801,14 +874,14 @@ export function LinkSitesSheet({
                                 }
                                 placeholder={t('servers.link.placeholder')}
                             />
-                            {moving.map((site) => (
+                            {moving.map(({ site, from }) => (
                                 <p
                                     key={site.id}
                                     className="text-xs text-muted-foreground"
                                 >
                                     {t('servers.link.moves', {
                                         site: site.name,
-                                        server: movesFrom.get(site.id),
+                                        server: from,
                                     })}
                                 </p>
                             ))}
@@ -866,24 +939,35 @@ export function LinkedSitesCard({
 }) {
     const { t } = useTranslation();
     const format = useFormat();
+    // The count is every stored link; sites of archived clients keep theirs (for a restore) but are not listed.
+    const archived = Math.max(0, server.site_count - pagination.total);
+    const archivedNote = archived > 0 && (
+        <p className="text-xs text-muted-foreground">
+            {t('servers.linked.archived', {
+                count: archived,
+                formattedCount: format.number(archived),
+            })}
+        </p>
+    );
     return (
         <Card>
             <CardHeader>
                 <CardTitle>
                     {t('servers.linked.title')}
-                    {pagination.total > 0 && (
+                    {server.site_count > 0 && (
                         <span className="ml-2 font-mono text-xs text-muted-foreground tabular-nums">
-                            {format.number(pagination.total)}
+                            {format.number(server.site_count)}
                         </span>
                     )}
                 </CardTitle>
                 <CardDescription>
-                    {pagination.total > 0
+                    {server.site_count > 0
                         ? t('servers.linked.description')
                         : t('servers.linked.empty')}
                 </CardDescription>
             </CardHeader>
-            {sites.length > 0 ? (
+            {/* A page beyond the end comes back as the last page, so rows are missing only when none is visible. */}
+            {pagination.total > 0 ? (
                 <>
                     <ul>
                         {sites.map((site) => (
@@ -915,7 +999,7 @@ export function LinkedSitesCard({
                             </li>
                         ))}
                     </ul>
-                    <CardContent>
+                    <CardContent className="space-y-2">
                         <ListFooter
                             count={t('servers.linked.count', {
                                 count: pagination.total,
@@ -924,10 +1008,12 @@ export function LinkedSitesCard({
                             pagination={pagination}
                             only={['linked_sites', 'linked_sites_pagination']}
                         />
+                        {archivedNote}
                     </CardContent>
                 </>
             ) : (
-                <CardContent>
+                <CardContent className="space-y-3">
+                    {archivedNote}
                     <Button variant="outline" onClick={onLinkSites}>
                         {t('servers.link.action')}
                     </Button>

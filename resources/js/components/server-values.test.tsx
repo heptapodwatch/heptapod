@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { ServerGaugeCells } from '@/components/server-values';
+import { ServerFacts, ServerGaugeCells } from '@/components/server-values';
 
 vi.mock('@inertiajs/react', () => ({
     usePage: () => ({ props: { timezone: 'UTC' } }),
@@ -91,4 +91,24 @@ it('turns the load red with "High load" at its threshold of 2x vCPU', () => {
     const cell = loadCell(8);
     expect(cell.text).toBe('8.0 / 4 vCPUHigh load');
     expect(cell.coloured).toContain('text-status-down');
+});
+
+it('says a known 0 security updates and leaves an unknown count out', () => {
+    const facts = (security: number | null) => {
+        cleanup();
+        render(
+            <ServerFacts
+                values={{
+                    ...values(1),
+                    updates_pending: 51,
+                    updates_security: security,
+                }}
+            />,
+        );
+        return document.body.textContent;
+    };
+    expect(facts(0)).toContain('51 updates, 0 security');
+    expect(facts(3)).toContain('51 updates, 3 security');
+    expect(facts(null)).toContain('51 updates');
+    expect(facts(null)).not.toContain('security');
 });

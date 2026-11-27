@@ -8,12 +8,11 @@ use Heptapod\Contracts\DirectorySiteData;
 use Heptapod\Contracts\PaginationData;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\Lazy\ClosureLazy;
-use Spatie\LaravelData\Support\Lazy\InertiaLazy;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 /**
  * Props of GET /servers/{id}. Server, history and the linked sites are closures, so the page's polls evaluate only what
- * they ask for; link (the DNS suggestions and the sites to pick from) is read only when the "Link site…" sheet asks for it.
+ * they ask for. The "Link site…" sheet reads its choices from GET /servers/{id}/sites.
  */
 #[TypeScript]
 final class ServerPageData extends Data
@@ -33,6 +32,5 @@ final class ServerPageData extends Data
         public readonly array $install,
         public readonly ClosureLazy|array $linked_sites,
         public readonly ClosureLazy|PaginationData $linked_sites_pagination,
-        public readonly InertiaLazy|ServerLinkData|null $link = null,
     ) {}
 }

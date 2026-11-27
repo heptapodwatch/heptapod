@@ -5,14 +5,17 @@ declare(strict_types=1);
 use Carbon\CarbonImmutable;
 use Heptapod\Addons\Servers\Server;
 use Heptapod\Contracts\CheckKey;
+use Heptapod\Contracts\SiteServers;
 use Heptapod\Models\Check;
 use Heptapod\Models\Client;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 require_once __DIR__.'/../Pest.php';
 
@@ -61,9 +64,11 @@ function reportingServer(string $name, array $ips = [], array $filesystems = ['/
 }
 
 /**
- * The DNS check's accepted answer for the site: its newest run (checks.latest_run_id) has these A/AAAA records.
+ * The DNS check's accepted answer for the site as DnsCheck stores it: its newest run (checks.latest_run_id) has these
+ * A/AAAA records, grouped by the name queried (`<name>|A`); the site's own host name unless a record names another (the
+ * apex or an extra name the check also watches).
  *
- * @param  list<array{string, string}>  $records  [type, address]
+ * @param  list<array{0: string, 1: string, 2?: string}>  $records  [type, address, queried name]
  */
 function dnsAnswer(Site $site, array $records, CarbonImmutable $endedAt, bool $latest = true): void
 {
@@ -71,22 +76,23 @@ function dnsAnswer(Site $site, array $records, CarbonImmutable $endedAt, bool $l
     $runId++;
     $check = Check::query()->where('site_id', $site->id)->where('type', CheckKey::Dns->value)->first()
         ?? Check::factory()->for($site)->create(['type' => CheckKey::Dns]);
+    $groups = [];
+    foreach ($records as $record) {
+        $name = $record[2] ?? parse_url($site->url, PHP_URL_HOST);
+        $groups[$name.'|'.$record[0]][] = ['host' => $name, 'type' => $record[0], 'class' => 'IN', ...($record[0] === 'A' ? ['ip' => $record[1]] : ['ipv6' => $record[1]])];
+    }
     DB::table('dns_observations')->insert(['site_id' => $site->id, 'check_id' => $check->id, 'run_id' => $runId, 'claim_token' => (string) Str::uuid(),
         'run_ended_at' => $endedAt->format('Y-m-d H:i:s.uP'), 'expected' => '[]', 'created_at' => $endedAt->format('Y-m-d H:i:s.uP'),
-        'snapshot' => json_encode(['dns_records' => array_map(static fn (array $record): array => ['host' => 'x', 'type' => $record[0], 'class' => 'IN', 'ttl' => 60,
-            ...($record[0] === 'A' ? ['ip' => $record[1]] : ['ipv6' => $record[1]])], $records)], JSON_THROW_ON_ERROR)]);
+        'snapshot' => json_encode(['dns_records' => array_merge([], ...array_values($groups)), 'normalized_records' => $groups], JSON_THROW_ON_ERROR)]);
     if ($latest) {
         $check->forceFill(['latest_run_id' => $runId])->save();
     }
 }
 
-/** The "Link site…" sheet's props, read as the sheet asks for them. */
-function linkProp(object $test, Server $server): array
+/** What the "Link site…" sheet reads when it opens, or for a search. */
+function linkChoices(object $test, Server $server, string $search = ''): array
 {
-    $version = $test->get("/servers/{$server->id}")->inertiaPage()['version'];
-
-    return $test->get("/servers/{$server->id}", ['X-Inertia' => 'true', 'X-Inertia-Version' => $version,
-        'X-Inertia-Partial-Component' => 'servers/show', 'X-Inertia-Partial-Data' => 'link'])->assertOk()->json('props.link');
+    return $test->getJson("/servers/{$server->id}/sites".($search === '' ? '' : '?q='.urlencode($search)))->assertOk()->json();
 }
 
 /** @return array<string, int|float|string|list<mixed>> */
@@ -114,6 +120,18 @@ it('saves the name and only the thresholds that differ from the defaults, and th
     // Back on the defaults, nothing custom is stored, so a later change of the defaults applies.
     $this->patch("/servers/{$server->id}", settingsPayload())->assertRedirect();
     expect($server->fresh()->settings)->toBe([]);
+});
+
+it('keeps a mount\'s threshold and duration each on its own, so a duration change follows a later default percent', function (): void {
+    $this->actingAs(manageUser('Owner'));
+    $server = reportingServer('web-1', filesystems: ['/' => [100, 50]]);
+
+    $this->patch("/servers/{$server->id}", settingsPayload(['mounts' => [['mount' => '/', 'percent' => 90, 'minutes' => 30]]]))->assertRedirect();
+    config(['servers.thresholds.disk.percent' => 80]);
+
+    expect($server->fresh()->settings)->toBe(['mounts' => [['mount' => '/', 'minutes' => 30]]]);
+    $this->get("/servers/{$server->id}")->assertInertia(fn (Assert $page): Assert => $page
+        ->where('server.thresholds.mounts', [['mount' => '/', 'percent' => 80, 'minutes' => 30]]));
 });
 
 it('refuses settings without a name or with a threshold out of range, saving nothing', function (array $change, string $field): void {
@@ -201,41 +219,59 @@ it('suggests unlinked sites whose newest DNS answer points at the server, never 
     $this->post("/servers/{$other->id}/sites", ['site_ids' => [$onOther->id]]);
     $this->post("/servers/{$server->id}/sites", ['site_ids' => [$onThis->id]]);
 
-    // Not read with the page, only when the sheet asks.
-    $this->get("/servers/{$server->id}")->assertInertia(fn (Assert $page): Assert => $page->missing('link'));
-    $link = linkProp($this, $server);
+    $link = linkChoices($this, $server);
 
     expect(collect($link['suggestions'])->mapWithKeys(fn (array $row): array => [$row['site']['id'] => $row['address']])->all())
         ->toEqual([$ipv4->id => '49.12.88.204', $ipv6->id => '2a01:4f9:3a:1f::2'])
-        // The picker offers every site not on this server, and names the one linking would move.
-        ->and(collect($link['sites'])->pluck('id')->sort()->values()->all())->toEqual(collect([$ipv4, $ipv6, $cdn, $onOther, $moved])->pluck('id')->sort()->values()->all())
+        // The picker offers the other sites not on this server, and names the one linking would move.
+        ->and(collect($link['sites'])->pluck('id')->sort()->values()->all())->toEqual(collect([$cdn, $onOther, $moved])->pluck('id')->sort()->values()->all())
         ->and($link['linked_elsewhere'])->toBe([['site_id' => $onOther->id, 'server_name' => 'other']]);
 });
 
-it('reads the suggestions with the same queries however much DNS history exists', function (): void {
+it('suggests a site only for the answer of its own host name, never for the apex or an extra name the check watches', function (): void {
     $this->actingAs(manageUser('Owner'));
     $server = reportingServer('web-1', ['49.12.88.204']);
-    $sites = Site::factory()->count(3)->create();
-    $count = function () use ($server): int {
-        DB::enableQueryLog();
-        DB::flushQueryLog();
-        linkProp($this, $server);
-        $queries = collect(DB::getQueryLog())->filter(fn (array $query): bool => str_contains($query['query'], 'dns_observations'))->count();
-        DB::disableQueryLog();
+    [$own, $apexOnly, $extraOnly] = Site::factory()->count(3)->create();
+    $at = now()->toImmutable();
+    dnsAnswer($own, [['A', '49.12.88.204']], $at);
+    // Behind a CDN, while the apex and an extra CNAME the same check monitors point at the server.
+    dnsAnswer($apexOnly, [['A', '104.21.32.1'], ['A', '49.12.88.204', 'example.test']], $at);
+    dnsAnswer($extraOnly, [['A', '104.21.32.1'], ['A', '49.12.88.204', 'legacy.example.test']], $at);
 
-        return $queries;
-    };
-    foreach ($sites as $site) {
-        dnsAnswer($site, [['A', '49.12.88.204']], now()->toImmutable());
-    }
-    $few = $count();
-    foreach ($sites as $site) {
-        foreach (range(1, 20) as $hours) {
-            dnsAnswer($site, [['A', '49.12.88.204']], now()->subHours($hours)->toImmutable(), latest: false);
-        }
-    }
+    expect(array_column(array_column(linkChoices($this, $server)['suggestions'], 'site'), 'id'))->toBe([$own->id]);
+});
 
-    expect($few)->toBe(1)->and($count())->toBe($few);
+it('suggests at most 20 sites, an answer wholly on the server first, then more matching addresses', function (): void {
+    $this->actingAs(manageUser('Owner'));
+    $server = reportingServer('web-1', ['49.12.88.204', '2a01:4f9:3a:1f::2']);
+    $at = now()->toImmutable();
+    // Created first, so a plain id order would put them first.
+    $partial = Site::factory()->create();
+    dnsAnswer($partial, [['A', '49.12.88.204'], ['A', '203.0.113.9']], $at);
+    $single = Site::factory()->count(22)->create();
+    foreach ($single as $site) {
+        dnsAnswer($site, [['A', '49.12.88.204']], $at);
+    }
+    $both = Site::factory()->create();
+    dnsAnswer($both, [['A', '49.12.88.204'], ['AAAA', '2a01:4f9:3a:1f::2']], $at);
+
+    $ids = array_column(array_column(linkChoices($this, $server)['suggestions'], 'site'), 'id');
+
+    expect($ids)->toHaveCount(20)
+        ->and($ids[0])->toBe($both->id)
+        ->and(array_slice($ids, 1))->toBe($single->take(19)->pluck('id')->all())
+        ->and($ids)->not->toContain($partial->id);
+});
+
+it('searches the sites to pick on the server, at most 20 a time', function (): void {
+    $this->actingAs(manageUser('Owner'));
+    $server = reportingServer('web-1');
+    Site::factory()->count(25)->sequence(fn ($sequence): array => ['friendly_name' => 'Shop '.$sequence->index])->create();
+    $blog = Site::factory()->create(['friendly_name' => 'Company blog']);
+
+    expect(linkChoices($this, $server)['sites'])->toHaveCount(20)
+        ->and(array_column(linkChoices($this, $server, 'BLOG')['sites'], 'id'))->toBe([$blog->id])
+        ->and(linkChoices($this, $server, 'nothing-like-this')['sites'])->toBe([]);
 });
 
 it('shows the server parts on site pages to Owners and Admins only, and nothing while servers are off', function (string $role, bool $shown): void {
@@ -263,7 +299,7 @@ it('shows the server parts on site pages to Owners and Admins only, and nothing 
 
 it('never shows the server a site runs on through an API token limited to one client', function (): void {
     $site = Site::factory()->create();
-    $server = reportingServer('hidden-server-name');
+    $server = reportingServer('hidden-server-name', ['198.51.100.77']);
     DB::table('server_sites')->insert(['site_id' => $site->id, 'server_id' => $server->id, 'created_at' => now()]);
     $owner = manageUser('Owner');
     $token = $owner->createToken('agent-tools', ['*']);
@@ -271,7 +307,10 @@ it('never shows the server a site runs on through an API token limited to one cl
 
     $response = $this->withToken($token->plainTextToken)->getJson("/api/monitors/{$site->id}")->assertOk();
 
-    expect($response->getContent())->not->toContain('hidden-server-name');
+    // No server key at any depth (`server`, `server_id`, `servers`…), and none of the server's name, host name or address.
+    $serverKeys = array_filter(array_keys(Arr::dot($response->json())), fn (string $path): bool => preg_match('/(^|\.)servers?(_[a-z_]+)?(\.|$)/', $path) === 1);
+    expect($serverKeys)->toBe([])
+        ->and($response->getContent())->not->toContain('hidden-server-name')->not->toContain('hidden-server-name.host')->not->toContain('198.51.100.77');
 });
 
 it('links, moves and unlinks a site with the Site settings Save, and refuses the field to those without servers', function (): void {
@@ -286,13 +325,32 @@ it('links, moves and unlinks a site with the Site settings Save, and refuses the
     expect(DB::table('server_sites')->pluck('server_id', 'site_id')->all())->toBe([$site->id => $first->id]);
     $save(['server_id' => $second->id])->assertRedirect();
     expect(DB::table('server_sites')->pluck('server_id', 'site_id')->all())->toBe([$site->id => $second->id]);
-    $save(['server_id' => $second->id + 999])->assertSessionHasErrors('server_id');
+    // A server that does not exist refuses the whole Save: the rename is not kept either.
+    $this->patch("/sites/{$site->id}", ['friendly_name' => 'Renamed shop', 'server_id' => $second->id + 999])->assertSessionHasErrors('server_id');
+    expect($site->fresh()->friendly_name)->not->toBe('Renamed shop');
+    // A Save without the field (the form sends it only when changed) leaves the link as it is.
+    $save(['friendly_name' => 'Renamed shop'])->assertRedirect();
+    expect($site->fresh()->friendly_name)->toBe('Renamed shop')
+        ->and(DB::table('server_sites')->pluck('server_id', 'site_id')->all())->toBe([$site->id => $second->id]);
     $save(['server_id' => null])->assertRedirect();
     expect(DB::table('server_sites')->count())->toBe(0);
 
     manageSwitch(false);
     $save(['server_id' => $first->id])->assertForbidden();
     expect(DB::table('server_sites')->count())->toBe(0);
+});
+
+it('reads and writes no server link through SiteServers while servers are off', function (): void {
+    $site = Site::factory()->create();
+    $server = reportingServer('web-1');
+    DB::table('server_sites')->insert(['site_id' => $site->id, 'server_id' => $server->id, 'created_at' => now()]);
+    $servers = app(SiteServers::class);
+    manageSwitch(false);
+
+    expect($servers->ofSite($site->id))->toBeNull()->and($servers->choices($site->id))->toBeNull()
+        ->and(fn () => $servers->link($site->id, null))->toThrow(NotFoundHttpException::class)
+        ->and(fn () => $servers->holdServer($server->id))->toThrow(NotFoundHttpException::class)
+        ->and(DB::table('server_sites')->count())->toBe(1);
 });
 
 it('unlinks every site when the server is removed, and names how many on the page', function (): void {
@@ -307,7 +365,7 @@ it('unlinks every site when the server is removed, and names how many on the pag
     expect(DB::table('server_sites')->count())->toBe(0)->and(Site::query()->count())->toBe(3);
 });
 
-it('pages the server list with the shared page sizes, an empty page beyond the end', function (): void {
+it('pages the server list with the shared page sizes, the last page for a page beyond the end', function (): void {
     $this->actingAs(manageUser('Owner'));
     foreach (range(1, 12) as $index) {
         reportingServer(sprintf('web-%02d', $index));
@@ -317,9 +375,25 @@ it('pages the server list with the shared page sizes, an empty page beyond the e
         ->count('servers', 10)->where('pagination.total', 12)->where('pagination.last_page', 2)->where('pagination.page_name', 'servers_page'));
     $this->get('/servers?servers_per_page=10&servers_page=2')->assertInertia(fn (Assert $page): Assert => $page
         ->where('servers.0.name', 'web-11')->where('servers.1.name', 'web-12')->count('servers', 2));
+    // A page beyond the end shows the last page.
     $this->get('/servers?servers_per_page=10&servers_page=3')->assertInertia(fn (Assert $page): Assert => $page
-        ->where('servers', [])->where('pagination.current_page', 3)->where('pagination.total', 12));
+        ->count('servers', 2)->where('pagination.current_page', 2)->where('pagination.total', 12));
     $this->get('/servers?servers_per_page=7')->assertSessionHasErrors('servers_per_page');
+});
+
+it('pages the linked sites, the last page beyond the end, and counts the links of archived clients apart', function (): void {
+    $this->actingAs(manageUser('Owner'));
+    $server = reportingServer('web-1');
+    $sites = Site::factory()->count(12)->create();
+    $this->post("/servers/{$server->id}/sites", ['site_ids' => $sites->pluck('id')->all()]);
+    $archived = $sites->first()->client;
+    $archived->forceFill(['archived_at' => now()])->save();
+
+    // 12 stored links, 11 listed: the archived client's site keeps its link (for a restore) but is not shown.
+    $this->get("/servers/{$server->id}?linked_sites_per_page=10&linked_sites_page=5")->assertInertia(fn (Assert $page): Assert => $page
+        ->where('server.site_count', 12)->where('linked_sites_pagination.total', 11)->where('linked_sites_pagination.current_page', 2)
+        ->count('linked_sites', 1));
+    expect(DB::table('server_sites')->where('server_id', $server->id)->count())->toBe(12);
 });
 
 it('sorts the list by each key, problems first, and refuses an unknown key', function (string $sort, array $order): void {
@@ -379,7 +453,7 @@ it('installs the agent of the newest known release on a source build, and names 
         ->where('install.release_url', $version === null ? null : 'https://github.com/heptapodwatch/heptapod/releases/download/'.$version));
 })->with([['v0.19.0', 'v0.19.0'], [null, null], ['main', null]]);
 
-it('adds no site page query for Members and at most one for Owners while servers are on', function (string $role, string $page): void {
+it('reads no server table while servers are off, none for Members and one for Owners while on', function (string $role, string $page): void {
     $client = Client::factory()->create();
     $site = Site::factory()->for($client)->create();
     Check::factory()->for($site)->create(['type' => CheckKey::Uptime]);
@@ -388,19 +462,24 @@ it('adds no site page query for Members and at most one for Owners while servers
     $user = manageUser($role);
     $user->clients()->attach($client);
     $path = $page === 'overview' ? "/sites/{$site->id}" : "/sites/{$site->id}/settings";
-    $count = function () use ($user, $path): int {
+    /** @return array{int, list<string>} every query, and those on a server table */
+    $count = function () use ($user, $path): array {
         $this->actingAs($user)->get($path);
         DB::enableQueryLog();
         DB::flushQueryLog();
         $this->get($path);
-        $queries = count(DB::getQueryLog());
+        $queries = array_column(DB::getQueryLog(), 'query');
         DB::disableQueryLog();
 
-        return $queries;
+        return [count($queries), array_values(array_filter($queries, fn (string $query): bool => preg_match('/\b(servers|server_sites|server_samples)\b/', $query) === 1))];
     };
     config(['heptapod.servers.enabled_by_server' => false]);
-    $off = $count();
+    [$off, $serverQueriesOff] = $count();
     config(['heptapod.servers.enabled_by_server' => true]);
+    [$on, $serverQueriesOn] = $count();
 
-    expect($count() - $off)->toBeLessThanOrEqual($role === 'Member' ? 0 : 1);
+    // Off, no query touches a server table; on, Members still read none and Owners one.
+    expect($serverQueriesOff)->toBe([])
+        ->and($on - $off)->toBeLessThanOrEqual($role === 'Member' ? 0 : 1)
+        ->and(count($serverQueriesOn))->toBe($role === 'Member' ? 0 : 1);
 })->with([['Owner', 'overview'], ['Owner', 'settings'], ['Member', 'overview']]);

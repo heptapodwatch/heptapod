@@ -24,8 +24,8 @@
     "servers.fact.no_updates": "No updates pending",
     "servers.fact.updates_one": "{{formattedCount}} update",
     "servers.fact.updates_other": "{{formattedCount}} updates",
-    "servers.fact.updates_security_one": "{{formattedCount}} update ({{security}} security)",
-    "servers.fact.updates_security_other": "{{formattedCount}} updates ({{security}} security)",
+    "servers.fact.updates_security_one": "{{formattedCount}} update, {{security}} security",
+    "servers.fact.updates_security_other": "{{formattedCount}} updates, {{security}} security",
     "servers.gauge.title": "Current values",
     "servers.gauge.disk": "Disk {{mount}}",
     "servers.gauge.disk_meta": "{{free}} free of {{total}}",
@@ -145,5 +145,16 @@
     "servers.site.section_description": "The server this site runs on.",
     "servers.site.field": "Server",
     "servers.site.not_linked": "Not linked",
-    "servers.site.field_help": "The site's Overview shows this server, and the server lists the site. A site runs on one server."
+    "servers.site.field_help": "The site's Overview shows this server, and the server lists the site. A site runs on one server.",
+    "servers.linked.archived_one": "{{formattedCount}} more on an archived client.",
+    "servers.linked.archived_other": "{{formattedCount}} more on archived clients.",
+    "servers.list.sort": "Sort",
+    "servers.sort.status": "Status: problems first",
+    "servers.sort.name": "Name A–Z",
+    "servers.sort.disk": "Disk: fullest first",
+    "servers.sort.memory": "RAM: highest first",
+    "servers.sort.load": "Load: highest first",
+    "servers.sort.last_report": "Last report: oldest first",
+    "servers.history.thresholds": "Dashed lines: each disk's alert threshold",
+    "servers.link.loading_failed": "The sites could not be loaded. Close the sheet and open it again."
 }

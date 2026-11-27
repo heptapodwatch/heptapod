@@ -263,8 +263,9 @@ export default function SiteSettings({
                 ? { client_id: data.client_id }
                 : {
                       ...data,
-                      // Only those who may see servers have the field; the server refuses it from anyone else.
-                      ...(server
+                      // Only those who may see servers have the field (the server refuses it from anyone else), and it
+                      // goes only when changed here: a tab opened earlier never undoes a link changed elsewhere since.
+                      ...(server && server_id !== serverChoice(server)
                           ? {
                                 server_id:
                                     server_id === 'none'

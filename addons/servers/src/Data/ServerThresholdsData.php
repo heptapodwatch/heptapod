@@ -15,7 +15,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 #[TypeScript]
 final class ServerThresholdsData extends Data
 {
-    /** @param list<array{mount: string, percent: int, minutes: int}> $mounts the mounts whose disk threshold differs from disk_percent and disk_minutes */
+    /** @param list<array{mount: string, percent: int, minutes: int}> $mounts the mounts whose disk threshold or duration differs from disk_percent and disk_minutes, resolved */
     public function __construct(
         public readonly int $disk_percent,
         public readonly int $disk_minutes,
@@ -36,15 +36,17 @@ final class ServerThresholdsData extends Data
     }
 
     /**
-     * The server's thresholds: what its settings store (only what differs from the defaults) over the defaults.
+     * The server's thresholds: what its settings store (only what differs from the defaults, a mount's percent and
+     * duration each on its own) over the defaults.
      *
-     * @param  array{mounts?: list<array{mount: string, percent: int, minutes: int}>, memory_percent?: int, memory_minutes?: int, load_per_core?: int|float, load_minutes?: int, no_report_minutes?: int}  $settings
+     * @param  array{mounts?: list<array{mount: string, percent?: int, minutes?: int}>, memory_percent?: int, memory_minutes?: int, load_per_core?: int|float, load_minutes?: int, no_report_minutes?: int}  $settings
      */
     public static function of(array $settings): self
     {
         $defaults = self::defaults();
 
-        return new self($defaults->disk_percent, $defaults->disk_minutes, $settings['mounts'] ?? [],
+        return new self($defaults->disk_percent, $defaults->disk_minutes, array_map(static fn (array $mount): array => ['mount' => $mount['mount'],
+            'percent' => $mount['percent'] ?? $defaults->disk_percent, 'minutes' => $mount['minutes'] ?? $defaults->disk_minutes], $settings['mounts'] ?? []),
             $settings['memory_percent'] ?? $defaults->memory_percent, $settings['memory_minutes'] ?? $defaults->memory_minutes,
             (float) ($settings['load_per_core'] ?? $defaults->load_per_core), $settings['load_minutes'] ?? $defaults->load_minutes,
             $settings['no_report_minutes'] ?? $defaults->no_report_minutes);

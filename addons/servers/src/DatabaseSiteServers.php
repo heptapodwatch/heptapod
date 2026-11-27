@@ -9,22 +9,26 @@ use Heptapod\Addons\Servers\Actions\LinkSites;
 use Heptapod\Addons\Servers\Actions\UnlinkSite;
 use Heptapod\Addons\Servers\Data\ServerRowData;
 use Heptapod\Addons\Servers\Data\SiteServerChoicesData;
+use Heptapod\Contracts\ServersAccess;
 use Heptapod\Contracts\SiteServers;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
-/** Core asks only after ServersAccess allowed the user, so every method trusts its caller. One read each. */
+/** One read each; nothing is read or written while servers are off. */
 final readonly class DatabaseSiteServers implements SiteServers
 {
-    public function __construct(private ServerReader $reader, private LinkSites $linkSites, private UnlinkSite $unlinkSite) {}
+    public function __construct(private ServersAccess $access, private ServerReader $reader, private LinkSites $linkSites, private UnlinkSite $unlinkSite) {}
 
     public function ofSite(int $siteId): ?ServerRowData
     {
-        return $this->reader->ofSite(CarbonImmutable::now(), $siteId);
+        return $this->access->enabled() ? $this->reader->ofSite(CarbonImmutable::now(), $siteId) : null;
     }
 
-    public function choices(int $siteId): SiteServerChoicesData
+    public function choices(int $siteId): ?SiteServerChoicesData
     {
+        if (! $this->access->enabled()) {
+            return null;
+        }
         /** @var list<object{id: int, name: string, ips: string|null, linked: bool}> $rows */
         $rows = DB::select('SELECT servers.id, servers.name, servers.ips, server_sites.site_id IS NOT NULL AS linked
             FROM servers LEFT JOIN server_sites ON server_sites.server_id = servers.id AND server_sites.site_id = ?
@@ -39,14 +43,23 @@ final readonly class DatabaseSiteServers implements SiteServers
         }, $rows));
     }
 
+    public function holdServer(?int $serverId): void
+    {
+        abort_unless($this->access->enabled(), 404);
+        // FOR SHARE: a removal waits until the caller's transaction ends, so the link written after the site never dangles.
+        if ($serverId !== null && DB::table('servers')->where('id', $serverId)->sharedLock()->doesntExist()) {
+            throw ValidationException::withMessages(['server_id' => __('validation.exists', ['attribute' => __('servers.site.field')])]);
+        }
+    }
+
     public function link(int $siteId, ?int $serverId): void
     {
+        abort_unless($this->access->enabled(), 404);
         if ($serverId === null) {
             ($this->unlinkSite)($siteId);
 
             return;
         }
-        Validator::make(['server_id' => $serverId], ['server_id' => ['exists:servers,id']])->validate();
         ($this->linkSites)($serverId, [$siteId]);
     }
 }

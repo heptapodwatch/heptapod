@@ -139,12 +139,14 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
 }
 
 /**
- * A header the server sorts by (`?sort=`), as the Sites table's: `sortKey` sorts, a second click sends `-sortKey` to reverse it;
- * `aria-sort` names the current direction. `justify` follows the column's text alignment.
+ * A header the server sorts by (`?sort=`), as the Sites table's: `sortKey` sorts, a second click sends `-sortKey` to reverse it.
+ * `firstDirection` is how `sortKey` orders the shown values (a "highest first" column is descending), so `aria-sort` names
+ * the real direction. `justify` follows the column's text alignment.
  */
-function SortableTableHead({ sortKey, sort, onSort, justify = "start", className, children, ...props }: React.ComponentProps<"th"> & { sortKey: string; sort: string; onSort: (sort: string) => void; justify?: "start" | "center" | "end" }) {
+function SortableTableHead({ sortKey, sort, onSort, firstDirection = "ascending", justify = "start", className, children, ...props }: React.ComponentProps<"th"> & { sortKey: string; sort: string; onSort: (sort: string) => void; firstDirection?: "ascending" | "descending"; justify?: "start" | "center" | "end" }) {
+  const reversed = firstDirection === "ascending" ? "descending" : "ascending"
   return (
-    <TableHead aria-sort={sort === sortKey ? "ascending" : sort === `-${sortKey}` ? "descending" : "none"} className={className} {...props}>
+    <TableHead aria-sort={sort === sortKey ? firstDirection : sort === `-${sortKey}` ? reversed : "none"} className={className} {...props}>
       <Button
         variant="ghost"
         className={cn("max-w-full gap-1 px-1 text-xs has-[>svg]:px-1", { start: "-ml-3 @[900px]/table:-ml-1", center: "", end: "-mr-3 @[900px]/table:-mr-1" }[justify])}

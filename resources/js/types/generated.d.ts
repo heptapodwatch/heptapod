@@ -432,7 +432,6 @@ release_url: string | null,
 },
 readonly linked_sites: Heptapod.Contracts.DirectorySiteData[],
 readonly linked_sites_pagination: Heptapod.Contracts.PaginationData,
-readonly link?: Heptapod.Addons.Servers.Data.ServerLinkData | null,
 };
 export type ServerRowData = {
 readonly id: number,

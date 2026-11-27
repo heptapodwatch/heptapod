@@ -16,10 +16,12 @@ use Illuminate\Pagination\LengthAwarePaginator;
 interface ListPaging
 {
     /**
+     * $page overrides the requested page: a list that shows its last page for a page beyond the end asks again with it.
+     *
      * @param  QueryBuilder|EloquentBuilder<covariant \Illuminate\Database\Eloquent\Model>  $query
      * @return LengthAwarePaginator<int, mixed>
      */
-    public function paginate(QueryBuilder|EloquentBuilder $query, string $list): LengthAwarePaginator;
+    public function paginate(QueryBuilder|EloquentBuilder $query, string $list, ?int $page = null): LengthAwarePaginator;
 
     /**
      * Pages an already-ordered in-memory list (e.g. backup archives read from a filesystem disk) with the same size and cookie.

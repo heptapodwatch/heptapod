@@ -456,8 +456,8 @@ export function ServerFacts({ values }: { values: ServerValues }) {
             : [
                   values.updates_pending === 0
                       ? t('servers.fact.no_updates')
-                      : values.updates_security !== null &&
-                          values.updates_security > 0
+                      : // A known 0 is said; an unknown security count (null) is left out.
+                        values.updates_security !== null
                         ? t('servers.fact.updates_security', {
                               count: values.updates_pending,
                               formattedCount: format.number(

@@ -195,6 +195,7 @@ One incident page for open and resolved incidents. A resolved incident shows onl
 ## Lists
 
 - `Table` for aligned columns, `ListHeader` / `ListRow` for responsive rows with rich actions. A data table never scrolls sideways: fold a short value into the primary cell or switch to cards by container width.
+- A server-sorted list sorts by `SortableTableHead`; where its cards replace the table, a "Sort" `FilterSelectTrigger` in the `FilterBar` offers each key in its first direction (reversing stays a header click).
 - `EmptyState`: first-run copy says what the list holds and offers the create action; the filtered variant points to Clear filters. A control that only widens the list is not a filter.
 - Row emphasis is only for rows that need action now; never for Warning.
 - Row actions are `RowActions`; never mix ghost and outline buttons in a row.

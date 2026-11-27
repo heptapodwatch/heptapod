@@ -212,7 +212,6 @@ export default function ServerShow({
     install,
     linked_sites,
     linked_sites_pagination,
-    link,
 }: Heptapod.Addons.Servers.Data.ServerPageData) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -371,7 +370,6 @@ export default function ServerShow({
                 open={sheet === 'link'}
                 onOpenChange={(open) => setSheet(open ? 'link' : null)}
                 server={server}
-                link={link}
             />
             <ConfirmDialog
                 open={confirming === 'rotate'}

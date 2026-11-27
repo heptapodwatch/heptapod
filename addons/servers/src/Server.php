@@ -24,7 +24,7 @@ use Illuminate\Support\Str;
  * @property string|null $agent_kernel
  * @property string|null $hostname
  * @property list<string>|null $ips
- * @property array{mounts?: list<array{mount: string, percent: int, minutes: int}>, memory_percent?: int, memory_minutes?: int, load_per_core?: int|float, load_minutes?: int, no_report_minutes?: int, ignored_mounts?: list<string>} $settings only what differs from the instance defaults
+ * @property array{mounts?: list<array{mount: string, percent?: int, minutes?: int}>, memory_percent?: int, memory_minutes?: int, load_per_core?: int|float, load_minutes?: int, no_report_minutes?: int, ignored_mounts?: list<string>} $settings only what differs from the instance defaults
  * @property CarbonImmutable $created_at
  */
 #[DateFormat('Y-m-d H:i:s.uP')]

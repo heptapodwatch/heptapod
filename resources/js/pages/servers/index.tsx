@@ -56,6 +56,20 @@ import { index, show, store } from '@/routes/servers';
 type ServerRow = Heptapod.Addons.Servers.Data.ServerRowData;
 type ServerState = Heptapod.Addons.Servers.ServerState;
 
+/** Each sort key in its first direction: what needs attention on top. Reversing is a desktop header click. */
+const sortOptions = {
+    status: 'servers.sort.status',
+    name: 'servers.sort.name',
+    disk: 'servers.sort.disk',
+    memory: 'servers.sort.memory',
+    load: 'servers.sort.load',
+    last_report: 'servers.sort.last_report',
+} as const;
+type SortKey = keyof typeof sortOptions;
+const isSortKey = (key: string): key is SortKey => key in sortOptions;
+// Disk, RAM and load show the highest value first.
+const descendingFirst: SortKey[] = ['disk', 'memory', 'load'];
+
 const stateFilters: Record<ServerState, string> = {
     no_report: 'servers.state.no_report',
     awaiting: 'servers.state.awaiting',
@@ -177,11 +191,18 @@ export default function ServersIndex({
             {t('servers.add.action')}
         </Button>
     );
-    const head = (sortKey: string, label: string, align?: 'center' | 'end') => (
+    const head = (
+        sortKey: SortKey,
+        label: string,
+        align?: 'center' | 'end',
+    ) => (
         <SortableTableHead
             sortKey={sortKey}
             sort={sort}
             onSort={(next) => visit({}, next)}
+            firstDirection={
+                descendingFirst.includes(sortKey) ? 'descending' : 'ascending'
+            }
             justify={align}
             className={
                 align === 'center'
@@ -209,7 +230,7 @@ export default function ServersIndex({
                     }
                     actions={addButton}
                 />
-                {(buffered.rows.length > 0 || filtersActive) && (
+                {(pagination.total > 0 || filtersActive) && (
                     <FilterBar
                         activeCount={filters.state !== null ? 1 : 0}
                         filtersActive={filtersActive}
@@ -263,13 +284,46 @@ export default function ServersIndex({
                                 )}
                             </SelectContent>
                         </Select>
+                        {/* The cards below md have no header row to sort by. */}
+                        <div className="w-full md:hidden">
+                            <Select
+                                value={sort.replace(/^-/, '')}
+                                onValueChange={(value) =>
+                                    isSortKey(value) && visit({}, value)
+                                }
+                            >
+                                <FilterSelectTrigger
+                                    aria-label={t('servers.list.sort')}
+                                    onClear={
+                                        sort !== 'status'
+                                            ? () => visit({}, 'status')
+                                            : null
+                                    }
+                                >
+                                    <SelectValue />
+                                </FilterSelectTrigger>
+                                <SelectContent>
+                                    {Object.entries(sortOptions).map(
+                                        ([value, label]) => (
+                                            <SelectItem
+                                                key={value}
+                                                value={value}
+                                            >
+                                                {t(label)}
+                                            </SelectItem>
+                                        ),
+                                    )}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </FilterBar>
                 )}
                 <PendingChanges
                     count={buffered.pendingCount}
                     apply={buffered.apply}
                 />
-                {buffered.rows.length === 0 ? (
+                {/* A page beyond the end comes back as the last page, so no rows with a total means none match. */}
+                {buffered.rows.length === 0 && pagination.total === 0 ? (
                     <EmptyState
                         icon={Server}
                         title={t('servers.list.empty_title')}

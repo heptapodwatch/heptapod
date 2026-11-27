@@ -7,7 +7,6 @@ namespace Heptapod\Addons\Servers\Http;
 use Carbon\CarbonImmutable;
 use Heptapod\Addons\Servers\Actions\RemoveServer;
 use Heptapod\Addons\Servers\Actions\UpdateServerSettings;
-use Heptapod\Addons\Servers\Data\ServerLinkData;
 use Heptapod\Addons\Servers\Data\ServerPageData;
 use Heptapod\Addons\Servers\Data\ServerRowData;
 use Heptapod\Addons\Servers\Data\ServersPageData;
@@ -15,15 +14,11 @@ use Heptapod\Addons\Servers\Data\ServerThresholdsData;
 use Heptapod\Addons\Servers\Server;
 use Heptapod\Addons\Servers\ServerReader;
 use Heptapod\Addons\Servers\ServerState;
-use Heptapod\Contracts\DirectorySiteData;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\ServersAccess;
-use Heptapod\Contracts\SiteAddressLookup;
 use Heptapod\Contracts\SiteDirectory;
-use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -92,30 +87,7 @@ final class ServersController
                 'version' => $tag, 'release_url' => $tag === null ? null : config()->string('servers.agent_release_url').'/'.$tag],
             Lazy::closure(static fn (): array => $getLinked()['sites']),
             Lazy::closure(static fn (): PaginationData => $getLinked()['pagination']),
-            Lazy::inertia(static fn (): ServerLinkData => self::linkChoices($server, $getRow()->ips, $user, $directory)),
         ));
-    }
-
-    /**
-     * Read only when the "Link site…" sheet opens: the DNS suggestions (sites on no server yet) and every other site with
-     * the server it would move from. One read for the links, one for the DNS answers, two for the sites.
-     *
-     * @param  list<string>  $ips
-     */
-    private static function linkChoices(Server $server, array $ips, Authenticatable $user, SiteDirectory $directory): ServerLinkData
-    {
-        /** @var list<object{site_id: int, server_id: int, server_name: string}> $links */
-        $links = DB::select('SELECT server_sites.site_id, server_sites.server_id, servers.name AS server_name
-            FROM server_sites JOIN servers ON servers.id = server_sites.server_id ORDER BY server_sites.site_id');
-        $serverOf = array_column($links, 'server_id', 'site_id');
-        $pointing = app()->bound(SiteAddressLookup::class) ? app(SiteAddressLookup::class)->sitesPointingAt($ips) : [];
-        $sites = array_values(array_filter($directory->visible($user), static fn (DirectorySiteData $site): bool => ($serverOf[$site->id] ?? null) !== $server->id));
-        $suggestions = array_map(static fn (DirectorySiteData $site): array => ['site' => $site, 'address' => $pointing[$site->id]],
-            array_values(array_filter($sites, static fn (DirectorySiteData $site): bool => isset($pointing[$site->id]) && ! isset($serverOf[$site->id]))));
-        $elsewhere = array_filter($links, static fn (object $link): bool => $link->server_id !== $server->id);
-
-        return new ServerLinkData($suggestions, $sites,
-            array_values(array_map(static fn (object $link): array => ['site_id' => $link->site_id, 'server_name' => $link->server_name], $elsewhere)));
     }
 
     /** Settings…: the name, the thresholds and the ignored mounts. */
