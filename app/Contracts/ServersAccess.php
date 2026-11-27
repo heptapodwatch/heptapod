@@ -14,4 +14,7 @@ interface ServersAccess
 
     /** Owners and Admins only, and never through an API token limited to one client, whatever the role. */
     public function allows(Authenticatable $user): bool;
+
+    /** The release whose agent the install command fetches: this version when it is a release, else the newest release the update check knows; null when neither exists. */
+    public function agentReleaseTag(): ?string;
 }

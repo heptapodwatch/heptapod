@@ -11,13 +11,13 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 final readonly class RequestListPaging implements ListPaging
 {
-    public function paginate(QueryBuilder|EloquentBuilder $query, string $list): LengthAwarePaginator
+    public function paginate(QueryBuilder|EloquentBuilder $query, string $list, ?int $page = null): LengthAwarePaginator
     {
         // Read per call, never held: Octane reuses resolved instances across requests.
         $perPage = ListPageSize::resolve(request(), $list, $list.'_per_page');
 
         /** @var LengthAwarePaginator<int, mixed> */
-        return $query->paginate($perPage, ['*'], $list.'_page')->withQueryString();
+        return $query->paginate($perPage, ['*'], $list.'_page', $page)->withQueryString();
     }
 
     public function paginateList(array $items, string $list, ?string $pageName = null): LengthAwarePaginator

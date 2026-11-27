@@ -6,6 +6,7 @@ namespace Heptapod\Data\Ui;
 
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\Lazy\InertiaLazy;
+use Spatie\TypeScriptTransformer\Attributes\LiteralTypeScriptType;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
@@ -41,5 +42,8 @@ final class SiteSettingsPageData extends Data
         public readonly array $check_options = [],
         /** @var list<SiteRepositoryData> */
         public readonly array $repositories = [],
+        /** The "Server" field (the servers addon, SiteServers), only for those who may see servers. */
+        #[LiteralTypeScriptType('Heptapod.Addons.Servers.Data.SiteServerChoicesData | null')]
+        public readonly ?Data $server = null,
     ) {}
 }

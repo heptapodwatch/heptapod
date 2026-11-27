@@ -120,8 +120,8 @@ it('opens a new server awaiting its first report with the install command parts 
 
     $this->get("/servers/{$server->id}")->assertInertia(fn (Assert $page): Assert => $page->component('servers/show')
         ->where('server.state', 'awaiting')->where('server.values', null)->where('history.points', [])
-        ->where('install', ['endpoint' => 'https://monitor.example.com/agent/v1/report', 'version' => 'v0.19.0',
-            'release_url' => 'https://github.com/heptapodwatch/heptapod/releases/download/v0.19.0', 'is_release' => true]));
+        ->where('install', ['endpoint' => 'https://monitor.example.com/agent/v1/report', 'installed_version' => 'v0.19.0', 'version' => 'v0.19.0',
+            'release_url' => 'https://github.com/heptapodwatch/heptapod/releases/download/v0.19.0']));
     // The token is never part of a page; only the one redirect after creating or rotating carries it.
     expect(session(SessionKey::FLASH_DATA))->toBeNull();
 });
@@ -139,14 +139,17 @@ it('lists every server with its state from the newest sample, "No report" after 
     storeServerSample($reporting, now()->subMinutes(2), cpu: 10.0);
     storeServerSample($reporting, now()->subSeconds(30), cpu: 55.5);
 
+    // Problems first by default: No report, then Awaiting, then Reporting.
     $this->get('/servers')->assertInertia(fn (Assert $page): Assert => $page->component('servers/index')
-        ->where('servers.0.name', 'awaiting')->where('servers.0.state', 'awaiting')->where('servers.0.values', null)
-        ->where('servers.1.name', 'quiet')->where('servers.1.state', 'no_report')
-        ->where('servers.1.values.filesystems.0.free_bytes', 8)
+        ->where('servers.0.name', 'quiet')->where('servers.0.state', 'no_report')
+        ->where('servers.0.values.filesystems.0.free_bytes', 8)
+        ->where('servers.1.name', 'awaiting')->where('servers.1.state', 'awaiting')->where('servers.1.values', null)
         ->where('servers.2.state', 'reporting')->where('servers.2.values.cpu_used_percent', 55.5)
-        ->where('thresholds', ['disk_used_percent' => 90, 'memory_used_percent' => 90, 'load_per_core' => 2])
+        ->where('defaults', ['disk_percent' => 90, 'disk_minutes' => 15, 'mounts' => [], 'memory_percent' => 90, 'memory_minutes' => 10,
+            'load_per_core' => 2, 'load_minutes' => 15, 'no_report_minutes' => 2])
         // The 5-minute load, the one its alert threshold reads.
-        ->where('servers.2.values.load_5', 1));
+        ->where('servers.2.values.load_5', 1)
+        ->where('servers.2.thresholds.no_report_minutes', 2));
 });
 
 it('charts the peaks of the last 14 days only', function (): void {
@@ -184,7 +187,7 @@ it('refreshes the values without recomputing the 14-day chart', function (): voi
         'X-Inertia-Partial-Component' => 'servers/show', 'X-Inertia-Partial-Data' => 'server'])
         ->assertOk()->assertJsonPath('props.server.values.cpu_used_percent', 20)->assertJsonMissingPath('props.history');
 
-    expect(collect(DB::getQueryLog())->filter(fn (array $query): bool => str_contains($query['query'], 'jsonb_array_elements')))->toBeEmpty();
+    expect(collect(DB::getQueryLog())->filter(fn (array $query): bool => str_contains($query['query'], 'date_trunc')))->toBeEmpty();
 });
 
 it('removes a server with its samples', function (): void {

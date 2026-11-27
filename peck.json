@@ -110,7 +110,14 @@
             "vitest",
             "wayfinder",
             "whois",
-            "wordmark"
+            "wordmark",
+            "aaaa",
+            "cdn",
+            "distro",
+            "ips",
+            "unlink",
+            "unlinked",
+            "unlinks"
         ],
         "paths": [
             ".worktrees",

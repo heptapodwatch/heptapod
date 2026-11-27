@@ -8,6 +8,7 @@ use Heptapod\Contracts\CheckHistoryData;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\Lazy\ClosureLazy;
 use Spatie\LaravelData\Support\Lazy\InertiaDeferred;
+use Spatie\TypeScriptTransformer\Attributes\LiteralTypeScriptType;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 /** Props of GET /sites/{id}. Every prop is a closure so partial reloads evaluate only the requested keys; the launchpad numbers and the alert line arrive deferred. */
@@ -42,5 +43,8 @@ final class SiteOverviewPageData extends Data
         public readonly ClosureLazy|bool $can_move = false,
         public readonly ClosureLazy|string|null $resume_at = null,
         public readonly ClosureLazy|array $repositories = [],
+        /** The server the site runs on (the servers addon, SiteServers), only for those who may see servers; null while unlinked. */
+        #[LiteralTypeScriptType('Heptapod.Addons.Servers.Data.ServerRowData | null')]
+        public readonly ClosureLazy|Data|null $server = null,
     ) {}
 }

@@ -27,6 +27,8 @@ use Heptapod\Contracts\LatestRunEvidence;
 use Heptapod\Contracts\Mail\MailDesign;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\Schema\Schema;
+use Heptapod\Contracts\ServersAccess;
+use Heptapod\Contracts\SiteServers;
 use Heptapod\Data\Ui\AlertSensitivityData;
 use Heptapod\Data\Ui\CheckOptionData;
 use Heptapod\Data\Ui\CheckRunData;
@@ -65,6 +67,7 @@ use Heptapod\Settings\InstanceSettings;
 use Heptapod\Support\RedactionContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Lazy;
 
 final readonly class SiteDetailReader
@@ -132,7 +135,15 @@ final readonly class SiteDetailReader
             $this->maintenance($user, $siteId), $stored->icon_fetched_at?->toIso8601String(), $stored->icon_manual_result, $redirectTarget, $redirectSummary, $this->sites->clientChoices($user), \DateTimeZone::listIdentifiers(),
             $this->checkSettings($site, $checks, static fn (Check $check): bool => Gate::forUser($user)->allows('update', $check)),
             array_map(fn (CheckKey $key): CheckOptionData => CheckOptionData::fromType($this->registry->get($key)), $this->registry->keys()),
-            SiteRepositoryData::forSite($siteId));
+            SiteRepositoryData::forSite($siteId), $this->siteServers($user)?->choices($siteId));
+    }
+
+    /** The site link of the servers addon, when it is installed and the user may see servers on an instance that has them on. */
+    public function siteServers(User $user): ?SiteServers
+    {
+        $access = app(ServersAccess::class);
+
+        return app()->bound(SiteServers::class) && $access->allows($user) && $access->enabled() ? app(SiteServers::class) : null;
     }
 
     /**
@@ -241,6 +252,7 @@ final readonly class SiteDetailReader
             can_move: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
             resume_at: Lazy::closure(static fn (): ?string => $storedSite->resume_at?->toIso8601String()),
             repositories: Lazy::closure(static fn (): array => SiteRepositoryData::forSite($siteId)),
+            server: Lazy::closure(fn (): ?Data => $this->siteServers($user)?->ofSite($siteId)),
         );
     }
 

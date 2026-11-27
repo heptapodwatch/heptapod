@@ -6,27 +6,51 @@ namespace Heptapod\Addons\Servers\Http;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Addons\Servers\Actions\RemoveServer;
+use Heptapod\Addons\Servers\Actions\UpdateServerSettings;
 use Heptapod\Addons\Servers\Data\ServerPageData;
 use Heptapod\Addons\Servers\Data\ServerRowData;
 use Heptapod\Addons\Servers\Data\ServersPageData;
 use Heptapod\Addons\Servers\Data\ServerThresholdsData;
 use Heptapod\Addons\Servers\Server;
 use Heptapod\Addons\Servers\ServerReader;
+use Heptapod\Addons\Servers\ServerState;
+use Heptapod\Contracts\PaginationData;
+use Heptapod\Contracts\ServersAccess;
+use Heptapod\Contracts\SiteDirectory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\LaravelData\Lazy;
 
 final class ServersController
 {
-    public function index(ServerReader $reader): Response
+    public function index(Request $request, ServerReader $reader): Response
     {
         Gate::authorize('viewAny', Server::class);
+        $sorts = array_keys(ServerReader::SortKeys);
+        /** @var array{filter?: array{search?: string|null, state?: string|null}, sort?: string} $query */
+        $query = Validator::make($request->query(), [
+            'filter' => ['sometimes', 'array:search,state'],
+            'filter.search' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'filter.state' => ['sometimes', 'nullable', Rule::enum(ServerState::class)],
+            'sort' => ['sometimes', 'string', Rule::in([...$sorts, ...array_map(static fn (string $key): string => '-'.$key, $sorts)])],
+        ])->validate();
+        $filters = ['search' => $query['filter']['search'] ?? null, 'state' => $query['filter']['state'] ?? null];
+        $sort = $query['sort'] ?? 'status';
+        $page = null;
+        $read = static function () use ($reader, $filters, $sort, &$page): array {
+            return $page ??= $reader->page(CarbonImmutable::now(), $filters, $sort);
+        };
 
-        return Inertia::render('servers/index', new ServersPageData($reader->rows(CarbonImmutable::now()), ServerThresholdsData::defaults()));
+        return Inertia::render('servers/index', new ServersPageData(
+            Lazy::closure(static fn (): array => $read()['servers']), Lazy::closure(static fn (): PaginationData => $read()['pagination']),
+            ServerThresholdsData::defaults(),
+            ['search' => $filters['search'], 'state' => $filters['state'] === null ? null : ServerState::from($filters['state'])], $sort,
+        ));
     }
 
     public function store(Request $request): RedirectResponse
@@ -40,21 +64,52 @@ final class ServersController
         return to_route('servers.show', $server);
     }
 
-    public function show(Server $server, ServerReader $reader): Response
+    public function show(Request $request, Server $server, ServerReader $reader, ServersAccess $access, SiteDirectory $directory): Response
     {
         Gate::authorize('view', $server);
+        $user = $request->user() ?? throw new \LogicException('The server page needs a signed-in user.');
         $now = CarbonImmutable::now();
-        $version = config()->string('heptapod.version');
+        $tag = $access->agentReleaseTag();
+        $row = null;
+        $getRow = static function () use ($reader, $server, $now, &$row): ServerRowData {
+            return $row ??= $reader->server($now, $server->id);
+        };
+        $linked = null;
+        $getLinked = static function () use ($reader, $server, $user, $directory, &$linked): array {
+            return $linked ??= $directory->page($user, $reader->linkedSiteIds($server->id), 'linked_sites');
+        };
 
         return Inertia::render('servers/show', new ServerPageData(
-            Lazy::closure(static fn (): ServerRowData => $reader->rows($now, $server->id)[0]), ServerThresholdsData::defaults(),
-            Lazy::closure(static fn (): array => $reader->history($server->id, $now)),
+            Lazy::closure($getRow), ServerThresholdsData::defaults(),
+            Lazy::closure(static fn (): array => $reader->history($server->id, $getRow()->ignored_mounts, $now)),
             // The agent's endpoint file holds the full report URL on APP_URL, which the servers must reach.
-            ['endpoint' => rtrim(config()->string('app.url'), '/').'/agent/v1/report', 'version' => $version,
-                'release_url' => config()->string('servers.agent_release_url').'/'.$version,
-                // A source or development build has no agent release of its own.
-                'is_release' => preg_match('/^v\d{1,4}\.\d{1,4}\.\d{1,4}$/D', $version) === 1],
+            ['endpoint' => rtrim(config()->string('app.url'), '/').'/agent/v1/report', 'installed_version' => config()->string('heptapod.version'),
+                'version' => $tag, 'release_url' => $tag === null ? null : config()->string('servers.agent_release_url').'/'.$tag],
+            Lazy::closure(static fn (): array => $getLinked()['sites']),
+            Lazy::closure(static fn (): PaginationData => $getLinked()['pagination']),
         ));
+    }
+
+    /** Settings…: the name, the thresholds and the ignored mounts. */
+    public function update(Request $request, Server $server, UpdateServerSettings $update): RedirectResponse
+    {
+        Gate::authorize('update', $server);
+        $minutes = ['required', 'integer', 'between:1,1440'];
+        $percent = ['required', 'integer', 'between:1,100'];
+        $mount = ['string', 'starts_with:/', 'max:256', 'distinct'];
+        /** @var array{name: string, mounts: list<array{mount: string, percent: int|numeric-string, minutes: int|numeric-string}>, ignored_mounts: list<string>, memory_percent: int|numeric-string, memory_minutes: int|numeric-string, load_per_core: int|float|numeric-string, load_minutes: int|numeric-string, no_report_minutes: int|numeric-string} $values */
+        $values = Validator::make($request->all(), [
+            'name' => ['required', 'string', 'max:120'],
+            'mounts' => ['present', 'array', 'list', 'max:32'], 'mounts.*' => ['array:mount,percent,minutes'], 'mounts.*.mount' => ['required', ...$mount],
+            'mounts.*.percent' => $percent, 'mounts.*.minutes' => $minutes,
+            'ignored_mounts' => ['present', 'array', 'list', 'max:32'], 'ignored_mounts.*' => $mount,
+            'memory_percent' => $percent, 'memory_minutes' => $minutes,
+            'load_per_core' => ['required', 'numeric', 'between:0.1,100', 'decimal:0,1'], 'load_minutes' => $minutes,
+            'no_report_minutes' => ['required', 'integer', 'between:2,60'],
+        ])->validate();
+        $update($server, $values);
+
+        return back();
     }
 
     /** Rotate token: the new token is shown once, and the old one stops working at once. */

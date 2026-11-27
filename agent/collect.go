@@ -471,7 +471,7 @@ func unescapeMount(path string) string {
 func realMounts(entries []mountEntry) []mountEntry {
 	byDevice := map[string]mountEntry{}
 	for _, entry := range entries {
-		if skippedFilesystem(entry.fsType) || !filepath.IsAbs(entry.mount) || len(entry.mount) > 256 || underVirtualTree(entry.mount) {
+		if skippedFilesystem(entry.fsType) || !filepath.IsAbs(entry.mount) || len(entry.mount) > 256 || skippedTree(entry.mount) {
 			continue
 		}
 		if kept, seen := byDevice[entry.device]; seen && len(kept.mount) <= len(entry.mount) {
@@ -487,8 +487,9 @@ func realMounts(entries []mountEntry) []mountEntry {
 	return mounts
 }
 
-func underVirtualTree(mount string) bool {
-	for _, tree := range []string{"/proc", "/sys", "/dev", "/run"} {
+// The boot partitions (/boot, /boot/efi) are small, nearly static and refilled only by kernel updates: noise in the rings.
+func skippedTree(mount string) bool {
+	for _, tree := range []string{"/proc", "/sys", "/dev", "/run", "/boot"} {
 		if mount == tree || strings.HasPrefix(mount, tree+"/") {
 			return true
 		}

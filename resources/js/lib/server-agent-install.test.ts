@@ -18,7 +18,6 @@ const install = {
     version: 'v0.19.0',
     release_url:
         'https://github.com/heptapodwatch/heptapod/releases/download/v0.19.0',
-    is_release: true,
 };
 const commands = agentInstallCommands(install);
 const roots: string[] = [];

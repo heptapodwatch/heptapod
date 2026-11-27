@@ -254,6 +254,7 @@ export function MultiCombobox({
     describedBy,
     ariaLabel,
     labelledBy,
+    onQueryChange,
 }: {
     id?: string;
     options: ComboboxOption[];
@@ -265,13 +266,21 @@ export function MultiCombobox({
     describedBy?: string;
     ariaLabel?: string;
     labelledBy?: string;
+    /** Options found by a search on the server: each query change is reported and the options are shown as given. */
+    onQueryChange?: (query: string) => void;
 }) {
     const { t } = useTranslation();
     const popupId = useId();
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
+    const changeQuery = (next: string) => {
+        setQuery(next);
+        onQueryChange?.(next);
+    };
     const name = query.trim();
-    const matching = options.filter((option) => matches(option, name));
+    const matching = onQueryChange
+        ? options
+        : options.filter((option) => matches(option, name));
     const chosen = values
         .map((value) => options.find((option) => option.value === value))
         .filter((option) => option !== undefined);
@@ -287,7 +296,7 @@ export function MultiCombobox({
                 open={open}
                 onOpenChange={(next) => {
                     setOpen(next);
-                    setQuery('');
+                    changeQuery('');
                 }}
             >
                 <Popover.Trigger
@@ -333,7 +342,7 @@ export function MultiCombobox({
                                 aria-label={t('combobox.search')}
                                 placeholder={t('combobox.search')}
                                 value={query}
-                                onValueChange={setQuery}
+                                onValueChange={changeQuery}
                             />
                             <CommandList label={t('combobox.options')}>
                                 {matching.length === 0 && (

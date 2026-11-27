@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { ServerGaugeCells } from '@/components/server-values';
+import { ServerFacts, ServerGaugeCells } from '@/components/server-values';
 
 vi.mock('@inertiajs/react', () => ({
     usePage: () => ({ props: { timezone: 'UTC' } }),
@@ -9,10 +9,35 @@ vi.mock('@inertiajs/react', () => ({
 afterEach(cleanup);
 
 const thresholds = {
-    disk_used_percent: 90,
-    memory_used_percent: 90,
+    disk_percent: 90,
+    disk_minutes: 15,
+    mounts: [],
+    memory_percent: 90,
+    memory_minutes: 10,
     load_per_core: 2,
+    load_minutes: 15,
+    no_report_minutes: 2,
 };
+
+function server(load5: number): Heptapod.Addons.Servers.Data.ServerRowData {
+    return {
+        id: 1,
+        name: 'web-1',
+        state: 'reporting',
+        last_report_at: '2026-10-21T12:00:00Z',
+        agent_version: '0.1.0',
+        values: values(load5),
+        thresholds,
+        ignored_mounts: [],
+        site_count: 0,
+        hostname: 'web-1',
+        agent_os: 'linux',
+        agent_arch: 'amd64',
+        agent_distro: 'Debian 13',
+        agent_kernel: '6.12',
+        ips: [],
+    };
+}
 
 /** One sample of a 4-vCPU server: its load alert sits at 8.0, its near band starts at 6.0 (75 %). */
 function values(load5: number): Heptapod.Addons.Servers.Data.ServerValuesData {
@@ -36,10 +61,7 @@ function loadCell(load5: number) {
         <table>
             <tbody>
                 <tr>
-                    <ServerGaugeCells
-                        values={values(load5)}
-                        thresholds={thresholds}
-                    />
+                    <ServerGaugeCells server={server(load5)} />
                 </tr>
             </tbody>
         </table>,
@@ -69,4 +91,24 @@ it('turns the load red with "High load" at its threshold of 2x vCPU', () => {
     const cell = loadCell(8);
     expect(cell.text).toBe('8.0 / 4 vCPUHigh load');
     expect(cell.coloured).toContain('text-status-down');
+});
+
+it('says a known 0 security updates and leaves an unknown count out', () => {
+    const facts = (security: number | null) => {
+        cleanup();
+        render(
+            <ServerFacts
+                values={{
+                    ...values(1),
+                    updates_pending: 51,
+                    updates_security: security,
+                }}
+            />,
+        );
+        return document.body.textContent;
+    };
+    expect(facts(0)).toContain('51 updates, 0 security');
+    expect(facts(3)).toContain('51 updates, 3 security');
+    expect(facts(null)).toContain('51 updates');
+    expect(facts(null)).not.toContain('security');
 });

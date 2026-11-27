@@ -771,7 +771,7 @@ update.form = updateForm
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::destroy
-* @see app/Http/Controllers/SiteSettingsController.php:53
+* @see app/Http/Controllers/SiteSettingsController.php:57
 * @route '/sites/{site}'
 */
 export const destroy = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -786,7 +786,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::destroy
-* @see app/Http/Controllers/SiteSettingsController.php:53
+* @see app/Http/Controllers/SiteSettingsController.php:57
 * @route '/sites/{site}'
 */
 destroy.url = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -819,7 +819,7 @@ destroy.url = (args: { site: number | { id: number } } | [site: number | { id: n
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::destroy
-* @see app/Http/Controllers/SiteSettingsController.php:53
+* @see app/Http/Controllers/SiteSettingsController.php:57
 * @route '/sites/{site}'
 */
 destroy.delete = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -829,7 +829,7 @@ destroy.delete = (args: { site: number | { id: number } } | [site: number | { id
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::destroy
-* @see app/Http/Controllers/SiteSettingsController.php:53
+* @see app/Http/Controllers/SiteSettingsController.php:57
 * @route '/sites/{site}'
 */
 const destroyForm = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -844,7 +844,7 @@ const destroyForm = (args: { site: number | { id: number } } | [site: number | {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteSettingsController::destroy
-* @see app/Http/Controllers/SiteSettingsController.php:53
+* @see app/Http/Controllers/SiteSettingsController.php:57
 * @route '/sites/{site}'
 */
 destroyForm.delete = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

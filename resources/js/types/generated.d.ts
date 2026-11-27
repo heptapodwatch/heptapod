@@ -400,9 +400,20 @@ readonly consecutive_normal_samples: number,
 namespace Servers {
 export type ServerState = 'awaiting' | 'reporting' | 'no_report';
 namespace Data {
+export type ServerLinkData = {
+readonly suggestions: {
+site: Heptapod.Contracts.DirectorySiteData,
+address: string,
+}[],
+readonly sites: Heptapod.Contracts.DirectorySiteData[],
+readonly linked_elsewhere: {
+site_id: number,
+server_name: string,
+}[],
+};
 export type ServerPageData = {
 readonly server: Heptapod.Addons.Servers.Data.ServerRowData,
-readonly thresholds: Heptapod.Addons.Servers.Data.ServerThresholdsData,
+readonly defaults: Heptapod.Addons.Servers.Data.ServerThresholdsData,
 readonly history: {
 step_seconds: number,
 points: {
@@ -415,10 +426,12 @@ disks: Record<string, number>,
 },
 readonly install: {
 endpoint: string,
-version: string,
-release_url: string,
-is_release: boolean,
+installed_version: string,
+version: string | null,
+release_url: string | null,
 },
+readonly linked_sites: Heptapod.Contracts.DirectorySiteData[],
+readonly linked_sites_pagination: Heptapod.Contracts.PaginationData,
 };
 export type ServerRowData = {
 readonly id: number,
@@ -427,11 +440,29 @@ readonly state: Heptapod.Addons.Servers.ServerState,
 readonly last_report_at: string | null,
 readonly agent_version: string | null,
 readonly values: Heptapod.Addons.Servers.Data.ServerValuesData | null,
+readonly thresholds: Heptapod.Addons.Servers.Data.ServerThresholdsData,
+readonly ignored_mounts: string[],
+readonly site_count: number,
+readonly hostname: string | null,
+readonly agent_os: string | null,
+readonly agent_arch: string | null,
+readonly agent_distro: string | null,
+readonly agent_kernel: string | null,
+readonly ips: string[],
 };
 export type ServerThresholdsData = {
-readonly disk_used_percent: number,
-readonly memory_used_percent: number,
+readonly disk_percent: number,
+readonly disk_minutes: number,
+readonly mounts: {
+mount: string,
+percent: number,
+minutes: number,
+}[],
+readonly memory_percent: number,
+readonly memory_minutes: number,
 readonly load_per_core: number,
+readonly load_minutes: number,
+readonly no_report_minutes: number,
 };
 export type ServerValuesData = {
 readonly observed_at: string,
@@ -452,7 +483,21 @@ readonly updates_security: number | null,
 };
 export type ServersPageData = {
 readonly servers: Heptapod.Addons.Servers.Data.ServerRowData[],
-readonly thresholds: Heptapod.Addons.Servers.Data.ServerThresholdsData,
+readonly pagination: Heptapod.Contracts.PaginationData,
+readonly defaults: Heptapod.Addons.Servers.Data.ServerThresholdsData,
+readonly filters: {
+search: string | null,
+state: Heptapod.Addons.Servers.ServerState | null,
+},
+readonly sort: string,
+};
+export type SiteServerChoicesData = {
+readonly server_id: number | null,
+readonly servers: {
+id: number,
+name: string,
+ips: string[],
+}[],
 };
 }
 }
@@ -667,6 +712,13 @@ readonly shortKey: string | null,
 readonly untrusted: Record<string, string>,
 readonly trusted: string[],
 readonly lists: Record<string, string[]>,
+};
+export type DirectorySiteData = {
+readonly id: number,
+readonly name: string,
+readonly url: string,
+readonly state: Heptapod.Enums.SiteStatus,
+readonly client_name: string | null,
 };
 export type DomainRegistrationSource = 'rdap' | 'whois';
 export type ExecutionMode = 'poll' | 'push' | 'derived';
@@ -2038,6 +2090,7 @@ readonly lighthouse?: Heptapod.Contracts.CheckHistoryData | null,
 readonly can_move: boolean,
 readonly resume_at: string | null,
 readonly repositories: Heptapod.Data.Ui.SiteRepositoryData[],
+readonly server: Heptapod.Addons.Servers.Data.ServerRowData | null,
 };
 export type SiteProbeData = {
 readonly final_url: string | null,
@@ -2102,6 +2155,7 @@ readonly timezones: string[],
 readonly check_settings: Heptapod.Data.Ui.CheckSettingsData[],
 readonly check_options: Heptapod.Data.Ui.CheckOptionData[],
 readonly repositories: Heptapod.Data.Ui.SiteRepositoryData[],
+readonly server: Heptapod.Addons.Servers.Data.SiteServerChoicesData | null,
 };
 export type SitesFilterData = {
 readonly search: string | null,

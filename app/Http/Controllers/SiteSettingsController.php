@@ -6,7 +6,7 @@ namespace Heptapod\Http\Controllers;
 
 use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\DeleteSite;
-use Heptapod\Actions\UpdateSiteSettings;
+use Heptapod\Actions\SaveSiteSettingsForm;
 use Heptapod\Exceptions\CheckConfigurationValidationException;
 use Heptapod\Http\Requests\UpdateSiteAlertSensitivityRequest;
 use Heptapod\Models\Site;
@@ -32,17 +32,21 @@ final class SiteSettingsController extends Controller
         return Inertia::render('sites/settings', $reader->settings($user, $site))->with('instanceTimezone', app(InstanceSettings::class)->timezone);
     }
 
-    public function update(UpdateSiteAlertSensitivityRequest $request, Site $site, UpdateSiteSettings $update): RedirectResponse
+    public function update(UpdateSiteAlertSensitivityRequest $request, Site $site, SaveSiteSettingsForm $save, SiteDetailReader $reader): RedirectResponse
     {
         $user = $request->user('web');
         abort_unless($user instanceof User, 401);
-        Validator::make($request->all(), ['client_id' => ['sometimes', 'required', 'integer', 'min:1']])->validate();
+        Validator::make($request->all(), ['client_id' => ['sometimes', 'required', 'integer', 'min:1'], 'server_id' => ['sometimes', 'nullable', 'integer', 'min:1']])->validate();
+        // The "Server" field exists only for those who may see servers, and the form sends it only when it changed; the
+        // link belongs to the servers addon.
+        $servers = $request->exists('server_id') ? $reader->siteServers($user) ?? abort(403) : null;
+        $serverId = $request->input('server_id') === null ? null : $request->integer('server_id');
         /** @var array<string, mixed> $attributes */
-        $attributes = $request->except(['_token', '_method']);
+        $attributes = $request->except(['_token', '_method', 'server_id']);
         /** @var array<string, mixed> $timing */
         $timing = $request->safe()->only(['alert_after_minutes', 'alert_recovery_checks', 'alert_confirms_other_checks', 'alert_reminders']);
         try {
-            $update($user, $site, $attributes, $timing, $request->exists('client_id') ? $request->integer('client_id') : null);
+            $save($user, $site, $attributes, $timing, $request->exists('client_id') ? $request->integer('client_id') : null, $servers, $serverId);
         } catch (CheckConfigurationValidationException $exception) {
             throw ValidationException::withMessages($exception->formErrors());
         }

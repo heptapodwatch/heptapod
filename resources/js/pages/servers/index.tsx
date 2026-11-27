@@ -1,4 +1,4 @@
-import { Head, Link, useForm, usePoll } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePoll } from '@inertiajs/react';
 import { Plus, Server } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -8,8 +8,10 @@ import {
     openRowTarget,
     rowTargetClass,
 } from '@/components/entity-link';
+import { FilterBar, FilterSelectTrigger } from '@/components/filter-bar';
 import { FormSecondaryAction } from '@/components/form-section';
 import InputError from '@/components/input-error';
+import { ListFooter } from '@/components/list-footer';
 import { MonitoringTime } from '@/components/monitoring';
 import { PageContainer } from '@/components/page-container';
 import { PageHeader } from '@/components/page-header';
@@ -26,22 +28,44 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectValue,
+} from '@/components/ui/select';
 import { Sheet } from '@/components/ui/sheet';
 import {
     listCardPadding,
+    SortableTableHead,
     Table,
     TableBody,
     TableCell,
-    TableHead,
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
 import { useBufferedChanges } from '@/hooks/use-buffered-changes';
 import { useFormat } from '@/hooks/use-format';
+import {
+    useLiveSearch,
+    type LiveSearchVisitOptions,
+} from '@/hooks/use-live-search';
 import { cn } from '@/lib/utils';
-import { show, store } from '@/routes/servers';
+import { index, show, store } from '@/routes/servers';
 
 type ServerRow = Heptapod.Addons.Servers.Data.ServerRowData;
+type ServerState = Heptapod.Addons.Servers.ServerState;
+
+/** The server's sort keys (ServerReader::SortKeys); the cards below md keep the default order, problems first. */
+type SortKey = 'status' | 'name' | 'disk' | 'memory' | 'load' | 'last_report';
+// Disk, RAM and load show the highest value first.
+const descendingFirst: SortKey[] = ['disk', 'memory', 'load'];
+
+const stateFilters: Record<ServerState, string> = {
+    no_report: 'servers.state.no_report',
+    awaiting: 'servers.state.awaiting',
+    reporting: 'servers.state.reporting',
+};
 
 function AddServerSheet({ onClose }: { onClose: () => void }) {
     const { t } = useTranslation();
@@ -104,16 +128,48 @@ function AddServerSheet({ onClose }: { onClose: () => void }) {
 
 export default function ServersIndex({
     servers,
-    thresholds,
+    pagination,
+    defaults,
+    filters,
+    sort,
 }: Heptapod.Addons.Servers.Data.ServersPageData) {
     const { t } = useTranslation();
     const format = useFormat();
     const size = useServerSize();
     const [adding, setAdding] = useState(false);
-    // New reports arrive every minute: values refresh in place, servers another tab added or removed wait behind
-    // "N new changes".
-    usePoll(15_000, { only: ['servers'] });
+    const visit = (
+        changes: { search?: string; state?: ServerState | null },
+        nextSort = sort,
+        searchOptions: LiveSearchVisitOptions = {},
+    ) => {
+        cancelPendingSearch();
+        const next = { search, state: filters.state, ...changes };
+        router.get(
+            index.url(),
+            {
+                filter: {
+                    ...(next.search ? { search: next.search } : {}),
+                    ...(next.state ? { state: next.state } : {}),
+                },
+                ...(nextSort !== 'status' ? { sort: nextSort } : {}),
+            },
+            {
+                ...searchOptions,
+                only: ['servers', 'pagination', 'filters', 'sort'],
+                preserveState: true,
+                preserveScroll: true,
+            },
+        );
+    };
+    const { search, changeSearch, cancelPendingSearch } = useLiveSearch(
+        filters.search ?? '',
+        (search, options) => visit({ search }, sort, options),
+    );
+    // New reports arrive every minute: values refresh in place; servers another tab added or removed, and rows a new
+    // value moves in the sort, wait behind "N new changes". A sort or filter of this tab changes the URL and shows at once.
+    usePoll(15_000, { only: ['servers', 'pagination'] });
     const buffered = useBufferedChanges(servers, (server) => server.id);
+    const filtersActive = Boolean(search) || filters.state !== null;
     const reboot = (server: ServerRow) =>
         server.values?.reboot_required === true && (
             <span className="text-xs text-status-warn">
@@ -126,6 +182,30 @@ export default function ServersIndex({
             {t('servers.add.action')}
         </Button>
     );
+    const head = (
+        sortKey: SortKey,
+        label: string,
+        align?: 'center' | 'end',
+    ) => (
+        <SortableTableHead
+            sortKey={sortKey}
+            sort={sort}
+            onSort={(next) => visit({}, next)}
+            firstDirection={
+                descendingFirst.includes(sortKey) ? 'descending' : 'ascending'
+            }
+            justify={align}
+            className={
+                align === 'center'
+                    ? 'text-center'
+                    : align === 'end'
+                      ? 'text-right'
+                      : undefined
+            }
+        >
+            {label}
+        </SortableTableHead>
+    );
     return (
         <>
             <Head title={t('servers.title')} />
@@ -133,7 +213,7 @@ export default function ServersIndex({
                 <PageHeader
                     title={t('servers.title')}
                     description={t('servers.list.description')}
-                    count={format.number(buffered.rows.length)}
+                    count={format.number(pagination.total)}
                     badge={
                         <Badge variant="outline">
                             {t('servers.experimental')}
@@ -141,43 +221,112 @@ export default function ServersIndex({
                     }
                     actions={addButton}
                 />
+                {(pagination.total > 0 || filtersActive) && (
+                    <FilterBar
+                        activeCount={filters.state !== null ? 1 : 0}
+                        filtersActive={filtersActive}
+                        onClearFilters={() =>
+                            visit({ search: '', state: null })
+                        }
+                        search={
+                            <Input
+                                type="search"
+                                className="w-full"
+                                aria-label={t('servers.list.search')}
+                                placeholder={t('servers.list.search')}
+                                value={search}
+                                onChange={(event) =>
+                                    changeSearch(event.target.value)
+                                }
+                            />
+                        }
+                    >
+                        <Select
+                            value={filters.state ?? 'all'}
+                            onValueChange={(value) =>
+                                visit({
+                                    state:
+                                        value === 'all'
+                                            ? null
+                                            : (value as ServerState),
+                                })
+                            }
+                        >
+                            <FilterSelectTrigger
+                                aria-label={t('Status')}
+                                onClear={
+                                    filters.state !== null
+                                        ? () => visit({ state: null })
+                                        : null
+                                }
+                            >
+                                <SelectValue />
+                            </FilterSelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">
+                                    {t('servers.list.all_states')}
+                                </SelectItem>
+                                {Object.entries(stateFilters).map(
+                                    ([value, label]) => (
+                                        <SelectItem key={value} value={value}>
+                                            {t(label)}
+                                        </SelectItem>
+                                    ),
+                                )}
+                            </SelectContent>
+                        </Select>
+                    </FilterBar>
+                )}
                 <PendingChanges
                     count={buffered.pendingCount}
                     apply={buffered.apply}
                 />
-                {buffered.rows.length === 0 ? (
+                {/* A page beyond the end comes back as the last page, so no rows with a total means none match. */}
+                {buffered.rows.length === 0 && pagination.total === 0 ? (
                     <EmptyState
                         icon={Server}
                         title={t('servers.list.empty_title')}
                         description={t('servers.list.empty_description')}
                         action={addButton}
+                        filtered={{
+                            active: filtersActive,
+                            title: t('servers.list.filtered_title'),
+                            description: t('servers.list.filtered_description'),
+                        }}
                     />
                 ) : (
                     <>
-                        <ServerListLegend thresholds={thresholds} />
+                        <ServerListLegend defaults={defaults} />
                         <div className="overflow-hidden rounded-lg border">
                             <div className="hidden md:block">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>
-                                                {t('servers.column.server')}
-                                            </TableHead>
-                                            <TableHead>{t('Status')}</TableHead>
-                                            <TableHead className="text-center">
-                                                {t('servers.column.disk')}
-                                            </TableHead>
-                                            <TableHead className="text-center">
-                                                {t('servers.column.memory')}
-                                            </TableHead>
-                                            <TableHead className="text-center">
-                                                {t('servers.column.load')}
-                                            </TableHead>
-                                            <TableHead className="text-right">
-                                                {t(
-                                                    'servers.column.last_report',
-                                                )}
-                                            </TableHead>
+                                            {head(
+                                                'name',
+                                                t('servers.column.server'),
+                                            )}
+                                            {head('status', t('Status'))}
+                                            {head(
+                                                'disk',
+                                                t('servers.column.disk'),
+                                                'center',
+                                            )}
+                                            {head(
+                                                'memory',
+                                                t('servers.column.memory'),
+                                                'center',
+                                            )}
+                                            {head(
+                                                'load',
+                                                t('servers.column.load'),
+                                                'center',
+                                            )}
+                                            {head(
+                                                'last_report',
+                                                t('servers.column.last_report'),
+                                                'end',
+                                            )}
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -213,8 +362,7 @@ export default function ServersIndex({
                                                     </span>
                                                 </TableCell>
                                                 <ServerGaugeCells
-                                                    values={server.values}
-                                                    thresholds={thresholds}
+                                                    server={server}
                                                 />
                                                 <TableCell className="text-right">
                                                     {server.last_report_at && (
@@ -263,8 +411,10 @@ export default function ServersIndex({
                                             {reboot(server)}
                                             {server.values && (
                                                 <ServerGaugeLine
-                                                    values={server.values}
-                                                    thresholds={thresholds}
+                                                    server={{
+                                                        ...server,
+                                                        values: server.values,
+                                                    }}
                                                 />
                                             )}
                                             {server.last_report_at && (
@@ -281,6 +431,13 @@ export default function ServersIndex({
                                 ))}
                             </ul>
                         </div>
+                        <ListFooter
+                            count={t('servers.list.count', {
+                                count: pagination.total,
+                                formattedCount: format.number(pagination.total),
+                            })}
+                            pagination={pagination}
+                        />
                     </>
                 )}
             </PageContainer>

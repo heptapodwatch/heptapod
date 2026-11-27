@@ -6,7 +6,9 @@ namespace Heptapod\Settings;
 
 use Heptapod\Contracts\ServersAccess;
 use Heptapod\Models\User;
+use Heptapod\Queries\UpdateStatusReader;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Facades\DB;
 
 final readonly class InstanceServersAccess implements ServersAccess
 {
@@ -22,5 +24,17 @@ final readonly class InstanceServersAccess implements ServersAccess
     {
         return $user instanceof User && $user->disabled_at === null && $user->hasAnyRole(['Owner', 'Admin'])
             && $user->tokenClientConstraint() === null;
+    }
+
+    /** A source or Git install runs a commit build or `unknown`, which has no agent release of its own. */
+    public function agentReleaseTag(): ?string
+    {
+        $version = config()->string('heptapod.version');
+        if (UpdateStatusReader::isReleaseTag($version)) {
+            return $version;
+        }
+        $latest = DB::table('update_checks')->where('id', 1)->value('latest_version');
+
+        return is_string($latest) && UpdateStatusReader::isReleaseTag($latest) ? $latest : null;
     }
 }

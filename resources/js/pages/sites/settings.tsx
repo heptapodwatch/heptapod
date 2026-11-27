@@ -3,6 +3,7 @@ import { InfoTooltip } from '@/components/info-tooltip';
 import { TooltipHint } from '@/components/truncated-text';
 import { ClientCreateSheet } from '@/components/client-create-sheet';
 import { ClientField } from '@/components/client-field';
+import { SiteServerField } from '@/components/server-manage';
 import { SiteAlertSensitivity } from '@/components/alert-sensitivity-form';
 import { SiteAvatar } from '@/components/site-avatar';
 import { useLiveReload } from '@/hooks/use-live';
@@ -64,6 +65,11 @@ function repositoryRows(repositories: Heptapod.Data.Ui.SiteRepositoryData[]) {
     }));
 }
 
+type SiteServerChoices = Heptapod.Addons.Servers.Data.SiteServerChoicesData;
+
+const serverChoice = (server: SiteServerChoices | null) =>
+    server?.server_id == null ? 'none' : String(server.server_id);
+
 export default function SiteSettings({
     site,
     client,
@@ -84,6 +90,7 @@ export default function SiteSettings({
     check_settings,
     check_options,
     repositories,
+    server,
 }: Heptapod.Data.Ui.SiteSettingsPageData) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -203,6 +210,8 @@ export default function SiteSettings({
         // Draft settings of types without a check, keyed `<type>.<field>` as in the add-site wizard.
         settings: {} as Record<string, FieldValue>,
         repositories: repositoryRows(repositories),
+        // The servers addon's link, a draft like every other field; 'none' is "Not linked".
+        server_id: serverChoice(server),
     });
     // The add-site wizard's reason why a type cannot run for this site, against the address being edited. Scheduled
     // tasks are only created through the API, so the reason applies to a type the site has no check of.
@@ -249,11 +258,21 @@ export default function SiteSettings({
     };
     const save = (event: React.SubmitEvent<HTMLFormElement>) => {
         event.preventDefault();
-        form.transform(({ tags, settings, ...data }) =>
+        form.transform(({ tags, settings, server_id, ...data }) =>
             archivedClient
                 ? { client_id: data.client_id }
                 : {
                       ...data,
+                      // Only those who may see servers have the field (the server refuses it from anyone else), and it
+                      // goes only when changed here: a tab opened earlier never undoes a link changed elsewhere since.
+                      ...(server && server_id !== serverChoice(server)
+                          ? {
+                                server_id:
+                                    server_id === 'none'
+                                        ? null
+                                        : Number(server_id),
+                            }
+                          : {}),
                       checks: data.checks.filter(
                           (key) =>
                               !checkRows.some(
@@ -300,6 +319,9 @@ export default function SiteSettings({
                     settings: {},
                     repositories: repositoryRows(
                         props.repositories as Heptapod.Data.Ui.SiteRepositoryData[],
+                    ),
+                    server_id: serverChoice(
+                        props.server as SiteServerChoices | null,
                     ),
                 };
                 form.setDefaults(values);
@@ -438,6 +460,22 @@ export default function SiteSettings({
                             </div>
                         </div>
                     </FormSection>
+                    {server && !archivedClient && (
+                        <FormSection
+                            title={t('servers.site.section')}
+                            description={t('servers.site.section_description')}
+                        >
+                            <SiteServerField
+                                choices={server}
+                                value={form.data.server_id}
+                                onValueChange={(value) =>
+                                    form.setData('server_id', value)
+                                }
+                                disabled={form.processing}
+                                error={form.errors.server_id}
+                            />
+                        </FormSection>
+                    )}
                     <FormSection
                         title={t('repositories.title')}
                         description={t('repositories.description')}
