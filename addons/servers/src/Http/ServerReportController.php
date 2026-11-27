@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Heptapod\Addons\Servers\Http;
 
 use Carbon\CarbonImmutable;
+use Heptapod\Addons\Servers\Actions\RecordServerReport;
 use Heptapod\Addons\Servers\Server;
 use Heptapod\Addons\Servers\ServerToken;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 /** POST /agent/v1/report: one agent sample, exactly per the ingest contract v1. */
@@ -21,7 +21,7 @@ final class ServerReportController
 
     private const int FutureMinutes = 2;
 
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(Request $request, RecordServerReport $record): JsonResponse
     {
         if (strlen($request->getContent()) > self::MaxBodyBytes) {
             return response()->json(['message' => 'The report is larger than 16 KiB.'], 413);
@@ -51,30 +51,7 @@ final class ServerReportController
                 'errors' => ['observed_at' => ['Out of the accepted window.']]], 422);
         }
 
-        // Unknown keys never reach storage: the metrics are rebuilt from the validated fields only.
-        $metrics = [
-            'cpu' => ['cores' => $report['cpu']['cores'], 'used_percent' => $report['cpu']['used_percent']],
-            'load' => ['1' => $report['load'][1], '5' => $report['load'][5], '15' => $report['load'][15]],
-            'memory' => ['total_bytes' => $report['memory']['total_bytes'], 'available_bytes' => $report['memory']['available_bytes']],
-            'filesystems' => array_map(static fn (array $filesystem): array => ['mount' => $filesystem['mount'],
-                'total_bytes' => $filesystem['total_bytes'], 'free_bytes' => $filesystem['free_bytes']], $report['filesystems']),
-            'host' => ['uptime_seconds' => $report['host']['uptime_seconds'], 'reboot_required' => $report['host']['reboot_required']],
-            'updates' => ['pending' => $report['updates']['pending'], 'security' => $report['updates']['security']],
-        ];
-        $stored = DB::transaction(static function () use ($server, $report, $metrics, $observedAt, $now): bool {
-            $stored = DB::table('server_samples')->insertOrIgnore([
-                'server_id' => $server->id, 'sample_id' => strtolower($report['sample_id']),
-                'observed_at' => $observedAt->utc()->format('Y-m-d H:i:s.uP'), 'received_at' => $now->utc()->format('Y-m-d H:i:s.uP'), 'metrics' => json_encode($metrics, JSON_THROW_ON_ERROR),
-            ]) === 1;
-            // A retried duplicate is already stored and does not count as a new report.
-            if ($stored) {
-                $server->forceFill(['last_report_at' => $now, 'agent_version' => $report['agent']['version'], 'agent_os' => $report['agent']['os'],
-                    'agent_arch' => $report['agent']['arch'], 'agent_distro' => $report['agent']['distro'], 'agent_kernel' => $report['agent']['kernel'],
-                    'hostname' => $report['host']['hostname'], 'ips' => $report['host']['ips']])->save();
-            }
-
-            return $stored;
-        });
+        $stored = $record($server, $report, $observedAt, $now);
 
         return response()->json(['interval_seconds' => config()->integer('servers.interval_seconds')], $stored ? 202 : 200);
     }

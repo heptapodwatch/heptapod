@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Heptapod\Policies;
+namespace Heptapod\Settings;
 
 use Heptapod\Contracts\ServersAccess;
 use Heptapod\Models\User;
-use Heptapod\Settings\InstanceSettings;
 use Illuminate\Contracts\Auth\Authenticatable;
 
 final readonly class InstanceServersAccess implements ServersAccess

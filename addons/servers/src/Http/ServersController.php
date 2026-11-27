@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Addons\Servers\Http;
 
 use Carbon\CarbonImmutable;
+use Heptapod\Addons\Servers\Actions\RemoveServer;
 use Heptapod\Addons\Servers\Data\ServerPageData;
 use Heptapod\Addons\Servers\Data\ServersPageData;
 use Heptapod\Addons\Servers\Data\ServerThresholdsData;
@@ -61,11 +62,10 @@ final class ServersController
         return to_route('servers.show', $server);
     }
 
-    /** Removing a server deletes its samples (cascade) and so its token. */
-    public function destroy(Server $server): RedirectResponse
+    public function destroy(Server $server, RemoveServer $remove): RedirectResponse
     {
         Gate::authorize('delete', $server);
-        $server->delete();
+        $remove($server);
         Inertia::flash('toast', ['type' => 'success', 'message' => __('servers.removed', ['name' => $server->name])]);
 
         return to_route('servers.index');
