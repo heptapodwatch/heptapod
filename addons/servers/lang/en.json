@@ -148,13 +148,6 @@
     "servers.site.field_help": "The site's Overview shows this server, and the server lists the site. A site runs on one server.",
     "servers.linked.archived_one": "{{formattedCount}} more on an archived client.",
     "servers.linked.archived_other": "{{formattedCount}} more on archived clients.",
-    "servers.list.sort": "Sort",
-    "servers.sort.status": "Status: problems first",
-    "servers.sort.name": "Name A–Z",
-    "servers.sort.disk": "Disk: fullest first",
-    "servers.sort.memory": "RAM: highest first",
-    "servers.sort.load": "Load: highest first",
-    "servers.sort.last_report": "Last report: oldest first",
     "servers.history.thresholds": "Dashed lines: each disk's alert threshold",
     "servers.link.loading_failed": "The sites could not be loaded. Close the sheet and open it again."
 }

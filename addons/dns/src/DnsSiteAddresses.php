@@ -6,14 +6,13 @@ namespace Heptapod\Addons\Dns;
 
 use Heptapod\Contracts\SiteAddressLookup;
 use Illuminate\Support\Facades\DB;
-use Pdp\Domain;
 
 final class DnsSiteAddresses implements SiteAddressLookup
 {
     /**
      * One read: each enabled DNS check's newest accepted run (checks.latest_run_id) finds its observation through the
      * (run_id, claim_token) index, so the read grows with the number of DNS checks, not with their history. The answer of
-     * the site's own name is its `<host>|A` and `<host>|AAAA` group, keyed as DnsCheck keys it. Addresses compare as binary,
+     * the site's own name is its `<host>|A` and `<host>|AAAA` group (DnsRecordKey, as DnsCheck keys it). Addresses compare as binary,
      * so two spellings of one address match.
      */
     public function sitesPointingAt(array $addresses, array $exceptSiteIds, int $limit): array
@@ -38,10 +37,14 @@ final class DnsSiteAddresses implements SiteAddressLookup
             WHERE c.type = 'dns' AND c.enabled AND o.run_ended_at IS NOT NULL AND (groups.key LIKE '%|A' OR groups.key LIKE '%|AAAA')".$except);
         /** @var array<int, array{total: int, matched: array<string, true>}> $answers */
         $answers = [];
-        $hosts = [];
+        /** @var array<int, list<string>> $ownKeys site id => the keys of its own host name's A and AAAA answers */
+        $ownKeys = [];
         foreach ($records as $record) {
-            $host = $hosts[$record->site_id] ??= $this->host($record->url);
-            if ($record->answer !== $host.'|A' && $record->answer !== $host.'|AAAA') {
+            if (! isset($ownKeys[$record->site_id])) {
+                $host = parse_url($record->url, PHP_URL_HOST);
+                $ownKeys[$record->site_id] = is_string($host) && $host !== '' ? [DnsRecordKey::of($host, 'A'), DnsRecordKey::of($host, 'AAAA')] : [];
+            }
+            if (! in_array($record->answer, $ownKeys[$record->site_id], true)) {
                 continue;
             }
             $binary = $this->binary($record->address);
@@ -60,14 +63,6 @@ final class DnsSiteAddresses implements SiteAddressLookup
         uksort($matches, static fn (int $a, int $b): int => [$strength[$b], $a] <=> [$strength[$a], $b]);
 
         return array_map(static fn (array $answer): array => array_keys($answer['matched']), array_slice($matches, 0, $limit, true));
-    }
-
-    /** The site's host name as DnsCheck queries it (ASCII, no root label); empty for a URL without one. */
-    private function host(string $url): string
-    {
-        $host = parse_url($url, PHP_URL_HOST);
-
-        return is_string($host) && $host !== '' ? strtolower(Domain::fromIDNA2008($host)->toAscii()->withoutRootLabel()->toString()) : '';
     }
 
     private function binary(?string $address): ?string

@@ -56,17 +56,8 @@ import { index, show, store } from '@/routes/servers';
 type ServerRow = Heptapod.Addons.Servers.Data.ServerRowData;
 type ServerState = Heptapod.Addons.Servers.ServerState;
 
-/** Each sort key in its first direction: what needs attention on top. Reversing is a desktop header click. */
-const sortOptions = {
-    status: 'servers.sort.status',
-    name: 'servers.sort.name',
-    disk: 'servers.sort.disk',
-    memory: 'servers.sort.memory',
-    load: 'servers.sort.load',
-    last_report: 'servers.sort.last_report',
-} as const;
-type SortKey = keyof typeof sortOptions;
-const isSortKey = (key: string): key is SortKey => key in sortOptions;
+/** The server's sort keys (ServerReader::SortKeys); the cards below md keep the default order, problems first. */
+type SortKey = 'status' | 'name' | 'disk' | 'memory' | 'load' | 'last_report';
 // Disk, RAM and load show the highest value first.
 const descendingFirst: SortKey[] = ['disk', 'memory', 'load'];
 
@@ -284,38 +275,6 @@ export default function ServersIndex({
                                 )}
                             </SelectContent>
                         </Select>
-                        {/* The cards below md have no header row to sort by. */}
-                        <div className="w-full md:hidden">
-                            <Select
-                                value={sort.replace(/^-/, '')}
-                                onValueChange={(value) =>
-                                    isSortKey(value) && visit({}, value)
-                                }
-                            >
-                                <FilterSelectTrigger
-                                    aria-label={t('servers.list.sort')}
-                                    onClear={
-                                        sort !== 'status'
-                                            ? () => visit({}, 'status')
-                                            : null
-                                    }
-                                >
-                                    <SelectValue />
-                                </FilterSelectTrigger>
-                                <SelectContent>
-                                    {Object.entries(sortOptions).map(
-                                        ([value, label]) => (
-                                            <SelectItem
-                                                key={value}
-                                                value={value}
-                                            >
-                                                {t(label)}
-                                            </SelectItem>
-                                        ),
-                                    )}
-                                </SelectContent>
-                            </Select>
-                        </div>
                     </FilterBar>
                 )}
                 <PendingChanges

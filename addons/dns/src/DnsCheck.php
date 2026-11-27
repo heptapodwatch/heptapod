@@ -331,7 +331,7 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
         if (! is_string($host) || $host === '') {
             throw new \InvalidArgumentException('DNS check requires a URL hostname.');
         }
-        $host = Domain::fromIDNA2008($host)->toAscii()->withoutRootLabel()->toString();
+        $host = DnsRecordKey::name($host);
         $targets = [$host];
         if (($context->config['monitor_main_domain'] ?? $defaults['monitor_main_domain']) === true) {
             $main = $this->suffixes->rules()->resolve(Domain::fromIDNA2008($host))->registrableDomain()->toString();
@@ -342,7 +342,7 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
         /** @var list<string> $extra */
         $extra = $context->config['extra_cnames'] ?? $defaults['extra_cnames'];
         foreach ($extra as $name) {
-            $targets[] = Domain::fromIDNA2008($name)->toAscii()->withoutRootLabel()->toString();
+            $targets[] = DnsRecordKey::name($name);
         }
         $targets = array_values(array_unique($targets));
         sort($targets);
@@ -450,7 +450,7 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
                     }
                     $answers[$type] = DnsSnapshot::normalize($answer->records);
                     if (in_array($type, $types, true)) {
-                        $key = $target.'|'.$type;
+                        $key = DnsRecordKey::of($target, $type);
                         $groups[$key] = $answers[$type];
                         /** @var list<array<string, int|string>> $validatedRecords */
                         $validatedRecords = $answer->records;

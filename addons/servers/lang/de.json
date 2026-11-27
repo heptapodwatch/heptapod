@@ -148,13 +148,6 @@
     "servers.site.field_help": "Die Übersicht der Website zeigt diesen Server, und der Server listet die Website auf. Eine Website läuft auf einem Server.",
     "servers.linked.archived_one": "{{formattedCount}} weitere bei einem archivierten Kunden.",
     "servers.linked.archived_other": "{{formattedCount}} weitere bei archivierten Kunden.",
-    "servers.list.sort": "Sortierung",
-    "servers.sort.status": "Status: Probleme zuerst",
-    "servers.sort.name": "Name A–Z",
-    "servers.sort.disk": "Festplatte: vollste zuerst",
-    "servers.sort.memory": "RAM: höchster zuerst",
-    "servers.sort.load": "Last: höchste zuerst",
-    "servers.sort.last_report": "Letzter Bericht: ältester zuerst",
     "servers.history.thresholds": "Gestrichelte Linien: Alarmschwelle jeder Festplatte",
     "servers.link.loading_failed": "Die Websites konnten nicht geladen werden. Schließen Sie das Fenster und öffnen Sie es erneut."
 }
