@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -25,7 +26,7 @@ func fixtureSystem(t *testing.T, fixture, kernel string, disks map[string][2]uin
 	}
 	return &system{
 		root:          root,
-		statfsTimeout: 2 * time.Second,
+		statfsBudget:  3 * time.Second,
 		uname:         func() (string, string, error) { return "web-1", kernel, nil },
 		statfs: func(path string) (uint64, uint64, error) {
 			disk, ok := disks["/"+strings.TrimPrefix(strings.TrimPrefix(path, root), "/")]
@@ -191,7 +192,7 @@ func TestFailedAptCheckIsRetriedAfterFifteenMinutes(t *testing.T) {
 
 func TestHungMountDoesNotBlockTheSample(t *testing.T) {
 	sys := fixtureSystem(t, "ubuntu2404", "6.8.0-88-generic", nil)
-	sys.statfsTimeout = 200 * time.Millisecond
+	sys.statfsBudget = 200 * time.Millisecond
 	release := make(chan struct{})
 	defer close(release)
 	var calls atomic.Int32
@@ -209,6 +210,47 @@ func TestHungMountDoesNotBlockTheSample(t *testing.T) {
 	}
 	if calls.Load() != 1 {
 		t.Fatalf("a hung mount was queried %d times, want once until it returns", calls.Load())
+	}
+}
+
+func TestSeveralHungMountsShareOneBudget(t *testing.T) {
+	sys := fixtureSystem(t, "debian13", "6.12.57+deb13-amd64", nil)
+	sys.statfsBudget = 300 * time.Millisecond
+	release := make(chan struct{})
+	defer close(release)
+	var mu sync.Mutex
+	calls := map[string]int{}
+	sys.statfs = func(path string) (uint64, uint64, error) {
+		mount := "/" + strings.TrimPrefix(strings.TrimPrefix(path, sys.root), "/")
+		mu.Lock()
+		calls[mount]++
+		mu.Unlock()
+		if mount != "/" {
+			<-release // /boot, /srv/client data and /var/lib/docker hang
+		}
+		return 100, 50, nil
+	}
+	for range 2 {
+		started := time.Now()
+		got, _, err := sys.collect(context.Background(), statBefore(t), observedAt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// One shared budget, not one per mount: three hung mounts in sequence would take 900 ms.
+		if elapsed := time.Since(started); elapsed > 800*time.Millisecond {
+			t.Fatalf("sample took %s with three hung mounts and a 300 ms budget", elapsed)
+		}
+		assertJSON(t, got.Filesystems, `[{"mount":"/","total_bytes":100,"free_bytes":50}]`)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	for _, mount := range []string{"/boot", "/srv/client data", "/var/lib/docker"} {
+		if calls[mount] != 1 {
+			t.Errorf("hung mount %s was queried %d times, want once while its call is pending", mount, calls[mount])
+		}
+	}
+	if calls["/"] != 2 {
+		t.Errorf("the healthy mount was queried %d times, want once per sample", calls["/"])
 	}
 }
 

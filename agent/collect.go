@@ -83,9 +83,9 @@ type system struct {
 	uname          func() (hostname, kernel string, err error)
 	statfs         func(path string) (total, free uint64, err error)
 	interfaceAddrs func() ([]netip.Addr, error)
-	statfsTimeout  time.Duration
+	statfsBudget   time.Duration
 
-	// A statfs that outlived statfsTimeout may never return (a hung mount); that mount is skipped until it does.
+	// A statfs that outlived statfsBudget may never return (a hung mount); that mount is skipped until it does.
 	stuckMounts sync.Map
 
 	// apt-check costs about a second of CPU, so a count is kept until dpkg or the apt lists change.
@@ -105,7 +105,7 @@ const aptCheckRetry = 15 * time.Minute
 func hostSystem() *system {
 	return &system{
 		root:          "/",
-		statfsTimeout: 2 * time.Second,
+		statfsBudget:  3 * time.Second,
 		uname: func() (string, string, error) {
 			var u syscall.Utsname
 			if err := syscall.Uname(&u); err != nil {
@@ -367,14 +367,19 @@ func (s *system) filesystems() ([]filesystem, error) {
 	if err != nil {
 		return nil, err
 	}
+	mounts := realMounts(parseMountinfo(data))
+	paths := make([]string, len(mounts))
+	for i, entry := range mounts {
+		paths[i] = filepath.Join(s.root, entry.mount)
+	}
+	sizes := s.statfsAll(paths)
 	out := []filesystem{}
-	for _, entry := range realMounts(parseMountinfo(data)) {
-		total, free, err := s.statfsWithin(filepath.Join(s.root, entry.mount))
+	for i, entry := range mounts {
 		// Mounts the sandboxed agent cannot reach (e.g. below ProtectHome) or that hang are not reported.
-		if err != nil || total == 0 {
+		if sizes[i].err != nil || sizes[i].total == 0 {
 			continue
 		}
-		out = append(out, filesystem{Mount: entry.mount, TotalBytes: total, FreeBytes: free})
+		out = append(out, filesystem{Mount: entry.mount, TotalBytes: sizes[i].total, FreeBytes: sizes[i].free})
 		if len(out) == maxListEntries {
 			break
 		}
@@ -382,31 +387,47 @@ func (s *system) filesystems() ([]filesystem, error) {
 	return out, nil
 }
 
-// statfsWithin runs statfs in its own goroutine so one hung mount cannot stop the sample.
-func (s *system) statfsWithin(path string) (uint64, uint64, error) {
-	if _, stuck := s.stuckMounts.Load(path); stuck {
-		return 0, 0, errors.New("statfs still pending")
+type statfsResult struct {
+	total, free uint64
+	err         error
+}
+
+var errStatfsPending = errors.New("statfs pending")
+
+// statfsAll runs one statfs per path concurrently and waits at most statfsBudget for all of them, so hung mounts
+// cannot stop the sample. A path whose earlier call never returned gets no second call until that one does.
+func (s *system) statfsAll(paths []string) []statfsResult {
+	type indexed struct {
+		index int
+		statfsResult
 	}
-	type result struct {
-		total, free uint64
-		err         error
+	results := make([]statfsResult, len(paths))
+	done := make(chan indexed, len(paths)) // buffered: calls that outlive the budget never block
+	outstanding := 0
+	for i, path := range paths {
+		results[i].err = errStatfsPending
+		if _, stuck := s.stuckMounts.LoadOrStore(path, true); stuck {
+			continue
+		}
+		outstanding++
+		go func() {
+			total, free, err := s.statfs(path)
+			s.stuckMounts.Delete(path)
+			done <- indexed{i, statfsResult{total, free, err}}
+		}()
 	}
-	done := make(chan result, 1)
-	s.stuckMounts.Store(path, true)
-	go func() {
-		total, free, err := s.statfs(path)
-		s.stuckMounts.Delete(path)
-		done <- result{total, free, err}
-	}()
-	timer := time.NewTimer(s.statfsTimeout)
+	timer := time.NewTimer(s.statfsBudget)
 	defer timer.Stop()
-	select {
-	case r := <-done:
-		return r.total, r.free, r.err
-	case <-timer.C:
-		log.Printf("statfs %s did not return within %s; skipping it", path, s.statfsTimeout)
-		return 0, 0, errors.New("statfs timed out")
+	for ; outstanding > 0; outstanding-- {
+		select {
+		case r := <-done:
+			results[r.index] = r.statfsResult
+		case <-timer.C:
+			log.Printf("%d statfs calls did not return within %s; skipping those mounts", outstanding, s.statfsBudget)
+			return results
+		}
 	}
+	return results
 }
 
 // parseMountinfo returns the visible mount per mount point: a later mount on the same point hides the earlier one.

@@ -42,6 +42,8 @@ func TestScheduleFollowsContractResponseTable(t *testing.T) {
 		{status: 429, wait: 20 * time.Second}, // no Retry-After: the current interval
 		{status: 429, retryAfter: "7200", wait: 2 * time.Hour},
 		{status: 429, retryAfter: "99999999999999999999", wait: math.MaxInt64}, // saturates, never overflows
+		{status: 429, retryAfter: "99999999999999999999junk", wait: 20 * time.Second}, // invalid: the current interval
+		{status: 429, retryAfter: "+30", wait: 20 * time.Second},
 		{status: 500, wait: 30 * time.Second, keepSample: true, logs: true},
 		{status: 502, wait: time.Minute, keepSample: true, logs: true},
 		{status: 503, wait: 2 * time.Minute, keepSample: true, logs: true},

@@ -69,21 +69,35 @@ if [ -z "$endpoint" ] && [ -f "$config/endpoint" ]; then
 fi
 [ -n "$endpoint" ] || fail "--endpoint is required"
 
+saved_tty='' tmp=''
+# shellcheck disable=SC2329 # invoked by the EXIT trap
+cleanup() {
+    if [ -n "$saved_tty" ]; then
+        stty "$saved_tty"
+    fi
+    if [ -n "$tmp" ]; then
+        rm -rf "$tmp"
+    fi
+}
+trap cleanup EXIT
+trap 'exit 130' INT TERM
+
 if [ -z "$token" ]; then
     if [ -t 0 ]; then
+        # Echo goes off before the prompt appears, so a token pasted at once is never shown.
+        saved_tty=$(stty -g)
+        stty -echo
         if [ -f "$config/token" ]; then
             printf 'Agent token (press Enter to keep the installed one): ' >&2
         else
             printf 'Agent token: ' >&2
         fi
-        trap 'stty echo' EXIT INT TERM
-        stty -echo
-        IFS= read -r token || true
-        stty echo
-        trap - EXIT INT TERM
+        IFS= read -r token || fail "no token entered"
+        stty "$saved_tty"
+        saved_tty=''
         echo >&2
     else
-        IFS= read -r token || true
+        IFS= read -r token || [ -n "$token" ] || true
     fi
 fi
 if [ -n "$token" ]; then
@@ -97,7 +111,6 @@ elif [ ! -f "$config/token" ]; then
 fi
 
 tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT INT TERM
 asset=heptapod-agent-linux-$arch
 
 # Test-only: HEPTAPOD_AGENT_TEST_ASSET_DIR names a local directory with the release assets, so the script can be

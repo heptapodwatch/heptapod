@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -141,11 +140,12 @@ func (s *schedule) failure(message string) (string, decision) {
 // retryAfter reads the header as delta seconds or an HTTP date, and falls back to the interval if it is neither.
 // Long delays are honoured; values beyond what a Duration holds saturate instead of overflowing.
 func retryAfter(header string, now time.Time, fallback time.Duration) time.Duration {
-	seconds, err := strconv.ParseUint(strings.TrimSpace(header), 10, 64)
-	if errors.Is(err, strconv.ErrRange) || (err == nil && seconds > uint64(math.MaxInt64/time.Second)) {
-		return math.MaxInt64
-	}
-	if err == nil {
+	header = strings.TrimSpace(header)
+	if header != "" && strings.Trim(header, "0123456789") == "" {
+		seconds, err := strconv.ParseUint(header, 10, 64)
+		if err != nil || seconds > uint64(math.MaxInt64/time.Second) { // only ErrRange is possible for digits
+			return math.MaxInt64
+		}
 		return max(time.Duration(seconds)*time.Second, time.Second)
 	}
 	if date, err := http.ParseTime(header); err == nil {
