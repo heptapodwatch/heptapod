@@ -77,10 +77,11 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
      */
     public function refusal(Event $event, NotificationDestination $channel, CarbonImmutable $at): ?DeliveryDecision
     {
-        $reason = match (true) {
-            ! $this->access->enabled() => 'servers_disabled',
-            default => self::ineligibility($channel) ?? ($channel->enabled ? null : 'destination_disabled'),
-        };
+        // Servers switched off is temporary: the alert waits (also a digest line) and goes once they are on, if still open.
+        if (! $this->access->enabled()) {
+            return DeliveryDecision::hold($at->addHour(), 'servers_disabled', setReason: true);
+        }
+        $reason = self::ineligibility($channel) ?? ($channel->enabled ? null : 'destination_disabled');
         if ($reason !== null) {
             return DeliveryDecision::suppress($reason);
         }

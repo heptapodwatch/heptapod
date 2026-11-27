@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\ClaimNotificationDelivery;
 use Heptapod\Actions\CreateApiToken;
+use Heptapod\Actions\EmitNotificationDigests;
 use Heptapod\Actions\SendNotificationDelivery;
 use Heptapod\Actions\SetNotificationDestinationEnabled;
 use Heptapod\Addons\Channels\TemplateMail;
@@ -15,6 +17,7 @@ use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Enums\NotificationMode;
+use Heptapod\Jobs\SendNotification;
 use Heptapod\Models\Check;
 use Heptapod\Models\Client;
 use Heptapod\Models\Delivery;
@@ -386,7 +389,7 @@ it('shows open issues and the snooze on the server page and filters the list to 
     $this->actingAs($owner)->get('/servers')->assertInertia(fn (Assert $page): AssertableInertia => $page->where('servers.0.name', 'busy')->where('servers.1.name', 'calm'));
 });
 
-it('does nothing while servers are off: no evaluation, no Servers row, and waiting deliveries never send', function (): void {
+it('does nothing while servers are off: no evaluation, no Servers row, and waiting alerts wait until servers are on again', function (): void {
     $owner = systemIssueRecipient('Owner');
     [$server, $token] = alertsServer();
     alertsMinutes($this, $token, 16, ['disks' => ['/' => 92]]);
@@ -398,13 +401,20 @@ it('does nothing while servers are off: no evaluation, no Servers row, and waiti
     dispatchNotifications();
 
     expect($evaluation?->filtersPass($this->app))->toBeFalse()
-        ->and(alertsDeliveries('opened')->sole())->toMatchObject(['suppressed' => true, 'suppression_reason' => 'servers_disabled']);
+        ->and(alertsDeliveries('opened')->sole())->toMatchObject(['suppressed' => false, 'state' => 'pending', 'last_reason' => 'servers_disabled']);
     Mail::assertNothingSent();
     $this->actingAs($owner)->getJson(route('settings.notifications.data'))->assertOk()
         ->assertJsonMissing(['category' => 'servers']);
     // The ingest answers 404, so no sample and no issue arrives.
     $this->call('POST', '/agent/v1/report', server: ['CONTENT_TYPE' => 'application/json', 'HTTP_AUTHORIZATION' => 'Bearer '.$token], content: '{}')->assertNotFound();
     expect(ServerIssue::query()->count())->toBe(1)->and(alertsOpen($server))->toBe(['disk_full:/']);
+
+    // Switched on again with the issue still open, the alert goes out.
+    alertsSwitch(true);
+    $this->travel(1)->hours();
+    dispatchNotifications();
+    expect(alertsDeliveries('opened')->sole()->state)->toBe('sent');
+    Mail::assertSent(TemplateMail::class, 1);
 });
 
 it('offers the Servers row to Owners, Admins and team channels, locked off for a channel limited to one client', function (): void {
@@ -769,4 +779,74 @@ it('keeps a recurring digest line when servers are off for one digest pass', fun
     $this->travelTo(CarbonImmutable::parse('2026-11-30T08:00:00', $zone));
     dispatchNotifications();
     expect($digests())->toBe(2)->and(alertsWebhookBodies())->toHaveCount(2);
+});
+
+it('ends an opening reclaimed after its worker died once its issue resolved, and its recovery with it', function (): void {
+    $owner = systemIssueRecipient('Owner');
+    [, $token] = alertsServer();
+    alertsMinutes($this, $token, 11, ['memory' => 95]);
+    $opening = alertsDeliveries('opened')->sole();
+    // The worker claims the opening and dies before sending: the row stays Sending under its lease.
+    expect(app(ClaimNotificationDelivery::class)($opening->id)?->state)->toBe(DeliveryState::Sending);
+    alertsReport($this, $token);
+    expect(alertsDeliveries('resolved')->sole()->state)->toBe('pending');
+
+    $this->travel(SendNotification::LeaseSeconds + 1)->seconds();
+    dispatchNotifications();
+    $this->travel(5)->minutes();
+    dispatchNotifications();
+
+    expect(alertsDeliveries('opened')->sole())->toMatchObject(['state' => 'pending', 'suppressed' => true, 'suppression_reason' => 'resolved_before_delivery',
+        'claim_token' => null, 'lease_until' => null])
+        ->and(alertsDeliveries('resolved')->sole())->toMatchObject(['suppressed' => true, 'suppression_reason' => 'opening_not_delivered']);
+    Mail::assertNothingSent();
+});
+
+it('keeps a waiting digest line while servers are off and sends it in the first digest after they are on again', function (): void {
+    $zone = app(InstanceSettings::class)->timezone;
+    $digest = alertsDigestOfTwo($this);
+    $lines = static fn () => DB::table('deliveries')->where('destination_id', $digest->id)->where('digest', true)->orderBy('id')->get();
+    expect($lines()->pluck('state')->unique()->all())->toBe(['pending']);
+
+    alertsSwitch(false);
+    dispatchNotifications();
+    expect(DB::table('events')->where('type', 'notification.digest')->count())->toBe(0)
+        ->and($lines()->pluck('suppressed')->unique()->all())->toBe([false]);
+
+    alertsSwitch(true);
+    $this->travelTo(CarbonImmutable::parse('2026-11-29T08:00:00', $zone));
+    dispatchNotifications();
+    expect($lines()->pluck('state')->unique()->all())->toBe(['sent'])
+        ->and(alertsWebhookBodies())->toHaveCount(1);
+});
+
+it('lists sites before servers in a digest summary, also after a rebuild, within its 20 names', function (): void {
+    $zone = app(InstanceSettings::class)->timezone;
+    // The server line is the oldest item; 21 site warnings follow it.
+    $digest = alertsDigestOfTwo($this);
+    $this->travelTo(CarbonImmutable::parse('2026-11-27T08:00:00', $zone));
+    DB::table('notification_preferences')->where('destination_id', $digest->id)->where('category', 'warning')->update(['mode' => 'digest']);
+    $sites = [];
+    for ($i = 1; $i <= 21; $i++) {
+        $check = Check::factory()->create(['type' => CheckKey::Performance, 'latest_run_result' => CheckResult::Warning]);
+        $check->site?->update(['friendly_name' => sprintf('Site %02d', $i)]);
+        $event = Event::factory()->create(['check_id' => $check->id, 'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Warning]);
+        $sites[] = Delivery::query()->create(['event_id' => $event->id, 'destination_id' => $digest->id, 'category' => 'warning', 'digest' => true,
+            'next_attempt_at' => now(), 'suppression_evaluated_at' => now()]);
+    }
+    $this->travelTo(CarbonImmutable::parse('2026-11-28T08:00:00', $zone));
+    // One site line drops out after the digest's claim, so the send hands it back and the claim builds it again.
+    alertsAfterClaim($digest->id, static fn () => $sites[0]->update(['suppressed' => true, 'suppression_reason' => 'site_unfollowed']));
+    app(EmitNotificationDigests::class)();
+    $assembled = DB::table('events')->where('type', 'notification.digest')->sole(['id', 'payload']);
+    expect(json_decode($assembled->payload, true)['sites'])->not->toContain('web-1');
+
+    dispatchNotifications();
+    dispatchNotifications();
+
+    $payload = json_decode(DB::table('events')->where('id', $assembled->id)->value('payload'), true);
+    expect(explode(', ', $payload['sites']))->toHaveCount(20)
+        ->and($payload['sites'])->toStartWith('Site 02')->not->toContain('web-1')
+        ->and($payload['remaining_sites'])->toBe(1)
+        ->and(alertsWebhookBodies())->toHaveCount(1);
 });

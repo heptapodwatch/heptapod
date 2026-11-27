@@ -163,11 +163,8 @@ final readonly class EmitNotificationDigests
                 if ($included === []) {
                     return;
                 }
-                $labels = [...array_values($sites), ...array_values(array_unique($servers))];
-                $shown = array_map(static fn (string $label): string => mb_strlen($label, 'UTF-8') > 80
-                    ? mb_substr($label, 0, 79, 'UTF-8').'…' : $label, array_slice($labels, 0, 20));
                 $digest = Event::query()->create(['type' => 'notification.digest', 'site_id' => null, 'occurred_at' => $at,
-                    'payload' => ['count' => count($included), 'sites' => implode(', ', $shown), 'remaining_sites' => count($labels) - count($shown), 'delivery_ids' => $included],
+                    'payload' => ['count' => count($included), ...DeliveryPlan::digestLabels($sites, $servers), 'delivery_ids' => $included],
                     'suppressed' => false, 'suppression_reason' => null,
                     'suppression_evaluated_at' => $at, 'notification_routed_at' => $at,
                 ]);

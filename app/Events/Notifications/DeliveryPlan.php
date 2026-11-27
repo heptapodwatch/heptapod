@@ -67,7 +67,9 @@ final readonly class DeliveryPlan
         match ($decision->kind) {
             DeliveryDecisionKind::Send => throw new \LogicException('A Send decision starts sending; it is not applied.'),
             DeliveryDecisionKind::Suppress => $delivery->update([...$released, 'suppressed' => true, 'suppression_reason' => $decision->reason,
-                'suppression_evaluated_at' => $at, ...($claimed ? ['state' => DeliveryState::Pending] : []), ...($decision->clearReason ? ['last_reason' => null] : [])]),
+                // A suppressed row is final: one left Sending (this send, or a reclaimed lease) is Pending again, without a lease.
+                'suppression_evaluated_at' => $at, ...($delivery->state === DeliveryState::Sending ? ['state' => DeliveryState::Pending] : []),
+                ...($decision->clearReason ? ['last_reason' => null] : [])]),
             DeliveryDecisionKind::Hold => $delivery->update($decision->keepState && ! $claimed && $delivery->state !== DeliveryState::Sending
                 ? ['next_attempt_at' => $decision->until ?? $delivery->next_attempt_at]
                 : [...$released, ...$returned, 'state' => DeliveryState::Pending, ...($decision->until instanceof CarbonImmutable ? ['next_attempt_at' => $decision->until] : []),
@@ -310,7 +312,8 @@ final readonly class DeliveryPlan
         }
         $sources = Delivery::query()->with('event.site');
         $sources->getQuery()->whereIn('id', $sourceIds)->orderBy('id');
-        $labels = [];
+        $sites = [];
+        $servers = [];
         $included = [];
         $excludedReasons = [];
         $changes = [];
@@ -331,10 +334,10 @@ final readonly class DeliveryPlan
             $included[] = $source->id;
             if ($sourceEvent->server_issue_id !== null) {
                 $server = $sourceEvent->server_name ?? throw new \LogicException('A server issue event needs its server name.');
-                $labels['server:'.$server] = $server;
+                $servers[$server] = $server;
             } else {
                 $site = $sourceEvent->site ?? throw new \LogicException('A digest item must keep its site.');
-                $labels[$site->id] = $site->displayName();
+                $sites[$site->id] = $site->displayName();
             }
         }
         // The claim keeps the payload's order of items, so the digest is unchanged exactly when every item stays.
@@ -350,13 +353,27 @@ final readonly class DeliveryPlan
             return DeliveryDecision::suppress(count(array_unique($excludedReasons)) === 1 ? $excludedReasons[0] : 'digest_sources_unavailable');
         }
         if (! $unchanged) {
-            $shown = array_map(static fn (string $label): string => mb_strlen($label, 'UTF-8') > 80
-                ? mb_substr($label, 0, 79, 'UTF-8').'…' : $label, array_slice(array_values($labels), 0, 20));
-            $digest->update(['payload' => [...$digest->payload, 'count' => count($included), 'sites' => implode(', ', $shown),
-                'remaining_sites' => count($labels) - count($shown), 'delivery_ids' => $included]]);
+            $digest->update(['payload' => [...$digest->payload, 'count' => count($included), ...self::digestLabels($sites, $servers), 'delivery_ids' => $included]]);
         }
 
         return null;
+    }
+
+    /**
+     * The digest's summary line, the same at assembly and rebuild: sites first, then servers, at most 20 names of at most
+     * 80 characters, and how many more there are.
+     *
+     * @param  array<int|string, string>  $sites
+     * @param  array<int|string, string>  $servers
+     * @return array{sites: string, remaining_sites: int}
+     */
+    public static function digestLabels(array $sites, array $servers): array
+    {
+        $labels = [...array_values($sites), ...array_values(array_unique($servers))];
+        $shown = array_map(static fn (string $label): string => mb_strlen($label, 'UTF-8') > 80
+            ? mb_substr($label, 0, 79, 'UTF-8').'…' : $label, array_slice($labels, 0, 20));
+
+        return ['sites' => implode(', ', $shown), 'remaining_sites' => count($labels) - count($shown)];
     }
 
     private function incidentRecovery(Delivery $delivery, Event $event, ?Incident $episode, CarbonImmutable $at): ?DeliveryDecision
