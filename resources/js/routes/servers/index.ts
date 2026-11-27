@@ -2,7 +2,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import token from './token'
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerReportController::__invoke
-* @see addons/servers/src/Http/ServerReportController.php:32
+* @see addons/servers/src/Http/ServerReportController.php:35
 * @route '/agent/v1/report'
 */
 export const report = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -17,7 +17,7 @@ report.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerReportController::__invoke
-* @see addons/servers/src/Http/ServerReportController.php:32
+* @see addons/servers/src/Http/ServerReportController.php:35
 * @route '/agent/v1/report'
 */
 report.url = (options?: RouteQueryOptions) => {
@@ -26,7 +26,7 @@ report.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerReportController::__invoke
-* @see addons/servers/src/Http/ServerReportController.php:32
+* @see addons/servers/src/Http/ServerReportController.php:35
 * @route '/agent/v1/report'
 */
 report.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -36,7 +36,7 @@ report.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerReportController::__invoke
-* @see addons/servers/src/Http/ServerReportController.php:32
+* @see addons/servers/src/Http/ServerReportController.php:35
 * @route '/agent/v1/report'
 */
 const reportForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -46,7 +46,7 @@ const reportForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerReportController::__invoke
-* @see addons/servers/src/Http/ServerReportController.php:32
+* @see addons/servers/src/Http/ServerReportController.php:35
 * @route '/agent/v1/report'
 */
 reportForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
