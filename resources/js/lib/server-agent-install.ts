@@ -2,11 +2,11 @@ type Install = Heptapod.Addons.Servers.Data.ServerPageData['install'];
 
 /**
  * The agent's install commands, in the one place that knows the installer's flags (agent/install.sh). The token is
- * never part of a command: the installer asks for it on a hidden prompt.
+ * never part of a command: the installer asks for it at a hidden "Agent token:" prompt.
  */
 export function agentInstallCommands(install: Install) {
     const download = (file: string) =>
-        `curl --proto '=https' -fsSLO ${install.release_url}/${file}`;
+        `curl -fsSLO --proto '=https' ${install.release_url}/${file}`;
     const run = `sudo sh install.sh --version ${install.version} --endpoint ${install.endpoint}`;
     return {
         install: [download('install.sh'), run].join('\n'),
@@ -17,6 +17,6 @@ export function agentInstallCommands(install: Install) {
             `sha256sum --check --ignore-missing SHA256SUMS && ${run}`,
         ].join('\n'),
         attestation:
-            'gh attestation verify install.sh --repo heptapodwatch/heptapod',
+            'gh attestation verify install.sh --repo heptapodwatch/heptapod --signer-workflow heptapodwatch/heptapod/.github/workflows/release-bundle.yml',
     };
 }

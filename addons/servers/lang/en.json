@@ -71,6 +71,6 @@
     "servers.remove.confirm": "Remove server",
     "servers.removed": ":name removed.",
     "servers.install.token": "Agent token",
-    "servers.install.asks_token": "The installer asks for the token.",
+    "servers.install.asks_token": "The installer asks for the token at its hidden “Agent token:” prompt.",
     "servers.install.attestation": "With the GitHub CLI you can also check the build provenance before running it:"
 }
