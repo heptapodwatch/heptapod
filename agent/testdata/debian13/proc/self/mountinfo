@@ -1,0 +1,20 @@
+21 1 254:1 / / rw,relatime shared:1 - ext4 /dev/sda1 rw,errors=remount-ro
+22 21 0:5 / /dev rw,nosuid shared:2 - devtmpfs udev rw,size=4000000k,mode=755
+23 21 0:21 / /proc rw,nosuid,nodev,noexec,relatime shared:12 - proc proc rw
+24 21 0:20 / /sys rw,nosuid,nodev,noexec,relatime shared:7 - sysfs sysfs rw
+25 24 0:26 / /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime shared:9 - cgroup2 cgroup2 rw
+26 21 0:24 / /run rw,nosuid,nodev,noexec,relatime shared:5 - tmpfs tmpfs rw,size=812000k,mode=755
+27 26 0:4 net:[4026531840] /run/netns/x rw shared:6 - nsfs nsfs rw
+28 21 254:2 / /boot rw,relatime shared:13 - ext4 /dev/sda2 rw
+29 21 254:16 / /var/lib/docker rw,relatime shared:14 - xfs /dev/sdb rw,attr2,inode64
+30 29 0:50 / /var/lib/docker/overlay2/abc/merged rw,relatime - overlay overlay rw,lowerdir=/x
+31 21 7:0 / /snap/core22/1380 ro,nodev,relatime shared:15 - squashfs /dev/loop0 ro
+32 21 254:3 / /home rw,relatime shared:16 - ext4 /dev/sda3 rw
+33 21 254:1 /tmp/systemd-private-1f2e-heptapod-agent.service-Xy/tmp /tmp rw,relatime shared:1 - ext4 /dev/sda1 rw,errors=remount-ro
+34 32 0:24 /systemd/inaccessible/dir /home ro,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=812000k,mode=755
+35 21 254:4 / /srv/client\040data rw,relatime shared:17 - ext4 /dev/sda4 rw
+36 21 0:60 / /mnt/archive rw,relatime shared:18 - autofs systemd-1 rw,fd=50
+37 21 254:1 / /etc/heptapod-agent ro,relatime shared:1 - ext4 /dev/sda1 ro,errors=remount-ro
+38 21 0:61 / /mnt/backup rw,relatime shared:19 - nfs4 backup.example:/export rw,vers=4.2
+39 21 0:62 / /mnt/remote rw,nosuid,nodev,relatime shared:20 - fuse.sshfs user@host:/ rw,user_id=0
+40 21 0:63 / /mnt/share rw,relatime shared:21 - cifs //nas/share rw
