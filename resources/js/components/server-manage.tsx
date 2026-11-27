@@ -8,7 +8,10 @@ import { siteComboboxOptions, siteHost } from '@/components/entity-combobox';
 import { EvidenceFacts } from '@/components/evidence-facts';
 import { FormSecondaryAction } from '@/components/form-section';
 import { InfoTooltip } from '@/components/info-tooltip';
-import InputError from '@/components/input-error';
+import InputError, {
+    fieldErrorId,
+    fieldErrorProps,
+} from '@/components/input-error';
 import { ListFooter } from '@/components/list-footer';
 import { StatusDot, statusColor } from '@/components/monitoring';
 import { RowActions } from '@/components/row-actions';
@@ -206,6 +209,7 @@ function ThresholdRow({
                     max={max}
                     value={value}
                     invalid={error !== undefined}
+                    describedBy={error ? fieldErrorId(id) : undefined}
                     onValueChange={(next) => onChange(next, minutes)}
                 />
                 {minutes !== undefined && (
@@ -241,7 +245,7 @@ function ThresholdRow({
                         .join(' ')}
                 </p>
             )}
-            <InputError message={error} />
+            <InputError field={id} message={error} />
         </div>
     );
 }
@@ -380,10 +384,16 @@ export function ServerSettingsSheet({
                         required
                         maxLength={120}
                         value={data.name}
-                        aria-invalid={!!errors.name}
+                        {...fieldErrorProps(
+                            'server-settings-name',
+                            errors.name,
+                        )}
                         onChange={(event) => set({ name: event.target.value })}
                     />
-                    <InputError message={errors.name} />
+                    <InputError
+                        field="server-settings-name"
+                        message={errors.name}
+                    />
                 </div>
                 {data.mounts.length > 0 && (
                     <section className="space-y-2">
@@ -782,7 +792,13 @@ export function LinkSitesSheet({
                                 options={options}
                                 values={picked}
                                 onValuesChange={setPicked}
+                                id="server-link-picker"
                                 invalid={error !== undefined}
+                                describedBy={
+                                    error
+                                        ? fieldErrorId('server-link-picker')
+                                        : undefined
+                                }
                                 placeholder={t('servers.link.placeholder')}
                             />
                             {moving.map((site) => (
@@ -796,7 +812,10 @@ export function LinkSitesSheet({
                                     })}
                                 </p>
                             ))}
-                            <InputError message={error} />
+                            <InputError
+                                field="server-link-picker"
+                                message={error}
+                            />
                         </div>
                     </>
                 )}
@@ -1062,11 +1081,12 @@ export function SiteServerField({
                 onValueChange={onValueChange}
                 disabled={disabled}
                 invalid={error !== undefined}
+                describedBy={error ? fieldErrorId('site-server') : undefined}
             />
             <p className="text-xs text-muted-foreground">
                 {t('servers.site.field_help')}
             </p>
-            <InputError message={error} />
+            <InputError field="site-server" message={error} />
         </div>
     );
 }

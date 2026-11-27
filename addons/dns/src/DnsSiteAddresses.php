@@ -12,13 +12,13 @@ final class DnsSiteAddresses implements SiteAddressLookup
     /**
      * One read: each enabled DNS check's newest accepted run (checks.latest_run_id) finds its observation through the
      * (run_id, claim_token) index, so the read grows with the number of DNS checks, not with their history. Addresses
-     * compare as binary, so differently written IPv6 forms match.
+     * compare as binary, so two spellings of one address match.
      */
     public function sitesPointingAt(array $addresses): array
     {
         $wanted = [];
         foreach ($addresses as $address) {
-            $binary = self::binary($address);
+            $binary = $this->binary($address);
             if ($binary !== null) {
                 $wanted[$binary] = $address;
             }
@@ -34,7 +34,7 @@ final class DnsSiteAddresses implements SiteAddressLookup
             ORDER BY o.site_id");
         $sites = [];
         foreach ($records as $record) {
-            $binary = self::binary($record->address);
+            $binary = $this->binary($record->address);
             if ($binary !== null && isset($wanted[$binary])) {
                 $sites[$record->site_id] ??= $wanted[$binary];
             }
@@ -43,7 +43,7 @@ final class DnsSiteAddresses implements SiteAddressLookup
         return $sites;
     }
 
-    private static function binary(?string $address): ?string
+    private function binary(?string $address): ?string
     {
         $binary = filter_var($address, FILTER_VALIDATE_IP) === false ? false : inet_pton((string) $address);
 

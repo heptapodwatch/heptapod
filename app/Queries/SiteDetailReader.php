@@ -137,7 +137,7 @@ final readonly class SiteDetailReader
             SiteRepositoryData::forSite($siteId), $this->siteServers($user)?->choices($siteId));
     }
 
-    /** The servers addon's site link, when it is installed and the user may see servers on an instance that has them on. */
+    /** The site link of the servers addon, when it is installed and the user may see servers on an instance that has them on. */
     public function siteServers(User $user): ?SiteServers
     {
         $access = app(ServersAccess::class);

@@ -26,7 +26,7 @@ final readonly class InstanceServersAccess implements ServersAccess
             && $user->tokenClientConstraint() === null;
     }
 
-    /** A source or Git install runs `sha-…` or `unknown`, which has no agent release of its own. */
+    /** A source or Git install runs a commit build or `unknown`, which has no agent release of its own. */
     public function agentReleaseTag(): ?string
     {
         $version = config()->string('heptapod.version');

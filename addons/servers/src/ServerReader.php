@@ -59,13 +59,13 @@ final readonly class ServerReader
         /** @var list<object> $items */
         $items = array_values($page->items());
 
-        return ['servers' => array_map(self::row(...), $items), 'pagination' => PaginationData::fromPaginator($page)];
+        return ['servers' => array_map($this->row(...), $items), 'pagination' => PaginationData::fromPaginator($page)];
     }
 
     /** The one server, with its newest sample. */
     public function server(CarbonImmutable $now, int $serverId): ServerRowData
     {
-        return self::row($this->query($now)->where('servers.id', $serverId)->sole());
+        return $this->row($this->query($now)->where('servers.id', $serverId)->sole());
     }
 
     /** The server the site runs on; null while it is not linked. */
@@ -73,7 +73,7 @@ final readonly class ServerReader
     {
         $row = $this->query($now)->whereRaw('servers.id = (SELECT server_id FROM server_sites WHERE site_id = ?)', [$siteId])->first();
 
-        return $row === null ? null : self::row($row);
+        return $row === null ? null : $this->row($row);
     }
 
     /**
@@ -110,7 +110,7 @@ final readonly class ServerReader
             ->selectRaw("(latest.metrics->'load'->>'5')::float8 / nullif((latest.metrics->'cpu'->>'cores')::float8, 0) AS load_per_core");
     }
 
-    private static function row(object $row): ServerRowData
+    private function row(object $row): ServerRowData
     {
         /** @var object{id: int, name: string, last_report_at: string|null, agent_version: string|null, settings: string, site_count: int, hostname: string|null, agent_os: string|null, agent_arch: string|null, agent_distro: string|null, agent_kernel: string|null, ips: string|null, observed_at: string|null, metrics: string|null, state: string} $row */
         /** @var array{mounts?: list<array{mount: string, percent: int, minutes: int}>, memory_percent?: int, memory_minutes?: int, load_per_core?: int|float, load_minutes?: int, no_report_minutes?: int, ignored_mounts?: list<string>} $settings */

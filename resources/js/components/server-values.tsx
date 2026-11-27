@@ -260,7 +260,7 @@ export function ServerGaugeRow({
                     gauge={
                         <span
                             className={cn(
-                                'grid size-14 place-items-center font-mono text-lg tabular-nums',
+                                'grid size-14 place-items-center font-mono text-stat tabular-nums',
                                 toneTextClass[load.tone],
                             )}
                         >
