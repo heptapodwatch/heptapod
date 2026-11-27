@@ -223,5 +223,10 @@
     "alert_channels.failure_other": "Alarme zu fehlgeschlagenen Prüfungen gehen an {{formattedCount}} Kanäle",
     "alert_channels.failure_none": "Kein Kanal erhält fehlgeschlagene Prüfungen",
     "alert_channels.card_title": "Alarme",
-    "alert_channels.no_uptime": "Keine Ausfallalarme: Für diese Website läuft keine Erreichbarkeitsprüfung."
+    "alert_channels.no_uptime": "Keine Ausfallalarme: Für diese Website läuft keine Erreichbarkeitsprüfung.",
+    "notifications.servers_not_editable": "Serverwarnungen können für diesen Kanal nicht geändert werden.",
+    "recipient_settings.category.servers.label": "Server",
+    "recipient_settings.category.servers.plural": "Serverprobleme",
+    "recipient_settings.category.servers.description": "Ein Server braucht Aufmerksamkeit: Festplatte, Arbeitsspeicher, Last oder kein Bericht.",
+    "recipient_settings.servers_client_limited": "Serverwarnungen erreichen nie einen Kanal, der auf einen Kunden beschränkt ist."
 }

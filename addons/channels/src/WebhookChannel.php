@@ -70,7 +70,8 @@ final class WebhookChannel extends TransportChannel
         $notifiable = Notification::route('webhook', $destination->string('url'));
         /** @var string $url */
         $url = $notifiable->routeNotificationFor('webhook');
-        // A system issue is about the instance: same keys, site and check fields null (docs/webhook-receivers.md).
+        // A system or server issue has no site: same keys, site and check fields null; a server issue adds its server
+        // (docs/webhook-receivers.md).
         $system = $alert->message->systemFacts !== null;
         $payload = [
             'event_id' => $alert->message->eventId, 'destination_id' => $destination->destinationId,
@@ -84,6 +85,7 @@ final class WebhookChannel extends TransportChannel
             'since' => $alert->message->since->toIso8601String(), 'downtime_seconds' => $alert->message->downtimeSeconds,
             'link' => $alert->message->link, 'is_test' => $alert->message->isTest,
             'repositories' => $alert->message->repositories,
+            ...($alert->message->server === null ? [] : ['server' => $alert->message->server]),
         ];
         $signer = new TimestampSigner(now()->getTimestamp());
         /** @var list<array{name: string, value: string}> $headers */

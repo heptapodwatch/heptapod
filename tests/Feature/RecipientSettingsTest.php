@@ -118,13 +118,13 @@ it('creates team, own and client channels with the design defaults and refuses a
     expect(NotificationDestination::query()->findOrFail($team)->recipient_kind)->toBe(RecipientKind::Team)
         ->and(NotificationDestination::query()->findOrFail($clientChannel)->client_id)->toBe($client->id)
         ->and(NotificationDestination::query()->findOrFail($own)->user_id)->toBe($member->id);
-    // Design 1.3: team hears everything except Changes and System; clients nothing; a Member's channel outages, failures and recoveries.
+    // Design 1.3: team hears everything except Changes, System and Servers; clients nothing; a Member's channel outages, failures and recoveries.
     // Check errors go to the daily digest on team and personal channels.
     expect(recipientGrid($team))->toBe(['changes' => 'off', 'check_error' => 'digest', 'expiring' => 'immediate', 'failure' => 'immediate',
-        'outage' => 'immediate', 'recovery' => 'immediate', 'system' => 'off', 'warning' => 'immediate']);
+        'outage' => 'immediate', 'recovery' => 'immediate', 'servers' => 'off', 'system' => 'off', 'warning' => 'immediate']);
     expect(array_unique(recipientGrid($clientChannel)))->toBe(['changes' => 'off']);
     expect(recipientGrid($own))->toBe(['changes' => 'off', 'check_error' => 'digest', 'expiring' => 'off', 'failure' => 'immediate',
-        'outage' => 'immediate', 'recovery' => 'immediate', 'system' => 'off', 'warning' => 'off']);
+        'outage' => 'immediate', 'recovery' => 'immediate', 'servers' => 'off', 'system' => 'off', 'warning' => 'off']);
 });
 
 it('lets only the people who manage a recipient change its channels', function (): void {

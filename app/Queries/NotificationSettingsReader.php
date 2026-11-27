@@ -9,6 +9,7 @@ use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
 use Heptapod\Contracts\Notifications\DeliveryState;
+use Heptapod\Contracts\ServersAccess;
 use Heptapod\Data\Ui\ChannelTypeData;
 use Heptapod\Data\Ui\NotificationChannelData;
 use Heptapod\Data\Ui\NotificationSettingsPageData;
@@ -37,7 +38,7 @@ final readonly class NotificationSettingsReader
     /** Audit event an Owner writes to hide the stored migration report on the team page for the whole instance. */
     public const string MigrationReportDismissed = 'notifications.migration_report_dismissed';
 
-    public function __construct(private ChannelRegistry $channels, private CheckRegistry $checks, private SitePolicy $sites, private InstanceSettings $settings, private GenericSiteIcons $icons) {}
+    public function __construct(private ChannelRegistry $channels, private CheckRegistry $checks, private SitePolicy $sites, private InstanceSettings $settings, private GenericSiteIcons $icons, private ServersAccess $servers) {}
 
     public function team(User $viewer): NotificationSettingsPageData
     {
@@ -132,6 +133,10 @@ final readonly class NotificationSettingsReader
         $grid = [];
         foreach (NotificationCategory::grid() as $category) {
             if ($category === NotificationCategory::System && ($kind === RecipientKind::Client || ($own && ! $viewer->hasAnyRole(['Owner', 'Admin'])))) {
+                continue;
+            }
+            // Servers exist only while switched on and reach only Owners, Admins and team channels (ServerIssueMailer).
+            if ($category === NotificationCategory::Servers && ($kind === RecipientKind::Client || ! $this->servers->enabled() || ($own && ! $viewer->hasAnyRole(['Owner', 'Admin'])))) {
                 continue;
             }
             $modes = $category->allowsDigest() ? NotificationMode::cases() : [NotificationMode::Immediate, NotificationMode::Off];

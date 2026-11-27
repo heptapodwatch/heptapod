@@ -60,7 +60,7 @@ it('turns each client contact address into a client mail channel that hears noth
     expect($channels[0]->effectiveLocale())->toBe('de');
     foreach ($channels as $channel) {
         expect(DB::table('notification_preferences')->where('destination_id', $channel->id)->orderBy('category')->pluck('mode', 'category')->all())
-            ->toBe(array_fill_keys(['changes', 'check_error', 'expiring', 'failure', 'outage', 'recovery', 'system', 'warning'], 'off'));
+            ->toBe(array_fill_keys(['changes', 'check_error', 'expiring', 'failure', 'outage', 'recovery', 'servers', 'system', 'warning'], 'off'));
     }
     expect(NotificationDestination::query()->whereIn('client_id', [$without->id, $blank->id])->exists())->toBeFalse();
     $outage = new RoutingContext($site, NotificationCategory::Outage, AlertSeverity::Down, true, null);

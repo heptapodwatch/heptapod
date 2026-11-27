@@ -130,5 +130,12 @@
     "system_mail.monitor_outage.action": "Uptime runs are recorded as Check error instead of Down because this server's control probes fail. Check the host network connection.",
     "system_mail.monitor_outage.recovered": "Control probes pass again. Uptime runs are evaluated normally.",
     "system_mail.monitor_outage.mode.dns": "DNS lookups failed",
-    "system_mail.monitor_outage.mode.network": "Outbound network unreachable"
+    "system_mail.monitor_outage.mode.network": "Outbound network unreachable",
+    "server_mail.subject_open": "[Server] :title",
+    "server_mail.subject_recovered": "[Server recovered] :title",
+    "server_mail.headline_recovered": "Resolved: :title",
+    "server_mail.why_personal": "You receive this because server alerts are turned on for this channel in Settings › My notifications.",
+    "server_mail.why_team": "This channel receives this because server alerts are turned on for it in the team notification settings.",
+    "server_mail.facts": "Details",
+    "server_mail.open_server": "Open server"
 }

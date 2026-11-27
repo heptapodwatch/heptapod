@@ -36,7 +36,8 @@ final class NotificationPreference extends Model
 
     /**
      * Defaults for new channels (design §1.3). Clients hear nothing automatically; Changes is off for everyone (Q7).
-     * New users get Outage, Failure and Recovery (Q2); System is on for Owners and visible but off for Admins and the team.
+     * New users get Outage, Failure and Recovery (Q2); System is on for Owners and visible but off for Admins and the team;
+     * Servers is on for Owners and Admins and off for the team.
      * Check error ("we could not check") is never urgent: team and personal channels get it in the daily digest.
      *
      * @return array<string, NotificationMode>
@@ -51,6 +52,8 @@ final class NotificationPreference extends Model
             default => [...array_fill_keys(self::gridKeys(), $off), 'outage' => $now, 'failure' => $now, 'recovery' => $now],
         };
         $cells['system'] = $kind === RecipientKind::User && $role === 'Owner' ? $now : $off;
+        // Server alerts reach Owners and Admins; a team channel opts in.
+        $cells['servers'] = $kind === RecipientKind::User && in_array($role, ['Owner', 'Admin'], true) ? $now : $off;
         if ($kind !== RecipientKind::Client) {
             $cells['check_error'] = NotificationMode::Digest;
         }

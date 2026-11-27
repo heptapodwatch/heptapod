@@ -9,12 +9,14 @@ use Heptapod\Addons\Servers\Server;
 use Heptapod\Addons\Servers\ServerToken;
 use Illuminate\Support\Facades\DB;
 
-final class RecordServerReport
+final readonly class RecordServerReport
 {
+    public function __construct(private EvaluateServerIssues $issues) {}
+
     /**
      * Stores one validated agent report. The server row is locked and the token checked again inside the write, so a
      * rotation or removal that commits first wins: the report is refused instead of landing late or failing on the
-     * foreign key.
+     * foreign key. A new sample opens and resolves the server's issues in the same transaction (EvaluateServerIssues).
      *
      * @param  array{sample_id: string, agent: array{version: string, os: string, arch: string, distro: string, kernel: string}, host: array{hostname: string, uptime_seconds: int, reboot_required: bool|null, ips: list<string>}, cpu: array{cores: int, used_percent: int|float}, load: array{1: int|float, 5: int|float, 15: int|float}, memory: array{total_bytes: int, available_bytes: int}, filesystems: list<array{mount: string, total_bytes: int, free_bytes: int}>, updates: array{pending: int|null, security: int|null}}  $report
      */
@@ -32,7 +34,7 @@ final class RecordServerReport
             'updates' => ['pending' => $report['updates']['pending'], 'security' => $report['updates']['security']],
         ];
 
-        return DB::transaction(static function () use ($token, $serverId, $report, $metrics, $observedAt, $receivedAt): ServerReportOutcome {
+        return DB::transaction(function () use ($token, $serverId, $report, $metrics, $observedAt, $receivedAt): ServerReportOutcome {
             $query = Server::query()->whereKey($serverId);
             $query->getQuery()->lockForUpdate();
             $server = $query->first();
@@ -51,6 +53,7 @@ final class RecordServerReport
                 $server->forceFill(['last_report_at' => $receivedAt, 'agent_version' => $report['agent']['version'], 'agent_os' => $report['agent']['os'],
                     'agent_arch' => $report['agent']['arch'], 'agent_distro' => $report['agent']['distro'], 'agent_kernel' => $report['agent']['kernel'],
                     'hostname' => $report['host']['hostname'], 'ips' => $report['host']['ips']])->save();
+                $this->issues->afterSample($server, $metrics, $observedAt);
             }
 
             return $stored ? ServerReportOutcome::Stored : ServerReportOutcome::Duplicate;

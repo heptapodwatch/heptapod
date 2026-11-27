@@ -10,8 +10,8 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Notifications\Notification;
 
 /**
- * A system issue opening or recovery for an Owner, an opted-in Admin or a team channel. Rendered for the recipient's
- * locale before sending: mail uses the system mail model, other transports the same facts as plain lines.
+ * A system or server issue opening or recovery for an Owner, an Admin or a team channel. Rendered for the recipient's
+ * locale before sending: mail uses the issue's mail model, other transports the same facts as plain lines.
  */
 final class SystemIssueNotification extends Notification
 {

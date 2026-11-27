@@ -25,14 +25,19 @@ use Heptapod\Events\Notifications\NotificationEventTypes;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\Event;
 use Heptapod\Models\Site;
+use Heptapod\Models\User;
+use Heptapod\Servers\ServerIssueMailer;
 use Heptapod\Support\RedactionContext;
 
 final readonly class EventPresenter
 {
-    public function __construct(private NotificationEventTypes $types, private CauseSummary $summaries, private CheckRunPresentations $presentations) {}
+    public function __construct(private NotificationEventTypes $types, private CauseSummary $summaries, private CheckRunPresentations $presentations, private ServerIssueMailer $serverIssues) {}
 
     public function present(Event $event, ?CheckRun $run = null, bool $describeResultChange = false): EventData
     {
+        if ($event->server_issue_id !== null) {
+            return $this->presentServerIssue($event);
+        }
         // A deleted site is a valid audit state. Snapshot identity has no navigable relation.
         $site = $event->site;
         $label = $site?->displayName() ?? $event->site_name ?? throw new \LogicException('A timeline event must retain its site label.');
@@ -167,5 +172,18 @@ final readonly class EventPresenter
             $event->check->type ?? $event->check_type, $event->type, $time->toIso8601String(), $message, $params, $duration,
             $clientName, $site?->iconUrl(), $site->icon_backing ?? SiteIconBacking::None, $site->client_id ?? $event->client_id, $presentation->changes ?? [],
             is_int($event->payload['run_id'] ?? null) ? $event->payload['run_id'] : null, $event->check_id);
+    }
+
+    /** A server issue (servers addon) names its server where other events name their site, and links to it while it exists. */
+    private function presentServerIssue(Event $event): EventData
+    {
+        $user = request()->user();
+        $message = $this->serverIssues->message($event, app()->getLocale(), User::viewerTimezone($user instanceof User ? $user : null));
+        $serverId = $event->payload['server_id'] ?? null;
+
+        return new EventData($event->id, $event->type === ServerIssueMailer::ResolvedType ? AlertSeverity::Recovered : AlertSeverity::Warning,
+            null, $event->server_name ?? throw new \LogicException('A server issue event needs its server name.'), null, null, $event->type,
+            $event->occurred_at->toIso8601String(), $message->summary, [], null, '',
+            server_id: $message->url !== null && is_int($serverId) ? $serverId : null);
     }
 }

@@ -9,6 +9,7 @@ use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\Notifications\AlertSeverity;
 use Heptapod\Contracts\PaginationData;
+use Heptapod\Contracts\ServersAccess;
 use Heptapod\Data\Ui\ActivityGroupData;
 use Heptapod\Data\Ui\EventData;
 use Heptapod\Events\EventPresenter;
@@ -26,7 +27,13 @@ use Illuminate\Support\Facades\DB;
 /** @phpstan-type ActivityGroupRow \stdClass&object{id: int, latest_id: int, check_id: int|null, event_count: int, started_at: string, ended_at: string, first_state: string|null, second_state: string|null, current_state: string|null} */
 final readonly class EventsReader
 {
-    public function __construct(private SitePolicy $policy, private EventPresenter $presenter, private ListPaging $paging) {}
+    public function __construct(private SitePolicy $policy, private EventPresenter $presenter, private ListPaging $paging, private ServersAccess $servers, private bool $serverIssues = false) {}
+
+    /** This reader with server issues (servers addon) in the cross-site lists, for Owners and Admins while servers are on: the Activity page. */
+    public function withServerIssues(): self
+    {
+        return clone ($this, ['serverIssues' => true]);
+    }
 
     /** @return list<EventData> */
     public function read(User $user, ?int $siteId = null, ?int $checkId = null, ?int $incidentId = null, ?CarbonImmutable $since = null, int $limit = 20, int $offset = 0, ?string $search = null, ?int $clientId = null, ?string $type = null): array
@@ -287,12 +294,17 @@ final readonly class EventsReader
             $query->getQuery()->where('incident_id', $incidentId);
         }
         $clients = $this->policy->visibleClients($user)->getQuery()->select('clients.id');
-        $query->where(function (Builder $scope) use ($sites, $clients, $siteId): void {
+        // Server issues have no site or client (withServerIssues()).
+        $servers = $this->serverIssues && $siteId === null && $this->servers->enabled() && $this->servers->allows($user);
+        $query->where(function (Builder $scope) use ($sites, $clients, $siteId, $servers): void {
             $scope->getQuery()->whereIn('site_id', $sites);
             if ($siteId === null) {
                 $scope->orWhere(function (Builder $deleted) use ($clients): void {
                     $deleted->getQuery()->whereNull('site_id')->whereIn('client_id', $clients);
                 });
+            }
+            if ($servers) {
+                $scope->getQuery()->orWhereNotNull('server_issue_id');
             }
         });
         if ($since instanceof CarbonImmutable) {
@@ -322,7 +334,9 @@ final readonly class EventsReader
                         ->orWhereHas('client', static function (Builder $client) use ($pattern): void {
                             $client->getQuery()->whereRaw(Client::displayNameSql().' ILIKE ?', [__('No client'), $pattern]);
                         });
-                }))->orWhere(function (Builder $deleted) use ($pattern): void {
+                }))->orWhere(function (Builder $server) use ($pattern): void {
+                    $server->getQuery()->whereNotNull('server_issue_id')->where('server_name', 'ilike', $pattern);
+                })->orWhere(function (Builder $deleted) use ($pattern): void {
                     $deleted->getQuery()->whereNull('site_id');
                     $deleted->where(function (Builder $identity) use ($pattern): void {
                         $identity->where('site_name', 'ilike', $pattern)->orWhere('site_url', 'ilike', $pattern)->orWhere('client_name', 'ilike', $pattern)

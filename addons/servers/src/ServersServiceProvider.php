@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Heptapod\Addons\Servers;
 
+use Carbon\CarbonImmutable;
+use Heptapod\Addons\Servers\Actions\EvaluateServerIssues;
 use Heptapod\Addons\Servers\Http\AgentResponses;
 use Heptapod\Addons\Servers\Http\EnsureServersEnabled;
+use Heptapod\Contracts\ServerIssues;
 use Heptapod\Contracts\ServersAccess;
 use Heptapod\Contracts\SiteServers;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -23,6 +26,7 @@ final class ServersServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/servers.php', 'servers');
         $this->app->bind(SiteServers::class, DatabaseSiteServers::class);
+        $this->app->scoped(ServerIssues::class, ServerIssueTexts::class);
     }
 
     public function boot(): void
@@ -42,6 +46,9 @@ final class ServersServiceProvider extends ServiceProvider
         $this->callAfterResolving(Schedule::class, static function (Schedule $schedule): void {
             $schedule->call(new PruneServerSamples)->name('servers:prune-samples')->hourly()->withoutOverlapping(120)
                 ->when(static fn (): bool => app(ServersAccess::class)->enabled());
+            // "No report" on the system issue evaluator's cadence; disk, RAM and load are evaluated as samples arrive.
+            $schedule->call(static fn () => app(EvaluateServerIssues::class)->noReports(CarbonImmutable::now('UTC')))->name('servers:evaluate-no-report')
+                ->everyFiveMinutes()->withoutOverlapping(15)->when(static fn (): bool => app(ServersAccess::class)->enabled());
         });
     }
 }

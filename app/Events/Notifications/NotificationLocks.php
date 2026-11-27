@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\DB;
  *                              changes hold FOR UPDATE)
  *   2. maintenance recurrences (recurring_maintenance_periods, FOR NO KEY UPDATE; deletion FOR UPDATE)
  *   3. maintenance windows  (maintenance_periods, FOR NO KEY UPDATE; catch-up and deletion FOR UPDATE)
- *   4. system issue         (system_issues, FOR UPDATE)
+ *   4. system issue         (system_issues, FOR UPDATE; a server issue, server_issues FOR UPDATE, is held here by the servers addon)
  *   5. checks               (checks, FOR KEY SHARE: what an event insert takes; the recorder holds FOR UPDATE)
  *   6. sites                (sites, FOR NO KEY UPDATE)
  *   7. incidents            (incidents, FOR NO KEY UPDATE)
@@ -59,7 +59,7 @@ use Illuminate\Support\Facades\DB;
  *                 (level 9) and cascades to maintenance_site_exclusions and maintenance_catch_up_sites. FOR NO KEY UPDATE
  *                 does not conflict with KEY SHARE, so only catch-up and deletion (FOR UPDATE) block the recorder's
  *                 incident insert
- *   system issue: events.system_issue_id (KEY SHARE on insert; RESTRICT on delete)
+ *   system issue: events.system_issue_id and events.server_issue_id (KEY SHARE on insert; RESTRICT on delete)
  *   checks:       events.check_id (KEY SHARE on insert; SET NULL on delete), incidents.check_id (CASCADE)
  *   sites:        events.site_id (KEY SHARE on insert; SET NULL on delete), incidents.site_id and checks.site_id
  *                 (CASCADE: deleting a site deletes level 5 rows, so a site deletion locks its checks first)

@@ -25,6 +25,7 @@ use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\NotificationSchedule;
 use Heptapod\Models\User;
+use Heptapod\Servers\ServerIssueMailer;
 use Heptapod\SystemHealth\SystemIssueMailer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -58,7 +59,7 @@ final readonly class ClaimNotificationDelivery
             'lease_until' => $at->addSeconds(SendNotification::LeaseSeconds), 'attempts' => $delivery->attempts + 1]);
     }
 
-    public function __construct(private NotificationTiming $timing, private NotificationEventTypes $types, private HandleDeferredUptimeOpening $deferredOpenings) {}
+    public function __construct(private NotificationTiming $timing, private NotificationEventTypes $types, private HandleDeferredUptimeOpening $deferredOpenings, private ServerIssueMailer $serverIssues) {}
 
     public function __invoke(int $deliveryId): ?Delivery
     {
@@ -138,6 +139,9 @@ final readonly class ClaimNotificationDelivery
             }
             if ($event->system_issue_id !== null) {
                 return $this->claimSystem($delivery, $destination, $at);
+            }
+            if ($event->server_issue_id !== null) {
+                return $this->serverIssues->claim($delivery, $destination, $event, $at);
             }
             $recipient = $destination->user_id === null ? null : User::query()->findOrFail($destination->user_id);
             if ($event->type !== 'notification.digest' && ($event->site_id === null
@@ -260,6 +264,22 @@ final readonly class ClaimNotificationDelivery
                         continue;
                     }
                     $sourceEvent = $source->event ?? throw new \LogicException('Digest source event is missing.');
+                    if ($sourceEvent->server_issue_id !== null) {
+                        $ended = ServerIssueMailer::digestEnded($sourceEvent, $destination);
+                        if ($ended !== null) {
+                            $excludedReasons[] = $ended;
+                            if ($source->state === DeliveryState::Pending) {
+                                $source->update(['suppressed' => true, 'suppression_reason' => $ended, 'suppression_evaluated_at' => $at]);
+                            }
+
+                            continue;
+                        }
+                        $included[] = $source->id;
+                        $server = $sourceEvent->server_name ?? throw new \LogicException('A server issue event needs its server name.');
+                        $sites['server:'.$server] = $server;
+
+                        continue;
+                    }
                     $site = $sourceEvent->site;
                     if ($site === null || $sourceEvent->check_id === null) {
                         $reason = $site === null ? 'site_deleted' : 'monitoring_stopped';

@@ -19,6 +19,7 @@ use Heptapod\Models\Event;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\NotificationSchedule;
 use Heptapod\Models\User;
+use Heptapod\Servers\ServerIssueMailer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -105,9 +106,23 @@ final readonly class EmitNotificationDigests
                 }
                 $included = [];
                 $sites = [];
+                $servers = [];
                 $recipient = $destination->user_id === null ? null : User::query()->findOrFail($destination->user_id);
                 foreach ($sources as $source) {
                     $event = $source->event ?? throw new \LogicException('Digest source event is missing.');
+                    if ($event->server_issue_id !== null) {
+                        // A server issue stays in the digest while it is open and the channel may hear about servers.
+                        $ended = ServerIssueMailer::digestEnded($event, $destination);
+                        if ($ended === null) {
+                            $included[] = $source->id;
+                            $servers[$event->server_issue_id] = $event->server_name ?? throw new \LogicException('A server issue event needs its server name.');
+                        } elseif ($source->state === DeliveryState::Pending) {
+                            $source->update(['suppressed' => true, 'suppression_reason' => $ended, 'suppression_evaluated_at' => $at]);
+                            $source->announceChanges();
+                        }
+
+                        continue;
+                    }
                     if ($event->site_id === null || $event->check_id === null) {
                         if ($source->state === DeliveryState::Pending) {
                             $source->update(['suppressed' => true, 'suppression_reason' => $event->site_id === null ? 'site_deleted' : 'monitoring_stopped', 'suppression_evaluated_at' => $at]);
@@ -157,10 +172,11 @@ final readonly class EmitNotificationDigests
                 if ($included === []) {
                     return;
                 }
+                $labels = [...array_values($sites), ...array_values(array_unique($servers))];
                 $shown = array_map(static fn (string $label): string => mb_strlen($label, 'UTF-8') > 80
-                    ? mb_substr($label, 0, 79, 'UTF-8').'…' : $label, array_slice(array_values($sites), 0, 20));
+                    ? mb_substr($label, 0, 79, 'UTF-8').'…' : $label, array_slice($labels, 0, 20));
                 $digest = Event::query()->create(['type' => 'notification.digest', 'site_id' => null, 'occurred_at' => $at,
-                    'payload' => ['count' => count($included), 'sites' => implode(', ', $shown), 'remaining_sites' => count($sites) - count($shown), 'delivery_ids' => $included],
+                    'payload' => ['count' => count($included), 'sites' => implode(', ', $shown), 'remaining_sites' => count($labels) - count($shown), 'delivery_ids' => $included],
                     'suppressed' => false, 'suppression_reason' => null,
                     'suppression_evaluated_at' => $at, 'notification_routed_at' => $at,
                 ]);

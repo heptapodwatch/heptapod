@@ -42,6 +42,8 @@ use Illuminate\Support\Arr;
  * @property CarbonImmutable $suppression_evaluated_at
  * @property CarbonImmutable|null $notification_routed_at
  * @property int|null $system_issue_id set only on system.issue_opened and system.issue_resolved, which have no site
+ * @property int|null $server_issue_id set only on server.issue_opened and server.issue_resolved (servers addon), which have no site
+ * @property string|null $server_name the server's name when the server issue event was recorded
  */
 #[DateFormat('Y-m-d H:i:s.uP')]
 #[Guarded(['id'])]

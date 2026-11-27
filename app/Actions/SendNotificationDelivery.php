@@ -10,11 +10,12 @@ use Heptapod\Contracts\Notifications\ChannelRegistry;
 use Heptapod\Contracts\Notifications\DeliveryResult;
 use Heptapod\Events\Notifications\NotificationMessage;
 use Heptapod\Models\Delivery;
+use Heptapod\Servers\ServerIssueMailer;
 use Heptapod\SystemHealth\SystemIssueMailer;
 
 final readonly class SendNotificationDelivery
 {
-    public function __construct(private ClaimNotificationDelivery $claim, private CompleteNotificationDelivery $complete, private ChannelRegistry $channels, private NotificationMessage $messages, private SystemIssueMailer $systemIssues, private SendClientMessage $clientMessages) {}
+    public function __construct(private ClaimNotificationDelivery $claim, private CompleteNotificationDelivery $complete, private ChannelRegistry $channels, private NotificationMessage $messages, private SystemIssueMailer $systemIssues, private ServerIssueMailer $serverIssues, private SendClientMessage $clientMessages) {}
 
     /** The transport outcome, or null when the claim did not hand out the delivery. */
     public function __invoke(int $deliveryId): ?DeliveryResult
@@ -31,6 +32,7 @@ final readonly class SendNotificationDelivery
             : ChannelRecipient::forChannel($destination->destinationConfig());
         $notification = match (true) {
             $event->system_issue_id !== null => $this->systemIssues->notification($event, $destination),
+            $event->server_issue_id !== null => $this->serverIssues->notification($event, $destination),
             str_starts_with($event->type, 'client_message.') => $this->clientMessages->notification($event),
             default => new AlertNotification($this->messages->build($event, $destination, $delivery->category, foldedRecovery: $delivery->folded_with_recovery), $delivery->event_id.':'.$destination->id),
         };

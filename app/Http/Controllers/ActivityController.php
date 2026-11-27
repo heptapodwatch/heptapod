@@ -28,6 +28,7 @@ final class ActivityController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
+        $reader = $reader->withServerIssues();
         Validator::make($request->all(), [
             'q' => ['sometimes', 'nullable', 'string', 'max:255'],
             'client' => ['sometimes', 'integer', 'min:1'],

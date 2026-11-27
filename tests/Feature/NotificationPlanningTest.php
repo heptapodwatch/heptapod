@@ -324,7 +324,7 @@ it('holds planned account mail while a changed address is unverified, then sends
     expect(json_decode($channel->fresh()->getAttributes()['config'], true))->toBe([]);
 });
 
-it('gives invited Admins and Members the outage, failure and recovery defaults and System per role', function (string $role, string $system): void {
+it('gives invited Admins and Members the outage, failure and recovery defaults and System and Servers per role', function (string $role, string $system, string $servers): void {
     Notification::fake();
     $owner = User::factory()->owner()->create();
     $this->actingAs($owner)->postJson(route('settings.members.invite'), ['email' => 'new@example.test', 'role' => $role,
@@ -345,9 +345,9 @@ it('gives invited Admins and Members the outage, failure and recovery defaults a
     expect($channel->account_mail)->toBeTrue()->and($channel->recipient_kind)->toBe(RecipientKind::User);
     expect(DB::table('notification_preferences')->where('destination_id', $channel->id)->orderBy('category')->pluck('mode', 'category')->all())
         ->toBe(['changes' => 'off', 'check_error' => 'digest', 'expiring' => 'off', 'failure' => 'immediate', 'outage' => 'immediate',
-            'recovery' => 'immediate', 'system' => $system, 'warning' => 'off']);
+            'recovery' => 'immediate', 'servers' => $servers, 'system' => $system, 'warning' => 'off']);
     expect(Invitation::query()->exists())->toBeFalse();
-})->with(['Admin' => ['Admin', 'off'], 'Member' => ['Member', 'off']]);
+})->with(['Admin' => ['Admin', 'off', 'immediate'], 'Member' => ['Member', 'off', 'off']]);
 
 it('keeps queued manual sends and account System mail when a channel is paused and still sends them', function (): void {
     Mail::fake();

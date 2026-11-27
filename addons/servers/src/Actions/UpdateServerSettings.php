@@ -4,15 +4,20 @@ declare(strict_types=1);
 
 namespace Heptapod\Addons\Servers\Actions;
 
+use Carbon\CarbonImmutable;
 use Heptapod\Addons\Servers\Data\ServerThresholdsData;
 use Heptapod\Addons\Servers\Server;
+use Heptapod\Addons\Servers\ServerIssueKind;
+use Illuminate\Support\Facades\DB;
 
-final class UpdateServerSettings
+final readonly class UpdateServerSettings
 {
+    public function __construct(private EvaluateServerIssues $issues) {}
+
     /**
      * Saves the name and keeps only the thresholds that differ from the instance defaults, so a server on the defaults
      * follows a later change of them; a mount's percent and duration are kept each on its own. An ignored mount keeps no
-     * threshold.
+     * threshold, and its open disk issue ends without a recovery alert. Changed thresholds apply from the next sample.
      *
      * @param  array{name: string, mounts: list<array{mount: string, percent: int|numeric-string, minutes: int|numeric-string}>, ignored_mounts: list<string>, memory_percent: int|numeric-string, memory_minutes: int|numeric-string, load_per_core: int|float|numeric-string, load_minutes: int|numeric-string, no_report_minutes: int|numeric-string}  $values  validated (ServersController::update), numbers possibly as text
      */
@@ -41,6 +46,10 @@ final class UpdateServerSettings
         if ($ignored !== []) {
             $settings['ignored_mounts'] = $ignored;
         }
-        $server->forceFill(['name' => $values['name'], 'settings' => $settings])->save();
+        DB::transaction(function () use ($server, $values, $settings, $ignored): void {
+            $locked = $this->issues->lock($server->id) ?? abort(404);
+            $locked->forceFill(['name' => $values['name'], 'settings' => $settings])->save();
+            $this->issues->end($locked, 'mount_ignored', CarbonImmutable::now('UTC'), ServerIssueKind::DiskFull, $ignored);
+        });
     }
 }

@@ -14,6 +14,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 /**
  * Readers obtain severity from NotificationEventTypes::severity(), not from the site's current state.
  * Null site_id documents a deleted site: site_name is the localized deleted-site label; client_name is retained.
+ * A server issue (servers addon) has no site: site_name is its server's name and server_id links to the server while it exists.
  */
 #[TypeScript]
 final class EventData extends Data
@@ -42,6 +43,7 @@ final class EventData extends Data
         // The stored run that produced this event, when the recorder named one.
         public readonly ?int $run_id = null,
         public readonly ?int $check_id = null,
+        public readonly ?int $server_id = null,
     ) {}
 
     /** The elapsed time of a recovery that recorded none, taken from the failure it ends. */

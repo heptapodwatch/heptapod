@@ -25,6 +25,8 @@ enum NotificationCategory: string
     case Recovery = 'recovery';
     case Changes = 'changes';
     case System = 'system';
+    /** Server issues (servers addon): Owners, Admins and team channels without a client limit only. */
+    case Servers = 'servers';
     case Report = 'report';
 
     /** Routing keys whose events become Changes. */
@@ -37,12 +39,12 @@ enum NotificationCategory: string
     /** @return list<self> */
     public static function grid(): array
     {
-        return [self::Outage, self::Failure, self::CheckError, self::Warning, self::Expiring, self::Recovery, self::Changes, self::System];
+        return [self::Outage, self::Failure, self::CheckError, self::Warning, self::Expiring, self::Recovery, self::Changes, self::System, self::Servers];
     }
 
     public function allowsDigest(): bool
     {
-        return in_array($this, [self::CheckError, self::Warning, self::Expiring, self::Changes], true);
+        return in_array($this, [self::CheckError, self::Warning, self::Expiring, self::Changes, self::Servers], true);
     }
 
     /** Null when the event is not routed (no routing key, digest containers, reclassified findings). */
@@ -50,6 +52,9 @@ enum NotificationCategory: string
     {
         if (in_array($event->type, ['system.issue_opened', 'system.issue_resolved'], true)) {
             return self::System;
+        }
+        if (in_array($event->type, ['server.issue_opened', 'server.issue_resolved'], true)) {
+            return self::Servers;
         }
         $types = app(NotificationEventTypes::class);
         $routing = $event;

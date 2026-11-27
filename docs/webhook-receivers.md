@@ -75,6 +75,23 @@ A webhook channel receives System alerts when System is on for it in the team no
 
 Each problem and recovery is sent once per channel with its own `event_id`.
 
+## Server alerts
+
+Server monitoring is experimental. A webhook channel receives server alerts when **Servers** is on for it in the team notification settings and the channel is not limited to one client. They report a problem on a monitored server, such as a full disk, and its recovery. The payload has the alert keys plus a `server` object:
+
+| Field                                             | Value                                                                         |
+| ------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `server`                                          | `{"id": 3, "name": "web-1", "url": "https://heptapod.example.com/servers/3"}` |
+| `server.url`                                      | The server page; `null` once the server is removed                            |
+| `site_id`, `site_label`, `site_url`, `check_type` | `null`                                                                        |
+| `title`                                           | Starts with `[Server]`, or `[Server recovered]` for a recovery                |
+| `headline`                                        | The measurement and its threshold, or what changed for a recovery             |
+| `summary`                                         | Localized facts, one per line                                                 |
+| `severity`                                        | `warning` for a problem, `recovered` for a recovery                           |
+| `link`                                            | The server page; `null` once the server is removed                            |
+
+Other alerts have no `server` key.
+
 ## PHP example
 
 Returns 401 when verification fails. `$secret` comes from your receiver configuration.
