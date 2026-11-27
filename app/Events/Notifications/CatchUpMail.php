@@ -27,36 +27,33 @@ final readonly class CatchUpMail
     public function build(Event $event, NotificationDestination $destination): MailModel
     {
         $locale = $destination->effectiveLocale();
-        $site = $event->site;
-        $name = $site?->displayName() ?? $event->site_name ?? throw new \LogicException('A catch-up must retain its site label.');
-        $label = $site === null ? __('events.deleted_site', ['label' => $name], $locale) : $name;
-        $rows = $site === null ? $this->retainedRows($event, $locale) : $this->openRows($event, $locale, $destination->resolvedTimezone());
+        // DeliveryPlan sends no alert whose site was deleted.
+        $site = $event->site ?? throw new \LogicException('A catch-up mail is built for an existing site.');
+        $name = $site->displayName();
+        $rows = $this->openRows($event, $locale, $destination->resolvedTimezone());
         // Failures before check errors, then by check name.
         usort($rows, static fn (array $a, array $b): int => [$a['state'] === 'check_error', $a['check']] <=> [$b['state'] === 'check_error', $b['check']]);
         // The rows share one byte budget, as in the digest; check names are unique per site, so each is its own fallback.
         $shown = array_slice($rows, 0, self::ShownItems);
         $items = MailRowBudget::fit(array_map(static fn (array $row, int $index): array => ['text' => $row['check'], 'meta' => $row['meta'], 'key' => $index], $shown, array_keys($shown)),
             array_column($shown, 'check'));
-        $blocks = [new ListBlock(__($site === null ? 'emails.catch_up_open_retained' : 'emails.catch_up_open', locale: $locale), $items)];
+        $blocks = [new ListBlock(__('emails.catch_up_open', locale: $locale), $items)];
         $hidden = count($rows) - count($items);
         if ($hidden > 0) {
             $blocks[] = new NoteBlock(trans_choice('emails.catch_up_more', $hidden, ['count' => $hidden], $locale));
         }
-        if ($site === null) {
-            $blocks[] = new NoteBlock(__('emails.site_deleted_note', locale: $locale));
-        }
         $category = NotificationCategory::of($event) ?? throw new \LogicException('A routed catch-up mail needs a category.');
         $footer = $this->routing->footer($destination, __('recipient_settings.category.'.$category->value.'.plural', locale: $locale));
-        $client = $site?->client;
-        $avatar = $site !== null && $client !== null ? $this->avatars->for($client, $site) : ['png' => null, 'cid' => null, 'tile' => null];
-        $lead = trans_choice($site === null ? 'emails.catch_up_lead_retained' : 'emails.catch_up_lead', count($rows), ['count' => count($rows)], $locale);
+        $client = $site->client ?? throw new \LogicException('A catch-up site must have a client.');
+        $avatar = $this->avatars->for($client, $site);
+        $lead = trans_choice('emails.catch_up_lead', count($rows), ['count' => count($rows)], $locale);
 
-        return new MailModel(locale: $locale, subject: __($site === null ? 'emails.catch_up_subject_retained' : 'notifications.maintenance_catch_up_title', ['site' => $label], $locale), preheader: $lead,
-            headline: __($site === null ? 'emails.catch_up_headline_retained' : 'emails.catch_up_headline', ['site' => $name], $locale), footerWhy: $footer['why'],
+        return new MailModel(locale: $locale, subject: __('notifications.maintenance_catch_up_title', ['site' => $name], $locale), preheader: $lead,
+            headline: __('emails.catch_up_headline', ['site' => $name], $locale), footerWhy: $footer['why'],
             instance: $this->settings->name.' · '.parse_url(config()->string('app.url'), PHP_URL_HOST),
             tone: array_any($rows, static fn (array $row): bool => $row['state'] !== 'check_error') ? MailTone::Failed : MailTone::CheckError,
-            lead: $lead, client: ($client ?? ($event->client?->is_internal === true ? $event->client : null))?->displayName($locale) ?? $event->client_name ?? throw new \LogicException('A catch-up must retain its client.'), site: $label, blocks: $blocks,
-            primary: $site === null ? null : ['label' => __('emails.open_site', locale: $locale), 'url' => route('sites.show', ['site' => $site->id])],
+            lead: $lead, client: $client->displayName($locale), site: $name, blocks: $blocks,
+            primary: ['label' => __('emails.open_site', locale: $locale), 'url' => route('sites.show', ['site' => $site->id])],
             routingLabel: __($footer['labelKey'], locale: $locale), routingUrl: $footer['url'],
             avatarPng: $avatar['png'], avatarCid: $avatar['cid'], avatarTile: $avatar['tile'], design: $this->settings->mail_design);
     }
@@ -83,22 +80,5 @@ final readonly class CatchUpMail
         }
 
         return $rows === [] ? throw new \LogicException('A catch-up mail needs an open incident.') : $rows;
-    }
-
-    /**
-     * A site deleted after the claim took its incidents with it; only the retained check keys remain.
-     *
-     * @return list<array{check: string, state: string, meta: string}>
-     */
-    private function retainedRows(Event $event, string $locale): array
-    {
-        $checks = $event->payload['check_keys'] ?? null;
-        if (! is_array($checks) || $checks === [] || array_any($checks, static fn (mixed $check): bool => ! is_string($check))) {
-            throw new \LogicException('A catch-up must retain its check keys.');
-        }
-
-        /** @var list<string> $checks */
-        return array_map(static fn (string $check): array => ['check' => __('checks.'.CheckKey::from($check)->value.'.label', locale: $locale),
-            'state' => 'retained', 'meta' => ''], $checks);
     }
 }
