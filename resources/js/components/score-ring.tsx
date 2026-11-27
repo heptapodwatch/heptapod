@@ -20,6 +20,7 @@ export function ScoreRing({
     tone,
     text,
     threshold,
+    size = 'md',
 }: {
     score: number;
     label: string;
@@ -27,6 +28,8 @@ export function ScoreRing({
     /** Shown inside instead of the bare score ("92 %"). */
     text?: string;
     threshold?: number;
+    /** `sm` for table rows: the bare number inside, the unit in the column header. */
+    size?: 'md' | 'sm';
 }) {
     const color =
         tone !== undefined
@@ -46,7 +49,8 @@ export function ScoreRing({
                     : `${label}: ${text}`
             }
             className={cn(
-                'grid size-14 place-items-center rounded-full font-mono text-sm tabular-nums',
+                'grid place-items-center rounded-full font-mono tabular-nums',
+                size === 'sm' ? 'size-9 text-xs' : 'size-14 text-sm',
                 threshold !== undefined && 'relative',
             )}
             style={{
@@ -59,11 +63,19 @@ export function ScoreRing({
                     className="absolute inset-0"
                     style={{ transform: `rotate(${threshold * 3.6}deg)` }}
                 >
-                    <span className="absolute top-0 left-1/2 h-1.5 w-0.5 -translate-x-1/2 bg-foreground" />
+                    <span
+                        className={cn(
+                            'absolute top-0 left-1/2 w-0.5 -translate-x-1/2 bg-foreground',
+                            size === 'sm' ? 'h-1' : 'h-1.5',
+                        )}
+                    />
                 </span>
             )}
             <span
-                className="grid size-11 place-items-center rounded-full bg-card"
+                className={cn(
+                    'grid place-items-center rounded-full bg-card',
+                    size === 'sm' ? 'size-7' : 'size-11',
+                )}
                 style={{
                     color: tone === 'neutral' ? 'var(--foreground)' : color,
                 }}

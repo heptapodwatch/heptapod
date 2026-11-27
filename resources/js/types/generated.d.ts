@@ -431,12 +431,13 @@ readonly values: Heptapod.Addons.Servers.Data.ServerValuesData | null,
 export type ServerThresholdsData = {
 readonly disk_used_percent: number,
 readonly memory_used_percent: number,
+readonly load_per_core: number,
 };
 export type ServerValuesData = {
 readonly observed_at: string,
 readonly cores: number,
 readonly cpu_used_percent: number,
-readonly load_1: number,
+readonly load_5: number,
 readonly memory_total_bytes: number,
 readonly memory_available_bytes: number,
 readonly filesystems: {

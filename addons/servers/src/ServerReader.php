@@ -53,7 +53,7 @@ final readonly class ServerReader
         $bucket = "date_trunc('{$unit}', observed_at, 'UTC')";
         /** @var list<object{bucket: string, cpu: float, load: float, memory: float|null}> $values */
         $values = DB::select("SELECT {$bucket} AS bucket, max((metrics->'cpu'->>'used_percent')::float8) AS cpu,
-                max((metrics->'load'->>'1')::float8) AS load,
+                max((metrics->'load'->>'5')::float8) AS load,
                 max(100 - 100 * (metrics->'memory'->>'available_bytes')::float8 / nullif((metrics->'memory'->>'total_bytes')::float8, 0)) AS memory
             FROM server_samples WHERE server_id = ? AND observed_at >= ? GROUP BY 1 ORDER BY 1", [$serverId, $since]);
         /** @var list<object{bucket: string, mount: string, used: float|null}> $disks */

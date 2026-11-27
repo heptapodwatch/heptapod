@@ -44,7 +44,7 @@ function storeServerSample(Server $server, CarbonImmutable $observedAt, float $c
 {
     DB::table('server_samples')->insert(['server_id' => $server->id, 'sample_id' => (string) Str::uuid(),
         'observed_at' => $observedAt->format('Y-m-d H:i:s.uP'), 'received_at' => $observedAt->format('Y-m-d H:i:s.uP'),
-        'metrics' => json_encode(['cpu' => ['cores' => 2, 'used_percent' => $cpu], 'load' => ['1' => 1.0, '5' => 1.0, '15' => 1.0],
+        'metrics' => json_encode(['cpu' => ['cores' => 2, 'used_percent' => $cpu], 'load' => ['1' => 0.5, '5' => 1.0, '15' => 1.5],
             'memory' => ['total_bytes' => 100, 'available_bytes' => $availableBytes], 'filesystems' => [['mount' => '/', 'total_bytes' => 100, 'free_bytes' => $rootFreeBytes]],
             'host' => ['uptime_seconds' => 3600, 'reboot_required' => null], 'updates' => ['pending' => null, 'security' => null]], JSON_THROW_ON_ERROR)]);
 }
@@ -144,7 +144,9 @@ it('lists every server with its state from the newest sample, "No report" after 
         ->where('servers.1.name', 'quiet')->where('servers.1.state', 'no_report')
         ->where('servers.1.values.filesystems.0.free_bytes', 8)
         ->where('servers.2.state', 'reporting')->where('servers.2.values.cpu_used_percent', 55.5)
-        ->where('thresholds', ['disk_used_percent' => 90, 'memory_used_percent' => 90]));
+        ->where('thresholds', ['disk_used_percent' => 90, 'memory_used_percent' => 90, 'load_per_core' => 2])
+        // The 5-minute load, the one its alert threshold reads.
+        ->where('servers.2.values.load_5', 1));
 });
 
 it('charts the peaks of the last 14 days only', function (): void {

@@ -1,4 +1,4 @@
-import { Head, Link, useForm, usePage, usePoll } from '@inertiajs/react';
+import { Head, Link, useForm, usePoll } from '@inertiajs/react';
 import { Plus, Server } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +18,6 @@ import {
     ServerGaugeCells,
     ServerGaugeLine,
     ServerListLegend,
-    type ServerListVariant,
     ServerStateBadge,
     useServerSize,
 } from '@/components/server-values';
@@ -111,12 +110,6 @@ export default function ServersIndex({
     const format = useFormat();
     const size = useServerSize();
     const [adding, setAdding] = useState(false);
-    // Temporary review switch between the two list designs (`?list=a|b`); the PO removes the losing one before merge.
-    const { url } = usePage();
-    const variant: ServerListVariant =
-        new URLSearchParams(url.split('?')[1] ?? '').get('list') === 'b'
-            ? 'b'
-            : 'a';
     // New reports arrive every minute: values refresh in place, servers another tab added or removed wait behind
     // "N new changes".
     usePoll(15_000, { only: ['servers'] });
@@ -161,7 +154,7 @@ export default function ServersIndex({
                     />
                 ) : (
                     <>
-                        <ServerListLegend variant={variant} />
+                        <ServerListLegend thresholds={thresholds} />
                         <div className="overflow-hidden rounded-lg border">
                             <div className="hidden md:block">
                                 <Table>
@@ -222,7 +215,6 @@ export default function ServersIndex({
                                                 <ServerGaugeCells
                                                     values={server.values}
                                                     thresholds={thresholds}
-                                                    variant={variant}
                                                 />
                                                 <TableCell className="text-right">
                                                     {server.last_report_at && (
@@ -273,7 +265,6 @@ export default function ServersIndex({
                                                 <ServerGaugeLine
                                                     values={server.values}
                                                     thresholds={thresholds}
-                                                    variant={variant}
                                                 />
                                             )}
                                             {server.last_report_at && (

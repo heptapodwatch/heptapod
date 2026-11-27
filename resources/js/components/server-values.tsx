@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { InfoTooltip } from '@/components/info-tooltip';
 import { StatusBadge } from '@/components/monitoring';
 import { ScoreRing, type ScoreRingTone } from '@/components/score-ring';
+import { StatTile } from '@/components/stat-tile';
 import { TableCell } from '@/components/ui/table';
 import { useFormat } from '@/hooks/use-format';
 import { cn } from '@/lib/utils';
@@ -32,11 +33,14 @@ export function usePercent() {
         number(value / 100, { style: 'percent', maximumFractionDigits: 0 });
 }
 
-/** At or above the threshold Failed, within 10 points below it Warning, else neutral. */
-function gaugeTone(value: number, threshold?: number): ScoreRingTone {
-    if (threshold === undefined) return 'neutral';
+/** At or above the threshold Failed, from `nearFrom` on Warning, else neutral. */
+function toneOf(
+    value: number,
+    threshold: number,
+    nearFrom: number,
+): ScoreRingTone {
     if (value >= threshold) return 'failed';
-    return value >= threshold - 10 ? 'warning' : 'neutral';
+    return value >= nearFrom ? 'warning' : 'neutral';
 }
 
 export const diskUsedPercent = (
@@ -52,42 +56,46 @@ export const memoryUsedPercent = (values: ServerValues) =>
         : 100 -
           (100 * values.memory_available_bytes) / values.memory_total_bytes;
 
-type ServerGauge = {
+/** A share of a whole (disk per mount, RAM): the only values drawn as a ring. Higher is worse. */
+type ServerShare = {
     key: string;
     label: string;
-    /** Higher is worse: disk and RAM used, CPU, and load as a share of the cores. */
+    /** Percent in use. */
     value: number;
-    threshold?: number;
+    threshold: number;
+    tone: ScoreRingTone;
     meta: string;
     /** The word at or above the threshold, so colour is never the only signal. */
-    failedWord?: string;
+    failedWord: string;
 };
 
-/** The newest sample's values as gauges: disk used per mount, RAM used, CPU, then load against the cores. */
-function useServerGauges(
+/** Disk used per mount and RAM used; Warning within 10 points below the threshold. */
+function useServerShares(
     values: ServerValues | null,
     thresholds: Thresholds,
-): ServerGauge[] {
+): ServerShare[] {
     const { t } = useTranslation();
     const format = useFormat();
     if (values === null) return [];
-    const cores = t('servers.gauge.cores', {
-        count: values.cores,
-        formattedCount: format.number(values.cores),
+    const share = (rest: Omit<ServerShare, 'tone'>): ServerShare => ({
+        ...rest,
+        tone: toneOf(rest.value, rest.threshold, rest.threshold - 10),
     });
     return [
-        ...values.filesystems.map((filesystem) => ({
-            key: `disk:${filesystem.mount}`,
-            label: t('servers.gauge.disk', { mount: filesystem.mount }),
-            value: diskUsedPercent(filesystem),
-            threshold: thresholds.disk_used_percent,
-            meta: t('servers.gauge.disk_meta', {
-                free: format.bytes(filesystem.free_bytes),
-                total: format.bytes(filesystem.total_bytes),
+        ...values.filesystems.map((filesystem) =>
+            share({
+                key: `disk:${filesystem.mount}`,
+                label: t('servers.gauge.disk', { mount: filesystem.mount }),
+                value: diskUsedPercent(filesystem),
+                threshold: thresholds.disk_used_percent,
+                meta: t('servers.gauge.disk_meta', {
+                    free: format.bytes(filesystem.free_bytes),
+                    total: format.bytes(filesystem.total_bytes),
+                }),
+                failedWord: t('servers.gauge.almost_full'),
             }),
-            failedWord: t('servers.gauge.almost_full'),
-        })),
-        {
+        ),
+        share({
             key: 'memory',
             label: t('servers.gauge.memory'),
             value: memoryUsedPercent(values),
@@ -99,26 +107,34 @@ function useServerGauges(
                 total: format.bytes(values.memory_total_bytes),
             }),
             failedWord: t('servers.gauge.low_memory'),
-        },
-        {
-            key: 'cpu',
-            label: t('servers.gauge.cpu'),
-            value: values.cpu_used_percent,
-            meta: cores,
-        },
-        {
-            key: 'load',
-            label: t('servers.gauge.load'),
-            value: (values.load_1 / values.cores) * 100,
-            meta: t('servers.gauge.load_meta', {
-                load: format.number(values.load_1, {
-                    minimumFractionDigits: 1,
-                    maximumFractionDigits: 2,
-                }),
-                cores,
-            }),
-        },
+        }),
     ];
+}
+
+/** The 5-minute load against its threshold (load_per_core x vCPU); Warning from 75 % of the threshold. */
+function useServerLoad(values: ServerValues, thresholds: Thresholds) {
+    const { t } = useTranslation();
+    const format = useFormat();
+    const threshold = thresholds.load_per_core * values.cores;
+    const load = (value: number) =>
+        format.number(value, {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+        });
+    return {
+        tone: toneOf(values.load_5, threshold, threshold * 0.75),
+        text: t('servers.load.value', {
+            load: load(values.load_5),
+            cores: t('servers.gauge.cores', {
+                count: values.cores,
+                formattedCount: format.number(values.cores),
+            }),
+        }),
+        alertAt: t('servers.load.alert_at', {
+            load: load(threshold),
+            factor: format.number(thresholds.load_per_core),
+        }),
+    };
 }
 
 const toneTextClass: Record<ScoreRingTone, string | undefined> = {
@@ -127,54 +143,59 @@ const toneTextClass: Record<ScoreRingTone, string | undefined> = {
     failed: 'text-status-down',
 };
 
-function GaugeWord({ gauge }: { gauge: ServerGauge }) {
+/** The state word that goes with a non-neutral tone; nothing while fine. */
+function StateWord({
+    tone,
+    failedWord,
+}: {
+    tone: ScoreRingTone;
+    failedWord: string;
+}) {
     const { t } = useTranslation();
-    const tone = gaugeTone(gauge.value, gauge.threshold);
     if (tone === 'neutral') return null;
     return (
         <span className={cn('text-xs font-medium', toneTextClass[tone])}>
-            {tone === 'failed'
-                ? gauge.failedWord
-                : t('servers.gauge.near_threshold')}
+            {tone === 'failed' ? failedWord : t('servers.gauge.near_threshold')}
         </span>
     );
 }
 
 /** The ring with its label, state word, absolute values and threshold under it, as in the Lighthouse score grid. */
-function LabelledGauge({ gauge }: { gauge: ServerGauge }) {
+function LabelledShare({ share }: { share: ServerShare }) {
     const { t } = useTranslation();
     const percent = usePercent();
     return (
         <div className="grid min-w-0 content-start justify-items-center gap-2 text-center">
             <ScoreRing
-                score={gauge.value}
-                label={gauge.label}
-                text={percent(gauge.value)}
-                tone={gaugeTone(gauge.value, gauge.threshold)}
-                threshold={gauge.threshold}
+                score={share.value}
+                label={share.label}
+                text={percent(share.value)}
+                tone={share.tone}
+                threshold={share.threshold}
             />
             <span
                 aria-hidden
                 className="text-xs leading-tight break-all text-muted-foreground"
             >
-                {gauge.label}
+                {share.label}
             </span>
-            <GaugeWord gauge={gauge} />
+            <StateWord tone={share.tone} failedWord={share.failedWord} />
             <span className="text-xs leading-relaxed text-foreground-faint">
-                {gauge.meta}
-                {gauge.threshold !== undefined && (
-                    <span className="block">
-                        {t('servers.gauge.alert_at', {
-                            percent: percent(gauge.threshold),
-                        })}
-                    </span>
-                )}
+                {share.meta}
+                <span className="block">
+                    {t('servers.gauge.alert_at', {
+                        percent: percent(share.threshold),
+                    })}
+                </span>
             </span>
         </div>
     );
 }
 
-/** The server page's values row: one ScoreRing per value, then what the colours and the tick mean. */
+/**
+ * The server page's values: a ring for each share of a whole (disk per mount, RAM), then CPU and load as plain stats.
+ * Colour and a word mean the value can alert.
+ */
 export function ServerGaugeRow({
     values,
     thresholds,
@@ -183,109 +204,126 @@ export function ServerGaugeRow({
     thresholds: Thresholds;
 }) {
     const { t } = useTranslation();
-    const gauges = useServerGauges(values, thresholds);
+    const format = useFormat();
+    const percent = usePercent();
+    const shares = useServerShares(values, thresholds);
+    const load = useServerLoad(values, thresholds);
     return (
         <section aria-label={t('servers.gauge.title')} className="space-y-3">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-5">
-                {gauges.map((gauge) => (
-                    <LabelledGauge key={gauge.key} gauge={gauge} />
+            <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-6">
+                {shares.map((share) => (
+                    <LabelledShare key={share.key} share={share} />
                 ))}
+                <StatTile
+                    label={t('servers.gauge.cpu')}
+                    value={percent(values.cpu_used_percent)}
+                    meta={t('servers.gauge.cores', {
+                        count: values.cores,
+                        formattedCount: format.number(values.cores),
+                    })}
+                />
+                <StatTile
+                    label={t('servers.gauge.load')}
+                    value={
+                        <span className={toneTextClass[load.tone]}>
+                            {load.text}
+                        </span>
+                    }
+                    meta={
+                        <span className="flex flex-col">
+                            <StateWord
+                                tone={load.tone}
+                                failedWord={t('servers.load.high')}
+                            />
+                            {load.alertAt}
+                        </span>
+                    }
+                />
             </div>
             <p className="flex items-center gap-1 text-xs text-muted-foreground">
                 {t('servers.gauge.legend')}
-                <InfoTooltip>{t('servers.gauge.legend_detail')}</InfoTooltip>
+                <InfoTooltip>
+                    {t('servers.gauge.legend_detail', {
+                        factor: format.number(thresholds.load_per_core),
+                    })}
+                </InfoTooltip>
             </p>
         </section>
     );
 }
 
-/** The list's value variants (temporary `?list=a|b` switch): a, the Lighthouse ring; b, the plain tinted number. */
-export type ServerListVariant = 'a' | 'b';
-
-/** A list value: the ring (a) or the tinted number (b), then the state word near or over the threshold. */
-function ListValue({
-    gauge,
-    variant,
-}: {
-    gauge: ServerGauge;
-    variant: ServerListVariant;
-}) {
-    const percent = usePercent();
-    const tone = gaugeTone(gauge.value, gauge.threshold);
+/** A list share: the small ring with the bare number (the unit is in the column header), then the state word. */
+function ListShare({ share }: { share: ServerShare }) {
+    const format = useFormat();
     return (
-        <span className="inline-flex flex-col items-center gap-1">
-            {variant === 'a' ? (
-                <ScoreRing
-                    score={gauge.value}
-                    label={gauge.label}
-                    text={percent(gauge.value)}
-                    tone={tone}
-                    threshold={gauge.threshold}
-                />
-            ) : (
-                <span
-                    className={cn(
-                        'font-mono text-sm tabular-nums',
-                        toneTextClass[tone],
-                    )}
-                >
-                    {percent(gauge.value)}
-                </span>
-            )}
-            <GaugeWord gauge={gauge} />
+        <span className="inline-flex flex-col items-center gap-0.5">
+            <ScoreRing
+                size="sm"
+                score={share.value}
+                label={`${share.label} (%)`}
+                text={format.number(Math.round(share.value))}
+                tone={share.tone}
+                threshold={share.threshold}
+            />
+            <StateWord tone={share.tone} failedWord={share.failedWord} />
         </span>
     );
 }
 
-/** Load as the raw 1-minute load against the cores ("1.8 / 4 vCPU"): it has no alert threshold, and it can exceed the cores. */
-function ListLoad({ values }: { values: ServerValues }) {
+/** The list's load: the coloured value and, near or over its threshold, the word. */
+function ListLoad({
+    values,
+    thresholds,
+}: {
+    values: ServerValues;
+    thresholds: Thresholds;
+}) {
     const { t } = useTranslation();
-    const format = useFormat();
+    const load = useServerLoad(values, thresholds);
     return (
-        <span className="font-mono text-sm whitespace-nowrap tabular-nums">
-            {t('servers.list.load', {
-                load: format.number(values.load_1, {
-                    minimumFractionDigits: 1,
-                    maximumFractionDigits: 2,
-                }),
-                cores: t('servers.gauge.cores', {
-                    count: values.cores,
-                    formattedCount: format.number(values.cores),
-                }),
-            })}
+        <span className="inline-flex flex-col items-center gap-0.5">
+            <span
+                className={cn(
+                    'font-mono text-xs whitespace-nowrap tabular-nums',
+                    toneTextClass[load.tone],
+                )}
+            >
+                {load.text}
+            </span>
+            <StateWord tone={load.tone} failedWord={t('servers.load.high')} />
         </span>
     );
 }
 
 /** The list's disk (the fullest mount) and RAM used; none until the first report. */
-function useListGauges(
+function useListShares(
     values: ServerValues | null,
     thresholds: Thresholds,
-): (ServerGauge | undefined)[] {
-    const gauges = useServerGauges(values, thresholds);
-    const disks = gauges.filter((gauge) => gauge.key.startsWith('disk:'));
+): (ServerShare | undefined)[] {
+    const shares = useServerShares(values, thresholds);
     return [
-        disks.reduce<ServerGauge | undefined>(
-            (top, gauge) =>
-                top === undefined || gauge.value > top.value ? gauge : top,
-            undefined,
-        ),
-        gauges.find((gauge) => gauge.key === 'memory'),
+        shares
+            .filter((share) => share.key.startsWith('disk:'))
+            .reduce<ServerShare | undefined>(
+                (top, share) =>
+                    top === undefined || share.value > top.value ? share : top,
+                undefined,
+            ),
+        shares.find((share) => share.key === 'memory'),
     ];
 }
 
 /** One line above the list that says what the values and colours mean. */
-export function ServerListLegend({ variant }: { variant: ServerListVariant }) {
+export function ServerListLegend({ thresholds }: { thresholds: Thresholds }) {
     const { t } = useTranslation();
+    const format = useFormat();
     return (
         <p className="flex items-center gap-1 text-xs text-muted-foreground">
             {t('servers.list.legend')}
             <InfoTooltip>
-                {t(
-                    variant === 'a'
-                        ? 'servers.list.legend_detail_ring'
-                        : 'servers.list.legend_detail_value',
-                )}
+                {t('servers.list.legend_detail', {
+                    factor: format.number(thresholds.load_per_core),
+                })}
             </InfoTooltip>
         </p>
     );
@@ -295,24 +333,22 @@ export function ServerListLegend({ variant }: { variant: ServerListVariant }) {
 export function ServerGaugeCells({
     values,
     thresholds,
-    variant,
 }: {
     values: ServerValues | null;
     thresholds: Thresholds;
-    variant: ServerListVariant;
 }) {
-    const [disk, memory] = useListGauges(values, thresholds);
+    const [disk, memory] = useListShares(values, thresholds);
     return (
         <>
-            {[disk, memory].map((gauge, index) => (
+            {[disk, memory].map((share, index) => (
                 <TableCell key={index} className="text-center">
-                    {gauge !== undefined && (
-                        <ListValue gauge={gauge} variant={variant} />
-                    )}
+                    {share !== undefined && <ListShare share={share} />}
                 </TableCell>
             ))}
             <TableCell className="text-center">
-                {values !== null && <ListLoad values={values} />}
+                {values !== null && (
+                    <ListLoad values={values} thresholds={thresholds} />
+                )}
             </TableCell>
         </>
     );
@@ -322,14 +358,12 @@ export function ServerGaugeCells({
 export function ServerGaugeLine({
     values,
     thresholds,
-    variant,
 }: {
     values: ServerValues;
     thresholds: Thresholds;
-    variant: ServerListVariant;
 }) {
     const { t } = useTranslation();
-    const [disk, memory] = useListGauges(values, thresholds);
+    const [disk, memory] = useListShares(values, thresholds);
     const cell = (label: string, value: ReactNode) => (
         <span className="flex flex-col items-center justify-end gap-1 text-center">
             {value}
@@ -338,15 +372,15 @@ export function ServerGaugeLine({
     );
     return (
         <span className="grid grid-cols-3 items-end gap-3">
-            {cell(
-                t('servers.column.disk'),
-                disk && <ListValue gauge={disk} variant={variant} />,
-            )}
+            {cell(t('servers.column.disk'), disk && <ListShare share={disk} />)}
             {cell(
                 t('servers.column.memory'),
-                memory && <ListValue gauge={memory} variant={variant} />,
+                memory && <ListShare share={memory} />,
             )}
-            {cell(t('servers.column.load'), <ListLoad values={values} />)}
+            {cell(
+                t('servers.column.load'),
+                <ListLoad values={values} thresholds={thresholds} />,
+            )}
         </span>
     );
 }

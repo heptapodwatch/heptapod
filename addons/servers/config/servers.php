@@ -10,6 +10,8 @@ return [
     'thresholds' => [
         'disk_used_percent' => 90,
         'memory_used_percent' => 90,
+        // The 5-minute load at or above this many times the vCPU count; alerting (for 15 minutes) comes with server alerts.
+        'load_per_core' => 2.0,
     ],
     'agent_release_url' => 'https://github.com/heptapodwatch/heptapod/releases/download',
 ];
