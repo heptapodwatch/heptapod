@@ -70,11 +70,13 @@ it('never shows servers through an API token limited to one client, even an Owne
 })->with(['unlimited' => [false, true], 'limited to one client' => [true, false]]);
 
 it('hides navigation and answers 404 while switched off, by the environment or by the Owner', function (string $switch): void {
-    $owner = serversUser('Owner');
-    $this->actingAs($owner)->post('/servers', ['name' => 'web-1']);
-    $server = Server::query()->sole();
+    $server = Server::named('web-1');
+    $server->issueToken();
+    $this->get('/servers')->assertRedirect('/login');
     $switch === 'environment' ? config(['heptapod.servers.enabled_by_server' => false]) : serversSwitch(false);
 
+    $this->get('/servers')->assertNotFound();
+    $this->actingAs(serversUser('Owner'));
     $this->get('/servers')->assertNotFound();
     $this->get("/servers/{$server->id}")->assertNotFound();
     $this->post("/servers/{$server->id}/token")->assertNotFound();

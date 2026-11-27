@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Heptapod\Addons\Servers;
 
+use Heptapod\Addons\Servers\Http\EnsureServersEnabled;
 use Heptapod\Contracts\ServersAccess;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
@@ -33,6 +36,8 @@ final class ServersServiceProvider extends ServiceProvider
                 ...($token === null ? [] : [Limit::perSecond(1, 20)->by('servers:token:'.hash('sha256', $token))])];
         });
         $this->loadRoutesFrom(__DIR__.'/../routes/servers.php');
+        // Switched off, a guest gets the same 404 as an Owner: the switch runs before authentication's login redirect.
+        $this->app->make(HttpKernel::class)->addToMiddlewarePriorityBefore(AuthenticatesRequests::class, EnsureServersEnabled::class);
 
         $this->callAfterResolving(Schedule::class, static function (Schedule $schedule): void {
             $schedule->call(new PruneServerSamples)->name('servers:prune-samples')->hourly()->withoutOverlapping(120)
