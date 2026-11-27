@@ -195,9 +195,12 @@ $serverToken = json_decode(html_entity_decode($serverPageMatch[1], ENT_QUOTES | 
 verify(preg_match('/^hpa_[0-9a-z]{26}_[A-Za-z0-9_-]{43}$/', $serverToken) === 1, 'The new server page must show its agent token once');
 verify($agentError($serverReport(null), 401, 'unauthorized'), 'Agent report without a token must answer the raw JSON 401');
 // Above 16 KiB the image's Caddy answers 413 with an empty body before PHP reads it; PHP's own 413 would be JSON.
-$oversize = $request('POST', '/agent/v1/report', ['headers' => ['Authorization' => 'Bearer '.$serverToken, 'Content-Type' => 'application/json'],
-    'body' => json_encode(['padding' => str_repeat('x', 16 * 1024)], JSON_THROW_ON_ERROR)]);
-verify($oversize->getStatusCode() === 413 && (string) $oversize->getBody() === '' && $oversize->getHeader('Content-Type') === [], 'An oversize agent report must be refused by the web server before PHP: '.$oversize->getStatusCode().' '.$oversize->getHeaderLine('Content-Type'));
+// /agent is reserved for agent traffic; any path below it (a trailing slash too, which Laravel still routes) is capped.
+foreach (['/agent/v1/report', '/agent/v1/report/', '/agent'] as $path) {
+    $oversize = $request('POST', $path, ['headers' => ['Authorization' => 'Bearer '.$serverToken, 'Content-Type' => 'application/json'],
+        'body' => json_encode(['padding' => str_repeat('x', 16 * 1024)], JSON_THROW_ON_ERROR)]);
+    verify($oversize->getStatusCode() === 413 && (string) $oversize->getBody() === '' && $oversize->getHeader('Content-Type') === [], 'An oversize agent report must be refused by the web server before PHP: '.$path.' '.$oversize->getStatusCode());
+}
 $acceptedReport = $serverReport($serverToken);
 verify($acceptedReport->getStatusCode() === 202 && json_decode((string) $acceptedReport->getBody(), true, flags: JSON_THROW_ON_ERROR) === ['interval_seconds' => 60], 'Agent report through nginx must be accepted: '.$acceptedReport->getStatusCode().' '.$acceptedReport->getBody());
 $tooSoon = $serverReport($serverToken);

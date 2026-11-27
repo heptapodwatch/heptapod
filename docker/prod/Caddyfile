@@ -64,9 +64,10 @@ http://:8080 {
     root * /app/public
     encode zstd gzip
     header X-Content-Type-Options nosniff
-    # Agent reports are at most 16 KiB (ingest contract v1). Refused here, before PHP reads and decodes the body.
-    @agentReport path /agent/v1/report
-    request_body @agentReport {
+    # /agent is reserved for agent traffic, whose reports are at most 16 KiB (ingest contract v1): larger bodies on any
+    # path below it (a trailing slash included, which Laravel would still route) are refused here, before PHP reads them.
+    @agent path /agent /agent/*
+    request_body @agent {
         max_size 16KiB
     }
     @reverb path /app/*

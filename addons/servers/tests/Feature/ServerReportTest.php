@@ -141,12 +141,31 @@ it('rejects an oversize body with 413', function (): void {
     expect(DB::table('server_samples')->count())->toBe(0);
 });
 
-it('rejects a body that is not declared as JSON with 415', function (): void {
+it('accepts only the media type application/json, with an optional UTF-8 charset', function (string $contentType, int $status): void {
     [, $token] = addReportingServer($this);
 
-    reportSample($this, $token, serverSample(), contentType: 'text/plain')->assertStatus(415)->assertExactJson(['error' => 'unsupported_media_type']);
+    reportSample($this, $token, serverSample(), contentType: $contentType)->assertStatus($status);
+    expect(DB::table('server_samples')->count())->toBe($status === 202 ? 1 : 0);
+})->with([
+    'plain' => ['application/json', 202],
+    'with charset' => ['application/json; charset=utf-8', 202],
+    'text' => ['text/plain', 415],
+    'another JSON type' => ['application/vnd.foo+json', 415],
+    'another charset' => ['application/json; charset=latin1', 415],
+]);
+
+it('decodes the raw body itself, so surrounding control characters are refused, not trimmed', function (string $body): void {
+    [, $token] = addReportingServer($this);
+
+    $this->call('POST', '/agent/v1/report', server: ['CONTENT_TYPE' => 'application/json', 'HTTP_AUTHORIZATION' => 'Bearer '.$token], content: $body)
+        ->assertUnprocessable()->assertExactJson(['error' => 'invalid_report']);
     expect(DB::table('server_samples')->count())->toBe(0);
-});
+})->with([
+    'tab and newline around the hostname' => [fn (): string => json_encode(serverSample(['host' => ['hostname' => "\tsolitary-darkness\n"]]), JSON_THROW_ON_ERROR)],
+    'empty agent version' => [fn (): string => json_encode(serverSample(['agent' => ['version' => '']]), JSON_THROW_ON_ERROR)],
+    'not JSON' => ['{"sample_id":'],
+    'a JSON list' => ['[1,2,3]'],
+]);
 
 it('rejects invalid fields with a generic 422 and stores nothing', function (array $overrides): void {
     [, $token] = addReportingServer($this);
@@ -206,12 +225,22 @@ it('limits each server to one sample per 20 seconds, across a token rotation, an
     reportSample($this, $rotated, serverSample(['observed_at' => now()->utc()->format('Y-m-d\TH:i:s\Z')]))->assertStatus(202);
 });
 
+it('refuses the second of two reports sent back to back', function (): void {
+    [, $token] = addReportingServer($this);
+
+    reportSample($this, $token, serverSample())->assertStatus(202);
+    reportSample($this, $token, serverSample())->assertTooManyRequests()->assertHeader('Retry-After', '20');
+    expect(DB::table('server_samples')->count())->toBe(1);
+});
+
 it('limits reports per IP address before any token check', function (): void {
     foreach (range(1, 300) as $attempt) {
         reportSample($this, null, [])->assertUnauthorized();
     }
 
-    reportSample($this, null, [])->assertTooManyRequests()->assertHeader('Retry-After')->assertExactJson(['error' => 'too_many_reports']);
+    // The framework's throttle headers stay; only the body and Cache-Control are the agent's.
+    reportSample($this, null, [])->assertTooManyRequests()->assertHeader('Retry-After')->assertHeader('X-RateLimit-Limit', '300')
+        ->assertHeader('Cache-Control', 'no-store, private')->assertExactJson(['error' => 'too_many_reports']);
 });
 
 it('answers a wrong method or OPTIONS with the agent JSON 404, switched on or off', function (bool $on, string $method): void {

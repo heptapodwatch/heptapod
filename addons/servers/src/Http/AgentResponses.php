@@ -11,8 +11,9 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Global middleware for /agent/*: switched off, every method answers 404 before routing; switched on, every refusal
- * (from the controller, the throttle or the web fallback route for a wrong method) is one small JSON word, never a page.
+ * Global middleware for /agent, a namespace reserved for agent traffic: switched off, every method answers 404 before
+ * routing; switched on, every refusal (from the controller, the throttle or the web fallback route for a wrong method)
+ * gets one small JSON word as its body and no-store, never a page. The framework's other headers (Retry-After) stay.
  */
 final readonly class AgentResponses
 {
@@ -35,15 +36,22 @@ final readonly class AgentResponses
         if ($response->getStatusCode() < 400) {
             return $response;
         }
-        $retryAfter = $response->headers->get('Retry-After');
+        $response->setContent(self::body($response->getStatusCode()));
+        $response->headers->remove('Content-Length');
+        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->set('Cache-Control', 'no-store, private');
 
-        return self::error($response->getStatusCode(), $retryAfter === null ? [] : ['Retry-After' => $retryAfter]);
+        return $response;
+    }
+
+    private static function body(int $status): string
+    {
+        return json_encode(['error' => self::Errors[$status] ?? ($status >= 500 ? 'server_error' : 'refused')], JSON_THROW_ON_ERROR);
     }
 
     /** @param array<string, string> $headers */
     public static function error(int $status, array $headers = []): JsonResponse
     {
-        return response()->json(['error' => self::Errors[$status] ?? ($status >= 500 ? 'server_error' : 'refused')], $status,
-            [...$headers, 'Cache-Control' => 'no-store, private']);
+        return new JsonResponse(self::body($status), $status, [...$headers, 'Cache-Control' => 'no-store, private'], json: true);
     }
 }

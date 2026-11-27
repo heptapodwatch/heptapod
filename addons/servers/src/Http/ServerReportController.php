@@ -34,7 +34,7 @@ final class ServerReportController
         if (strlen($request->getContent()) > self::MaxBodyBytes) {
             return AgentResponses::error(413);
         }
-        if ($request->getContentTypeFormat() !== 'json') {
+        if (preg_match('#^application/json\s*(;\s*charset="?utf-8"?\s*)?$#iD', (string) $request->headers->get('Content-Type')) !== 1) {
             return AgentResponses::error(415);
         }
         $token = ServerToken::parse($request->bearerToken());
@@ -49,14 +49,21 @@ final class ServerReportController
             return AgentResponses::error(401);
         }
         // After authentication and keyed by the server: a wrong or rotated-out token cannot use up its budget, and a
-        // rotation does not reset it.
+        // rotation does not reset it. One increment is the check and the hit at once (a single Redis script in
+        // production), so two concurrent reports cannot both pass.
         $limit = 'servers:report:'.$server->id;
-        if (RateLimiter::tooManyAttempts($limit, 1)) {
+        if (RateLimiter::hit($limit, self::SecondsPerReport) > 1) {
             return AgentResponses::error(429, ['Retry-After' => (string) max(1, RateLimiter::availableIn($limit))]);
         }
-        RateLimiter::hit($limit, self::SecondsPerReport);
 
-        $validator = Validator::make($request->json()->all(), $this->rules());
+        // The raw body, decoded here: the framework's input layer (trimming, empty strings to null) never touches it.
+        try {
+            $decoded = json_decode($request->getContent(), true, 16, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return AgentResponses::error(422);
+        }
+        // Anything but a JSON object fails the required fields.
+        $validator = Validator::make(is_array($decoded) ? $decoded : [], $this->rules());
         if ($validator->fails()) {
             return AgentResponses::error(422);
         }
