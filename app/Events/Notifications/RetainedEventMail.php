@@ -41,11 +41,11 @@ final readonly class RetainedEventMail
     {
         $locale = $destination->effectiveLocale();
         $timezone = $destination->resolvedTimezone();
-        $site = $kind === RetainedAlert::SiteDeleted ? null : ($event->site ?? throw new \LogicException('A retained alert keeps its live site unless the site was deleted.'));
-        $name = $site?->displayName() ?? $event->site_name ?? throw new \LogicException('A retained alert must keep its site label.');
-        $label = $site === null ? __('events.deleted_site', ['label' => $name], $locale) : $name;
-        $client = $site?->client;
-        $clientName = ($client ?? ($event->client?->is_internal === true ? $event->client : null))?->displayName($locale) ?? $event->client_name ?? throw new \LogicException('A retained alert must keep its client.');
+        // DeliveryPlan sends no alert whose site was deleted.
+        $site = $event->site ?? throw new \LogicException('A retained alert keeps its live site.');
+        $label = $site->displayName();
+        $client = $site->client ?? throw new \LogicException('A retained alert site must have a client.');
+        $clientName = $client->displayName($locale);
         $checkType = $event->check->type ?? $event->check_type ?? throw new \LogicException('A retained alert must keep its check type.');
         $facts = EventFacts::fromEvent($event);
         // Whether the check's add-on is installed is independent of whether its site or check still exists.
@@ -78,7 +78,6 @@ final readonly class RetainedEventMail
         $rows[] = ['label' => __($closure !== null ? 'emails.retained_closed_at' : 'emails.retained_at', locale: $locale), 'value' => new Cell($time($event->occurred_at))];
         $notes = $closure === null ? [] : ['emails.'.$closure.'_note'];
         $availability = match ($kind) {
-            RetainedAlert::SiteDeleted => 'emails.site_deleted_note',
             RetainedAlert::CheckRemoved => 'emails.check_removed_note',
             RetainedAlert::EvidenceUnavailable => 'emails.evidence_unavailable_note',
             RetainedAlert::Reminder => 'emails.retained_reminder_note',
@@ -95,12 +94,12 @@ final readonly class RetainedEventMail
 
         // A retained delivery keeps its category; without one (its add-on is gone) the footer names the channel's alerts.
         $footer = $this->routing->footer($destination, __($category instanceof NotificationCategory ? 'recipient_settings.category.'.$category->value.'.plural' : 'emails.retained_category_unknown', locale: $locale));
-        $avatar = $site !== null && $client !== null ? $this->avatars->for($client, $site) : ['png' => null, 'cid' => null, 'tile' => null];
+        $avatar = $this->avatars->for($client, $site);
         $params = ['site' => $label, 'check' => $subject];
         $headline = __('emails.retained_headline.'.$state, $params, $locale);
-        $incidentUrl = $site !== null && $event->incident_id !== null ? route('incidents.show', ['incident' => $event->incident_id]) : null;
-        $checkUrl = $site !== null && $event->check_id !== null ? route('sites.checks.show', ['site' => $site->id, 'check' => $event->check_id]) : null;
-        $siteUrl = $site === null ? null : route('sites.show', ['site' => $site->id]);
+        $incidentUrl = $event->incident_id !== null ? route('incidents.show', ['incident' => $event->incident_id]) : null;
+        $checkUrl = $event->check_id !== null ? route('sites.checks.show', ['site' => $site->id, 'check' => $event->check_id]) : null;
+        $siteUrl = route('sites.show', ['site' => $site->id]);
 
         return new MailModel(locale: $locale, subject: __('emails.retained_subject.'.$state, $params, $locale), preheader: $headline,
             headline: $headline, footerWhy: $footer['why'], instance: $this->settings->name.' · '.parse_url(config()->string('app.url'), PHP_URL_HOST),
@@ -118,7 +117,7 @@ final readonly class RetainedEventMail
             blocks: $blocks,
             primary: $incidentUrl !== null ? ['label' => __('emails.open_incident', ['id' => $event->incident_id], $locale), 'url' => $incidentUrl]
                 : ($checkUrl !== null ? ['label' => __('emails.open_check', locale: $locale), 'url' => $checkUrl]
-                    : ($siteUrl !== null ? ['label' => __('emails.open_site', locale: $locale), 'url' => $siteUrl] : null)),
+                    : ['label' => __('emails.open_site', locale: $locale), 'url' => $siteUrl]),
             secondary: $incidentUrl !== null && $checkUrl !== null ? ['label' => __('emails.open_check', locale: $locale), 'url' => $checkUrl] : null,
             routingLabel: __($footer['labelKey'], locale: $locale), routingUrl: $footer['url'],
             avatarPng: $avatar['png'], avatarCid: $avatar['cid'], avatarTile: $avatar['tile'], design: $this->settings->mail_design);
@@ -142,7 +141,7 @@ final readonly class RetainedEventMail
         };
     }
 
-    private function reason(Event $event, EventFacts $facts, bool $monitoringStopped, bool $addonInstalled, ?Site $site, string $locale): ?string
+    private function reason(Event $event, EventFacts $facts, bool $monitoringStopped, bool $addonInstalled, Site $site, string $locale): ?string
     {
         if ($monitoringStopped) {
             $key = $facts->summaryParams['resolution_key'] ?? null;
@@ -160,7 +159,7 @@ final readonly class RetainedEventMail
             return $addonInstalled ? throw new \LogicException('Retained summary translation missing: '.$facts->summaryKey) : null;
         }
         // Recorder payloads are redacted; the site and check secrets are applied again as the alert builder does.
-        $contextSite = $site ?? new Site(['friendly_name' => $event->site_name, 'url' => $event->site_url ?? throw new \LogicException('A deleted-site alert must retain its URL.')]);
+        $contextSite = $site;
         $params = SecretRedactor::redactStringValues($facts->summaryParams, RedactionContext::forSite($contextSite, $event->check));
         $text = __($facts->summaryKey, SummaryParameters::localizedMeasurements($params, $locale), $locale);
 

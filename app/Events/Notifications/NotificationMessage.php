@@ -19,7 +19,6 @@ use Heptapod\Enums\RecipientKind;
 use Heptapod\Enums\RetainedAlert;
 use Heptapod\Events\EventFacts;
 use Heptapod\Incidents\UptimeDependencies;
-use Heptapod\Models\Client;
 use Heptapod\Models\Event;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
@@ -31,12 +30,11 @@ final readonly class NotificationMessage
     public function __construct(private NotificationEventTypes $types, private UptimeDependencies $dependencies, private BuildAlertMailContext $mailContexts, private CheckRunPresentations $presentations, private DigestMail $digests, private CatchUpMail $catchUps, private RetainedEventMail $retainedMails, private CheckRegistry $registry) {}
 
     /** Alerts whose live mail evidence cannot be shown honestly get the retained-facts mail; null means the add-on evidence mail. */
-    private function retainedAlert(Event $event, AlertSeverity $severity, bool $deletedSite): ?RetainedAlert
+    private function retainedAlert(Event $event, AlertSeverity $severity): ?RetainedAlert
     {
         $type = $event->check->type ?? $event->check_type;
 
         return match (true) {
-            $deletedSite => RetainedAlert::SiteDeleted,
             // Stopped monitoring and a check with nothing left to check close the incident without a measured recovery.
             $event->type === 'incident.resolved' && isset(EventFacts::fromEvent($event)->summaryParams['resolution_key']) => RetainedAlert::ClosedWithoutRecovery,
             $event->check === null => RetainedAlert::CheckRemoved,
@@ -52,9 +50,9 @@ final readonly class NotificationMessage
      *
      * @return list<array{url: string, label: string|null}>
      */
-    private function repositories(Site $site, bool $deletedSite, ?NotificationDestination $destination): array
+    private function repositories(Site $site, ?NotificationDestination $destination): array
     {
-        if ($deletedSite || ! $destination instanceof NotificationDestination || $destination->recipient_kind === RecipientKind::Client) {
+        if (! $destination instanceof NotificationDestination || $destination->recipient_kind === RecipientKind::Client) {
             return [];
         }
 
@@ -81,16 +79,8 @@ final readonly class NotificationMessage
                 0, 'Heptapod', config()->string('app.url'), null, $event->occurred_at->utc(), null, null, route('sites.index'),
                 mail: $destination?->channel === 'mail' ? $this->digests->build($event, $destination) : null);
         }
-        $deletedSite = $event->site === null;
-        $site = $event->site;
-        if ($deletedSite) {
-            $site = new Site(['friendly_name' => $event->site_name ?? throw new \LogicException('A deleted-site alert must retain its label.'),
-                'url' => $event->site_url ?? throw new \LogicException('A deleted-site alert must retain its URL.')]);
-            $site->setRelation('client', new Client(['name' => $event->client_name ?? throw new \LogicException('A deleted-site alert must retain its client.')]));
-        }
-        if ($site === null) {
-            throw new \LogicException('An alert must have site identity.');
-        }
+        // DeliveryPlan sends no alert whose site was deleted.
+        $site = $event->site ?? throw new \LogicException('An alert is built for an existing site.');
         if (($event->type === 'maintenance.catch_up' && ($event->payload['uptime_episode'] ?? false) === true)
             || ($event->type === 'incident.still_down' && ($event->payload['maintenance_first_alert'] ?? false) === true)) {
             // Keep the audit event type; render the first post-maintenance episode alert through the normal opener template.
@@ -118,9 +108,9 @@ final readonly class NotificationMessage
                 ['site' => $site->displayName()], 'notifications.maintenance_catch_up_summary',
                 ['count' => $count, 'checks' => ''], $site->id, $site->displayName(),
                 SecretRedactor::redact($site->url, $context->secrets, $context->urls), null,
-                CarbonImmutable::parse($since)->utc(), null, 'failed', $deletedSite ? null : route('sites.show', ['site' => $site->id]), clientName: $destination?->channel === 'mail' ? $client->displayName($destination->effectiveLocale()) : $client->name, checkTypes: $checks,
+                CarbonImmutable::parse($since)->utc(), null, 'failed', route('sites.show', ['site' => $site->id]), clientName: $destination?->channel === 'mail' ? $client->displayName($destination->effectiveLocale()) : $client->name, checkTypes: $checks,
                 mail: $destination?->channel === 'mail' ? $this->catchUps->build($event, $destination) : null,
-                repositories: $this->repositories($site, $deletedSite, $destination));
+                repositories: $this->repositories($site, $destination));
         }
         $lateFold = $foldedRecovery && $event->incident?->resolved_at !== null;
         $severity = $lateFold ? AlertSeverity::Recovered : $this->types->severity($event);
@@ -149,7 +139,7 @@ final readonly class NotificationMessage
         $check = ($event->check->type ?? $event->check_type)?->value;
 
         $params = ['site' => $label, 'check' => $check ?? ''];
-        if ($event->type === 'incident.still_down' && ! $deletedSite) {
+        if ($event->type === 'incident.still_down') {
             $incident = $event->incident ?? throw new \LogicException('A reminder must have an incident.');
             $title = 'notifications.still_down_title';
             $params['hours'] = max(1, (int) floor($incident->opened_at->diffInSeconds($event->occurred_at) / 3600));
@@ -164,8 +154,8 @@ final readonly class NotificationMessage
             $summaryParams = ['component' => $name, 'at' => ($recovered ?? $event->occurred_at)->toIso8601String()];
         }
 
-        if (! $component && ($event->check !== null || $deletedSite)) {
-            $event->check?->setRelation('site', $site);
+        if (! $component && $event->check !== null) {
+            $event->check->setRelation('site', $site);
             if ($facts->summaryKey !== null) {
                 $summary = $facts->summaryKey;
                 $summaryParams = $facts->summaryParams;
@@ -190,7 +180,7 @@ final readonly class NotificationMessage
         $mailContext = null;
         $mail = null;
         if ($destination?->channel === 'mail') {
-            $retained = $this->retainedAlert($event, $severity, $deletedSite);
+            $retained = $this->retainedAlert($event, $severity);
             if (! $retained instanceof RetainedAlert) {
                 $mailContext = ($this->mailContexts)($event, $severity, $affectedChecks, $recheckingChecks, $destination, foldedRecovery: $lateFold);
                 $retained = $mailContext instanceof AlertMailContext ? null : RetainedAlert::ComponentDetailsPruned;
@@ -202,7 +192,7 @@ final readonly class NotificationMessage
             $summary, $summaryParams,
             $site->id, $label, SecretRedactor::redact($site->url, $context->secrets, $context->urls), $check, $since->utc(), $downtime,
             $severity === AlertSeverity::Error ? 'errored' : ($severity === AlertSeverity::Down ? 'failed' : null),
-            $deletedSite ? null : ($event->incident_id !== null ? route('incidents.show', ['incident' => $event->incident_id]) : route('sites.show', ['site' => $site->id])),
+            $event->incident_id !== null ? route('incidents.show', ['incident' => $event->incident_id]) : route('sites.show', ['site' => $site->id]),
             clientName: $destination?->channel === 'mail' ? $client->displayName($destination->effectiveLocale()) : $client->name,
             affectedChecks: $affectedChecks,
             recheckingChecks: $recheckingChecks,
@@ -210,7 +200,7 @@ final readonly class NotificationMessage
             mail: $mail,
             presentation: $this->presentations->forEvent($event),
             maintenanceEnded: ($event->payload['uptime_episode'] ?? false) === true || ($event->payload['maintenance_first_alert'] ?? false) === true,
-            repositories: $this->repositories($site, $deletedSite, $destination),
+            repositories: $this->repositories($site, $destination),
             recoveredAt: $lateFold && $recovered instanceof CarbonImmutable ? $recovered->utc() : null);
     }
 }

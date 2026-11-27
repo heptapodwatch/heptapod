@@ -25,6 +25,8 @@ final class IncidentAlertPreviewController extends Controller
         $reader->scoped($user)->whereKey($incident)->firstOrFail();
         $events = Event::incidentAlertPreviewTypes()->with(['site.client', 'check', 'incident'])->where('incident_id', $incident)->whereKey($event);
         $row = $events->firstOrFail();
+        // A site deleted meanwhile takes its incident with it: no alert to preview.
+        abort_if($row->site === null, 404);
         $deliveries = Delivery::query()->with('destination')->where('event_id', $row->id)
             ->where('state', DeliveryState::Sent->value)->where('suppressed', false)->where('digest', false)
             ->whereHas('destination', static fn (Builder $query): Builder => $query->where('channel', 'mail'));

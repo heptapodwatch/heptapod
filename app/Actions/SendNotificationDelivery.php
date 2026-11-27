@@ -4,42 +4,73 @@ declare(strict_types=1);
 
 namespace Heptapod\Actions;
 
-use Heptapod\Contracts\Notifications\AlertNotification;
-use Heptapod\Contracts\Notifications\ChannelRecipient;
+use Carbon\CarbonImmutable;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
 use Heptapod\Contracts\Notifications\DeliveryResult;
-use Heptapod\Events\Notifications\NotificationMessage;
+use Heptapod\Contracts\Notifications\DeliveryState;
+use Heptapod\Enums\DeliveryDecisionKind;
+use Heptapod\Events\Notifications\DeliveryDecision;
+use Heptapod\Events\Notifications\DeliveryPlan;
+use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\Delivery;
-use Heptapod\SystemHealth\SystemIssueMailer;
+use Illuminate\Support\Facades\DB;
 
 final readonly class SendNotificationDelivery
 {
-    public function __construct(private ClaimNotificationDelivery $claim, private CompleteNotificationDelivery $complete, private ChannelRegistry $channels, private NotificationMessage $messages, private SystemIssueMailer $systemIssues, private SendClientMessage $clientMessages) {}
+    public function __construct(private ClaimNotificationDelivery $claim, private CompleteNotificationDelivery $complete, private ChannelRegistry $channels, private DeliveryPlan $plan) {}
 
-    /** The transport outcome, or null when the claim did not hand out the delivery. */
+    /** The transport outcome, or null when the claim did not hand out the delivery or the plan at the send stopped it. */
     public function __invoke(int $deliveryId): ?DeliveryResult
     {
-        $delivery = ($this->claim)($deliveryId);
-        if (! $delivery instanceof Delivery) {
+        $claimed = ($this->claim)($deliveryId);
+        if (! $claimed instanceof Delivery) {
             return null;
         }
-        $destination = $delivery->destination()->getQuery()->firstOrFail();
-        $event = $delivery->event()->getQuery()->firstOrFail();
-        // A manual send goes where it was approved: only the snapshot routes it, never the current channel config.
-        $recipient = $delivery->origin === 'manual'
-            ? ChannelRecipient::fromSnapshot($destination->destinationConfig(), $delivery->recipient_snapshot ?? throw new \LogicException('A manual delivery requires its recipient snapshot.'))
-            : ChannelRecipient::forChannel($destination->destinationConfig());
-        $notification = match (true) {
-            $event->system_issue_id !== null => $this->systemIssues->notification($event, $destination),
-            str_starts_with($event->type, 'client_message.') => $this->clientMessages->notification($event),
-            default => new AlertNotification($this->messages->build($event, $destination, $delivery->category, foldedRecovery: $delivery->folded_with_recovery), $delivery->event_id.':'.$destination->id),
-        };
+        $token = $claimed->claim_token ?? throw new \LogicException('Delivery claim has no token.');
+        $send = $this->decideAgain($claimed->id, $token);
+        if (! $send instanceof DeliveryDecision) {
+            return null;
+        }
+        $destination = $send->destination ?? throw new \LogicException('A Send decision names its channel.');
         // Never hold a transaction during provider I/O. A crash leaves a reclaimable lease.
         // At-least-once duplicate window: provider acceptance before the fenced ack
         // commits (including an expired lease). Providers without idempotency can resend.
-        $result = $this->channels->send($destination->channel, $recipient, $notification);
-        ($this->complete)($delivery->id, $delivery->claim_token ?? throw new \LogicException('Delivery claim has no token.'), $result);
+        $result = $this->channels->send($destination->channel, $send->recipient ?? throw new \LogicException('A Send decision names its recipient.'),
+            $send->notification ?? throw new \LogicException('A Send decision carries its payload.'));
+        ($this->complete)($claimed->id, $token, $result);
 
         return $result;
+    }
+
+    /**
+     * DeliveryPlan once more, right before transmitting, under the claim's locks and on this worker's own claim: the
+     * payload goes out only as the plan renders it now, to the channel exactly as the plan read it. Any other decision
+     * is written instead (a digest whose items changed goes back to the claim) and nothing is sent.
+     */
+    private function decideAgain(int $deliveryId, string $token): ?DeliveryDecision
+    {
+        return DB::transaction(function () use ($deliveryId, $token): ?DeliveryDecision {
+            if (! ClaimNotificationDelivery::lockSubject($deliveryId, skipBusyChannel: false)) {
+                return null;
+            }
+            $query = Delivery::query()->whereKey($deliveryId)->where('state', DeliveryState::Sending->value)->where('claim_token', $token);
+            NotificationLocks::forUpdate($query->getQuery());
+            $delivery = $query->first();
+            if (! $delivery instanceof Delivery) {
+                return null;
+            }
+            $destination = $delivery->destination()->getQuery()->firstOrFail();
+            $event = $delivery->event()->getQuery()->firstOrFail();
+            $at = CarbonImmutable::now('UTC');
+            $decision = $this->plan->decide($delivery, $destination, $event, $at, claimed: true);
+            if ($decision->kind !== DeliveryDecisionKind::Send) {
+                $this->plan->apply($delivery, $event, $decision, $at, claimed: true);
+
+                return null;
+            }
+            $delivery->save();
+
+            return $decision;
+        });
     }
 }

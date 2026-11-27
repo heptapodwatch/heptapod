@@ -50,7 +50,7 @@ Webhook channels require HTTPS. Set `allow_insecure_http` to `true` only for a t
 | `severity`                    | Urgency, not cause: `down`, `recovered`, `warning`, `error` or `info`. Both an uptime outage and a non-uptime failure can be `down`, and both bypass quiet hours. |
 | `downtime_seconds`            | For uptime, the downtime. For other checks, how long the failure lasted, not proof that the site was down.                                                        |
 | `also_affected`, `rechecking` | Check keys grouped under an uptime outage, or waiting for a re-check after it. `[]` when empty.                                                                   |
-| `site_id`, `link`             | `null` on deliveries kept after the site was deleted. `site_label` keeps the label with a deleted-site marker.                                                    |
+| `site_id`, `link`             | Set for every site alert: an alert whose site was deleted before it went out is not sent.                                                                         |
 | `repositories`                | The site's repository links, `[{"url": …, "label": …}]`, for team and personal channels. Always `[]` for a client's channel.                                      |
 
 - Read the event type, check type and result to tell a Down site from a Failed check. Never label every `down` severity as an outage.
@@ -74,6 +74,23 @@ A webhook channel receives System alerts when System is on for it in the team no
 | `link`                                            | System health                                                  |
 
 Each problem and recovery is sent once per channel with its own `event_id`.
+
+## Server alerts
+
+Server monitoring is experimental. A webhook channel receives server alerts when **Servers** is on for it in the team notification settings and the channel is not limited to one client. They report a problem on a monitored server, such as a full disk, and its recovery. The payload has the alert keys plus a `server` object:
+
+| Field                                             | Value                                                                         |
+| ------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `server`                                          | `{"id": 3, "name": "web-1", "url": "https://heptapod.example.com/servers/3"}` |
+| `server.url`                                      | The server page; `null` once the server is removed                            |
+| `site_id`, `site_label`, `site_url`, `check_type` | `null`                                                                        |
+| `title`                                           | Starts with `[Server]`, or `[Server recovered]` for a recovery                |
+| `headline`                                        | The measurement and its threshold, or what changed for a recovery             |
+| `summary`                                         | Localized facts, one per line                                                 |
+| `severity`                                        | `warning` for a problem, `recovered` for a recovery                           |
+| `link`                                            | The server page; `null` once the server is removed                            |
+
+Other alerts have no `server` key.
 
 ## PHP example
 

@@ -2,7 +2,7 @@ import { listCardPadding, tableRowHeight } from '@/components/ui/table';
 import { PresentationChanges } from '@/components/presentation-changes';
 import { SiteAvatar } from '@/components/site-avatar';
 import { EmptyState } from '@/components/empty-state';
-import { AlertCircle, Globe } from 'lucide-react';
+import { AlertCircle, Globe, Server } from 'lucide-react';
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { EntityLink } from '@/components/entity-link';
@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/tooltip';
 import { show as incidentShow } from '@/routes/incidents';
 import { show as checkShow } from '@/routes/sites/checks';
+import { show as serverShow } from '@/routes/servers';
 import { checkTypes } from '@/lib/check-types';
 import {
     bucketStates,
@@ -704,14 +705,25 @@ export function EventTimeline({
                                             <EntityLink
                                                 name={event.site_name}
                                                 href={
-                                                    event.site_id === null
-                                                        ? undefined
-                                                        : `/sites/${event.site_id}`
+                                                    event.server_id !== null
+                                                        ? serverShow.url(
+                                                              event.server_id,
+                                                          )
+                                                        : event.site_id === null
+                                                          ? undefined
+                                                          : `/sites/${event.site_id}`
                                                 }
                                                 className="align-middle"
                                                 icon={
-                                                    event.site_id ===
-                                                    null ? undefined : (
+                                                    event.type.startsWith(
+                                                        'server.',
+                                                    ) ? (
+                                                        <Server
+                                                            aria-hidden
+                                                            className="size-4 text-muted-foreground"
+                                                        />
+                                                    ) : event.site_id ===
+                                                      null ? undefined : (
                                                         <SiteAvatar
                                                             name={
                                                                 event.site_name

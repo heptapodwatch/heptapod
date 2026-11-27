@@ -15,6 +15,8 @@ final class ServerRowData extends Data
     /**
      * @param  list<string>  $ips
      * @param  list<string>  $ignored_mounts  hidden from the values and the chart; their samples are kept
+     * @param  list<ServerIssueData>  $issues  the open issues, in ServerIssueKind order: the first names the server's state
+     * @param  string|null  $snoozed_until  alerts wait until then while it is in the future
      */
     public function __construct(
         public readonly int $id,
@@ -32,5 +34,7 @@ final class ServerRowData extends Data
         public readonly ?string $agent_distro,
         public readonly ?string $agent_kernel,
         public readonly array $ips,
+        public readonly array $issues,
+        public readonly ?string $snoozed_until,
     ) {}
 }

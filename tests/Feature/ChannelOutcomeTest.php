@@ -522,7 +522,7 @@ it('marks only the event\'s new mixed content findings as new in the sent mail',
     expect(substr_count($head[1] ?? '', '<td'))->toBe(3);
 })->with(['en', 'de']);
 
-it('keeps an administrative closure Closed and historical when its site is deleted before the send', function (string $locale): void {
+it('sends no administrative closure whose site was deleted after its claim', function (string $locale): void {
     $transport = new ArrayTransport;
     Mail::mailer()->setSymfonyTransport($transport);
     $channel = channelOutcomeMailChannel($locale);
@@ -550,19 +550,13 @@ it('keeps an administrative closure Closed and historical when its site is delet
 
     app()->call(new SendNotification($delivery->id)->handle(...));
 
-    expect($deleted)->toBeTrue()->and($closed->refresh()->site_id)->toBeNull()->and($delivery->refresh()->state)->toBe(DeliveryState::Sent);
-    $mail = $transport->messages()->sole()->getOriginalMessage();
-    $text = $mail->getTextBody();
-    expect($mail->getSubject())->toBe($locale === 'en' ? '[Closed] Deleted site: Golden shop — Uptime' : '[Geschlossen] Gelöschte Website: Golden shop — Erreichbarkeit')
-        ->and($text)->toContain(
-            $locale === 'en' ? 'Monitoring stopped, so the incident was closed. No check confirmed that the problem is fixed.' : 'Keine Prüfung hat bestätigt, dass das Problem behoben ist.',
-            $locale === 'en' ? 'This site has been deleted' : 'Diese Website wurde gelöscht',
-            $locale === 'en' ? 'Site paused' : 'Website pausiert')
-        ->not->toContain('[Recovered]', '[Entwarnung]', 'OK again', 'http://monitor.example.test/incidents', 'http://monitor.example.test/sites/');
-    expect($mail->getHtmlBody())->not->toContain('href="http://monitor.example.test/incidents', 'href="http://monitor.example.test/sites/');
+    // The send decides again (DeliveryPlan): a site deleted after the claim gets no alert.
+    expect($deleted)->toBeTrue()->and($closed->refresh()->site_id)->toBeNull()
+        ->and($delivery->refresh()->only(['suppressed', 'suppression_reason']))->toBe(['suppressed' => true, 'suppression_reason' => 'site_deleted'])
+        ->and($transport->messages())->toHaveCount(0);
 })->with(['en', 'de']);
 
-it('reports retained observations and a deleted site\'s catch-up in the past tense', function (string $locale): void {
+it('sends no alert whose check or site was deleted after its claim', function (string $locale): void {
     $transport = new ArrayTransport;
     Mail::mailer()->setSymfonyTransport($transport);
     $channel = channelOutcomeMailChannel($locale);
@@ -592,11 +586,10 @@ it('reports retained observations and a deleted site\'s catch-up in the past ten
     app()->call(new SendNotification($removed->id)->handle(...));
     app()->call(new SendNotification($gone->id)->handle(...));
 
-    expect($removals)->toBe([]);
-    [$warningMail, $catchUpMail] = $transport->messages()->map(static fn ($sent) => $sent->getOriginalMessage())->all();
-    expect($warningMail->getTextBody())->toContain($locale === 'en' ? 'Performance reported a warning on Golden shop.' : 'Leistung hat eine Warnung auf Golden shop gemeldet.')
-        ->not->toContain('reports a warning', 'meldet eine Warnung');
-    expect($catchUpMail->getSubject())->toBe($locale === 'en' ? '[After maintenance] Deleted site: Golden shop was still failing' : '[Nach Wartung] Gelöschte Website: Golden shop meldete weiterhin Fehler');
+    expect($removals)->toBe([])
+        ->and($removed->refresh()->only(['suppressed', 'suppression_reason']))->toBe(['suppressed' => true, 'suppression_reason' => 'monitoring_stopped'])
+        ->and($gone->refresh()->only(['suppressed', 'suppression_reason']))->toBe(['suppressed' => true, 'suppression_reason' => 'site_deleted'])
+        ->and($transport->messages())->toHaveCount(0);
 })->with(['en', 'de']);
 
 it('names same-named digest sites as the settings UI does, after URL normalisation', function (): void {
@@ -670,7 +663,7 @@ it('sends a digest whose add-on Changes source lost its add-on after the digest 
     expect($rows[1])->toBe($locale === 'en' ? ['Performance · Warning', 'Sitemap · Changes'] : ['Leistung · Warnung', 'Sitemap · Änderungen']);
 })->with(['en', 'de']);
 
-it('sends a retained add-on alert whose site was deleted and whose add-on was uninstalled', function (string $locale): void {
+it('sends no retained add-on alert whose site was deleted after its claim', function (string $locale): void {
     $transport = new ArrayTransport;
     Mail::mailer()->setSymfonyTransport($transport);
     $channel = channelOutcomeMailChannel($locale);
@@ -691,14 +684,9 @@ it('sends a retained add-on alert whose site was deleted and whose add-on was un
 
     app()->call(new SendNotification($delivery->id)->handle(...));
 
-    expect($deleted)->toBeTrue()->and($delivery->refresh()->state)->toBe(DeliveryState::Sent);
-    $mail = $transport->messages()->sole()->getOriginalMessage();
-    expect($mail->getSubject())->toBe($locale === 'en' ? '[Warning] Deleted site: Golden shop — Sitemap' : '[Warnung] Gelöschte Website: Golden shop — Sitemap')
-        ->and($mail->getTextBody())->toContain(
-            $locale === 'en' ? 'This site has been deleted' : 'Diese Website wurde gelöscht',
-            $locale === 'en' ? 'The add-on for this check is not installed' : 'Das Add-on für diese Prüfung ist nicht installiert',
-            $locale === 'en' ? 'gets changes' : 'Änderungen erhält')
-        ->not->toContain('sitemap.failed', 'http://monitor.example.test/sites/', 'http://monitor.example.test/incidents');
+    expect($deleted)->toBeTrue()
+        ->and($delivery->refresh()->only(['suppressed', 'suppression_reason']))->toBe(['suppressed' => true, 'suppression_reason' => 'site_deleted'])
+        ->and($transport->messages())->toHaveCount(0);
 })->with(['en', 'de']);
 
 /** Records one accepted run through the real recorder (incident transitions and outbox events included). */
@@ -795,3 +783,26 @@ it('keeps twenty long same-named digest rows unique and within the body budget',
         expect(array_filter($rows[1], static fn (string $label): bool => str_ends_with($label, '/section-'.$index.')')))->toHaveCount(1);
     }
 })->with(['en', 'de']);
+
+it('answers 404 for an alert preview whose site is deleted while the preview loads it', function (): void {
+    $channel = channelOutcomeMailChannel('en');
+    $site = channelOutcomeSite('preview-gone');
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::Uptime]);
+    $incident = Incident::factory()->for($check)->create(['site_id' => $site->id, 'opened_at' => now()->subHour()]);
+    $opened = Event::factory()->create(['check_id' => $check->id, 'incident_id' => $incident->id, 'type' => 'incident.opened', 'cause' => 'failed',
+        'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Failed]);
+    Delivery::query()->create(['event_id' => $opened->id, 'destination_id' => $channel->id, 'state' => DeliveryState::Sent, 'sent_at' => now(),
+        'next_attempt_at' => now(), 'suppression_evaluated_at' => now()]);
+    $owner = User::factory()->owner()->create();
+    // The site goes between reading the event row and loading its site.
+    $deleted = false;
+    Event::retrieved(static function (Event $event) use ($opened, $site, &$deleted): void {
+        if ($event->id === $opened->id && ! $deleted) {
+            $deleted = true;
+            DB::table('sites')->where('id', $site->id)->delete();
+        }
+    });
+
+    $this->actingAs($owner)->getJson(route('incidents.alert-preview', ['incident' => $incident->id, 'event' => $opened->id]))->assertNotFound();
+    expect($deleted)->toBeTrue();
+});

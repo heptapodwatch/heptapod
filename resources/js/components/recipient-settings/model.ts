@@ -16,6 +16,11 @@ export const modeLabel: Record<Mode, string> = {
     off: 'Off',
 };
 
+/** A team channel limited to one client never receives server alerts: its Servers row is locked off (ServerIssueMailer). */
+export function serversLocked(channel: Channel, category: string): boolean {
+    return category === 'servers' && channel.scope_client_id !== null;
+}
+
 /** The grid as the channel has it: every visible category, each with a known mode. */
 export function channelGrid(channel: Channel, grid: GridRow[]): Grid {
     return Object.fromEntries(
@@ -25,7 +30,10 @@ export function channelGrid(channel: Channel, grid: GridRow[]): Grid {
                 throw new Error(
                     `Channel ${channel.id} has no ${row.category} cell.`,
                 );
-            return [row.category, mode];
+            return [
+                row.category,
+                serversLocked(channel, row.category) ? 'off' : mode,
+            ];
         }),
     );
 }

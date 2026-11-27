@@ -18,6 +18,7 @@ use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\NotificationSchedule;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
+use Heptapod\Servers\ServerIssueMailer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -25,7 +26,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * PUT …/preferences: the channel's grid and site exceptions in one transaction (design §1.3, §7.1). Cells may change
  * only to the modes their category allows. System is not offered to clients or Members and stays on for an Owner's
- * account channel. Turning on a cell that opens uptime episodes or removing a site mute requests reconciliation
+ * account channel; Servers only to Owners, Admins and team channels without a client limit. Turning on a cell that opens uptime episodes or removing a site mute requests reconciliation
  * (§2.2); a Digest cell turned Immediate sends its waiting items on their immediate schedule instead of the next
  * digest.
  */
@@ -108,6 +109,9 @@ final readonly class UpdateNotificationPreferences
             $system = $requested[NotificationCategory::System->value] ?? null;
             if ($system instanceof NotificationMode && ! $this->systemEditable($locked)) {
                 throw ValidationException::withMessages(['preferences.system' => __('notifications.system_not_editable')]);
+            }
+            if (isset($requested[NotificationCategory::Servers->value]) && ServerIssueMailer::ineligibility($locked) !== null) {
+                throw ValidationException::withMessages(['preferences.servers' => __('notifications.servers_not_editable')]);
             }
 
             $opened = false;

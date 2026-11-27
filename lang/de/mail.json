@@ -130,5 +130,12 @@
     "system_mail.monitor_outage.action": "Erreichbarkeitsläufe werden als Prüffehler statt als Ausfall erfasst, weil die Kontrollabfragen dieses Servers fehlschlagen. Prüfen Sie die Netzwerkverbindung des Hosts.",
     "system_mail.monitor_outage.recovered": "Die Kontrollabfragen gelingen wieder. Erreichbarkeitsläufe werden wieder normal ausgewertet.",
     "system_mail.monitor_outage.mode.dns": "DNS-Abfragen fehlgeschlagen",
-    "system_mail.monitor_outage.mode.network": "Ausgehendes Netzwerk ohne Verbindung"
+    "system_mail.monitor_outage.mode.network": "Ausgehendes Netzwerk ohne Verbindung",
+    "server_mail.subject_open": "[Server] :title",
+    "server_mail.subject_recovered": "[Server wiederhergestellt] :title",
+    "server_mail.headline_recovered": "Behoben: :title",
+    "server_mail.why_personal": "Sie erhalten diese E-Mail, weil für diesen Kanal unter Einstellungen › Meine Benachrichtigungen Serverwarnungen eingeschaltet sind.",
+    "server_mail.why_team": "Dieser Kanal erhält diese Nachricht, weil für ihn in den Benachrichtigungseinstellungen des Teams Serverwarnungen eingeschaltet sind.",
+    "server_mail.facts": "Details",
+    "server_mail.open_server": "Server öffnen"
 }

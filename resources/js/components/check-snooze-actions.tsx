@@ -31,10 +31,7 @@ const presets = [
     ['For 7 days', 10080],
 ] as const;
 
-/**
- * The check header's Snooze menu: presets and Until a date…, or End snooze while snoozed. The trigger keeps one width
- * for both labels, so snoozing never moves Run check and More actions.
- */
+/** The check header's Snooze menu (SnoozeActions). */
 export function CheckSnoozeActions({
     siteId,
     check,
@@ -43,15 +40,39 @@ export function CheckSnoozeActions({
     check: Heptapod.Data.Ui.CheckStripData;
 }) {
     const { t } = useTranslation();
-    const [customOpen, setCustomOpen] = useState(false);
     const route = { site: siteId, check: check.id };
-    const snoozed = isSnoozed(check, Date.now());
+    return (
+        <SnoozeActions
+            snoozed={isSnoozed(check, Date.now())}
+            snoozeUrl={checkSnooze.url(route)}
+            unsnoozeUrl={checkUnsnooze.url(route)}
+            sheetTitle={t('Snooze check')}
+            sheetDescription={t('check_snooze.sheet_description')}
+        />
+    );
+}
+
+/**
+ * A header's Snooze menu, for checks and servers alike: presets and Until a date…, or End snooze while snoozed. The
+ * trigger keeps one width for both labels, so snoozing never moves the actions next to it.
+ */
+export function SnoozeActions({
+    snoozed,
+    snoozeUrl,
+    unsnoozeUrl,
+    sheetTitle,
+    sheetDescription,
+}: {
+    snoozed: boolean;
+    snoozeUrl: string;
+    unsnoozeUrl: string;
+    sheetTitle: string;
+    sheetDescription: string;
+}) {
+    const { t } = useTranslation();
+    const [customOpen, setCustomOpen] = useState(false);
     const snoozeFor = (minutes: number) =>
-        router.post(
-            checkSnooze.url(route),
-            { minutes },
-            { preserveScroll: true },
-        );
+        router.post(snoozeUrl, { minutes }, { preserveScroll: true });
     return (
         <>
             <DropdownMenu modal={false}>
@@ -83,7 +104,7 @@ export function CheckSnoozeActions({
                     {snoozed ? (
                         <DropdownMenuItem
                             onSelect={() =>
-                                router.delete(checkUnsnooze.url(route), {
+                                router.delete(unsnoozeUrl, {
                                     preserveScroll: true,
                                 })
                             }
@@ -112,7 +133,9 @@ export function CheckSnoozeActions({
             <SnoozeUntilSheet
                 open={customOpen}
                 onOpenChange={setCustomOpen}
-                url={checkSnooze.url(route)}
+                url={snoozeUrl}
+                title={sheetTitle}
+                description={sheetDescription}
             />
         </>
     );
@@ -162,10 +185,14 @@ function SnoozeUntilSheet({
     open,
     onOpenChange,
     url,
+    title,
+    description,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     url: string;
+    title: string;
+    description: string;
 }) {
     const { t } = useTranslation();
     const { timezone } = usePage().props;
@@ -189,8 +216,8 @@ function SnoozeUntilSheet({
             }}
         >
             <SheetForm
-                title={t('Snooze check')}
-                description={t('check_snooze.sheet_description')}
+                title={title}
+                description={description}
                 onSubmit={(event) => {
                     event.preventDefault();
                     if (instant === null || invalid) return;

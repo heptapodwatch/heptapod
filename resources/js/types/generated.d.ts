@@ -398,8 +398,16 @@ readonly consecutive_normal_samples: number,
 };
 }
 namespace Servers {
+export type ServerIssueKind = 'no_report' | 'disk_full' | 'memory_low' | 'load_high';
 export type ServerState = 'awaiting' | 'reporting' | 'no_report';
 namespace Data {
+export type ServerIssueData = {
+readonly id: number,
+readonly kind: Heptapod.Addons.Servers.ServerIssueKind,
+readonly scope: string,
+readonly opened_at: string,
+readonly values: Record<string, string | number>,
+};
 export type ServerLinkData = {
 readonly suggestions: {
 site: Heptapod.Contracts.DirectorySiteData,
@@ -449,6 +457,8 @@ readonly agent_arch: string | null,
 readonly agent_distro: string | null,
 readonly agent_kernel: string | null,
 readonly ips: string[],
+readonly issues: Heptapod.Addons.Servers.Data.ServerIssueData[],
+readonly snoozed_until: string | null,
 };
 export type ServerThresholdsData = {
 readonly disk_percent: number,
@@ -487,7 +497,7 @@ readonly pagination: Heptapod.Contracts.PaginationData,
 readonly defaults: Heptapod.Addons.Servers.Data.ServerThresholdsData,
 readonly filters: {
 search: string | null,
-state: Heptapod.Addons.Servers.ServerState | null,
+state: string | null,
 },
 readonly sort: string,
 };
@@ -1399,6 +1409,7 @@ readonly client_id: number | null,
 readonly changes: Heptapod.Contracts.CheckRunPresentationPartData[],
 readonly run_id: number | null,
 readonly check_id: number | null,
+readonly server_id: number | null,
 };
 export type FinishedRunData = {
 readonly id: number,
@@ -2330,7 +2341,7 @@ export type ImportRunStatus = 'planned' | 'queued' | 'running' | 'completed' | '
 export type ImportSection = 'sites' | 'maintenance' | 'cron' | 'channels';
 export type IncidentCause = 'failed' | 'errored';
 export type IncidentResolutionReason = 'check_disabled' | 'site_paused' | 'site_deleted' | 'moved_to_client';
-export type NotificationCategory = 'outage' | 'failure' | 'check_error' | 'warning' | 'expiring' | 'recovery' | 'changes' | 'system' | 'report';
+export type NotificationCategory = 'outage' | 'failure' | 'check_error' | 'warning' | 'expiring' | 'recovery' | 'changes' | 'system' | 'servers' | 'report';
 export type NotificationMode = 'immediate' | 'digest' | 'off';
 export type RecipientKind = 'team' | 'user' | 'client';
 export type ResponseTimeRange = '24h' | '7d' | '30d' | '90d' | '1y' | 'all';

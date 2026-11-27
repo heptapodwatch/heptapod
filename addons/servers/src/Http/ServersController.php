@@ -6,6 +6,7 @@ namespace Heptapod\Addons\Servers\Http;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Addons\Servers\Actions\RemoveServer;
+use Heptapod\Addons\Servers\Actions\SnoozeServer;
 use Heptapod\Addons\Servers\Actions\UpdateServerSettings;
 use Heptapod\Addons\Servers\Data\ServerPageData;
 use Heptapod\Addons\Servers\Data\ServerRowData;
@@ -36,7 +37,7 @@ final class ServersController
         $query = Validator::make($request->query(), [
             'filter' => ['sometimes', 'array:search,state'],
             'filter.search' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'filter.state' => ['sometimes', 'nullable', Rule::enum(ServerState::class)],
+            'filter.state' => ['sometimes', 'nullable', Rule::in([ServerReader::NeedsAttention, ...array_column(ServerState::cases(), 'value')])],
             'sort' => ['sometimes', 'string', Rule::in([...$sorts, ...array_map(static fn (string $key): string => '-'.$key, $sorts)])],
         ])->validate();
         $filters = ['search' => $query['filter']['search'] ?? null, 'state' => $query['filter']['state'] ?? null];
@@ -49,7 +50,7 @@ final class ServersController
         return Inertia::render('servers/index', new ServersPageData(
             Lazy::closure(static fn (): array => $read()['servers']), Lazy::closure(static fn (): PaginationData => $read()['pagination']),
             ServerThresholdsData::defaults(),
-            ['search' => $filters['search'], 'state' => $filters['state'] === null ? null : ServerState::from($filters['state'])], $sort,
+            ['search' => $filters['search'], 'state' => $filters['state']], $sort,
         ));
     }
 
@@ -119,6 +120,28 @@ final class ServersController
         Inertia::flash('server_token', $server->issueToken()->plainText());
 
         return to_route('servers.show', $server);
+    }
+
+    /** Snooze: the check snooze's choices, a number of minutes or an absolute end, at most a year ahead. */
+    public function snooze(Request $request, Server $server, SnoozeServer $snooze): RedirectResponse
+    {
+        Gate::authorize('update', $server);
+        $absolute = $request->has('snooze_until');
+        Validator::make($request->all(), $absolute
+            ? ['snooze_until' => ['required', 'string', 'date', 'regex:/(Z|[+-]\d{2}:\d{2})$/', 'after:now', 'before_or_equal:'.now()->addMinutes(525600)->toIso8601String()]]
+            : ['minutes' => ['required', 'integer', 'between:1,525600']], ['snooze_until' => __('check_snooze.until_invalid')])->validate();
+        $snooze($server, $absolute ? CarbonImmutable::parse($request->string('snooze_until')->toString())->utc()
+            : CarbonImmutable::now('UTC')->addMinutes($request->integer('minutes')));
+
+        return back();
+    }
+
+    public function unsnooze(Server $server, SnoozeServer $snooze): RedirectResponse
+    {
+        Gate::authorize('update', $server);
+        $snooze($server, null);
+
+        return back();
     }
 
     public function destroy(Server $server, RemoveServer $remove): RedirectResponse

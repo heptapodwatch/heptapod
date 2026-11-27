@@ -12,6 +12,7 @@ use Heptapod\Enums\NotificationCategory;
 use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
 use Heptapod\Models\NotificationDestination;
+use Heptapod\Servers\ServerIssueMailer;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\Support\SiteLabels;
 
@@ -20,7 +21,7 @@ final readonly class DigestMail
 {
     private const int ShownItems = 20;
 
-    public function __construct(private InstanceSettings $settings, private MailRouting $routing) {}
+    public function __construct(private InstanceSettings $settings, private MailRouting $routing, private ServerIssueMailer $serverIssues) {}
 
     public function build(Event $digest, NotificationDestination $destination): MailModel
     {
@@ -34,8 +35,17 @@ final readonly class DigestMail
         $sources->getQuery()->whereIn('id', $sourceIds)->orderBy('id');
         $rows = [];
         $sites = [];
+        // A server issue has no site: its row names the server (keyed below every site ID) and says what is wrong.
+        $servers = [];
         foreach ($sources->get() as $source) {
             $event = $source->event ?? throw new \LogicException('Digest source event is missing.');
+            if ($event->server_issue_id !== null) {
+                $servers[-$event->server_issue_id] = $event->server_name ?? throw new \LogicException('A server issue event needs its server name.');
+                $rows[] = ['site' => -$event->server_issue_id, 'category' => NotificationCategory::Servers, 'check' => null,
+                    'meta' => $this->serverIssues->message($event, $locale, $destination->resolvedTimezone())->summary];
+
+                continue;
+            }
             // The source keeps the category it was routed with; an uninstalled add-on can no longer classify its event.
             // Only a legacy source from before categories were stored and whose add-on is gone has none: it is listed last as unclassified.
             $category = $source->category ?? NotificationCategory::of($event);
@@ -43,23 +53,23 @@ final readonly class DigestMail
             $sites[$siteId] = ['name' => $event->site_name ?? throw new \LogicException('A digest source must retain its site label.'),
                 'client' => ($event->client?->is_internal === true ? $event->client->displayName($locale) : $event->client_name) ?? throw new \LogicException('A digest source must retain its client.'),
                 'url' => $event->site_url ?? throw new \LogicException('A digest source must retain its URL.')];
-            $rows[] = ['site' => $siteId, 'category' => $category,
+            $rows[] = ['site' => $siteId, 'category' => $category, 'meta' => null,
                 'check' => $event->check->type ?? $event->check_type ?? throw new \LogicException('A digest source needs its check type.')];
         }
         if ($rows === []) {
             throw new \LogicException('A digest mail needs its retained sources.');
         }
-        $labels = SiteLabels::for($sites);
+        $labels = SiteLabels::for($sites) + $servers;
         // Most urgent category first (grid order: check error, warning, expiring, changes), then by site.
         $rank = array_flip(array_map(static fn (NotificationCategory $category): string => $category->value, NotificationCategory::grid()));
-        /** @param array{site: int, category: ?NotificationCategory, check: CheckKey} $row */
+        /** @param array{site: int, category: ?NotificationCategory, check: CheckKey|null, meta: string|null} $row */
         $order = static fn (array $row): int => $row['category'] instanceof NotificationCategory ? $rank[$row['category']->value] : count($rank);
         usort($rows, static fn (array $a, array $b): int => [$order($a), $labels[$a['site']]] <=> [$order($b), $labels[$b['site']]]);
         $shown = array_slice($rows, 0, self::ShownItems);
         // The rows share one byte budget; a shortened label keeps its distinguishing end, else falls back to its site ID.
         $items = MailRowBudget::fit(array_map(static fn (array $row): array => ['text' => $labels[$row['site']], 'key' => $row['site'],
-            'meta' => __('checks.'.$row['check']->value.'.label', locale: $locale).' · '.__($row['category'] === null ? 'emails.digest_unclassified' : 'recipient_settings.category.'.$row['category']->value.'.label', locale: $locale),
-        ], $shown), array_map(static fn (int $id): string => SiteLabels::withId($id, $sites[$id]), array_combine(array_keys($sites), array_keys($sites))));
+            'meta' => ($row['meta'] ?? __('checks.'.($row['check']->value ?? throw new \LogicException('A site digest row needs its check.')).'.label', locale: $locale)).' · '.__($row['category'] instanceof NotificationCategory ? 'recipient_settings.category.'.$row['category']->value.'.label' : 'emails.digest_unclassified', locale: $locale),
+        ], $shown), array_map(static fn (int $id): string => SiteLabels::withId($id, $sites[$id]), array_combine(array_keys($sites), array_keys($sites))) + $servers);
         $at = $digest->occurred_at->setTimezone($destination->resolvedTimezone());
         $at->locale($locale);
         $blocks = [new ListBlock(__('emails.digest_as_of', ['time' => $at->isoFormat('ll, HH:mm z')], $locale), $items)];

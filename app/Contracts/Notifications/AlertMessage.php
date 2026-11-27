@@ -23,6 +23,7 @@ final class AlertMessage extends Data
      * @param  list<string>  $recheckingChecks
      * @param  list<string>|null  $systemFacts  localized fact lines of a system issue; it has no site or check
      * @param  list<array{url: string, label: string|null}>  $repositories  the site's repository links; empty for a client channel
+     * @param  array{id: int, name: string, url: string|null}|null  $server  the server of a server issue, which has no site; url is null once it is removed
      */
     public function __construct(
         public readonly int $eventId,
@@ -58,6 +59,8 @@ final class AlertMessage extends Data
         public readonly array $repositories = [],
         #[Hidden, TypeScriptHidden]
         public readonly ?CarbonImmutable $recoveredAt = null,
+        #[Hidden, TypeScriptHidden]
+        public readonly ?array $server = null,
     ) {
         if (! in_array($cause, ['failed', 'errored', null], true)) {
             throw new \InvalidArgumentException('Invalid alert cause.');

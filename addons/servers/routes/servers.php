@@ -21,6 +21,8 @@ Route::middleware(['web', EnsureServersEnabled::class, 'auth', 'verified'])->gro
     Route::get('servers/{server}', [ServersController::class, 'show'])->whereNumber('server')->name('servers.show');
     Route::patch('servers/{server}', [ServersController::class, 'update'])->whereNumber('server')->name('servers.update');
     Route::post('servers/{server}/token', [ServersController::class, 'rotateToken'])->whereNumber('server')->name('servers.token.rotate');
+    Route::post('servers/{server}/snooze', [ServersController::class, 'snooze'])->whereNumber('server')->name('servers.snooze');
+    Route::delete('servers/{server}/snooze', [ServersController::class, 'unsnooze'])->whereNumber('server')->name('servers.unsnooze');
     Route::get('servers/{server}/sites', [ServerSitesController::class, 'index'])->whereNumber('server')->name('servers.sites.index');
     Route::post('servers/{server}/sites', [ServerSitesController::class, 'store'])->whereNumber('server')->name('servers.sites.store');
     Route::delete('servers/{server}/sites/{site}', [ServerSitesController::class, 'destroy'])->whereNumber(['server', 'site'])->name('servers.sites.destroy');

@@ -58,9 +58,6 @@ final class RenderedAlert extends Notification
         if (isset($params['check']) && $this->message->checkType !== null) {
             $params['check'] = $this->checkName();
         }
-        if ($this->message->siteId === null && isset($params['site'])) {
-            $params['site'] = $this->siteLabel();
-        }
         $key = $this->message->titleKey;
         if ($this->message->recoveredAt instanceof CarbonImmutable && $this->message->downtimeSeconds !== null) {
             $params['since'] = $this->message->since->setTimezone($this->destinationTimezone)->format('H:i');
@@ -126,11 +123,7 @@ final class RenderedAlert extends Notification
         if ($this->message->checkType !== null) {
             $lines[] = $this->translate('notifications.check', ['check' => $this->checkName()], $markdown);
         }
-        if ($this->message->siteId === null) {
-            $lines[] = $markdown ? $this->escapeMarkdown($this->siteLabel()) : $this->siteLabel();
-        } else {
-            $lines[] = $this->translate('notifications.site_url', ['url' => $this->siteUrl()], $markdown);
-        }
+        $lines[] = $this->translate('notifications.site_url', ['url' => $this->siteUrl()], $markdown);
         $lines[] = $this->translate('notifications.since', ['since' => $this->machineReadable ? $this->message->since->toIso8601String() : $this->dateTime($this->message->since)]);
         if ($this->message->downtimeSeconds !== null) {
             $lines[] = $this->durationLine();
@@ -245,10 +238,7 @@ final class RenderedAlert extends Notification
 
     public function siteLabel(): string
     {
-        $label = $this->message->siteId === null
-            ? $this->translate('events.deleted_site', ['label' => $this->message->siteLabel]) : $this->message->siteLabel;
-
-        return $this->bounded($label, self::RENDER_LIMITS['title'], '…');
+        return $this->bounded($this->message->siteLabel, self::RENDER_LIMITS['title'], '…');
     }
 
     private function bounded(string $text, int $limit, string $suffix): string
@@ -358,18 +348,14 @@ final class RenderedAlert extends Notification
             $fields[] = $this->slackField('notifications.field.check', $this->slackEscape($this->checkName()));
         }
         $sitePrefix = '*'.$this->slackEscape($this->translate('notifications.field.site'))."*\n";
-        if ($this->message->siteId === null) {
-            $fields[] = $sitePrefix.$this->boundedEscapedSlack($this->slackEscape($this->siteLabel()), self::SLACK_LIMITS['field'] - strlen($sitePrefix), '…');
+        $fieldLink = $this->slackSiteLink(self::SLACK_LIMITS['field'] - strlen($sitePrefix));
+        if ($fieldLink !== null) {
+            $fields[] = $sitePrefix.$fieldLink;
         } else {
-            $fieldLink = $this->slackSiteLink(self::SLACK_LIMITS['field'] - strlen($sitePrefix));
-            if ($fieldLink !== null) {
-                $fields[] = $sitePrefix.$fieldLink;
-            } else {
-                // Site URLs up to 2,048 bytes exceed the 2,000-byte field cap; keep them clickable in a 3,000-byte section.
-                $sectionBudget = self::SLACK_LIMITS['body'] - strlen($sitePrefix);
-                $sectionLink = $this->slackSiteLink($sectionBudget);
-                $overflowSiteSection = $sitePrefix.($sectionLink ?? $this->boundedEscapedSlack($this->slackEscape($this->siteUrl()), $sectionBudget, '…'));
-            }
+            // Site URLs up to 2,048 bytes exceed the 2,000-byte field cap; keep them clickable in a 3,000-byte section.
+            $sectionBudget = self::SLACK_LIMITS['body'] - strlen($sitePrefix);
+            $sectionLink = $this->slackSiteLink($sectionBudget);
+            $overflowSiteSection = $sitePrefix.($sectionLink ?? $this->boundedEscapedSlack($this->slackEscape($this->siteUrl()), $sectionBudget, '…'));
         }
         $fields[] = $this->slackField('notifications.field.since', $this->slackEscape($this->dateTime($this->message->since)));
         if ($this->message->downtimeSeconds !== null) {
@@ -410,14 +396,10 @@ final class RenderedAlert extends Notification
             $afterSite[] = $this->slackEscape($this->durationLine());
         }
         $otherMetaBytes = strlen(implode("\n", [...$beforeSite, ...$afterSite])) + 2;
-        if ($this->message->siteId === null) {
-            $siteLine = $this->slackEscape($this->siteLabel());
-        } else {
-            $sitePrefix = $this->slackEscape($this->translate('notifications.field.site')).': ';
-            $siteBudget = max(0, $bodyLimit - strlen($sitePrefix) - $otherMetaBytes - strlen($truncated) - 32);
-            $siteLink = $this->slackSiteLink($siteBudget);
-            $siteLine = $sitePrefix.($siteLink ?? $this->boundedEscapedSlack($this->slackEscape($this->siteUrl()), max(strlen('…'), $siteBudget), '…'));
-        }
+        $sitePrefix = $this->slackEscape($this->translate('notifications.field.site')).': ';
+        $siteBudget = max(0, $bodyLimit - strlen($sitePrefix) - $otherMetaBytes - strlen($truncated) - 32);
+        $siteLink = $this->slackSiteLink($siteBudget);
+        $siteLine = $sitePrefix.($siteLink ?? $this->boundedEscapedSlack($this->slackEscape($this->siteUrl()), max(strlen('…'), $siteBudget), '…'));
         $meta = "\n".implode("\n", [...$beforeSite, $siteLine, ...$afterSite]);
         $narrative = implode("\n", array_map($this->slackEscape(...), $this->narrativeLines(false)));
         $narrativeBudget = $bodyLimit - strlen($title) - 1 - strlen($meta);

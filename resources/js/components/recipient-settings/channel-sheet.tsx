@@ -28,6 +28,7 @@ import {
     siteIdentities,
     modeLabel,
     modes,
+    serversLocked,
     type Channel,
     type Grid,
     type Mode,
@@ -431,8 +432,13 @@ export function ChannelSheet({
                                                 Object.keys(current).map(
                                                     (category) => [
                                                         category,
-                                                        category === 'system' &&
-                                                        channel.system_locked
+                                                        (category ===
+                                                            'system' &&
+                                                            channel.system_locked) ||
+                                                        serversLocked(
+                                                            channel,
+                                                            category,
+                                                        )
                                                             ? current[category]!
                                                             : defaults[
                                                                   category
@@ -462,8 +468,9 @@ export function ChannelSheet({
                         </div>
                         {page.grid.map((row) => {
                             const locked =
-                                row.category === 'system' &&
-                                channel.system_locked;
+                                (row.category === 'system' &&
+                                    channel.system_locked) ||
+                                serversLocked(channel, row.category);
                             const differs =
                                 defaults !== null &&
                                 grid[row.category] !== defaults[row.category];
@@ -499,7 +506,9 @@ export function ChannelSheet({
                                         <p className="text-xs text-muted-foreground">
                                             {locked
                                                 ? t(
-                                                      'recipient_settings.system_locked',
+                                                      row.category === 'servers'
+                                                          ? 'recipient_settings.servers_client_limited'
+                                                          : 'recipient_settings.system_locked',
                                                   )
                                                 : differs
                                                   ? t(

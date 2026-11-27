@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Addons\Servers;
 
 use Carbon\CarbonImmutable;
+use Heptapod\Addons\Servers\Data\ServerIssueData;
 use Heptapod\Addons\Servers\Data\ServerRowData;
 use Heptapod\Addons\Servers\Data\ServerThresholdsData;
 use Heptapod\Addons\Servers\Data\ServerValuesData;
@@ -20,24 +21,27 @@ final readonly class ServerReader
 
     /**
      * The list's sort keys and their SQL order; `-key` reverses one. The first click puts what needs attention on top:
-     * status No report, Awaiting, Reporting; disk (the fullest shown mount), RAM and load per vCPU highest first; last
+     * status an open issue, No report, Awaiting, Reporting; disk (the fullest shown mount), RAM and load per vCPU highest first; last
      * report oldest first. Servers without the value come last either way; ties go by name.
      */
     public const array SortKeys = [
         'name' => 'lower(name)',
-        'status' => "CASE state WHEN 'no_report' THEN 0 WHEN 'awaiting' THEN 1 ELSE 2 END",
+        'status' => "CASE WHEN needs_attention THEN 0 WHEN state = 'no_report' THEN 1 WHEN state = 'awaiting' THEN 2 ELSE 3 END",
         'disk' => '-disk_used',
         'memory' => '-memory_used',
         'load' => '-load_per_core',
         'last_report' => 'last_report_at',
     ];
 
+    /** The list filter for servers with an open issue ("Needs attention"). */
+    public const string NeedsAttention = 'attention';
+
     public function __construct(private ListPaging $paging) {}
 
     /**
      * One page of the list, filtered and sorted in SQL over every server with its newest sample (one index probe each).
      *
-     * @param  array{search?: string|null, state?: string|null}  $filters
+     * @param  array{search?: string|null, state?: string|null}  $filters  state: a ServerState, or `attention` for an open issue
      * @return array{servers: list<ServerRowData>, pagination: PaginationData}
      */
     public function page(CarbonImmutable $now, array $filters, string $sort): array
@@ -48,8 +52,11 @@ final readonly class ServerReader
             $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search).'%';
             $query->where(static fn (Builder $where): Builder => $where->where('name', 'ilike', $pattern)->orWhere('hostname', 'ilike', $pattern));
         }
-        if (($filters['state'] ?? null) !== null) {
-            $query->where('state', $filters['state']);
+        $state = $filters['state'] ?? null;
+        if ($state === self::NeedsAttention) {
+            $query->where('needs_attention', true);
+        } elseif ($state !== null) {
+            $query->where('state', $state);
         }
         $descending = str_starts_with($sort, '-');
         // A leading minus on a numeric expression puts the highest first in the ascending order.
@@ -60,7 +67,7 @@ final readonly class ServerReader
             $page = $this->paging->paginate($query, 'servers', $page->lastPage());
         }
 
-        /** @var list<object> $items */
+        /** @var list<object{id: int}> $items */
         $items = array_values($page->items());
 
         return ['servers' => array_map($this->row(...), $items), 'pagination' => PaginationData::fromPaginator($page)];
@@ -104,6 +111,12 @@ final readonly class ServerReader
             ->select(['servers.id', 'servers.name', 'servers.last_report_at', 'servers.agent_version', 'servers.settings', 'servers.hostname',
                 'servers.agent_os', 'servers.agent_arch', 'servers.agent_distro', 'servers.agent_kernel', 'servers.ips', 'latest.observed_at', 'latest.metrics'])
             ->selectRaw('(SELECT count(*) FROM server_sites WHERE server_id = servers.id) AS site_count')
+            ->addSelect('servers.snoozed_until')
+            // The open issues in ServerIssueKind order, through the server_issues_one_open index.
+            ->selectRaw('EXISTS (SELECT 1 FROM server_issues WHERE server_id = servers.id AND resolved_at IS NULL) AS needs_attention')
+            ->selectRaw("(SELECT coalesce(jsonb_agg(jsonb_build_object('id', i.id, 'kind', i.kind, 'scope', i.scope, 'opened_at', i.opened_at, 'values', i.opened_values)
+                ORDER BY array_position(?::text[], i.kind::text), i.scope), '[]') FROM server_issues i WHERE i.server_id = servers.id AND i.resolved_at IS NULL) AS issues",
+                ['{'.implode(',', array_column(ServerIssueKind::cases(), 'value')).'}'])
             ->selectRaw("CASE WHEN servers.last_report_at IS NULL THEN 'awaiting'
                 WHEN servers.last_report_at < ?::timestamptz - make_interval(mins => coalesce((servers.settings->>'no_report_minutes')::int, ?)) THEN 'no_report'
                 ELSE 'reporting' END AS state", [$now->utc()->format('Y-m-d H:i:s.uP'), config()->integer('servers.thresholds.no_report_minutes')])
@@ -116,7 +129,11 @@ final readonly class ServerReader
 
     private function row(object $row): ServerRowData
     {
-        /** @var object{id: int, name: string, last_report_at: string|null, agent_version: string|null, settings: string, site_count: int, hostname: string|null, agent_os: string|null, agent_arch: string|null, agent_distro: string|null, agent_kernel: string|null, ips: string|null, observed_at: string|null, metrics: string|null, state: string} $row */
+        /** @var object{id: int, name: string, last_report_at: string|null, agent_version: string|null, settings: string, site_count: int, hostname: string|null, agent_os: string|null, agent_arch: string|null, agent_distro: string|null, agent_kernel: string|null, ips: string|null, observed_at: string|null, metrics: string|null, state: string, snoozed_until: string|null, issues: string} $row */
+        /** @var list<array{id: int, kind: string, scope: string, opened_at: string, values: array<string, string|int|float>}> $open */
+        $open = json_decode($row->issues, true, flags: JSON_THROW_ON_ERROR);
+        $issues = array_map(static fn (array $issue): ServerIssueData => new ServerIssueData($issue['id'], ServerIssueKind::from($issue['kind']), $issue['scope'],
+            CarbonImmutable::parse($issue['opened_at'])->toIso8601String(), $issue['values']), $open);
         /** @var array{mounts?: list<array{mount: string, percent?: int, minutes?: int}>, memory_percent?: int, memory_minutes?: int, load_per_core?: int|float, load_minutes?: int, no_report_minutes?: int, ignored_mounts?: list<string>} $settings */
         $settings = json_decode($row->settings, true, flags: JSON_THROW_ON_ERROR);
         $ignored = $settings['ignored_mounts'] ?? [];
@@ -127,7 +144,7 @@ final readonly class ServerReader
             $row->last_report_at === null ? null : CarbonImmutable::parse($row->last_report_at)->toIso8601String(), $row->agent_version,
             $row->observed_at === null || $row->metrics === null ? null : ServerValuesData::fromSample($row->observed_at, $row->metrics, $ignored),
             ServerThresholdsData::of($settings), $ignored, $row->site_count, $row->hostname, $row->agent_os, $row->agent_arch, $row->agent_distro,
-            $row->agent_kernel, $ips);
+            $row->agent_kernel, $ips, $issues, $row->snoozed_until === null ? null : CarbonImmutable::parse($row->snoozed_until)->toIso8601String());
     }
 
     /**

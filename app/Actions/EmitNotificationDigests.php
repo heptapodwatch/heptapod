@@ -10,7 +10,10 @@ use Heptapod\Contracts\Notifications\AlertSeverity;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Contracts\NotificationSuppression;
 use Heptapod\Contracts\SuppressionSubject;
+use Heptapod\Enums\DeliveryDecisionKind;
 use Heptapod\Events\Notifications\AlertConfirmation;
+use Heptapod\Events\Notifications\DeliveryDecision;
+use Heptapod\Events\Notifications\DeliveryPlan;
 use Heptapod\Events\Notifications\NotificationEventTypes;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Events\Notifications\NotificationTiming;
@@ -18,7 +21,6 @@ use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\NotificationSchedule;
-use Heptapod\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -36,7 +38,7 @@ final readonly class EmitNotificationDigests
     private const string ArchivedMoreCacheKey = 'heptapod:notifications:digests_archived_more';
 
     public function __construct(private NotificationSuppression $suppression, private NotificationTiming $timing,
-        private NotificationEventTypes $types) {}
+        private NotificationEventTypes $types, private DeliveryPlan $plan) {}
 
     /** @return bool whether more digest work remains after this bounded pass */
     public function __invoke(bool $continuation = false): bool
@@ -86,6 +88,12 @@ final readonly class EmitNotificationDigests
                 if ($at->lessThan($this->timing->nextDailyDigest($local->startOfDay()->subSecond(), $weekdays, $schedule->digest_time, $timezone))) {
                     return;
                 }
+                // One digest per channel and minute (its unique digest slot). A channel that already has this minute's digest
+                // waits for the next pass instead of colliding, so it never stops the sweep for the channels after it. Digests
+                // are created only here, under this channel's lock.
+                if (DB::table('deliveries')->where('destination_id', $destination->id)->where('digest_slot_at', $at->startOfMinute()->format('Y-m-d H:i:s.uP'))->exists()) {
+                    return;
+                }
                 $query = Delivery::recurringDigest()->with(['event.site', 'event.check', 'event.incident'])->where('destination_id', $destination->id)
                     ->where(function (Builder $query) use ($date): void {
                         $query->getQuery()->whereNull('last_digest_local_date')->orWhere('last_digest_local_date', '<', $date);
@@ -94,8 +102,10 @@ final readonly class EmitNotificationDigests
                         $query->where(function (Builder $pending) use ($at): void {
                             $pending->where('state', DeliveryState::Pending->value)->where('next_attempt_at', '<=', $at->format('Y-m-d H:i:s.uP'))
                                 ->getQuery()->whereNull('digest_event_id');
-                        })->orWhere(function (Builder $sent) use ($local): void {
-                            $sent->where('state', DeliveryState::Sent->value)->where('sent_at', '<', $local->startOfDay()->utc()->format('Y-m-d H:i:s.uP'));
+                        })->orWhere(function (Builder $sent) use ($at, $local): void {
+                            // A recurring line on hold (a snoozed or switched-off server) waits until its hold ends.
+                            $sent->where('state', DeliveryState::Sent->value)->where('sent_at', '<', $local->startOfDay()->utc()->format('Y-m-d H:i:s.uP'))
+                                ->where('next_attempt_at', '<=', $at->format('Y-m-d H:i:s.uP'));
                         });
                     });
                 NotificationLocks::forUpdate($query->getQuery()->orderBy('id'));
@@ -105,13 +115,28 @@ final readonly class EmitNotificationDigests
                 }
                 $included = [];
                 $sites = [];
-                $recipient = $destination->user_id === null ? null : User::query()->findOrFail($destination->user_id);
+                $servers = [];
                 foreach ($sources as $source) {
                     $event = $source->event ?? throw new \LogicException('Digest source event is missing.');
-                    if ($event->site_id === null || $event->check_id === null) {
-                        if ($source->state === DeliveryState::Pending) {
-                            $source->update(['suppressed' => true, 'suppression_reason' => $event->site_id === null ? 'site_deleted' : 'monitoring_stopped', 'suppression_evaluated_at' => $at]);
+                    $refusal = $this->plan->sourceDecision($source, $event, $destination, $at);
+                    if ($refusal instanceof DeliveryDecision) {
+                        // A waiting item that may never go is suppressed; a sent one that recurs stays: recurrence ends on
+                        // terminal conditions (ServerIssueMailer::resolved, an archived channel). A held item (a snoozed or
+                        // switched-off server) keeps its hold until it ends, waiting or recurring.
+                        if ($refusal->kind === DeliveryDecisionKind::Suppress && $source->state === DeliveryState::Pending) {
+                            $source->update(['suppressed' => true, 'suppression_reason' => $refusal->reason, 'suppression_evaluated_at' => $at]);
+                            $source->announceChanges();
+                        } elseif ($refusal->kind === DeliveryDecisionKind::Hold && $refusal->until instanceof CarbonImmutable) {
+                            $source->update(['next_attempt_at' => $refusal->until, ...($source->state === DeliveryState::Pending ? ['last_reason' => $refusal->reason] : [])]);
+                            $source->announceChanges();
                         }
+
+                        continue;
+                    }
+                    if ($event->server_issue_id !== null) {
+                        // A server issue stays in the digest while it is open (ServerIssueMailer::refusal refuses a resolved one).
+                        $included[] = $source->id;
+                        $servers[$event->server_issue_id] = $event->server_name ?? throw new \LogicException('A server issue event needs its server name.');
 
                         continue;
                     }
@@ -135,14 +160,6 @@ final readonly class EmitNotificationDigests
                         default => false,
                     };
                     $site = $event->site ?? throw new \LogicException('Digest source site is missing.');
-                    if ($recipient !== null && $recipient->disabled_at === null && (! $recipient->hasAnyRole(['Owner', 'Admin', 'Member']) || ! $recipient->canAccessClient($site->client_id))) {
-                        if ($source->state === DeliveryState::Pending) {
-                            $source->update(['suppressed' => true, 'suppression_reason' => 'personal_site_access_revoked', 'suppression_evaluated_at' => $at]);
-                            $source->announceChanges();
-                        }
-
-                        continue;
-                    }
                     if ($decision->suppressed || ! $open) {
                         if ($source->state === DeliveryState::Pending) {
                             $source->update(['suppressed' => true, 'suppression_reason' => $decision->suppressed ? $decision->reason : 'digest_no_longer_open',
@@ -157,10 +174,8 @@ final readonly class EmitNotificationDigests
                 if ($included === []) {
                     return;
                 }
-                $shown = array_map(static fn (string $label): string => mb_strlen($label, 'UTF-8') > 80
-                    ? mb_substr($label, 0, 79, 'UTF-8').'…' : $label, array_slice(array_values($sites), 0, 20));
                 $digest = Event::query()->create(['type' => 'notification.digest', 'site_id' => null, 'occurred_at' => $at,
-                    'payload' => ['count' => count($included), 'sites' => implode(', ', $shown), 'remaining_sites' => count($sites) - count($shown), 'delivery_ids' => $included],
+                    'payload' => ['count' => count($included), ...DeliveryPlan::digestLabels($sites, $servers), 'delivery_ids' => $included],
                     'suppressed' => false, 'suppression_reason' => null,
                     'suppression_evaluated_at' => $at, 'notification_routed_at' => $at,
                 ]);

@@ -223,5 +223,10 @@
     "alert_channels.failure_other": "Failure alerts go to {{formattedCount}} channels",
     "alert_channels.failure_none": "No channel hears about failures",
     "alert_channels.card_title": "Alerts",
-    "alert_channels.no_uptime": "No outage alerts: this site has no uptime check running."
+    "alert_channels.no_uptime": "No outage alerts: this site has no uptime check running.",
+    "notifications.servers_not_editable": "Server alerts cannot be changed for this channel.",
+    "recipient_settings.category.servers.label": "Servers",
+    "recipient_settings.category.servers.plural": "server issues",
+    "recipient_settings.category.servers.description": "A server needs attention: disk, memory, load or no report.",
+    "recipient_settings.servers_client_limited": "Server alerts never reach a channel limited to one client."
 }

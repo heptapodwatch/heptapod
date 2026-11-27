@@ -57,9 +57,9 @@ it('sets up all-site alerts on the first owners account email and leaves later e
     expect($destination->enabled)->toBeTrue();
     expect($destination->account_mail)->toBeTrue();
     expect($destination->destinationConfig()->string('email'))->toBe('owner@example.test');
-    // Every site (no mutes); everything immediate except Changes (off for everyone), Check error (digest) and System (on for Owners).
+    // Every site (no mutes); everything immediate except Changes (off for everyone), Check error (digest), System (on for Owners) and Servers (on for Owners and Admins).
     expect(firstOwnerGrid($destination->id))->toBe(['changes' => 'off', 'check_error' => 'digest', 'expiring' => 'immediate', 'failure' => 'immediate',
-        'outage' => 'immediate', 'recovery' => 'immediate', 'system' => 'immediate', 'warning' => 'immediate']);
+        'outage' => 'immediate', 'recovery' => 'immediate', 'servers' => 'immediate', 'system' => 'immediate', 'warning' => 'immediate']);
     expect(DB::table('notification_site_mutes')->count())->toBe(0);
     // The shell's coverage signal speaks about the sites the viewer can see.
     Site::factory()->create();
@@ -85,6 +85,6 @@ it('preserves preconfigured routing when the first owner is created', function (
     $account = NotificationDestination::query()->where('account_mail', true)->sole();
     expect($account->user_id)->toBe(User::query()->sole()->id);
     expect(firstOwnerGrid($account->id))->toBe(['changes' => 'off', 'check_error' => 'off', 'expiring' => 'off', 'failure' => 'off',
-        'outage' => 'off', 'recovery' => 'off', 'system' => 'immediate', 'warning' => 'off']);
+        'outage' => 'off', 'recovery' => 'off', 'servers' => 'off', 'system' => 'immediate', 'warning' => 'off']);
     Mail::assertNothingSent();
 });
