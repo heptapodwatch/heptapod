@@ -6,7 +6,7 @@ namespace Heptapod\Actions;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\Notifications\DeliveryState;
-use Heptapod\Events\Notifications\DeliveryDecisionKind;
+use Heptapod\Enums\DeliveryDecisionKind;
 use Heptapod\Events\Notifications\DeliveryPlan;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Events\Notifications\UptimeAlertEpisode;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Heptapod\Events\Notifications;
+namespace Heptapod\Enums;
 
 enum DeliveryDecisionKind
 {

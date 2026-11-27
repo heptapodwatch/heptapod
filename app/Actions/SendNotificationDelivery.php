@@ -8,8 +8,8 @@ use Carbon\CarbonImmutable;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
 use Heptapod\Contracts\Notifications\DeliveryResult;
 use Heptapod\Contracts\Notifications\DeliveryState;
+use Heptapod\Enums\DeliveryDecisionKind;
 use Heptapod\Events\Notifications\DeliveryDecision;
-use Heptapod\Events\Notifications\DeliveryDecisionKind;
 use Heptapod\Events\Notifications\DeliveryPlan;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\Delivery;
@@ -28,7 +28,7 @@ final readonly class SendNotificationDelivery
         }
         $token = $claimed->claim_token ?? throw new \LogicException('Delivery claim has no token.');
         $send = $this->decideAgain($claimed->id, $token);
-        if ($send === null) {
+        if (! $send instanceof DeliveryDecision) {
             return null;
         }
         $destination = $send->destination ?? throw new \LogicException('A Send decision names its channel.');

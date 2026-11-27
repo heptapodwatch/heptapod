@@ -11,6 +11,7 @@ use Heptapod\Contracts\Notifications\AlertNotification;
 use Heptapod\Contracts\Notifications\AlertSeverity;
 use Heptapod\Contracts\Notifications\ChannelRecipient;
 use Heptapod\Contracts\Notifications\DeliveryState;
+use Heptapod\Enums\DeliveryDecisionKind;
 use Heptapod\Enums\IncidentCause;
 use Heptapod\Enums\IncidentResolutionReason;
 use Heptapod\Enums\NotificationCategory;
@@ -69,7 +70,7 @@ final readonly class DeliveryPlan
                 'suppression_evaluated_at' => $at, ...($claimed ? ['state' => DeliveryState::Pending] : []), ...($decision->clearReason ? ['last_reason' => null] : [])]),
             DeliveryDecisionKind::Hold => $delivery->update($decision->keepState && ! $claimed && $delivery->state !== DeliveryState::Sending
                 ? ['next_attempt_at' => $decision->until ?? $delivery->next_attempt_at]
-                : [...$released, ...$returned, 'state' => DeliveryState::Pending, ...($decision->until === null ? [] : ['next_attempt_at' => $decision->until]),
+                : [...$released, ...$returned, 'state' => DeliveryState::Pending, ...($decision->until instanceof CarbonImmutable ? ['next_attempt_at' => $decision->until] : []),
                     ...($decision->setReason ? ['last_reason' => $decision->reason] : [])]),
             DeliveryDecisionKind::Rebuild => $delivery->update([...$released, ...$returned, 'state' => DeliveryState::Pending, 'next_attempt_at' => $at]),
             DeliveryDecisionKind::Moved => $returned === [] ? null : $delivery->update($returned),
@@ -203,7 +204,7 @@ final readonly class DeliveryPlan
                 return DeliveryDecision::suppress($incident->resolved_at !== null ? 'incident_resolved' : 'incident_snoozed');
             }
         }
-        if (! self::accountSystem($destination, $delivery) && ! $destination->addressVerified()) {
+        if (! $this->accountSystem($destination, $delivery) && ! $destination->addressVerified()) {
             return DeliveryDecision::hold($at->addHour(), 'personal_email_unverified', setReason: true);
         }
         if ($event->type !== 'incident.resolved' && $this->types->severity($event) === AlertSeverity::Recovered) {
@@ -259,7 +260,7 @@ final readonly class DeliveryPlan
                 return DeliveryDecision::suppress('channel_client_scope');
             }
         }
-        $accountSystem = self::accountSystem($channel, $delivery);
+        $accountSystem = $this->accountSystem($channel, $delivery);
         if (! $channel->enabled && $delivery->origin !== 'manual' && ! $accountSystem) {
             return DeliveryDecision::suppress('destination_disabled');
         }
@@ -271,7 +272,7 @@ final readonly class DeliveryPlan
     }
 
     /** System mail on account channels goes to the account address regardless of pause and verification (design 3.4). */
-    private static function accountSystem(NotificationDestination $channel, Delivery $delivery): bool
+    private function accountSystem(NotificationDestination $channel, Delivery $delivery): bool
     {
         return $channel->account_mail && $delivery->category === NotificationCategory::System;
     }
@@ -360,7 +361,7 @@ final readonly class DeliveryPlan
 
     private function incidentRecovery(Delivery $delivery, Event $event, ?Incident $episode, CarbonImmutable $at): ?DeliveryDecision
     {
-        if ($episode !== null) {
+        if ($episode instanceof Incident) {
             $check = $episode->check ?? throw new \LogicException('An episode recovery requires its check.');
             $site = $event->site ?? throw new \LogicException('An episode recovery requires its site.');
             if (IncidentResolutionReason::forCheck($check, $site) instanceof IncidentResolutionReason) {

@@ -738,7 +738,7 @@ it('sends no stale digest when its channel was paused and resumed after the clai
 it('ends an opening for good when its issue resolves between claim and send, and its recovery with it', function (): void {
     $owner = systemIssueRecipient('Owner');
     [, $token] = alertsServer();
-    alertsAfterClaim(systemIssueAccountChannel($owner)->id, fn () => alertsReport($this, $token));
+    alertsAfterClaim(systemIssueAccountChannel($owner)->id, fn (): TestResponse => alertsReport($this, $token));
 
     alertsMinutes($this, $token, 11, ['memory' => 95]);
     dispatchNotifications();

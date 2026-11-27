@@ -6,6 +6,7 @@ namespace Heptapod\Events\Notifications;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\Notifications\ChannelRecipient;
+use Heptapod\Enums\DeliveryDecisionKind;
 use Heptapod\Models\NotificationDestination;
 use Illuminate\Notifications\Notification;
 

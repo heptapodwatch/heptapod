@@ -48,7 +48,7 @@ return new class extends Migration
             $ids = DB::table('notification_destinations')->where('id', '>', $after)->orderBy('id')->limit(self::Batch)->pluck('id')->all();
             if ($ids !== []) {
                 $batch('{'.implode(',', $ids).'}');
-                $after = $ids[array_key_last($ids)];
+                $after = array_last($ids);
             }
         } while (count($ids) === self::Batch);
     }
