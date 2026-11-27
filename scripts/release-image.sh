@@ -165,14 +165,21 @@ validate_image_keys() {
 pin_release_images() {
     # Compose accepts export, colon and whitespace dotenv spellings. Replace the whole managed definition.
     command -v sync >/dev/null 2>&1 || { echo 'sync (coreutils) is required to persist release pins. Install coreutils with your package manager and check command -v sync before rerunning: https://heptapod.watch/docs/running-it/hetzner/#other-linux-distributions' >&2; exit 1; }
-    # Published images are main builds and report sha-<short>; a bundle install reports its release tag instead.
+    # Published images are main builds and report sha-<short>. A bundle install, or a pulled Git checkout whose HEAD is
+    # an annotated release tag, reports that tag instead; otherwise the image's own version applies (a --build bakes
+    # git describe), so a stale pinned tag is dropped.
     release_version=
-    if [ -f "$release_dir/RELEASE" ]; then release_version=$(cat "$release_dir/RELEASE"); fi
+    if [ -f "$release_dir/RELEASE" ]; then
+        release_version=$(cat "$release_dir/RELEASE")
+    elif [ "${build:-false}" != true ] && command -v git >/dev/null 2>&1; then
+        release_version=$(git describe --exact-match --match 'v[0-9]*' HEAD 2>/dev/null) || release_version=
+        printf '%s\n' "$release_version" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+' || release_version=
+    fi
     pin_tmp=$(mktemp .env.prod.XXXXXX)
     awk -v app="$candidate_app" -v lighthouse="$candidate_lighthouse" -v version="$release_version" '
         /^[[:space:]]*(export[[:space:]]+)?APP_IMAGE[[:space:]]*[=:]/ { print "APP_IMAGE=" app; app_seen=1; next }
         /^[[:space:]]*(export[[:space:]]+)?LIGHTHOUSE_IMAGE[[:space:]]*[=:]/ { if (lighthouse != "") { print "LIGHTHOUSE_IMAGE=" lighthouse; lighthouse_seen=1; next } }
-        /^[[:space:]]*(export[[:space:]]+)?HEPTAPOD_VERSION[[:space:]]*[=:]/ { if (version != "") { print "HEPTAPOD_VERSION=" version; version_seen=1; next } }
+        /^[[:space:]]*(export[[:space:]]+)?HEPTAPOD_VERSION[[:space:]]*[=:]/ { if (version != "") { print "HEPTAPOD_VERSION=" version; version_seen=1 }; next }
         { print }
         END { if (!app_seen) print "APP_IMAGE=" app; if (lighthouse != "" && !lighthouse_seen) print "LIGHTHOUSE_IMAGE=" lighthouse; if (version != "" && !version_seen) print "HEPTAPOD_VERSION=" version }
     ' .env.prod > "$pin_tmp"

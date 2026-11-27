@@ -61,7 +61,7 @@ cat > "$fresh/bin/git" <<'SH'
 [ "${STUB_NO_GIT:-false}" = false ] || exit 128
 case "$1" in
     rev-parse) printf '%040d\n' 1 ;;
-    describe) echo fixture ;;
+    describe) if [ "$2" = --exact-match ]; then [ -n "${STUB_TAG:-}" ] || exit 128; echo "$STUB_TAG"; else echo fixture; fi ;;
     status) [ "${STUB_DIRTY:-false}" = false ] || echo ' M tracked-file' ;;
 esac
 SH
@@ -128,9 +128,15 @@ done
 validate_backup_name Heptapod /backups/upgrade-lifecycle-archive
 printf 'PASS: similar sibling prefix is allowed\n'
 # No shell selection is required after installation, including the own-TLS mode.
-./scripts/install.sh --domain own.example.com
+# A Git checkout on an annotated release tag pins that tag like a bundle install; off a tag the pin is dropped.
+STUB_TAG=v9.9.7 ./scripts/install.sh --domain own.example.com
 [ "$(sed -n 's/^COMPOSE_FILE=//p' .env.prod)" = compose.prod.yaml ] || { echo 'Installer did not persist own-TLS COMPOSE_FILE' >&2; exit 1; }
 model | jq -e '.services.app.ports | any(.[]; .published == "443" and .target == 8443)' >/dev/null
+[ "$(grep -c '^HEPTAPOD_VERSION=' .env.prod)" = 1 ] && grep -qx 'HEPTAPOD_VERSION=v9.9.7' .env.prod
+model | jq -e '.services.app.environment.HEPTAPOD_VERSION == "v9.9.7"' > /dev/null
+env -u COMPOSE_FILE ./scripts/upgrade.sh
+if grep -q HEPTAPOD_VERSION .env.prod; then echo 'Upgrade off a release tag kept the pinned tag' >&2; exit 1; fi
+printf 'PASS: a Git install on release tag v9.9.7 pins it as HEPTAPOD_VERSION; an upgrade off a tag drops the pin\n'
 cp .env.prod before.env
 chmod 644 .env.prod
 cp .env.prod private-before.env
@@ -701,6 +707,12 @@ awk '
 grep -Eq "^APP_IMAGE=$local_repository/app:[a-f0-9]{40}-dirty$" .env.prod
 grep -Eq "^LIGHTHOUSE_IMAGE=$local_repository/lighthouse:[a-f0-9]{40}-dirty$" .env.prod
 printf 'PASS: explicit dirty source build and official pulls precede maintenance; local pins and build-cache retention preserved\n'
+STUB_TAG=v9.9.7 env -u COMPOSE_FILE ./scripts/upgrade.sh
+[ "$(grep -c '^HEPTAPOD_VERSION=' .env.prod)" = 1 ] && grep -qx 'HEPTAPOD_VERSION=v9.9.7' .env.prod
+STUB_TAG=v9.9.7 env -u COMPOSE_FILE ./scripts/upgrade.sh --build
+if grep -q HEPTAPOD_VERSION .env.prod; then echo 'Source build on a release tag pinned it over git describe' >&2; exit 1; fi
+model | jq -e '.services.app.environment | has("HEPTAPOD_VERSION") | not' > /dev/null
+printf 'PASS: a pulled Git upgrade on release tag v9.9.7 pins it; a --build upgrade on the same tag keeps the baked git describe\n'
 # Resume has already acquired images/archive. A stopped app and less than 12 GiB must not block the remaining DB work.
 cp "$lifecycle_state/current.env" "$lifecycle_state/candidate.env"
 printf 'preparing\n' > "$lifecycle_state/phase"
