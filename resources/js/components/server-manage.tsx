@@ -650,58 +650,64 @@ export function LinkSitesSheet({
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | undefined>();
     const [query, setQuery] = useState('');
-    // The suggestions come with the sheet's first read; each search replaces only the sites to pick from.
-    const [suggestions, setSuggestions] = useState<Link['suggestions'] | null>(
-        null,
-    );
-    const [found, setFound] = useState<Link | null>(null);
+    // The sheet's opening read holds the suggestions and the first sites to pick from; both stay as they are while the
+    // sheet is open. A search reads only other sites to pick from, and clearing it shows the opening ones again.
+    const [opening, setOpening] = useState<Link | null>(null);
+    const [searched, setSearched] = useState<Link | null>(null);
     const [failed, setFailed] = useState(false);
+    const read = async (search: string, signal: AbortSignal): Promise<Link> => {
+        const response = await fetch(
+            sitesIndex.url(server.id, { query: search ? { q: search } : {} }),
+            { signal, headers: { Accept: 'application/json' } },
+        );
+        if (!response.ok)
+            throw new Error('Link choices request failed: ' + response.status);
+        return response.json();
+    };
+    const fail = (failure: unknown, signal: AbortSignal) => {
+        if (!signal.aborted) {
+            console.error(failure);
+            setFailed(true);
+        }
+    };
     useEffect(() => {
         if (!open) return;
         setDeclined([]);
         setPicked(new Map());
         setError(undefined);
         setQuery('');
-        setSuggestions(null);
-        setFound(null);
+        setOpening(null);
+        setSearched(null);
         setFailed(false);
+        const controller = new AbortController();
+        read('', controller.signal).then(setOpening, (failure: unknown) =>
+            fail(failure, controller.signal),
+        );
+        return () => controller.abort();
+        // One read per opening.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
     useEffect(() => {
-        if (!open) return;
+        const search = query.trim();
+        setSearched(null);
+        if (!open || search === '') return;
         const controller = new AbortController();
         const timer = setTimeout(
-            async () => {
-                try {
-                    const response = await fetch(
-                        sitesIndex.url(server.id, {
-                            query: query.trim() ? { q: query.trim() } : {},
-                        }),
-                        {
-                            signal: controller.signal,
-                            headers: { Accept: 'application/json' },
-                        },
-                    );
-                    if (!response.ok)
-                        throw new Error(
-                            'Link choices request failed: ' + response.status,
-                        );
-                    const data: Link = await response.json();
-                    setFound(data);
-                    if (!query.trim()) setSuggestions(data.suggestions);
-                } catch (failure) {
-                    if (!controller.signal.aborted) {
-                        console.error(failure);
-                        setFailed(true);
-                    }
-                }
-            },
-            query ? 150 : 0,
+            () =>
+                read(search, controller.signal).then(
+                    setSearched,
+                    (failure: unknown) => fail(failure, controller.signal),
+                ),
+            150,
         );
         return () => {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [open, query, server.id]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, query]);
+    const suggestions = opening?.suggestions ?? null;
+    const found = query.trim() === '' ? opening : searched;
     const suggested = new Set((suggestions ?? []).map(({ site }) => site.id));
     const movesFrom = new Map(
         (found?.linked_elsewhere ?? []).map((entry) => [

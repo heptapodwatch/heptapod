@@ -263,6 +263,44 @@ it('suggests at most 20 sites, an answer wholly on the server first, then more m
         ->and($ids)->not->toContain($partial->id);
 });
 
+it('still suggests when a DNS check stored no record groups at all (an empty snapshot)', function (): void {
+    $this->actingAs(manageUser('Owner'));
+    $server = reportingServer('web-1', ['49.12.88.204']);
+    [$empty, $pointing] = Site::factory()->count(2)->create();
+    // A check that ignores every record type stores normalized_records as an empty JSON array.
+    $check = Check::factory()->for($empty)->create(['type' => CheckKey::Dns]);
+    DB::table('dns_observations')->insert(['site_id' => $empty->id, 'check_id' => $check->id, 'run_id' => 990001, 'claim_token' => (string) Str::uuid(),
+        'run_ended_at' => now(), 'expected' => '[]', 'created_at' => now(), 'snapshot' => json_encode(['dns_records' => [], 'normalized_records' => []])]);
+    $check->forceFill(['latest_run_id' => 990001])->save();
+    dnsAnswer($pointing, [['A', '49.12.88.204']], now()->toImmutable());
+
+    expect(array_column(array_column(linkChoices($this, $server)['suggestions'], 'site'), 'id'))->toBe([$pointing->id]);
+});
+
+it('leaves sites that cannot be linked out before the 20 strongest suggestions are taken', function (): void {
+    $this->actingAs(manageUser('Owner'));
+    $server = reportingServer('web-1', ['49.12.88.204', '2a01:4f9:3a:1f::2']);
+    $at = now()->toImmutable();
+    // 21 stronger matches on an archived client: the user cannot see them, so they must not take the 20 places.
+    $archived = Client::factory()->create(['archived_at' => now()]);
+    foreach (Site::factory()->count(21)->for($archived)->create() as $site) {
+        dnsAnswer($site, [['A', '49.12.88.204'], ['AAAA', '2a01:4f9:3a:1f::2']], $at);
+    }
+    $visible = Site::factory()->create();
+    dnsAnswer($visible, [['A', '49.12.88.204']], $at);
+
+    expect(array_column(array_column(linkChoices($this, $server)['suggestions'], 'site'), 'id'))->toBe([$visible->id]);
+});
+
+it('refuses the Link site choices to Members and answers 404 while servers are off', function (): void {
+    $server = reportingServer('web-1');
+    $this->actingAs(manageUser('Member'))->getJson("/servers/{$server->id}/sites")->assertForbidden();
+    $owner = manageUser('Owner');
+    $this->actingAs($owner)->getJson("/servers/{$server->id}/sites")->assertOk();
+    manageSwitch(false);
+    $this->actingAs($owner)->getJson("/servers/{$server->id}/sites")->assertNotFound();
+});
+
 it('searches the sites to pick on the server, at most 20 a time', function (): void {
     $this->actingAs(manageUser('Owner'));
     $server = reportingServer('web-1');
@@ -338,6 +376,23 @@ it('links, moves and unlinks a site with the Site settings Save, and refuses the
     manageSwitch(false);
     $save(['server_id' => $first->id])->assertForbidden();
     expect(DB::table('server_sites')->count())->toBe(0);
+});
+
+it('treats a server change as an extra setting: a site of an archived client takes a move only', function (): void {
+    $this->actingAs(manageUser('Owner'));
+    $server = reportingServer('web-1');
+    $archived = Client::factory()->create(['archived_at' => now()]);
+    $active = Client::factory()->create();
+    $site = Site::factory()->for($archived)->create();
+
+    $this->patch("/sites/{$site->id}", ['server_id' => $server->id])->assertForbidden();
+    $this->patch("/sites/{$site->id}", ['client_id' => $active->id, 'server_id' => $server->id])->assertForbidden();
+
+    expect(DB::table('server_sites')->count())->toBe(0)->and($site->fresh()->client_id)->toBe($archived->id);
+    // The bare move stays allowed, and the moved site then takes its server.
+    $this->patch("/sites/{$site->id}", ['client_id' => $active->id])->assertRedirect();
+    $this->patch("/sites/{$site->id}", ['server_id' => $server->id])->assertRedirect();
+    expect($site->fresh()->client_id)->toBe($active->id)->and(DB::table('server_sites')->pluck('server_id', 'site_id')->all())->toBe([$site->id => $server->id]);
 });
 
 it('reads and writes no server link through SiteServers while servers are off', function (): void {

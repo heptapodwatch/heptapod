@@ -43,14 +43,15 @@ final class ServerSitesController
         $suggestions = [];
         if ($search === '' && app()->bound(SiteAddressLookup::class)) {
             $pointing = app(SiteAddressLookup::class)->sitesPointingAt($reader->server(CarbonImmutable::now(), $server->id)->ips,
-                array_keys($serverOf), self::ChoiceLimit);
-            // Strongest first, as the lookup ranked them; sites the user cannot see are left out.
+                array_keys($serverOf));
+            // Strongest first, as the lookup ranked them; the sites the user cannot see (archived clients among them) leave
+            // before the limit, so they never crowd out one that can be linked.
             $visible = [];
             foreach ($directory->visible($user, array_keys($pointing)) as $site) {
                 $visible[$site->id] = $site;
             }
             foreach ($pointing as $siteId => $addresses) {
-                if (isset($visible[$siteId])) {
+                if (isset($visible[$siteId]) && count($suggestions) < self::ChoiceLimit) {
                     $suggestions[] = ['site' => $visible[$siteId], 'address' => $addresses[0]];
                 }
             }

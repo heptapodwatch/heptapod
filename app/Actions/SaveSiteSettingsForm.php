@@ -26,8 +26,9 @@ final readonly class SaveSiteSettingsForm
     {
         NotificationLocks::transaction(function () use ($user, $site, $attributes, $timing, $clientId, $servers, $serverId): void {
             $servers?->holdServer($serverId);
-            ($this->update)($user, $site, $attributes, $timing, $clientId);
-            $servers?->link($site->id, $serverId);
+            // The link is an extra setting: decided with the site's own (a site that takes a move only refuses it).
+            ($this->update)($user, $site, $attributes, $timing, $clientId,
+                extraWrite: $servers instanceof SiteServers ? static fn () => $servers->link($site->id, $serverId) : null);
         });
     }
 }

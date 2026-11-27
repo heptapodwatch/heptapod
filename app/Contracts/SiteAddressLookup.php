@@ -13,11 +13,12 @@ interface SiteAddressLookup
      * behind a CDN answers with addresses of the CDN, which no server of its own reports.
      *
      * Strongest first: an answer wholly on the addresses before a partial one (a name spread over several servers), then
-     * more matching addresses, then the lower site id. At most $limit sites.
+     * more matching addresses, then the lower site id. Every match: the caller drops the sites it cannot offer before it
+     * takes the first few.
      *
      * @param  list<string>  $addresses
      * @param  list<int>  $exceptSiteIds
      * @return array<int, list<string>> site id => the matching addresses, as given
      */
-    public function sitesPointingAt(array $addresses, array $exceptSiteIds, int $limit): array;
+    public function sitesPointingAt(array $addresses, array $exceptSiteIds): array;
 }

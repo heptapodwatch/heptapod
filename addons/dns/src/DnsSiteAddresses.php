@@ -11,11 +11,12 @@ final class DnsSiteAddresses implements SiteAddressLookup
 {
     /**
      * One read: each enabled DNS check's newest accepted run (checks.latest_run_id) finds its observation through the
-     * (run_id, claim_token) index, so the read grows with the number of DNS checks, not with their history. The answer of
+     * (run_id, claim_token) index, so the read grows with the number of DNS checks, not with their history. A check that
+     * ignores every record type stores normalized_records as an empty JSON array, which has no groups. The answer of
      * the site's own name is its `<host>|A` and `<host>|AAAA` group (DnsRecordKey, as DnsCheck keys it). Addresses compare as binary,
      * so two spellings of one address match.
      */
-    public function sitesPointingAt(array $addresses, array $exceptSiteIds, int $limit): array
+    public function sitesPointingAt(array $addresses, array $exceptSiteIds): array
     {
         $wanted = [];
         foreach ($addresses as $address) {
@@ -24,7 +25,7 @@ final class DnsSiteAddresses implements SiteAddressLookup
                 $wanted[$binary] = $address;
             }
         }
-        if ($wanted === [] || $limit < 1) {
+        if ($wanted === []) {
             return [];
         }
         $except = $exceptSiteIds === [] ? '' : ' AND o.site_id NOT IN ('.implode(',', array_map(intval(...), $exceptSiteIds)).')';
@@ -32,7 +33,8 @@ final class DnsSiteAddresses implements SiteAddressLookup
         $records = DB::select("SELECT o.site_id, s.url, groups.key AS answer, coalesce(r->>'ip', r->>'ipv6') AS address
             FROM checks c JOIN dns_observations o ON o.run_id = c.latest_run_id AND o.check_id = c.id
             JOIN sites s ON s.id = o.site_id
-            CROSS JOIN LATERAL jsonb_each(o.snapshot->'normalized_records') groups
+            CROSS JOIN LATERAL jsonb_each(CASE WHEN jsonb_typeof(o.snapshot->'normalized_records') = 'object'
+                THEN o.snapshot->'normalized_records' ELSE '{}'::jsonb END) groups
             CROSS JOIN LATERAL jsonb_array_elements(groups.value) r
             WHERE c.type = 'dns' AND c.enabled AND o.run_ended_at IS NOT NULL AND (groups.key LIKE '%|A' OR groups.key LIKE '%|AAAA')".$except);
         /** @var array<int, array{total: int, matched: array<string, true>}> $answers */
@@ -62,7 +64,7 @@ final class DnsSiteAddresses implements SiteAddressLookup
         $strength = array_map(static fn (array $answer): array => [count($answer['matched']) === $answer['total'] ? 1 : 0, count($answer['matched'])], $matches);
         uksort($matches, static fn (int $a, int $b): int => [$strength[$b], $a] <=> [$strength[$a], $b]);
 
-        return array_map(static fn (array $answer): array => array_keys($answer['matched']), array_slice($matches, 0, $limit, true));
+        return array_map(static fn (array $answer): array => array_keys($answer['matched']), $matches);
     }
 
     private function binary(?string $address): ?string
