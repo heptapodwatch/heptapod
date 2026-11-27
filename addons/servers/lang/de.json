@@ -58,7 +58,7 @@
     "servers.install.releases": "Heptapod-Releases",
     "servers.install.reach": "Der Server muss diese Instanz über HTTPS erreichen.",
     "servers.install.token_gone": "Das Token wurde einmalig bei seiner Erstellung angezeigt. Erneuern Sie das Token, um einen neuen Installationsbefehl zu erhalten.",
-    "servers.install.development_build": "Diese Instanz läuft mit einem Entwicklungsstand ({{version}}), zu dem es kein Agent-Release gibt. Installieren Sie den Agenten aus einer veröffentlichten Heptapod-Version.",
+    "servers.install.development_build": "Zu diesem Entwicklungsstand ({{version}}) gibt es kein Agent-Release; installieren Sie den Agenten aus einer veröffentlichten Heptapod-Version.",
     "servers.rotate.action": "Token erneuern…",
     "servers.rotate.title": "Token erneuern",
     "servers.rotate.description": "Der Agent auf {{name}} meldet sofort nichts mehr, bis Sie dort den neuen Installationsbefehl ausführen.",

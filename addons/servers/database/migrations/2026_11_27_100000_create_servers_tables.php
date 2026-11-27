@@ -12,7 +12,7 @@ return new class extends Migration
     {
         Schema::create('servers', function (Blueprint $table): void {
             $table->id();
-            // The id inside the agent token (hpa_<public_id>_<secret>); the secret is stored only as its SHA-256.
+            // The id inside the agent token (prefix, public id, secret); the secret is stored only as a hash.
             $table->string('public_id', 26)->unique();
             $table->string('name');
             $table->char('token_hash', 64);

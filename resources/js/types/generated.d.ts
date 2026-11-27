@@ -409,7 +409,7 @@ points: {
 at: string,
 cpu: number,
 load: number,
-memory: number,
+memory: number | null,
 disks: Record<string, number>,
 }[],
 },

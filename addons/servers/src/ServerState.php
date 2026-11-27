@@ -19,7 +19,7 @@ enum ServerState: string
     public static function of(?CarbonImmutable $lastReportAt, CarbonImmutable $now): self
     {
         return match (true) {
-            $lastReportAt === null => self::Awaiting,
+            ! $lastReportAt instanceof CarbonImmutable => self::Awaiting,
             $lastReportAt->lt($now->subSeconds(2 * config()->integer('servers.interval_seconds'))) => self::NoReport,
             default => self::Reporting,
         };

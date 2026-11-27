@@ -17,7 +17,7 @@ final readonly class ServerPolicy
         return $this->access->allows($user);
     }
 
-    public function view(Authenticatable $user, Server $server): bool
+    public function view(Authenticatable $user): bool
     {
         return $this->access->allows($user);
     }
@@ -27,12 +27,12 @@ final readonly class ServerPolicy
         return $this->access->allows($user);
     }
 
-    public function update(Authenticatable $user, Server $server): bool
+    public function update(Authenticatable $user): bool
     {
         return $this->access->allows($user);
     }
 
-    public function delete(Authenticatable $user, Server $server): bool
+    public function delete(Authenticatable $user): bool
     {
         return $this->access->allows($user);
     }

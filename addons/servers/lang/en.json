@@ -58,7 +58,7 @@
     "servers.install.releases": "Heptapod releases",
     "servers.install.reach": "The server must reach this instance over HTTPS.",
     "servers.install.token_gone": "The token was shown once, when it was created. Rotate the token to get a new install command.",
-    "servers.install.development_build": "This instance runs a development build ({{version}}), so no agent release matches it. Install the agent from a released Heptapod version.",
+    "servers.install.development_build": "This development build ({{version}}) has no agent release; install the agent from a released Heptapod version.",
     "servers.rotate.action": "Rotate token…",
     "servers.rotate.title": "Rotate token",
     "servers.rotate.description": "The agent on {{name}} stops reporting at once, until you run the new install command on it.",

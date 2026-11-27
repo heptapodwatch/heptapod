@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Addons\Servers;
 
-/** The agent's bearer token `hpa_<server public id>_<secret>` (ingest contract v1); only sha256(secret) is stored. */
+/** The agent's bearer token (ingest contract v1): a fixed prefix, the server's public id and a secret; only the secret's hash is stored. */
 final readonly class ServerToken
 {
     private function __construct(public string $publicId, private string $secret) {}

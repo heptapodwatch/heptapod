@@ -38,7 +38,7 @@ final class ServerReportController
             return response()->json(['message' => 'A valid agent token is required.'], 401);
         }
 
-        $validator = Validator::make($request->json()->all(), self::rules());
+        $validator = Validator::make($request->json()->all(), $this->rules());
         if ($validator->fails()) {
             return response()->json(['message' => 'The report is invalid.', 'errors' => $validator->errors()], 422);
         }
@@ -80,7 +80,7 @@ final class ServerReportController
     }
 
     /** @return array<string, list<string>> */
-    private static function rules(): array
+    private function rules(): array
     {
         $nonNegativeInteger = ['required', 'integer:strict', 'min:0'];
         $load = ['required', 'numeric:strict', 'min:0'];
