@@ -232,22 +232,23 @@ export default function ServerShow({
                             <ServerFacts values={server.values} />
                         ) : undefined
                     }
-                    secondaryActionCount={2}
+                    // Two plain buttons at every width: without a primary action a More menu would stand alone.
+                    primaryAction={
+                        <Button
+                            variant="outline"
+                            onClick={() => setConfirming('rotate')}
+                        >
+                            {t('servers.rotate.action')}
+                        </Button>
+                    }
+                    secondaryActionCount={1}
                     secondaryActions={
-                        <>
-                            <PageHeaderAction
-                                variant="outline"
-                                onClick={() => setConfirming('rotate')}
-                            >
-                                {t('servers.rotate.action')}
-                            </PageHeaderAction>
-                            <PageHeaderAction
-                                variant="outline"
-                                onClick={() => setConfirming('remove')}
-                            >
-                                {t('servers.remove.action')}
-                            </PageHeaderAction>
-                        </>
+                        <PageHeaderAction
+                            variant="outline"
+                            onClick={() => setConfirming('remove')}
+                        >
+                            {t('servers.remove.action')}
+                        </PageHeaderAction>
                     }
                 />
                 {awaiting ? (

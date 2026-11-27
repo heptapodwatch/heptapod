@@ -51,9 +51,11 @@ function serverSample(array $overrides = []): array
     ], $overrides);
 }
 
+/** As the agent sends it: a JSON body and the bearer token, no Accept header. */
 function reportSample(TestCase $test, ?string $token, array $sample): TestResponse
 {
-    return $test->postJson('/agent/v1/report', $sample, $token === null ? [] : ['Authorization' => 'Bearer '.$token]);
+    return $test->call('POST', '/agent/v1/report', server: ['CONTENT_TYPE' => 'application/json']
+        + ($token === null ? [] : ['HTTP_AUTHORIZATION' => 'Bearer '.$token]), content: json_encode($sample, JSON_THROW_ON_ERROR));
 }
 
 it('stores a valid sample, refreshes liveness and tells the agent its interval', function (): void {
