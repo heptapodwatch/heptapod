@@ -15,13 +15,11 @@ import {
     type SortingState,
     type CellContext,
 } from '@tanstack/react-table';
-import { ArrowUpDown } from 'lucide-react';
 import { createContext, useContext, useRef, useState } from 'react';
 import { Link } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
     Table,
@@ -29,6 +27,7 @@ import {
     rowEmphasisClass,
     TableBody,
     TableCell,
+    SortHeaderButton,
     TableHead,
     TableHeader,
     TableRow,
@@ -385,11 +384,13 @@ export function DataTable({
             : serverSorts[column]!;
     const ariaSort = (column: string, clientSorted: false | 'asc' | 'desc') =>
         serverMode
-            ? sort === serverSorts[column]
-                ? 'ascending'
-                : sort === `-${serverSorts[column]}`
-                  ? 'descending'
-                  : 'none'
+            ? !onSort || !(column in serverSorts)
+                ? 'none'
+                : sort === serverSorts[column]
+                  ? 'ascending'
+                  : sort === `-${serverSorts[column]}`
+                    ? 'descending'
+                    : 'none'
             : clientSorted === 'asc'
               ? 'ascending'
               : clientSorted === 'desc'
@@ -761,7 +762,25 @@ export function DataTable({
                                         >
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <Button
+                                                    <SortHeaderButton
+                                                        direction={
+                                                            (
+                                                                serverMode
+                                                                    ? !!onSort &&
+                                                                      header
+                                                                          .column
+                                                                          .id in
+                                                                          serverSorts
+                                                                    : header.column.getCanSort()
+                                                            )
+                                                                ? ariaSort(
+                                                                      header
+                                                                          .column
+                                                                          .id,
+                                                                      header.column.getIsSorted(),
+                                                                  )
+                                                                : null
+                                                        }
                                                         disabled={
                                                             serverMode
                                                                 ? !onSort ||
@@ -773,7 +792,6 @@ export function DataTable({
                                                                   )
                                                                 : !header.column.getCanSort()
                                                         }
-                                                        variant="ghost"
                                                         aria-label={
                                                             fullHeaderLabels[
                                                                 header.column.id
@@ -788,20 +806,20 @@ export function DataTable({
                                                                 header.column
                                                                     .id,
                                                             )
-                                                                ? '-mr-3 max-w-full gap-1 px-1 text-xs has-[>svg]:px-1 @[900px]/table:-mr-1'
+                                                                ? '-mr-3 @[900px]/table:-mr-1'
                                                                 : full &&
                                                                     header
                                                                         .column
                                                                         .id ===
                                                                         'state'
-                                                                  ? 'ml-0 max-w-full gap-1 px-1 text-xs has-[>svg]:px-1'
+                                                                  ? 'ml-0'
                                                                   : full &&
                                                                       header
                                                                           .column
                                                                           .id ===
                                                                           'name'
-                                                                    ? '-ml-1 max-w-full gap-1 px-1 text-xs has-[>svg]:px-1'
-                                                                    : '-ml-3 max-w-full gap-1 px-1 text-xs has-[>svg]:px-1 @[900px]/table:-ml-1'
+                                                                    ? '-ml-1'
+                                                                    : '-ml-3 @[900px]/table:-ml-1'
                                                         }
                                                         onClick={
                                                             serverMode
@@ -816,20 +834,10 @@ export function DataTable({
                                                                 : header.column.getToggleSortingHandler()
                                                         }
                                                     >
-                                                        <span className="whitespace-nowrap">
-                                                            <FlexRender
-                                                                header={header}
-                                                            />
-                                                        </span>
-                                                        {(serverMode
-                                                            ? !!onSort &&
-                                                              header.column
-                                                                  .id in
-                                                                  serverSorts
-                                                            : header.column.getCanSort()) && (
-                                                            <ArrowUpDown className="size-3" />
-                                                        )}
-                                                    </Button>
+                                                        <FlexRender
+                                                            header={header}
+                                                        />
+                                                    </SortHeaderButton>
                                                 </TooltipTrigger>
                                                 <TooltipContent>
                                                     {fullHeaderLabels[

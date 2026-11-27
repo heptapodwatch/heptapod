@@ -1,5 +1,5 @@
 import * as React from "react"
-import { ArrowUpDown } from "lucide-react"
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { SiteState } from "@/types/monitoring"
@@ -72,7 +72,8 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", tableHeaderBackground, tableHeaderText, className)}
+      // The header row is not a row target: no row hover band under its sortable headers.
+      className={cn("[&_tr]:border-b [&_tr]:hover:bg-transparent", tableHeaderBackground, tableHeaderText, className)}
       {...props}
     />
   )
@@ -145,17 +146,35 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
  */
 function SortableTableHead({ sortKey, sort, onSort, firstDirection = "ascending", justify = "start", className, children, ...props }: React.ComponentProps<"th"> & { sortKey: string; sort: string; onSort: (sort: string) => void; firstDirection?: "ascending" | "descending"; justify?: "start" | "center" | "end" }) {
   const reversed = firstDirection === "ascending" ? "descending" : "ascending"
+  const direction = sort === sortKey ? firstDirection : sort === `-${sortKey}` ? reversed : "none"
   return (
-    <TableHead aria-sort={sort === sortKey ? firstDirection : sort === `-${sortKey}` ? reversed : "none"} className={className} {...props}>
-      <Button
-        variant="ghost"
-        className={cn("max-w-full gap-1 px-1 text-xs has-[>svg]:px-1", { start: "-ml-3 @[900px]/table:-ml-1", center: "", end: "-mr-3 @[900px]/table:-mr-1" }[justify])}
+    <TableHead aria-sort={direction} className={className} {...props}>
+      <SortHeaderButton
+        direction={direction}
+        className={{ start: "-ml-3 @[900px]/table:-ml-1", center: "", end: "-mr-3 @[900px]/table:-mr-1" }[justify]}
         onClick={() => onSort(sort === sortKey ? `-${sortKey}` : sortKey)}
       >
-        <span className="whitespace-nowrap">{children}</span>
-        <ArrowUpDown className="size-3" />
-      </Button>
+        {children}
+      </SortHeaderButton>
     </TableHead>
+  )
+}
+
+const sortIcons = { none: ArrowUpDown, ascending: ArrowUp, descending: ArrowDown } as const
+
+/**
+ * The one control of every sortable table header (SortableTableHead, DataTable): quiet at rest, the label and icon turn
+ * to the foreground colour on hover, the shared focus ring, the 32 px hit area. The icon names the column's sort: up or
+ * down while sorted, the two-way arrow while not; `direction` null is a column that cannot sort (no icon). The caller's
+ * className holds its alignment offsets.
+ */
+function SortHeaderButton({ direction, className, children, ...props }: React.ComponentProps<typeof Button> & { direction: keyof typeof sortIcons | null }) {
+  const Icon = direction === null ? null : sortIcons[direction]
+  return (
+    <Button variant="header" className={cn("max-w-full gap-1 px-1 text-xs has-[>svg]:px-1", className)} {...props}>
+      <span className="whitespace-nowrap">{children}</span>
+      {Icon && <Icon className="size-3" />}
+    </Button>
   )
 }
 
@@ -217,6 +236,7 @@ export {
   TableFooter,
   TableHead,
   SortableTableHead,
+  SortHeaderButton,
   TableRow,
   TableCell,
   TableCaption,

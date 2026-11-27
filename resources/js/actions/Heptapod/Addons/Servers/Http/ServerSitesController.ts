@@ -106,7 +106,7 @@ index.form = indexForm
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerSitesController::store
-* @see addons/servers/src/Http/ServerSitesController.php:72
+* @see addons/servers/src/Http/ServerSitesController.php:73
 * @route '/servers/{server}/sites'
 */
 export const store = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -121,7 +121,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerSitesController::store
-* @see addons/servers/src/Http/ServerSitesController.php:72
+* @see addons/servers/src/Http/ServerSitesController.php:73
 * @route '/servers/{server}/sites'
 */
 store.url = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -154,7 +154,7 @@ store.url = (args: { server: number | { id: number } } | [server: number | { id:
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerSitesController::store
-* @see addons/servers/src/Http/ServerSitesController.php:72
+* @see addons/servers/src/Http/ServerSitesController.php:73
 * @route '/servers/{server}/sites'
 */
 store.post = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -164,7 +164,7 @@ store.post = (args: { server: number | { id: number } } | [server: number | { id
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerSitesController::store
-* @see addons/servers/src/Http/ServerSitesController.php:72
+* @see addons/servers/src/Http/ServerSitesController.php:73
 * @route '/servers/{server}/sites'
 */
 const storeForm = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -174,7 +174,7 @@ const storeForm = (args: { server: number | { id: number } } | [server: number |
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerSitesController::store
-* @see addons/servers/src/Http/ServerSitesController.php:72
+* @see addons/servers/src/Http/ServerSitesController.php:73
 * @route '/servers/{server}/sites'
 */
 storeForm.post = (args: { server: number | { id: number } } | [server: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -186,7 +186,7 @@ store.form = storeForm
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerSitesController::destroy
-* @see addons/servers/src/Http/ServerSitesController.php:87
+* @see addons/servers/src/Http/ServerSitesController.php:88
 * @route '/servers/{server}/sites/{site}'
 */
 export const destroy = (args: { server: number | { id: number }, site: string | number } | [server: number | { id: number }, site: string | number ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -201,7 +201,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerSitesController::destroy
-* @see addons/servers/src/Http/ServerSitesController.php:87
+* @see addons/servers/src/Http/ServerSitesController.php:88
 * @route '/servers/{server}/sites/{site}'
 */
 destroy.url = (args: { server: number | { id: number }, site: string | number } | [server: number | { id: number }, site: string | number ], options?: RouteQueryOptions) => {
@@ -229,7 +229,7 @@ destroy.url = (args: { server: number | { id: number }, site: string | number } 
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerSitesController::destroy
-* @see addons/servers/src/Http/ServerSitesController.php:87
+* @see addons/servers/src/Http/ServerSitesController.php:88
 * @route '/servers/{server}/sites/{site}'
 */
 destroy.delete = (args: { server: number | { id: number }, site: string | number } | [server: number | { id: number }, site: string | number ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -239,7 +239,7 @@ destroy.delete = (args: { server: number | { id: number }, site: string | number
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerSitesController::destroy
-* @see addons/servers/src/Http/ServerSitesController.php:87
+* @see addons/servers/src/Http/ServerSitesController.php:88
 * @route '/servers/{server}/sites/{site}'
 */
 const destroyForm = (args: { server: number | { id: number }, site: string | number } | [server: number | { id: number }, site: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -254,7 +254,7 @@ const destroyForm = (args: { server: number | { id: number }, site: string | num
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServerSitesController::destroy
-* @see addons/servers/src/Http/ServerSitesController.php:87
+* @see addons/servers/src/Http/ServerSitesController.php:88
 * @route '/servers/{server}/sites/{site}'
 */
 destroyForm.delete = (args: { server: number | { id: number }, site: string | number } | [server: number | { id: number }, site: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
