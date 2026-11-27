@@ -168,7 +168,7 @@ cmp before.env .env.prod
 grep -q '^compose.prod.yaml | --env-file .env.prod exec -T app php artisan down$' docker-operations.log
 # Optional jq is not an install dependency. Every upgrade warns and still completes.
 mkdir "$fresh/no-jq"
-for command in bash sh readlink dirname env sed grep chmod openssl cat date df awk flock mkdir mv cp rm wc tr mktemp printenv sort xargs sync paste sha256sum find tail; do
+for command in bash sh readlink dirname env sed grep chmod openssl cat date df awk flock mkdir mv cp rm wc tr mktemp printenv sort xargs sync paste sha256sum find; do
     ln -s "$(command -v "$command")" "$fresh/no-jq/$command"
 done
 : > docker-operations.log
