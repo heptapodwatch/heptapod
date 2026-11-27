@@ -88,6 +88,12 @@ final readonly class EmitNotificationDigests
                 if ($at->lessThan($this->timing->nextDailyDigest($local->startOfDay()->subSecond(), $weekdays, $schedule->digest_time, $timezone))) {
                     return;
                 }
+                // One digest per channel and minute (its unique digest slot). A channel that already has this minute's digest
+                // waits for the next pass instead of colliding, so it never stops the sweep for the channels after it. Digests
+                // are created only here, under this channel's lock.
+                if (DB::table('deliveries')->where('destination_id', $destination->id)->where('digest_slot_at', $at->startOfMinute()->format('Y-m-d H:i:s.uP'))->exists()) {
+                    return;
+                }
                 $query = Delivery::recurringDigest()->with(['event.site', 'event.check', 'event.incident'])->where('destination_id', $destination->id)
                     ->where(function (Builder $query) use ($date): void {
                         $query->getQuery()->whereNull('last_digest_local_date')->orWhere('last_digest_local_date', '<', $date);
@@ -96,8 +102,10 @@ final readonly class EmitNotificationDigests
                         $query->where(function (Builder $pending) use ($at): void {
                             $pending->where('state', DeliveryState::Pending->value)->where('next_attempt_at', '<=', $at->format('Y-m-d H:i:s.uP'))
                                 ->getQuery()->whereNull('digest_event_id');
-                        })->orWhere(function (Builder $sent) use ($local): void {
-                            $sent->where('state', DeliveryState::Sent->value)->where('sent_at', '<', $local->startOfDay()->utc()->format('Y-m-d H:i:s.uP'));
+                        })->orWhere(function (Builder $sent) use ($at, $local): void {
+                            // A recurring line on hold (a snoozed or switched-off server) waits until its hold ends.
+                            $sent->where('state', DeliveryState::Sent->value)->where('sent_at', '<', $local->startOfDay()->utc()->format('Y-m-d H:i:s.uP'))
+                                ->where('next_attempt_at', '<=', $at->format('Y-m-d H:i:s.uP'));
                         });
                     });
                 NotificationLocks::forUpdate($query->getQuery()->orderBy('id'));
@@ -112,11 +120,14 @@ final readonly class EmitNotificationDigests
                     $event = $source->event ?? throw new \LogicException('Digest source event is missing.');
                     $refusal = $this->plan->sourceDecision($source, $event, $destination, $at);
                     if ($refusal instanceof DeliveryDecision) {
-                        // A waiting item that may never go is suppressed. A held item (a snoozed server) and a sent one that
-                        // recurs stay as they are: a refusal skips this digest only; recurrence ends on terminal conditions
-                        // (ServerIssueMailer::resolved, an archived channel).
+                        // A waiting item that may never go is suppressed; a sent one that recurs stays: recurrence ends on
+                        // terminal conditions (ServerIssueMailer::resolved, an archived channel). A held item (a snoozed or
+                        // switched-off server) keeps its hold until it ends, waiting or recurring.
                         if ($refusal->kind === DeliveryDecisionKind::Suppress && $source->state === DeliveryState::Pending) {
                             $source->update(['suppressed' => true, 'suppression_reason' => $refusal->reason, 'suppression_evaluated_at' => $at]);
+                            $source->announceChanges();
+                        } elseif ($refusal->kind === DeliveryDecisionKind::Hold && $refusal->until instanceof CarbonImmutable) {
+                            $source->update(['next_attempt_at' => $refusal->until, ...($source->state === DeliveryState::Pending ? ['last_reason' => $refusal->reason] : [])]);
                             $source->announceChanges();
                         }
 

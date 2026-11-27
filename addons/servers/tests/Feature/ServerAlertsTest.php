@@ -434,8 +434,8 @@ it('offers the Servers row to Owners, Admins and team channels, locked off for a
         ->assertUnprocessable()->assertJsonValidationErrors(['preferences.servers']);
     $this->actingAs($member)->putJson(route('notification-channels.preferences', systemIssueAccountChannel($member)), ['preferences' => ['servers' => 'immediate']])
         ->assertUnprocessable()->assertJsonValidationErrors(['preferences.servers']);
-    expect(DB::table('notification_preferences')->where('category', 'servers')->whereIn('destination_id', [$team->id, $limited->id])->pluck('mode', 'destination_id')->all())
-        ->toBe([$team->id => 'digest', $limited->id => 'off']);
+    expect(DB::table('notification_preferences')->where('category', 'servers')->whereIn('destination_id', [$team->id, $limited->id])->orderBy('destination_id')->pluck('mode', 'destination_id')->all())
+        ->toBe([$limited->id => 'off', $team->id => 'digest']);
 });
 
 it('keeps Activity and the notification settings within a fixed number of queries as server issues and channels grow', function (): void {
@@ -849,4 +849,77 @@ it('lists sites before servers in a digest summary, also after a rebuild, within
         ->and($payload['sites'])->toStartWith('Site 02')->not->toContain('web-1')
         ->and($payload['remaining_sites'])->toBe(1)
         ->and(alertsWebhookBodies())->toHaveCount(1);
+});
+
+/** A site warning that waits for this channel's daily digest (its Warning cell on Digest). */
+function alertsSiteDigestLine(NotificationDestination $channel, string $name): Delivery
+{
+    DB::table('notification_preferences')->where('destination_id', $channel->id)->where('category', 'warning')->update(['mode' => 'digest']);
+    $check = Check::factory()->create(['type' => CheckKey::Performance, 'latest_run_result' => CheckResult::Warning]);
+    $check->site?->update(['friendly_name' => $name]);
+    $event = Event::factory()->create(['check_id' => $check->id, 'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Warning]);
+
+    return Delivery::query()->create(['event_id' => $event->id, 'destination_id' => $channel->id, 'category' => 'warning', 'digest' => true,
+        'next_attempt_at' => now()->subMinute(), 'suppression_evaluated_at' => now()]);
+}
+
+it('keeps the hold of server digest lines while servers are off, waiting and recurring, also when they are switched on in the same minute', function (): void {
+    $zone = app(InstanceSettings::class)->timezone;
+    $digest = alertsDigestOfTwo($this);
+    alertsSiteDigestLine($digest, 'Shop');
+    $serverLines = static fn () => DB::table('deliveries')->join('events', 'events.id', '=', 'deliveries.event_id')->where('events.type', 'server.issue_opened')
+        ->where('deliveries.destination_id', $digest->id)->orderBy('deliveries.id')->get(['deliveries.state', 'deliveries.next_attempt_at', 'deliveries.last_reason']);
+    $digests = static fn (): int => DB::table('events')->where('type', 'notification.digest')->count();
+
+    // Waiting lines: servers off for the digest pass, on again within the same minute.
+    alertsSwitch(false);
+    dispatchNotifications();
+    $held = $serverLines();
+    expect($digests())->toBe(1)
+        ->and($held->map(static fn (object $line): array => [$line->state, CarbonImmutable::parse($line->next_attempt_at)->equalTo(now()->addHour()), $line->last_reason])->all())
+        ->toBe([['pending', true, 'servers_disabled'], ['pending', true, 'servers_disabled']]);
+    alertsSwitch(true);
+    dispatchNotifications();
+    $this->travel(1)->minutes();
+    dispatchNotifications();
+    expect($digests())->toBe(1);
+    $this->travel(59)->minutes();
+    dispatchNotifications();
+    expect($digests())->toBe(2)->and($serverLines()->pluck('state')->unique()->all())->toBe(['sent']);
+
+    // Recurring lines the next morning: the same hold, then the next digest after it.
+    $this->travelTo(CarbonImmutable::parse('2026-11-29T08:00:00', $zone));
+    alertsSwitch(false);
+    dispatchNotifications();
+    expect($digests())->toBe(3)
+        ->and($serverLines()->every(static fn (object $line): bool => CarbonImmutable::parse($line->next_attempt_at)->equalTo(now()->addHour())))->toBeTrue();
+    alertsSwitch(true);
+    dispatchNotifications();
+    $this->travel(1)->minutes();
+    dispatchNotifications();
+    expect($digests())->toBe(3);
+    $this->travel(59)->minutes();
+    dispatchNotifications();
+    expect($digests())->toBe(4);
+});
+
+it('lets a channel that already has this minute\'s digest wait for the next pass without stopping the channels after it', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-11-28T08:00:00', app(InstanceSettings::class)->timezone));
+    $first = notificationWebhook();
+    $second = notificationWebhook();
+    alertsSiteDigestLine($first, 'Shop');
+    app(EmitNotificationDigests::class)();
+    $late = alertsSiteDigestLine($first, 'Blog');
+    alertsSiteDigestLine($second, 'Docs');
+
+    app(EmitNotificationDigests::class)();
+
+    $digestsOf = static fn (NotificationDestination $channel): int => DB::table('deliveries')->join('events', 'events.id', '=', 'deliveries.event_id')
+        ->where('events.type', 'notification.digest')->where('deliveries.destination_id', $channel->id)->count();
+    expect([$digestsOf($first), $digestsOf($second)])->toBe([1, 1])
+        ->and($late->refresh()->digest_event_id)->toBeNull();
+
+    $this->travel(1)->minutes();
+    app(EmitNotificationDigests::class)();
+    expect($digestsOf($first))->toBe(2)->and($late->refresh()->digest_event_id)->not->toBeNull();
 });

@@ -783,3 +783,26 @@ it('keeps twenty long same-named digest rows unique and within the body budget',
         expect(array_filter($rows[1], static fn (string $label): bool => str_ends_with($label, '/section-'.$index.')')))->toHaveCount(1);
     }
 })->with(['en', 'de']);
+
+it('answers 404 for an alert preview whose site is deleted while the preview loads it', function (): void {
+    $channel = channelOutcomeMailChannel('en');
+    $site = channelOutcomeSite('preview-gone');
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::Uptime]);
+    $incident = Incident::factory()->for($check)->create(['site_id' => $site->id, 'opened_at' => now()->subHour()]);
+    $opened = Event::factory()->create(['check_id' => $check->id, 'incident_id' => $incident->id, 'type' => 'incident.opened', 'cause' => 'failed',
+        'from_result' => CheckResult::Succeeded, 'to_result' => CheckResult::Failed]);
+    Delivery::query()->create(['event_id' => $opened->id, 'destination_id' => $channel->id, 'state' => DeliveryState::Sent, 'sent_at' => now(),
+        'next_attempt_at' => now(), 'suppression_evaluated_at' => now()]);
+    $owner = User::factory()->owner()->create();
+    // The site goes between reading the event row and loading its site.
+    $deleted = false;
+    Event::retrieved(static function (Event $event) use ($opened, $site, &$deleted): void {
+        if ($event->id === $opened->id && ! $deleted) {
+            $deleted = true;
+            DB::table('sites')->where('id', $site->id)->delete();
+        }
+    });
+
+    $this->actingAs($owner)->getJson(route('incidents.alert-preview', ['incident' => $incident->id, 'event' => $opened->id]))->assertNotFound();
+    expect($deleted)->toBeTrue();
+});
