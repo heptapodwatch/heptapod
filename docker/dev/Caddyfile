@@ -15,6 +15,11 @@
 	encode zstd gzip
 	header X-Content-Type-Options nosniff
 
+	# Agent reports are at most 16 KiB (ingest contract v1). Refused here, before PHP reads and decodes the body.
+	@agentReport path /agent/v1/report
+	request_body @agentReport {
+		max_size 16KiB
+	}
 	@reverb path /app/*
 	handle @reverb {
 		reverse_proxy reverb:8080

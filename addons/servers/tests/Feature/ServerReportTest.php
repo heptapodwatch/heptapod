@@ -52,9 +52,9 @@ function serverSample(array $overrides = []): array
 }
 
 /** As the agent sends it: a JSON body and the bearer token, no Accept header. */
-function reportSample(TestCase $test, ?string $token, array $sample): TestResponse
+function reportSample(TestCase $test, ?string $token, array $sample, string $method = 'POST', string $contentType = 'application/json'): TestResponse
 {
-    return $test->call('POST', '/agent/v1/report', server: ['CONTENT_TYPE' => 'application/json']
+    return $test->call($method, '/agent/v1/report', server: ['CONTENT_TYPE' => $contentType]
         + ($token === null ? [] : ['HTTP_AUTHORIZATION' => 'Bearer '.$token]), content: json_encode($sample, JSON_THROW_ON_ERROR));
 }
 
@@ -97,7 +97,7 @@ it('rejects a missing, wrong or rotated token with 401 and a removed server with
     [$server, $token] = addReportingServer($this);
     $wrong = substr($token, 0, -1).(str_ends_with($token, 'A') ? 'B' : 'A');
 
-    reportSample($this, null, serverSample())->assertUnauthorized();
+    reportSample($this, null, serverSample())->assertUnauthorized()->assertExactJson(['error' => 'unauthorized']);
     reportSample($this, 'not-a-token', serverSample())->assertUnauthorized();
     reportSample($this, $wrong, serverSample())->assertUnauthorized();
 
@@ -109,24 +109,54 @@ it('rejects a missing, wrong or rotated token with 401 and a removed server with
 
     $this->delete("/servers/{$server->id}")->assertRedirect('/servers');
     $this->travel(21)->seconds();
-    reportSample($this, $rotated, serverSample())->assertNotFound();
+    reportSample($this, $rotated, serverSample())->assertNotFound()->assertExactJson(['error' => 'not_found']);
     expect(DB::table('server_samples')->count())->toBe(0);
 });
+
+it('refuses a report whose token was rotated or whose server was removed while it was in flight', function (string $change, int $status): void {
+    [$server, $token] = addReportingServer($this);
+    // The change commits after the report's first token check and before its write, as a concurrent request would.
+    $changed = false;
+    Server::retrieved(static function (Server $retrieved) use (&$changed, $change): void {
+        if ($changed) {
+            return;
+        }
+        $changed = true;
+        // Behind the loaded model's back, so the controller's first check still sees the old state.
+        $row = DB::table('servers')->where('id', $retrieved->id);
+        $change === 'rotated' ? $row->update(['token_hash' => hash('sha256', 'rotated')]) : $row->delete();
+    });
+
+    reportSample($this, $token, serverSample())->assertStatus($status);
+
+    expect(DB::table('server_samples')->count())->toBe(0)
+        ->and(DB::table('servers')->where('id', $server->id)->value('last_report_at'))->toBeNull();
+})->with(['rotated' => ['rotated', 401], 'removed' => ['removed', 404]]);
 
 it('rejects an oversize body with 413', function (): void {
     [, $token] = addReportingServer($this);
     $sample = serverSample(['padding' => str_repeat('x', 16 * 1024)]);
 
-    reportSample($this, $token, $sample)->assertStatus(413);
+    reportSample($this, $token, $sample)->assertStatus(413)->assertExactJson(['error' => 'too_large']);
     expect(DB::table('server_samples')->count())->toBe(0);
 });
 
-it('rejects invalid fields with 422 and stores nothing', function (array $overrides): void {
+it('rejects a body that is not declared as JSON with 415', function (): void {
     [, $token] = addReportingServer($this);
 
-    reportSample($this, $token, serverSample($overrides))->assertUnprocessable();
+    reportSample($this, $token, serverSample(), contentType: 'text/plain')->assertStatus(415)->assertExactJson(['error' => 'unsupported_media_type']);
+    expect(DB::table('server_samples')->count())->toBe(0);
+});
+
+it('rejects invalid fields with a generic 422 and stores nothing', function (array $overrides): void {
+    [, $token] = addReportingServer($this);
+
+    reportSample($this, $token, serverSample($overrides))->assertUnprocessable()->assertExactJson(['error' => 'invalid_report']);
     expect(DB::table('server_samples')->count())->toBe(0);
 })->with([
+    'NUL in the hostname' => [['host' => ['hostname' => "solitary\0darkness"]]],
+    'line break in the kernel' => [['agent' => ['kernel' => "6.12\ninjected"]]],
+    'control character in a mount' => [['filesystems' => [['mount' => "/data\x1b", 'total_bytes' => 1, 'free_bytes' => 1]]]],
     'sample id not a UUID' => [['sample_id' => 'sample-1']],
     'observed_at not UTC RFC 3339' => [['observed_at' => '2026-11-27 07:00:00']],
     'CPU over 100 %' => [['cpu' => ['used_percent' => 100.1]]],
@@ -160,15 +190,20 @@ it('rejects observed_at older than 10 minutes or more than 2 minutes ahead', fun
     'future' => [121, 422],
 ]);
 
-it('limits each token to one sample per 20 seconds', function (): void {
-    [, $token] = addReportingServer($this);
+it('limits each server to one sample per 20 seconds, across a token rotation, and wrong tokens never use it up', function (): void {
+    [$server, $token] = addReportingServer($this);
+    $wrong = substr($token, 0, -1).(str_ends_with($token, 'A') ? 'B' : 'A');
+    reportSample($this, $wrong, serverSample())->assertUnauthorized();
     reportSample($this, $token, serverSample())->assertStatus(202);
 
+    $this->post("/servers/{$server->id}/token");
+    $rotated = session(SessionKey::FLASH_DATA)['server_token'];
     $this->travel(5)->seconds();
-    reportSample($this, $token, serverSample())->assertTooManyRequests()->assertHeader('Retry-After', '15');
+    reportSample($this, $rotated, serverSample())->assertTooManyRequests()->assertHeader('Retry-After', '15')
+        ->assertExactJson(['error' => 'too_many_reports']);
 
     $this->travel(15)->seconds();
-    reportSample($this, $token, serverSample(['observed_at' => now()->utc()->format('Y-m-d\TH:i:s\Z')]))->assertStatus(202);
+    reportSample($this, $rotated, serverSample(['observed_at' => now()->utc()->format('Y-m-d\TH:i:s\Z')]))->assertStatus(202);
 });
 
 it('limits reports per IP address before any token check', function (): void {
@@ -176,8 +211,16 @@ it('limits reports per IP address before any token check', function (): void {
         reportSample($this, null, [])->assertUnauthorized();
     }
 
-    reportSample($this, null, [])->assertTooManyRequests();
+    reportSample($this, null, [])->assertTooManyRequests()->assertHeader('Retry-After')->assertExactJson(['error' => 'too_many_reports']);
 });
+
+it('answers a wrong method or OPTIONS with the agent JSON 404, switched on or off', function (bool $on, string $method): void {
+    [, $token] = addReportingServer($this);
+    config(['heptapod.servers.enabled_by_server' => $on]);
+
+    reportSample($this, $token, serverSample(), $method)->assertNotFound()->assertExactJson(['error' => 'not_found']);
+    $this->call($method, '/servers/1/token')->assertNotFound();
+})->with(['on' => true, 'off' => false])->with(['GET', 'PUT', 'OPTIONS']);
 
 it('answers 404 while servers are switched off, by the environment or by the Owner, and keeps the data', function (): void {
     [$server, $token] = addReportingServer($this);
@@ -185,7 +228,7 @@ it('answers 404 while servers are switched off, by the environment or by the Own
 
     config(['heptapod.servers.enabled_by_server' => false]);
     $this->travel(21)->seconds();
-    reportSample($this, $token, serverSample())->assertNotFound();
+    reportSample($this, $token, serverSample())->assertNotFound()->assertExactJson(['error' => 'not_found']);
 
     config(['heptapod.servers.enabled_by_server' => true]);
     $settings = app(InstanceSettings::class);

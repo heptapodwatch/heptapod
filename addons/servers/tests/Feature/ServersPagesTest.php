@@ -120,7 +120,7 @@ it('opens a new server awaiting its first report with the install command parts 
 
     $this->get("/servers/{$server->id}")->assertInertia(fn (Assert $page): Assert => $page->component('servers/show')
         ->where('server.state', 'awaiting')->where('server.values', null)->where('history.points', [])
-        ->where('install', ['endpoint' => 'https://monitor.example.com', 'version' => 'v0.19.0',
+        ->where('install', ['endpoint' => 'https://monitor.example.com/agent/v1/report', 'version' => 'v0.19.0',
             'release_url' => 'https://github.com/heptapodwatch/heptapod/releases/download/v0.19.0', 'is_release' => true]));
     // The token is never part of a page; only the one redirect after creating or rotating carries it.
     expect(session(SessionKey::FLASH_DATA))->toBeNull();

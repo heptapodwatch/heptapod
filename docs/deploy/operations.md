@@ -681,8 +681,10 @@ Servers (experimental). `HEPTAPOD_SERVERS_ENABLED=false` is a hard off that the 
 cannot override. While servers are off, `/servers` and the agent endpoint
 `POST /agent/v1/report` answer 404 and no server job runs; stored servers and samples
 are kept. Agents push to `/agent/v1/report` on `APP_URL`, so that HTTPS origin must be
-reachable from every monitored server, including instances behind a VPN. Samples are
-kept for 14 days; the hourly scheduled task `servers:prune-samples` deletes older ones.
+reachable from every monitored server, including instances behind a VPN. The image's web
+server refuses report bodies above 16 KiB with 413 before PHP reads them; a reverse proxy
+in front needs no limit of its own for this path. Samples are kept for 14 days; the hourly
+scheduled task `servers:prune-samples` deletes older ones.
 
 ## Running on a PaaS: roles, env, storage
 

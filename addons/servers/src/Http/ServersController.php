@@ -49,7 +49,8 @@ final class ServersController
         return Inertia::render('servers/show', new ServerPageData(
             Lazy::closure(static fn (): ServerRowData => $reader->rows($now, $server->id)[0]), ServerThresholdsData::defaults(),
             Lazy::closure(static fn (): array => $reader->history($server->id, $now)),
-            ['endpoint' => rtrim(config()->string('app.url'), '/'), 'version' => $version,
+            // The agent's endpoint file holds the full report URL on APP_URL, which the servers must reach.
+            ['endpoint' => rtrim(config()->string('app.url'), '/').'/agent/v1/report', 'version' => $version,
                 'release_url' => config()->string('servers.agent_release_url').'/'.$version,
                 // A source or development build has no agent release of its own.
                 'is_release' => preg_match('/^v\d{1,4}\.\d{1,4}\.\d{1,4}$/D', $version) === 1],

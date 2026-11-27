@@ -6,16 +6,19 @@ namespace Heptapod\Addons\Servers\Actions;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Addons\Servers\Server;
+use Heptapod\Addons\Servers\ServerToken;
 use Illuminate\Support\Facades\DB;
 
 final class RecordServerReport
 {
     /**
-     * Stores one validated agent report; false when its sample_id is already stored (a retry), which is not a new report.
+     * Stores one validated agent report. The server row is locked and the token checked again inside the write, so a
+     * rotation or removal that commits first wins: the report is refused instead of landing late or failing on the
+     * foreign key.
      *
      * @param  array{sample_id: string, agent: array{version: string, os: string, arch: string, distro: string, kernel: string}, host: array{hostname: string, uptime_seconds: int, reboot_required: bool|null, ips: list<string>}, cpu: array{cores: int, used_percent: int|float}, load: array{1: int|float, 5: int|float, 15: int|float}, memory: array{total_bytes: int, available_bytes: int}, filesystems: list<array{mount: string, total_bytes: int, free_bytes: int}>, updates: array{pending: int|null, security: int|null}}  $report
      */
-    public function __invoke(Server $server, array $report, CarbonImmutable $observedAt, CarbonImmutable $receivedAt): bool
+    public function __invoke(ServerToken $token, int $serverId, array $report, CarbonImmutable $observedAt, CarbonImmutable $receivedAt): ServerReportOutcome
     {
         // Unknown keys never reach storage: the metrics are rebuilt from the validated fields only. Hostname, IPs and the
         // agent facts describe the server and live on its row.
@@ -29,7 +32,16 @@ final class RecordServerReport
             'updates' => ['pending' => $report['updates']['pending'], 'security' => $report['updates']['security']],
         ];
 
-        return DB::transaction(static function () use ($server, $report, $metrics, $observedAt, $receivedAt): bool {
+        return DB::transaction(static function () use ($token, $serverId, $report, $metrics, $observedAt, $receivedAt): ServerReportOutcome {
+            $query = Server::query()->whereKey($serverId);
+            $query->getQuery()->lockForUpdate();
+            $server = $query->first();
+            if ($server === null) {
+                return ServerReportOutcome::Removed;
+            }
+            if (! $token->matches($server->token_hash)) {
+                return ServerReportOutcome::Unauthorized;
+            }
             $stored = DB::table('server_samples')->insertOrIgnore([
                 'server_id' => $server->id, 'sample_id' => strtolower($report['sample_id']),
                 'observed_at' => $observedAt->utc()->format('Y-m-d H:i:s.uP'), 'received_at' => $receivedAt->utc()->format('Y-m-d H:i:s.uP'),
@@ -41,7 +53,7 @@ final class RecordServerReport
                     'hostname' => $report['host']['hostname'], 'ips' => $report['host']['ips']])->save();
             }
 
-            return $stored;
+            return $stored ? ServerReportOutcome::Stored : ServerReportOutcome::Duplicate;
         });
     }
 }
