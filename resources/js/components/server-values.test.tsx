@@ -1,6 +1,10 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { ServerFacts, ServerGaugeCells } from '@/components/server-values';
+import {
+    ServerFacts,
+    ServerGaugeCells,
+    ServerStateBadge,
+} from '@/components/server-values';
 
 vi.mock('@inertiajs/react', () => ({
     usePage: () => ({ props: { timezone: 'UTC' } }),
@@ -36,6 +40,8 @@ function server(load5: number): Heptapod.Addons.Servers.Data.ServerRowData {
         agent_distro: 'Debian 13',
         agent_kernel: '6.12',
         ips: [],
+        issues: [],
+        snoozed_until: null,
     };
 }
 
@@ -111,4 +117,37 @@ it('says a known 0 security updates and leaves an unknown count out', () => {
     expect(facts(3)).toContain('51 updates, 3 security');
     expect(facts(null)).toContain('51 updates');
     expect(facts(null)).not.toContain('security');
+});
+
+it('names the first open issue in the state badge in the Failed colour, counts the others, and shows No report as a Check error', () => {
+    const issue = (
+        kind: Heptapod.Addons.Servers.ServerIssueKind,
+        scope = '',
+    ): Heptapod.Addons.Servers.Data.ServerIssueData => ({
+        id: 1,
+        kind,
+        scope,
+        opened_at: '2026-10-21T11:45:00Z',
+        values: {},
+    });
+    const badge = (row: Heptapod.Addons.Servers.Data.ServerRowData) => {
+        cleanup();
+        render(<ServerStateBadge server={row} />);
+        const element = document.querySelector('[data-state]');
+        return [element?.getAttribute('data-state'), element?.textContent];
+    };
+    expect(
+        badge({
+            ...server(9),
+            issues: [issue('disk_full', '/'), issue('load_high')],
+        }),
+    ).toEqual(['failed', 'Disk almost full +1']);
+    expect(
+        badge({
+            ...server(1),
+            state: 'no_report',
+            issues: [issue('no_report')],
+        }),
+    ).toEqual(['check-error', 'No report']);
+    expect(badge(server(1))).toEqual(['ok', 'Reporting']);
 });

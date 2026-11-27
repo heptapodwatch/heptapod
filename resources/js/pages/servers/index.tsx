@@ -54,14 +54,16 @@ import { cn } from '@/lib/utils';
 import { index, show, store } from '@/routes/servers';
 
 type ServerRow = Heptapod.Addons.Servers.Data.ServerRowData;
-type ServerState = Heptapod.Addons.Servers.ServerState;
+/** A ServerState, or `attention` for a server with an open issue (ServerReader::NeedsAttention). */
+type ServerFilter = Heptapod.Addons.Servers.ServerState | 'attention';
 
 /** The server's sort keys (ServerReader::SortKeys); the cards below md keep the default order, problems first. */
 type SortKey = 'status' | 'name' | 'disk' | 'memory' | 'load' | 'last_report';
 // Disk, RAM and load show the highest value first.
 const descendingFirst: SortKey[] = ['disk', 'memory', 'load'];
 
-const stateFilters: Record<ServerState, string> = {
+const stateFilters: Record<ServerFilter, string> = {
+    attention: 'Needs attention',
     no_report: 'servers.state.no_report',
     awaiting: 'servers.state.awaiting',
     reporting: 'servers.state.reporting',
@@ -138,7 +140,7 @@ export default function ServersIndex({
     const size = useServerSize();
     const [adding, setAdding] = useState(false);
     const visit = (
-        changes: { search?: string; state?: ServerState | null },
+        changes: { search?: string; state?: string | null },
         nextSort = sort,
         searchOptions: LiveSearchVisitOptions = {},
     ) => {
@@ -248,7 +250,7 @@ export default function ServersIndex({
                                     state:
                                         value === 'all'
                                             ? null
-                                            : (value as ServerState),
+                                            : (value as ServerFilter),
                                 })
                             }
                         >

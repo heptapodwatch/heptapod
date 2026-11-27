@@ -22,12 +22,42 @@ const stateBadge: Record<
     no_report: { state: 'check-error', label: 'servers.state.no_report' },
 };
 
+/** Whether the server's alerts are snoozed at `now`; it keeps reporting and its issues keep opening. */
+export function isServerSnoozed(
+    server: Pick<ServerRow, 'snoozed_until'>,
+    now: number,
+): boolean {
+    return (
+        server.snoozed_until !== null && Date.parse(server.snoozed_until) > now
+    );
+}
+
+/**
+ * The server's state: its first open issue by plain name in the Failed colour ("No report" in the Check error shape,
+ * never Down), "+N" for more, else what the instance hears from it. A snoozed server carries the snoozed mark.
+ */
 export function ServerStateBadge({
     server,
 }: {
-    server: Pick<ServerRow, 'state'>;
+    server: Pick<ServerRow, 'state' | 'issues' | 'snoozed_until'>;
 }) {
-    return <StatusBadge {...stateBadge[server.state]} />;
+    const { t } = useTranslation();
+    const [issue, ...more] = server.issues;
+    const snoozed = isServerSnoozed(server, Date.now());
+    if (issue === undefined)
+        return <StatusBadge {...stateBadge[server.state]} snoozed={snoozed} />;
+    const name = t(`servers.issue.${issue.kind}`);
+    return (
+        <StatusBadge
+            state={issue.kind === 'no_report' ? 'check-error' : 'failed'}
+            label={
+                more.length === 0
+                    ? name
+                    : t('servers.issue.more', { name, count: more.length })
+            }
+            snoozed={snoozed}
+        />
+    );
 }
 
 export function usePercent() {

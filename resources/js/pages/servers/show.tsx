@@ -11,10 +11,13 @@ import { PageHeader } from '@/components/page-header';
 import { PageHeaderAction } from '@/components/page-header-actions';
 import { ServerHistoryCard } from '@/components/server-history-card';
 import {
+    isServerSnoozed,
     ServerFacts,
     ServerGaugeRow,
     ServerStateBadge,
 } from '@/components/server-values';
+import { SnoozeActions } from '@/components/check-snooze-actions';
+import { AbsoluteTime } from '@/components/absolute-time';
 import { ShownOnceSecret } from '@/components/shown-once-secret';
 import { TextLink, TextLinkButton } from '@/components/text-link';
 import {
@@ -22,7 +25,7 @@ import {
     LinkSitesSheet,
     ServerSettingsSheet,
 } from '@/components/server-manage';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,12 +45,68 @@ import {
 import { Disclosure } from '@/components/ui/disclosure';
 import { useClipboard } from '@/hooks/use-clipboard';
 import { useFormat } from '@/hooks/use-format';
-import { destroy, index } from '@/routes/servers';
+import { destroy, index, snooze, unsnooze } from '@/routes/servers';
 import { rotate } from '@/routes/servers/token';
 import { agentInstallCommands } from '@/lib/server-agent-install';
 import { SectionHeading } from '@/components/section-heading';
 
 type Install = Heptapod.Addons.Servers.Data.ServerPageData['install'];
+type ServerIssue = Heptapod.Addons.Servers.Data.ServerIssueData;
+
+/**
+ * One open issue as a page notice: what is wrong, its threshold and since when; past issues live in Activity. While
+ * the server is snoozed the notice says the alerts wait (the issue stays visible).
+ */
+function IssueNotice({
+    issue,
+    snoozedUntil,
+}: {
+    issue: ServerIssue;
+    snoozedUntil: string | null;
+}) {
+    const { t } = useTranslation();
+    const format = useFormat();
+    const value = (key: string) => Number(issue.values[key]);
+    const percent = (key: string) =>
+        format.number(value(key) / 100, {
+            style: 'percent',
+            maximumFractionDigits: 0,
+        });
+    const minutes = format.number(value('minutes'));
+    const detail =
+        issue.kind === 'no_report'
+            ? t('servers.issue_notice.no_report', { minutes })
+            : issue.kind === 'load_high'
+              ? t('servers.issue_notice.load_high', {
+                    threshold: format.number(value('threshold')),
+                    minutes,
+                })
+              : t('servers.issue_notice.limit', {
+                    threshold: percent('threshold'),
+                    minutes,
+                });
+    return (
+        <Alert tone={issue.kind === 'no_report' ? 'warning' : 'danger'}>
+            <AlertTitle>
+                {t(`servers.issue.${issue.kind}`)}
+                {issue.scope !== '' && (
+                    <span className="font-mono"> {issue.scope}</span>
+                )}
+            </AlertTitle>
+            <AlertDescription>
+                {detail} {t('servers.issue_notice.since')}{' '}
+                <AbsoluteTime value={issue.opened_at} />.
+                {snoozedUntil !== null && (
+                    <>
+                        {' '}
+                        {t('servers.issue_notice.snoozed')}{' '}
+                        <AbsoluteTime value={snoozedUntil} />.
+                    </>
+                )}
+            </AlertDescription>
+        </Alert>
+    );
+}
 type Release = Install & { version: string; release_url: string };
 
 /** Copies a value; a refused clipboard says so next to the button. */
@@ -218,6 +277,7 @@ export default function ServerShow({
     const { flash } = usePage();
     const flashedToken = (flash as { server_token?: string }).server_token;
     const awaiting = server.state === 'awaiting';
+    const snoozed = isServerSnoozed(server, Date.now());
     // Shown once: held in this page's state, so the polls below keep it, and gone after leaving the page. While the
     // server awaits its first report the install card shows it; a token rotated later opens in a dialog.
     const [token, setToken] = useState<string | null>(flashedToken ?? null);
@@ -259,9 +319,34 @@ export default function ServerShow({
                             {t('servers.title')}
                         </TextLink>
                     }
+                    notices={
+                        server.issues.length > 0 ? (
+                            <>
+                                {server.issues.map((issue) => (
+                                    <IssueNotice
+                                        key={issue.id}
+                                        issue={issue}
+                                        snoozedUntil={
+                                            snoozed
+                                                ? server.snoozed_until
+                                                : null
+                                        }
+                                    />
+                                ))}
+                            </>
+                        ) : undefined
+                    }
                     metadata={
                         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                             <ServerStateBadge server={server} />
+                            {snoozed && server.snoozed_until && (
+                                <span className="text-xs text-muted-foreground">
+                                    {t('Snoozed until')}{' '}
+                                    <AbsoluteTime
+                                        value={server.snoozed_until}
+                                    />
+                                </span>
+                            )}
                             {server.last_report_at && (
                                 <span className="text-xs text-foreground-faint">
                                     {t('servers.last_report')}{' '}
@@ -290,9 +375,20 @@ export default function ServerShow({
                     }
                     // The site and check header pattern: one primary, the rest in More actions.
                     primaryAction={
-                        <Button onClick={() => setSheet('link')}>
-                            {t('servers.link.action')}
-                        </Button>
+                        <>
+                            <SnoozeActions
+                                snoozed={snoozed}
+                                snoozeUrl={snooze.url(server.id)}
+                                unsnoozeUrl={unsnooze.url(server.id)}
+                                sheetTitle={t('servers.snooze.title')}
+                                sheetDescription={t(
+                                    'servers.snooze.description',
+                                )}
+                            />
+                            <Button onClick={() => setSheet('link')}>
+                                {t('servers.link.action')}
+                            </Button>
+                        </>
                     }
                     overflowSecondary="always"
                     secondaryActionCount={3}
