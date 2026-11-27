@@ -122,7 +122,8 @@ validate_bundle_manifest() {
 # The highest annotated vX.Y.Z tag on commit $1; prereleases and lightweight tags never name an install.
 release_tag_at() {
     command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1 || return 0
-    git tag --points-at "$1" | grep -Ex 'v[0-9]+\.[0-9]+\.[0-9]+' | while IFS= read -r tag; do
+    # awk, not grep: no matching tag is a normal result, not a failure under pipefail.
+    git tag --points-at "$1" | awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/' | while IFS= read -r tag; do
         [ "$(git cat-file -t "refs/tags/$tag")" != tag ] || printf '%s\n' "$tag"
     done | sort -V | tail -n 1
 }

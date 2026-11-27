@@ -257,6 +257,26 @@ it('holds site, check, and incident detail query budgets as related history grow
         ->and($few)->toBeLessThanOrEqual($budget, $path.' used '.$few.' queries, over its budget of '.$budget);
 })->with(['site', 'check', 'incident'])->with([30, 300]);
 
+it('keeps an uptime incident resolved after the site row was read out of the Down banner', function (): void {
+    $this->withoutVite();
+    $user = User::factory()->create();
+    $user->assignRole('Owner');
+    $check = Check::factory()->create(['latest_run_result' => CheckResult::Failed]);
+    $incident = Incident::factory()->for($check)->create();
+    // The recovery lands between the check strip's open-incident read and the banner's own read.
+    $resolved = false;
+    DB::listen(static function ($query) use ($incident, &$resolved): void {
+        if (! $resolved && str_contains($query->sql, 'from "incidents" where "incidents"."check_id" in')) {
+            $resolved = true;
+            DB::table('incidents')->where('id', $incident->id)->update(['resolved_at' => now()]);
+        }
+    });
+
+    $this->actingAs($user)->get('/sites/'.$check->site_id)->assertInertia(fn (Assert $page): Assert => $page
+        ->where('site.checks.0.open_incident_id', $incident->id)->where('open_uptime_incident', null));
+    expect($resolved)->toBeTrue();
+});
+
 it('requires authentication for overview and check tabs', function (): void {
     $check = Check::factory()->create();
     $this->get('/sites/'.$check->site_id)->assertRedirect('/login');

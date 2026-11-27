@@ -105,19 +105,19 @@ const BoundedPageLists = [
     'Heptapod\Data\Ui\UpcomingIndexPageData::$clients' => SelectChoices,
 ];
 
-/** Page lists paged by a property other than `<rows>_pagination`. @var array<string, string> "Class::$property" => pager property */
+/** Page lists paged by a property other than `<rows>_pagination`. @var array<string, array{string, string}> "Class::$property" => [pager property, the control it is passed to] */
 const PagedPageLists = [
-    'Heptapod\Data\Ui\ActivityPageData::$expanded_events' => 'expanded_pagination',
-    'Heptapod\Data\Ui\ClientDetailPageData::$sites' => 'pagination',
-    'Heptapod\Data\Ui\ClientsIndexPageData::$clients' => 'pagination',
-    'Heptapod\Data\Ui\IncidentNotificationPageData::$deliveries' => 'next_cursor',
-    'Heptapod\Data\Ui\IncidentsIndexPageData::$incidents' => 'pagination',
-    'Heptapod\Data\Ui\MaintenanceIndexPageData::$windows' => 'next_page',
-    'Heptapod\Data\Ui\RunsHistoryPageData::$runs' => 'next_cursor',
-    'Heptapod\Data\Ui\RunsIndexPageData::$runs' => 'next_cursor',
-    'Heptapod\Data\Ui\SitesIndexPageData::$sites' => 'pagination',
-    'Heptapod\Data\Ui\SitesIndexPageData::$sites_history' => 'pagination',
-    'Heptapod\Data\Ui\UpcomingIndexPageData::$items' => 'next_page_url',
+    'Heptapod\Data\Ui\ActivityPageData::$expanded_events' => ['expanded_pagination', 'ActivityTimeline'],
+    'Heptapod\Data\Ui\ClientDetailPageData::$sites' => ['pagination', 'ListFooter'],
+    'Heptapod\Data\Ui\ClientsIndexPageData::$clients' => ['pagination', 'ListFooter'],
+    'Heptapod\Data\Ui\IncidentNotificationPageData::$deliveries' => ['next_cursor', 'Button'],
+    'Heptapod\Data\Ui\IncidentsIndexPageData::$incidents' => ['pagination', 'ListFooter'],
+    'Heptapod\Data\Ui\MaintenanceIndexPageData::$windows' => ['next_page', 'ListFooter'],
+    'Heptapod\Data\Ui\RunsHistoryPageData::$runs' => ['next_cursor', 'ListFooter'],
+    'Heptapod\Data\Ui\RunsIndexPageData::$runs' => ['next_cursor', 'ListFooter'],
+    'Heptapod\Data\Ui\SitesIndexPageData::$sites' => ['pagination', 'ListFooter'],
+    'Heptapod\Data\Ui\SitesIndexPageData::$sites_history' => ['pagination', 'ListFooter'],
+    'Heptapod\Data\Ui\UpcomingIndexPageData::$items' => ['next_page_url', 'ListFooter'],
 ];
 
 /** Catalog strings that announce a cap or progress count but describe no UI list. @var array<string, string> key => reason */
@@ -163,15 +163,12 @@ function tsxSources(): array
 }
 
 /**
- * Finds every `.<rows>_pagination` property that $within actually passes into a `<ListFooter pagination={...}>` control
- * (directly, or through a component of $sources that forwards its `pagination` prop into `ListFooter`). Plain reads for
- * counts or exports do not satisfy this check.
+ * `ListFooter` and every component of $sources that forwards its `pagination` prop into one.
  *
  * @param  array<string, string>  $sources
- * @param  array<string, string>  $within
- * @return array<string, true>
+ * @return list<string>
  */
-function listFooterPaginationBindings(array $sources, array $within): array
+function listFooterControls(array $sources): array
 {
     // Extract each top-level component function's body so we can trace pagination prop forwarding to ListFooter.
     $functions = [];
@@ -184,44 +181,74 @@ function listFooterPaginationBindings(array $sources, array $within): array
             $functions[$name] = substr($source, $offset, $nextOffset - $offset);
         }
     }
-    $pagers = ['ListFooter' => true];
+    $controls = ['ListFooter' => true];
     do {
         $added = false;
-        $tagPattern = implode('|', array_map(static fn (string $tag): string => preg_quote($tag, '/'), array_keys($pagers)));
+        $tagPattern = implode('|', array_map(static fn (string $tag): string => preg_quote($tag, '/'), array_keys($controls)));
         foreach ($functions as $name => $body) {
-            if (isset($pagers[$name])) {
+            if (isset($controls[$name])) {
                 continue;
             }
             if (preg_match('/<('.$tagPattern.')\b[\s\S]*?\bpagination=\{\s*pagination\b/s', $body) === 1) {
-                $pagers[$name] = true;
+                $controls[$name] = true;
                 $added = true;
             }
         }
     } while ($added);
 
-    $bound = [];
-    $tagPattern = '/<('.implode('|', array_map(static fn (string $tag): string => preg_quote($tag, '/'), array_keys($pagers))).')\b/';
-    foreach ($within as $source) {
-        if (preg_match_all($tagPattern, $source, $tags, PREG_OFFSET_CAPTURE) === 0) {
-            continue;
-        }
-        foreach ($tags[0] as [$match, $offset]) {
-            $cursor = $offset + strlen($match);
-            $length = strlen($source);
-            $braceDepth = 0;
-            // Scan to the matching closing '>' of the JSX opening tag, ignoring '>' inside {...} expressions.
-            while ($cursor < $length) {
-                $char = $source[$cursor];
-                if ($char === '{') {
-                    $braceDepth++;
-                } elseif ($char === '}') {
-                    $braceDepth = max(0, $braceDepth - 1);
-                } elseif ($char === '>' && $braceDepth === 0) {
-                    break;
-                }
-                $cursor++;
+    return array_keys($controls);
+}
+
+/**
+ * The attribute text of every `<Tag …>` opening tag of $tags in $source.
+ *
+ * @param  list<string>  $tags
+ * @return list<string>
+ */
+function openingTagAttributes(string $source, array $tags): array
+{
+    $attributes = [];
+    if (preg_match_all('/<('.implode('|', array_map(static fn (string $tag): string => preg_quote($tag, '/'), $tags)).')\b/', $source, $found, PREG_OFFSET_CAPTURE) === 0) {
+        return [];
+    }
+    foreach ($found[0] as [$match, $offset]) {
+        $start = $offset + strlen($match);
+        $cursor = $start;
+        $length = strlen($source);
+        $braceDepth = 0;
+        // Scan to the matching closing '>' of the JSX opening tag, ignoring '>' inside {...} expressions.
+        while ($cursor < $length) {
+            $char = $source[$cursor];
+            if ($char === '{') {
+                $braceDepth++;
+            } elseif ($char === '}') {
+                $braceDepth = max(0, $braceDepth - 1);
+            } elseif ($char === '>' && $braceDepth === 0) {
+                break;
             }
-            $attrs = substr($source, $offset + strlen($match), $cursor - ($offset + strlen($match)));
+            $cursor++;
+        }
+        $attributes[] = substr($source, $start, $cursor - $start);
+    }
+
+    return $attributes;
+}
+
+/**
+ * Finds every `.<rows>_pagination` property that $within actually passes into a `<ListFooter pagination={...}>` control
+ * (directly, or through a component of $sources that forwards its `pagination` prop into `ListFooter`). Plain reads for
+ * counts or exports do not satisfy this check.
+ *
+ * @param  array<string, string>  $sources
+ * @param  array<string, string>  $within
+ * @return array<string, true>
+ */
+function listFooterPaginationBindings(array $sources, array $within): array
+{
+    $bound = [];
+    $controls = listFooterControls($sources);
+    foreach ($within as $source) {
+        foreach (openingTagAttributes($source, $controls) as $attrs) {
             if (preg_match('/\bpagination=\{\s*([^}]+)\}/s', $attrs, $prop) === 1
                 && preg_match_all('/\.([a-z0-9_]+_pagination)\b/', $prop[1], $props) > 0) {
                 foreach ($props[1] as $propName) {
@@ -320,7 +347,7 @@ function shapeEntries(string $type): array
  *
  * @param  list<class-string>  $classes
  * @param  array<string, string>  $bounded  "Class::$list" => reason
- * @param  array<string, string>  $pagers  "Class::$list" => the property that pages it
+ * @param  array<string, array{string, string}>  $pagers  "Class::$list" => [the property that pages it, its paging control]
  * @param  array<class-string, array<string, string>>|null  $consumers  the files receiving each class; null: any file
  * @return list<string>
  */
@@ -329,6 +356,7 @@ function unpagedListViolations(array $classes, array $bounded, string $boundedNa
     $isList = static fn (string $type): bool => preg_match('/^(?:[\w\\\\]+\|)*list</', $type) === 1;
     $violations = [];
     $seen = [];
+    $listFooterControls = listFooterControls(tsxSources());
     foreach ($classes as $class) {
         $within = $consumers === null ? tsxSources() : $consumers[$class];
         $boundPagers = listFooterPaginationBindings(tsxSources(), $within);
@@ -362,12 +390,16 @@ function unpagedListViolations(array $classes, array $bounded, string $boundedNa
                     continue;
                 }
                 if (array_key_exists($key, $pagers)) {
-                    $pager = $pagers[$key];
-                    $read = '/(?<![\'"\w])(?:\w+\.)?'.preg_quote($pager, '/').'\b(?!\s*[,:=\'"])/';
+                    [$pager, $control] = $pagers[$key];
+                    // The pager is read inside an attribute of its paging control's opening tag, e.g. pagination={pagination}.
+                    $read = '/(?<![\'"\w.])(?:\w+\.)?'.preg_quote($pager, '/').'\b(?!\s*[,:=.\'"])/';
+                    $tags = $control === 'ListFooter' ? $listFooterControls : [$control];
+                    $passed = array_filter($within, static fn (string $source): bool => array_filter(openingTagAttributes($source, $tags),
+                        static fn (string $attrs): bool => preg_match($read, $attrs) === 1) !== []);
                     if (! $reflection->hasProperty($pager)) {
                         $violations[] = "{$key}: its pager {$pager} is not a property of the class.";
-                    } elseif (array_filter($within, static fn (string $source): bool => preg_match($read, $source) === 1) === []) {
-                        $violations[] = "{$key}: no file receiving {$class} reads its pager {$pager}.";
+                    } elseif ($passed === []) {
+                        $violations[] = "{$key}: no file receiving {$class} passes its pager {$pager} to <{$control}>.";
                     }
 
                     continue;

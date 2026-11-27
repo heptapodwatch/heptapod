@@ -211,7 +211,13 @@ final readonly class SiteDetailReader
             header: Lazy::closure(fn (): SiteIdentityData => $this->header($user, $siteId)),
             history: Lazy::closure(static fn (): array => $getHistory()['uptime']),
             open_uptime_incident: Lazy::closure(function () use ($uptime): ?IncidentData {
-                $incident = $uptime?->open_incident_id === null ? null : Incident::query()->with(['site', 'check'])->find($uptime->open_incident_id);
+                if ($uptime?->open_incident_id === null) {
+                    return null;
+                }
+                // The strip was read earlier; a recovery since then must not reach the Down banner.
+                $query = Incident::query()->with(['site', 'check']);
+                $query->getQuery()->whereNull('resolved_at');
+                $incident = $query->find($uptime->open_incident_id);
 
                 return $incident === null ? null : $this->incidents->presentedRows(collect([$incident]))[0];
             }),
