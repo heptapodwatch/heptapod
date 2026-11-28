@@ -35,7 +35,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet } from '@/components/ui/sheet';
-import { useBufferedChanges } from '@/hooks/use-buffered-changes';
+import { useBufferedPage } from '@/hooks/use-buffered-changes';
 import { useFormat } from '@/hooks/use-format';
 import {
     useLiveSearch,
@@ -99,7 +99,7 @@ function AddServerSheet({ onClose }: { onClose: () => void }) {
 
 export default function ServersIndex({
     servers,
-    servers_pagination,
+    servers_pagination: latestPagination,
     defaults,
     filters,
     sort,
@@ -138,7 +138,12 @@ export default function ServersIndex({
     // New reports arrive every minute: values refresh in place; servers another tab added or removed, and rows a new
     // value moves in the sort, wait behind "N new changes". A sort or filter of this tab changes the URL and shows at once.
     usePoll(15_000, { only: ['servers', 'servers_pagination'] });
-    const buffered = useBufferedChanges(servers, (server) => server.id);
+    const buffered = useBufferedPage(
+        servers,
+        latestPagination,
+        (server) => server.id,
+    );
+    const servers_pagination = buffered.pagination;
     const draftFilters = withFilterValues(filters, { search: search || null });
     const hasFilters = filtersActive(draftFilters);
     const reboot = (server: ServerRow) =>

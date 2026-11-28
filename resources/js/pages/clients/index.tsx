@@ -26,7 +26,7 @@ import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useFormat } from '@/hooks/use-format';
 import { useLiveReload } from '@/hooks/use-live';
-import { useBufferedChanges } from '@/hooks/use-buffered-changes';
+import { useBufferedPage } from '@/hooks/use-buffered-changes';
 import { PendingChanges } from '@/components/pending-changes';
 import {
     create as clientCreate,
@@ -36,7 +36,7 @@ import {
 
 export default function ClientsIndex({
     clients,
-    clients_pagination,
+    clients_pagination: latestPagination,
     filters,
     can_manage,
 }: Heptapod.Data.Ui.ClientsIndexPageData) {
@@ -75,7 +75,12 @@ export default function ClientsIndex({
         );
     };
     useLiveReload(['state.changed'], ['clients', 'clients_pagination']);
-    const buffered = useBufferedChanges(clients, (row) => row.client.id);
+    const buffered = useBufferedPage(
+        clients,
+        latestPagination,
+        (row) => row.client.id,
+    );
+    const clients_pagination = buffered.pagination;
     const uptime = (summary: Heptapod.Data.Ui.DashboardTilesData) =>
         summary.uptime === null ? '—' : format.uptimePercentage(summary.uptime);
     const statusSummary = (summary: Heptapod.Data.Ui.DashboardTilesData) => {

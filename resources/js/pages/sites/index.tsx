@@ -14,7 +14,7 @@ import { MonitoringHealthNotices } from '@/components/monitoring-health-notices'
 import { PageContainer } from '@/components/page-container';
 import { Deferred, Head, Link, router, usePage } from '@inertiajs/react';
 import { useLiveReload } from '@/hooks/use-live';
-import { useBufferedChanges } from '@/hooks/use-buffered-changes';
+import { useBufferedPage } from '@/hooks/use-buffered-changes';
 import { useFlip } from '@/hooks/use-flip';
 import { PendingChanges } from '@/components/pending-changes';
 import { Globe, Plus } from 'lucide-react';
@@ -240,7 +240,7 @@ function SitesList({
     sites,
     history,
     clients,
-    pagination,
+    pagination: latestPagination,
     hasFilters,
     canCreate,
     sort,
@@ -272,13 +272,15 @@ function SitesList({
                 : site;
         });
     }, [sites, history]);
-    const buffered = useBufferedChanges(
+    const buffered = useBufferedPage(
         rows,
+        latestPagination,
         (site) => site.id,
-        undefined,
-        undefined,
-        'sites',
+        {
+            ownResponseProp: 'sites',
+        },
     );
+    const pagination = buffered.pagination;
     // Reorders, additions and removals wait behind "N new changes"; applying them moves the rows by FLIP.
     const { ref: rowsRef, flip } = useFlip<HTMLDivElement>();
     return (

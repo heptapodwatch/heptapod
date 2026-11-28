@@ -7,7 +7,10 @@ import { StatTile } from '@/components/stat-tile';
 import { PageContainer } from '@/components/page-container';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { isCoalescedStateChange, useLiveReload } from '@/hooks/use-live';
-import { useBufferedChanges } from '@/hooks/use-buffered-changes';
+import {
+    useBufferedChanges,
+    useBufferedPage,
+} from '@/hooks/use-buffered-changes';
 import { PendingChanges } from '@/components/pending-changes';
 import { useTranslation } from 'react-i18next';
 import { SitesTable } from '@/components/sites-table';
@@ -29,7 +32,7 @@ export default function ClientDetail({
     client,
     summary,
     sites,
-    sites_pagination,
+    sites_pagination: latestSitesPagination,
     incidents,
     can_manage,
 }: Heptapod.Data.Ui.ClientDetailPageData) {
@@ -47,7 +50,12 @@ export default function ClientDetail({
         (signal) =>
             signal.ids.client === client.id || isCoalescedStateChange(signal),
     );
-    const bufferedSites = useBufferedChanges(sites, (site) => site.id);
+    const bufferedSites = useBufferedPage(
+        sites,
+        latestSitesPagination,
+        (site) => site.id,
+    );
+    const sites_pagination = bufferedSites.pagination;
     const bufferedIncidents = useBufferedChanges(
         incidents,
         (incident) => incident.id,

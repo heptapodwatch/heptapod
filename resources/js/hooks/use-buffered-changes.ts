@@ -153,23 +153,29 @@ function mergeOwnMutation<T>(
         : { rows: nextVisible, pendingCount: differences };
 }
 
-export function useBufferedChanges<T>(
+function useBufferedRows<T, P>(
     // Must keep its identity between renders (a prop, or memoized); a fresh array each render loops the effect.
     rows: T[],
     key: (row: T) => number | string,
-    scope?: number | null,
+    scope: number | null | undefined,
     // Opt-in: a row whose content changed keeps its shown object until apply, so filters and text stay as shown.
-    contentKey?: (row: T) => string,
+    contentKey: ((row: T) => string) | undefined,
     // Opt-in for lists this tab's own mutations change: names the response prop holding the rows. While such a
     // mutation is in flight, incoming rows wait; its successful response shows only this mutation's changes directly
     // while keeping previously buffered foreign changes pending.
-    ownResponseProp?: string,
+    ownResponseProp: string | undefined,
     // The result of a run this tab requested, for one commit: rows it accepts are shown directly and never counted
     // as pending; every other change keeps buffering. `token` (the attempt id) re-evaluates the rows once per result.
-    ownRun?: { token: number; accepts: (row: T) => boolean } | null,
+    ownRun: { token: number; accepts: (row: T) => boolean } | null | undefined,
+    // The pager describing `rows`: shown with the rows it describes, so it changes only when they do.
+    page: P,
 ) {
     const { url } = usePage();
     const latest = useRef(rows);
+    const pageRef = useRef(page);
+    pageRef.current = page;
+    const latestPage = useRef(page);
+    const [shownPage, setShownPage] = useState(page);
     const previousUrl = useRef(url);
     const previousScope = useRef(scope);
     const getKey = useRef(key);
@@ -191,8 +197,10 @@ export function useBufferedChanges<T>(
             previousUrl.current = url;
             previousScope.current = scope;
             latest.current = rows;
+            latestPage.current = page;
             visibleRef.current = rows;
             setVisible(rows);
+            setShownPage(page);
             setPendingCount(0);
             return;
         }
@@ -205,6 +213,7 @@ export function useBufferedChanges<T>(
             return;
         }
         latest.current = rows;
+        latestPage.current = page;
         let base = visible;
         const accepts = ownRunAccepts.current;
         if (accepts) {
@@ -264,9 +273,10 @@ export function useBufferedChanges<T>(
         } else {
             visibleRef.current = rows;
             setVisible(rows);
+            setShownPage(page);
             setPendingCount(0);
         }
-    }, [rows, url, scope, holdRows, ownRun?.token]);
+    }, [rows, page, url, scope, holdRows, ownRun?.token]);
 
     useEffect(() => {
         if (ownResponseProp === undefined) {
@@ -308,8 +318,13 @@ export function useBufferedChanges<T>(
                 contentKeyRef.current,
             );
             latest.current = acceptedRows as T[];
+            // Inertia committed the response props before `success`, so the pager rendered last is the response's.
+            latestPage.current = pageRef.current;
             visibleRef.current = merged.rows;
             setVisible(merged.rows);
+            if (merged.pendingCount === 0) {
+                setShownPage(pageRef.current);
+            }
             setPendingCount(merged.pendingCount);
         });
         const removeFinish = router.on('finish', ({ detail }) => {
@@ -331,11 +346,58 @@ export function useBufferedChanges<T>(
 
     return {
         rows: previousScope.current !== scope ? rows : visible,
+        page: previousScope.current !== scope ? page : shownPage,
         pendingCount: previousScope.current !== scope ? 0 : pendingCount,
         apply: () => {
             visibleRef.current = latest.current;
             setVisible(latest.current);
+            setShownPage(latestPage.current);
             setPendingCount(0);
         },
     };
+}
+
+export function useBufferedChanges<T>(
+    rows: T[],
+    key: (row: T) => number | string,
+    scope?: number | null,
+    contentKey?: (row: T) => string,
+    ownResponseProp?: string,
+    ownRun?: { token: number; accepts: (row: T) => boolean } | null,
+) {
+    const { page: _page, ...buffered } = useBufferedRows(
+        rows,
+        key,
+        scope,
+        contentKey,
+        ownResponseProp,
+        ownRun,
+        undefined,
+    );
+    return buffered;
+}
+
+/**
+ * A paged list's rows and its pager as one unit: while foreign changes wait behind "N new changes", the pager keeps
+ * describing the rows shown ("21–25 of 25" never sits under an older page); Apply shows both.
+ */
+export function useBufferedPage<T>(
+    rows: T[],
+    pagination: Heptapod.Contracts.PaginationData,
+    key: (row: T) => number | string,
+    options: {
+        contentKey?: (row: T) => string;
+        ownResponseProp?: string;
+    } = {},
+) {
+    const { page, ...buffered } = useBufferedRows(
+        rows,
+        key,
+        undefined,
+        options.contentKey,
+        options.ownResponseProp,
+        undefined,
+        pagination,
+    );
+    return { ...buffered, pagination: page };
 }

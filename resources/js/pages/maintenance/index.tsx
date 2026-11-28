@@ -52,7 +52,7 @@ import {
 import { Sheet } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { useBufferedChanges } from '@/hooks/use-buffered-changes';
+import { useBufferedPage } from '@/hooks/use-buffered-changes';
 import { useFormat } from '@/hooks/use-format';
 import { useLiveReload } from '@/hooks/use-live';
 import { useViewerTimezone } from '@/hooks/use-viewer-timezone';
@@ -197,7 +197,7 @@ function maintenanceActionCopy(
 
 export default function MaintenanceIndex({
     windows,
-    windows_pagination,
+    windows_pagination: latestPagination,
     filters,
     can_manage,
     timezones,
@@ -227,13 +227,16 @@ export default function MaintenanceIndex({
                       },
         },
     );
-    const buffered = useBufferedChanges(
+    const buffered = useBufferedPage(
         windows,
+        latestPagination,
         (window) => window.id,
-        null,
-        (window) => JSON.stringify(window),
-        'windows',
+        {
+            contentKey: (window) => JSON.stringify(window),
+            ownResponseProp: 'windows',
+        },
     );
+    const windows_pagination = buffered.pagination;
     // The site header's "Schedule maintenance" opens this sheet with the site preselected (?site_id=…&new=1).
     const [sheetOpen, setSheetOpen] = useState(
         () => can_manage && site_id !== null && newWindowRequested(),

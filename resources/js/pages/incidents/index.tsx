@@ -18,7 +18,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import { StatusBadge } from '@/components/monitoring';
 import { PendingChanges } from '@/components/pending-changes';
-import { useBufferedChanges } from '@/hooks/use-buffered-changes';
+import { useBufferedPage } from '@/hooks/use-buffered-changes';
 import { useFormat } from '@/hooks/use-format';
 import { useLiveReload } from '@/hooks/use-live';
 import { checkTypes } from '@/lib/check-types';
@@ -38,7 +38,7 @@ export default function IncidentsIndex({
     incidents,
     clients,
     filters,
-    incidents_pagination,
+    incidents_pagination: latestPagination,
     summary,
 }: Heptapod.Data.Ui.IncidentsIndexPageData) {
     const { t } = useTranslation();
@@ -48,7 +48,12 @@ export default function IncidentsIndex({
         ['state.changed'],
         ['incidents', 'incidents_pagination', 'summary'],
     );
-    const buffered = useBufferedChanges(incidents, (incident) => incident.id);
+    const buffered = useBufferedPage(
+        incidents,
+        latestPagination,
+        (incident) => incident.id,
+    );
+    const incidents_pagination = buffered.pagination;
     const values = filterValues(filters);
     const apply = (changes: Record<string, string | null>) =>
         router.get(
