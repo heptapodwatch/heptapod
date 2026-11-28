@@ -24,6 +24,7 @@
     "crawl.settings.do_not_crawl_urls": "Nicht crawlen",
     "crawl.settings.force_crawl_urls": "Immer crawlen",
     "crawl.settings.whitelisted_urls": "Ignorierte URLs",
+    "crawl.settings.whitelisted_urls_help": "Eine vollständige URL pro Zeile, beginnend mit http:// oder https://. * steht für beliebige Zeichen, zum Beispiel https://example.com/archive/*.",
     "crawl.ignore.action": "Ignorieren",
     "crawl.ignore.stop": "Nicht mehr ignorieren",
     "crawl.ignore.filter": "Befundansicht",

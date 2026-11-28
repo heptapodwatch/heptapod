@@ -302,7 +302,7 @@ final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetail
         $defaults = Config::array('heptapod.crawl.defaults');
         $fields = [];
         foreach (['exclude_patterns', 'do_not_crawl_urls', 'force_crawl_urls', 'whitelisted_urls'] as $key) {
-            $fields[$key] = new Field(FieldType::List, ['sometimes', 'max:1000'], items: new Field(FieldType::String, $key === 'whitelisted_urls' ? ['required', 'crawl_whitelist_url', 'max:1024'] : ['required', 'max:1024']), presentation: new FieldPresentation('crawl.settings.'.$key), default: $defaults[$key], trimmedStrings: $key !== 'whitelisted_urls');
+            $fields[$key] = new Field(FieldType::List, ['sometimes', 'max:1000'], items: new Field(FieldType::String, $key === 'whitelisted_urls' ? ['required', 'crawl_whitelist_url', 'max:1024'] : ['required', 'max:1024']), presentation: new FieldPresentation('crawl.settings.'.$key, $key === 'whitelisted_urls' ? 'crawl.settings.whitelisted_urls_help' : null), default: $defaults[$key], trimmedStrings: $key !== 'whitelisted_urls');
         }
         foreach (['check_include_external_links', 'new_links_only', 'respect_robots'] as $key) {
             $fields[$key] = new Field(FieldType::Boolean, ['sometimes'], presentation: new FieldPresentation('crawl.settings.'.$key), default: $defaults[$key]);
