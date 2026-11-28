@@ -7,6 +7,7 @@ namespace Heptapod\Http\Controllers;
 use Heptapod\Actions\NormaliseSiteUrl;
 use Heptapod\Actions\SiteUrlDuplicates;
 use Heptapod\Checks\SiteProbe;
+use Heptapod\Enums\Capability;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +20,7 @@ final class SiteProbeController extends Controller
     public function __invoke(Request $request, SiteProbe $probe, NormaliseSiteUrl $normalise, SiteUrlDuplicates $duplicates): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->hasAnyRole(['Owner', 'Admin']), 403);
+        abort_unless($user instanceof User && Capability::Manage->allows($user), 403);
         /** @var array{url: string, site_id?: int} $data */
         $data = Validator::make($request->all(), ['url' => ['required', 'string', 'max:2048'], 'site_id' => ['sometimes', 'integer', 'min:1']])->validate();
         $site = isset($data['site_id']) ? Site::query()->findOrFail($data['site_id']) : null;

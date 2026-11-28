@@ -13,6 +13,7 @@ use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Data\Import\ImportChannelRowData;
 use Heptapod\Data\Import\ImportPlanData;
 use Heptapod\Data\Import\ImportPlanRowData;
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\ImportOperation;
 use Heptapod\Enums\ImportRunStatus;
 use Heptapod\Events\LiveSignal;
@@ -241,7 +242,7 @@ final class RunOhDearImport implements ShouldQueue
         return static function () use ($run): void {
             NotificationLocks::users([$run->user_id]);
             $starter = User::query()->find($run->user_id);
-            if (! $starter instanceof User || $starter->disabled_at !== null || ! $starter->hasAnyRole(['Owner', 'Admin'])) {
+            if (! $starter instanceof User || ! Capability::Manage->allows($starter)) {
                 throw new ImportAccessRevoked;
             }
         };

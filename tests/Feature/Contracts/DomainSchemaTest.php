@@ -8,6 +8,7 @@ use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Contracts\SuppressionComponent;
 use Heptapod\Contracts\SuppressionSubject;
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\ClientScope;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
@@ -88,11 +89,11 @@ it('keeps empty restricted Member client scope restricted', function (): void {
     $user->assignRole('Member');
     $client = Client::factory()->create();
     $user->clients()->attach($client);
-    expect($user->canAccessClient($client->id))->toBeTrue();
+    expect(Capability::ViewClient->allows($user, $client->id))->toBeTrue();
     $user->clients()->detach();
-    expect($user->fresh()->canAccessClient($client->id))->toBeFalse();
+    expect(Capability::ViewClient->allows($user->fresh(), $client->id))->toBeFalse();
     $user->update(['client_scope' => ClientScope::All]);
-    expect($user->canAccessClient($client->id))->toBeTrue();
+    expect(Capability::ViewClient->allows($user, $client->id))->toBeTrue();
 });
 
 it('protects the seeded internal client at the database boundary', function (): void {

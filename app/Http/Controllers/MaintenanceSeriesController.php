@@ -6,6 +6,7 @@ namespace Heptapod\Http\Controllers;
 
 use Heptapod\Actions\DeleteRecurringMaintenancePeriod;
 use Heptapod\Actions\UpdateRecurringMaintenancePeriod;
+use Heptapod\Enums\Capability;
 use Heptapod\Http\MaintenanceReturnContext;
 use Heptapod\Models\RecurringMaintenancePeriod;
 use Heptapod\Models\User;
@@ -66,6 +67,6 @@ final class MaintenanceSeriesController extends Controller
     private function writable(Request $request): void
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->hasAnyRole(['Owner', 'Admin']), 403);
+        abort_unless($user instanceof User && Capability::Manage->allows($user), 403);
     }
 }

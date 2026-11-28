@@ -19,6 +19,7 @@ use Heptapod\Enums\HealthStatus;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\NotificationMode;
 use Heptapod\Enums\RecipientKind;
+use Heptapod\Enums\Role;
 use Heptapod\Events\Notifications\AlertRule;
 use Heptapod\Events\Notifications\DeliveryDecision;
 use Heptapod\Events\Notifications\IssueAlerts;
@@ -81,13 +82,13 @@ final readonly class SystemIssueMailer implements AlertRule
             return 'disabled';
         }
 
-        return $user->hasRole('Owner') || ($user->hasRole('Admin') && self::cellOn($channel)) ? null : 'not_owner_or_opted_in_admin';
+        return Role::of($user) === Role::Owner || (Role::of($user) === Role::Admin && self::cellOn($channel)) ? null : 'not_owner_or_opted_in_admin';
     }
 
     /** The System cell as the grid shows it: Owners' account channels read on and locked from the same rule claim applies. */
     public static function systemLockedOn(NotificationDestination $channel): bool
     {
-        return $channel->account_mail && $channel->user?->hasRole('Owner') === true;
+        return $channel->account_mail && $channel->user !== null && Role::of($channel->user) === Role::Owner;
     }
 
     private static function cellOn(NotificationDestination $channel): bool

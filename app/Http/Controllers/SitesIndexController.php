@@ -11,6 +11,7 @@ use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\DashboardTilesData;
 use Heptapod\Data\Ui\SiteListSummaryData;
 use Heptapod\Data\Ui\SitesIndexPageData;
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\SiteStatus;
 use Heptapod\Http\ListPageSize;
 use Heptapod\Models\User;
@@ -31,7 +32,7 @@ final class SitesIndexController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
-        abort_unless($user->hasAnyRole(['Owner', 'Admin', 'Member']), 403);
+        abort_unless(Capability::ViewInstance->allows($user), 403);
         $filters = ListFilters::read($request, [
             'search' => ['predicate' => static fn (string $key): AllowedFilter => AllowedFilter::partial($key, 'name'),
                 'kind' => FilterKind::Search, 'label' => 'Search sites', 'rules' => ['nullable', 'string', 'max:255']],
@@ -117,7 +118,7 @@ final class SitesIndexController extends Controller
             clients: Lazy::closure(static fn (): array => $reader->clients($user)),
             tags: Lazy::closure(static fn (): array => $tags->read($user)),
             summary: Lazy::closure(static fn (): SiteListSummaryData => $partial ? $reader->summary($user) : $readIndex()['summary']),
-            can_create: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
+            can_create: Lazy::closure(static fn (): bool => Capability::Manage->allows($user)),
             tiles: Lazy::closure(static fn (): DashboardTilesData => $summaries->read($user, siteStates: $partial ? null : $readIndex()['states'])[0]),
             needs_attention: Lazy::closure(static fn (): array => $readAttention()['rows']),
             needs_attention_total: Lazy::closure(static fn (): int => $readAttention()['total']),

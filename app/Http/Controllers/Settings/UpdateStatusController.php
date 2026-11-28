@@ -7,6 +7,7 @@ namespace Heptapod\Http\Controllers\Settings;
 use Heptapod\Actions\SetUpdateChecksEnabled;
 use Heptapod\Data\Ui\UpdatesPageData;
 use Heptapod\Data\Ui\UpdatesSettingsPageData;
+use Heptapod\Enums\Capability;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\User;
 use Heptapod\Queries\BackupHistoryReader;
@@ -23,12 +24,12 @@ final class UpdateStatusController extends Controller
     public function edit(Request $request, UpdateStatusReader $reader, BackupHistoryReader $backups): Response
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->hasAnyRole(['Owner', 'Admin']), 403);
+        abort_unless($user instanceof User && Capability::Manage->allows($user), 403);
 
         return Inertia::render('settings/updates', new UpdatesPageData(
             updatesPage: UpdatesSettingsPageData::from([
                 'updates' => $this->withNotes($reader),
-                'backups' => $user->hasRole('Owner') ? $backups->read($user) : null,
+                'backups' => Capability::ManageInstance->allows($user) ? $backups->read($user) : null,
             ]),
         ));
     }
@@ -36,7 +37,7 @@ final class UpdateStatusController extends Controller
     public function show(Request $request, UpdateStatusReader $reader): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->hasAnyRole(['Owner', 'Admin']), 403);
+        abort_unless($user instanceof User && Capability::Manage->allows($user), 403);
 
         return response()->json($this->withNotes($reader));
     }
@@ -44,7 +45,7 @@ final class UpdateStatusController extends Controller
     public function update(Request $request, SetUpdateChecksEnabled $set, UpdateStatusReader $reader): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->hasRole('Owner'), 403);
+        abort_unless($user instanceof User && Capability::ManageInstance->allows($user), 403);
         /** @var array{enabled: bool} $data */
         $data = Validator::make($request->all(), ['enabled' => ['required', 'boolean']])->validate();
         $set($data['enabled']);

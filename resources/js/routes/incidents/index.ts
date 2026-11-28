@@ -181,7 +181,7 @@ exportMethod.form = exportMethodForm
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentAlertPreviewController::__invoke
-* @see app/Http/Controllers/IncidentAlertPreviewController.php:20
+* @see app/Http/Controllers/IncidentAlertPreviewController.php:21
 * @route '/incidents/{incident}/alerts/{event}'
 */
 export const alertPreview = (args: { incident: string | number, event: string | number } | [incident: string | number, event: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -196,7 +196,7 @@ alertPreview.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentAlertPreviewController::__invoke
-* @see app/Http/Controllers/IncidentAlertPreviewController.php:20
+* @see app/Http/Controllers/IncidentAlertPreviewController.php:21
 * @route '/incidents/{incident}/alerts/{event}'
 */
 alertPreview.url = (args: { incident: string | number, event: string | number } | [incident: string | number, event: string | number ], options?: RouteQueryOptions) => {
@@ -222,7 +222,7 @@ alertPreview.url = (args: { incident: string | number, event: string | number } 
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentAlertPreviewController::__invoke
-* @see app/Http/Controllers/IncidentAlertPreviewController.php:20
+* @see app/Http/Controllers/IncidentAlertPreviewController.php:21
 * @route '/incidents/{incident}/alerts/{event}'
 */
 alertPreview.get = (args: { incident: string | number, event: string | number } | [incident: string | number, event: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -232,7 +232,7 @@ alertPreview.get = (args: { incident: string | number, event: string | number } 
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentAlertPreviewController::__invoke
-* @see app/Http/Controllers/IncidentAlertPreviewController.php:20
+* @see app/Http/Controllers/IncidentAlertPreviewController.php:21
 * @route '/incidents/{incident}/alerts/{event}'
 */
 alertPreview.head = (args: { incident: string | number, event: string | number } | [incident: string | number, event: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -242,7 +242,7 @@ alertPreview.head = (args: { incident: string | number, event: string | number }
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentAlertPreviewController::__invoke
-* @see app/Http/Controllers/IncidentAlertPreviewController.php:20
+* @see app/Http/Controllers/IncidentAlertPreviewController.php:21
 * @route '/incidents/{incident}/alerts/{event}'
 */
 const alertPreviewForm = (args: { incident: string | number, event: string | number } | [incident: string | number, event: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -252,7 +252,7 @@ const alertPreviewForm = (args: { incident: string | number, event: string | num
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentAlertPreviewController::__invoke
-* @see app/Http/Controllers/IncidentAlertPreviewController.php:20
+* @see app/Http/Controllers/IncidentAlertPreviewController.php:21
 * @route '/incidents/{incident}/alerts/{event}'
 */
 alertPreviewForm.get = (args: { incident: string | number, event: string | number } | [incident: string | number, event: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -262,7 +262,7 @@ alertPreviewForm.get = (args: { incident: string | number, event: string | numbe
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentAlertPreviewController::__invoke
-* @see app/Http/Controllers/IncidentAlertPreviewController.php:20
+* @see app/Http/Controllers/IncidentAlertPreviewController.php:21
 * @route '/incidents/{incident}/alerts/{event}'
 */
 alertPreviewForm.head = (args: { incident: string | number, event: string | number } | [incident: string | number, event: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -279,7 +279,7 @@ alertPreview.form = alertPreviewForm
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentDetailController::__invoke
-* @see app/Http/Controllers/IncidentDetailController.php:41
+* @see app/Http/Controllers/IncidentDetailController.php:42
 * @route '/incidents/{incident}'
 */
 export const show = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -294,7 +294,7 @@ show.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentDetailController::__invoke
-* @see app/Http/Controllers/IncidentDetailController.php:41
+* @see app/Http/Controllers/IncidentDetailController.php:42
 * @route '/incidents/{incident}'
 */
 show.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -321,7 +321,7 @@ show.url = (args: { incident: string | number } | [incident: string | number ] |
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentDetailController::__invoke
-* @see app/Http/Controllers/IncidentDetailController.php:41
+* @see app/Http/Controllers/IncidentDetailController.php:42
 * @route '/incidents/{incident}'
 */
 show.get = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -331,7 +331,7 @@ show.get = (args: { incident: string | number } | [incident: string | number ] |
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentDetailController::__invoke
-* @see app/Http/Controllers/IncidentDetailController.php:41
+* @see app/Http/Controllers/IncidentDetailController.php:42
 * @route '/incidents/{incident}'
 */
 show.head = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -341,7 +341,7 @@ show.head = (args: { incident: string | number } | [incident: string | number ] 
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentDetailController::__invoke
-* @see app/Http/Controllers/IncidentDetailController.php:41
+* @see app/Http/Controllers/IncidentDetailController.php:42
 * @route '/incidents/{incident}'
 */
 const showForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -351,7 +351,7 @@ const showForm = (args: { incident: string | number } | [incident: string | numb
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentDetailController::__invoke
-* @see app/Http/Controllers/IncidentDetailController.php:41
+* @see app/Http/Controllers/IncidentDetailController.php:42
 * @route '/incidents/{incident}'
 */
 showForm.get = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -361,7 +361,7 @@ showForm.get = (args: { incident: string | number } | [incident: string | number
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentDetailController::__invoke
-* @see app/Http/Controllers/IncidentDetailController.php:41
+* @see app/Http/Controllers/IncidentDetailController.php:42
 * @route '/incidents/{incident}'
 */
 showForm.head = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

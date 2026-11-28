@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Http\Requests\Settings;
 
 use Heptapod\Concerns\AlertSensitivityValidationRules;
+use Heptapod\Enums\Capability;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Foundation\Http\FormRequest;
@@ -18,7 +19,7 @@ final class UpdateAlertSensitivityRequest extends FormRequest
     {
         $user = $this->user();
 
-        return $user instanceof User && $user->hasAnyRole(['Owner', 'Admin']);
+        return $user instanceof User && Capability::Manage->allows($user);
     }
 
     /** @return array<string, list<string|Enum>> */

@@ -4,7 +4,7 @@ import icon14263b from './icon'
 import checks from './checks'
 /**
 * @see \Heptapod\Http\Controllers\SitesIndexController::__invoke
-* @see app/Http/Controllers/SitesIndexController.php:30
+* @see app/Http/Controllers/SitesIndexController.php:31
 * @route '/sites'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -19,7 +19,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SitesIndexController::__invoke
-* @see app/Http/Controllers/SitesIndexController.php:30
+* @see app/Http/Controllers/SitesIndexController.php:31
 * @route '/sites'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -28,7 +28,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\SitesIndexController::__invoke
-* @see app/Http/Controllers/SitesIndexController.php:30
+* @see app/Http/Controllers/SitesIndexController.php:31
 * @route '/sites'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -38,7 +38,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\SitesIndexController::__invoke
-* @see app/Http/Controllers/SitesIndexController.php:30
+* @see app/Http/Controllers/SitesIndexController.php:31
 * @route '/sites'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -48,7 +48,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\SitesIndexController::__invoke
-* @see app/Http/Controllers/SitesIndexController.php:30
+* @see app/Http/Controllers/SitesIndexController.php:31
 * @route '/sites'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -58,7 +58,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \Heptapod\Http\Controllers\SitesIndexController::__invoke
-* @see app/Http/Controllers/SitesIndexController.php:30
+* @see app/Http/Controllers/SitesIndexController.php:31
 * @route '/sites'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -68,7 +68,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\SitesIndexController::__invoke
-* @see app/Http/Controllers/SitesIndexController.php:30
+* @see app/Http/Controllers/SitesIndexController.php:31
 * @route '/sites'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -166,7 +166,7 @@ create.form = createForm
 
 /**
 * @see \Heptapod\Http\Controllers\SiteProbeController::__invoke
-* @see app/Http/Controllers/SiteProbeController.php:19
+* @see app/Http/Controllers/SiteProbeController.php:20
 * @route '/sites/probe'
 */
 export const probe = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -181,7 +181,7 @@ probe.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteProbeController::__invoke
-* @see app/Http/Controllers/SiteProbeController.php:19
+* @see app/Http/Controllers/SiteProbeController.php:20
 * @route '/sites/probe'
 */
 probe.url = (options?: RouteQueryOptions) => {
@@ -190,7 +190,7 @@ probe.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteProbeController::__invoke
-* @see app/Http/Controllers/SiteProbeController.php:19
+* @see app/Http/Controllers/SiteProbeController.php:20
 * @route '/sites/probe'
 */
 probe.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -200,7 +200,7 @@ probe.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\SiteProbeController::__invoke
-* @see app/Http/Controllers/SiteProbeController.php:19
+* @see app/Http/Controllers/SiteProbeController.php:20
 * @route '/sites/probe'
 */
 const probeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -210,7 +210,7 @@ const probeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\SiteProbeController::__invoke
-* @see app/Http/Controllers/SiteProbeController.php:19
+* @see app/Http/Controllers/SiteProbeController.php:20
 * @route '/sites/probe'
 */
 probeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -377,7 +377,7 @@ show.form = showForm
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:98
+* @see app/Http/Controllers/MaintenanceController.php:99
 * @route '/sites/{site}/maintenance'
 */
 export const maintenance = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -392,7 +392,7 @@ maintenance.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:98
+* @see app/Http/Controllers/MaintenanceController.php:99
 * @route '/sites/{site}/maintenance'
 */
 maintenance.url = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -425,7 +425,7 @@ maintenance.url = (args: { site: number | { id: number } } | [site: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:98
+* @see app/Http/Controllers/MaintenanceController.php:99
 * @route '/sites/{site}/maintenance'
 */
 maintenance.get = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -435,7 +435,7 @@ maintenance.get = (args: { site: number | { id: number } } | [site: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:98
+* @see app/Http/Controllers/MaintenanceController.php:99
 * @route '/sites/{site}/maintenance'
 */
 maintenance.head = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -445,7 +445,7 @@ maintenance.head = (args: { site: number | { id: number } } | [site: number | { 
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:98
+* @see app/Http/Controllers/MaintenanceController.php:99
 * @route '/sites/{site}/maintenance'
 */
 const maintenanceForm = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -455,7 +455,7 @@ const maintenanceForm = (args: { site: number | { id: number } } | [site: number
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:98
+* @see app/Http/Controllers/MaintenanceController.php:99
 * @route '/sites/{site}/maintenance'
 */
 maintenanceForm.get = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -465,7 +465,7 @@ maintenanceForm.get = (args: { site: number | { id: number } } | [site: number |
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:98
+* @see app/Http/Controllers/MaintenanceController.php:99
 * @route '/sites/{site}/maintenance'
 */
 maintenanceForm.head = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

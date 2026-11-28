@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Policies;
 
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\RecipientKind;
 use Heptapod\Models\Client;
 use Heptapod\Models\NotificationDestination;
@@ -44,7 +45,7 @@ final readonly class NotificationDestinationPolicy
 
     public function manageTeam(User $user): Response
     {
-        return $user->disabled_at === null && $user->hasAnyRole(['Owner', 'Admin']) ? Response::allow() : Response::deny();
+        return Capability::Manage->allows($user) ? Response::allow() : Response::deny();
     }
 
     public function manageUser(User $user, int $userId): Response

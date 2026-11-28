@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Settings\BackupController::data
-* @see app/Http/Controllers/Settings/BackupController.php:16
+* @see app/Http/Controllers/Settings/BackupController.php:17
 * @route '/settings/backups/data'
 */
 export const data = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ data.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\BackupController::data
-* @see app/Http/Controllers/Settings/BackupController.php:16
+* @see app/Http/Controllers/Settings/BackupController.php:17
 * @route '/settings/backups/data'
 */
 data.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ data.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\BackupController::data
-* @see app/Http/Controllers/Settings/BackupController.php:16
+* @see app/Http/Controllers/Settings/BackupController.php:17
 * @route '/settings/backups/data'
 */
 data.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ data.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\BackupController::data
-* @see app/Http/Controllers/Settings/BackupController.php:16
+* @see app/Http/Controllers/Settings/BackupController.php:17
 * @route '/settings/backups/data'
 */
 data.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ data.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\BackupController::data
-* @see app/Http/Controllers/Settings/BackupController.php:16
+* @see app/Http/Controllers/Settings/BackupController.php:17
 * @route '/settings/backups/data'
 */
 const dataForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const dataForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\BackupController::data
-* @see app/Http/Controllers/Settings/BackupController.php:16
+* @see app/Http/Controllers/Settings/BackupController.php:17
 * @route '/settings/backups/data'
 */
 dataForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ dataForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\BackupController::data
-* @see app/Http/Controllers/Settings/BackupController.php:16
+* @see app/Http/Controllers/Settings/BackupController.php:17
 * @route '/settings/backups/data'
 */
 dataForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ data.form = dataForm
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\BackupController::store
-* @see app/Http/Controllers/Settings/BackupController.php:21
+* @see app/Http/Controllers/Settings/BackupController.php:22
 * @route '/settings/backups'
 */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -97,7 +97,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\BackupController::store
-* @see app/Http/Controllers/Settings/BackupController.php:21
+* @see app/Http/Controllers/Settings/BackupController.php:22
 * @route '/settings/backups'
 */
 store.url = (options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\BackupController::store
-* @see app/Http/Controllers/Settings/BackupController.php:21
+* @see app/Http/Controllers/Settings/BackupController.php:22
 * @route '/settings/backups'
 */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -116,7 +116,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\BackupController::store
-* @see app/Http/Controllers/Settings/BackupController.php:21
+* @see app/Http/Controllers/Settings/BackupController.php:22
 * @route '/settings/backups'
 */
 const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -126,7 +126,7 @@ const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\BackupController::store
-* @see app/Http/Controllers/Settings/BackupController.php:21
+* @see app/Http/Controllers/Settings/BackupController.php:22
 * @route '/settings/backups'
 */
 storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

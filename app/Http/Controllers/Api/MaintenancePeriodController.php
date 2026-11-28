@@ -11,6 +11,7 @@ use Heptapod\Actions\CreateMaintenanceWindow;
 use Heptapod\Actions\DeleteMaintenancePeriod;
 use Heptapod\Actions\UpdateMaintenancePeriod;
 use Heptapod\Concerns\ResolvesApiPrincipal;
+use Heptapod\Enums\Capability;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Http\Resources\OhDear\MaintenancePeriodResource;
 use Heptapod\Maintenance\LocalMaintenanceTime;
@@ -165,7 +166,7 @@ final class MaintenancePeriodController extends Controller
     private function writable(Request $request, MaintenancePeriod $period): array
     {
         $user = $this->principal($request, 403);
-        abort_unless($user->hasAnyRole(['Owner', 'Admin']), 403);
+        abort_unless(Capability::Manage->allows($user), 403);
         if ($period->target_type !== 'site') {
             throw ValidationException::withMessages(['maintenance_period_id' => __('maintenance.shared_window_web_only')]);
         }

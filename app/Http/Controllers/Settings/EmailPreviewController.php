@@ -9,6 +9,7 @@ use Heptapod\Contracts\Mail\MailBranding;
 use Heptapod\Contracts\Mail\MailDesign;
 use Heptapod\Contracts\Mail\MailLogo;
 use Heptapod\Contracts\Mail\MailRenderer;
+use Heptapod\Enums\Capability;
 use Heptapod\Events\Notifications\EmailPreviewSample;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\User;
@@ -25,7 +26,7 @@ final class EmailPreviewController extends Controller
     public function __invoke(Request $request, EmailPreviewSample $sample, AccountMailFactory $accountMails, MailRenderer $renderer): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->hasRole('Owner'), 403);
+        abort_unless($user instanceof User && Capability::ManageInstance->allows($user), 403);
         /** @var array{kind: string, design: string, sender_name?: string|null, accent?: string|null, footer?: string|null, logo_width?: int|string|null, logo_height?: int|string|null, logo_dark_width?: int|string|null, logo_dark_height?: int|string|null} $draft */
         $draft = Validator::make($request->query(), [
             'kind' => ['required', Rule::in(['alert', 'reset'])],

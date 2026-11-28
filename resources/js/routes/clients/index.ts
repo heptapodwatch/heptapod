@@ -3,7 +3,7 @@ import messages from './messages'
 import notifications1ce82a from './notifications'
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:24
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -18,7 +18,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:24
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -27,7 +27,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:24
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -37,7 +37,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:24
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -47,7 +47,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:24
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -57,7 +57,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:24
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -67,7 +67,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:24
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -221,7 +221,7 @@ store.form = storeForm
 
 /**
 * @see \Heptapod\Http\Controllers\ClientDetailController::__invoke
-* @see app/Http/Controllers/ClientDetailController.php:21
+* @see app/Http/Controllers/ClientDetailController.php:22
 * @route '/clients/{client}'
 */
 export const show = (args: { client: string | number } | [client: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -236,7 +236,7 @@ show.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientDetailController::__invoke
-* @see app/Http/Controllers/ClientDetailController.php:21
+* @see app/Http/Controllers/ClientDetailController.php:22
 * @route '/clients/{client}'
 */
 show.url = (args: { client: string | number } | [client: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -263,7 +263,7 @@ show.url = (args: { client: string | number } | [client: string | number ] | str
 
 /**
 * @see \Heptapod\Http\Controllers\ClientDetailController::__invoke
-* @see app/Http/Controllers/ClientDetailController.php:21
+* @see app/Http/Controllers/ClientDetailController.php:22
 * @route '/clients/{client}'
 */
 show.get = (args: { client: string | number } | [client: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -273,7 +273,7 @@ show.get = (args: { client: string | number } | [client: string | number ] | str
 
 /**
 * @see \Heptapod\Http\Controllers\ClientDetailController::__invoke
-* @see app/Http/Controllers/ClientDetailController.php:21
+* @see app/Http/Controllers/ClientDetailController.php:22
 * @route '/clients/{client}'
 */
 show.head = (args: { client: string | number } | [client: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -283,7 +283,7 @@ show.head = (args: { client: string | number } | [client: string | number ] | st
 
 /**
 * @see \Heptapod\Http\Controllers\ClientDetailController::__invoke
-* @see app/Http/Controllers/ClientDetailController.php:21
+* @see app/Http/Controllers/ClientDetailController.php:22
 * @route '/clients/{client}'
 */
 const showForm = (args: { client: string | number } | [client: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -293,7 +293,7 @@ const showForm = (args: { client: string | number } | [client: string | number ]
 
 /**
 * @see \Heptapod\Http\Controllers\ClientDetailController::__invoke
-* @see app/Http/Controllers/ClientDetailController.php:21
+* @see app/Http/Controllers/ClientDetailController.php:22
 * @route '/clients/{client}'
 */
 showForm.get = (args: { client: string | number } | [client: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -303,7 +303,7 @@ showForm.get = (args: { client: string | number } | [client: string | number ] |
 
 /**
 * @see \Heptapod\Http\Controllers\ClientDetailController::__invoke
-* @see app/Http/Controllers/ClientDetailController.php:21
+* @see app/Http/Controllers/ClientDetailController.php:22
 * @route '/clients/{client}'
 */
 showForm.head = (args: { client: string | number } | [client: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

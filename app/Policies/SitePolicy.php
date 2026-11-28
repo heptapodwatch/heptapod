@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Policies;
 
+use Heptapod\Enums\Capability;
 use Heptapod\Models\Client;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
@@ -29,7 +30,7 @@ final class SitePolicy
 
     public function move(User $user, Site $site): Response
     {
-        return $this->unlessDeleting($user, $site) ?? ($user->hasAnyRole(['Owner', 'Admin']) ? Response::allow() : Response::deny());
+        return $this->unlessDeleting($user, $site) ?? (Capability::Manage->allows($user) ? Response::allow() : Response::deny());
     }
 
     public function delete(User $user, Site $site): Response
@@ -66,7 +67,7 @@ final class SitePolicy
     /** Whether a user who can see the client may change its sites: a manager, and the client not archived. */
     private function manages(User $user, int $clientId): Response
     {
-        if (! $user->hasAnyRole(['Owner', 'Admin'])) {
+        if (! Capability::Manage->allows($user)) {
             return Response::deny();
         }
 
@@ -79,7 +80,7 @@ final class SitePolicy
     /** @return Builder<Site> */
     public function visibleSites(User $user, bool $includeArchived = false): Builder
     {
-        abort_unless($user->disabled_at === null && $user->hasAnyRole(['Owner', 'Admin', 'Member']), 403);
+        abort_unless(Capability::ViewInstance->allows($user), 403);
         $query = Site::query();
         $query->getQuery()->select('sites.*');
         if (! $includeArchived) {
@@ -135,7 +136,7 @@ final class SitePolicy
     /** @return Builder<Client> */
     public function visibleClients(User $user, bool $includeArchived = false): Builder
     {
-        abort_unless($user->disabled_at === null && $user->hasAnyRole(['Owner', 'Admin', 'Member']), 403);
+        abort_unless(Capability::ViewInstance->allows($user), 403);
         $clients = Client::query();
         $clients->getQuery()->select('clients.*');
         if (! $includeArchived) {
@@ -188,7 +189,7 @@ final class SitePolicy
         return $ids;
     }
 
-    /** Persisted-user access shared by the policy and batched notification followers. */
+    /** The SQL form of Capability::ViewClient for many persisted users at once (notification followers); no token reach. */
     public function viewableUsers(QueryBuilder $query, string $users, int|Expression $clientId): QueryBuilder
     {
         $roles = static fn (QueryBuilder $roles, array $names): QueryBuilder => $roles->selectRaw('1')
@@ -209,12 +210,6 @@ final class SitePolicy
 
     private function accessible(User $user, int $clientId): Response
     {
-        $constraint = $user->tokenClientConstraint();
-        if ($constraint !== null && $constraint !== $clientId) {
-            return Response::denyAsNotFound();
-        }
-        $users = DB::table('users')->where('users.id', $user->id);
-
-        return $this->viewableUsers($users, 'users', $clientId)->exists() ? Response::allow() : Response::denyAsNotFound();
+        return Capability::ViewClient->allows($user, $clientId) ? Response::allow() : Response::denyAsNotFound();
     }
 }

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Notifications\DismissNotificationMigrationReportController::__invoke
-* @see app/Http/Controllers/Notifications/DismissNotificationMigrationReportController.php:16
+* @see app/Http/Controllers/Notifications/DismissNotificationMigrationReportController.php:17
 * @route '/settings/notifications/team/migration-report'
 */
 export const dismiss = (options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -16,7 +16,7 @@ dismiss.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\DismissNotificationMigrationReportController::__invoke
-* @see app/Http/Controllers/Notifications/DismissNotificationMigrationReportController.php:16
+* @see app/Http/Controllers/Notifications/DismissNotificationMigrationReportController.php:17
 * @route '/settings/notifications/team/migration-report'
 */
 dismiss.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ dismiss.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\DismissNotificationMigrationReportController::__invoke
-* @see app/Http/Controllers/Notifications/DismissNotificationMigrationReportController.php:16
+* @see app/Http/Controllers/Notifications/DismissNotificationMigrationReportController.php:17
 * @route '/settings/notifications/team/migration-report'
 */
 dismiss.delete = (options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -35,7 +35,7 @@ dismiss.delete = (options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\DismissNotificationMigrationReportController::__invoke
-* @see app/Http/Controllers/Notifications/DismissNotificationMigrationReportController.php:16
+* @see app/Http/Controllers/Notifications/DismissNotificationMigrationReportController.php:17
 * @route '/settings/notifications/team/migration-report'
 */
 const dismissForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -50,7 +50,7 @@ const dismissForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\DismissNotificationMigrationReportController::__invoke
-* @see app/Http/Controllers/Notifications/DismissNotificationMigrationReportController.php:16
+* @see app/Http/Controllers/Notifications/DismissNotificationMigrationReportController.php:17
 * @route '/settings/notifications/team/migration-report'
 */
 dismissForm.delete = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

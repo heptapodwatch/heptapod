@@ -10,6 +10,7 @@ use Heptapod\Contracts\FilterKind;
 use Heptapod\Contracts\ListFilters;
 use Heptapod\Data\Ui\ActivityBatchData;
 use Heptapod\Data\Ui\ActivityPageData;
+use Heptapod\Enums\Capability;
 use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Models\User;
 use Heptapod\Queries\EventsReader;
@@ -26,7 +27,7 @@ final class ActivityController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
-        abort_unless($user->hasAnyRole(['Owner', 'Admin', 'Member']), 403);
+        abort_unless(Capability::ViewInstance->allows($user), 403);
         $reader = $reader->withServerIssues();
         $filters = ListFilters::read($request, [
             'q' => ['kind' => FilterKind::Search, 'label' => 'Filter by site or client', 'rules' => ['nullable', 'string', 'max:255']],

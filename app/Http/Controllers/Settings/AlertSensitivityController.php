@@ -9,6 +9,7 @@ use Heptapod\Data\Ui\AlertSensitivityData;
 use Heptapod\Data\Ui\AlertSensitivitySettingsPageData;
 use Heptapod\Enums\AlertReminders;
 use Heptapod\Enums\AlertSensitivity;
+use Heptapod\Enums\Capability;
 use Heptapod\Events\Notifications\EffectiveAlertSensitivity;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Http\Requests\Settings\UpdateAlertSensitivityRequest;
@@ -24,7 +25,7 @@ final class AlertSensitivityController extends Controller
     public function edit(Request $request, InstanceSettings $settings): Response
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->hasAnyRole(['Owner', 'Admin']), 403);
+        abort_unless($user instanceof User && Capability::Manage->allows($user), 403);
 
         return Inertia::render('settings/alerts', new AlertSensitivitySettingsPageData(
             AlertSensitivityData::fromEffective(EffectiveAlertSensitivity::team($settings)),

@@ -13,6 +13,7 @@ use Heptapod\Contracts\ServersAccess;
 use Heptapod\Data\Ui\ChannelTypeData;
 use Heptapod\Data\Ui\NotificationChannelData;
 use Heptapod\Data\Ui\NotificationSettingsPageData;
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\NotificationMode;
 use Heptapod\Enums\RecipientKind;
@@ -125,11 +126,11 @@ final readonly class NotificationSettingsReader
         $own = $kind === RecipientKind::User && $viewer->id === $recipientId;
         $grid = [];
         foreach (NotificationCategory::grid() as $category) {
-            if ($category === NotificationCategory::System && ($kind === RecipientKind::Client || ($own && ! $viewer->hasAnyRole(['Owner', 'Admin'])))) {
+            if ($category === NotificationCategory::System && ($kind === RecipientKind::Client || ($own && ! Capability::Manage->allows($viewer)))) {
                 continue;
             }
             // Servers exist only while switched on and reach only Owners, Admins and team channels (ServerIssueMailer).
-            if ($category === NotificationCategory::Servers && ($kind === RecipientKind::Client || ! $this->servers->enabled() || ($own && ! $viewer->hasAnyRole(['Owner', 'Admin'])))) {
+            if ($category === NotificationCategory::Servers && ($kind === RecipientKind::Client || ! $this->servers->enabled() || ($own && ! Capability::Manage->allows($viewer)))) {
                 continue;
             }
             $modes = $category->allowsDigest() ? NotificationMode::cases() : [NotificationMode::Immediate, NotificationMode::Off];

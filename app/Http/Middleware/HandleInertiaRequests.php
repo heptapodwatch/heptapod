@@ -6,6 +6,7 @@ use Heptapod\Contracts\Export\Table;
 use Heptapod\Contracts\Mail\MailDeliveryMode;
 use Heptapod\Contracts\ServersAccess;
 use Heptapod\Data\Ui\RunningNowData;
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\RecipientKind;
 use Heptapod\Live\LiveChannels;
 use Heptapod\Models\NotificationDestination;
@@ -85,11 +86,11 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 // Like ClientData: `timezone` is the zone in use, `timezone_override` the user's own choice (null follows the instance).
                 'user' => $user instanceof User ? [...$user->toArray(), 'timezone' => $user->resolvedTimezone(), 'timezone_override' => $user->timezone] : $user,
-                'canManageMembers' => $user instanceof User && $user->disabled_at === null && $user->hasAnyRole(['Owner', 'Admin']),
-                'canManageInstance' => $user instanceof User && $user->hasRole('Owner'),
-                'canViewSystemHealth' => $user instanceof User && $user->hasAnyRole(['Owner', 'Admin']),
-                'canViewUpdates' => $user instanceof User && $user->hasAnyRole(['Owner', 'Admin']),
-                'canManageChannels' => $user instanceof User && $user->hasAnyRole(['Owner', 'Admin']),
+                'canManageMembers' => $user instanceof User && Capability::Manage->allows($user),
+                'canManageInstance' => $user instanceof User && Capability::ManageInstance->allows($user),
+                'canViewSystemHealth' => $user instanceof User && Capability::Manage->allows($user),
+                'canViewUpdates' => $user instanceof User && Capability::Manage->allows($user),
+                'canManageChannels' => $user instanceof User && Capability::Manage->allows($user),
                 // Lazy, and the role before the switch: only Owners and Admins of an instance that allows servers read the setting.
                 'canViewServers' => static fn (): bool => $user instanceof User && app(ServersAccess::class)->allows($user)
                     && app(ServersAccess::class)->enabled(),
@@ -97,24 +98,24 @@ class HandleInertiaRequests extends Middleware
             // The installed version for the help dialog; release checks stay with Owners and Admins, who may open Updates & backups.
             'heptapodVersion' => $user instanceof User ? config()->string('heptapod.version') : null,
             // A cache read only (no query on any page); null until a check or the Updates page wrote it.
-            'appUpdate' => static fn (): ?array => $user instanceof User && $user->hasAnyRole(['Owner', 'Admin'])
+            'appUpdate' => static fn (): ?array => $user instanceof User && Capability::Manage->allows($user)
                 ? app(UpdateStatusReader::class)->shellSummary() : null,
             'overallHealth' => fn (): ?array => $user instanceof User ? app(ShellHealthReader::class)->read($user)->toArray() : null,
-            ...($user instanceof User && $user->hasAnyRole(['Owner', 'Admin', 'Member'])
+            ...($user instanceof User && Capability::ViewInstance->allows($user)
                 // Inline, not deferred: a deferred group costs every visit a second request that reruns the page controller.
-                ? ['lateRunsCount' => static fn (): int => $user->disabled_at === null ? app(RunsReader::class)->lateCount($user) : 0,
+                ? ['lateRunsCount' => static fn (): int => app(RunsReader::class)->lateCount($user),
                     // Inline for the same reason: a hard reload shows the viewer's runs at once.
-                    'runningNow' => static fn (): ?RunningNowData => $user->disabled_at === null ? app(RunningNowReader::class)->forUser($user) : null]
+                    'runningNow' => static fn (): RunningNowData => app(RunningNowReader::class)->forUser($user)]
                 : []),
             // Channels the viewer can repair: the team's and clients' for Owners and Admins, and always their own.
             'notificationAttention' => fn (): array => $user instanceof User && $user->disabled_at === null
                 ? NotificationDestination::query()->where('needs_attention', true)
                     ->where(fn (Builder $mine): Builder => $mine->where('user_id', $user->id)
-                        ->when($user->hasAnyRole(['Owner', 'Admin']), fn (Builder $managed): Builder => $managed->orWhere('recipient_kind', RecipientKind::Team)
+                        ->when(Capability::Manage->allows($user), fn (Builder $managed): Builder => $managed->orWhere('recipient_kind', RecipientKind::Team)
                             ->orWhere('recipient_kind', RecipientKind::Client)))
                     ->where('removed_at', null)->get(['id', 'label', 'recipient_kind', 'client_id', 'attention_reason'])
                     ->filter(static fn (NotificationDestination $destination): bool => $destination->recipient_kind !== RecipientKind::Client
-                        || $user->canAccessClient($destination->client_id ?? 0))
+                        || Capability::ViewClient->allows($user, $destination->client_id ?? 0))
                     ->map(static fn (NotificationDestination $destination): array => ['id' => $destination->id, 'label' => $destination->label,
                         'reason' => __($destination->attention_reason ?? throw new \LogicException('A destination needing attention must have a reason.')),
                     ])->values()->all()

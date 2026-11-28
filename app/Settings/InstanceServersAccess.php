@@ -6,6 +6,7 @@ namespace Heptapod\Settings;
 
 use Heptapod\Contracts\ServersAccess;
 use Heptapod\Contracts\ServersSwitch;
+use Heptapod\Enums\Capability;
 use Heptapod\Models\User;
 use Heptapod\Queries\UpdateStatusReader;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -24,7 +25,7 @@ final readonly class InstanceServersAccess implements ServersAccess
     /** Servers belong to no client, so a client-limited token sees none, like a site outside its client (SitePolicy). */
     public function allows(Authenticatable $user): bool
     {
-        return $user instanceof User && $user->disabled_at === null && $user->hasAnyRole(['Owner', 'Admin'])
+        return $user instanceof User && Capability::Manage->allows($user)
             && $user->tokenClientConstraint() === null;
     }
 

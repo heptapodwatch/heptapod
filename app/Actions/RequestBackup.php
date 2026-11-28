@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Actions;
 
+use Heptapod\Enums\Capability;
 use Heptapod\Events\LiveSignal;
 use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Jobs\RunBackupNow;
@@ -16,7 +17,7 @@ final readonly class RequestBackup
 
     public function __invoke(User $actor): int
     {
-        abort_unless($actor->hasRole('Owner'), 403);
+        abort_unless(Capability::ManageInstance->allows($actor), 403);
 
         $id = DB::transaction(function () use ($actor): int {
             DB::table('roles')->where('name', 'Owner')->where('guard_name', 'web')->lockForUpdate()->first()

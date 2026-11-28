@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Actions;
 
 use Carbon\CarbonImmutable;
+use Heptapod\Enums\Capability;
 use Heptapod\Events\LiveSignal;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Maintenance\LocalMaintenanceTime;
@@ -27,7 +28,7 @@ final readonly class CreateMaintenanceWindow
     /** @param array<string, mixed> $input */
     public function __invoke(User $user, array $input): MaintenancePeriod|RecurringMaintenancePeriod
     {
-        abort_unless($user->hasAnyRole(['Owner', 'Admin']), 403);
+        abort_unless(Capability::Manage->allows($user), 403);
         $data = Validator::make($input, [
             'target_type' => ['required', Rule::in(['site', 'client', 'tag'])], 'target_id' => 'required|integer|min:1',
             'name' => 'nullable|string|max:255', 'reason' => 'nullable|string|max:255',

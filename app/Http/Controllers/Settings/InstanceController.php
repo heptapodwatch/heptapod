@@ -8,6 +8,7 @@ use Heptapod\Actions\SaveInstanceSettings;
 use Heptapod\Contracts\Mail\MailDesign;
 use Heptapod\Data\Ui\InstancePageData;
 use Heptapod\Data\Ui\InstanceSettingsData;
+use Heptapod\Enums\Capability;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
@@ -62,6 +63,6 @@ final class InstanceController extends Controller
     private function owner(Request $request): void
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->hasRole('Owner'), 403);
+        abort_unless($user instanceof User && Capability::ManageInstance->allows($user), 403);
     }
 }

@@ -8,6 +8,7 @@ use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\ClientDetailPageData;
 use Heptapod\Data\Ui\DashboardTilesData;
+use Heptapod\Enums\Capability;
 use Heptapod\Models\User;
 use Heptapod\Queries\ClientsReader;
 use Illuminate\Http\Request;
@@ -37,7 +38,7 @@ final class ClientDetailController extends Controller
             sites: Lazy::closure(static fn (): array => $getSites()['sites']),
             sites_pagination: Lazy::closure(static fn (): PaginationData => $getSites()['pagination']),
             incidents: Lazy::closure(static fn (): array => $reader->incidents($user, $client)),
-            can_manage: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
+            can_manage: Lazy::closure(static fn (): bool => Capability::Manage->allows($user)),
         ));
     }
 }

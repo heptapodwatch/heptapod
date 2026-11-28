@@ -7,6 +7,7 @@ namespace Heptapod\Http\Resources\OhDear;
 use Heptapod\Contracts\CronPingUrl;
 use Heptapod\Contracts\CronTaskData;
 use Heptapod\Contracts\SuppressionComponent;
+use Heptapod\Enums\Capability;
 use Heptapod\Models\CheckSnooze;
 use Heptapod\Models\User;
 use Illuminate\Http\Request;
@@ -25,7 +26,7 @@ final class CronTaskResource extends JsonResource
         $task = $this->resource;
         $actor = $request->user();
         abort_unless($actor instanceof User, 401);
-        $canViewPingUrl = $actor->hasAnyRole(['Owner', 'Admin']) && $actor->tokenCan('checks:write');
+        $canViewPingUrl = Capability::Manage->allows($actor) && $actor->tokenCan('checks:write');
         $query = CheckSnooze::query()->where('check_id', $task->checkId);
         $query->getQuery()->where('component_type', SuppressionComponent::Cron->value)->where('component_id', $task->id)
             ->whereNull('unsnoozed_at')->where('starts_at', '<=', now()->format('Y-m-d H:i:s.uP'))->where('ends_at', '>', now()->format('Y-m-d H:i:s.uP'));

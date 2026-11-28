@@ -13,6 +13,7 @@ use Heptapod\Contracts\Schema\ValidatedConfig;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\NotificationMode;
 use Heptapod\Enums\RecipientKind;
+use Heptapod\Enums\Role;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\Client;
 use Heptapod\Models\NotificationDestination;
@@ -54,7 +55,7 @@ final readonly class SaveNotificationChannel
         $config = $this->channels->get($data['channel'])->configSchema()->validateConfig($data['config']);
 
         return NotificationLocks::transaction(function () use ($kind, $user, $client, $data, $config): NotificationDestination {
-            $role = $user instanceof User ? array_find(['Owner', 'Admin', 'Member'], static fn (string $name): bool => $user->hasRole($name)) : null;
+            $role = $user instanceof User ? Role::of($user)?->value : null;
 
             return $this->create(['recipient_kind' => $kind, 'user_id' => $user?->id, 'client_id' => $client?->id,
                 'scope_client_id' => $data['scope_client_id'] ?? null, 'channel' => $data['channel'], 'label' => $data['label'],

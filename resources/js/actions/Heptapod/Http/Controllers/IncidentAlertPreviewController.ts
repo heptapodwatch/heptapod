@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\IncidentAlertPreviewController::__invoke
-* @see app/Http/Controllers/IncidentAlertPreviewController.php:20
+* @see app/Http/Controllers/IncidentAlertPreviewController.php:21
 * @route '/incidents/{incident}/alerts/{event}'
 */
 const IncidentAlertPreviewController = (args: { incident: string | number, event: string | number } | [incident: string | number, event: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ IncidentAlertPreviewController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentAlertPreviewController::__invoke
-* @see app/Http/Controllers/IncidentAlertPreviewController.php:20
+* @see app/Http/Controllers/IncidentAlertPreviewController.php:21
 * @route '/incidents/{incident}/alerts/{event}'
 */
 IncidentAlertPreviewController.url = (args: { incident: string | number, event: string | number } | [incident: string | number, event: string | number ], options?: RouteQueryOptions) => {
@@ -42,7 +42,7 @@ IncidentAlertPreviewController.url = (args: { incident: string | number, event: 
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentAlertPreviewController::__invoke
-* @see app/Http/Controllers/IncidentAlertPreviewController.php:20
+* @see app/Http/Controllers/IncidentAlertPreviewController.php:21
 * @route '/incidents/{incident}/alerts/{event}'
 */
 IncidentAlertPreviewController.get = (args: { incident: string | number, event: string | number } | [incident: string | number, event: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -52,7 +52,7 @@ IncidentAlertPreviewController.get = (args: { incident: string | number, event: 
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentAlertPreviewController::__invoke
-* @see app/Http/Controllers/IncidentAlertPreviewController.php:20
+* @see app/Http/Controllers/IncidentAlertPreviewController.php:21
 * @route '/incidents/{incident}/alerts/{event}'
 */
 IncidentAlertPreviewController.head = (args: { incident: string | number, event: string | number } | [incident: string | number, event: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -62,7 +62,7 @@ IncidentAlertPreviewController.head = (args: { incident: string | number, event:
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentAlertPreviewController::__invoke
-* @see app/Http/Controllers/IncidentAlertPreviewController.php:20
+* @see app/Http/Controllers/IncidentAlertPreviewController.php:21
 * @route '/incidents/{incident}/alerts/{event}'
 */
 const IncidentAlertPreviewControllerForm = (args: { incident: string | number, event: string | number } | [incident: string | number, event: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -72,7 +72,7 @@ const IncidentAlertPreviewControllerForm = (args: { incident: string | number, e
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentAlertPreviewController::__invoke
-* @see app/Http/Controllers/IncidentAlertPreviewController.php:20
+* @see app/Http/Controllers/IncidentAlertPreviewController.php:21
 * @route '/incidents/{incident}/alerts/{event}'
 */
 IncidentAlertPreviewControllerForm.get = (args: { incident: string | number, event: string | number } | [incident: string | number, event: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ IncidentAlertPreviewControllerForm.get = (args: { incident: string | number, eve
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentAlertPreviewController::__invoke
-* @see app/Http/Controllers/IncidentAlertPreviewController.php:20
+* @see app/Http/Controllers/IncidentAlertPreviewController.php:21
 * @route '/incidents/{incident}/alerts/{event}'
 */
 IncidentAlertPreviewControllerForm.head = (args: { incident: string | number, event: string | number } | [incident: string | number, event: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

@@ -15,6 +15,7 @@ use Heptapod\Contracts\ListFilters;
 use Heptapod\Data\Ui\MaintenanceIndexPageData;
 use Heptapod\Data\Ui\MaintenanceTargetOptionData;
 use Heptapod\Data\Ui\MaintenanceWindowData;
+use Heptapod\Enums\Capability;
 use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Http\MaintenanceReturnContext;
 use Heptapod\Maintenance\LocalMaintenanceTime;
@@ -55,7 +56,7 @@ final class MaintenanceController extends Controller
         $state = $filters->value('state') ?? throw new \LogicException('The maintenance state has no default.');
         $result = $reader->index($user, $filters->integer('site_id'), $filters->integer('client_id'), $state);
         $siteName = $result['site_name'];
-        $canManage = $user->hasAnyRole(['Owner', 'Admin']);
+        $canManage = Capability::Manage->allows($user);
         // The rows name a targeted client with its mark; only the clients of the listed windows are read.
         $windowClientIds = array_values(array_unique(array_map(static fn (MaintenanceWindowData $window): int => $window->targetId,
             array_filter($result['windows'], static fn (MaintenanceWindowData $window): bool => $window->targetType === 'client'))));
@@ -184,7 +185,7 @@ final class MaintenanceController extends Controller
 
     private function writable(Request $request): void
     {
-        abort_unless($this->user($request)->hasAnyRole(['Owner', 'Admin']), 403);
+        abort_unless(Capability::Manage->allows($this->user($request)), 403);
     }
 
     private function validTarget(string $type, int $id): void

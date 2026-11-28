@@ -11,6 +11,7 @@ use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\NotificationMode;
 use Heptapod\Enums\RecipientKind;
+use Heptapod\Enums\Role;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Events\Notifications\NotificationTiming;
 use Heptapod\Events\Notifications\RoutingContext;
@@ -204,8 +205,8 @@ final readonly class UpdateNotificationPreferences
         return match ($channel->recipient_kind) {
             RecipientKind::Team => true,
             RecipientKind::Client => false,
-            RecipientKind::User => $channel->user !== null && $channel->user->hasAnyRole(['Owner', 'Admin'])
-                && (! $channel->account_mail || ! $channel->user->hasRole('Owner')),
+            RecipientKind::User => $channel->user !== null && in_array(Role::of($channel->user), [Role::Owner, Role::Admin], true)
+                && (! $channel->account_mail || Role::of($channel->user) !== Role::Owner),
         };
     }
 

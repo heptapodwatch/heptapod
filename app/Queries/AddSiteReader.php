@@ -9,6 +9,7 @@ use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Data\Ui\AddSitePageData;
 use Heptapod\Data\Ui\CheckOptionData;
+use Heptapod\Enums\Capability;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 
@@ -29,7 +30,7 @@ final readonly class AddSiteReader
 
         $contextClientId = $selectedClientId ?? ($firstChoices[0] ?? null);
         // Skip the redundant membership lookup for read-only users; every true projection still requires the write policy.
-        $canCreate = $contextClientId !== null && $user->hasAnyRole(['Owner', 'Admin']) && $this->policy->create($user, $contextClientId)->allowed();
+        $canCreate = $contextClientId !== null && Capability::Manage->allows($user) && $this->policy->create($user, $contextClientId)->allowed();
 
         $recommended = $this->probe->recommendedChecks('https://');
 

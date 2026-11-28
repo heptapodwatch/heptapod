@@ -8,6 +8,7 @@ use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\SystemHealthPageData;
 use Heptapod\Data\Ui\SystemPageData;
+use Heptapod\Enums\Capability;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\User;
 use Heptapod\Queries\ShellHealthReader;
@@ -50,7 +51,7 @@ final class SystemHealthController extends Controller
     private function viewer(Request $request): User
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->hasAnyRole(['Owner', 'Admin']), 403);
+        abort_unless($user instanceof User && Capability::Manage->allows($user), 403);
 
         return $user;
     }

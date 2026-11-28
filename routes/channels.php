@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Heptapod\Enums\ClientScope;
+use Heptapod\Enums\Capability;
 use Heptapod\Models\User;
 use Illuminate\Broadcasting\BroadcastController;
 use Illuminate\Support\Facades\Broadcast;
@@ -25,7 +25,7 @@ app()->resolving(BroadcastController::class, static function (): void {
     }
 
     Broadcast::channel('instance', static fn (User $user): object|bool => request()->input('channel_name') === 'presence-instance'
-        && $user->disabled_at === null && ($user->hasAnyRole(['Owner', 'Admin']) || ($user->hasRole('Member') && $user->client_scope === ClientScope::All)) ? (object) [] : false);
+        && Capability::ViewInstance->allows($user) && ! $user->isRestrictedMember() ? (object) [] : false);
     Broadcast::channel('client.{clientId}', static fn (User $user, int $clientId): object|bool => request()->input('channel_name') === 'presence-client.'.$clientId
-        && $user->disabled_at === null && $user->hasAnyRole(['Owner', 'Admin', 'Member']) && $user->canAccessClient($clientId) ? (object) [] : false);
+        && Capability::ViewClient->allows($user, $clientId) ? (object) [] : false);
 });

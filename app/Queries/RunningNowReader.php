@@ -11,6 +11,7 @@ use Heptapod\Data\Ui\RunningBackupData;
 use Heptapod\Data\Ui\RunningCheckRunData;
 use Heptapod\Data\Ui\RunningImportData;
 use Heptapod\Data\Ui\RunningNowData;
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\ImportRunStatus;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\CheckRunAttempt;
@@ -64,7 +65,7 @@ final readonly class RunningNowReader
             ?? throw new \LogicException('A picked run must load.'), $user, $results), $picked);
 
         return new RunningNowData($rows, $picked === [] ? 0 : $picked[0]->active_total,
-            $user->hasAnyRole(['Owner', 'Admin']) ? $this->imports($user, $since) : [], $user->hasRole('Owner') ? $this->backup($user, $since) : null);
+            Capability::Manage->allows($user) ? $this->imports($user, $since) : [], Capability::ManageInstance->allows($user) ? $this->backup($user, $since) : null);
     }
 
     /**

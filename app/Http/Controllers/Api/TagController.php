@@ -8,6 +8,7 @@ use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\CreateTag;
 use Heptapod\Concerns\ResolvesApiPrincipal;
+use Heptapod\Enums\Capability;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Http\Resources\OhDear\TagResource;
 use Heptapod\Models\Site;
@@ -47,7 +48,7 @@ final class TagController extends Controller
     public function store(Request $request, CreateTag $create, SitePolicy $policy, AuthorizeSiteWrite $authorize): JsonResponse
     {
         $user = $this->principal($request, 403);
-        abort_unless($user->hasAnyRole(['Owner', 'Admin']), 403);
+        abort_unless(Capability::Manage->allows($user), 403);
         $visibleSite = $policy->visibleSiteRule($user);
         /** @var array{name: string, monitors?: list<int>, sites?: list<int>} $data */
         $data = Validator::make($request->all(), ['team_id' => ['required', 'integer', 'in:1'], 'name' => ['required', 'string', 'max:255'], 'monitors' => ['sometimes', 'array'], 'monitors.*' => ['integer', $visibleSite], 'sites' => ['sometimes', 'array'], 'sites.*' => ['integer', $visibleSite]])->validate();

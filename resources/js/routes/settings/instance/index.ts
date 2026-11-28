@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::edit
-* @see app/Http/Controllers/Settings/InstanceController.php:24
+* @see app/Http/Controllers/Settings/InstanceController.php:25
 * @route '/settings/instance'
 */
 export const edit = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ edit.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::edit
-* @see app/Http/Controllers/Settings/InstanceController.php:24
+* @see app/Http/Controllers/Settings/InstanceController.php:25
 * @route '/settings/instance'
 */
 edit.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ edit.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::edit
-* @see app/Http/Controllers/Settings/InstanceController.php:24
+* @see app/Http/Controllers/Settings/InstanceController.php:25
 * @route '/settings/instance'
 */
 edit.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ edit.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::edit
-* @see app/Http/Controllers/Settings/InstanceController.php:24
+* @see app/Http/Controllers/Settings/InstanceController.php:25
 * @route '/settings/instance'
 */
 edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::edit
-* @see app/Http/Controllers/Settings/InstanceController.php:24
+* @see app/Http/Controllers/Settings/InstanceController.php:25
 * @route '/settings/instance'
 */
 const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::edit
-* @see app/Http/Controllers/Settings/InstanceController.php:24
+* @see app/Http/Controllers/Settings/InstanceController.php:25
 * @route '/settings/instance'
 */
 editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::edit
-* @see app/Http/Controllers/Settings/InstanceController.php:24
+* @see app/Http/Controllers/Settings/InstanceController.php:25
 * @route '/settings/instance'
 */
 editForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ edit.form = editForm
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::data
-* @see app/Http/Controllers/Settings/InstanceController.php:31
+* @see app/Http/Controllers/Settings/InstanceController.php:32
 * @route '/settings/instance/data'
 */
 export const data = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -97,7 +97,7 @@ data.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::data
-* @see app/Http/Controllers/Settings/InstanceController.php:31
+* @see app/Http/Controllers/Settings/InstanceController.php:32
 * @route '/settings/instance/data'
 */
 data.url = (options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ data.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::data
-* @see app/Http/Controllers/Settings/InstanceController.php:31
+* @see app/Http/Controllers/Settings/InstanceController.php:32
 * @route '/settings/instance/data'
 */
 data.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -116,7 +116,7 @@ data.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::data
-* @see app/Http/Controllers/Settings/InstanceController.php:31
+* @see app/Http/Controllers/Settings/InstanceController.php:32
 * @route '/settings/instance/data'
 */
 data.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -126,7 +126,7 @@ data.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::data
-* @see app/Http/Controllers/Settings/InstanceController.php:31
+* @see app/Http/Controllers/Settings/InstanceController.php:32
 * @route '/settings/instance/data'
 */
 const dataForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -136,7 +136,7 @@ const dataForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::data
-* @see app/Http/Controllers/Settings/InstanceController.php:31
+* @see app/Http/Controllers/Settings/InstanceController.php:32
 * @route '/settings/instance/data'
 */
 dataForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -146,7 +146,7 @@ dataForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::data
-* @see app/Http/Controllers/Settings/InstanceController.php:31
+* @see app/Http/Controllers/Settings/InstanceController.php:32
 * @route '/settings/instance/data'
 */
 dataForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -163,7 +163,7 @@ data.form = dataForm
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::update
-* @see app/Http/Controllers/Settings/InstanceController.php:43
+* @see app/Http/Controllers/Settings/InstanceController.php:44
 * @route '/settings/instance'
 */
 export const update = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -178,7 +178,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::update
-* @see app/Http/Controllers/Settings/InstanceController.php:43
+* @see app/Http/Controllers/Settings/InstanceController.php:44
 * @route '/settings/instance'
 */
 update.url = (options?: RouteQueryOptions) => {
@@ -187,7 +187,7 @@ update.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::update
-* @see app/Http/Controllers/Settings/InstanceController.php:43
+* @see app/Http/Controllers/Settings/InstanceController.php:44
 * @route '/settings/instance'
 */
 update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -197,7 +197,7 @@ update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::update
-* @see app/Http/Controllers/Settings/InstanceController.php:43
+* @see app/Http/Controllers/Settings/InstanceController.php:44
 * @route '/settings/instance'
 */
 const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -212,7 +212,7 @@ const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\InstanceController::update
-* @see app/Http/Controllers/Settings/InstanceController.php:43
+* @see app/Http/Controllers/Settings/InstanceController.php:44
 * @route '/settings/instance'
 */
 updateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

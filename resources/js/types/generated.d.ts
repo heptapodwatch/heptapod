@@ -2330,6 +2330,7 @@ namespace Enums {
 export type AlertReminders = 'standard' | 'daily';
 export type AlertSensitivity = 'strict' | 'balanced' | 'relaxed' | 'patient';
 export type BucketStatus = 'failed' | 'interrupted' | 'errored' | 'warning' | 'ok' | 'maintenance' | 'no_data';
+export type Capability = 'manage-instance' | 'manage' | 'view-instance' | 'view-client';
 export type CheckPendingReason = 'dns_accept_recheck';
 export type ClientAvatarSource = 'uploaded' | 'chosen-site' | 'automatic' | 'initials' | 'generic-initials';
 export type ClientScope = 'all' | 'restricted';
@@ -2349,6 +2350,7 @@ export type NotificationCategory = 'outage' | 'failure' | 'check_error' | 'warni
 export type NotificationMode = 'immediate' | 'digest' | 'off';
 export type RecipientKind = 'team' | 'user' | 'client';
 export type ResponseTimeRange = '24h' | '7d' | '30d' | '90d' | '1y' | 'all';
+export type Role = 'Owner' | 'Admin' | 'Member';
 export type SiteIconBacking = 'none' | 'light-backing-in-dark' | 'dark-backing-in-light';
 export type SiteStatus = 'maintenance' | 'paused' | 'disabled' | 'unavailable' | 'down' | 'failed' | 'check-error' | 'warning' | 'pending' | 'ok';
 export type SiteStatusAttention = ['down', 'failed', 'check-error', 'warning'];

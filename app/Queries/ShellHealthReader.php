@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Data\Ui\ShellHealthData;
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\HealthStatus;
 use Heptapod\Enums\SiteStatus;
 use Heptapod\Events\Notifications\NotificationRecipients;
@@ -28,7 +29,7 @@ final readonly class ShellHealthReader
         $heartbeatQuery = DispatcherHeartbeat::query();
         $heartbeatQuery->getQuery()->orderBy('last_seen_at', 'desc');
         $heartbeat = $heartbeatQuery->first()?->last_seen_at;
-        $siteIds = $user->hasAnyRole(['Owner', 'Admin', 'Member']) ? $this->sites->visibleSiteIds($user) : [];
+        $siteIds = Capability::ViewInstance->allows($user) ? $this->sites->visibleSiteIds($user) : [];
         $siteCount = DB::table('sites')->whereIntegerInRaw('sites.id', $siteIds)->selectRaw('count(*)');
         $incidentCount = DB::table('incidents')->whereNull('resolved_at')->whereIntegerInRaw('site_id', $siteIds)->whereRaw('NOT ('.UptimeDependencies::heldAfterRecoverySql('incidents').')')->selectRaw('count(*)');
         $checks = Check::query();
@@ -66,7 +67,7 @@ final readonly class ShellHealthReader
         // Only Owners and Admins see it, because only they can open System health, where it is explained.
         $issueQuery = SystemIssue::open();
         $issueQuery->getQuery()->orderBy('opened_at')->orderBy('id');
-        $systemIssues = $user->hasAnyRole(['Owner', 'Admin']) ? $issueQuery->get() : null;
+        $systemIssues = Capability::Manage->allows($user) ? $issueQuery->get() : null;
         $systemIssueStatus = $systemIssues === null || $systemIssues->isEmpty() ? null
             : ($systemIssues->contains(static fn (SystemIssue $issue): bool => $issue->severity() === HealthStatus::Down) ? HealthStatus::Down : HealthStatus::Warn);
         $status = match (true) {

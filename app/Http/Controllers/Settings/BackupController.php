@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers\Settings;
 
 use Heptapod\Actions\RequestBackup;
+use Heptapod\Enums\Capability;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\User;
 use Heptapod\Queries\BackupHistoryReader;
@@ -26,7 +27,7 @@ final class BackupController extends Controller
     private function owner(Request $request): User
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->hasRole('Owner'), 403);
+        abort_unless($user instanceof User && Capability::ManageInstance->allows($user), 403);
 
         return $user;
     }

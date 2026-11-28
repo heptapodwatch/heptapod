@@ -7,6 +7,7 @@ namespace Heptapod\Queries;
 use Heptapod\Actions\ResolveClientAvatar;
 use Heptapod\Auth\MemberAccessGuard;
 use Heptapod\Data\Ui\MembersPageData;
+use Heptapod\Enums\Role;
 use Heptapod\Models\Client;
 use Heptapod\Models\Invitation;
 use Heptapod\Models\User;
@@ -20,13 +21,12 @@ final readonly class MembersReader
         $userQuery = User::query()->with(['roles', 'clients']);
         $userQuery->getQuery()->orderBy('name')->orderBy('id');
         $users = $userQuery->get();
-        $ownerCount = $users->filter(static fn (User $user): bool => $user->disabled_at === null && $user->hasRole('Owner'))->count();
+        $ownerCount = $users->filter(static fn (User $user): bool => $user->disabled_at === null && Role::of($user) === Role::Owner)->count();
         $members = array_values($users->map(function (User $user) use ($actor, $ownerCount): array {
             $canManage = $this->guard->canManage($actor, $user);
-            $lastOwner = $user->disabled_at === null && $user->hasRole('Owner') && $ownerCount === 1;
+            $lastOwner = $user->disabled_at === null && Role::of($user) === Role::Owner && $ownerCount === 1;
             $clientIds = $user->clients->map(static fn (Client $client): int => $client->id)->all();
-            /** @var string|null $role */
-            $role = $user->getRoleNames()->first();
+            $role = Role::of($user)?->value;
 
             return [
                 'id' => $user->id, 'name' => $user->name, 'email' => $user->email,
@@ -37,7 +37,7 @@ final readonly class MembersReader
                 'is_last_owner' => $lastOwner, 'can_edit' => $canManage && $user->disabled_at === null,
                 'can_deactivate' => $canManage && $user->disabled_at === null && ! $lastOwner,
                 'can_reinvite' => $canManage && $user->disabled_at !== null,
-                'allowed_roles' => ! $canManage || $user->disabled_at !== null ? [] : ($lastOwner ? ['Owner'] : ($actor->hasRole('Owner') ? ['Owner', 'Admin', 'Member'] : ['Member'])),
+                'allowed_roles' => ! $canManage || $user->disabled_at !== null ? [] : ($lastOwner ? ['Owner'] : (Role::of($actor) === Role::Owner ? ['Owner', 'Admin', 'Member'] : ['Member'])),
             ];
         })->all());
         $invitationQuery = Invitation::query()->with('inviter');
@@ -51,7 +51,7 @@ final readonly class MembersReader
                 'client_ids' => $clientIds, 'client_scope' => $invitation->client_scope,
                 'inviter' => $invitation->inviter?->name, 'expires_at' => $invitation->expires_at->toIso8601String(),
                 'expired' => $invitation->expires_at->isPast(),
-                'can_manage' => $actor->hasRole('Owner') || ($actor->hasRole('Admin') && $invitation->role === 'Member'),
+                'can_manage' => Role::of($actor) === Role::Owner || (Role::of($actor) === Role::Admin && $invitation->role === 'Member'),
             ];
         })->all());
         // Only the clients the roster assigns are read, for its rows; the access pickers search the others.
@@ -63,6 +63,6 @@ final readonly class MembersReader
             'short_name' => $client->short_name, 'accent_color' => $client->accent_color, 'avatar' => app(ResolveClientAvatar::class)($client), 'is_internal' => $client->is_internal,
         ])->all());
 
-        return new MembersPageData($members, $invitations, $clients, $actor->hasRole('Owner') ? ['Admin', 'Member'] : ['Member'], Client::query()->getQuery()->exists());
+        return new MembersPageData($members, $invitations, $clients, Role::of($actor) === Role::Owner ? ['Admin', 'Member'] : ['Member'], Client::query()->getQuery()->exists());
     }
 }

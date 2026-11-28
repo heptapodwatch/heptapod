@@ -10,6 +10,7 @@ use Heptapod\Actions\ResolveClientAvatar;
 use Heptapod\Actions\RevokeApiToken;
 use Heptapod\Data\Ui\ApiTokenSettingsData;
 use Heptapod\Data\Ui\ApiTokensPageData;
+use Heptapod\Enums\Capability;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\Client;
 use Heptapod\Models\User;
@@ -43,7 +44,7 @@ final class ApiTokensController extends Controller
         // Do not apply the topbar preference: token reach is constrained separately, including empty clients.
         // ClientPolicy denies client reads without a team role; self-token management has no such role gate.
         $tokenRows = $user->tokens()->getQuery()->get();
-        $teamRole = $user->hasAnyRole(['Owner', 'Admin', 'Member']);
+        $teamRole = Capability::ViewInstance->allows($user);
         // Only the clients the tokens are limited to are read, for their rows; the form's picker searches the others.
         $tokenClients = $teamRole ? $policy->visibleClients($user, includeArchived: true)->with(Client::AvatarRelations) : null;
         $tokenClients?->getQuery()->whereIntegerInRaw('clients.id', $tokenRows->pluck('client_id')->filter()->unique()->values()->all());

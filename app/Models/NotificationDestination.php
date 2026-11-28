@@ -11,6 +11,7 @@ use Heptapod\Concerns\AuditsConfiguration;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
 use Heptapod\Contracts\Notifications\DestinationConfig;
 use Heptapod\Contracts\Schema\ValidatedConfig;
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\RecipientKind;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
@@ -172,7 +173,7 @@ final class NotificationDestination extends Model
      */
     public function identityVisibleTo(User $viewer): bool
     {
-        return $viewer->hasAnyRole(['Owner', 'Admin']) || ($this->recipient_kind === RecipientKind::User && $this->user_id === $viewer->id);
+        return Capability::Manage->allows($viewer) || ($this->recipient_kind === RecipientKind::User && $this->user_id === $viewer->id);
     }
 
     /** An account channel is only active while its user's address is verified. Other channels need no verification. */

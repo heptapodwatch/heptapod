@@ -44,6 +44,7 @@ use Heptapod\Contracts\ServerIssueAlerts;
 use Heptapod\Contracts\ServersAccess;
 use Heptapod\Contracts\SiteCheckSettingsReader;
 use Heptapod\Contracts\SiteDirectory;
+use Heptapod\Enums\Capability;
 use Heptapod\Events\LiveSignal;
 use Heptapod\Events\Notifications\NotificationEventTypes;
 use Heptapod\Events\OutboxRecorded;
@@ -93,6 +94,7 @@ use Heptapod\SystemHealth\NativeControlProbe;
 use Heptapod\SystemHealth\NativeDiskSpaceReader;
 use Heptapod\SystemHealth\PublishWorkerMemory;
 use Heptapod\SystemHealth\WebHeartbeat;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Cache\CacheManager;
 use Illuminate\Cache\RateLimiter as CacheRateLimiter;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -108,6 +110,7 @@ use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
@@ -204,6 +207,10 @@ class AppServiceProvider extends ServiceProvider
 
             return new ActiveUserProvider($app->make(Hasher::class), $model);
         });
+        foreach (Capability::cases() as $capability) {
+            // Denied without a message, like abort(403), so web clients show their own translated refusal.
+            Gate::define($capability->value, static fn (User $user, ?int $clientId = null): Response => $capability->allows($user, $clientId) ? Response::allow() : Response::deny(''));
+        }
         $this->configureDefaults();
         Check::observe(CheckLiveObserver::class);
         Client::observe(ClientLiveObserver::class);

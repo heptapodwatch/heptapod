@@ -6,6 +6,7 @@ namespace Heptapod\Actions;
 
 use Heptapod\Auth\MemberAccessGuard;
 use Heptapod\Enums\ClientScope;
+use Heptapod\Enums\Role;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Models\User;
@@ -22,7 +23,7 @@ final readonly class ChangeMemberAccess
     {
         /** @var array{role: string, client_ids?: list<int>} $data */
         $data = Validator::make($attributes, [
-            'role' => ['required', Rule::in($actor->hasRole('Owner') ? ['Owner', 'Admin', 'Member'] : ['Member'])],
+            'role' => ['required', Rule::in(Role::of($actor) === Role::Owner ? ['Owner', 'Admin', 'Member'] : ['Member'])],
             'client_ids' => [Rule::requiredIf(($attributes['role'] ?? null) === 'Member'), 'array',
                 Rule::when(($attributes['role'] ?? null) === 'Member', ['min:1'], ['size:0'])],
             'client_ids.*' => ['integer', 'distinct', Rule::exists('clients', 'id')],
@@ -47,11 +48,11 @@ final readonly class ChangeMemberAccess
             }
             abort_if($currentActor->disabled_at !== null, 403);
             $this->guard->authorize($currentActor, $current);
-            abort_if($data['role'] !== 'Member' && ! $currentActor->hasRole('Owner'), 403);
-            if ($current->hasRole('Owner') && $data['role'] !== 'Owner') {
+            abort_if($data['role'] !== 'Member' && Role::of($currentActor) !== Role::Owner, 403);
+            if (Role::of($current) === Role::Owner && $data['role'] !== 'Owner') {
                 $this->guard->protectLastOwner();
             }
-            $roleChanged = ! $current->hasRole($data['role']);
+            $roleChanged = Role::of($current)?->value !== $data['role'];
             $before = $current->clients()->toBase()->pluck('clients.id')->all();
             $after = $data['client_ids'] ?? [];
             sort($before);

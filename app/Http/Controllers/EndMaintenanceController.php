@@ -6,6 +6,7 @@ namespace Heptapod\Http\Controllers;
 
 use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\EndMaintenanceWindow;
+use Heptapod\Enums\Capability;
 use Heptapod\Http\MaintenanceReturnContext;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\User;
@@ -18,7 +19,7 @@ final class EndMaintenanceController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
-        abort_unless($user->hasAnyRole(['Owner', 'Admin']), 403);
+        abort_unless(Capability::Manage->allows($user), 403);
         $returnContext = MaintenanceReturnContext::parameters($request);
         $authorize->asManager($user, static fn (User $current): MaintenancePeriod => $end($current, $window));
 

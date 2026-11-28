@@ -9,6 +9,7 @@ use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\MaintenanceSiteHeaderData;
 use Heptapod\Data\Ui\MaintenanceWindowData;
+use Heptapod\Enums\Capability;
 use Heptapod\Maintenance\MaintenanceTargets;
 use Heptapod\Models\Client;
 use Heptapod\Models\MaintenancePeriod;
@@ -29,7 +30,7 @@ final readonly class MaintenanceReader
     /** @return array{windows: list<MaintenanceWindowData>, pagination: PaginationData, site_name: string|null} */
     public function index(User $user, ?int $siteId = null, ?int $clientId = null, string $state = 'all'): array
     {
-        abort_unless($user->hasAnyRole(['Owner', 'Admin', 'Member']), 403);
+        abort_unless(Capability::ViewInstance->allows($user), 403);
         $query = $siteId === null ? MaintenancePeriod::query() : MaintenancePeriod::targetingSite($siteId);
         $siteName = null;
         $now = CarbonImmutable::now('UTC');
@@ -82,7 +83,7 @@ final readonly class MaintenanceReader
             $endsAt = $siteEnd instanceof CarbonImmutable && $siteEnd->lessThan($window->ends_at) ? $siteEnd : $window->ends_at;
             $state = $window->starts_at->greaterThan($now) ? 'planned' : ($endsAt->greaterThan($now) ? 'active' : 'done');
             $recurrence = $window->recurrence;
-            $actions = $user->hasAnyRole(['Owner', 'Admin']) ? match ($state) {
+            $actions = Capability::Manage->allows($user) ? match ($state) {
                 'active' => ['end_now', 'update', 'delete', ...($recurrence === null ? [] : ['cancel_series'])],
                 'planned' => ['update', 'cancel_occurrence', ...($recurrence === null ? [] : ['cancel_series'])],
                 default => [],
@@ -165,7 +166,7 @@ final readonly class MaintenanceReader
     private function limitToReach(EloquentBuilder $query, User $user): void
     {
         // The same monitoring-role gate as SitePolicy::visibleSites(): without it, an unrestricted read would cover every window.
-        abort_unless($user->disabled_at === null && $user->hasAnyRole(['Owner', 'Admin', 'Member']), 403);
+        abort_unless(Capability::ViewInstance->allows($user), 403);
         $constraint = $user->tokenClientConstraint();
         if (! $user->isRestrictedMember() && $constraint === null) {
             return;

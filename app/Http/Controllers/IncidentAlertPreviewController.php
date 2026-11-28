@@ -6,6 +6,7 @@ namespace Heptapod\Http\Controllers;
 
 use Heptapod\Contracts\AlertPreviewRenderer;
 use Heptapod\Contracts\Notifications\DeliveryState;
+use Heptapod\Enums\Capability;
 use Heptapod\Events\Notifications\NotificationMessage;
 use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
@@ -21,7 +22,7 @@ final class IncidentAlertPreviewController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
-        abort_unless($user->hasAnyRole(['Owner', 'Admin']), 403);
+        abort_unless(Capability::Manage->allows($user), 403);
         $reader->scoped($user)->whereKey($incident)->firstOrFail();
         $events = Event::incidentAlertPreviewTypes()->with(['site.client', 'check', 'incident'])->where('incident_id', $incident)->whereKey($event);
         $row = $events->firstOrFail();
