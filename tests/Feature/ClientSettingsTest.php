@@ -43,7 +43,8 @@ it('shows the translated No client identity in lists pickers and trails without 
 
     $rows = $this->actingAs($owner)->get('/clients')->assertOk()->inertiaProps()['clients'];
     expect(collect($rows)->firstWhere('client.id', $client->id)['client']['name'])->toBe($label);
-    $this->get('/clients/'.$other->id.'/settings')->assertInertia(fn (Assert $page): Assert => $page->where('clients.0.name', $label)->where('clients.0.is_internal', true));
+    $this->get('/clients/'.$other->id.'/settings')->assertInertia(fn (Assert $page): Assert => $page->where('internal_client_id', $client->id));
+    $this->getJson('/pickers/clients')->assertJsonPath('options.0.name', $label)->assertJsonPath('options.0.is_internal', true);
     $this->get('/sites/'.$site->id)->assertInertia(fn (Assert $page): Assert => $page->where('client.name', $label));
     $this->get('/clients/'.$client->id.'/settings')->assertInertia(fn (Assert $page): Assert => $page->where('client.name', $label));
     $token = $owner->createToken('reader', ['monitors:read'])->plainTextToken;

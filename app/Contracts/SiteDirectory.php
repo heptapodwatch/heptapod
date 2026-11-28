@@ -18,8 +18,8 @@ interface SiteDirectory
     public function visible(Authenticatable $user, array $siteIds): array;
 
     /**
-     * At most $limit sites the user can see whose name or URL contains $search (every site for an empty one), except
-     * $exceptSiteIds; for a picker that searches on the server.
+     * At most $limit sites the user can see whose name, URL or client name contains every word of $search (every site for
+     * an empty one), except $exceptSiteIds; for a picker that searches on the server.
      *
      * @param  list<int>  $exceptSiteIds
      * @return list<DirectorySiteData>

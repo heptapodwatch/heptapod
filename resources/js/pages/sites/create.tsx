@@ -11,7 +11,7 @@ import {
 } from '@/components/site-fields';
 import { PageContainer } from '@/components/page-container';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -30,6 +30,7 @@ import { TextLink } from '@/components/text-link';
 import { team as teamNotifications } from '@/routes/settings/notifications';
 import { ClientCreateSheet } from '@/components/client-create-sheet';
 import { ClientField } from '@/components/client-field';
+import { usePickerEntities } from '@/components/search-combobox';
 import { useSiteUrlProbe } from '@/hooks/use-site-url-probe';
 
 /** Request error keys in page order with the control a refused Add site focuses. */
@@ -45,63 +46,40 @@ const fieldOrder = [
 type Revealed = 0 | 1 | 2;
 
 export default function AddSite(props: Heptapod.Data.Ui.AddSitePageData) {
-    // Start over remounts the form for a fresh state; clients created on this page stay choosable.
+    // Start over remounts the form for a fresh state.
     const [formKey, setFormKey] = useState(0);
-    const [createdClients, setCreatedClients] = useState<
-        Heptapod.Data.Ui.ClientData[]
-    >([]);
     return (
         <AddSiteForm
             key={formKey}
             {...props}
-            createdClients={createdClients}
-            onClientCreated={(created) =>
-                setCreatedClients((current) => [...current, created])
-            }
             onStartOver={() => setFormKey((key) => key + 1)}
         />
     );
 }
 
 function AddSiteForm({
-    clients: suppliedClients,
     checks,
     selected_client_id,
     can_create_site,
     timezones,
-    createdClients,
-    onClientCreated,
+    only_client_id,
     onStartOver,
 }: Heptapod.Data.Ui.AddSitePageData & {
-    createdClients: Heptapod.Data.Ui.ClientData[];
-    onClientCreated: (client: Heptapod.Data.Ui.ClientData) => void;
     onStartOver: () => void;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
-    const clients = useMemo(
-        () => [
-            ...suppliedClients,
-            ...createdClients.filter(
-                (client) =>
-                    !suppliedClients.some(
-                        (existing) => existing.id === client.id,
-                    ),
-            ),
-        ],
-        [suppliedClients, createdClients],
-    );
     const [newClientName, setNewClientName] = useState<string | null>(null);
     const { auth, overallHealth } = usePage().props;
     if (!auth.user)
         throw new Error('Site creation requires an authenticated user.');
     const draftKey = `heptapod:site-create:${auth.user.id}`;
     const options = {
-        clients,
         checks,
         selected_client_id,
         can_create_site,
         timezones,
+        only_client_id,
     };
     const [initial] = useState(() => {
         if (typeof window === 'undefined')
@@ -133,9 +111,7 @@ function AddSiteForm({
         new Set<CheckKey>(initial.draft?.changedChecks),
     );
     // Preselect only without a real choice: in a multi-client team the first client is a wrong-client trap.
-    const defaultClientId = String(
-        selected_client_id ?? (clients.length === 1 ? clients[0]!.id : ''),
-    );
+    const defaultClientId = String(selected_client_id ?? only_client_id ?? '');
     const defaultChecks = checks
         .filter((check) => check.recommended && !check.unavailable_reason)
         .map((check) => check.key);
@@ -187,7 +163,7 @@ function AddSiteForm({
         } catch {
             setDraftUnavailable(true);
         }
-    }, [form.data, openChecks, draftKey, draftUnavailable, clients, checks]);
+    }, [form.data, openChecks, draftKey, draftUnavailable, checks]);
     useEffect(() => {
         // Another tab saved the site or discarded the draft (clear() reports no key); write again only after a new edit here.
         const onStorage = (event: StorageEvent) => {
@@ -254,9 +230,19 @@ function AddSiteForm({
     );
     const address = probe?.normalised_url ?? form.data.url;
     const host = URL.canParse(address) ? new URL(address).hostname : null;
-    const client = clients.find(
-        (candidate) => String(candidate.id) === form.data.client_id,
+    const chosenClient = usePickerEntities(
+        'clients',
+        /^[1-9][0-9]*$/.test(form.data.client_id)
+            ? [Number(form.data.client_id)]
+            : [],
     );
+    const [client] = chosenClient.entities;
+    // A restored draft's client the user can no longer choose is dropped, as before: the field asks for a client again.
+    useEffect(() => {
+        if (chosenClient.absent.has(Number(form.data.client_id)))
+            form.setData('client_id', '');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chosenClient.absent]);
 
     // The probe has answered for an address the server accepts; an unreachable one only warns.
     const answered =
@@ -537,7 +523,6 @@ function AddSiteForm({
                                 )}
                             >
                                 <ClientField
-                                    clients={clients}
                                     onCreateClient={
                                         can_create_site
                                             ? setNewClientName
@@ -787,7 +772,6 @@ function AddSiteForm({
                     timezones={timezones}
                     onClose={() => setNewClientName(null)}
                     onCreated={(created) => {
-                        onClientCreated(created);
                         edited.current = true;
                         form.setData('client_id', String(created.id));
                         setNewClientName(null);

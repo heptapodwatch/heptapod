@@ -14,6 +14,7 @@ import SiteSettings from '@/pages/sites/settings';
 import { checkTabPageFixture, clients, sites } from '@/fixtures/design';
 import { router } from '@inertiajs/react';
 import i18n from '@/lib/i18n';
+import { stubPickerFetch } from '@/test/picker-fetch';
 
 vi.mock('@inertiajs/react', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@inertiajs/react')>()),
@@ -39,6 +40,7 @@ vi.mock('@/components/alert-sensitivity-form', () => ({
 }));
 HTMLElement.prototype.scrollIntoView = vi.fn();
 beforeEach(() => {
+    stubPickerFetch({ clients });
     vi.stubGlobal(
         'ResizeObserver',
         class {
@@ -87,7 +89,6 @@ it('shows a failing check indicator in the settings navigation, not just on chec
         <SiteSettings
             site={{ ...site, checks: [sitemap] }}
             client={clients[0]!}
-            clients={clients}
             check_count={1}
             incident_count={0}
             result_count={0}
@@ -145,7 +146,6 @@ it('makes the whole check row the toggle target, not only the switch', () => {
         <SiteSettings
             site={site}
             client={clients[0]!}
-            clients={clients}
             check_count={site.checks.length}
             incident_count={0}
             result_count={0}
@@ -214,7 +214,6 @@ it('saves a check from its settings row without submitting or discarding the sit
         <SiteSettings
             site={site}
             client={clients[0]!}
-            clients={clients}
             check_count={site.checks.length}
             incident_count={0}
             result_count={0}
@@ -306,7 +305,7 @@ it('checks only a changed address on blur and includes the current site in the p
             recommended_checks: [],
         }),
     });
-    vi.stubGlobal('fetch', fetchProbe);
+    stubPickerFetch({ clients }, fetchProbe);
     const site = sites[0]!;
     const sensitivity = {
         alert_after_minutes: 5,
@@ -320,7 +319,6 @@ it('checks only a changed address on blur and includes the current site in the p
         <SiteSettings
             site={site}
             client={clients[0]!}
-            clients={clients}
             check_count={site.checks.length}
             incident_count={0}
             result_count={0}

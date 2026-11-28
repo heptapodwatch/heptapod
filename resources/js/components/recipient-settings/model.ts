@@ -127,10 +127,10 @@ export function channelTarget(channel: Channel): string | null {
 }
 
 /** Server-computed identity shared by chips, sentences and picker details. */
-export type SiteIdentity = SettingsPage['sites'][number]['identity'];
+export type SiteIdentity = SettingsPage['muted_sites'][number]['identity'];
 
 export function siteIdentities(
-    sites: SettingsPage['sites'],
+    sites: SettingsPage['muted_sites'],
 ): Map<number, SiteIdentity> {
     return new Map(sites.map((site) => [site.id, site.identity]));
 }

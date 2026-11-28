@@ -42,15 +42,8 @@ final readonly class NotificationSettingsReader
 
     public function team(User $viewer): NotificationSettingsPageData
     {
-        $clients = [];
-        $query = Client::query();
-        $query->getQuery()->whereNull('archived_at')->orderBy('name');
-        foreach ($query->get(['id', 'name']) as $client) {
-            $clients[] = ['id' => $client->id, 'name' => $client->displayName()];
-        }
-
         return $this->page(RecipientKind::Team, null, $this->settings->name, $viewer, Site::query()->getQuery()->select('sites.*')->whereIntegerInRaw('sites.id', $this->sites->visibleSiteIds($viewer)),
-            NotificationSchedule::defaults(RecipientKind::Team), $clients, $this->migrationReport());
+            NotificationSchedule::defaults(RecipientKind::Team), $this->migrationReport());
     }
 
     public function user(User $user): NotificationSettingsPageData
@@ -58,7 +51,7 @@ final readonly class NotificationSettingsReader
         $schedule = NotificationSchedule::defaults(RecipientKind::User, $user->id);
         $schedule->setRelation('user', $user);
 
-        return $this->page(RecipientKind::User, $user->id, $user->name, $user, Site::query()->getQuery()->select('sites.*')->whereIntegerInRaw('sites.id', $this->sites->visibleSiteIds($user)), $schedule, []);
+        return $this->page(RecipientKind::User, $user->id, $user->name, $user, Site::query()->getQuery()->select('sites.*')->whereIntegerInRaw('sites.id', $this->sites->visibleSiteIds($user)), $schedule);
     }
 
     public function client(User $viewer, Client $client): NotificationSettingsPageData
@@ -67,7 +60,7 @@ final readonly class NotificationSettingsReader
         $schedule->setRelation('client', $client);
 
         return $this->page(RecipientKind::Client, $client->id, $client->displayName(), $viewer,
-            Site::query()->getQuery()->select('sites.*')->where('sites.client_id', $client->id), $schedule, []);
+            Site::query()->getQuery()->select('sites.*')->where('sites.client_id', $client->id), $schedule);
     }
 
     /**
@@ -94,11 +87,11 @@ final readonly class NotificationSettingsReader
     }
 
     /**
-     * @param  list<array{id: int, name: string}>  $clients
+     * @param  Builder  $sites  the sites the recipient can be alerted about
      * @param  list<string>|null  $report
      */
     private function page(RecipientKind $kind, ?int $recipientId, string $name, User $viewer, Builder $sites, NotificationSchedule $default,
-        array $clients, ?array $report = null): NotificationSettingsPageData
+        ?array $report = null): NotificationSettingsPageData
     {
         $query = NotificationDestination::query()->with(['user.roles', 'client']);
         $query->getQuery()->where('recipient_kind', $kind->value)->whereNull('removed_at')
@@ -150,7 +143,10 @@ final readonly class NotificationSettingsReader
             $channel->setAttribute('system_mode', $cells[$channel->id][NotificationCategory::System->value] ?? null);
             $rows[] = $this->channel($channel, array_intersect_key($cells[$channel->id] ?? [], $visible), $defaults, $mutes[$channel->id] ?? [], $queued[$channel->id] ?? 0);
         }
-        // Site exceptions name a site so it can be told apart from others of the same name: avatar, client and host.
+        $siteCount = (clone $sites)->count();
+        // Site exceptions name a site so it can be told apart from the other muted ones: avatar, client and host. Only muted
+        // sites are read; the exceptions picker searches the others on the server.
+        $sites->whereIntegerInRaw('sites.id', array_values(array_unique(array_merge(...array_values($mutes)))));
         $siteRows = [];
         // The callers' base query already selects sites.*; get() would not narrow it, so the client name is added to it.
         foreach ($sites->join('clients', 'clients.id', '=', 'sites.client_id')->selectRaw(Client::displayNameSql().' AS client_name', [__('No client')])
@@ -179,7 +175,7 @@ final readonly class NotificationSettingsReader
         return new NotificationSettingsPageData($kind, $recipientId, $name, $rows, $grid,
             ['quiet_start' => $schedule->quiet_start, 'quiet_end' => $schedule->quiet_end, 'quiet_weekends' => $schedule->quiet_weekends,
                 'digest_time' => $schedule->digest_time, 'digest_weekdays' => $schedule->digest_weekdays, 'timezone' => $schedule->timezone()],
-            $siteRows, $clients, array_values(array_filter(ChannelTypeData::installed($this->channels),
+            $siteRows, $siteCount, array_values(array_filter(ChannelTypeData::installed($this->channels),
                 static fn (ChannelTypeData $type): bool => SaveNotificationChannel::offers($kind, $type->key))), $checkTypes, \DateTimeZone::listIdentifiers(), $report);
     }
 

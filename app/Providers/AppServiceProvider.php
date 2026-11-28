@@ -247,6 +247,8 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(120)->by('uuid:'.strtolower((string) $request->route('uuid'))),
         ]);
         RateLimiter::for('site-probe', fn (Request $request): Limit => Limit::perMinute(6)->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
+        // Each picker opening and each typing pause is one read; a fast typist stays far below this.
+        RateLimiter::for('pickers', fn (Request $request): Limit => Limit::perMinute(120)->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         RateLimiter::for('backup-now', fn (Request $request): Limit => Limit::perMinutes(5, 1)->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         $canonicalId = static function (mixed $value): string {
             if ($value instanceof NotificationDestination || $value instanceof Invitation) {

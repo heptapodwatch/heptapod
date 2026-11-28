@@ -4,10 +4,7 @@ import { FormSection } from '@/components/form-section';
 import { ImageDropzone } from '@/components/image-dropzone';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { Label } from '@/components/ui/label';
-import {
-    EntityCombobox,
-    siteComboboxOptions,
-} from '@/components/entity-combobox';
+import { SearchCombobox } from '@/components/search-combobox';
 
 /** An unsaved avatar change, sent with the client form's Save: an upload, a site icon, or back to automatic. null = unchanged. */
 export type ClientAvatarDraft =
@@ -18,14 +15,14 @@ export type ClientAvatarDraft =
 
 export function ClientAvatarSettings({
     client,
-    sites,
+    hasIconSites,
     draft,
     onDraftChange,
     errors,
     disabled,
 }: {
     client: Heptapod.Data.Ui.ClientData;
-    sites: Heptapod.Data.Ui.ClientAvatarSiteData[];
+    hasIconSites: boolean;
     draft: ClientAvatarDraft;
     onDraftChange: (draft: ClientAvatarDraft) => void;
     /** The client form's server errors; the avatar fields are not draft keys. */
@@ -95,16 +92,17 @@ export function ClientAvatarSettings({
                 onChange={(logo) => onDraftChange({ logo })}
                 onReset={override ? () => choose(null) : undefined}
             />
-            {sites.length > 0 && (
+            {hasIconSites && (
                 <div className="space-y-2">
                     <Label htmlFor="client-avatar-site">
                         {t('Use icon from…')}
                     </Label>
-                    <EntityCombobox
+                    <SearchCombobox
+                        kind="sites"
+                        scope={{ client: client.id, icon: true }}
                         id="client-avatar-site"
-                        options={[
+                        leadingOptions={[
                             { value: 'automatic', label: t('Automatic') },
-                            ...siteComboboxOptions(sites),
                         ]}
                         value={
                             chosenSiteId === null

@@ -566,7 +566,7 @@ it('reads the settings page with a fixed number of queries and exposes the store
     expect($few->json('channels'))->toHaveCount(2)->and($many->json('channels'))->toHaveCount(12);
     expect($many->json('channels.11'))->toMatchArray(['muted_site_ids' => [$site->id], 'queued_count' => 1]);
     // Site exceptions carry what tells same-named sites apart: client, host and icon.
-    expect(collect($many->json('sites'))->firstWhere('id', $site->id))->toMatchArray(['client_name' => $site->client?->name,
+    expect(collect($many->json('muted_sites'))->firstWhere('id', $site->id))->toMatchArray(['client_name' => $site->client?->name,
         'host' => parse_url($site->url, PHP_URL_HOST), 'url' => $site->url, 'icon_backing' => 'none']);
     expect($manyQueries)->toBe($fewQueries);
     expect($many->json('migration_report'))->toBe(['Team channel 1: rule window dropped']);
@@ -658,8 +658,15 @@ it('supplies distinct site labels and picker details across disambiguation stage
     $second = Site::factory()->for($client)->create(['friendly_name' => 'A', 'url' => 'https://bar.test']);
     $literal = Site::factory()->for($client)->create(['friendly_name' => 'A (foo.test)', 'url' => 'https://literal.test']);
     $cascade = Site::factory()->for($client)->create(['friendly_name' => 'A (Kestrel · foo.test)', 'url' => 'https://cascade.test']);
+    Site::factory()->for($client)->create(['friendly_name' => 'A', 'url' => 'https://unmuted.test']);
+    $channel = NotificationDestination::factory()->create();
+    foreach ([$first, $second, $literal, $cascade] as $site) {
+        notificationMuteSite($channel, $site->id);
+    }
 
-    $sites = collect($this->actingAs($owner)->getJson(route('settings.notifications.team.data'))->assertOk()->json('sites'))->keyBy('id');
+    // Only muted sites are named, apart from each other; an unmuted namesake neither shows nor changes their labels.
+    $sites = collect($this->actingAs($owner)->getJson(route('settings.notifications.team.data'))->assertOk()->assertJsonPath('site_count', 5)->json('muted_sites'))->keyBy('id');
+    expect($sites)->toHaveCount(4);
     expect($sites[$first->id]['identity'] ?? null)->toBe(['label' => 'A (Kestrel · foo.test/)', 'detail' => 'Kestrel · foo.test/'])
         ->and($sites[$second->id]['identity'] ?? null)->toBe(['label' => 'A (bar.test)', 'detail' => 'Kestrel · bar.test'])
         ->and($sites[$literal->id]['identity'] ?? null)->toBe(['label' => 'A (foo.test) (literal.test)', 'detail' => 'Kestrel · literal.test'])

@@ -73,7 +73,6 @@ const serverChoice = (server: SiteServerChoices | null) =>
 export default function SiteSettings({
     site,
     client,
-    clients,
     check_count,
     incident_count,
     result_count,
@@ -182,18 +181,9 @@ export default function SiteSettings({
             },
         },
     );
-    const [createdClients, setCreatedClients] = useState<
-        Heptapod.Data.Ui.ClientData[]
-    >([]);
     const [createClientName, setCreateClientName] = useState<string | null>(
         null,
     );
-    const clientOptions = [
-        ...clients,
-        ...createdClients.filter(
-            (created) => !clients.some((option) => option.id === created.id),
-        ),
-    ];
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [impactPending, setImpactPending] = useState(false);
     const [impactError, setImpactError] = useState(false);
@@ -386,7 +376,6 @@ export default function SiteSettings({
                             />
                             <div className="space-y-2">
                                 <ClientField
-                                    clients={clientOptions}
                                     value={form.data.client_id}
                                     placeholder={
                                         archivedClient ? client.name : undefined
@@ -921,7 +910,6 @@ export default function SiteSettings({
                     timezones={timezones}
                     onClose={() => setCreateClientName(null)}
                     onCreated={(created) => {
-                        setCreatedClients((current) => [...current, created]);
                         form.setData('client_id', String(created.id));
                         setCreateClientName(null);
                     }}

@@ -8,6 +8,7 @@ use Heptapod\Models\Client;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
+use Heptapod\Queries\PickerReader;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -52,9 +53,11 @@ it('refreshes restricted membership between requests and reads current membershi
     $user->clients()->attach($client);
     expect(app(SitePolicy::class)->visibleSiteIds($user))->toBe([$site->id]);
 
-    $this->actingAs($user)->get('/sites/create')->assertOk()->assertInertia(fn (Assert $page): Assert => $page->has('clients', 1));
+    $this->actingAs($user)->get('/sites/create')->assertOk()->assertInertia(fn (Assert $page): Assert => $page->where('only_client_id', $client->id));
+    $this->getJson('/pickers/clients')->assertOk()->assertJsonCount(1, 'options');
     $user->clients()->detach($client);
-    $this->get('/sites/create')->assertOk()->assertInertia(fn (Assert $page): Assert => $page->has('clients', 0));
+    $this->get('/sites/create')->assertOk()->assertInertia(fn (Assert $page): Assert => $page->where('only_client_id', null));
+    $this->getJson('/pickers/clients')->assertOk()->assertJsonCount(0, 'options');
 });
 
 it('keeps visible sites bounded with production-scale statistics', function (): void {
@@ -74,7 +77,8 @@ it('keeps visible sites bounded with production-scale statistics', function (): 
     Site::factory()->create();
     DB::statement('ANALYZE clients, client_user, sites');
 
-    $this->actingAs($user)->get('/sites/create')->assertOk()->assertInertia(fn (Assert $page): Assert => $page->has('clients', 300)->missing('tags'));
+    $this->actingAs($user)->get('/sites/create')->assertOk()->assertInertia(fn (Assert $page): Assert => $page->where('only_client_id', null)->missing('tags'));
+    $this->getJson('/pickers/clients')->assertOk()->assertJsonCount(PickerReader::Limit, 'options')->assertJsonPath('more', true);
     $visibility = app(SitePolicy::class)->visibleSites($user)->getQuery()->select('sites.id');
     expect($visibility->count())->toBe(3000);
     expect(QueryPlanWork::forQuery($visibility->toSql(), $visibility->getBindings()))->toBeLessThan(12 * 3000);

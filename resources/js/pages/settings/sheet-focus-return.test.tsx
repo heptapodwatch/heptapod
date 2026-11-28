@@ -62,6 +62,7 @@ it('returns focus to Add token after the token sheet closes', async () => {
                     'full-access': [],
                 },
                 clients: [],
+                has_clients: false,
                 timezone: 'UTC',
             }}
         />,
@@ -79,6 +80,7 @@ it('returns focus to Invite after the invitation sheet closes', async () => {
                 members: [],
                 invitations: [],
                 clients: [],
+                has_clients: false,
                 invite_roles: ['Member'],
             }}
         />,

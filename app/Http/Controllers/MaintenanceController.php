@@ -14,6 +14,7 @@ use Heptapod\Contracts\FilterKind;
 use Heptapod\Contracts\ListFilters;
 use Heptapod\Data\Ui\MaintenanceIndexPageData;
 use Heptapod\Data\Ui\MaintenanceTargetOptionData;
+use Heptapod\Data\Ui\MaintenanceWindowData;
 use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Http\ListPageSize;
 use Heptapod\Http\MaintenanceReturnContext;
@@ -58,19 +59,13 @@ final class MaintenanceController extends Controller
         $result = $reader->index($user, $perPage, is_numeric($page) ? (int) $page : 1, $filters->integer('site_id'), $filters->integer('client_id'), $state);
         $siteName = $result['site_name'];
         $canManage = $user->hasAnyRole(['Owner', 'Admin']);
-        $siteOptions = Site::query();
-        // A site whose deletion is pending takes no new maintenance (SitePolicy::unlessDeleting).
-        $siteOptions->getQuery()->whereNull('marked_for_deletion_at')->orderBy('id');
-        $sites = $canManage ? $siteOptions->with('client:id,name,is_internal,timezone')->get(['id', 'url', 'friendly_name', 'client_id', 'icon_hash', 'icon_backing'])
-            ->map(static fn (Site $site): MaintenanceTargetOptionData => new MaintenanceTargetOptionData($site->id, $site->displayName(), is_internal: $site->client !== null && $site->client->is_internal, client_name: $site->client?->displayName(), host: is_string(parse_url($site->url, PHP_URL_HOST)) ? parse_url($site->url, PHP_URL_HOST) : $site->url, icon_url: $site->iconUrl(), icon_backing: $site->icon_backing, timezone: $site->client?->resolvedTimezone()))->all() : [];
-        $clientOptions = ($canManage ? Client::query() : $policy->visibleClients($user, includeArchived: true))->with(Client::AvatarRelations);
-        $clientOptions->getQuery()->orderBy('name');
-        $loadedClients = $clientOptions->get(['id', 'name', 'short_name', 'accent_color', 'avatar_site_id', 'is_internal', 'timezone']);
-        $identities = $loadedClients->mapWithKeys(static fn (Client $client): array => [$client->id => new MaintenanceTargetOptionData($client->id, $client->displayName(), app(ResolveClientAvatar::class)($client), $client->short_name, $client->accent_color, $client->is_internal, timezone: $client->resolvedTimezone())]);
-        $clients = $canManage ? $identities->values()->all() : [];
-        // Reuse the resolved identity; browsing alone hides an empty Internal client.
-        $filterClients = $loadedClients->filter(static fn (Client $client): bool => ! $client->is_internal || $client->sites->isNotEmpty())
-            ->map(static fn (Client $client): MaintenanceTargetOptionData => $identities[$client->id] ?? throw new \LogicException('Every loaded client must have one resolved identity.'))->values()->all();
+        // The rows name a targeted client with its mark; only the clients of the listed windows are read.
+        $windowClientIds = array_values(array_unique(array_map(static fn (MaintenanceWindowData $window): int => $window->targetId,
+            array_filter($result['windows'], static fn (MaintenanceWindowData $window): bool => $window->targetType === 'client'))));
+        $windowClientQuery = $policy->visibleClients($user, includeArchived: true)->with(Client::AvatarRelations);
+        $windowClientQuery->getQuery()->whereIntegerInRaw('clients.id', $windowClientIds);
+        $windowClients = $windowClientIds === [] ? [] : $windowClientQuery->get()
+            ->map(static fn (Client $client): MaintenanceTargetOptionData => new MaintenanceTargetOptionData($client->id, $client->displayName(), app(ResolveClientAvatar::class)($client), $client->short_name, $client->accent_color, $client->is_internal))->all();
         $tagOptions = Tag::query();
         $tagOptions->getQuery()->orderBy('id');
         $tags = $canManage ? $tagOptions->get()
@@ -78,10 +73,11 @@ final class MaintenanceController extends Controller
 
         $timezones = \DateTimeZone::listIdentifiers();
         $storedTimezones = [$user->resolvedTimezone()];
-        foreach ($clients as $client) {
-            if ($client->timezone !== null) {
-                $storedTimezones[] = $client->timezone;
-            }
+        if ($canManage) {
+            // A new window follows its target client's zone, so every stored client zone stays choosable.
+            /** @var list<string> $clientTimezones */
+            $clientTimezones = Client::query()->getQuery()->whereNotNull('timezone')->distinct()->pluck('timezone')->all();
+            array_push($storedTimezones, ...$clientTimezones);
         }
         foreach ($result['windows'] as $window) {
             $storedTimezones[] = $window->timezone;
@@ -97,9 +93,9 @@ final class MaintenanceController extends Controller
         }
 
         return Inertia::render('maintenance/index', new MaintenanceIndexPageData($result['windows'], $result['next_page'],
-            $canManage, array_values($sites), array_values($clients), array_values($tags),
+            $canManage, array_values($tags),
             $timezones,
-            array_values($filterClients), $filters->data(),
+            array_values($windowClients), $filters->data(),
             $result['previous_page'], $result['total'], $perPage)->toArray());
     }
 

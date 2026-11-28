@@ -13,7 +13,6 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 final class SiteSettingsPageData extends Data
 {
     /**
-     * @param  list<ClientData>  $clients
      * @param  array{minutes_min: int, minutes_max: int, stored_minutes_min: int, stored_minutes_max: int, recovery_min: int, recovery_max: int}  $alert_sensitivity_bounds
      * @param  list<AlertSensitivityData>  $alert_sensitivity_presets
      */
@@ -33,7 +32,6 @@ final class SiteSettingsPageData extends Data
         /** Untrusted first redirect target reported by a crawl check; the crawler never requested it. */
         public readonly ?string $start_redirect_target_url = null,
         public readonly ?string $start_redirect_summary_key = null,
-        public readonly array $clients = [],
         /** @var list<string> Server IANA list for the inline client-create sheet. */
         public readonly array $timezones = [],
         /** @var list<CheckSettingsData> Every check of the site, in the site's check order, for the Checks section. */

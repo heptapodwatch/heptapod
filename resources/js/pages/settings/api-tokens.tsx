@@ -3,10 +3,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { SectionHeading } from '@/components/section-heading';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ClientMark } from '@/components/client-mark';
-import {
-    EntityCombobox,
-    clientComboboxOptions,
-} from '@/components/entity-combobox';
+import { SearchCombobox } from '@/components/search-combobox';
 import { EmptyState } from '@/components/empty-state';
 import { ListHeader, ListRow } from '@/components/ui/table';
 import { SheetForm } from '@/components/sheet-form';
@@ -124,6 +121,7 @@ function CreateToken({
         : null;
     const [failure, setFailure] = useState(false);
     const [expiryInvalid, setExpiryInvalid] = useState(false);
+    const [clientName, setClientName] = useState<string | null>(null);
     const mounted = useRef(true);
     const focus = useRef<string | undefined>(undefined);
     useEffect(() => {
@@ -180,13 +178,7 @@ function CreateToken({
                     value: result.token,
                     name: form.data.name,
                     abilities: form.data.abilities,
-                    client:
-                        form.data.reach === 'client'
-                            ? page.clients.find(
-                                  (client) =>
-                                      client.id === Number(form.data.client_id),
-                              )!.name
-                            : null,
+                    client: form.data.reach === 'client' ? clientName : null,
                     expires_at: result.expires_at,
                 });
         } catch (error: unknown) {
@@ -338,7 +330,7 @@ function CreateToken({
                     >
                         <RadioGroupItem
                             value="client"
-                            disabled={page.clients.length === 0}
+                            disabled={!page.has_clients}
                         >
                             {t('One client')}
                         </RadioGroupItem>
@@ -351,16 +343,18 @@ function CreateToken({
                     {form.data.reach === 'client' && (
                         <>
                             <Label htmlFor="token-client">{t('Client')}</Label>
-                            <EntityCombobox
+                            <SearchCombobox
+                                kind="clients"
+                                scope={{ archived: true }}
                                 id="token-client"
-                                options={clientComboboxOptions(page.clients)}
                                 value={form.data.client_id}
                                 disabled={form.processing}
                                 invalid={!!form.errors.client_id}
                                 describedBy="token-client-error"
-                                onValueChange={(selected) =>
-                                    form.setData('client_id', selected)
-                                }
+                                onValueChange={(selected, client) => {
+                                    setClientName(client?.name ?? null);
+                                    form.setData('client_id', selected);
+                                }}
                             />
                             <InputError
                                 id="token-client-error"

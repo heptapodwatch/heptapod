@@ -13,11 +13,11 @@ final class ImportOhDearPageData extends Data
 {
     /**
      * @param  list<ImportSection>  $sections
-     * @param  list<ClientData>  $clients
      * @param  list<string>  $timezones  Server IANA list for the inline client-create sheet.
      */
     public function __construct(
-        public readonly array $clients,
+        /** Where every imported site starts; the pickers search the other clients on the server. */
+        public readonly ClientData $internal_client,
         public readonly array $timezones,
         public readonly array $sections,
         public readonly int $plan_page_size,

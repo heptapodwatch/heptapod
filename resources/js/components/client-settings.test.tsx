@@ -15,6 +15,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import ClientSettings from '@/pages/clients/settings';
 import { clients } from '@/fixtures/design';
+import { stubPickerFetch } from '@/test/picker-fetch';
 import '@/lib/i18n';
 
 vi.hoisted(() => {
@@ -55,8 +56,28 @@ function fakeTransport(): Promise<HttpResponse> {
     });
 }
 
+const iconSite = (id: number, name: string, host: string) => ({
+    id,
+    name,
+    host,
+    client_id: clients[0]!.id,
+    client_name: clients[0]!.name,
+    timezone: 'UTC',
+    icon_url: `/sites/${id}/icon/hash`,
+    icon_backing: 'none' as const,
+    client_is_internal: false,
+    detail: `${clients[0]!.name} · ${host}`,
+});
+
 beforeEach(() => {
     blockedSites = [];
+    stubPickerFetch({
+        clients: [{ ...clients[1]!, is_internal: true, name: 'No client' }],
+        sites: [
+            iconSite(101, 'Saved site', 'saved.example.test'),
+            iconSite(102, 'Another site', 'another.example.test'),
+        ],
+    });
     http.setClient({ request: fakeTransport });
     vi.setSystemTime(new Date('2026-11-07T12:00:00Z'));
     vi.stubGlobal(
@@ -95,11 +116,9 @@ function page(
             <ClientSettings
                 client={clients[0]!}
                 members={[]}
-                avatar_sites={[]}
+                has_icon_sites={false}
                 timezones={['UTC']}
-                clients={[
-                    { ...clients[1]!, is_internal: true, name: 'No client' },
-                ]}
+                internal_client_id={clients[1]!.id}
                 site_count={3}
                 archive_paused_site_count={2}
                 {...overrides}
@@ -124,9 +143,12 @@ it('defaults to archiving sites and preselects No client when moving them instea
             name: 'Move the sites to another client',
         }),
     );
-    expect(
-        within(dialog).getByRole('combobox', { name: 'Client' }).textContent,
-    ).toContain('No client');
+    await waitFor(() =>
+        expect(
+            within(dialog).getByRole('combobox', { name: 'Client' })
+                .textContent,
+        ).toContain('No client'),
+    );
     const confirm = within(dialog).getByRole('button', {
         name: 'Archive client',
     });
@@ -361,7 +383,7 @@ it('leaves the form clean after successfully saving the avatar and other fields'
     ).toBe('SC');
 });
 
-it('clears the avatar draft when the saved site icon is chosen again', () => {
+it('clears the avatar draft when the saved site icon is chosen again', async () => {
     render(
         page({
             client: {
@@ -375,20 +397,22 @@ it('clears the avatar draft when the saved site icon is chosen again', () => {
                     site_host: 'saved.example.test',
                 },
             },
-            avatar_sites: [
-                { id: 101, name: 'Saved site', host: 'saved.example.test' },
-                { id: 102, name: 'Another site', host: 'another.example.test' },
-            ],
+            has_icon_sites: true,
         }),
     );
-    fireEvent.click(screen.getByRole('combobox', { name: 'Use icon from…' }));
-    fireEvent.click(screen.getByRole('option', { name: /Another site/ }));
+    const picker = screen.getByRole('combobox', { name: 'Use icon from…' });
+    fireEvent.click(picker);
+    fireEvent.click(
+        await screen.findByRole('option', { name: /Another site/ }),
+    );
     expect(
         screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled'),
     ).toBe(false);
+    // The closed picker gets focus back a tick later; reopening before that would close it again.
+    await waitFor(() => expect(document.activeElement).toBe(picker));
 
-    fireEvent.click(screen.getByRole('combobox', { name: 'Use icon from…' }));
-    fireEvent.click(screen.getByRole('option', { name: /Saved site/ }));
+    fireEvent.click(picker);
+    fireEvent.click(await screen.findByRole('option', { name: /Saved site/ }));
 
     expect(
         screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled'),

@@ -23,7 +23,7 @@ export default function MyNotifications({
             <RecipientSettings
                 page={settings}
                 scopeDescription={t('recipient_settings.me.scope', {
-                    count: settings.sites.length,
+                    count: settings.site_count,
                 })}
             />
         </>

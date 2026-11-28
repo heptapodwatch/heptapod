@@ -54,7 +54,7 @@ it('keeps unclaimed late checks out of the active board and shares the authorize
     $this->actingAs($user)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page
         ->component('runs/index')->missing('late')->where('lateRunsCount', 1)
         ->has('current', 0)
-        ->has('runs', 0)->has('clients', 1));
+        ->has('runs', 0)->missing('clients'));
     expect(CheckRunAttempt::query()->count())->toBe(0);
     $this->get('/runs?state=late')->assertInertia(fn (Assert $page): Assert => $page->has('current', 0));
     $this->get('/runs?check='.$hidden->id.'&show_same_result=1')->assertInertia(fn (Assert $page): Assert => $page->has('current', 0)->has('runs', 0)

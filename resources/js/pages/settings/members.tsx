@@ -25,8 +25,7 @@ import { Input } from '@/components/ui/input';
 import { CheckboxField } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { RadioCards } from '@/components/ui/radio-cards';
-import { MultiCombobox } from '@/components/ui/combobox';
-import { clientComboboxOptions } from '@/components/entity-combobox';
+import { SearchMultiCombobox } from '@/components/search-combobox';
 import {
     HttpValidationError,
     httpErrorMessage,
@@ -49,13 +48,16 @@ type Access = { role: string; client_ids: number[] };
 function AccessFields({
     prefix,
     clients,
+    hasClients,
     roles,
     access,
     setAccess,
     errors,
 }: {
     prefix: string;
+    /** The clients the roster assigns, to tell an assignment to a deleted client apart. */
     clients: Roster['clients'];
+    hasClients: boolean;
     roles: string[];
     access: Access;
     setAccess: (access: Access) => void;
@@ -107,15 +109,16 @@ function AccessFields({
                 <Label id={`${prefix}-clients-label`}>{t('Clients')}</Label>
                 {access.role === 'Member' ? (
                     <>
-                        {clients.length === 0 &&
-                        access.client_ids.length === 0 ? (
+                        {!hasClients && access.client_ids.length === 0 ? (
                             <p className="text-xs text-muted-foreground">
                                 {t(
                                     'No clients available. Create a client before inviting a Member.',
                                 )}
                             </p>
                         ) : (
-                            <MultiCombobox
+                            <SearchMultiCombobox
+                                kind="clients"
+                                scope={{ archived: true }}
                                 id={`${prefix}-clients`}
                                 labelledBy={`${prefix}-clients-label`}
                                 invalid={clientsField['aria-invalid']}
@@ -128,34 +131,29 @@ function AccessFields({
                                         client_ids: values.map(Number),
                                     })
                                 }
-                                options={[
-                                    ...clientComboboxOptions(clients).map(
-                                        (option, index) =>
-                                            clients[index]?.archived
-                                                ? {
-                                                      ...option,
-                                                      secondary: t('Archived'),
-                                                      selectedLabel: `${option.label} · ${t('Archived')}`,
-                                                  }
-                                                : option,
-                                    ),
-                                    // An assignment to a client this roster no longer lists stays removable.
-                                    ...access.client_ids
-                                        .filter(
-                                            (id) =>
-                                                !clients.some(
-                                                    (client) =>
-                                                        client.id === id,
-                                                ),
-                                        )
-                                        .map((id) => ({
-                                            value: String(id),
-                                            label: t(
-                                                'Unavailable client #:id',
-                                                { id },
+                                decorate={(option, client) =>
+                                    client.archived_at === null
+                                        ? option
+                                        : {
+                                              ...option,
+                                              secondary: t('Archived'),
+                                              selectedLabel: `${option.label} · ${t('Archived')}`,
+                                          }
+                                }
+                                // An assignment to a client that no longer exists stays removable.
+                                leadingOptions={access.client_ids
+                                    .filter(
+                                        (id) =>
+                                            !clients.some(
+                                                (client) => client.id === id,
                                             ),
-                                        })),
-                                ]}
+                                    )
+                                    .map((id) => ({
+                                        value: String(id),
+                                        label: t('Unavailable client #:id', {
+                                            id,
+                                        }),
+                                    }))}
                             />
                         )}
                         <InputError
@@ -306,6 +304,7 @@ function InviteDialog({
                     <AccessFields
                         prefix="invite"
                         clients={roster.clients}
+                        hasClients={roster.has_clients}
                         roles={roster.invite_roles}
                         access={form.data}
                         setAccess={(access) =>
@@ -468,6 +467,7 @@ function EditMemberSheet({
                     <AccessFields
                         prefix="access"
                         clients={roster.clients}
+                        hasClients={roster.has_clients}
                         roles={member.allowed_roles}
                         access={form.data}
                         setAccess={form.setData}

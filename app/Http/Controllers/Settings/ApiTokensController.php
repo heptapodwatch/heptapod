@@ -42,13 +42,17 @@ final class ApiTokensController extends Controller
         $user = $this->user($request);
         // Do not apply the topbar preference: token reach is constrained separately, including empty clients.
         // ClientPolicy denies client reads without a team role; self-token management has no such role gate.
+        $tokenRows = $user->tokens()->getQuery()->get();
+        $teamRole = $user->hasAnyRole(['Owner', 'Admin', 'Member']);
+        // Only the clients the tokens are limited to are read, for their rows; the form's picker searches the others.
+        $tokenClients = $teamRole ? $policy->visibleClients($user, includeArchived: true)->with(Client::AvatarRelations) : null;
+        $tokenClients?->getQuery()->whereIntegerInRaw('clients.id', $tokenRows->pluck('client_id')->filter()->unique()->values()->all());
         /** @var Collection<int, Client> $clients */
-        $clients = $user->hasAnyRole(['Owner', 'Admin', 'Member'])
-            ? $policy->visibleClients($user, includeArchived: true)->with(Client::AvatarRelations)->get()->sortBy('name')->values()
-            : new Collection;
+        $clients = $tokenClients?->get()->sortBy('name')->values() ?? new Collection;
+        $hasClients = $teamRole && $policy->visibleClients($user, includeArchived: true)->getQuery()->exists();
         /** @var array<int, string> $names */
         $names = $clients->mapWithKeys(static fn (Client $client): array => [$client->id => $client->displayName()])->all();
-        $tokens = $user->tokens()->getQuery()->get()->sortBy('id')->map(static function (PersonalAccessToken $token) use ($names): array {
+        $tokens = $tokenRows->sortBy('id')->map(static function (PersonalAccessToken $token) use ($names): array {
             /** @var int|null $clientId */
             $clientId = $token->getAttribute('client_id');
             /** @var list<string> $abilities */
@@ -61,7 +65,7 @@ final class ApiTokensController extends Controller
         })->all();
 
         return new ApiTokenSettingsData(array_values($tokens), $create->allowedAbilities($user), $create->allowedAbilities($user, limitedToClient: true), $create->presets($user), $create->startingPoints($user),
-            array_values($clients->map(static fn (Client $client): array => ['id' => $client->id, 'name' => $client->displayName(), 'short_name' => $client->short_name, 'accent_color' => $client->accent_color, 'avatar' => app(ResolveClientAvatar::class)($client), 'is_internal' => $client->is_internal])->all()), $user->resolvedTimezone());
+            array_values($clients->map(static fn (Client $client): array => ['id' => $client->id, 'name' => $client->displayName(), 'short_name' => $client->short_name, 'accent_color' => $client->accent_color, 'avatar' => app(ResolveClientAvatar::class)($client), 'is_internal' => $client->is_internal])->all()), $hasClients, $user->resolvedTimezone());
     }
 
     public function store(Request $request, CreateApiToken $create): JsonResponse

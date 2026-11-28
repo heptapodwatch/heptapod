@@ -14,21 +14,17 @@ final class MaintenanceIndexPageData extends Data
     /**
      * @param  array<string, ListFilterData>  $filters
      * @param  list<MaintenanceWindowData>  $windows
-     * @param  list<MaintenanceTargetOptionData>  $sites
-     * @param  list<MaintenanceTargetOptionData>  $clients
      * @param  list<MaintenanceTargetOptionData>  $tags
-     * @param  list<MaintenanceTargetOptionData>  $filter_clients
+     * @param  list<MaintenanceTargetOptionData>  $window_clients  the clients the listed windows target, for their marks
      * @param  list<string>  $timezones
      */
     public function __construct(
         public readonly array $windows,
         public readonly ?int $next_page,
         public readonly bool $can_manage,
-        public readonly array $sites,
-        public readonly array $clients,
         public readonly array $tags,
         public readonly array $timezones,
-        public readonly array $filter_clients,
+        public readonly array $window_clients,
         public readonly array $filters,
         public readonly ?int $previous_page = null,
         public readonly int $total = 0,

@@ -1094,18 +1094,17 @@ export type ActivityPageData = {
 readonly events: Heptapod.Data.Ui.ActivityBatchData,
 readonly head: Heptapod.Data.Ui.ActivityBatchData | undefined,
 readonly retention_days: number,
-readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly filters: Record<string, Heptapod.Contracts.ListFilterData>,
 readonly expanded_id: number | null,
 readonly expanded_events: Heptapod.Data.Ui.EventData[],
 readonly expanded_pagination: Heptapod.Contracts.PaginationData | null,
 };
 export type AddSitePageData = {
-readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly checks: Heptapod.Data.Ui.CheckOptionData[],
 readonly can_create_site: boolean,
 readonly selected_client_id: number | null,
 readonly timezones: string[],
+readonly only_client_id: number | null,
 };
 export type AlertSensitivityData = {
 readonly alert_after_minutes: number,
@@ -1159,6 +1158,7 @@ accent_color: string | null,
 avatar: Heptapod.Data.Ui.ClientAvatarData,
 is_internal: boolean,
 }[],
+readonly has_clients: boolean,
 readonly timezone: string,
 };
 export type ApiTokensPageData = {
@@ -1302,11 +1302,6 @@ readonly source: Heptapod.Enums.ClientAvatarSource,
 readonly site_id: number | null,
 readonly site_host: string | null,
 };
-export type ClientAvatarSiteData = {
-readonly id: number,
-readonly name: string,
-readonly host: string | null,
-};
 export type ClientData = {
 readonly id: number,
 readonly name: string,
@@ -1358,9 +1353,9 @@ readonly summary: Heptapod.Data.Ui.DashboardTilesData,
 export type ClientSettingsPageData = {
 readonly client: Heptapod.Data.Ui.ClientData | null,
 readonly members: Heptapod.Data.Ui.ClientMemberData[],
-readonly avatar_sites: Heptapod.Data.Ui.ClientAvatarSiteData[],
+readonly has_icon_sites: boolean,
 readonly timezones: string[],
-readonly clients: Heptapod.Data.Ui.ClientData[],
+readonly internal_client_id: number | null,
 readonly site_count: number,
 readonly archive_paused_site_count: number,
 };
@@ -1472,7 +1467,7 @@ readonly key: string,
 readonly params: Record<string, string | number | boolean | null>,
 };
 export type ImportOhDearPageData = {
-readonly clients: Heptapod.Data.Ui.ClientData[],
+readonly internal_client: Heptapod.Data.Ui.ClientData,
 readonly timezones: string[],
 readonly sections: Heptapod.Enums.ImportSection[],
 readonly plan_page_size: number,
@@ -1719,11 +1714,9 @@ export type MaintenanceIndexPageData = {
 readonly windows: Heptapod.Data.Ui.MaintenanceWindowData[],
 readonly next_page: number | null,
 readonly can_manage: boolean,
-readonly sites: Heptapod.Data.Ui.MaintenanceTargetOptionData[],
-readonly clients: Heptapod.Data.Ui.MaintenanceTargetOptionData[],
 readonly tags: Heptapod.Data.Ui.MaintenanceTargetOptionData[],
 readonly timezones: string[],
-readonly filter_clients: Heptapod.Data.Ui.MaintenanceTargetOptionData[],
+readonly window_clients: Heptapod.Data.Ui.MaintenanceTargetOptionData[],
 readonly filters: Record<string, Heptapod.Contracts.ListFilterData>,
 readonly previous_page: number | null,
 readonly total: number,
@@ -1745,11 +1738,6 @@ readonly avatar: Heptapod.Data.Ui.ClientAvatarData | null,
 readonly short_name: string | null,
 readonly accent_color: string | null,
 readonly is_internal: boolean,
-readonly client_name: string | null,
-readonly host: string | null,
-readonly icon_url: string | null,
-readonly icon_backing: Heptapod.Enums.SiteIconBacking,
-readonly timezone: string | null,
 };
 export type MaintenanceWindowData = {
 readonly id: number,
@@ -1819,6 +1807,7 @@ avatar: Heptapod.Data.Ui.ClientAvatarData,
 is_internal: boolean,
 }[],
 readonly invite_roles: string[],
+readonly has_clients: boolean,
 };
 export type MetricSeriesData = {
 readonly key: string,
@@ -1873,7 +1862,7 @@ digest_time: string,
 digest_weekdays: number[] | null,
 timezone: string,
 },
-readonly sites: {
+readonly muted_sites: {
 id: number,
 name: string,
 client_id: number,
@@ -1887,10 +1876,7 @@ label: string,
 detail: string,
 },
 }[],
-readonly clients: {
-id: number,
-name: string,
-}[],
+readonly site_count: number,
 readonly channel_types: Heptapod.Data.Ui.ChannelTypeData[],
 readonly check_types: {
 value: string,
@@ -1911,6 +1897,22 @@ median: number,
 threshold: number,
 marked: boolean,
 }[],
+};
+export type PickerResultsData = {
+readonly options: Heptapod.Data.Ui.PickerSiteData[] | Heptapod.Data.Ui.ClientData[],
+readonly more: boolean,
+};
+export type PickerSiteData = {
+readonly id: number,
+readonly name: string,
+readonly host: string,
+readonly client_id: number,
+readonly client_name: string,
+readonly client_is_internal: boolean,
+readonly timezone: string,
+readonly icon_url: string | null,
+readonly icon_backing: Heptapod.Enums.SiteIconBacking,
+readonly detail: string,
 };
 export type ProfilePageData = {
 readonly mustVerifyEmail: boolean,
@@ -2014,7 +2016,6 @@ readonly queued_more: number,
 readonly finished: Heptapod.Data.Ui.FinishedRunData[],
 readonly runs: Heptapod.Data.Ui.RunRowData[],
 readonly next_cursor: string | null,
-readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly filters: Record<string, Heptapod.Contracts.ListFilterData>,
 readonly before: number | null,
 readonly per_page: number,
@@ -2180,7 +2181,6 @@ readonly icon_fetched_at: string | null,
 readonly icon_manual_result: Heptapod.Data.Ui.IconRefreshResultData | null,
 readonly start_redirect_target_url: string | null,
 readonly start_redirect_summary_key: string | null,
-readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly timezones: string[],
 readonly check_settings: Heptapod.Data.Ui.CheckSettingsData[],
 readonly check_options: Heptapod.Data.Ui.CheckOptionData[],

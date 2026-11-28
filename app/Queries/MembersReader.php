@@ -54,13 +54,15 @@ final readonly class MembersReader
                 'can_manage' => $actor->hasRole('Owner') || ($actor->hasRole('Admin') && $invitation->role === 'Member'),
             ];
         })->all());
+        // Only the clients the roster assigns are read, for its rows; the access pickers search the others.
+        $assigned = array_values(array_unique([...array_merge(...array_column($members, 'client_ids')), ...array_merge(...array_column($invitations, 'client_ids'))]));
         $clientQuery = Client::query()->with(Client::AvatarRelations);
-        $clientQuery->getQuery()->orderBy('name');
+        $clientQuery->getQuery()->whereIntegerInRaw('id', $assigned)->orderBy('name');
         $clients = array_values($clientQuery->get(['id', 'name', 'archived_at', 'short_name', 'accent_color', 'avatar_site_id', 'is_internal'])->map(static fn (Client $client): array => [
             'id' => $client->id, 'name' => $client->displayName(), 'archived' => $client->archived_at !== null,
             'short_name' => $client->short_name, 'accent_color' => $client->accent_color, 'avatar' => app(ResolveClientAvatar::class)($client), 'is_internal' => $client->is_internal,
         ])->all());
 
-        return new MembersPageData($members, $invitations, $clients, $actor->hasRole('Owner') ? ['Admin', 'Member'] : ['Member']);
+        return new MembersPageData($members, $invitations, $clients, $actor->hasRole('Owner') ? ['Admin', 'Member'] : ['Member'], Client::query()->getQuery()->exists());
     }
 }

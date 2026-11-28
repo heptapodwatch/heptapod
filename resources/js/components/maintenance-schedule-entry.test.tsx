@@ -4,12 +4,14 @@ import {
     fireEvent,
     render,
     screen,
+    waitFor,
     within,
 } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { router } from '@inertiajs/react';
 import MaintenanceIndex from '@/pages/maintenance/index';
+import { stubPickerFetch } from '@/test/picker-fetch';
 
 const pageContext = vi.hoisted(() => ({ timezone: 'Europe/Berlin' }));
 vi.mock('@inertiajs/react', async (importOriginal) => ({
@@ -51,6 +53,7 @@ HTMLElement.prototype.scrollIntoView = vi.fn();
 HTMLElement.prototype.hasPointerCapture = () => false;
 let replace: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
+    stubTargets();
     replace = vi.spyOn(router, 'replace').mockImplementation(() => {});
     vi.stubGlobal(
         'ResizeObserver',
@@ -69,25 +72,67 @@ afterEach(() => {
     window.history.replaceState(null, '', '/');
 });
 
-const target = (
+/** Closes the open picker; its trigger gets focus back a tick later, and opening the next picker before that would close it again. */
+const closePicker = async (trigger: HTMLElement) => {
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+        key: 'Escape',
+    });
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+};
+const site = (
     id: number,
     name: string,
-    timezone: string | null = null,
-    extra: Partial<Heptapod.Data.Ui.MaintenanceTargetOptionData> = {},
-) => ({
+    timezone: string,
+    client_name: string,
+): Heptapod.Data.Ui.PickerSiteData => ({
     id,
     name,
-    avatar: null,
+    host: `${name.toLowerCase()}.example.test`,
+    client_id: id + 100,
+    client_name,
+    timezone,
+    icon_url: null,
+    icon_backing: 'none',
+    client_is_internal: false,
+    detail: `${client_name} · ${name.toLowerCase()}.example.test`,
+});
+const client = (
+    id: number,
+    name: string,
+    timezone: string,
+): Heptapod.Data.Ui.ClientData => ({
+    id,
+    name,
+    locale: 'en',
+    timezone,
+    timezone_override: timezone,
     short_name: null,
     accent_color: null,
+    archived_at: null,
     is_internal: false,
-    client_name: null,
-    host: null,
-    icon_url: null,
-    icon_backing: 'none' as const,
-    timezone,
-    ...extra,
+    avatar: {
+        url: null,
+        backing: 'none',
+        source: 'initials',
+        site_id: null,
+        site_host: null,
+    },
+    avatar_site_id: null,
 });
+// What the target pickers find on the server.
+const stubTargets = (
+    sites = [
+        site(7, 'Website', 'Europe/Berlin', 'Berlin Co'),
+        site(8, 'API', 'America/New_York', 'Acme'),
+    ],
+) =>
+    stubPickerFetch({
+        sites,
+        clients: [
+            client(1, 'NY Client', 'America/New_York'),
+            client(2, 'Tokyo Client', 'Asia/Tokyo'),
+        ],
+    });
 
 const planned: Heptapod.Data.Ui.MaintenanceWindowData = {
     id: 3,
@@ -146,24 +191,23 @@ function page(
                 'Europe/Berlin',
                 'Europe/London',
             ]}
-            sites={[
-                target(7, 'Website', 'Europe/Berlin', {
-                    client_name: 'Berlin Co',
-                }),
-                target(8, 'API', 'America/New_York', { client_name: 'Acme' }),
+            tags={[
+                {
+                    id: 10,
+                    name: 'Release',
+                    avatar: null,
+                    short_name: null,
+                    accent_color: null,
+                    is_internal: false,
+                },
             ]}
-            clients={[
-                target(1, 'NY Client', 'America/New_York'),
-                target(2, 'Tokyo Client', 'Asia/Tokyo'),
-            ]}
-            tags={[target(10, 'Release', null)]}
-            filter_clients={[]}
+            window_clients={[]}
             {...overrides}
         />
     );
 }
 
-it('opens the new-window sheet for the site from the site header link and consumes the one-shot request', () => {
+it('opens the new-window sheet for the site from the site header link and consumes the one-shot request', async () => {
     window.history.replaceState(null, '', '/maintenance?site_id=8&new=1');
     render(page(true));
 
@@ -171,9 +215,11 @@ it('opens the new-window sheet for the site from the site header link and consum
         name: 'Schedule maintenance',
     });
     // The trigger shows the site avatar (letter fallback "A") plus the name.
-    expect(
-        within(sheet).getByRole('combobox', { name: 'Sites' }).textContent,
-    ).toContain('API');
+    await waitFor(() =>
+        expect(
+            within(sheet).getByRole('combobox', { name: 'Sites' }).textContent,
+        ).toContain('API'),
+    );
     expect(replace).toHaveBeenCalledWith(
         expect.objectContaining({ url: '/maintenance?site_id=8' }),
     );
@@ -208,7 +254,7 @@ it('explains why Repeats is locked when editing a window', () => {
     );
 });
 
-it('defaults the timezone from the target, follows target changes until picked, and pins target and viewer zones', () => {
+it('defaults the timezone from the target, follows target changes until picked, and pins target and viewer zones', async () => {
     pageContext.timezone = 'Europe/Berlin';
     window.history.replaceState(null, '', '/maintenance?site_id=8&new=1');
     render(page(true));
@@ -219,8 +265,10 @@ it('defaults the timezone from the target, follows target changes until picked, 
     const zoneTrigger = () =>
         within(sheet).getByRole('combobox', { name: 'Timezone' });
 
-    // Preselected New York client's site starts in America/New_York.
-    expect(zoneTrigger().textContent).toContain('America/New_York');
+    // The preselected New York client's site moves the new window to America/New_York once it is named.
+    await waitFor(() =>
+        expect(zoneTrigger().textContent).toContain('America/New_York'),
+    );
 
     // Opening the timezone picker lists the target zone and the viewer zone first.
     fireEvent.click(zoneTrigger());
@@ -229,9 +277,7 @@ it('defaults the timezone from the target, follows target changes until picked, 
         .map((option) => option.textContent ?? '');
     expect(options[0]).toContain('America/New_York');
     expect(options[1]).toContain('Europe/Berlin');
-    fireEvent.keyDown(document.activeElement ?? document.body, {
-        key: 'Escape',
-    });
+    await closePicker(zoneTrigger());
 
     // Switching to Tag defaults to the viewer's zone (Europe/Berlin).
     fireEvent.click(within(sheet).getByRole('radio', { name: 'Tag' }));
@@ -240,7 +286,9 @@ it('defaults the timezone from the target, follows target changes until picked, 
     // Switching to Client and picking Tokyo Client follows to Asia/Tokyo.
     fireEvent.click(within(sheet).getByRole('radio', { name: 'Client' }));
     fireEvent.click(within(sheet).getByRole('combobox', { name: 'Clients' }));
-    fireEvent.click(screen.getByRole('option', { name: /Tokyo Client/ }));
+    fireEvent.click(
+        await screen.findByRole('option', { name: /Tokyo Client/ }),
+    );
     expect(zoneTrigger().textContent).toContain('Asia/Tokyo');
 
     // Explicitly picking a timezone locks it against further target changes.
@@ -249,11 +297,11 @@ it('defaults the timezone from the target, follows target changes until picked, 
     expect(zoneTrigger().textContent).toContain('Europe/London');
 
     fireEvent.click(within(sheet).getByRole('combobox', { name: 'Clients' }));
-    fireEvent.click(screen.getByRole('option', { name: /NY Client/ }));
+    fireEvent.click(await screen.findByRole('option', { name: /NY Client/ }));
     expect(zoneTrigger().textContent).toContain('Europe/London');
 });
 
-it('keeps an existing windows stored timezone when editing and switching targets', () => {
+it('keeps an existing windows stored timezone when editing and switching targets', async () => {
     pageContext.timezone = 'Europe/Berlin';
     window.history.replaceState(null, '', '/maintenance?site_id=8');
     render(page(true, [{ ...planned, timezone: 'UTC' }]));
@@ -268,7 +316,7 @@ it('keeps an existing windows stored timezone when editing and switching targets
     expect(zoneTrigger.textContent).toContain('UTC');
 
     fireEvent.click(within(sheet).getByRole('combobox', { name: 'Sites' }));
-    fireEvent.click(screen.getByRole('option', { name: /API/ }));
+    fireEvent.click(await screen.findByRole('option', { name: /API/ }));
     expect(zoneTrigger.textContent).toContain('UTC');
 });
 
@@ -313,8 +361,8 @@ it('displays the same maintenance windows in each viewers timezone with source w
     expect(screen.getByText('(17:00–18:00 Berlin)')).toBeTruthy();
 });
 
-it('keeps untouched default times strictly ordered when following a target into a DST fall-back fold', () => {
-    vi.useFakeTimers();
+it('keeps untouched default times strictly ordered when following a target into a DST fall-back fold', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
     try {
         // 2026-11-01T04:45Z: +1h is 01:45 EDT (05:45Z), +2h is 01:45 EST (06:45Z) in America/New_York.
         vi.setSystemTime(new Date('2026-11-01T04:45:00Z'));
@@ -329,7 +377,7 @@ it('keeps untouched default times strictly ordered when following a target into 
             name: 'Schedule maintenance',
         });
         fireEvent.click(within(sheet).getByRole('combobox', { name: 'Sites' }));
-        fireEvent.click(screen.getByRole('option', { name: /API/ }));
+        fireEvent.click(await screen.findByRole('option', { name: /API/ }));
 
         const starts = within(sheet).getByLabelText(
             'Starts',
@@ -349,22 +397,20 @@ it('keeps untouched default times strictly ordered when following a target into 
     }
 });
 
-it('labels pinned timezone options and shows a following hint until the user overrides the zone', () => {
+it('labels pinned timezone options and shows a following hint until the user overrides the zone', async () => {
     pageContext.timezone = 'Europe/Berlin';
     window.history.replaceState(null, '', '/maintenance?site_id=8&new=1');
-    render(
-        page(true, [], {
-            sites: [
-                target(7, 'Website', 'Europe/Berlin', {
-                    client_name: 'Berlin Co',
-                }),
-                target(8, 'API', 'America/New_York', { client_name: 'Acme' }),
-                target(9, 'Enterprise', 'Asia/Tokyo', {
-                    client_name: 'Very Long Agency Client Name GmbH',
-                }),
-            ],
-        }),
-    );
+    stubTargets([
+        site(7, 'Website', 'Europe/Berlin', 'Berlin Co'),
+        site(8, 'API', 'America/New_York', 'Acme'),
+        site(
+            9,
+            'Enterprise',
+            'Asia/Tokyo',
+            'Very Long Agency Client Name GmbH',
+        ),
+    ]);
+    render(page(true, []));
 
     const sheet = screen.getByRole('dialog', {
         name: 'Schedule maintenance',
@@ -374,7 +420,7 @@ it('labels pinned timezone options and shows a following hint until the user ove
 
     // 1) Preselected NY site (client Acme): client hint visible and wired to aria-describedby.
     expect(
-        within(sheet).getByText(
+        await within(sheet).findByText(
             'From the client Acme. Pick another zone to override.',
         ),
     ).toBeTruthy();
@@ -391,13 +437,11 @@ it('labels pinned timezone options and shows a following hint until the user ove
     expect(options[0]).toContain("Acme's zone");
     expect(options[1]).toContain('Europe/Berlin');
     expect(options[1]).toContain('Your zone');
-    fireEvent.keyDown(document.activeElement ?? document.body, {
-        key: 'Escape',
-    });
+    await closePicker(zoneTrigger());
 
     // 2) Site whose client shares the viewer's zone: one pinned option carries both badges.
     fireEvent.click(within(sheet).getByRole('combobox', { name: 'Sites' }));
-    fireEvent.click(screen.getByRole('option', { name: /Website/ }));
+    fireEvent.click(await screen.findByRole('option', { name: /Website/ }));
     expect(
         within(sheet).getByText(
             'From the client Berlin Co. Pick another zone to override.',
@@ -413,13 +457,11 @@ it('labels pinned timezone options and shows a following hint until the user ove
     expect(
         options.filter((text) => text.includes('Europe/Berlin')),
     ).toHaveLength(1);
-    fireEvent.keyDown(document.activeElement ?? document.body, {
-        key: 'Escape',
-    });
+    await closePicker(zoneTrigger());
 
     // 3) Long client name falls back to generic "Client zone" badge while keeping the name in the hint.
     fireEvent.click(within(sheet).getByRole('combobox', { name: 'Sites' }));
-    fireEvent.click(screen.getByRole('option', { name: /Enterprise/ }));
+    fireEvent.click(await screen.findByRole('option', { name: /Enterprise/ }));
     expect(
         within(sheet).getByText(
             'From the client Very Long Agency Client Name GmbH. Pick another zone to override.',
@@ -431,9 +473,7 @@ it('labels pinned timezone options and shows a following hint until the user ove
         .map((option) => option.textContent ?? '');
     expect(options[0]).toContain('Asia/Tokyo');
     expect(options[0]).toContain('Client zone');
-    fireEvent.keyDown(document.activeElement ?? document.body, {
-        key: 'Escape',
-    });
+    await closePicker(zoneTrigger());
 
     // 4) Tag window shows "Your zone" hint and only pins viewer zone.
     fireEvent.click(within(sheet).getByRole('radio', { name: 'Tag' }));

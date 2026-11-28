@@ -1211,8 +1211,8 @@ const checkSchemas: Record<CheckKey, Heptapod.Contracts.Schema.Schema> = {
 export const addSitePage: Heptapod.Data.Ui.AddSitePageData = {
     can_create_site: false,
     timezones: ['UTC', 'Europe/Berlin'],
-    clients,
     selected_client_id: null,
+    only_client_id: null,
     checks: (Object.keys(checkTypes) as CheckKey[]).map((key) => ({
         key,
         label_key: checkTypes[key].label,

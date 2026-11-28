@@ -145,11 +145,12 @@ export function siteCreateDraft(
             if (fieldValue(safe)) settings[key] = safe;
         }
     }
-    const client_id = options.clients.some(
-        (client) => String(client.id) === input.client_id,
-    )
-        ? String(input.client_id)
-        : '';
+    // The client stays an id here; the page drops one the picker cannot name (gone or no longer visible).
+    const client_id =
+        typeof input.client_id === 'string' &&
+        /^[1-9][0-9]*$/.test(input.client_id)
+            ? input.client_id
+            : '';
     return {
         url,
         client_id,

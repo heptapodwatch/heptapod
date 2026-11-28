@@ -12,10 +12,10 @@ import { CalendarDays } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { RowActions } from '@/components/row-actions';
 import {
-    EntityCombobox,
-    clientComboboxOptions,
-    siteComboboxOptions,
-} from '@/components/entity-combobox';
+    SearchCombobox,
+    usePickerEntities,
+} from '@/components/search-combobox';
+import { Combobox } from '@/components/ui/combobox';
 import {
     TimezoneCombobox,
     type PinnedTimezone,
@@ -70,7 +70,7 @@ import {
 import { TextLink } from '@/components/text-link';
 
 type Window = Heptapod.Data.Ui.MaintenanceWindowData;
-type Target = Heptapod.Data.Ui.MaintenanceTargetOptionData;
+const targetScope = { archived: true };
 type Draft = {
     target_type: 'site' | 'client' | 'tag';
     target_id: string;
@@ -204,10 +204,8 @@ export default function MaintenanceIndex({
     filters,
     can_manage,
     timezones,
-    sites,
-    clients,
     tags,
-    filter_clients,
+    window_clients,
 }: Heptapod.Data.Ui.MaintenanceIndexPageData) {
     const values = filterValues(filters);
     const site_id = values.site_id ?? null;
@@ -217,19 +215,9 @@ export default function MaintenanceIndex({
     const { t, i18n } = useTranslation();
     const format = useFormat();
     const viewerTimezone = useViewerTimezone();
-    const targetTimezoneOf = (
-        targetType: Draft['target_type'],
-        targetId: string,
-    ): string | null => {
-        if (!targetId || targetType === 'tag') return null;
-        const pool = targetType === 'site' ? sites : clients;
-        return (
-            pool.find((item) => String(item.id) === targetId)?.timezone ?? null
-        );
-    };
     useLiveReload(
         ['state.changed'],
-        ['windows', 'next_page', 'previous_page', 'total'],
+        ['windows', 'window_clients', 'next_page', 'previous_page', 'total'],
         undefined,
         true,
         {
@@ -270,10 +258,8 @@ export default function MaintenanceIndex({
     const [timesEdited, setTimesEdited] = useState(false);
     const [draft, setDraft] = useState<Draft>(() => {
         if (sheetOpen && site_id !== null) {
-            const initialTimezone =
-                targetTimezoneOf('site', String(site_id)) ?? viewerTimezone;
             return {
-                ...freshDraft(initialTimezone),
+                ...freshDraft(viewerTimezone),
                 target_id: String(site_id),
             };
         }
@@ -312,20 +298,30 @@ export default function MaintenanceIndex({
         action: 'end_now' | 'cancel_occurrence' | 'cancel_series';
     } | null>(null);
     const rows = buffered.rows;
-    const choices: Target[] =
-        draft.target_type === 'site'
-            ? sites
-            : draft.target_type === 'client'
-              ? clients
-              : tags;
+    const targetId = /^[1-9][0-9]*$/.test(draft.target_id)
+        ? [Number(draft.target_id)]
+        : [];
+    // The chosen target with its zone and client, named by the picker or read once for a preselected site.
+    const siteTargets = usePickerEntities(
+        'sites',
+        draft.target_type === 'site' ? targetId : [],
+        targetScope,
+    );
+    const clientTargets = usePickerEntities(
+        'clients',
+        draft.target_type === 'client' ? targetId : [],
+        targetScope,
+    );
+    const [targetSite] = siteTargets.entities;
+    const [targetClient] = clientTargets.entities;
     const change = <K extends keyof Draft>(key: K, value: Draft[K]) =>
         setDraft((current) => ({ ...current, [key]: value }));
     const applyTarget = (
         targetType: Draft['target_type'],
         targetId: string,
+        targetTimezone: string | null,
     ) => {
-        const nextTimezone =
-            targetTimezoneOf(targetType, targetId) ?? viewerTimezone;
+        const nextTimezone = targetTimezone ?? viewerTimezone;
         setDraft((current) => {
             const updated: Draft = {
                 ...current,
@@ -404,19 +400,43 @@ export default function MaintenanceIndex({
         setEndsInvalid(false);
         setSheetOpen(true);
     };
-    const selectedTarget =
-        draft.target_id && draft.target_type !== 'tag'
-            ? ((draft.target_type === 'site' ? sites : clients).find(
-                  (item) => String(item.id) === draft.target_id,
-              ) ?? null)
-            : null;
-    const selectedTargetTimezone = selectedTarget?.timezone ?? null;
+    // A new window follows its target's zone until one is picked; the site header's preselected site is named only after the first render.
+    useEffect(() => {
+        if (
+            editing === null &&
+            !timezonePicked &&
+            targetSite &&
+            draft.target_type === 'site' &&
+            draft.target_id === String(targetSite.id) &&
+            draft.timezone !== targetSite.timezone
+        ) {
+            applyTarget('site', draft.target_id, targetSite.timezone);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [targetSite]);
+    const targetField = {
+        id: 'maintenance-target',
+        invalid: !!errors.target_id,
+        describedBy: fieldErrorProps('maintenance-target', errors.target_id)[
+            'aria-describedby'
+        ],
+        placeholder: t('Select target'),
+        value: draft.target_id,
+    };
+    const selectedTargetTimezone =
+        (draft.target_type === 'site'
+            ? targetSite?.timezone
+            : draft.target_type === 'client'
+              ? targetClient?.timezone
+              : null) ?? null;
     const selectedClientName =
-        selectedTarget && !selectedTarget.is_internal
-            ? draft.target_type === 'site'
-                ? selectedTarget.client_name
-                : selectedTarget.name
-            : null;
+        draft.target_type === 'site'
+            ? targetSite && !targetSite.client_is_internal
+                ? targetSite.client_name
+                : null
+            : targetClient && !targetClient.is_internal
+              ? targetClient.name
+              : null;
     const clientPinnedLabel =
         selectedClientName && selectedClientName.length <= 20
             ? t('timezone.pinned.client_named', { name: selectedClientName })
@@ -638,7 +658,12 @@ export default function MaintenanceIndex({
             />
             <ListFilterBar
                 filters={filters}
-                sources={{ clients: clientComboboxOptions(filter_clients) }}
+                sources={{
+                    clients: {
+                        kind: 'clients',
+                        scope: { archived: true, browse: true },
+                    },
+                }}
                 onChange={(changes) =>
                     router.get(
                         maintenanceIndex.url(),
@@ -741,7 +766,7 @@ export default function MaintenanceIndex({
                                     >
                                         <span className="flex items-center gap-2 truncate">
                                             {window.targetType === 'client' &&
-                                                filter_clients
+                                                window_clients
                                                     .filter(
                                                         (client) =>
                                                             client.id ===
@@ -915,7 +940,7 @@ export default function MaintenanceIndex({
                             )}
                             value={draft.target_type}
                             onValueChange={(value: Draft['target_type']) =>
-                                applyTarget(value, '')
+                                applyTarget(value, '', null)
                             }
                         >
                             <RadioGroupItem value="site">
@@ -943,31 +968,42 @@ export default function MaintenanceIndex({
                                       : 'Tags',
                             )}
                         </Label>
-                        <EntityCombobox
-                            id="maintenance-target"
-                            invalid={!!errors.target_id}
-                            describedBy={
-                                fieldErrorProps(
-                                    'maintenance-target',
-                                    errors.target_id,
-                                )['aria-describedby']
-                            }
-                            placeholder={t('Select target')}
-                            options={
-                                draft.target_type === 'site'
-                                    ? siteComboboxOptions(choices)
-                                    : draft.target_type === 'client'
-                                      ? clientComboboxOptions(choices)
-                                      : choices.map((choice) => ({
-                                            value: String(choice.id),
-                                            label: choice.name,
-                                        }))
-                            }
-                            value={draft.target_id}
-                            onValueChange={(value) =>
-                                applyTarget(draft.target_type, value)
-                            }
-                        />
+                        {draft.target_type === 'tag' ? (
+                            <Combobox
+                                {...targetField}
+                                options={tags.map((tag) => ({
+                                    value: String(tag.id),
+                                    label: tag.name,
+                                }))}
+                                onValueChange={(value) =>
+                                    applyTarget('tag', value, null)
+                                }
+                            />
+                        ) : (
+                            <SearchCombobox
+                                {...targetField}
+                                key={draft.target_type}
+                                kind={
+                                    draft.target_type === 'site'
+                                        ? 'sites'
+                                        : 'clients'
+                                }
+                                // Managers plan windows for archived clients and their sites too, as before.
+                                scope={targetScope}
+                                onValueChange={(value, entity) => {
+                                    if (entity && 'host' in entity) {
+                                        siteTargets.remember([entity]);
+                                    } else if (entity) {
+                                        clientTargets.remember([entity]);
+                                    }
+                                    applyTarget(
+                                        draft.target_type,
+                                        value,
+                                        entity?.timezone ?? null,
+                                    );
+                                }}
+                            />
+                        )}
                         {draft.target_id && draft.target_type !== 'site' && (
                             <p className="text-xs text-muted-foreground">
                                 {t(

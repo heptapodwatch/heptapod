@@ -137,7 +137,7 @@ final readonly class SiteDetailReader
             AlertSensitivityData::fromEffective(EffectiveAlertSensitivity::for($stored, $this->instanceSettings)),
             AlertSensitivityData::fromEffective(EffectiveAlertSensitivity::team($this->instanceSettings)),
             AlertSensitivityData::presets(), AlertSensitivity::bounds(), Lazy::inertia(fn (): int => $this->resultCount($user, $siteId)),
-            $this->maintenance($user, $siteId), $stored->icon_fetched_at?->toIso8601String(), $stored->icon_manual_result, $redirectTarget, $redirectSummary, $this->sites->clientChoices($user), \DateTimeZone::listIdentifiers(),
+            $this->maintenance($user, $siteId), $stored->icon_fetched_at?->toIso8601String(), $stored->icon_manual_result, $redirectTarget, $redirectSummary, \DateTimeZone::listIdentifiers(),
             $this->checkSettings($site, $checks, static fn (Check $check): bool => Gate::forUser($user)->allows('update', $check)),
             array_map(fn (CheckKey $key): CheckOptionData => CheckOptionData::fromType($this->registry->get($key)), $this->registry->keys()),
             SiteRepositoryData::forSite($siteId), $this->siteServers($user)?->choices($siteId));

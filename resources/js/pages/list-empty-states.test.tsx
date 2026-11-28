@@ -358,7 +358,6 @@ function activity(values: { q?: string; check?: string; period?: string }) {
             events={{ data: [] }}
             head={undefined}
             retention_days={90}
-            clients={[]}
             filters={{
                 q: listFilter('search', 'Filter by site or client', {
                     value: values.q ?? null,
@@ -403,7 +402,6 @@ function runs(values: Record<string, string | null>) {
             finished={[]}
             runs={[]}
             next_cursor={null}
-            clients={[]}
             filters={{
                 type: listFilter('select', 'Check type', {
                     value: values.type ?? null,
@@ -489,10 +487,8 @@ function maintenance(changes: {
             }}
             can_manage={changes.can_manage ?? true}
             timezones={['UTC']}
-            sites={[]}
-            clients={[]}
             tags={[]}
-            filter_clients={[]}
+            window_clients={[]}
         />,
     );
 }

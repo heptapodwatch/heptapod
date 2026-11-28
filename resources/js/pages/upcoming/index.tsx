@@ -16,7 +16,6 @@ import { CalendarDays } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ListFooter } from '@/components/list-footer';
 import { EmptyState } from '@/components/empty-state';
-import { clientComboboxOptions } from '@/components/entity-combobox';
 import { PageHeader } from '@/components/page-header';
 import { PageContainer } from '@/components/page-container';
 import { ListHeader, ListRow } from '@/components/ui/table';
@@ -91,7 +90,9 @@ export default function Upcoming({
             />
             <ListFilterBar
                 filters={filters}
-                sources={{ clients: clientComboboxOptions(clients) }}
+                sources={{
+                    clients: { kind: 'clients', scope: { browse: true } },
+                }}
                 onChange={apply}
                 onClearFilters={() => apply(filterDefaults(filters))}
             />

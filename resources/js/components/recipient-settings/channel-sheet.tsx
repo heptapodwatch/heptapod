@@ -23,7 +23,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { siteComboboxOptions } from '@/components/entity-combobox';
+import { SearchMultiCombobox } from '@/components/search-combobox';
 import {
     ChannelConnectionFields,
     useChannelForm,
@@ -49,7 +49,6 @@ import { SectionHeading } from '@/components/section-heading';
 import { SheetForm } from '@/components/sheet-form';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { MultiCombobox } from '@/components/ui/combobox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Sheet } from '@/components/ui/sheet';
 import {
@@ -121,9 +120,20 @@ export function ChannelSheet({
         pause.processing ||
         removal.processing;
     const paused = channel.status === 'paused';
-    const labels = siteIdentities(page.sites);
-    const siteName = (siteId: number) =>
-        labels.get(siteId)?.label ?? t('recipient_settings.unknown_site');
+    const labels = siteIdentities(page.muted_sites);
+    // The channel sentence names a site picked in this sheet with its stable detail until a save names it among the muted ones.
+    const [picked, setPicked] = useState<
+        ReadonlyMap<number, Heptapod.Data.Ui.PickerSiteData>
+    >(() => new Map());
+    const siteName = (siteId: number) => {
+        const site = picked.get(siteId);
+        return (
+            labels.get(siteId)?.label ??
+            (site
+                ? `${site.name} (${site.detail})`
+                : t('recipient_settings.unknown_site'))
+        );
+    };
     const changedCells = Object.keys(grid).filter(
         (category) => grid[category] !== saved[category],
     );
@@ -641,27 +651,31 @@ export function ChannelSheet({
                     <SectionHeading level={3}>
                         {t('recipient_settings.mutes.title')}
                     </SectionHeading>
-                    <MultiCombobox
+                    <SearchMultiCombobox
+                        kind="sites"
+                        scope={
+                            page.recipient_kind === 'client' &&
+                            page.recipient_id !== null
+                                ? // A client's own exceptions include its sites while it is archived, as before.
+                                  { client: page.recipient_id, archived: true }
+                                : {}
+                        }
                         ariaLabel={t('recipient_settings.mutes.picker')}
                         values={siteIds.map(String)}
                         disabled={busy}
                         placeholder={t('recipient_settings.mutes.placeholder')}
-                        onValuesChange={(values) =>
-                            setSiteIds(values.map(Number))
-                        }
-                        options={siteComboboxOptions(page.sites).map(
-                            (option) => {
-                                const identity = labels.get(
-                                    Number(option.value),
-                                )!;
-                                return {
-                                    ...option,
-                                    secondary: identity.detail,
-                                    searchText: identity.detail,
-                                    selectedLabel: identity.label,
-                                };
-                            },
-                        )}
+                        onValuesChange={(values, sites) => {
+                            setPicked(
+                                (current) =>
+                                    new Map([
+                                        ...current,
+                                        ...sites.map(
+                                            (site) => [site.id, site] as const,
+                                        ),
+                                    ]),
+                            );
+                            setSiteIds(values.map(Number));
+                        }}
                     />
                 </div>
                 <InputError message={error} />

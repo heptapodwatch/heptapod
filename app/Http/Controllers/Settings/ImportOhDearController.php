@@ -32,11 +32,11 @@ final class ImportOhDearController extends Controller
     public function edit(Request $request): Response
     {
         $this->operator($request);
-        $clients = Client::query()->with(Client::AvatarRelations);
-        $clients->getQuery()->whereNull('archived_at')->orderByDesc('is_internal')->orderBy('name');
+        $internal = Client::query()->with(Client::AvatarRelations);
+        $internal->getQuery()->where('is_internal', true);
 
         return Inertia::render('settings/import-ohdear', new ImportOhDearPageData(
-            clients: array_values($clients->get()->map(static fn (Client $client): ClientData => ClientData::fromClient($client))->all()),
+            internal_client: ClientData::fromClient($internal->firstOrFail()),
             timezones: \DateTimeZone::listIdentifiers(),
             sections: ImportSection::cases(),
             plan_page_size: ListPageSize::resolve($request, 'import_plan_rows'),

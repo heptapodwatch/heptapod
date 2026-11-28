@@ -163,7 +163,7 @@ for (const file of [
             // data-driven comment no longer exempts a plain Select (L2 rule).
             if (commentOf('data-driven') && !exception)
                 failures.push(
-                    `${file}:${line}: data-driven form Select must use the searchable Combobox (TimezoneCombobox/EntityCombobox/FilterCombobox), not a plain Select`,
+                    `${file}:${line}: data-driven form Select must use the searchable Combobox (TimezoneCombobox/SearchCombobox/FilterCombobox), not a plain Select`,
                 );
             if (!Number.isFinite(count) && !exception && !namedException)
                 failures.push(

@@ -109,11 +109,14 @@ export function Combobox({
     required = false,
     notice,
     onOpenChange,
+    onQueryChange,
 }: {
     id?: string;
     options: ComboboxOption[];
     value: string;
     onValueChange: (value: string) => void;
+    /** Options found by a search on the server: each query change is reported and the options are shown as given. */
+    onQueryChange?: (query: string) => void;
     /** Muted line below the options, e.g. that a capped list omits entries. */
     notice?: string;
     create?: ComboboxCreate;
@@ -132,10 +135,16 @@ export function Combobox({
     const [query, setQuery] = useState('');
     const selected = options.find((option) => option.value === value);
     const name = query.trim();
-    const matching = options.filter((option) => matches(option, name));
+    const matching = onQueryChange
+        ? options
+        : options.filter((option) => matches(option, name));
+    const changeQuery = (next: string) => {
+        setQuery(next);
+        onQueryChange?.(next);
+    };
     const setOpened = (next: boolean) => {
         setOpen(next);
-        setQuery('');
+        changeQuery('');
         onOpenChange?.(next);
     };
     const select = (option: ComboboxOption) => {
@@ -187,7 +196,7 @@ export function Combobox({
                             aria-label={t('combobox.search')}
                             placeholder={t('combobox.search')}
                             value={query}
-                            onValueChange={setQuery}
+                            onValueChange={changeQuery}
                         />
                         {/* Only the options scroll; the Create entry stays pinned below them, still inside the list so arrow keys reach it last. */}
                         <CommandList
@@ -220,7 +229,7 @@ export function Combobox({
                                     <CommandItem
                                         value="__create__"
                                         onSelect={() => {
-                                            setOpen(false);
+                                            setOpened(false);
                                             create.onCreate(name);
                                         }}
                                     >
@@ -255,6 +264,8 @@ export function MultiCombobox({
     ariaLabel,
     labelledBy,
     onQueryChange,
+    notice,
+    onOpenChange,
 }: {
     id?: string;
     options: ComboboxOption[];
@@ -268,6 +279,9 @@ export function MultiCombobox({
     labelledBy?: string;
     /** Options found by a search on the server: each query change is reported and the options are shown as given. */
     onQueryChange?: (query: string) => void;
+    /** Muted line below the options, e.g. that a capped list omits entries. */
+    notice?: string;
+    onOpenChange?: (open: boolean) => void;
 }) {
     const { t } = useTranslation();
     const popupId = useId();
@@ -276,6 +290,12 @@ export function MultiCombobox({
     const changeQuery = (next: string) => {
         setQuery(next);
         onQueryChange?.(next);
+    };
+    // The one open path for click and keyboard, so a server-searched picker always learns it opened.
+    const setOpened = (next: boolean) => {
+        setOpen(next);
+        changeQuery('');
+        onOpenChange?.(next);
     };
     const name = query.trim();
     const matching = onQueryChange
@@ -292,13 +312,7 @@ export function MultiCombobox({
         );
     return (
         <div className="space-y-2">
-            <Popover.Root
-                open={open}
-                onOpenChange={(next) => {
-                    setOpen(next);
-                    changeQuery('');
-                }}
-            >
+            <Popover.Root open={open} onOpenChange={setOpened}>
                 <Popover.Trigger
                     id={id}
                     type="button"
@@ -315,7 +329,7 @@ export function MultiCombobox({
                     onKeyDown={(event) => {
                         if (event.key === 'ArrowDown') {
                             event.preventDefault();
-                            setOpen(true);
+                            setOpened(true);
                         }
                     }}
                 >
@@ -365,6 +379,11 @@ export function MultiCombobox({
                                     </CommandGroup>
                                 ))}
                             </CommandList>
+                            {notice && (
+                                <p className="border-t px-3 py-2 text-xs text-muted-foreground">
+                                    {notice}
+                                </p>
+                            )}
                         </Command>
                     </Popover.Content>
                 </Popover.Portal>

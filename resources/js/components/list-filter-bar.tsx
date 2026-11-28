@@ -8,6 +8,7 @@ import {
     FilterCombobox,
     FilterSelectTrigger,
 } from '@/components/filter-bar';
+import type { SearchedSource } from '@/components/search-combobox';
 import { SegmentedControl } from '@/components/segmented-control';
 import { CheckboxField } from '@/components/ui/checkbox';
 import type { ComboboxOption } from '@/components/ui/combobox';
@@ -31,6 +32,7 @@ const placeFilter = {
     history: () => 'history',
 } satisfies Record<FilterSlot, (kind: FilterKind) => Placement>;
 type Change = (changes: Record<string, string | null>) => void;
+type Source = ComboboxOption[] | SearchedSource;
 
 type ControlProps = {
     filter: Filter;
@@ -38,6 +40,7 @@ type ControlProps = {
     label: string;
     options: ComboboxOption[];
     fixedOptions: ComboboxOption[];
+    search?: SearchedSource;
     disabled: boolean;
     describedBy?: string;
     notice?: string;
@@ -80,6 +83,8 @@ const renderControl = {
         filter,
         label,
         options,
+        fixedOptions,
+        search,
         disabled,
         describedBy,
         notice,
@@ -87,6 +92,8 @@ const renderControl = {
     }) => (
         <FilterCombobox
             notice={notice}
+            search={search}
+            leadingOptions={fixedOptions}
             ariaLabel={label}
             disabled={disabled}
             describedBy={describedBy}
@@ -200,7 +207,7 @@ export function filterDefaults(filters: ListFilters) {
 type Controls = {
     filters: ListFilters;
     onChange: Change;
-    sources?: Record<string, ComboboxOption[]>;
+    sources?: Record<string, Source>;
     disabledReason?: { id: string; label: string };
     count?: number;
     optionNotices?: Record<string, string>;
@@ -255,13 +262,15 @@ function FilterControls({
                         : t(label),
             })),
         ];
+        const search = Array.isArray(source) ? undefined : source;
+        const listed = Array.isArray(source) ? source : [];
         const options = [
             ...fixedOptions,
-            ...source,
+            ...listed,
             ...(selected.prefix !== null &&
             selected.value !== null &&
             filter.value !== null &&
-            !source.some(({ value }) => value === filter.value)
+            !listed.some(({ value }) => value === filter.value)
                 ? [{ value: filter.value, label: selected.value }]
                 : []),
         ];
@@ -273,6 +282,7 @@ function FilterControls({
                     label: t(filter.label),
                     options,
                     fixedOptions,
+                    search,
                     disabled,
                     describedBy: disabled ? disabledReason?.id : undefined,
                     notice:

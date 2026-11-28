@@ -250,6 +250,7 @@
     "sites.client_archived": "Dieser Kunde ist archiviert. Wählen Sie einen aktiven Kunden.",
     "sites.client_alerts_pending": "Benachrichtigungen für diese Website werden noch versendet; versuchen Sie es in einigen Minuten erneut.",
     "sites.client_move_help": "Beim Speichern enden offene Störungen, der Website-Verlauf wird übertragen und Zugriffsrechte, Alarmregeln und Wartung des neuen Kunden gelten; bisherige tägliche Zusammenfassungen enden, und schlägt die Website weiterhin fehl, wird eine neue Störung geöffnet.",
+    "sites.client_unavailable": "Dieser Kunde ist nicht mehr verfügbar. Wählen Sie einen anderen Kunden.",
     "sites.client_move_help.detail": "Die neuen Regeln greifen bei der nächsten Zustandsänderung.",
     "Password, passkeys and two-factor authentication are in": "Passwort, Passkeys und Zwei-Faktor-Authentifizierung finden Sie unter",
     "Queue depth appears here once the environment defines queues.": "Die Warteschlangentiefe erscheint hier, sobald die Umgebung Warteschlangen definiert.",

@@ -1,7 +1,6 @@
-import type { ComponentProps } from 'react';
 import { ClientMark } from '@/components/client-mark';
 import { SiteAvatar } from '@/components/site-avatar';
-import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
+import type { ComboboxOption } from '@/components/ui/combobox';
 
 export function siteHost(url: string): string {
     try {
@@ -19,6 +18,8 @@ type SiteLike = {
     url?: string;
     icon_url?: string | null;
     icon_backing?: Heptapod.Enums.SiteIconBacking;
+    /** Client · address without scheme, unique to the site: the second line and, with the name, its chip. */
+    detail?: string;
 };
 
 type ClientLike = {
@@ -30,16 +31,20 @@ type ClientLike = {
     is_internal?: boolean;
 };
 
-/** Site rows are identifiable when names collide: avatar + name, then client · host (list rows and trigger tooltip). */
+/** Site rows are identifiable when names collide: avatar + name, then client · host or the deciding detail (list rows and trigger tooltip). */
 export function siteComboboxOptions(sites: SiteLike[]): ComboboxOption[] {
     return sites.map((site) => {
         const host = site.host ?? (site.url ? siteHost(site.url) : null);
         const secondary =
-            [site.client_name, host].filter(Boolean).join(' · ') || undefined;
+            site.detail ??
+            ([site.client_name, host].filter(Boolean).join(' · ') || undefined);
         return {
             value: String(site.id),
             label: site.name,
             secondary,
+            selectedLabel: site.detail
+                ? `${site.name} (${site.detail})`
+                : undefined,
             searchText: secondary,
             mark: (
                 <SiteAvatar
@@ -70,13 +75,4 @@ export function clientComboboxOptions(clients: ClientLike[]): ComboboxOption[] {
             />
         ) : undefined,
     }));
-}
-
-/** One entity picker for sites, clients and tags, on the shared searchable Combobox. */
-export function EntityCombobox(
-    props: Omit<ComponentProps<typeof Combobox>, 'options'> & {
-        options: ComboboxOption[];
-    },
-) {
-    return <Combobox {...props} />;
 }

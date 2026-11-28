@@ -84,7 +84,7 @@ export function RecipientSettings({
     const [adding, setAdding] = useState(false);
     const open = page.channels.find((channel) => channel.id === openId);
     const reload = () => router.reload({ only: ['settings'] });
-    const labels = siteIdentities(page.sites);
+    const labels = siteIdentities(page.muted_sites);
     const siteName = (siteId: number) =>
         labels.get(siteId)?.label ?? t('recipient_settings.unknown_site');
     return (

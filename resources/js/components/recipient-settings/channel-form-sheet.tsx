@@ -2,7 +2,7 @@ import { LanguageSelect } from '@/components/language-select';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { clientComboboxOptions } from '@/components/entity-combobox';
+import { SearchCombobox } from '@/components/search-combobox';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import type {
     Channel,
@@ -457,7 +457,8 @@ export function ChannelConnectionFields({
                     <Label htmlFor={`${id}-scope`}>
                         {t('recipient_settings.scope.label')}
                     </Label>
-                    <Combobox
+                    <SearchCombobox
+                        kind="clients"
                         id={`${id}-scope`}
                         invalid={!!form.errors.scope_client_id}
                         describedBy={
@@ -479,12 +480,11 @@ export function ChannelConnectionFields({
                                     : Number(value),
                             )
                         }
-                        options={[
+                        leadingOptions={[
                             {
                                 value: emptySelectValue,
                                 label: t('recipient_settings.scope.all'),
                             },
-                            ...clientComboboxOptions(page.clients),
                         ]}
                     />
                     <InputError

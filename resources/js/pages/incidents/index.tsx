@@ -15,7 +15,6 @@ import { cn } from '@/lib/utils';
 import { SiteAvatar } from '@/components/site-avatar';
 import { CircleAlert } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
-import { clientComboboxOptions } from '@/components/entity-combobox';
 import {
     listCardPadding,
     rowEmphasisClass,
@@ -242,7 +241,9 @@ export default function IncidentsIndex({
             />
             <ListFilterBar
                 filters={filters}
-                sources={{ clients: clientComboboxOptions(clients) }}
+                sources={{
+                    clients: { kind: 'clients', scope: { browse: true } },
+                }}
                 count={openCount}
                 onChange={apply}
                 onClearFilters={() => router.get(incidentsIndex.url())}
