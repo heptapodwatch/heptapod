@@ -23,6 +23,7 @@ use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
+use Heptapod\Contracts\StagedSnapshots;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Validator;
@@ -177,11 +178,7 @@ final readonly class SitemapPersistence implements FindingsExportProvider, Findi
         // The compatibility projection remains capped; the complete rows were assembled before this slice.
         $snapshot['not_verifiable'] = array_slice($snapshot['not_verifiable'] ?? [], 0, 50);
         DB::transaction(function () use ($context, $snapshot, $comparisonIssues, $coverage, $comparisonKey, $findingRows): void {
-            $existing = DB::table('sitemap_snapshots')->where('run_id', $context->runId)->where('claim_token', $context->claimToken)->lockForUpdate()->first();
-            if ($existing !== null && $existing->run_ended_at !== null) {
-                throw new \LogicException('Cannot stage an accepted sitemap snapshot.');
-            }
-            DB::table('sitemap_snapshots')->updateOrInsert(['run_id' => $context->runId, 'claim_token' => $context->claimToken], [
+            StagedSnapshots::stage('sitemap_snapshots', $context, [
                 'site_id' => $context->siteId, 'check_id' => $context->checkId,
                 'snapshot' => json_encode($snapshot, JSON_THROW_ON_ERROR),
                 'comparison_issues' => $comparisonIssues === null ? null : json_encode($comparisonIssues, JSON_THROW_ON_ERROR),
@@ -203,21 +200,8 @@ final readonly class SitemapPersistence implements FindingsExportProvider, Findi
 
     public function finalize(RunReference $run, string $claimToken): void
     {
-        $query = DB::table('sitemap_snapshots')->where('run_id', $run->id)->where('claim_token', $claimToken);
-        $row = $query->lockForUpdate()->first();
         // Accepted transport errors can have no staged snapshot.
-        if ($row === null) {
-            return;
-        }
-        /** @var \stdClass&object{run_ended_at: string|null} $row */
-        if ($row->run_ended_at !== null) {
-            if (! CarbonImmutable::parse($row->run_ended_at)->eq($run->endedAt)) {
-                throw new \LogicException('Sitemap attempt finalized for a different run timestamp.');
-            }
-
-            return;
-        }
-        $query->update(['run_ended_at' => $run->endedAt->format('Y-m-d H:i:s.uP')]);
+        StagedSnapshots::finalize('sitemap_snapshots', $run, $claimToken);
     }
 
     /** @return array{run_id: int, issues: list<array{url: string, type: string, kind?: string, status?: int|null, xml_reason?: string, xml_line?: int, xml_element?: string}>}|null */
@@ -385,20 +369,10 @@ final readonly class SitemapPersistence implements FindingsExportProvider, Findi
     public function purgeCheck(int $checkId, int $limit): int
     {
         // Findings before their snapshots, finished ones only.
-        $statements = [
-            'DELETE FROM sitemap_findings WHERE ctid = ANY(ARRAY(SELECT ctid FROM sitemap_findings
-                WHERE snapshot_id IN (SELECT id FROM sitemap_snapshots WHERE check_id = ? AND run_ended_at IS NOT NULL) LIMIT ?))',
-            'DELETE FROM sitemap_snapshots WHERE ctid = ANY(ARRAY(SELECT ctid FROM sitemap_snapshots
-                WHERE check_id = ? AND run_ended_at IS NOT NULL ORDER BY run_ended_at, run_id LIMIT ?))',
-        ];
-        foreach ($statements as $statement) {
-            $deleted = DB::delete($statement, [$checkId, $limit]);
-            if ($deleted > 0) {
-                return $deleted;
-            }
-        }
+        $findings = DB::delete('DELETE FROM sitemap_findings WHERE ctid = ANY(ARRAY(SELECT ctid FROM sitemap_findings
+            WHERE snapshot_id IN (SELECT id FROM sitemap_snapshots WHERE check_id = ? AND run_ended_at IS NOT NULL) LIMIT ?))', [$checkId, $limit]);
 
-        return 0;
+        return $findings > 0 ? $findings : StagedSnapshots::purge('sitemap_snapshots', $checkId, $limit);
     }
 
     public function prunedTables(): array
@@ -417,6 +391,6 @@ final readonly class SitemapPersistence implements FindingsExportProvider, Findi
 
     public function discard(int $runId, string $claimToken): void
     {
-        DB::table('sitemap_snapshots')->where('run_id', $runId)->where('claim_token', $claimToken)->whereNull('run_ended_at')->delete();
+        StagedSnapshots::discard('sitemap_snapshots', $runId, $claimToken);
     }
 }
