@@ -27,7 +27,7 @@ final readonly class UpdateRecurringMaintenancePeriod
             $validated = $this->attributes->validate(array_replace($period->toArray(),
                 ['anchor_date' => $period->anchor_date?->format('Y-m-d')], $changes));
             $targetType = $validated['target_type'] ?? $period->target_type;
-            $targetId = $validated['target_id'] ?? $period->target_id ?? $period->site_id;
+            $targetId = $validated['target_id'] ?? $period->target_id;
             $affectedClientIds = $this->targets->clientIdsForWindow($period);
             $period->update([...$validated, 'target_type' => $targetType, 'target_id' => $targetId,
                 'site_id' => $targetType === 'site' ? $targetId : null]);

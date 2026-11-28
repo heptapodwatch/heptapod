@@ -62,7 +62,7 @@ final readonly class MaintenanceReader
                 throw new \LogicException('Maintenance page contains an invalid window.');
             }
 
-            return $window->target_id ?? $window->site_id ?? throw new \LogicException('Site target is missing.');
+            return $window->target_id;
         })->all());
         $siteLabels = $sites->get()->mapWithKeys(static fn (Site $site): array => [$site->id => $site->displayName()]);
         $clients = Client::query();
@@ -87,7 +87,7 @@ final readonly class MaintenanceReader
                 'planned' => ['update', 'cancel_occurrence', ...($recurrence === null ? [] : ['cancel_series'])],
                 default => [],
             } : [];
-            $id = $window->target_id ?? $window->site_id ?? throw new \LogicException('Maintenance target is missing.');
+            $id = $window->target_id;
             if ($id < 1) {
                 throw new \LogicException('Maintenance target ID must be positive.');
             }

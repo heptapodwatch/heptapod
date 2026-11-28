@@ -77,7 +77,7 @@ it('keeps Maintenance visibility while excluding paused deleting and disabled ad
     $owner->assignRole('Owner');
     $active = Site::factory()->create();
     $paused = Site::factory()->create(['paused_at' => now()]);
-    $deleting = Site::factory()->create(['marked_for_deletion_at' => now()]);
+    $deleting = Site::factory()->create(['paused_at' => now(), 'marked_for_deletion_at' => now()]);
     $enabled = Check::factory()->for($active)->create(['type' => CheckKey::Domain]);
     $disabled = Check::factory()->for($active)->create(['type' => CheckKey::CertificateHealth, 'enabled' => false]);
     DB::table('domain_snapshots')->insert(['site_id' => $active->id, 'check_id' => $enabled->id, 'run_id' => $enabled->id, 'claim_token' => (string) Str::uuid(), 'run_ended_at' => now(), 'snapshot' => json_encode(['expires_at' => '2026-10-10T00:30:00Z'], JSON_THROW_ON_ERROR), 'created_at' => now()]);

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\CancelCheckRun;
 use Heptapod\Checks\Execution\ClaimService;
 use Heptapod\Checks\Execution\ExecutionBudget;
 use Heptapod\Checks\Execution\RunOrigin;
@@ -40,7 +41,7 @@ it('bounds batches and rejects inactive sites and live leases', function (): voi
     $enabled = Check::factory()->count(3)->create(['next_run_at' => now()->subMinute()]);
     $disabled = Check::factory()->create(['enabled' => false]);
     $paused = Check::factory()->for(Site::factory()->state(['paused_at' => now()]))->create();
-    $deleting = Check::factory()->for(Site::factory()->state(['marked_for_deletion_at' => now()]))->create();
+    $deleting = Check::factory()->for(Site::factory()->state(['paused_at' => now(), 'marked_for_deletion_at' => now()]))->create();
     $live = Check::factory()->create(['claim_token' => (string) Str::uuid(), 'lease_expires_at' => now()->addMinutes(5)]);
 
     expect(app(ClaimService::class)->dispatchDue(2))->toBe(2)
@@ -122,6 +123,13 @@ it('bounds overdue gap re-spread per tick, prioritizes uptime checks and continu
         'interval_seconds' => 60,
         'next_run_at' => $overdueAt,
     ]);
+    // A queued manual run cancelled before the outage leaves an ordinary check, which then waits for recovery like the others.
+    $this->travelTo($overdueAt->copy()->subMinute());
+    $cancelled = Check::factory()->create(['type' => CheckKey::BrokenLinks, 'interval_seconds' => 3600, 'next_run_at' => $overdueAt]);
+    app(ClaimService::class)->runNow($cancelled->id, RunOrigin::System);
+    app(CancelCheckRun::class)($cancelled);
+    $this->travelTo(CarbonImmutable::parse('2026-10-28T12:00:00Z'));
+    expect($cancelled->refresh()->claim_token)->toBeNull()->and($cancelled->next_run_at->equalTo($overdueAt))->toBeTrue();
 
     $stillOverdue = static fn (): int => Check::query()
         ->whereIn('id', $nonUptime->pluck('id'))
@@ -133,6 +141,7 @@ it('bounds overdue gap re-spread per tick, prioritizes uptime checks and continu
     expect(DB::table('dispatcher_heartbeats')->where('id', gethostname().':'.getmypid())->exists())->toBeTrue()
         ->and(Check::query()->whereIn('id', $uptime->pluck('id'))->whereNotNull('claim_token')->count())->toBe(2)
         ->and(Check::query()->whereIn('id', $nonUptime->pluck('id'))->whereNotNull('claim_token')->count())->toBe(0)
+        ->and($cancelled->refresh()->claim_token)->toBeNull()
         ->and($stillOverdue())->toBe(15);
 
     // Tick 2: continues gap recovery even though the heartbeat is now fresh.
@@ -140,7 +149,8 @@ it('bounds overdue gap re-spread per tick, prioritizes uptime checks and continu
     expect($stillOverdue())->toBe(5)
         ->and(Check::query()->whereIn('id', $nonUptime->pluck('id'))->whereNotNull('claim_token')->count())->toBe(0);
 
-    // Tick 3: finishes the remaining 5 overdue checks.
+    // Tick 3: finishes the remaining 5 overdue checks and re-spreads the cancelled one.
     $this->artisan('heptapod:dispatch', ['--once' => true, '--batch' => 10])->assertSuccessful();
-    expect($stillOverdue())->toBe(0);
+    expect($stillOverdue())->toBe(0)
+        ->and($cancelled->refresh()->next_run_at->greaterThan($overdueAt))->toBeTrue();
 });

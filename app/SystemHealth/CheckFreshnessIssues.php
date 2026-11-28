@@ -51,11 +51,8 @@ final readonly class CheckFreshnessIssues
         /** @var non-empty-array<string, array{min_seconds: int, max_seconds: int}> $queues Validated at boot. */
         $queues = config()->array('heptapod.freshness.queues');
         $minimum = min(array_column($queues, 'min_seconds'));
-        $query = Check::query()->with('site');
-        $query->getQuery()->select('checks.*')->join('sites', 'sites.id', '=', 'checks.site_id')
-            ->whereNotNull('checks.awaiting_result_since')->where('checks.awaiting_result_since', '<', $now->subSeconds($minimum))
-            ->where('checks.enabled', true)->whereNull('sites.paused_at')->whereNull('sites.marked_for_deletion_at')
-            ->whereNotIn('checks.type', $this->registry->unavailableKeys());
+        $query = Check::active()->with('site');
+        $query->getQuery()->whereNotNull('checks.awaiting_result_since')->where('checks.awaiting_result_since', '<', $now->subSeconds($minimum));
 
         return $query;
     }
@@ -99,7 +96,7 @@ final readonly class CheckFreshnessIssues
         if ($check === null) {
             return 'check_deleted';
         }
-        if (! $this->freshness->expected($check)) {
+        if (! $check->isActive()) {
             return 'monitoring_stopped';
         }
         $awaitingSince = $issue->details['awaiting_result_since'] ?? null;

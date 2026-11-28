@@ -127,7 +127,7 @@ final class SitePolicy
     {
         /** @var list<int> $ids */
         $ids = $this->visibleSites($user)->getQuery()
-            ->whereNull('sites.paused_at')->whereNull('sites.marked_for_deletion_at')->pluck('sites.id')->all();
+            ->whereNull('sites.paused_at')->pluck('sites.id')->all();
 
         return $ids;
     }

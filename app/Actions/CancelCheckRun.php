@@ -31,8 +31,7 @@ final readonly class CancelCheckRun
             $attempt->update(['cancel_requested_at' => now()]);
             if ($attempt->phase === RunPhase::Queued) {
                 $attempt->update(['phase' => RunPhase::Cancelled, 'finished_at' => now(), 'note' => 'cancelled']);
-                $current->update(['awaiting_result_since' => null, 'lost_attempts' => 0, 'last_loss_started_at' => null, 'claim_token' => null, 'dispatched_at' => null, 'lease_expires_at' => null,
-                    'run_started_at' => null, 'active_run_id' => null, 'run_headers' => null]);
+                $current->releaseClaim();
                 $cleared = CheckPending::clear($current);
                 $site = $current->site()->getQuery()->firstOrFail();
                 LiveSignal::forRun('run.finished', $site, $current->id, $attempt->origin, actor: $attempt->actor?->name, outcome: RunPhase::Cancelled, attemptId: $attempt->id);

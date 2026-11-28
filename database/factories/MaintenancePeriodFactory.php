@@ -16,6 +16,6 @@ class MaintenancePeriodFactory extends Factory
 
     public function definition(): array
     {
-        return ['site_id' => Site::factory(), 'name' => fake()->word(), 'starts_at' => now(), 'ends_at' => now()->addHour()];
+        return ['site_id' => Site::factory(), 'target_id' => static fn (array $attributes): mixed => $attributes['site_id'], 'name' => fake()->word(), 'starts_at' => now(), 'ends_at' => now()->addHour()];
     }
 }

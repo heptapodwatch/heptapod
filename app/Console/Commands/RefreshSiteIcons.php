@@ -22,7 +22,7 @@ final class RefreshSiteIcons extends Command
         $sites = Site::query()->whereHas('client', static function (Builder $query): void {
             $query->getQuery()->whereNull('archived_at');
         });
-        $sites->getQuery()->whereNull('paused_at')->whereNull('marked_for_deletion_at')
+        $sites->getQuery()->whereNull('paused_at')
             ->where(static fn (QueryBuilder $query): QueryBuilder => $query->whereNull('icon_attempted_at')->orWhere('icon_attempted_at', '<=', now()->subWeek()));
         $sites->chunkById(100, static function (Collection $sites): void {
             foreach ($sites as $site) {

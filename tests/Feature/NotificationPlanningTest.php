@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Heptapod\Actions\ClaimNotificationDelivery;
-use Heptapod\Actions\CreateEmailDestination;
 use Heptapod\Actions\EmitNotificationDigests;
 use Heptapod\Actions\EnsureAccountChannel;
+use Heptapod\Actions\Notifications\SaveNotificationChannel;
 use Heptapod\Actions\PlanNotificationEvent;
 use Heptapod\Actions\SetNotificationDestinationEnabled;
 use Heptapod\Actions\UpdateProfile;
@@ -125,7 +125,7 @@ it('separates Failure from Check error and an expiring domain from other warning
 
 it('keeps Changes off by default for team and user channels and routes them once turned on', function (): void {
     $member = User::factory()->member()->create();
-    $team = app(CreateEmailDestination::class)(['address' => 'team@example.test', 'label' => 'Team', 'locale' => 'en']);
+    $team = app(SaveNotificationChannel::class)->add(RecipientKind::Team, null, null, ['channel' => 'mail', 'label' => 'Team', 'locale' => 'en', 'config' => ['email' => 'team@example.test']]);
     $account = app(EnsureAccountChannel::class)($member);
     $check = Check::factory()->create(['type' => CheckKey::Dns]);
     $changed = Event::factory()->create(['check_id' => $check->id, 'type' => 'dns.records_changed', 'from_result' => CheckResult::Succeeded,

@@ -106,7 +106,7 @@ final class ReviewStatesSeeder extends Seeder
                         $this->evaluate($check, $now->subMinute(), new CheckOutcome(RunResult::Errored, 'checks.engine.errored', [], null,
                             error: new CheckError(\RuntimeException::class, 'Review worker unavailable')));
                     } elseif ($state === 'maintenance') {
-                        MaintenancePeriod::query()->create(['site_id' => $site->id, 'name' => 'Review maintenance', 'starts_at' => $now->subMinute(), 'ends_at' => $now->addDay()]);
+                        MaintenancePeriod::query()->create(['site_id' => $site->id, 'target_id' => $site->id, 'name' => 'Review maintenance', 'starts_at' => $now->subMinute(), 'ends_at' => $now->addDay()]);
                     } elseif ($state === 'paused') {
                         app(PauseSite::class)($site);
                     }

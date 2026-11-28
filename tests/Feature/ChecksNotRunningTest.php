@@ -58,7 +58,7 @@ it('suppresses the issue when nothing should finish', function (string $scenario
     match ($scenario) {
         'paused' => $check->site->update(['paused_at' => now()]),
         'disabled' => $check->update(['enabled' => false]),
-        'deleting' => $check->site->update(['marked_for_deletion_at' => now()]),
+        'deleting' => $check->site->update(['paused_at' => now(), 'marked_for_deletion_at' => now()]),
         'daily between runs' => $check->update(['interval_seconds' => 86400, 'next_run_at' => now()->addHours(23)]),
         'maintenance' => $this->artisan('down')->assertSuccessful(),
     };

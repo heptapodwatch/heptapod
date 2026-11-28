@@ -97,8 +97,7 @@ final class Site extends Model
     {
         $client = $this->client ?? throw new \LogicException('A site must belong to a client.');
 
-        return $this->paused_at === null && $this->marked_for_deletion_at === null
-            && $client->archived_at === null;
+        return $this->paused_at === null && $client->archived_at === null;
     }
 
     /** @return list<string> */

@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property int|null $site_id
  * @property string $target_type
- * @property int|null $target_id
+ * @property int $target_id
  * @property string|null $reason
  * @property bool $mute_alerts
  * @property bool $catch_up_at_end

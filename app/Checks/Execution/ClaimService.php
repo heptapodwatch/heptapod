@@ -245,8 +245,7 @@ final readonly class ClaimService
                 LiveSignal::forRun('run.finished', $current->site()->getQuery()->firstOrFail(), $current->id, $attempt->origin,
                     $attempt->started_at, $attempt->actor?->name, outcome: RunPhase::Skipped, attemptId: $attempt->id);
             }
-            $current->update(['awaiting_result_since' => null, 'lost_attempts' => 0, 'last_loss_started_at' => null, 'claim_token' => null, 'dispatched_at' => null, 'lease_expires_at' => null,
-                'run_started_at' => null, 'active_run_id' => null, 'run_headers' => null, 'manual_run' => false, 'next_run_at' => now()]);
+            $current->releaseClaim(attributes: ['next_run_at' => now()]);
         });
     }
 
@@ -293,11 +292,7 @@ final readonly class ClaimService
     /** @return EloquentBuilder<Check> */
     private function eligible(): EloquentBuilder
     {
-        $query = Check::query();
-        $query->getQuery()->whereNotIn('checks.type', $this->registry->unavailableKeys())->select('checks.*')->join('sites', 'sites.id', '=', 'checks.site_id')
-            ->where('checks.enabled', true)->whereNull('sites.paused_at')->whereNull('sites.marked_for_deletion_at');
-
-        return $query;
+        return Check::active();
     }
 
     /** @param list<array{name: string, value: string}> $headers */

@@ -47,6 +47,7 @@ final class IncidentDetailController extends Controller
         $getIncident = static fn (): Incident => $row;
         $check = $row->check ?? throw new \LogicException('Incident check missing.');
         $site = $row->site ?? throw new \LogicException('Incident site missing.');
+        $check->setRelation('site', $site);
         $open = $row->resolved_at === null;
         Validator::make($request->query(), [
             'notification_group' => ['nullable', 'string', 'regex:/^(delivery|event):[1-9][0-9]*$/D', 'required_with:notification_before'],
@@ -88,7 +89,7 @@ final class IncidentDetailController extends Controller
             related_incidents: Lazy::closure(static fn (): array => $reader->relatedIncidents($user, $row)),
             expanded_notifications: Lazy::closure(static fn (): ?IncidentNotificationPageData => $groupId !== null ? $reader->expandedNotifications($user, $row, $groupId, $cursor, requireGroup: $explicitExpansion) : null),
             can_run: Lazy::closure(static fn (): bool => Gate::forUser($user)->allows('update', $check)),
-            can_snooze: Lazy::closure(static fn (): bool => $open && $check->type === CheckKey::Uptime && $row->cause === IncidentCause::Failed && $check->enabled && $check->latest_run_result === CheckResult::Failed && $site->paused_at === null && $site->marked_for_deletion_at === null && config('notifications.renotify_intervals_seconds') !== null && Gate::forUser($user)->allows('snooze', $check)),
+            can_snooze: Lazy::closure(static fn (): bool => $open && $check->type === CheckKey::Uptime && $row->cause === IncidentCause::Failed && $check->latest_run_result === CheckResult::Failed && $check->isActive() && config('notifications.renotify_intervals_seconds') !== null && Gate::forUser($user)->allows('snooze', $check)),
             can_unsnooze: Lazy::closure(static fn (): bool => $open && $row->snoozed_until !== null && $row->snoozed_until->isFuture() && Gate::forUser($user)->allows('snooze', $check)),
             opening_delivery_explanation: Lazy::closure(static fn (): ?string => $reader->openingDeliveryExplanation($getIncident())),
             mail_design: Lazy::closure(static fn (): MailDesign => app(InstanceSettings::class)->mail_design),

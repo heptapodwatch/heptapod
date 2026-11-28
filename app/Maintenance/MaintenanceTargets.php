@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Spatie\Tags\Tag;
 
 /**
- * A window covers a site through its site target (including legacy site_id), its client, or a shared tag.
+ * A window covers a site through its site target, its client, or a shared tag.
  * The raw renderer and the site-row, site-ID and client-filter builder shapes preserve their existing SQL.
  * Client reach deliberately omits tags so shared tags cannot disclose cross-client windows.
  */
@@ -33,7 +33,7 @@ final class MaintenanceTargets
      */
     public static function coversSiteSql(string $maintenance, string $site, string $tag = 'mt'): array
     {
-        return ["(({$maintenance}.target_type = 'site' AND coalesce({$maintenance}.target_id, {$maintenance}.site_id) = {$site}.id) "
+        return ["(({$maintenance}.target_type = 'site' AND {$maintenance}.target_id = {$site}.id) "
             ."OR ({$maintenance}.target_type = 'client' AND {$maintenance}.target_id = {$site}.client_id) "
             ."OR ({$maintenance}.target_type = 'tag' AND EXISTS (SELECT 1 FROM taggables {$tag} WHERE {$tag}.tag_id = {$maintenance}.target_id "
             ."AND {$tag}.taggable_id = {$site}.id AND {$tag}.taggable_type = ?)))", [(new Site)->getMorphClass()]];
@@ -41,9 +41,8 @@ final class MaintenanceTargets
 
     /**
      * Indexed maintenance-window lookup for a materialized sites relation exposing (id, client_id).
-     * Splitting site, legacy site_id, client and tag targets into UNION branches lets PostgreSQL use
-     * maintenance_periods_target_type_target_id_index and maintenance_periods_site_id_starts_at_ends_at_index
-     * instead of scanning all maintenance_periods under an OR/COALESCE join predicate.
+     * Splitting site, client and tag targets into UNION branches lets PostgreSQL use
+     * maintenance_periods_target_type_target_id_index instead of scanning all maintenance_periods under an OR join predicate.
      *
      * @param  literal-string  $sitesRelation
      * @return array{literal-string, list<string>}
@@ -62,11 +61,6 @@ final class MaintenanceTargets
             UNION
             SELECT m.id, m.starts_at, m.ends_at, s.id AS site_id
             FROM {$sitesRelation} s
-            JOIN maintenance_periods m ON m.target_type = 'site' AND m.target_id IS NULL AND m.site_id = s.id
-            WHERE m.starts_at < ?::timestamptz AND m.ends_at > ?::timestamptz
-            UNION
-            SELECT m.id, m.starts_at, m.ends_at, s.id AS site_id
-            FROM {$sitesRelation} s
             JOIN maintenance_periods m ON m.target_type = 'client' AND m.target_id = s.client_id
             WHERE m.starts_at < ?::timestamptz AND m.ends_at > ?::timestamptz
             UNION
@@ -77,16 +71,14 @@ final class MaintenanceTargets
             WHERE m.starts_at < ?::timestamptz AND m.ends_at > ?::timestamptz
             SQL;
 
-        return [$sql, [$untilStr, $fromStr, $untilStr, $fromStr, $untilStr, $fromStr, $morph, $untilStr, $fromStr]];
+        return [$sql, [$untilStr, $fromStr, $untilStr, $fromStr, $morph, $untilStr, $fromStr]];
     }
 
     /** @param literal-string $table */
     public static function whereCoversSiteId(QueryBuilder $query, int $siteId, string $table = 'maintenance_periods'): void
     {
         self::whereTargetMatches($query, $table,
-            site: fn (QueryBuilder $site) => $site->where(fn (QueryBuilder $siteIds) => $siteIds
-                ->where($table.'.target_id', $siteId)->orWhere(fn (QueryBuilder $legacy) => $legacy
-                ->whereNull($table.'.target_id')->where($table.'.site_id', $siteId))),
+            site: fn (QueryBuilder $site) => $site->where($table.'.target_id', $siteId),
             client: fn (QueryBuilder $client) => $client->whereIn($table.'.target_id', DB::table('sites')->select('client_id')->where('id', $siteId)),
             tag: fn (QueryBuilder $tag) => $tag->whereIn($table.'.target_id', DB::table('taggables')->select('tag_id')
                 ->where('taggable_type', (new Site)->getMorphClass())->where('taggable_id', $siteId)));
@@ -97,7 +89,7 @@ final class MaintenanceTargets
     {
         $clientSites = $this->sites('client', $clientId)->getQuery()->select('sites.id');
         self::whereTargetMatches($query, $table,
-            site: fn (QueryBuilder $sites) => $sites->whereIn(DB::raw('coalesce('.$table.'.target_id, '.$table.'.site_id)'), $clientSites),
+            site: fn (QueryBuilder $sites) => $sites->whereIn($table.'.target_id', $clientSites),
             client: fn (QueryBuilder $clients) => $clients->where($table.'.target_id', $clientId),
             tag: fn (QueryBuilder $tags) => $tags->whereIn($table.'.target_id', DB::table('taggables')->select('tag_id')
                 ->where('taggable_type', (new Site)->getMorphClass())->whereIn('taggable_id', $clientSites)));
@@ -110,8 +102,7 @@ final class MaintenanceTargets
     public function whereWithinClientReach(QueryBuilder $query, string $table, array $clientIds): void
     {
         self::whereTargetMatches($query, $table,
-            site: fn (QueryBuilder $sites) => $sites->whereIn(DB::raw('coalesce('.$table.'.target_id, '.$table.'.site_id)'),
-                DB::table('sites')->select('id')->whereIn('client_id', $clientIds)),
+            site: fn (QueryBuilder $sites) => $sites->whereIn($table.'.target_id', DB::table('sites')->select('id')->whereIn('client_id', $clientIds)),
             client: fn (QueryBuilder $clients) => $clients->whereIn($table.'.target_id', $clientIds),
             tag: null);
     }
@@ -120,7 +111,7 @@ final class MaintenanceTargets
     private function whereCoversSiteRow(QueryBuilder $query, string $table): void
     {
         self::whereTargetMatches($query, $table,
-            site: fn (QueryBuilder $site) => $site->whereRaw('sites.id = coalesce('.$table.'.target_id, '.$table.'.site_id)'),
+            site: fn (QueryBuilder $site) => $site->whereColumn('sites.id', $table.'.target_id'),
             client: fn (QueryBuilder $client) => $client->whereColumn('sites.client_id', $table.'.target_id'),
             tag: fn (QueryBuilder $tag) => $tag->whereIn('sites.id', DB::table('taggables')->select('taggable_id')
                 ->where('taggable_type', (new Site)->getMorphClass())->whereColumn('tag_id', $table.'.target_id')));
@@ -178,7 +169,7 @@ final class MaintenanceTargets
                 throw new \LogicException('Maintenance target requires a window or series.');
             }
 
-            return $window->target_id ?? $window->site_id ?? throw new \LogicException('Site target missing.');
+            return $window->target_id;
         });
         $sites = Site::query();
         $sites->getQuery()->whereIn('sites.id', $siteIds->all())->join('clients', 'clients.id', '=', 'sites.client_id')
@@ -210,7 +201,7 @@ final class MaintenanceTargets
      */
     public function clientIdsForWindow(MaintenancePeriod|RecurringMaintenancePeriod $window): array
     {
-        return $this->clientIds($window->target_type, $window->target_id ?? $window->site_id ?? throw new \LogicException('Maintenance target missing.'));
+        return $this->clientIds($window->target_type, $window->target_id);
     }
 
     /**

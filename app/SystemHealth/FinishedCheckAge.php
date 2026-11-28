@@ -5,15 +5,13 @@ declare(strict_types=1);
 namespace Heptapod\SystemHealth;
 
 use Carbon\CarbonImmutable;
-use Heptapod\Contracts\CheckRegistry;
+use Heptapod\Models\Check;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /** The instance-wide completion signal shared by system issues and the external scheduler heartbeat. */
 final readonly class FinishedCheckAge
 {
-    public function __construct(private CheckRegistry $registry) {}
-
     /** Null means no completion is expected (maintenance, paused sites, disabled checks, or between scheduled runs). */
     public function seconds(CarbonImmutable $now): ?int
     {
@@ -21,9 +19,7 @@ final readonly class FinishedCheckAge
             return null;
         }
         // A claim advances next_run_at before a worker starts. Keep outstanding and expired leases eligible.
-        $dueChecks = DB::table('checks')->join('sites', 'sites.id', '=', 'checks.site_id')
-            ->whereNotIn('checks.type', $this->registry->unavailableKeys())
-            ->where('checks.enabled', true)->whereNull('sites.paused_at')->whereNull('sites.marked_for_deletion_at')
+        $dueChecks = Check::active()->toBase()
             ->where(fn (Builder $query): Builder => $query->where('checks.next_run_at', '<=', $now)->orWhereNotNull('checks.lease_expires_at'));
         $finishedAttemptIdSql = <<<'SQL'
             COALESCE((SELECT finished.id FROM check_run_attempts finished

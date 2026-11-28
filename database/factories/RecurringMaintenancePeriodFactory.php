@@ -16,6 +16,6 @@ class RecurringMaintenancePeriodFactory extends Factory
 
     public function definition(): array
     {
-        return ['site_id' => Site::factory(), 'name' => fake()->word(), 'recurrence_type' => 'daily', 'start_time' => '01:00', 'end_time' => '02:00', 'timezone' => 'Europe/Berlin'];
+        return ['site_id' => Site::factory(), 'target_id' => static fn (array $attributes): mixed => $attributes['site_id'], 'name' => fake()->word(), 'recurrence_type' => 'daily', 'start_time' => '01:00', 'end_time' => '02:00', 'timezone' => 'Europe/Berlin'];
     }
 }

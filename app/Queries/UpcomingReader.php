@@ -12,6 +12,7 @@ use Heptapod\Data\Ui\UpcomingItemData;
 use Heptapod\Enums\SiteIconBacking;
 use Heptapod\Maintenance\MaintenanceOccurrences;
 use Heptapod\Maintenance\MaintenanceTargets;
+use Heptapod\Models\Check;
 use Heptapod\Models\Client;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\RecurringMaintenancePeriod;
@@ -174,9 +175,9 @@ final readonly class UpcomingReader
             }
         }
         if ($onlyType !== 'maintenance') {
-            $sites = DB::table('sites')->whereIntegerInRaw('id', $this->sites->visibleSiteIds($user))->whereNull('paused_at')->whereNull('marked_for_deletion_at')
+            $sites = DB::table('sites')->whereIntegerInRaw('id', $this->sites->visibleSiteIds($user))->whereNull('paused_at')
                 ->when($clientId !== null, static fn (Builder $query): Builder => $query->where('client_id', $clientId))->pluck('client_id', 'id');
-            $checks = DB::table('checks')->whereIntegerInRaw('site_id', $sites->keys()->all())->where('enabled', true)->pluck('site_id', 'id');
+            $checks = Check::active()->toBase()->whereIntegerInRaw('checks.site_id', $sites->keys()->all())->pluck('site_id', 'id');
             /** @var list<int> $checkIds */
             $checkIds = $checks->keys()->all();
             foreach (app()->tagged(UpcomingEventSource::class) as $source) {
@@ -211,7 +212,7 @@ final readonly class UpcomingReader
     /** @return array{at: CarbonImmutable, ends_at: CarbonImmutable, key: string, type: string, check_id: null, site_id: int|null, client_id: int|null, target_type: string, target_id: int, detail: string} */
     private function maintenanceOccurrence(MaintenancePeriod|RecurringMaintenancePeriod $period, CarbonImmutable $start, CarbonImmutable $end, string $key): array
     {
-        $targetId = $period->target_id ?? $period->site_id ?? throw new \LogicException('Maintenance target missing.');
+        $targetId = $period->target_id;
 
         return ['at' => $start->utc(), 'ends_at' => $end->utc(), 'key' => $key, 'type' => 'maintenance', 'check_id' => null, 'site_id' => $period->target_type === 'site' ? $targetId : null,
             'client_id' => $period->target_type === 'client' ? $targetId : null, 'target_type' => $period->target_type, 'target_id' => $targetId, 'detail' => $period->name ?? $period->reason ?? ''];
@@ -222,7 +223,7 @@ final readonly class UpcomingReader
      */
     private function maintenanceItem(MaintenancePeriod|RecurringMaintenancePeriod $period, CarbonImmutable $start, string $key, array $labels, array $icons): UpcomingItemData
     {
-        $id = $period->target_id ?? $period->site_id ?? throw new \LogicException('Maintenance target missing.');
+        $id = $period->target_id;
         $label = $labels[$period->target_type.':'.$id] ?? null;
         $count = $period->getAttribute('target_site_count');
         if (! is_int($count)) {

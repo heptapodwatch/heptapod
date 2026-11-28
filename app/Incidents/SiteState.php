@@ -48,7 +48,7 @@ final readonly class SiteState
                 attention_checks AS NOT MATERIALIZED (SELECT * FROM available_checks c WHERE NOT EXISTS (
                     SELECT 1 FROM incidents held_incident WHERE held_incident.check_id = c.id AND ({$held})))
             SELECT CASE
-                WHEN sites.paused_at IS NOT NULL OR sites.marked_for_deletion_at IS NOT NULL THEN 'paused'
+                WHEN sites.paused_at IS NOT NULL THEN 'paused'
                 WHEN EXISTS (SELECT 1 FROM maintenance_periods m WHERE m.starts_at <= ? AND m.ends_at > ?
                     AND {$coversSite}
                     AND NOT EXISTS (SELECT 1 FROM maintenance_site_exclusions ex WHERE ex.maintenance_period_id = m.id

@@ -104,7 +104,8 @@ final readonly class TransactionalResultRecorder implements ResultRecorder
                 return new RecordedRun(false, null);
             }
             $site = $check->site()->getQuery()->firstOrFail();
-            if (! $check->enabled || $site->paused_at !== null || $site->marked_for_deletion_at !== null) {
+            $check->setRelation('site', $site);
+            if (! $check->isActive()) {
                 if ($check->active_run_id !== null) {
                     $persistence?->discard($check->active_run_id, $run->claimToken);
                 }
@@ -166,7 +167,6 @@ final readonly class TransactionalResultRecorder implements ResultRecorder
             if ($check->active_run_id !== null) {
                 $attributes['id'] = $check->active_run_id;
             }
-            $check->setRelation('site', $site);
             $stored = new CheckRun($attributes);
             // Presentation masks can invalidate typed facts such as certificate dates.
             $summary = $this->summaries->project($check, $stored);
@@ -298,8 +298,7 @@ final readonly class TransactionalResultRecorder implements ResultRecorder
         }
         // Every finished attempt ends a pending recheck, whatever its outcome; a lease replacement or revoke never reaches here.
         $cleared = CheckPending::clear($check);
-        $check->update(['run_headers' => null, 'manual_run' => false, 'awaiting_result_since' => $resetFreshness ? null : $check->awaiting_result_since, 'lost_attempts' => $resetFreshness ? 0 : $check->lost_attempts, 'last_loss_started_at' => $resetFreshness ? null : $check->last_loss_started_at, 'claim_token' => null, 'dispatched_at' => null, 'lease_expires_at' => null,
-            'run_started_at' => null, 'active_run_id' => null]);
+        $check->releaseClaim($resetFreshness);
 
         return $cleared;
     }

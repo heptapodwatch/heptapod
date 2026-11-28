@@ -8,7 +8,6 @@ use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Data\Ui\CheckFreshnessData;
 use Heptapod\Models\Check;
-use LogicException;
 
 /** The freshness decision for one check, from its stored episode columns and the configured thresholds only. */
 final readonly class CheckFreshness
@@ -24,20 +23,12 @@ final readonly class CheckFreshness
         return max($min, min($max, config()->integer('heptapod.freshness.interval_multiplier') * $check->interval_seconds));
     }
 
-    public function expected(Check $check): bool
-    {
-        $site = $check->site ?? throw new LogicException('Freshness requires an existing site.');
-
-        return $check->enabled && $site->paused_at === null && $site->marked_for_deletion_at === null
-            && $this->registry->availability($check->type)->reason === null;
-    }
-
     public function state(Check $check, CarbonImmutable $now): CheckFreshnessData
     {
         $threshold = $this->threshold($check);
         $since = $check->awaiting_result_since;
         $notFreshSince = $since?->addSeconds($threshold);
-        $state = ! $this->expected($check) ? 'not_expected'
+        $state = ! $check->isActive() ? 'not_expected'
             : ($notFreshSince !== null && $notFreshSince->lessThan($now) ? 'not_fresh' : 'fresh');
 
         return new CheckFreshnessData($state, $since?->toIso8601String(), $notFreshSince?->toIso8601String(), $threshold, $check->lost_attempts);

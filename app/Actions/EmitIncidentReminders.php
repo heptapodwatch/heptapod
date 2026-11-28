@@ -6,7 +6,6 @@ namespace Heptapod\Actions;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckKey;
-use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Enums\AlertReminders;
@@ -32,7 +31,7 @@ final readonly class EmitIncidentReminders
 
     private const string CursorCacheKey = 'heptapod:notifications:reminders_after_id';
 
-    public function __construct(private EventOutbox $outbox, private CheckRegistry $registry) {}
+    public function __construct(private EventOutbox $outbox) {}
 
     /** @return bool whether more open incidents remain after this bounded batch */
     public function __invoke(bool $continuation = false): bool
@@ -71,7 +70,7 @@ final readonly class EmitIncidentReminders
                 NotificationLocks::forUpdate($incidents->getQuery()->whereNull('resolved_at'));
                 $incident = $incidents->first();
                 $site = $check?->site;
-                if ($check === null || $incident === null || $site === null || $check->type !== CheckKey::Uptime || $incident->cause !== IncidentCause::Failed || $check->latest_run_result !== CheckResult::Failed || ! $check->enabled || $this->registry->availability($check->type)->reason !== null || $site->paused_at !== null || $site->marked_for_deletion_at !== null) {
+                if ($check === null || $incident === null || $site === null || $check->type !== CheckKey::Uptime || $incident->cause !== IncidentCause::Failed || $check->latest_run_result !== CheckResult::Failed || ! $check->isActive()) {
                     return;
                 }
                 $at = CarbonImmutable::now('UTC');

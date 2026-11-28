@@ -6,7 +6,7 @@ namespace Database\Seeders;
 
 use Carbon\CarbonImmutable;
 use Database\Seeders\Support\RecordsReviewRuns;
-use Heptapod\Actions\CreateEmailDestination;
+use Heptapod\Actions\Notifications\SaveNotificationChannel;
 use Heptapod\Addons\Cron\CronDefinitions;
 use Heptapod\Checks\CheckEnablement;
 use Heptapod\Checks\History\DatabaseHistoryReader;
@@ -202,10 +202,10 @@ final class DemoSeeder extends Seeder
                         }
                     }
                     if ($index === 6) {
-                        MaintenancePeriod::query()->create(['site_id' => $site->id, 'name' => 'Planned deploy', 'starts_at' => $now->addDays(2), 'ends_at' => $now->addDays(2)->addHours(2)]);
+                        MaintenancePeriod::query()->create(['site_id' => $site->id, 'target_id' => $site->id, 'name' => 'Planned deploy', 'starts_at' => $now->addDays(2), 'ends_at' => $now->addDays(2)->addHours(2)]);
                     }
                     if ($index === 2 && $scenario === 'maintenance') {
-                        MaintenancePeriod::query()->create(['site_id' => $site->id, 'name' => 'Active deploy', 'starts_at' => $now->subHour(), 'ends_at' => $now->addDay()]);
+                        MaintenancePeriod::query()->create(['site_id' => $site->id, 'target_id' => $site->id, 'name' => 'Active deploy', 'starts_at' => $now->subHour(), 'ends_at' => $now->addDay()]);
                     }
                     if ($index === 7 && $withIncidents && $uptime instanceof Check) {
                         $http->respondUsing(fn (): FetchResult => new FetchResult(200, transfers: [['total_time' => 2.4]]));
@@ -227,7 +227,7 @@ final class DemoSeeder extends Seeder
                     }
                 }
                 // One team mail channel that hears outages only, as the demo always did.
-                $destination = app(CreateEmailDestination::class)(['address' => DatabaseSeeder::DEMO_EMAIL, 'label' => 'Demo alerts', 'locale' => 'en']);
+                $destination = app(SaveNotificationChannel::class)->add(RecipientKind::Team, null, null, ['channel' => 'mail', 'label' => 'Demo alerts', 'locale' => 'en', 'config' => ['email' => DatabaseSeeder::DEMO_EMAIL]]);
                 NotificationPreference::writeGrid($destination->id, [...array_map(static fn (): NotificationMode => NotificationMode::Off,
                     NotificationPreference::defaults(RecipientKind::Team)), 'outage' => NotificationMode::Immediate]);
                 // Non-stopped heartbeats come only from the live scheduler and dispatcher that dev-up starts.
