@@ -261,6 +261,7 @@ final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistor
                     'value' => new Field(FieldType::Secret, ['required', 'max:4096', 'not_regex:/[\r\n]/']),
                 ]), presentation: new FieldPresentation('lighthouse.headers', 'lighthouse.headers_help'), default: []),
             ]), new Schema($metrics), emittedEvents: ['lighthouse.score_threshold_crossed'], detailDataClass: LighthouseDetail::class,
+            intervalPresetsMinutes: [360, 720, 1440, 10080],
         );
     }
 

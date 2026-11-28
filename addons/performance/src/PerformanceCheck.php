@@ -144,6 +144,7 @@ final class PerformanceCheck implements CheckRunPresenter, CheckType, MailEviden
             ]),
             emittedEvents: ['performance.improved'],
             minimumIncreaseInMs: 200,
+            intervalPresetsMinutes: [1, 5, 15, 60],
         );
     }
 

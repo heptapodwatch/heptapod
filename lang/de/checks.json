@@ -364,6 +364,8 @@
     "Last result: {{result}}": "Letztes Ergebnis: {{result}}",
     "Rotate ping URL?": "Ping-URL erneuern?",
     "The old URL will stop working. Update your schedules.": "Die alte URL funktioniert danach nicht mehr. Aktualisieren Sie Ihre Zeitpläne.",
+    "Interval amount": "Intervallwert",
+    "Custom…": "Eigenes Intervall…",
     "Check interval": "Prüfintervall",
     "Interval unit": "Intervalleinheit",
     "Minutes": "Minuten",

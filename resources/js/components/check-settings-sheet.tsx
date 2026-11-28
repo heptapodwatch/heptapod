@@ -1,9 +1,12 @@
 import { ActionNoteSlot } from '@/components/action-note-slot';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+    CheckIntervalField,
+    intervalFields,
+    intervalSeconds,
+    isIntervalUnit,
+} from '@/components/check-interval-field';
 import { router, useForm } from '@inertiajs/react';
-import InputError, { fieldErrorProps } from '@/components/input-error';
-import { NumberField } from '@/components/ui/number-field';
-import { Label } from '@/components/ui/label';
+import InputError from '@/components/input-error';
 import { useId, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { httpResponseMessage } from '@/hooks/use-http-request';
@@ -217,30 +220,16 @@ function SavedCheckSettingsSheet({
         setOpen: setLocalOpen,
     };
     const form = useForm<Record<string, FieldValue>>({});
-    const intervalSeconds = check.interval_seconds;
-    const intervalUnit =
-        intervalSeconds % 86400 === 0
-            ? 'day'
-            : intervalSeconds % 3600 === 0
-              ? 'hour'
-              : 'minute';
-    const intervalValue =
-        intervalSeconds / { minute: 60, hour: 3600, day: 86400 }[intervalUnit];
-    const scheduleValue = form.data.frequency_value ?? intervalValue;
-    const scheduleUnit = form.data.frequency_unit ?? intervalUnit;
+    const stored = intervalFields(check.interval_seconds);
+    const scheduleValue = form.data.frequency_value ?? stored.amount;
+    const scheduleUnit = form.data.frequency_unit ?? stored.unit;
     if (
-        typeof scheduleUnit !== 'string' ||
+        !isIntervalUnit(scheduleUnit) ||
         (typeof scheduleValue !== 'string' && typeof scheduleValue !== 'number')
     ) {
         throw new Error('Invalid interval draft');
     }
-    const changeSchedule = (value: string | number, unit: string) => {
-        form.setData({
-            ...form.data,
-            frequency_value: value,
-            frequency_unit: unit,
-        });
-    };
+    const draftIntervalSeconds = intervalSeconds(scheduleValue, scheduleUnit);
     const isHealth = check.check_key === 'application_health';
     const [probeResult, setProbeResult] = useState<HealthProbeResult | null>(
         null,
@@ -251,13 +240,6 @@ function SavedCheckSettingsSheet({
     const [saving, setSaving] = useState(false);
     const probeVersion = useRef(0);
     const isSitemap = check.check_key === 'sitemap';
-    const draftIntervalSeconds =
-        Number.isInteger(Number(scheduleValue)) &&
-        Number(scheduleValue) >= 1 &&
-        Number(scheduleValue) <= 60
-            ? Number(scheduleValue) *
-              ({ minute: 60, hour: 3600, day: 86400 }[scheduleUnit] ?? 0)
-            : null;
     const fields = Object.entries(check.config_schema.fields).flatMap(
         ([name, field]) =>
             name === 'location' ||
@@ -492,56 +474,6 @@ function SavedCheckSettingsSheet({
             setProbeMessage(null);
         }
     };
-    const schedule = (
-        <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-                <Label htmlFor="check-interval">{t('Check interval')}</Label>
-                <NumberField
-                    id="check-interval"
-                    min={1}
-                    max={60}
-                    required
-                    invalid={!!errors.frequency_value}
-                    describedBy="check-interval-error"
-                    value={scheduleValue === '' ? null : scheduleValue}
-                    onValueChange={(value) =>
-                        changeSchedule(value ?? '', scheduleUnit)
-                    }
-                />
-                <InputError
-                    id="check-interval-error"
-                    message={errors.frequency_value}
-                />
-            </div>
-            <div className="space-y-2">
-                <Label id="check-interval-unit-label">
-                    {t('Interval unit')}
-                </Label>
-                <RadioGroup
-                    id="check-interval-unit"
-                    aria-labelledby="check-interval-unit-label"
-                    {...fieldErrorProps(
-                        'check-interval-unit',
-                        errors.frequency_unit,
-                    )}
-                    value={scheduleUnit}
-                    onValueChange={(unit) =>
-                        changeSchedule(scheduleValue, unit)
-                    }
-                >
-                    <RadioGroupItem value="minute">
-                        {t('Minutes')}
-                    </RadioGroupItem>
-                    <RadioGroupItem value="hour">{t('Hours')}</RadioGroupItem>
-                    <RadioGroupItem value="day">{t('Days')}</RadioGroupItem>
-                </RadioGroup>
-                <InputError
-                    field="check-interval-unit"
-                    message={errors.frequency_unit}
-                />
-            </div>
-        </div>
-    );
     return (
         <>
             {trigger ? (
@@ -590,13 +522,32 @@ function SavedCheckSettingsSheet({
                             </AlertDescription>
                         </Alert>
                     )}
-                    {fields.some((field) => field.group) ? (
-                        <FormSection title={t('Schedule')}>
-                            {schedule}
-                        </FormSection>
-                    ) : (
-                        schedule
-                    )}
+                    <FormSection title={t('Schedule')}>
+                        <CheckIntervalField
+                            presets={check.interval_presets_minutes}
+                            amount={scheduleValue}
+                            unit={scheduleUnit}
+                            errors={errors}
+                            onChange={(amount, unit) => {
+                                const data = { ...form.data };
+                                if (
+                                    Number(amount) === stored.amount &&
+                                    unit === stored.unit
+                                ) {
+                                    delete data.frequency_value;
+                                    delete data.frequency_unit;
+                                } else {
+                                    data.frequency_value = amount;
+                                    data.frequency_unit = unit;
+                                }
+                                form.setData(data);
+                                form.clearErrors(
+                                    'frequency_value',
+                                    'frequency_unit',
+                                );
+                            }}
+                        />
+                    </FormSection>
                     <SchemaFields
                         schema={fields}
                         values={{ ...values, ...editedValues }}

@@ -1443,6 +1443,8 @@ export function checkTabPageFixture(
             label_key: check.label_key,
             enabled: check.enabled,
             interval_seconds: 60,
+            interval_presets_minutes:
+                check.key === 'uptime' ? [1, 5, 15, 60] : [],
             config_schema: checkSchemas[check.key],
             settings: checkSettingsFixture(site)[check.key],
             can_update: true,

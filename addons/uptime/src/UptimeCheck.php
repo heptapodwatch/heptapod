@@ -117,6 +117,7 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
                 'curl' => new Field(FieldType::Object, ['required'], properties: $curl),
                 'date' => new Field(FieldType::String, ['required', 'date']),
             ]),
+            intervalPresetsMinutes: [1, 5, 15, 60],
         );
     }
 

@@ -86,6 +86,24 @@ it('loads the check settings of all checks of a site in a fixed number of querie
     expect($count($many))->toBe($count($single));
 });
 
+it('round-trips preset and custom intervals through the existing schedule write', function (CheckKey $type, int $amount, string $unit, int $minutes, bool $preset): void {
+    $owner = User::factory()->owner()->create();
+    $check = Check::factory()->create(['type' => $type, 'interval_seconds' => 60]);
+    $path = '/sites/'.$check->site_id.'/checks/'.$check->id;
+
+    $this->actingAs($owner)->from($path)->patch($path, ['frequency_value' => $amount, 'frequency_unit' => $unit])
+        ->assertRedirect($path)->assertSessionHasNoErrors();
+
+    $settings = $this->get($path)->assertOk()->inertiaProps()['check_settings'];
+    expect($settings['interval_seconds'])->toBe($minutes * 60)
+        ->and($check->refresh()->interval_seconds)->toBe($minutes * 60)
+        ->and(in_array($minutes, $settings['interval_presets_minutes'], true))->toBe($preset);
+})->with([
+    'uptime preset' => [CheckKey::Uptime, 5, 'minute', 5, true],
+    'weekly crawl preset' => [CheckKey::BrokenLinks, 7, 'day', 10080, true],
+    'custom crawl' => [CheckKey::BrokenLinks, 3, 'day', 4320, false],
+]);
+
 it('shows a check saved through its settings endpoint in the site settings contract on the next load', function (): void {
     $owner = User::factory()->owner()->create();
     $site = Site::factory()->create();

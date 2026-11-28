@@ -189,6 +189,7 @@ final readonly class CertificateHealthCheck implements CheckDetailProvider, Chec
             emittedEvents: ['certificate_health.certificate_changed'],
             requiresHttps: true,
             detailDataClass: CertificateSnapshot::class,
+            intervalPresetsMinutes: [60, 360, 1440, 10080],
         );
     }
 

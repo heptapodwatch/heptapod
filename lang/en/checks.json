@@ -364,6 +364,8 @@
     "Last result: {{result}}": "Last result: {{result}}",
     "Rotate ping URL?": "Rotate ping URL?",
     "The old URL will stop working. Update your schedules.": "The old URL will stop working. Update your schedules.",
+    "Interval amount": "Interval amount",
+    "Custom…": "Custom…",
     "Check interval": "Check interval",
     "Interval unit": "Interval unit",
     "Minutes": "Minutes",

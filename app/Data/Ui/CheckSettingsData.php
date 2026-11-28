@@ -27,5 +27,7 @@ final class CheckSettingsData extends Data
         public readonly \stdClass $settings,
         public readonly bool $can_update,
         public readonly ?string $attention_reason = null,
+        /** @var list<positive-int> */
+        public readonly array $interval_presets_minutes = [],
     ) {}
 }

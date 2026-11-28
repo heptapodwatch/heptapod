@@ -168,6 +168,7 @@ final readonly class DomainCheck implements CheckDetailProvider, CheckRunPresent
             ]),
             emittedEvents: ['domain.expiry_changed', 'domain.registration_changed'],
             detailDataClass: DomainSnapshot::class,
+            intervalPresetsMinutes: [360, 720, 1440, 10080],
         );
     }
 
