@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\CronTaskData;
 use Heptapod\Contracts\CronTaskStore;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -55,6 +56,16 @@ final readonly class DatabaseCronTaskStore implements CronTaskStore
     public function recordPing(string $uuid, string $phase, array $values): void
     {
         DB::transaction(function () use ($uuid, $phase, $values): void {
+            // The parent check first, then its site: a site deletion marks the site under that check's lock and then purges
+            // the pings, so from the mark on a ping answers like an unknown task. A paused site keeps its pings.
+            $checkId = DB::table('cron_checks')->where('uuid', $uuid)->value('check_id');
+            if (is_int($checkId)) {
+                DB::table('checks')->where('id', $checkId)->lock('FOR KEY SHARE')->first(['id']);
+                if (DB::table('checks')->join('sites', 'sites.id', '=', 'checks.site_id')->where('checks.id', $checkId)
+                    ->whereNotNull('sites.marked_for_deletion_at')->exists()) {
+                    throw new ModelNotFoundException()->setModel(CronCheck::class);
+                }
+            }
             $query = CronCheck::query()->where('uuid', $uuid);
             $query->getQuery()->lockForUpdate();
             $task = $query->firstOrFail();

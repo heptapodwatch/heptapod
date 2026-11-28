@@ -18,6 +18,7 @@ use Illuminate\Queue\Attributes\Timeout;
 use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Queue\Attributes\UniqueFor;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Deletes a site whose deletion was requested (RequestSiteDeletion): it shrinks the paused site's check history in
@@ -40,15 +41,16 @@ final class PurgeDeletedSite implements ShouldBeUniqueUntilProcessing, ShouldQue
     public const int SliceSeconds = 60;
 
     /**
-     * One batch of a core growth table of a check, both sides through its check index; every ? binds the check id. A run
-     * repeats an ended_at only within one instant, which a batch takes together. The attempt of a claim still out stays,
-     * so its late worker finds it and skips the paused check.
+     * One batch of a core growth table of a check, both sides through its check index; every ? binds the check id. Runs
+     * are picked by their key (id, ended_at); the ended_at array keeps the delete on the check index and its partitions.
+     * The attempt of a claim still out stays, so its late worker finds it and skips the paused check.
      */
     private const array CoreHistory = [
         'DELETE FROM check_run_attempts WHERE check_id = ? AND id = ANY(ARRAY(SELECT id FROM check_run_attempts WHERE check_id = ?
             AND claim_token IS DISTINCT FROM (SELECT claim_token::text FROM checks WHERE id = ?) ORDER BY id LIMIT '.self::PurgeBatch.'))',
-        'DELETE FROM check_runs WHERE check_id = ? AND ended_at = ANY(ARRAY(SELECT ended_at FROM check_runs WHERE check_id = ?
-            ORDER BY ended_at LIMIT '.self::PurgeBatch.'))',
+        'WITH batch AS MATERIALIZED (SELECT id, ended_at FROM check_runs WHERE check_id = ? ORDER BY ended_at, id LIMIT '.self::PurgeBatch.')
+            DELETE FROM check_runs WHERE check_id = ? AND ended_at = ANY(ARRAY(SELECT ended_at FROM batch))
+            AND (id, ended_at) IN (SELECT id, ended_at FROM batch)',
         'DELETE FROM check_run_rollups_hourly WHERE check_id = ? AND bucket_start = ANY(ARRAY(SELECT bucket_start FROM check_run_rollups_hourly
             WHERE check_id = ? ORDER BY bucket_start LIMIT '.self::PurgeBatch.'))',
         'DELETE FROM check_run_rollups_daily WHERE check_id = ? AND bucket_start = ANY(ARRAY(SELECT bucket_start FROM check_run_rollups_daily
@@ -73,10 +75,19 @@ final class PurgeDeletedSite implements ShouldBeUniqueUntilProcessing, ShouldQue
         if (! $site instanceof Site || $site->marked_for_deletion_at === null) {
             return;
         }
-        if (! $this->shrink($registry, hrtime(true) + $this->sliceSeconds * 1_000_000_000)) {
+        /** @var array<int, string> $types */
+        $types = DB::table('checks')->where('site_id', $this->siteId)->orderBy('id')->pluck('type', 'id')->all();
+        if (! $this->shrink($registry, $types, hrtime(true) + $this->sliceSeconds * 1_000_000_000)) {
             self::dispatch($this->siteId, $this->sliceSeconds);
 
             return;
+        }
+        // The history of a check whose addon is not loaded has no purge: DeleteSite's cascade takes it in one go. A site
+        // with such checks stays deletable; if that cascade outgrows its transaction, the job fails, the sweep retries
+        // and site_deletion_stuck opens after an hour.
+        $unloaded = array_filter($types, static fn (string $type): bool => ! in_array(CheckKey::tryFrom($type), $registry->keys(), true));
+        if ($unloaded !== []) {
+            Log::error('A site deletion leaves the history of unloaded addons to the final cascade.', ['site_id' => $this->siteId, 'checks' => $unloaded]);
         }
         $delete($site);
     }
@@ -85,15 +96,15 @@ final class PurgeDeletedSite implements ShouldBeUniqueUntilProcessing, ShouldQue
      * Whether the growth tables are empty; false when the slice ran out of time first. Empty batches count against the
      * time too, and a slice always deletes its first rows, so every slice makes progress.
      */
-    private function shrink(CheckRegistry $registry, int $until): bool
+    /** @param array<int, string> $types the site's check types by check id */
+    private function shrink(CheckRegistry $registry, array $types, int $until): bool
     {
-        /** @var array<int, string> $types */
-        $types = DB::table('checks')->where('site_id', $this->siteId)->orderBy('id')->pluck('type', 'id')->all();
         $deleted = 0;
         foreach ($types as $checkId => $type) {
             $batches = array_map(static fn (string $sql): \Closure => static fn (): int => DB::delete($sql, array_fill(0, substr_count($sql, '?'), $checkId)),
                 self::CoreHistory);
             $key = CheckKey::tryFrom($type);
+            // A loaded type without RunPersistence keeps its history in the core tables only.
             $persistence = $key instanceof CheckKey && in_array($key, $registry->keys(), true) ? $registry->get($key)->persistence() : null;
             if ($persistence instanceof RunPersistence) {
                 $batches[] = static fn (): int => $persistence->purgeCheck($checkId, self::PurgeBatch);

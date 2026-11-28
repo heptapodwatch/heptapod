@@ -22,7 +22,10 @@ use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Testing\ApiSpec;
 use Heptapod\Testing\FakeOutboundHttp;
+use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Spectator\Exceptions\ResponseValidationException;
 
@@ -54,8 +57,19 @@ it('shows uninstalled snapshots rejects active writes with 422 and permits clean
     $this->postJson('/api/checks/'.$check->id.'/disable')->assertOk()->assertJsonPath('enabled', false);
     $this->postJson('/api/checks/'.$check->id.'/unsnooze')->assertOk()->assertJsonPath('active_snooze', null);
     expect($snooze->refresh()->unsnoozed_at)->not->toBeNull();
+    // The uninstalled addon's history has no purge of its own: the deletion says so and its cascade takes it.
+    DB::table('domain_snapshots')->insert(['site_id' => $check->site_id, 'check_id' => $check->id, 'run_id' => 1, 'claim_token' => (string) Str::uuid(),
+        'snapshot' => '{}', 'run_ended_at' => now(), 'created_at' => now()]);
+    $logged = [];
+    Event::listen(MessageLogged::class, static function (MessageLogged $message) use (&$logged): void {
+        $logged[] = [$message->level, $message->message, $message->context];
+    });
     $this->deleteJson('/api/monitors/'.$check->site_id)->assertNoContent();
     $this->assertModelMissing($check);
+    expect(Site::query()->find($check->site_id))->toBeNull()
+        ->and(DB::table('domain_snapshots')->where('check_id', $check->id)->exists())->toBeFalse()
+        ->and($logged)->toContain(['error', 'A site deletion leaves the history of unloaded addons to the final cascade.',
+            ['site_id' => $check->site_id, 'checks' => [$check->id => 'domain']]]);
 });
 
 it('rejects wrong field types for object and array root responses without skipping validation', function (): void {

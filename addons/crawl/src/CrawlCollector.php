@@ -248,7 +248,14 @@ final readonly class CrawlCollector
                 if (strlen($encoded) > CrawlPersistence::MAX_ARTIFACT_BYTES) {
                     throw new CrawlArtifactTooLarge(strlen($encoded), $config['max_pages']);
                 }
-                DB::table('crawl_collections')->updateOrInsert(['site_id' => $context->siteId], ['artifact' => $encoded, 'collected_at' => $artifact->collected_at]);
+                DB::transaction(static function () use ($context, $encoded, $artifact): void {
+                    // The check first, then the site: a site deletion marks the site under that check's lock and then purges
+                    // this cache (it has no foreign key), so a collection that finishes after the mark is not stored.
+                    DB::table('checks')->where('id', $context->checkId)->lock('FOR KEY SHARE')->first(['id']);
+                    if (! DB::table('sites')->where('id', $context->siteId)->whereNotNull('marked_for_deletion_at')->exists()) {
+                        DB::table('crawl_collections')->updateOrInsert(['site_id' => $context->siteId], ['artifact' => $encoded, 'collected_at' => $artifact->collected_at]);
+                    }
+                });
 
                 return $artifact;
             });

@@ -216,7 +216,7 @@ final readonly class EvaluateSystemIssues
                 }
             });
             Log::warning('System issue opened.', ['kind' => $kind->value, 'details' => $details]);
-        } elseif (in_array($kind, [SystemIssueKind::DiskSpaceLow, SystemIssueKind::MailLogOnly, SystemIssueKind::MonitorOutage], true) && $details !== null && $previousDetails !== $details) {
+        } elseif (in_array($kind, [SystemIssueKind::DiskSpaceLow, SystemIssueKind::MailLogOnly, SystemIssueKind::MonitorOutage, SystemIssueKind::SiteDeletionStuck], true) && $details !== null && $previousDetails !== $details) {
             $open->update(['details' => $details]);
             Log::warning('System issue updated.', ['kind' => $kind->value, 'issue_id' => $open->id, 'details' => $details]);
         } elseif ($details === null && $open instanceof SystemIssue) {
@@ -258,14 +258,14 @@ final readonly class EvaluateSystemIssues
     /** @return array<string, int|string|null>|null */
     private function siteDeletionStuck(CarbonImmutable $now): ?array
     {
-        $stuck = DB::table('sites')->whereNotNull('marked_for_deletion_at')
-            ->where('marked_for_deletion_at', '<', $now->subSeconds(self::SiteDeletionStuckAfterSeconds)->format('Y-m-d H:i:s.uP'));
-        $since = (clone $stuck)->min('marked_for_deletion_at');
-        if ($since !== null && ! is_string($since)) {
-            throw new \UnexpectedValueException('A deletion request time must be a string.');
+        // One aggregate, so the count and the oldest request come from the same snapshot.
+        $stuck = DB::table('sites')->where('marked_for_deletion_at', '<', $now->subSeconds(self::SiteDeletionStuckAfterSeconds)->format('Y-m-d H:i:s.uP'))
+            ->selectRaw('count(*) AS sites, min(marked_for_deletion_at) AS pending_since')->first();
+        if (! is_object($stuck) || ! is_int($stuck->sites) || ($stuck->pending_since !== null && ! is_string($stuck->pending_since))) {
+            throw new \UnexpectedValueException('The pending site deletions must count as an integer and a time.');
         }
 
-        return $since === null ? null : ['sites' => $stuck->count(), 'pending_since' => CarbonImmutable::parse($since, 'UTC')->toIso8601String()];
+        return $stuck->pending_since === null ? null : ['sites' => $stuck->sites, 'pending_since' => CarbonImmutable::parse($stuck->pending_since, 'UTC')->toIso8601String()];
     }
 
     /**

@@ -32,7 +32,9 @@ interface RunPersistence
      * Before a paused site is deleted, PurgeDeletedSite shrinks its history with this under the check's lock, one batch per
      * transaction: delete at most $limit finished rows of the check's history from the prunedTables(), children before
      * their parents, through an index on the check. Returns the rows deleted; 0 once none are left. A run still in flight
-     * and small per-check rows (baselines, identities) stay for DeleteSite's cascade.
+     * and small per-check rows (baselines, identities) stay for DeleteSite's cascade; rows of a table no foreign key ties to
+     * the check have no cascade, so those all go here except what a live claim still stages. A check type whose addon
+     * stores history implements this; a type without RunPersistence keeps its history in the core tables only.
      */
     public function purgeCheck(int $checkId, int $limit): int;
 }

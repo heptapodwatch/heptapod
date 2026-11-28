@@ -592,13 +592,15 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
 
     public function purgeCheck(int $checkId, int $limit): int
     {
-        // Findings before their snapshots, finished ones only; the site's collection goes with the first of its crawl checks.
+        // These tables have no foreign key to the check, so no cascade follows: every snapshot goes here, findings first,
+        // but the one a live claim still stages (its recording discards it). The site's collection goes with the first of
+        // its crawl checks; CrawlCollector stores none once the site is marked for deletion.
+        $snapshots = 'SELECT s.id FROM crawl_snapshots s WHERE s.check_id = ?
+            AND (s.run_ended_at IS NOT NULL OR s.claim_token IS DISTINCT FROM (SELECT c.claim_token FROM checks c WHERE c.id = s.check_id))';
         $statements = [
-            'DELETE FROM crawl_findings WHERE ctid = ANY(ARRAY(SELECT ctid FROM crawl_findings
-                WHERE snapshot_id IN (SELECT id FROM crawl_snapshots WHERE check_id = ? AND run_ended_at IS NOT NULL) LIMIT ?))',
-            'DELETE FROM mixed_content_findings WHERE ctid = ANY(ARRAY(SELECT ctid FROM mixed_content_findings
-                WHERE snapshot_id IN (SELECT id FROM crawl_snapshots WHERE check_id = ? AND run_ended_at IS NOT NULL) LIMIT ?))',
-            'DELETE FROM crawl_snapshots WHERE ctid = ANY(ARRAY(SELECT ctid FROM crawl_snapshots WHERE check_id = ? AND run_ended_at IS NOT NULL LIMIT ?))',
+            'DELETE FROM crawl_findings WHERE ctid = ANY(ARRAY(SELECT ctid FROM crawl_findings WHERE snapshot_id IN ('.$snapshots.') LIMIT ?))',
+            'DELETE FROM mixed_content_findings WHERE ctid = ANY(ARRAY(SELECT ctid FROM mixed_content_findings WHERE snapshot_id IN ('.$snapshots.') LIMIT ?))',
+            'DELETE FROM crawl_snapshots WHERE id IN ('.$snapshots.' LIMIT ?)',
             'DELETE FROM crawl_collections WHERE site_id IN (SELECT site_id FROM checks WHERE id = ? LIMIT ?)',
         ];
         foreach ($statements as $statement) {

@@ -15,9 +15,13 @@ final readonly class PauseSite
 {
     public function __construct(private ResolveInactiveCheckIncidents $resolve) {}
 
-    public function __invoke(Site $site, ?CarbonImmutable $resumeAt = null): void
+    /**
+     * With $forDeletion the pause also marks the site deletion pending (RequestSiteDeletion), under the same locks and
+     * before its open incidents end, so they end as a deletion.
+     */
+    public function __invoke(Site $site, ?CarbonImmutable $resumeAt = null, bool $forDeletion = false): void
     {
-        NotificationLocks::transaction(function () use ($site, $resumeAt): void {
+        NotificationLocks::transaction(function () use ($site, $resumeAt, $forDeletion): void {
             // NotificationLocks: the checks, the site, then the incidents and deliveries the resolutions below write, for all
             // checks at once (ResolveInactiveCheckIncidents::lockWork).
             /** @var list<int> $checkIds */
@@ -27,11 +31,12 @@ final readonly class PauseSite
             $locked = Site::query()->findOrFail($site->id);
             $checks = Check::query()->whereKey($checkIds)->get()->sortBy('id')->values();
             ResolveInactiveCheckIncidents::lockWork($checkIds);
+            $mark = $forDeletion && $locked->marked_for_deletion_at === null ? ['marked_for_deletion_at' => now()] : [];
             if ($locked->paused_at !== null) {
-                $locked->update(['resume_at' => $resumeAt]);
+                $locked->update([...$mark, 'resume_at' => $resumeAt]);
             } else {
                 $at = now();
-                $locked->update(['paused_at' => $at, 'resume_at' => $resumeAt]);
+                $locked->update([...$mark, 'paused_at' => $at, 'resume_at' => $resumeAt]);
                 DB::table('unmonitored_periods')->insert(['site_id' => $site->id, 'started_at' => $at]);
             }
             foreach ($checks as $check) {

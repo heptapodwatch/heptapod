@@ -29,6 +29,7 @@ use Illuminate\Bus\UniqueLock;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function (): void {
@@ -224,10 +225,46 @@ it('resumes a purge whose slice was lost and opens a system issue for a deletion
     $this->artisan('heptapod:evaluate-system-issues')->assertSuccessful();
     expect(SystemIssue::open()->where('kind', SystemIssueKind::SiteDeletionStuck->value)->sole()->details)
         ->toMatchArray(['sites' => 1, 'pending_since' => '2026-10-03T12:00:00+00:00']);
+    // The open issue follows the count while it stays open.
+    Site::factory()->create(['paused_at' => now()->subHours(2), 'marked_for_deletion_at' => now()->subHours(2)]);
+    $this->artisan('heptapod:evaluate-system-issues')->assertSuccessful();
+    expect(SystemIssue::open()->where('kind', SystemIssueKind::SiteDeletionStuck->value)->sole()->details)
+        ->toMatchArray(['sites' => 2, 'pending_since' => '2026-10-03T11:01:00+00:00']);
+    DB::table('sites')->where('id', '<>', $site->id)->whereNotNull('marked_for_deletion_at')->delete();
 
     purgeSlice($site->id);
     $this->artisan('heptapod:evaluate-system-issues')->assertSuccessful();
 
     expect(Site::query()->find($site->id))->toBeNull()
         ->and(SystemIssue::open()->where('kind', SystemIssueKind::SiteDeletionStuck->value)->exists())->toBeFalse();
+});
+
+it('refuses cron pings of a site marked for deletion like an unknown task, and keeps them for a paused one', function (): void {
+    $owner = User::factory()->owner()->create();
+    $site = siteWithHistory(1);
+    $cron = Check::factory()->for($site)->create(['type' => CheckKey::Cron]);
+    $task = app(CronTaskStore::class)->create($cron->id, ['name' => 'Backup', 'type' => 'simple', 'frequency_in_minutes' => 60]);
+    $this->actingAs($owner)->post('/sites/'.$site->id.'/pause')->assertRedirect();
+    $this->postJson(route('cron.ping', ['uuid' => $task->uuid]))->assertNoContent();
+
+    $this->delete('/sites/'.$site->id, ['name' => 'Purge shop'])->assertRedirect('/sites');
+
+    $this->postJson(route('cron.ping', ['uuid' => $task->uuid]))->assertNotFound();
+    $this->postJson(route('cron.ping', ['uuid' => (string) Str::uuid()]))->assertNotFound();
+    expect(DB::table('cron_pings')->where('cron_check_id', $task->id)->count())->toBe(1);
+});
+
+it('deletes at most one batch of runs per statement, even when runs share an instant', function (): void {
+    $owner = User::factory()->owner()->create();
+    $site = Site::factory()->create(['friendly_name' => 'Purge shop']);
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::Uptime]);
+    DB::insert(<<<'SQL'
+        INSERT INTO check_runs (check_id, check_type, result, ended_at, summary, metrics)
+        SELECT ?, 'uptime', 'succeeded', ?::timestamptz, 'checks.uptime.ok', '{}'::jsonb FROM generate_series(1, 1200)
+        SQL, [$check->id, now()->subHour()->toIso8601String()]);
+    $this->actingAs($owner)->delete('/sites/'.$site->id, ['name' => 'Purge shop'])->assertRedirect('/sites');
+
+    purgeSlice($site->id, seconds: 0);
+
+    expect(DB::table('check_runs')->where('check_id', $check->id)->count())->toBe(200);
 });
