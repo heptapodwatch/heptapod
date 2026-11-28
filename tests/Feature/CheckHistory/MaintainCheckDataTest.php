@@ -31,7 +31,7 @@ it('automatically finalises early-month observations across several months and d
     $this->travelTo($end->addMinutes(10)->subMicrosecond());
     $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
     expect($hour->fresh()->computed_at->equalTo($ended))->toBeTrue();
-    // January and February are both closed, so the hourly rotation proves February in one of these two runs.
+    // January and February are both closed; with 30 days of retention the rotation proves each of them in any two consecutive hourly runs.
     foreach ([$end->addMinutes(10), $end->addHour()] as $at) {
         $this->travelTo($at);
         $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
@@ -178,14 +178,17 @@ it('finalises the closed month and the previous day when maintenance resumes two
     $this->travelTo($monthEnd->addHours(12));
     CheckRun::factory()->create(['check_id' => $check->id, 'started_at' => $monthEnd->addHours(12)->subSecond(), 'ended_at' => $monthEnd->addHours(12)]);
 
-    $this->travelTo($monthEnd->addDay()->addHour());
-    $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
+    // With 30 days of retention the rotation proves each closed month within two hourly runs.
+    foreach ([$monthEnd->addDay()->addHour(), $monthEnd->addDay()->addHours(2)] as $at) {
+        $this->travelTo($at);
+        $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
+    }
     $daily = fn (CarbonImmutable $day): CheckRunRollupDaily => CheckRunRollupDaily::query()->where('check_id', $check->id)->where('bucket_start', $day)->sole();
     expect($daily($monthEnd->subDay())->succeeded_count)->toBe(2)
         ->and($daily($monthEnd)->succeeded_count)->toBe(1)
         ->and(CheckRunRollupHourly::query()->where('check_id', $check->id)->where('bucket_start', $monthEnd->subHour())->sole()->succeeded_count)->toBe(1);
 
-    // A final month is proven again but not rolled up again.
+    // A final month is not rolled up again.
     $finalised = $daily($monthEnd->subDay())->getAttributes();
     $this->travelTo($monthEnd->addDays(2));
     $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
@@ -256,23 +259,70 @@ it('automatically repairs first-start historical raw data before dropping its ex
     expect(CheckRunRollupDaily::query()->sole()->metric_sums)->toBe(['total_time_in_seconds' => 2]);
 });
 
-it('proves every closed month within as many hourly runs as there are closed months', function (): void {
-    // September expires on 2026-12-15, so October and November are the closed months.
-    config(['monitoring.raw_retention_days' => 75]);
-    DB::statement("CREATE TABLE IF NOT EXISTS check_runs_2026_10 PARTITION OF check_runs FOR VALUES FROM ('2026-10-01T00:00:00Z') TO ('2026-11-01T00:00:00Z')");
-    $check = Check::factory()->create();
-    // Runs of both closed months that no rollup covers yet, as after an outage at each month end.
-    foreach (['2026-10-31T23:30:00Z', '2026-11-30T23:30:00Z'] as $ended) {
-        CheckRun::factory()->create(['check_id' => $check->id, 'started_at' => CarbonImmutable::parse($ended)->subSecond(), 'ended_at' => $ended]);
+it('proves each closed month in every six consecutive hourly runs while another month expires', function (): void {
+    // 152 days of raw history: June to October are closed on 2026-11-29, and June expires on 2026-11-30 at 00:00.
+    config(['monitoring.raw_retention_days' => 152, 'monitoring.hourly_rollup_retention_days' => 152]);
+    foreach (['06', '07', '08', '09', '10'] as $month) {
+        $start = CarbonImmutable::parse("2026-{$month}-01T00:00:00Z");
+        DB::statement("CREATE TABLE IF NOT EXISTS check_runs_2026_{$month} PARTITION OF check_runs FOR VALUES FROM ('{$start->toIso8601String()}') TO ('{$start->addMonth()->toIso8601String()}')");
     }
-    $covered = fn (): int => CheckRunRollupHourly::query()->where('check_id', $check->id)->whereIn('bucket_start', ['2026-10-31T23:00:00Z', '2026-11-30T23:00:00Z'])->count();
+    $check = Check::factory()->create();
+    $proofs = [];
+    for ($hour = 0; $hour < 14; $hour++) {
+        $this->travelTo(CarbonImmutable::parse('2026-11-29T17:00:00Z')->addHours($hour));
+        // A new October bucket that no rollup covers yet; only a proof of October rolls it up.
+        $bucket = CarbonImmutable::parse('2026-10-01T00:00:00Z')->addHours($hour);
+        CheckRun::factory()->create(['check_id' => $check->id, 'started_at' => $bucket, 'ended_at' => $bucket->addMinute()]);
+        $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
+        $proofs[] = CheckRunRollupHourly::query()->where('check_id', $check->id)->where('bucket_start', $bucket)->exists();
+    }
 
-    $this->travelTo(CarbonImmutable::parse('2026-12-15T10:00:00Z'));
+    expect(DB::selectOne("SELECT to_regclass('check_runs_2026_06') AS name")->name)->toBeNull();
+    for ($window = 0; $window + 6 <= count($proofs); $window++) {
+        expect(in_array(true, array_slice($proofs, $window, 6), true))->toBeTrue();
+    }
+});
+
+it('prunes addon history only up to the month boundary before the cutoff when an older raw month is missing', function (): void {
+    // With no January partition the oldest raw month is February, but the 30-day cutoff on March 1 is January 30.
+    $this->travelTo(CarbonImmutable::parse('2026-03-01T01:00:00Z'));
+    $check = Check::factory()->create();
+    foreach (['2025-12-31T12:00:00Z', '2026-01-31T12:00:00Z'] as $index => $ended) {
+        DB::table('dns_observations')->insert(['site_id' => $check->site_id, 'check_id' => $check->id, 'run_id' => 900 + $index,
+            'claim_token' => '00000000-0000-4000-8000-00000000001'.$index, 'run_ended_at' => $ended, 'snapshot' => '{}', 'expected' => '{}', 'created_at' => $ended]);
+    }
+
     $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
-    expect($covered())->toBe(1);
-    $this->travel(1)->hours();
-    $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
-    expect($covered())->toBe(2);
+
+    expect(DB::selectOne("SELECT to_regclass('check_runs_2026_01') AS name")->name)->toBeNull()
+        ->and(DB::table('dns_observations')->pluck('run_id')->all())->toBe([901]);
+});
+
+it('proves an expired month again right before its drop, after the rollups of the same run', function (): void {
+    DB::statement("CREATE TABLE IF NOT EXISTS check_runs_2026_02 PARTITION OF check_runs FOR VALUES FROM ('2026-02-01T00:00:00Z') TO ('2026-03-01T00:00:00Z')");
+    $check = Check::factory()->create();
+    $ended = CarbonImmutable::parse('2026-02-28T23:59:59Z');
+    CheckRun::factory()->create(['check_id' => $check->id, 'started_at' => $ended->subSecond(), 'ended_at' => $ended]);
+    $this->travelTo(CarbonImmutable::parse('2026-03-02T00:00:00Z'));
+    $this->artisan('heptapod:maintain-check-data', ['--recompute-range' => '2026-02-01T00:00:00Z,2026-03-01T00:00:00Z'])->assertSuccessful();
+    $this->travelTo(CarbonImmutable::parse('2026-03-31T00:00:00Z'));
+    CheckRun::factory()->create(['check_id' => $check->id, 'started_at' => now()->subMinutes(2), 'ended_at' => now()->subMinute()]);
+    // A backfill into February while this run rolls up the recent window, after February was first proven final.
+    DB::unprepared(<<<SQL
+        CREATE FUNCTION backfill_february() RETURNS trigger LANGUAGE plpgsql AS \$\$
+        BEGIN
+            INSERT INTO check_runs (check_id, check_type, result, started_at, ended_at, summary, metrics)
+            SELECT {$check->id}, 'uptime', 'succeeded', '2026-02-15T11:59:59Z', '2026-02-15T12:00:00Z', 'checks.uptime.succeeded', '{}'
+            WHERE NOT EXISTS (SELECT 1 FROM check_runs WHERE ended_at = '2026-02-15T12:00:00Z');
+            RETURN NEW;
+        END; \$\$;
+        CREATE TRIGGER backfill_february AFTER INSERT ON check_run_rollups_hourly FOR EACH ROW EXECUTE FUNCTION backfill_february();
+        SQL);
+
+    $this->artisan('heptapod:maintain-check-data')->expectsOutputToContain('check_runs_2026_02')->assertSuccessful();
+
+    expect(DB::selectOne("SELECT to_regclass('check_runs_2026_02') AS name")->name)->toBe('check_runs_2026_02')
+        ->and(CheckRun::query()->where('ended_at', '2026-02-15T12:00:00Z')->exists())->toBeTrue();
 });
 
 it('keeps an expired month\'s addon history while its partition drop fails and prunes it after the drop', function (): void {

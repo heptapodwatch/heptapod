@@ -11,8 +11,8 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Deletes addon history ended before a dropped run partition's end. Addon rows hold no foreign key to check_runs, so
- * this runs before, not inside, the partition-drop transaction, and each batch commits on its own.
+ * Deletes addon history ended before a bound that raw retention has passed. Addon rows hold no foreign key to
+ * check_runs, so this runs after, not inside, the partition-drop transaction, and each batch commits on its own.
  */
 final readonly class AddonHistoryRetention
 {

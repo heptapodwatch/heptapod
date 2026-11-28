@@ -102,20 +102,22 @@ final readonly class CheckDataMaintenance
         }
 
         // Accepted attempts arrive within the 390-second lease budget. A closed month is proven final after that margin and
-        // proven again later, so an outage or a later edit is still rolled up. Each run proves one closed month, rotating by
-        // the hour, plus every month about to be dropped. Each rollup statement commits on its own, so a failure keeps
-        // earlier buckets; it must not stop retention below.
+        // proven again later, so an outage or a later edit is still rolled up. The closed, unexpired months end within the
+        // raw retention, so they are at most K = intdiv(retention days, 28) + 1 consecutive months with distinct month
+        // numbers mod K. A run proves the one whose month number matches the hour mod K, so hourly runs prove every closed
+        // month at least once in any K consecutive hours, however months close or expire. Every month about to be dropped
+        // is rolled up here too. Each rollup statement commits on its own, so a failure keeps earlier buckets; it must not
+        // stop retention below.
         $rollupFailure = null;
-        $proven = [];
         try {
-            $rotation = $closed === [] ? [] : [$closed[intdiv($at->getTimestamp(), 3600) % count($closed)]];
+            $rotationMonths = intdiv($retentionDays, 28) + 1;
+            $rotation = array_filter($closed, static fn (array $partition): bool => ($partition['start']->year * 12 + $partition['start']->month) % $rotationMonths
+                === intdiv($at->getTimestamp(), 3600) % $rotationMonths);
             foreach ([...$expired, ...$rotation] as $partition) {
                 if ($this->unfinalisedBuckets($partition['start'], $partition['end']) > 0) {
                     foreach (['hourly' => 'hour', 'daily' => 'day'] as $period => $unit) {
                         $this->rollup($period, $unit, $at, $partition['start'], $partition['end']);
                     }
-                } else {
-                    $proven[$partition['name']] = true;
                 }
             }
             foreach (['hourly' => 'hour', 'daily' => 'day'] as $period => $unit) {
@@ -136,8 +138,8 @@ final readonly class CheckDataMaintenance
         $skipped = [];
         $dropped = [];
         foreach ($expired as $partition) {
-            // Proven again only when the proof above did not already find the month final.
-            $missing = isset($proven[$partition['name']]) ? 0 : $this->unfinalisedBuckets($partition['start'], $partition['end']);
+            // The proof that authorizes the drop runs here, after every rollup and backfill above.
+            $missing = $this->unfinalisedBuckets($partition['start'], $partition['end']);
             if ($missing > 0) {
                 $skipped[] = ['partition' => $partition['name'], 'missing_buckets' => $missing,
                     'command' => 'docker compose exec app php artisan heptapod:maintain-check-data --recompute-range='.$partition['start']->toIso8601String().','.$partition['end']->toIso8601String()];
@@ -155,10 +157,11 @@ final readonly class CheckDataMaintenance
             });
             $dropped[$partition['name']] = true;
         }
-        // Addon history never outlives the oldest retained raw month. Pruning only after the drops means a failed drop keeps
-        // its month's addon history; a failed prune is repeated by every later run.
+        // Addon history goes with its raw month: up to the last month boundary on or before the cutoff, never past a raw
+        // month that is still retained. Pruning only after the drops means a failed drop keeps its month's addon history; a
+        // failed prune is repeated by every later run.
         $retained = array_values(array_filter($partitions, static fn (array $partition): bool => ! isset($dropped[$partition['name']])));
-        $this->addonHistory->prune($retained[0]['start']);
+        $this->addonHistory->prune($cutoff->startOfMonth()->min($retained[0]['start']));
 
         $retention = $this->retention->pruneHourly($at, $policy);
         Log::info('Hourly rollup retention completed.', $retention);

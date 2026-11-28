@@ -21,14 +21,14 @@ interface RunPersistence
     public function discard(int $runId, string $claimToken): void;
 
     /**
-     * Tables raw retention prunes before it drops a run partition, batched by core (AddonHistoryRetention). Keep the last
-     * accepted addon baseline snapshot through a baseline; stable component identities are never listed.
+     * Tables raw retention prunes, batched by core (AddonHistoryRetention) after the run partitions they belong to are
+     * dropped. Keep the last accepted addon baseline snapshot through a baseline; stable component identities are never listed.
      *
      * @return list<HistoryPrune>
      */
     public function historyPrunes(): array;
 
-    /** @return list<string> Tables whose rows prune() removes, including rows removed by foreign-key cascades; database growth projects them with the raw result retention. */
+    /** @return list<string> Tables whose rows historyPrunes() removes, including rows removed by foreign-key cascades; database growth projects them with the raw result retention. */
     public function prunedTables(): array;
 
     /**
