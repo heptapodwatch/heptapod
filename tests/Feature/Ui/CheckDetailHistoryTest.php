@@ -9,10 +9,12 @@ use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\RunResult;
+use Heptapod\Enums\ClientScope;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\CheckRunRollupDaily;
 use Heptapod\Models\CheckRunRollupHourly;
+use Heptapod\Models\Client;
 use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
 use Heptapod\Models\Site;
@@ -301,11 +303,67 @@ it('retains last measured Lighthouse scores after an errored run with 90 UTC sco
     expect($props['history']['last_successful_run_id'])->toBe($successful->id)
         ->and($props['history']['last_successful_at'])->toBe($successful->ended_at->toIso8601String())
         ->and($props['history']['last_successful_metrics']['performance_score'])->toBe(80)
+        ->and($props['history']['last_successful_metrics']['first_contentful_paint_in_ms'])->toEqual(100.0)
+        ->and($props['history']['last_successful_metrics']['speed_index_in_ms'])->toBeNull()
         ->and($props['history']['last_successful_device'])->toBe('mobile')
         ->and($props['history']['scores'])->toHaveCount(53)
         ->and($props['history']['scores'][0])->toEqual(['week' => '2025-09-29T00:00:00+00:00', 'performance' => 60, 'accessibility' => null, 'best_practices' => null, 'seo' => null])
         ->and($props['history']['scores'][52]['week'])->toBe('2026-09-28T00:00:00+00:00')
         ->and($props['history']['scores'][52]['performance'])->toEqual(85);
+});
+
+it('serves only the authorized Lighthouse check’s daily metric averages in the requested range', function (): void {
+    $client = Client::factory()->create();
+    $user = User::factory()->create(['client_scope' => ClientScope::Restricted]);
+    $user->assignRole('Member');
+    $user->clients()->attach($client);
+    $site = Site::factory()->for($client)->create();
+    $check = Check::factory()->for($site)->create(['type' => CheckKey::Lighthouse]);
+    $other = Check::factory()->create(['type' => CheckKey::Lighthouse]);
+    $fcp = 'first_contentful_paint_in_ms';
+    $cls = 'cumulative_layout_shift';
+    $daily = static fn (Check $owner, string $day, array $sums, array $counts) => CheckRunRollupDaily::factory()->for($owner)->create([
+        'bucket_start' => CarbonImmutable::parse($day.'T00:00:00Z'), 'metric_sums' => $sums, 'metric_counts' => $counts,
+        'metric_p95' => [$fcp => 900],
+    ]);
+    $daily($check, '2026-10-03', [$fcp => 601, $cls => 0, 'performance_score' => 90], [$fcp => 2, $cls => 1, 'performance_score' => 1]);
+    $daily($check, '2026-10-01', [$cls => 0.12], [$cls => 1]);
+    foreach (['2026-10-04', '2026-08-01', '2026-03-01', '2025-01-01', '2023-01-01'] as $day) {
+        $daily($check, $day, [$fcp => 125], [$fcp => 1]);
+    }
+    $daily($other, '2026-10-03', [$fcp => 1000], [$fcp => 1]);
+    $url = '/sites/'.$site->id.'/checks/'.$check->id;
+    $this->actingAs($user);
+    $initial = $this->get($url)->assertOk();
+    $headers = ['X-Inertia' => 'true', 'X-Inertia-Version' => $initial->inertiaPage()['version'],
+        'X-Inertia-Partial-Component' => 'sites/show', 'X-Inertia-Partial-Data' => 'daily_metric_history'];
+    expect($initial->inertiaProps())->toHaveKey('daily_metric_history');
+    $series = $initial->inertiaProps()['daily_metric_history'];
+    expect($series['range'])->toBe('30d');
+    $days = array_column($series['points'], 'averages', 'day');
+    expect($days['2026-10-03'])->toEqual([$fcp => 300.5, $cls => 0.0])
+        ->and($days['2026-10-02'])->toBeNull()
+        ->and($days['2026-10-01'])->toEqual([$cls => 0.12])
+        ->and($days)->not->toHaveKey('2026-08-01')->not->toHaveKey('2026-10-04');
+
+    foreach (['90d' => '2026-08-01', '1y' => '2026-03-01', 'all' => '2025-01-01'] as $range => $firstMeasuredDay) {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $props = $this->get($url.'?metric_range='.$range, $headers)->assertOk()->json('props');
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
+        expect($props)->not->toHaveKey('history');
+        expect(array_filter($queries, static fn (array $query): bool => str_contains($query['query'], 'check_run_rollups_daily')))->toHaveCount(1);
+        $series = $props['daily_metric_history'];
+        expect($series['range'])->toBe($range);
+        expect(array_key_first(array_filter(array_column($series['points'], 'averages', 'day'))))->toBe($firstMeasuredDay);
+    }
+
+    $this->get($url.'?metric_range=7d')->assertRedirect($url)
+        ->assertInertiaFlash('toast', ['type' => 'warning', 'message' => 'Unknown time range. Showing 30 days.']);
+    $this->get('/sites/'.$other->site_id.'/checks/'.$other->id.'?metric_range=all', $headers)->assertNotFound();
+    $this->get('/sites/'.$site->id.'/checks/'.$other->id.'?metric_range=all', $headers)->assertNotFound();
+    $this->get('/sites/'.$site->id, $headers)->assertOk()->assertJsonMissingPath('props.daily_metric_history');
 });
 
 it('shows bounded crawl findings, incomplete reasons and exact weekly changes', function (): void {

@@ -38,6 +38,7 @@ final class CheckTabPageData extends Data
         public readonly ClosureLazy|MonthlyUptimeData|null $monthly_uptime,
         /** The uptime check's response time for the range in `?response_range` (24h by default); null for other checks. */
         public readonly ClosureLazy|ResponseTimeSeriesData|null $response_time,
+        public readonly ClosureLazy|DailyMetricHistoryData|null $daily_metric_history,
         public readonly ClosureLazy|array $phase_series,
         public readonly ClosureLazy|MetricSeriesData|null $response_p95_hourly,
         public readonly ClosureLazy|ClientData $client,

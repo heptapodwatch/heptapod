@@ -9,12 +9,14 @@ use Carbon\CarbonInterface;
 use Heptapod\Checks\History\RetentionPolicy;
 use Heptapod\Checks\History\RollupReader;
 use Heptapod\Contracts\CheckKey;
+use Heptapod\Data\Ui\DailyMetricHistoryData;
 use Heptapod\Data\Ui\MonthlyUptimeData;
 use Heptapod\Data\Ui\ResponseTimeBucketData;
 use Heptapod\Data\Ui\ResponseTimeSeriesData;
 use Heptapod\Data\Ui\UptimeBucketData;
 use Heptapod\Data\Ui\UptimeMonthData;
 use Heptapod\Enums\BucketStatus;
+use Heptapod\Enums\DailyMetricRange;
 use Heptapod\Enums\ResponseTimeRange;
 use Heptapod\Maintenance\MaintenanceTargets;
 use Heptapod\Models\Check;
@@ -166,6 +168,30 @@ final readonly class HistoryReader
         $average = $recent['metric_averages'][$metric] ?? null;
 
         return new ResponseTimeSeriesData($range, $points, $average === null ? null : round(1000 * $average, 2));
+    }
+
+    /** @param non-empty-list<string> $metrics */
+    public function dailyMetricHistory(int $checkId, array $metrics, DailyMetricRange $range): DailyMetricHistoryData
+    {
+        $until = CarbonImmutable::now('UTC')->startOfDay();
+        $retainedDays = RetentionPolicy::fromConfig()->dailyDays;
+        $days = match ($range) {
+            DailyMetricRange::Days30 => 30,
+            DailyMetricRange::Days90 => 90,
+            DailyMetricRange::Year1 => 365,
+            DailyMetricRange::All => $retainedDays,
+        };
+        $keys = array_fill_keys($metrics, true);
+        $points = [];
+        foreach ($this->history->read($checkId, 'daily', $until->subDays(min($days, $retainedDays)), $until) as $bucket) {
+            $averages = array_intersect_key($bucket['metric_averages'], $keys);
+            if ($range === DailyMetricRange::All && $points === [] && $averages === []) {
+                continue;
+            }
+            $points[] = ['day' => $bucket['bucket_start']->toDateString(), 'averages' => $averages === [] ? null : $averages];
+        }
+
+        return new DailyMetricHistoryData($range, $points);
     }
 
     /**

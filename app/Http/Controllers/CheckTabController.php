@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers;
 
+use Heptapod\Enums\DailyMetricRange;
 use Heptapod\Enums\ResponseTimeRange;
 use Heptapod\Models\User;
 use Heptapod\Queries\SiteDetailReader;
@@ -27,6 +28,14 @@ final class CheckTabController extends Controller
             return to_route('sites.checks.show', ['site' => $site, 'check' => $check]);
         }
 
-        return Inertia::render('sites/show', $reader->checkPage($user, $site, $check, $range));
+        $requestedMetrics = $request->query('metric_range', DailyMetricRange::Days30->value);
+        $metricRange = is_string($requestedMetrics) ? DailyMetricRange::tryFrom($requestedMetrics) : null;
+        if ($metricRange === null) {
+            Inertia::flash('toast', ['type' => 'warning', 'message' => __('history.unknown_daily_range')]);
+
+            return to_route('sites.checks.show', ['site' => $site, 'check' => $check]);
+        }
+
+        return Inertia::render('sites/show', $reader->checkPage($user, $site, $check, $range, $metricRange));
     }
 }

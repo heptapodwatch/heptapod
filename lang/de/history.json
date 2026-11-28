@@ -15,6 +15,7 @@
     "history.score_history": "Verlauf der Bewertungen",
     "history.score_history_description": "Durchschnitt pro Woche und Kategorie; die Änderung vergleicht mit derselben Woche vor einem Jahr.",
     "history.year_change": "{{change}} gegenüber dem Vorjahr",
+    "history.unknown_daily_range": "Unbekannter Zeitraum. Es werden 30 Tage angezeigt.",
     "history.unknown_range": "Unbekannter Zeitraum. Es werden 24 Stunden angezeigt.",
     "response_time.view": "Ansicht der Antwortzeit",
     "response_time.phase_values": "5-Minuten-Maximum je Phase",

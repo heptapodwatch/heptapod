@@ -20,6 +20,7 @@ use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
 use Heptapod\Contracts\ChromiumRenderer;
+use Heptapod\Contracts\DailyMetricHistoryProvider;
 use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\LatestRunEvidence;
 use Heptapod\Contracts\ListScore;
@@ -41,7 +42,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Spatie\Lighthouse\LighthouseResult;
 
-final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistoryProvider, CheckRunPresenter, CheckType, ListScoresProvider, MailEvidenceProvider, ReportsAvailability
+final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistoryProvider, CheckRunPresenter, CheckType, DailyMetricHistoryProvider, ListScoresProvider, MailEvidenceProvider, ReportsAvailability
 {
     private const array Categories = ['performance' => 'performance', 'accessibility' => 'accessibility', 'best_practices' => 'best-practices', 'seo' => 'seo'];
 
@@ -159,6 +160,14 @@ final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistor
     public function history(int $checkId, bool $canViewCapabilities = false): LighthouseHistoryData
     {
         return $this->store->history($checkId);
+    }
+
+    public function dailyHistoryMetrics(): array
+    {
+        return [
+            'first_contentful_paint_in_ms', 'speed_index_in_ms', 'time_to_interactive_in_ms',
+            'largest_contentful_paint_in_ms', 'total_blocking_time_in_ms', 'cumulative_layout_shift',
+        ];
     }
 
     public function mailEventPhrases(): array

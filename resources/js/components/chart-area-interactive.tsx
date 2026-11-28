@@ -30,13 +30,7 @@ import {
     ChartTooltip,
     ChartTooltipContent,
 } from '@/components/ui/chart';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { ChartRangeControl } from '@/components/chart-range-control';
 import { ResponsePhaseChart } from '@/components/response-phase-chart';
 import { SegmentedControl } from '@/components/segmented-control';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -45,19 +39,17 @@ import { cn } from '@/lib/utils';
 
 type Range = Heptapod.Enums.ResponseTimeRange;
 
-const ranges: { key: Range; label: string; caption: string }[] = [
+const ranges: { key: Range; caption: string }[] = [
     {
         key: '24h',
-        label: '24 hours',
         caption: 'response_time.five_minute_values',
     },
-    { key: '7d', label: '7 days', caption: 'response_time.hourly_values' },
-    { key: '30d', label: '30 days', caption: 'response_time.daily_values' },
-    { key: '90d', label: '90 days', caption: 'response_time.daily_values' },
-    { key: '1y', label: '1 year', caption: 'response_time.daily_values' },
+    { key: '7d', caption: 'response_time.hourly_values' },
+    { key: '30d', caption: 'response_time.daily_values' },
+    { key: '90d', caption: 'response_time.daily_values' },
+    { key: '1y', caption: 'response_time.daily_values' },
     {
         key: 'all',
-        label: 'history.all',
         caption: 'response_time.weekly_values',
     },
 ];
@@ -205,32 +197,11 @@ export function ChartAreaInteractive({
                             },
                         ]}
                     />
-                    <div className="hidden @[640px]/card:block">
-                        <SegmentedControl
-                            label={t('Time range')}
-                            value={selected}
-                            onValueChange={select}
-                            options={ranges.map((range) => ({
-                                value: range.key,
-                                label: t(range.label),
-                            }))}
-                        />
-                    </div>
-                    <Select value={selected} onValueChange={select}>
-                        <SelectTrigger
-                            className="w-32 @[640px]/card:hidden"
-                            aria-label={t('Time range')}
-                        >
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {ranges.map((range) => (
-                                <SelectItem key={range.key} value={range.key}>
-                                    {t(range.label)}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <ChartRangeControl
+                        ranges={ranges.map((range) => range.key)}
+                        value={selected}
+                        onValueChange={select}
+                    />
                 </CardAction>
             </CardHeader>
             <CardContent>
