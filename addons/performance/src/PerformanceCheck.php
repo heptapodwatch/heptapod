@@ -21,7 +21,6 @@ use Heptapod\Contracts\Mail\FactsBlock;
 use Heptapod\Contracts\Mail\MailEventFacts;
 use Heptapod\Contracts\Mail\MailEvidenceProvider;
 use Heptapod\Contracts\Mail\MailTone;
-use Heptapod\Contracts\Mail\NoteBlock;
 use Heptapod\Contracts\NoResultReason;
 use Heptapod\Contracts\PerformanceResponseTimeWindow;
 use Heptapod\Contracts\PreviousResult;
@@ -90,10 +89,6 @@ final class PerformanceCheck implements CheckRunPresenter, CheckType, MailEviden
     public function mailEventTones(): array
     {
         return [
-            'incident.opened' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
-            'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'performance.improved' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Changed, 'succeeded' => MailTone::Changed],
         ];
     }
@@ -127,13 +122,6 @@ final class PerformanceCheck implements CheckRunPresenter, CheckType, MailEviden
         }
 
         return [new FactsBlock(__('performance.mail_response', locale: $locale), $rows)];
-    }
-
-    public function mailRecoveryEvidence(CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $event): array
-    {
-        return $recovery instanceof CheckRunPresentationInput
-            ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
-            : [new NoteBlock(__('performance.mail_details_not_retained', locale: $locale))];
     }
 
     public function definition(): CheckDefinition

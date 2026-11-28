@@ -124,10 +124,6 @@ final readonly class CertificateHealthCheck implements CheckDetailProvider, Chec
     public function mailEventTones(): array
     {
         return [
-            'incident.opened' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
-            'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'certificate_health.certificate_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Changed, 'succeeded' => MailTone::Changed],
         ];
     }
@@ -171,13 +167,6 @@ final readonly class CertificateHealthCheck implements CheckDetailProvider, Chec
         $rows[] = ['label' => __('certificate_health.mail_valid_until', locale: $locale), 'value' => new Cell($until->isoFormat('ll').' · '.trans_choice('certificate_health.mail_days', $days, ['days' => $days], $locale), tone: $days < 0 ? MailTone::Failed : null)];
 
         return [new FactsBlock(__('certificate_health.mail_served', locale: $locale), $rows)];
-    }
-
-    public function mailRecoveryEvidence(CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $event): array
-    {
-        return $recovery instanceof CheckRunPresentationInput
-            ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
-            : [new NoteBlock(__('certificate_health.mail_recovery_confirmed', locale: $locale))];
     }
 
     public function definition(): CheckDefinition

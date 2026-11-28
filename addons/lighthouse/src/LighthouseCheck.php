@@ -197,10 +197,6 @@ final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistor
     public function mailEventTones(): array
     {
         return [
-            'incident.opened' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
-            'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'lighthouse.score_threshold_crossed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Changed],
         ];
     }
@@ -226,13 +222,6 @@ final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistor
 
         return [new ScoresBlock(__('lighthouse.mail_scores', ['at' => $at->isoFormat('ll, HH:mm z')], $locale), $items,
             __('lighthouse.mail_recorded_thresholds', locale: $locale))];
-    }
-
-    public function mailRecoveryEvidence(CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $event): array
-    {
-        return $recovery instanceof CheckRunPresentationInput
-            ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
-            : [new NoteBlock(__('lighthouse.mail_details_not_retained', locale: $locale))];
     }
 
     public function listScores(?array $metrics): array

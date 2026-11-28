@@ -37,7 +37,7 @@ foreach ($registry->keys() as $key) {
     if ($key === CheckKey::Uptime) {
         $required['incident.still_down'] = [RunResult::Failed->value];
     }
-    $tones = $addon->mailEventTones();
+    $tones = $addon->mailEventTones() + MailEvidenceProvider::LifecycleTones;
     foreach ($required as $event => $eventResults) {
         foreach ($eventResults as $result) {
             $pairs++;

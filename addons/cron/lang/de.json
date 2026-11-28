@@ -23,7 +23,6 @@
     "cron.no_tasks": "Keine geplanten Aufgaben",
     "cron.resolved_no_tasks": "Behoben — keine geplanten Aufgaben",
     "cron.presentation.task": ":name: {{result}}",
-    "cron.mail_details_not_retained": "Details werden nicht mehr vorgehalten.",
     "cron.mail_task": "Aufgabe",
     "cron.mail_result": "Ergebnis",
     "cron.mail_message": "Fehlermeldung",

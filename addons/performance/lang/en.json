@@ -23,7 +23,6 @@
     "performance.p95_uptime": "p95 of uptime response times, hourly",
     "performance.confirming_warning": "Average :average ms; elevated response time sample :count of 3 before a warning.",
     "performance.confirming_recovery": "Average :average ms; good response time sample :count of 3 before the warning clears.",
-    "performance.mail_details_not_retained": "Details no longer retained.",
     "performance.mail_average": "Average response time",
     "performance.mail_samples": "Samples",
     "performance.mail_baseline": "Usual median for this hour",

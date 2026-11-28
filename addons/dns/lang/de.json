@@ -23,7 +23,6 @@
     "dns.presentation.removed": ":types-Einträge geändert: :removed entfernt",
     "dns.presentation.added": ":types-Einträge geändert: :added hinzugefügt",
     "dns.presentation.changed_short": ":types-Einträge geändert",
-    "dns.mail_details_not_retained": "Details werden nicht mehr vorgehalten.",
     "dns.mail_changes": "DNS-Einträge geändert",
     "dns.mail_more": "und :count weitere",
     "dns.mail_issues": "DNS-Probleme",

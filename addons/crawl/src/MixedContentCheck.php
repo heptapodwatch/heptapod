@@ -47,10 +47,6 @@ final readonly class MixedContentCheck implements CheckDetailProvider, CheckHist
     public function mailEventTones(): array
     {
         return [
-            'incident.opened' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
-            'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'mixed_content.new_finding' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Changed],
         ];
     }
@@ -72,7 +68,7 @@ final readonly class MixedContentCheck implements CheckDetailProvider, CheckHist
         /** @var list<string> $newIds */
         $rows = $event->run instanceof RunReference ? $this->store->mailMixedContent($event->checkId, $event->run, $newIds) : null;
         if ($rows === null || $rows === []) {
-            return [new NoteBlock(__('mixed_content.mail_details_not_retained', locale: $locale))];
+            return [NoteBlock::detailsNotRetained($locale)];
         }
         // The table lists the observation's findings; only the event's own identities are marked new, as in the broken-links mail.
         $new = array_flip($newIds);
@@ -100,13 +96,6 @@ final readonly class MixedContentCheck implements CheckDetailProvider, CheckHist
             __('mixed_content.mail_url', locale: $locale), __('mixed_content.mail_found_on', locale: $locale)], $table, $more);
 
         return $blocks;
-    }
-
-    public function mailRecoveryEvidence(CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $event): array
-    {
-        return $recovery instanceof CheckRunPresentationInput
-            ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
-            : [new NoteBlock(__('mixed_content.mail_details_not_retained', locale: $locale))];
     }
 
     public function definition(): CheckDefinition

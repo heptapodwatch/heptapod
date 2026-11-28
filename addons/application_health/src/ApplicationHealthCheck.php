@@ -148,10 +148,6 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
     public function mailEventTones(): array
     {
         return [
-            'incident.opened' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
-            'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'application_health.component_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Changed],
         ];
     }
@@ -188,13 +184,6 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
         }
 
         return [new TableBlock(__('application_health.mail_results', locale: $locale), [__('application_health.mail_check', locale: $locale), __('application_health.mail_result', locale: $locale)], $rows, $more)];
-    }
-
-    public function mailRecoveryEvidence(CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $event): array
-    {
-        return $recovery instanceof CheckRunPresentationInput
-            ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
-            : [new NoteBlock(__('application_health.mail_details_not_retained', locale: $locale))];
     }
 
     public function definition(): CheckDefinition

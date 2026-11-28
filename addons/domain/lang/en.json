@@ -7,7 +7,6 @@
     "domain.registration_at_risk": "Domain registration is at risk",
     "domain.registry_does_not_publish": "Registry does not publish an expiry date",
     "domain.lookup_unavailable": "Domain expiry lookup unavailable",
-    "domain.mail_details_not_retained": "Details no longer retained.",
     "domain.mail_unpublished": "Not published",
     "domain.mail_days": ":days day|:days days",
     "domain.mail_registration": "Domain registration",

@@ -23,7 +23,6 @@
     "cron.no_tasks": "No scheduled tasks",
     "cron.resolved_no_tasks": "Resolved — no scheduled tasks",
     "cron.presentation.task": ":name: {{result}}",
-    "cron.mail_details_not_retained": "Details no longer retained.",
     "cron.mail_task": "Task",
     "cron.mail_result": "Result",
     "cron.mail_message": "Failure message",

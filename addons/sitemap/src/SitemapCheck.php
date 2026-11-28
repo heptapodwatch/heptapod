@@ -95,10 +95,6 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
     public function mailEventTones(): array
     {
         return [
-            'incident.opened' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
-            'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'sitemap.issues_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Changed],
         ];
     }
@@ -121,7 +117,7 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
             $rows[] = [new Cell($issue['url'], mono: true), new Cell($reason, mono: true, tone: MailTone::Failed)];
         }
         if ($rows === []) {
-            return [new NoteBlock(__('sitemap.mail_details_not_retained', locale: $locale))];
+            return [NoteBlock::detailsNotRetained($locale)];
         }
 
         $more = $snapshot->totalIssuesCount > count($rows) ? __('sitemap.mail_more', ['count' => $snapshot->totalIssuesCount - count($rows)], $locale) : null;
@@ -131,13 +127,6 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
 
         return [new TableBlock(__('sitemap.mail_issues', locale: $locale), [__('sitemap.mail_url', locale: $locale), __('sitemap.mail_result', locale: $locale)], $rows, $more),
             new NoteBlock(trans_choice('sitemap.mail_total', $snapshot->totalUrlCount, ['count' => $snapshot->totalUrlCount], $locale))];
-    }
-
-    public function mailRecoveryEvidence(CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $event): array
-    {
-        return $recovery instanceof CheckRunPresentationInput
-            ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
-            : [new NoteBlock(__('sitemap.mail_details_not_retained', locale: $locale))];
     }
 
     public function definition(): CheckDefinition

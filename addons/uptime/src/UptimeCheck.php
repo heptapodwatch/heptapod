@@ -35,6 +35,7 @@ use Heptapod\Contracts\Mail\Cell;
 use Heptapod\Contracts\Mail\FactsBlock;
 use Heptapod\Contracts\Mail\MailEventFacts;
 use Heptapod\Contracts\Mail\MailEvidenceProvider;
+use Heptapod\Contracts\Mail\MailRecoveryEvidenceProvider;
 use Heptapod\Contracts\Mail\MailTone;
 use Heptapod\Contracts\Mail\TableBlock;
 use Heptapod\Contracts\MonitorOutageGuard;
@@ -55,7 +56,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Number;
 use Illuminate\Support\Str;
 
-final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresenter, CheckSummaryPresenter, CheckType, MailEvidenceProvider
+final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresenter, CheckSummaryPresenter, CheckType, MailEvidenceProvider, MailRecoveryEvidenceProvider
 {
     public function __construct(
         private OutboundHttp $http,
@@ -244,7 +245,6 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
         return [
             'incident.opened' => ['failed' => MailTone::Down, 'errored-or-timed-out' => MailTone::CheckError],
             'incident.cause_changed' => ['failed' => MailTone::Down, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
             'check.result_changed' => ['failed' => MailTone::Down, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'incident.still_down' => ['failed' => MailTone::Down],
         ];

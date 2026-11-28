@@ -54,10 +54,6 @@ final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetail
     public function mailEventTones(): array
     {
         return [
-            'incident.opened' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
-            'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'broken_links.new_broken_found' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Changed],
         ];
     }
@@ -88,7 +84,7 @@ final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetail
         $ids = array_values(array_unique([...$evidence->finding_ids, ...$newIds]));
         $rows = $event->run instanceof RunReference ? $this->store->mailFindings($event->checkId, $event->run, $ids) : null;
         if ($rows === null || $rows === []) {
-            return [new NoteBlock(__('broken_links.mail_details_not_retained', locale: $locale))];
+            return [NoteBlock::detailsNotRetained($locale)];
         }
         if ($event->type === 'broken_links.new_broken_found') {
             $lines = array_map(static fn (CrawlFinding $finding): array => [
@@ -113,13 +109,6 @@ final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetail
         }
 
         return [new TableBlock(__('broken_links.mail_findings', locale: $locale), [__('broken_links.mail_url', locale: $locale), __('broken_links.mail_result', locale: $locale), __('broken_links.mail_found_on', locale: $locale)], $table, $more)];
-    }
-
-    public function mailRecoveryEvidence(CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $event): array
-    {
-        return $recovery instanceof CheckRunPresentationInput
-            ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
-            : [new NoteBlock(__('broken_links.mail_details_not_retained', locale: $locale))];
     }
 
     public function definition(): CheckDefinition
