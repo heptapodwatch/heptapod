@@ -10,6 +10,7 @@ use Heptapod\Models\CheckRun;
 use Heptapod\Models\CheckRunRollupDaily;
 use Heptapod\Models\CheckRunRollupHourly;
 use Heptapod\Models\Incident;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 
@@ -27,11 +28,14 @@ it('automatically finalises early-month observations across several months and d
     $day = CheckRunRollupDaily::query()->where('check_id', $run->check_id)->sole();
     expect($hour->computed_at->equalTo($ended))->toBeTrue();
 
+    $finalisedMonths = fn (): array => DB::table('check_run_partition_finalisations')->where('partition_start', $start)->pluck('finalised_at')
+        ->map(fn (string $at): string => CarbonImmutable::parse($at)->toIso8601String())->all();
     $this->travelTo($end->addMinutes(10)->subMicrosecond());
     $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
-    expect($hour->fresh()->computed_at->equalTo($ended))->toBeTrue();
+    expect($finalisedMonths())->toBe([]);
     $this->travelTo($end->addMinutes(10));
     $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
+    expect($finalisedMonths())->toBe([$end->addMinutes(10)->toIso8601String()]);
     $finalised = $day->fresh()->getAttributes();
     $runs = [$run];
     for ($at = $end->addHour(); $at->lessThanOrEqualTo(CarbonImmutable::parse('2026-05-31T00:00:00Z')); $at = $at->addHour()) {
@@ -147,6 +151,52 @@ it('rolls a result recorded after midnight within the lease into the previous da
     expect($day->fresh()->computed_at->equalTo($midnight->addHour()))->toBeTrue();
 });
 
+it('catches up the previous day when maintenance resumes five hours after its last run', function (): void {
+    $midnight = CarbonImmutable::parse('2026-10-05T00:00:00Z');
+    $check = Check::factory()->create();
+    $this->travelTo($midnight->subHour());
+    CheckRun::factory()->create(['check_id' => $check->id, 'started_at' => $midnight->subMinutes(91), 'ended_at' => $midnight->subMinutes(90)]);
+    $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
+    // Recorded while maintenance was down.
+    $this->travelTo($midnight->subMinutes(30));
+    CheckRun::factory()->create(['check_id' => $check->id, 'started_at' => $midnight->subMinutes(31), 'ended_at' => $midnight->subMinutes(30)]);
+
+    $this->travelTo($midnight->addHours(4));
+    $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
+    $day = CheckRunRollupDaily::query()->where('check_id', $check->id)->sole();
+    expect($day->succeeded_count)->toBe(2)
+        ->and($day->computed_at->equalTo($midnight->addHours(4)))->toBeTrue()
+        ->and(CheckRunRollupHourly::query()->where('check_id', $check->id)->where('bucket_start', $midnight->subHour())->sole()->succeeded_count)->toBe(1);
+});
+
+it('finalises the closed month and the previous day when maintenance resumes two days after its last run', function (): void {
+    $monthEnd = CarbonImmutable::parse('2026-11-01T00:00:00Z');
+    $check = Check::factory()->create();
+    $this->travelTo($monthEnd->subHours(3));
+    CheckRun::factory()->create(['check_id' => $check->id, 'started_at' => $monthEnd->subMinutes(211), 'ended_at' => $monthEnd->subMinutes(210)]);
+    $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
+    // Recorded while maintenance was down, on both sides of the month end.
+    $this->travelTo($monthEnd->subMinutes(30));
+    CheckRun::factory()->create(['check_id' => $check->id, 'started_at' => $monthEnd->subMinutes(31), 'ended_at' => $monthEnd->subMinutes(30)]);
+    $this->travelTo($monthEnd->addHours(12));
+    CheckRun::factory()->create(['check_id' => $check->id, 'started_at' => $monthEnd->addHours(12)->subSecond(), 'ended_at' => $monthEnd->addHours(12)]);
+
+    $this->travelTo($monthEnd->addDay()->addHour());
+    $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
+    $daily = fn (CarbonImmutable $day): CheckRunRollupDaily => CheckRunRollupDaily::query()->where('check_id', $check->id)->where('bucket_start', $day)->sole();
+    expect($daily($monthEnd->subDay())->succeeded_count)->toBe(2)
+        ->and($daily($monthEnd)->succeeded_count)->toBe(1)
+        ->and(CheckRunRollupHourly::query()->where('check_id', $check->id)->where('bucket_start', $monthEnd->subHour())->sole()->succeeded_count)->toBe(1)
+        ->and(DB::table('check_run_partition_finalisations')->pluck('partition_start')->map(fn (string $start): string => CarbonImmutable::parse($start)->toIso8601String())->all())
+        ->toBe(['2026-10-01T00:00:00+00:00']);
+
+    // A finalised month is not rolled up again.
+    $finalised = $daily($monthEnd->subDay())->getAttributes();
+    $this->travelTo($monthEnd->addDays(2));
+    $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
+    expect($daily($monthEnd->subDay())->getAttributes())->toBe($finalised);
+});
+
 it('drops only wholly expired months after rolling them up and keeps incident evidence and boundary-month runs', function (): void {
     $boundary = CarbonImmutable::parse('2026-03-31T00:00:00Z');
     $this->travelTo($boundary->subMicrosecond());
@@ -209,6 +259,26 @@ it('automatically repairs first-start historical raw data before dropping its ex
     expect(CheckRun::query()->forRun($run->reference())->exists())->toBeFalse();
     expect(CheckRunRollupHourly::query()->sole()->metric_counts)->toBe(['total_time_in_seconds' => 1]);
     expect(CheckRunRollupDaily::query()->sole()->metric_sums)->toBe(['total_time_in_seconds' => 2]);
+});
+
+it('keeps an expired month\'s addon history while its partition drop fails and prunes it after the drop', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-03-31T00:00:00Z'));
+    DB::statement("CREATE TABLE IF NOT EXISTS check_runs_2026_02 PARTITION OF check_runs FOR VALUES FROM ('2026-02-01T00:00:00Z') TO ('2026-03-01T00:00:00Z')");
+    $ended = CarbonImmutable::parse('2026-02-28T23:59:59Z');
+    $run = CheckRun::factory()->create(['started_at' => $ended->subSecond(), 'ended_at' => $ended]);
+    DB::table('dns_observations')->insert(['site_id' => $run->check->site_id, 'check_id' => $run->check_id, 'run_id' => $run->id,
+        'claim_token' => '00000000-0000-4000-8000-000000000002', 'run_ended_at' => $ended, 'snapshot' => '{}', 'expected' => '{}', 'created_at' => $ended]);
+    // A dependent view makes DROP TABLE fail after the month was proven final.
+    DB::statement('CREATE VIEW february_runs AS SELECT id FROM check_runs_2026_02');
+
+    expect(fn (): int => Artisan::call('heptapod:maintain-check-data'))->toThrow(QueryException::class, 'february_runs');
+    expect(DB::selectOne("SELECT to_regclass('check_runs_2026_02') AS name")->name)->toBe('check_runs_2026_02')
+        ->and(DB::table('dns_observations')->count())->toBe(1);
+
+    DB::statement('DROP VIEW february_runs');
+    $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
+    expect(DB::selectOne("SELECT to_regclass('check_runs_2026_02') AS name")->name)->toBeNull()
+        ->and(DB::table('dns_observations')->count())->toBe(0);
 });
 
 it('requires finalisation at least ten minutes after the partition end before dropping raw data', function (int $microseconds, bool $finalised): void {

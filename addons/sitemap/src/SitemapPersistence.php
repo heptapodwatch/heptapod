@@ -384,8 +384,9 @@ final readonly class SitemapPersistence implements FindingsExportProvider, Findi
 
     public function historyPrunes(): array
     {
-        return [new HistoryPrune('sitemap_snapshots', baselinePer: 'check_id', baselineFilters: [static fn (Builder $accepted): Builder => $accepted
-            ->whereNotNull('comparison_issues')->whereJsonDoesntContain('snapshot->issues', [['type' => 'sitemap.issue.time_limit']])])];
+        return [new HistoryPrune('sitemap_snapshots', baselinePer: 'check_id', baselineFilters: [
+            static fn (Builder $accepted): Builder => $accepted,
+            static fn (Builder $accepted): Builder => $accepted->whereNotNull('comparison_issues')->whereJsonDoesntContain('snapshot->issues', [['type' => 'sitemap.issue.time_limit']])])];
     }
 
     public function discard(int $runId, string $claimToken): void

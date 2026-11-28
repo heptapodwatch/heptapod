@@ -86,11 +86,11 @@ final class WorkerMemoryBudget
     }
 
     /** @param  array<string, array<string, mixed>>  $supervisors  effectiveSupervisors() */
-    public static function crawlWorkers(array $supervisors): int
+    public static function queueWorkers(array $supervisors, string $queue): int
     {
         $workers = 0;
         foreach ($supervisors as $options) {
-            if (($options['queue'] ?? null) === ['checks-crawl'] && is_int($options['maxProcesses'] ?? null)) {
+            if (($options['queue'] ?? null) === [$queue] && is_int($options['maxProcesses'] ?? null)) {
                 $workers += $options['maxProcesses'];
             }
         }

@@ -10,7 +10,7 @@ use Illuminate\Database\Query\Builder;
 /**
  * One addon history table that raw retention prunes: rows whose $endedColumn lies before the bound go in batches of
  * $idColumn values. With $baselinePer, the newest accepted row (by run_ended_at, run_id) per value of that column
- * survives, plus, per baseline filter, the newest accepted row matching it.
+ * survives; with baseline filters, instead the newest accepted row matching each filter.
  */
 final readonly class HistoryPrune
 {

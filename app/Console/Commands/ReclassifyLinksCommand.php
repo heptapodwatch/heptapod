@@ -7,6 +7,7 @@ namespace Heptapod\Console\Commands;
 use Carbon\CarbonImmutable;
 use Heptapod\Checks\CauseSummary;
 use Heptapod\Checks\DatabaseClock;
+use Heptapod\Checks\History\CheckRunCoverage;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\FindingReclassificationPlan;
 use Heptapod\Contracts\FindingReclassifier;
@@ -41,21 +42,21 @@ final class ReclassifyLinksCommand extends Command
         return __('reclassify_links.description');
     }
 
-    public function handle(FindingReclassifier $reclassifier, EventOutbox $outbox, CauseSummary $summaries): int
+    public function handle(FindingReclassifier $reclassifier, EventOutbox $outbox, CauseSummary $summaries, CheckRunCoverage $coverage): int
     {
         if ($this->option('dry-run') !== true) {
-            return $this->reclassify($reclassifier, $outbox, $summaries, false);
+            return $this->reclassify($reclassifier, $outbox, $summaries, $coverage, false);
         }
 
         // Preflight: one read-only transaction, so it can run against the pre-upgrade schema without any write.
-        return DB::transaction(function () use ($reclassifier, $outbox, $summaries): int {
+        return DB::transaction(function () use ($reclassifier, $outbox, $summaries, $coverage): int {
             DB::statement('SET TRANSACTION READ ONLY');
 
-            return $this->reclassify($reclassifier, $outbox, $summaries, true);
+            return $this->reclassify($reclassifier, $outbox, $summaries, $coverage, true);
         });
     }
 
-    private function reclassify(FindingReclassifier $reclassifier, EventOutbox $outbox, CauseSummary $summaries, bool $dryRun): int
+    private function reclassify(FindingReclassifier $reclassifier, EventOutbox $outbox, CauseSummary $summaries, CheckRunCoverage $coverage, bool $dryRun): int
     {
         if ($this->option('policy') !== (string) $reclassifier->policyVersion()) {
             $this->error(__('reclassify_links.unknown_policy', ['version' => $reclassifier->policyVersion()]));
@@ -97,7 +98,7 @@ final class ReclassifyLinksCommand extends Command
 
                 continue;
             }
-            $row = DB::transaction(function () use ($checkId, $reclassifier, $outbox, $summaries): ?array {
+            $row = DB::transaction(function () use ($checkId, $reclassifier, $outbox, $summaries, $coverage): ?array {
                 // NotificationLocks: the check and its site (both exclusive, as the recorder holds them), then the deliveries.
                 NotificationLocks::checks([], exclusive: [$checkId]);
                 $check = Check::query()->find($checkId);
@@ -106,6 +107,8 @@ final class ReclassifyLinksCommand extends Command
                 }
                 NotificationLocks::sites([$check->site_id], exclusive: true);
                 $check->setRelation('site', Site::query()->findOrFail($check->site_id));
+                // Before the plan reads the run, so maintenance cannot record rollup coverage over this edit.
+                $coverage->lockAgainstMaintenance();
                 // Plan under the lock so concurrent snapshot acceptance is reflected without retaining prior plans.
                 $locked = $reclassifier->plan($check->id);
                 if (! $locked instanceof FindingReclassificationPlan) {
@@ -129,6 +132,10 @@ final class ReclassifyLinksCommand extends Command
                 $run = $locked->runResultBefore instanceof RunResult ? CheckRun::forRun($locked->run)->where('check_id', $check->id)->firstOrFail() : null;
                 $run?->update(['result' => $locked->runResultAfter, 'metrics' => $locked->metrics, 'evidence' => [...$run->evidence ?? [], ...$locked->evidence],
                     'summary' => $locked->summaryAfter ?? $run->summary]);
+                if ($run instanceof CheckRun) {
+                    // The run's result and metrics feed its hourly and daily rollups.
+                    $coverage->invalidateFrom($run->ended_at);
+                }
                 if ($run instanceof CheckRun && $locked->runResultAfter !== $locked->runResultBefore) {
                     // Result updates are not covered by the history triggers; recompute this run's and its successor's projection.
                     DB::update(<<<'SQL'

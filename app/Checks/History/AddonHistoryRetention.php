@@ -32,10 +32,13 @@ final readonly class AddonHistoryRetention
 
     private function pruneTable(HistoryPrune $prune, string $before): void
     {
+        if (! DB::table($prune->table)->where($prune->endedColumn, '<', $before)->exists()) {
+            return;
+        }
         // A row older than the bound never becomes the newest later, so the baselines read once stay valid for every batch.
         $baselines = [];
         if ($prune->baselinePer !== null) {
-            foreach ([static fn (Builder $accepted): Builder => $accepted, ...$prune->baselineFilters] as $filter) {
+            foreach ($prune->baselineFilters === [] ? [static fn (Builder $accepted): Builder => $accepted] : $prune->baselineFilters as $filter) {
                 $newest = DB::table($prune->table)->selectRaw("DISTINCT ON ({$prune->baselinePer}) {$prune->idColumn}")
                     ->whereNotNull('run_ended_at')->orderBy($prune->baselinePer)->orderByDesc('run_ended_at')->orderByDesc('run_id');
                 /** @var list<int> $ids */
@@ -45,9 +48,9 @@ final readonly class AddonHistoryRetention
         }
         $expired = fn (): Builder => DB::table($prune->table)->where($prune->endedColumn, '<', $before)
             ->whereRaw("{$prune->idColumn} <> ALL(?::bigint[])", ['{'.implode(',', $baselines).'}']);
-        do {
-            // Rows sharing an ID value (one cron run's tasks) go in the same batch, so a full batch can delete more rows.
-            $deleted = $expired()->whereIn($prune->idColumn, $expired()->select($prune->idColumn)->orderBy($prune->endedColumn)->limit(self::BatchRows))->delete();
-        } while ($deleted >= self::BatchRows);
+        // Stop only when no eligible row is left: a concurrent site purge can shorten a batch without exhausting the table.
+        while ($expired()->exists()) {
+            $expired()->whereIn($prune->idColumn, $expired()->select($prune->idColumn)->orderBy($prune->endedColumn)->limit(self::BatchRows))->delete();
+        }
     }
 }

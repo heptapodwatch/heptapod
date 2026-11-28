@@ -160,7 +160,7 @@ if COMPOSE_FILE="$root/compose.prod.yaml:$root/tests/Deployment/ops.yaml" sh "$u
     cat "$upgrade_root/undersized-upgrade.log" >&2; echo 'Undersized worker cap was accepted' >&2; exit 1
 fi
 cat "$upgrade_root/undersized-upgrade.log"
-grep -q 'HORIZON_MEMORY_LIMIT is 832m; HEPTAPOD_CRAWL_CONCURRENCY=1 with HEPTAPOD_CRAWL_MEMORY_LIMIT_MB=768 needs at least 1990m' "$upgrade_root/undersized-upgrade.log"
+grep -q 'HORIZON_MEMORY_LIMIT is 832m; HEPTAPOD_FAST_CONCURRENCY=2, HEPTAPOD_CRAWL_CONCURRENCY=1 with HEPTAPOD_CRAWL_MEMORY_LIMIT_MB=768 needs at least 1990m' "$upgrade_root/undersized-upgrade.log"
 grep -q 'Upgrade aborted before maintenance; old stack untouched.' "$upgrade_root/undersized-upgrade.log"
 cmp "$upgrade_root/undersized.env" "$upgrade_root/.env.prod"
 [ "$(curl -sS -o /dev/null -w '%{http_code}' -H 'Host: monitor.example.com' "http://localhost:${OPS_PORT:-10680}/login")" = 200 ]
@@ -266,7 +266,7 @@ run_standalone() {
 docker run --name "$standalone-undersized" --network "${COMPOSE_PROJECT_NAME}_backend" --read-only --tmpfs /tmp:mode=1777 --memory=1990m --memory-swap=1990m --cap-drop=ALL --security-opt no-new-privileges --env-file "$upgrade_root/worker.env" "$APP_IMAGE" > "$upgrade_root/undersized-worker.log" 2>&1 || true
 cat "$upgrade_root/undersized-worker.log"
 [ "$(docker inspect --format '{{.State.ExitCode}}' "$standalone-undersized")" = 1 ]
-grep -q 'HORIZON_MEMORY_LIMIT is 1990m; HEPTAPOD_CRAWL_CONCURRENCY=1 with HEPTAPOD_CRAWL_MEMORY_LIMIT_MB=768 needs at least 2200m' "$upgrade_root/undersized-worker.log"
+grep -q 'HORIZON_MEMORY_LIMIT is 1990m; HEPTAPOD_FAST_CONCURRENCY=2, HEPTAPOD_CRAWL_CONCURRENCY=1 with HEPTAPOD_CRAWL_MEMORY_LIMIT_MB=768 needs at least 2200m' "$upgrade_root/undersized-worker.log"
 if grep -qi 'supervisord started' "$upgrade_root/undersized-worker.log"; then echo 'Undersized consolidated worker started supervisord' >&2; exit 1; fi
 docker rm "$standalone-undersized"
 echo 'PASS: undersized consolidated worker refuses before supervisord starts'
