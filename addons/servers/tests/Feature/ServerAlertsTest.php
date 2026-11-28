@@ -10,6 +10,7 @@ use Heptapod\Actions\SendNotificationDelivery;
 use Heptapod\Actions\SetNotificationDestinationEnabled;
 use Heptapod\Addons\Channels\TemplateMail;
 use Heptapod\Addons\Servers\Actions\EvaluateServerIssues;
+use Heptapod\Addons\Servers\Http\AgentResponses;
 use Heptapod\Addons\Servers\Server;
 use Heptapod\Addons\Servers\ServerIssue;
 use Heptapod\Contracts\CheckKey;
@@ -990,7 +991,7 @@ function alertsUpgrade(TestCase $test, int $minutes, string $token): CarbonImmut
         // The healthcheck still reaches /up; the agent's report is refused.
         $test->get('/up')->assertOk();
         $test->call('POST', '/agent/v1/report', server: ['CONTENT_TYPE' => 'application/json', 'HTTP_AUTHORIZATION' => 'Bearer '.$token], content: '{}')
-            ->assertStatus(503);
+            ->assertStatus(503)->assertHeader('Retry-After', (string) AgentResponses::MaintenanceRetryAfterSeconds);
         $test->travel(60)->seconds();
     }
     $test->artisan('up')->assertSuccessful();
@@ -1010,10 +1011,8 @@ it('opens no "No report" after an upgrade put the instance into maintenance, als
     alertsScheduledPass();
     alertsUptime($this, 1, [$quickToken]);
     alertsScheduledPass();
-    // A long outage left web-2's agent in its longest failure wait: it reports ten minutes after the resume.
-    alertsUptime($this, 9, [$quickToken]);
-    alertsScheduledPass();
-    expect(now()->equalTo($resumed->addMinutes(10)))->toBeTrue();
+    // A long outage left web-2's agent in its longest failure wait: it reports a minute after the resume.
+    expect(now()->equalTo($resumed->addMinute()))->toBeTrue();
     alertsUptime($this, 1, [$quickToken, $slowToken]);
     alertsScheduledPass();
     dispatchNotifications();
@@ -1023,7 +1022,7 @@ it('opens no "No report" after an upgrade put the instance into maintenance, als
         ->and(alertsDeliveries('opened'))->toHaveCount(0);
 });
 
-it('opens "No report" for silence that started before the instance was down only after the resume grace, and for silence after the resume as always', function (): void {
+it('opens "No report" for silence that started before the instance was down only a threshold after the resume, and for silence after the resume as always', function (): void {
     config(['app.maintenance.driver' => 'array']);
     [$before, $beforeToken] = alertsServer('silent-before');
     [$after, $afterToken] = alertsServer('silent-after');
@@ -1032,20 +1031,22 @@ it('opens "No report" for silence that started before the instance was down only
     alertsUptime($this, 3, [$afterToken]);
 
     $resumed = alertsUpgrade($this, 6, $afterToken);
-    alertsUptime($this, 1, [$afterToken]);
+    alertsUptime($this, 2, [$afterToken]);
     $lastAfter = now()->subMinute()->toImmutable();
-    alertsUptime($this, 10);
     alertsScheduledPass();
-    expect(alertsOpen($before))->toBe([])->and(alertsOpen($after))->toBe(['no_report:']);
+    expect(alertsOpen($before))->toBe([])->and(alertsOpen($after))->toBe([]);
 
     alertsUptime($this, 1);
     alertsScheduledPass();
-    expect(alertsOpen($before))->toBe(['no_report:'])->and(alertsOpen($long))->toBe([]);
-    alertsUptime($this, 19);
+    expect(alertsOpen($before))->toBe(['no_report:'])->and(alertsOpen($after))->toBe([]);
+    alertsUptime($this, 1);
+    alertsScheduledPass();
+    expect(alertsOpen($after))->toBe(['no_report:'])->and(alertsOpen($long))->toBe([]);
+    alertsUptime($this, 27);
     alertsScheduledPass();
 
     $openedAt = static fn (Server $server): CarbonImmutable => ServerIssue::query()->where('server_id', $server->id)->sole()->opened_at;
-    expect($openedAt($before)->equalTo($resumed->addMinutes(11)))->toBeTrue()
+    expect($openedAt($before)->equalTo($resumed->addMinutes(2)))->toBeTrue()
         ->and($openedAt($after)->equalTo($lastAfter->addMinutes(2)))->toBeTrue()
         ->and($openedAt($long)->equalTo($resumed->addMinutes(30)))->toBeTrue();
 });

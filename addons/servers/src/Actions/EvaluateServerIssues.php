@@ -31,13 +31,6 @@ final readonly class EvaluateServerIssues
     /** Samples further apart than this (one and a half report intervals) have a missed report between them. */
     public const int GapSeconds = 90;
 
-    /**
-     * After the instance was down, an agent whose last report predates that may still be in its failure backoff: the
-     * agent's longest failure wait (maxFailureWait, 10 minutes) plus its report interval (defaultInterval, 1 minute) in
-     * agent/send.go. Change it together with those.
-     */
-    public const int ResumeGraceMinutes = 10 + 1;
-
     /** Cache entry {seen_at, available_since} (ISO 8601 or null) written by ingestHeartbeat(). */
     public const string IngestKey = 'heptapod:servers:ingest';
 
@@ -113,8 +106,11 @@ final readonly class EvaluateServerIssues
      * The scheduled pass: "No report" for every server whose newest report is older than its "No report after", opened
      * at the moment it became due. Reads the servers through their row, so the servers table bounds it. Silence while
      * the heartbeat says maintenance or is older than GapSeconds is not the agent's: no pass then, and an agent silent
-     * since before the instance came back gets at least ResumeGraceMinutes from then. Without a heartbeat (none yet, or
-     * expired after IngestTtlSeconds) it counts as always.
+     * since before the instance came back gets its threshold from then. That threshold (at least 2 minutes) covers an
+     * agent still in its failure backoff: its longest failure wait (maxFailureWait, 1 minute; 30 s on a maintenance 503)
+     * plus its report interval (defaultInterval, 1 minute) in agent/send.go. Agents before that backoff (Heptapod 0.21 and
+     * earlier, up to 10 minutes) can open a "No report" after a long outage until they are upgraded. Without a heartbeat
+     * (none yet, or expired after IngestTtlSeconds) it counts as always.
      */
     public function noReports(CarbonImmutable $now): void
     {
@@ -138,8 +134,7 @@ final readonly class EvaluateServerIssues
                     return;
                 }
                 $minutes = ServerThresholdsData::of($server->settings)->no_report_minutes;
-                $dueAt = $availableSince instanceof CarbonImmutable && $last->lessThan($availableSince)
-                    ? $availableSince->addMinutes(max($minutes, self::ResumeGraceMinutes)) : $last->addMinutes($minutes);
+                $dueAt = ($availableSince instanceof CarbonImmutable ? $last->max($availableSince) : $last)->addMinutes($minutes);
                 // A report that committed meanwhile wins.
                 if ($dueAt->greaterThanOrEqualTo($now)
                     || isset($this->openIssues($server)[ServerIssueKind::NoReport->value.':'])) {

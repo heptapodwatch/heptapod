@@ -107,7 +107,7 @@ heptapod-agent --version
 journalctl -u heptapod-agent      # sends, rejections and back-off
 ```
 
-The agent logs the first accepted report and every change of state. A rejected token (HTTP 401) is logged once and retried every 10 minutes. A switched-off or removed server (404) is retried every 15 minutes. Instance errors back off from 30 seconds to 10 minutes. During an outage the agent keeps at most one unsent sample.
+The agent logs the first accepted report and every change of state. A rejected token (HTTP 401) is logged once and retried every 10 minutes. A switched-off or removed server (404) is retried every 15 minutes. Instance errors are retried after 30 seconds, then every minute; a 503 with `Retry-After` (maintenance) is retried then, but never later than a minute. During an outage the agent keeps at most one unsent sample.
 
 ## Development
 
