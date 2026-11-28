@@ -49,10 +49,12 @@ export type ListColumn<Row> = {
 
 /**
  * The list's container width from which the table shows; below it the rows are cards and the FilterBar offers Sort. The
- * FilterBar and the table are both `@container/list` of the page's width, so the same classes switch both.
+ * FilterBar and the table are both `@container/list` of the page's width, so the same classes switch both. Pick the
+ * smallest width at which the table's columns fit without sideways scrolling: `md` (720 px) for up to about 700 px of
+ * columns (Clients, Sites), `xl` (960 px) for wide tables (Incidents, Servers at about 915 px).
  */
 export const listBreakpoints = {
-    sm: { table: 'hidden @[600px]/list:block', cards: '@[600px]/list:hidden' },
+    md: { table: 'hidden @[720px]/list:block', cards: '@[720px]/list:hidden' },
     xl: {
         table: 'hidden @[960px]/list:block',
         cards: '@[960px]/list:hidden',
@@ -78,7 +80,7 @@ export function ListTable<Row>({
     rowProps,
     columns,
     card,
-    breakpoint = 'sm',
+    breakpoint = 'md',
     tableClassName,
     sort,
     onSort,
@@ -289,7 +291,7 @@ export function ListSortSelect({
     columns,
     sort,
     onSort,
-    breakpoint = 'sm',
+    breakpoint = 'md',
 }: {
     columns: Pick<ListColumn<never>, 'header' | 'title' | 'sort'>[];
     sort: string;

@@ -575,11 +575,8 @@ it('links each fixed incident filter to a URL that removes only that filter', fu
     $user = User::factory()->owner()->create(['timezone' => 'Europe/Berlin']);
     $filters = ['status' => 'all', 'cause' => 'errored', 'check' => 'dns',
         'started_after' => '2026-10-25', 'started_before' => '2026-10-26T04:15'];
-    // Two pages of matching incidents: a clear URL leaves the second page as well.
-    Incident::factory()->count(11)->for(Check::factory()->create(['type' => CheckKey::Dns]))
-        ->create(['cause' => IncidentCause::Errored, 'first_failure_at' => '2026-10-25T10:00:00Z', 'opened_at' => '2026-10-25T10:00:00Z', 'resolved_at' => '2026-10-25T10:05:00Z']);
 
-    $response = $this->actingAs($user)->get('/incidents?'.http_build_query(['filter' => $filters, 'page' => 2, 'per_page' => 10]))->assertOk();
+    $response = $this->actingAs($user)->get('/incidents?'.http_build_query(['filter' => $filters, 'page' => 2]))->assertOk();
     $response->assertInertia(fn (Assert $page): Assert => $page
         ->where('filters.started_after.display', '2026-10-25T00:00:00+02:00')
         ->where('filters.started_before.display', '2026-10-26T04:15:00+01:00'));

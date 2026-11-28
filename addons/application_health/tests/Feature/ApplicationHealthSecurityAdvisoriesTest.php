@@ -100,8 +100,8 @@ it('shows the advisories of a failed spatie security advisories result in the ch
             ->where('history.components.1.name', 'Database')
             ->where('history.advisories_pagination.total', 15)->where('history.advisories_pagination.last_page', 1));
     // The advisories page like every list: the second page of ten holds the last five, in the same order,
-    // and stays present when the components' page beyond their end redirects to their last page.
-    $this->followingRedirects()->get('/sites/'.$check->site_id.'/checks/'.$check->id.'?health_advisories_per_page=10&health_advisories_page=2&health_components_per_page=10&health_components_page=2')
+    // and stays present even when components are on another page.
+    $this->get('/sites/'.$check->site_id.'/checks/'.$check->id.'?health_advisories_per_page=10&health_advisories_page=2&health_components_per_page=10&health_components_page=2')
         ->assertInertia(fn (Assert $page): Assert => $page->has('history.advisories', 5)
             ->where('history.advisories_pagination.total', 15)
             ->where('history.advisories_pagination.last_page', 2));

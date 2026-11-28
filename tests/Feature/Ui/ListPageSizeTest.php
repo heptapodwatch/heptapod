@@ -72,16 +72,25 @@ it('limits each page to the chosen size and pages through the rest', function ()
         ->loadDeferredProps(['list'], fn ($list) => $list->has('sites', 2)));
 });
 
-it('redirects a page beyond the end to the last page, so the address names the page shown', function (): void {
+it('shows the last page for a page beyond the end, in page loads, deferred props and JSON alike', function (): void {
+    config(['heptapod.health.browser_urls' => [], 'broadcasting.default' => 'log']);
     $owner = User::factory()->owner()->create();
     $client = Client::factory()->create();
     Site::factory()->count(12)->for($client)->create();
     $this->actingAs($owner);
 
-    // Sites counts its total in the first render; a client's sites and the incidents page through their query.
-    $this->get('/sites?per_page=10&page=5')->assertRedirect('/sites?per_page=10&page=2');
-    $this->get('/clients/'.$client->id.'?per_page=10&page=3')->assertRedirect('/clients/'.$client->id.'?per_page=10&page=2');
+    // Sites counts its total in the first render and reads its rows in a deferred partial request.
+    $this->get('/sites?per_page=10&page=5')->assertOk()->assertInertia(fn ($page) => $page
+        ->where('sites_pagination.current_page', 2)->where('sites_pagination.last_page', 2)
+        ->loadDeferredProps(['list'], fn ($list) => $list->has('sites', 2)));
+    // A client's sites page through their query; Previous points to the page before the one shown.
+    $this->get('/clients/'.$client->id.'?per_page=10&page=3')->assertOk()->assertInertia(fn ($page) => $page
+        ->has('sites', 2)->where('sites_pagination.current_page', 2)->where('sites_pagination.next_page_url', null)
+        ->where('sites_pagination.previous_page_url', fn (string $url): bool => str_contains($url, 'page=1')));
     // An empty list has only its first page.
-    $this->get('/incidents?page=3')->assertRedirect('/incidents');
-    $this->get('/sites?per_page=10&page=2')->assertOk();
+    $this->get('/incidents?page=3')->assertOk()->assertInertia(fn ($page) => $page
+        ->where('incidents_pagination.current_page', 1)->where('incidents_pagination.last_page', 1));
+    // An in-memory list behind a JSON refresh endpoint answers with its last page too, never a redirect.
+    $this->getJson('/settings/system/data?system_issues_page=9')->assertOk()
+        ->assertJsonPath('system_issues_pagination.current_page', 1);
 });

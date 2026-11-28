@@ -7,7 +7,6 @@ namespace Heptapod\Http;
 use Heptapod\Contracts\ListPaging;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 final readonly class RequestListPaging implements ListPaging
@@ -19,9 +18,13 @@ final readonly class RequestListPaging implements ListPaging
         $perPage = ListPageSize::resolve(request(), $list, $this->sizeParameter($list, $pageName));
 
         /** @var LengthAwarePaginator<int, mixed> $page */
-        $page = $query->paginate($perPage, ['*'], $pageName)->withQueryString();
+        $page = $query->paginate($perPage, ['*'], $pageName);
+        if ($page->currentPage() > $page->lastPage()) {
+            /** @var LengthAwarePaginator<int, mixed> $page */
+            $page = $query->paginate($perPage, ['*'], $pageName, $page->lastPage());
+        }
 
-        return $this->withinRange($page);
+        return $page->withQueryString();
     }
 
     public function paginateList(array $items, string $list, ?string $pageName = null): LengthAwarePaginator
@@ -29,7 +32,7 @@ final readonly class RequestListPaging implements ListPaging
         $request = request();
         $pageName ??= $list.'_page';
         $perPage = ListPageSize::resolve($request, $list, $this->sizeParameter($list, $pageName));
-        $page = LengthAwarePaginator::resolveCurrentPage($pageName);
+        $page = min(LengthAwarePaginator::resolveCurrentPage($pageName), max(1, (int) ceil(count($items) / $perPage)));
         $paginator = new LengthAwarePaginator(
             array_slice($items, ($page - 1) * $perPage, $perPage),
             count($items),
@@ -38,20 +41,17 @@ final readonly class RequestListPaging implements ListPaging
             ['path' => $request->url(), 'pageName' => $pageName],
         );
 
-        return $this->withinRange($paginator->withQueryString());
+        return $paginator->withQueryString();
     }
 
-    /** A page beyond the end (rows removed meanwhile, an old link) redirects, so the address names the page shown. */
     public function withinRange(LengthAwarePaginator $page): LengthAwarePaginator
     {
         if ($page->currentPage() <= $page->lastPage()) {
             return $page;
         }
-        $request = request();
-        $pageName = $page->getPageName();
-        throw new HttpResponseException(redirect()->to($page->lastPage() === 1
-            ? $request->fullUrlWithoutQuery([$pageName])
-            : $request->fullUrlWithQuery([$pageName => $page->lastPage()])));
+
+        return new LengthAwarePaginator($page->getCollection(), $page->total(), $page->perPage(), $page->lastPage(),
+            ['path' => $page->path(), 'pageName' => $page->getPageName()])->withQueryString();
     }
 
     /** `page` sizes with `per_page`; a list's own `<list>_page` with `<list>_per_page`. */

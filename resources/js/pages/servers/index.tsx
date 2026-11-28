@@ -121,7 +121,7 @@ export default function ServersIndex({
                 filter: Object.fromEntries(
                     Object.entries(next).filter(([, value]) => value),
                 ),
-                ...(nextSort !== 'status' ? { sort: nextSort } : {}),
+                sort: nextSort,
             },
             {
                 ...searchOptions,
@@ -262,6 +262,7 @@ export default function ServersIndex({
                                 columns={columns}
                                 sort={sort}
                                 onSort={(next) => visit({}, next)}
+                                breakpoint="xl"
                             />
                         }
                     />
@@ -276,6 +277,7 @@ export default function ServersIndex({
                 <ListTable
                     rows={buffered.rows}
                     rowKey={(server) => server.id}
+                    breakpoint="xl"
                     rowHref={(server) => show.url(server.id)}
                     sort={sort}
                     onSort={(next) => visit({}, next)}
