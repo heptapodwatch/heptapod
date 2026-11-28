@@ -140,6 +140,12 @@ final readonly class LighthousePersistence implements RunPersistence
             in_array($evidence['device_emulation'] ?? null, ['mobile', 'desktop'], true) ? $evidence['device_emulation'] : null, $scores);
     }
 
+    public function purgeCheck(int $checkId, int $limit): int
+    {
+        return DB::delete('DELETE FROM lighthouse_reports WHERE ctid = ANY(ARRAY(SELECT ctid FROM lighthouse_reports
+            WHERE check_id = ? AND run_ended_at IS NOT NULL ORDER BY run_ended_at, run_id LIMIT ?))', [$checkId, $limit]);
+    }
+
     public function prunedTables(): array
     {
         return ['lighthouse_reports'];

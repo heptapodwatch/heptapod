@@ -20,5 +20,7 @@ final class SiteIdentityData extends Data
         public readonly SiteStatus $state,
         public readonly ?string $icon_url = null,
         public readonly SiteIconBacking $icon_backing = SiteIconBacking::None,
+        /** Paused until PurgeDeletedSite deletes it (Site::marked_for_deletion_at): it shows Deleting… and offers no Resume. */
+        public readonly bool $deleting = false,
     ) {}
 }

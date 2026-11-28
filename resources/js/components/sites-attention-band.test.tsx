@@ -97,6 +97,7 @@ const attentionSite = (id: number): Heptapod.Data.Ui.SiteRowData => ({
         state: 'warning',
         icon_url: null,
         icon_backing: 'none',
+        deleting: false,
     },
 });
 

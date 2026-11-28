@@ -115,8 +115,9 @@ use Illuminate\Support\Facades\DB;
  *     partition and repairs check_run_attempts rows of those finished runs; it holds no engine row lock first and no
  *     recorder holds those attempts, so a recorder only waits on it;
  *   - triggers: the check_runs and check_run_attempts history triggers write leaf rows under the writer's check lock;
- *     check_runs_history_deleted locks the check FOR UPDATE on a run row delete, which happens only through DeleteSite's
- *     check cascade, which already holds those checks (a partition drop fires no row trigger); sites_detach_events and
+ *     check_runs_history_deleted locks the check FOR UPDATE on a run row delete of a site not marked for deletion; run rows
+ *     are deleted only by PurgeDeletedSite (one batch per transaction, under the check lock) and DeleteSite's check
+ *     cascade, which already hold those checks (a partition drop fires no row trigger); sites_detach_events and
  *     checks_detach_events move the event-detachment writes before the cascades (the ON DELETE SET NULL FK actions still
  *     run and normally find no matching rows). DeleteSite already holds the site's checks, site and incidents before
  *     deleting; raw site or check deletes do not take that full lock set.

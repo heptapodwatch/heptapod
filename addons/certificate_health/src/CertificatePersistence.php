@@ -153,6 +153,12 @@ final class CertificatePersistence implements RunPersistence
         ]];
     }
 
+    public function purgeCheck(int $checkId, int $limit): int
+    {
+        return DB::delete('DELETE FROM certificate_health_snapshots WHERE ctid = ANY(ARRAY(SELECT ctid FROM certificate_health_snapshots
+            WHERE check_id = ? AND run_ended_at IS NOT NULL ORDER BY run_ended_at, run_id LIMIT ?))', [$checkId, $limit]);
+    }
+
     public function prunedTables(): array
     {
         return ['certificate_health_snapshots'];

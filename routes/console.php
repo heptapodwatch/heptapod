@@ -6,7 +6,9 @@ use Heptapod\Actions\ReconcileQueuedWork;
 use Heptapod\Actions\RecordScheduledBackupExit;
 use Heptapod\Actions\RecordSchedulerTick;
 use Heptapod\Jobs\DispatchNotifications;
+use Heptapod\Jobs\PurgeDeletedSite;
 use Heptapod\Models\DispatcherHeartbeat;
+use Heptapod\Models\Site;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Support\Facades\Schedule;
 
@@ -22,6 +24,14 @@ Schedule::command('activitylog:clean', ['--days' => config()->integer('monitorin
 Schedule::command('heptapod:record-database-size')->hourly()->withoutOverlapping(120);
 Schedule::command('heptapod:client-messages:sweep')->daily()->withoutOverlapping(720);
 Schedule::command('heptapod:resume-due-sites')->everyMinute()->withoutOverlapping(10);
+// Resumes every pending site deletion whose queued slice was lost or failed; a slice already queued is not doubled.
+Schedule::call(static function (): void {
+    /** @var list<int> $siteIds */
+    $siteIds = Site::query()->getQuery()->whereNotNull('marked_for_deletion_at')->pluck('id')->all();
+    foreach ($siteIds as $siteId) {
+        PurgeDeletedSite::dispatch($siteId);
+    }
+})->name('purge-deleted-sites')->everyFiveMinutes()->withoutOverlapping(15);
 // No overlap mutex: the claim's FOR UPDATE SKIP LOCKED already serializes concurrent ticks, and a killed run must not hold a mutex.
 Schedule::command('heptapod:announce-maintenance-boundaries')->everyMinute();
 Schedule::call(app(ReconcileQueuedWork::class))->name('reconcile-queued-work')->everyMinute()->withoutOverlapping(10);

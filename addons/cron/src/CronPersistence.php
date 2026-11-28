@@ -126,6 +126,25 @@ final readonly class CronPersistence implements RunPersistence
         });
     }
 
+    public function purgeCheck(int $checkId, int $limit): int
+    {
+        // The tasks themselves are configuration and go with the final cascade.
+        $statements = [
+            'DELETE FROM cron_pings WHERE ctid = ANY(ARRAY(SELECT ctid FROM cron_pings
+                WHERE cron_check_id IN (SELECT id FROM cron_checks WHERE check_id = ?) LIMIT ?))',
+            'DELETE FROM cron_run_tasks WHERE ctid = ANY(ARRAY(SELECT ctid
+                FROM cron_run_tasks WHERE check_id = ? AND run_ended_at IS NOT NULL LIMIT ?))',
+        ];
+        foreach ($statements as $statement) {
+            $deleted = DB::delete($statement, [$checkId, $limit]);
+            if ($deleted > 0) {
+                return $deleted;
+            }
+        }
+
+        return 0;
+    }
+
     public function prunedTables(): array
     {
         return ['cron_run_tasks', 'cron_pings'];

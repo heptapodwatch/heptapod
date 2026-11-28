@@ -590,6 +590,27 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
         DB::table('crawl_snapshots')->where('run_id', $runId)->where('claim_token', $claimToken)->whereNull('run_ended_at')->delete();
     }
 
+    public function purgeCheck(int $checkId, int $limit): int
+    {
+        // Findings before their snapshots, finished ones only; the site's collection goes with the first of its crawl checks.
+        $statements = [
+            'DELETE FROM crawl_findings WHERE ctid = ANY(ARRAY(SELECT ctid FROM crawl_findings
+                WHERE snapshot_id IN (SELECT id FROM crawl_snapshots WHERE check_id = ? AND run_ended_at IS NOT NULL) LIMIT ?))',
+            'DELETE FROM mixed_content_findings WHERE ctid = ANY(ARRAY(SELECT ctid FROM mixed_content_findings
+                WHERE snapshot_id IN (SELECT id FROM crawl_snapshots WHERE check_id = ? AND run_ended_at IS NOT NULL) LIMIT ?))',
+            'DELETE FROM crawl_snapshots WHERE ctid = ANY(ARRAY(SELECT ctid FROM crawl_snapshots WHERE check_id = ? AND run_ended_at IS NOT NULL LIMIT ?))',
+            'DELETE FROM crawl_collections WHERE site_id IN (SELECT site_id FROM checks WHERE id = ? LIMIT ?)',
+        ];
+        foreach ($statements as $statement) {
+            $deleted = DB::delete($statement, [$checkId, $limit]);
+            if ($deleted > 0) {
+                return $deleted;
+            }
+        }
+
+        return 0;
+    }
+
     public function prunedTables(): array
     {
         return ['crawl_snapshots', 'crawl_findings', 'mixed_content_findings', 'crawl_collections'];

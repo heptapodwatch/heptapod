@@ -48,16 +48,16 @@ function siteWriteRaceMove(array $fixture): Closure
 
 /**
  * The request as its own process (site-write-request.php), not started. With $pauseAfter it waits after its first query
- * containing that SQL fragment for SiteWriteRacePause.
+ * containing that SQL fragment for SiteWriteRacePause. With $runJobs the jobs it queues run in it after its commit.
  *
  * @param  array<string, mixed>  $body
  * @param  array<string, string>  $headers
  */
-function siteWriteRaceRequest(string $method, string $uri, array $body = [], string $token = '', ?User $webUser = null, string $pauseAfter = '', array $headers = [], string $followUp = ''): Process
+function siteWriteRaceRequest(string $method, string $uri, array $body = [], string $token = '', ?User $webUser = null, string $pauseAfter = '', array $headers = [], string $followUp = '', bool $runJobs = false): Process
 {
     return new Process([PHP_BINARY, __DIR__.'/site-write-request.php', $method, $uri, json_encode($body === [] ? new stdClass : $body, JSON_THROW_ON_ERROR),
         $token, $webUser instanceof User ? (string) $webUser->id : '', $pauseAfter, json_encode($headers === [] ? new stdClass : $headers, JSON_THROW_ON_ERROR), $followUp],
-        base_path(), siteWriteRaceEnvironment(), timeout: 30);
+        base_path(), [...siteWriteRaceEnvironment(), ...($runJobs ? ['QUEUE_CONNECTION' => 'sync'] : [])], timeout: 30);
 }
 
 /** @return array<string, string> the environment of a process booted against this test database */

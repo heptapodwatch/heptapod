@@ -58,6 +58,9 @@ final readonly class EvaluateSystemIssues
      */
     public const int EvaluationStaleAfterSeconds = 900;
 
+    /** A site deletion purges a site's history in minutes (PurgeDeletedSite); one still pending after an hour keeps failing. */
+    public const int SiteDeletionStuckAfterSeconds = 3600;
+
     public function __construct(private CheckDataMaintenanceRecord $maintenance, private MailTransportRecord $transport, private SystemIssueMailer $mailer, private SystemTransportProbe $probe, private SendNotificationDelivery $send, private FinishedCheckAge $finishedChecks, private DiskSpaceIssues $diskSpace, private CheckFreshnessIssues $freshness, private MonitorOutageDetector $monitorOutage) {}
 
     public function __invoke(CarbonImmutable $now): void
@@ -248,7 +251,21 @@ final readonly class EvaluateSystemIssues
             SystemIssueKind::MailTransportDead => $this->mailTransportDead($now, $open instanceof SystemIssue),
             SystemIssueKind::NotificationsStalled => $this->notificationsStalled($now),
             SystemIssueKind::MonitorOutage => $this->monitorOutage->evaluateSystemIssue($now, $open?->details),
+            SystemIssueKind::SiteDeletionStuck => $this->siteDeletionStuck($now),
         };
+    }
+
+    /** @return array<string, int|string|null>|null */
+    private function siteDeletionStuck(CarbonImmutable $now): ?array
+    {
+        $stuck = DB::table('sites')->whereNotNull('marked_for_deletion_at')
+            ->where('marked_for_deletion_at', '<', $now->subSeconds(self::SiteDeletionStuckAfterSeconds)->format('Y-m-d H:i:s.uP'));
+        $since = (clone $stuck)->min('marked_for_deletion_at');
+        if ($since !== null && ! is_string($since)) {
+            throw new \UnexpectedValueException('A deletion request time must be a string.');
+        }
+
+        return $since === null ? null : ['sites' => $stuck->count(), 'pending_since' => CarbonImmutable::parse($since, 'UTC')->toIso8601String()];
     }
 
     /**

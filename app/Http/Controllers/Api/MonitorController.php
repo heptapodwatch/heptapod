@@ -8,7 +8,7 @@ use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\CreateSite;
-use Heptapod\Actions\DeleteSite;
+use Heptapod\Actions\RequestSiteDeletion;
 use Heptapod\Actions\UpdateSite;
 use Heptapod\Actions\UpdateSiteSettings;
 use Heptapod\Checks\NoResultFreshness;
@@ -114,10 +114,10 @@ final class MonitorController extends Controller
         }, 'checks.snoozes', 'tags', 'client', 'repositories']));
     }
 
-    public function destroy(Request $request, Site $monitor, DeleteSite $delete, AuthorizeSiteWrite $authorize): Response
+    public function destroy(Request $request, Site $monitor, RequestSiteDeletion $delete, AuthorizeSiteWrite $authorize): Response
     {
         Gate::authorize('delete', $monitor);
-        $authorize->exclusively($this->principal($request), 'delete', static fn () => $delete($monitor), $monitor);
+        $authorize($this->principal($request), 'delete', static fn () => $delete($monitor), $monitor);
 
         return response()->noContent();
     }

@@ -24,6 +24,7 @@ enum SystemIssueKind: string
     case NotificationsStalled = 'notifications_stalled';
     case ChannelFailing = 'channel_failing';
     case MonitorOutage = 'monitor_outage';
+    case SiteDeletionStuck = 'site_deletion_stuck';
 
     /** @param array<string, int|string|null> $details */
     public function titleKey(array $details = []): string
@@ -43,6 +44,7 @@ enum SystemIssueKind: string
             self::MonitorOutage => ($details['mode'] ?? null) === 'dns'
                 ? 'system_issue.monitor_outage.dns.title'
                 : 'system_issue.monitor_outage.network.title',
+            self::SiteDeletionStuck => 'A site deletion is not finishing',
         };
     }
 
@@ -64,6 +66,7 @@ enum SystemIssueKind: string
             self::MonitorOutage => ($details['mode'] ?? null) === 'dns'
                 ? 'system_issue.monitor_outage.dns.action'
                 : 'system_issue.monitor_outage.network.action',
+            self::SiteDeletionStuck => 'A deleted site stays paused until its history is removed. Check that the Horizon worker service is running and read its log for PurgeDeletedSite.',
         };
     }
 

@@ -61,7 +61,7 @@ use Spatie\Tags\Tag;
 
 /**
  * @phpstan-type ResponsePointProjection array{time: string, value: float|null, failure_count: int, error_count: int, warning_count: int, failure_status: value-of<BucketStatus>|null}
- * @phpstan-type SiteIdentityProjection array{id: int, name: string, url: string, client_id: int, state: value-of<SiteStatus>, icon_url: string|null, icon_backing: value-of<SiteIconBacking>}
+ * @phpstan-type SiteIdentityProjection array{id: int, name: string, url: string, client_id: int, state: value-of<SiteStatus>, icon_url: string|null, icon_backing: value-of<SiteIconBacking>, deleting: bool}
  * @phpstan-type CheckRunProjection array{check_id: int, phase: value-of<RunPhase>, attempt_id: int|null, queue: string|null, queue_position: int|null, progress_n: int|null, progress_total: int|null, phase_label: string|null, started_at: string|null, actor: string|null, due_at: string|null, can_cancel: bool, requested_at: string|null, actor_id?: int|null, origin?: string|null}
  * @phpstan-type CheckStripProjection array{pending_recheck: bool, freshness_suppressed_by: value-of<FreshnessSuppression>|null, freshness_suppression_label_key: string|null, dependency_headline_key: string|null, not_fresh: bool, state: value-of<SiteStatus>, id: int, key: value-of<CheckKey>, label_key: string, icon_id: string, enabled: bool, result: value-of<CheckResult>, open_incident_id: int|null, open_incident_started_at: string|null, summary: string|null, summary_params: array<string, string|int|float|bool|null>, checked_at: string|null, snoozed_until: string|null, unavailable_reason: string|null, run: CheckRunProjection|null, open_incident_requires_complete_recovery: bool, uptime_parent_incident_id: int|null, affected_checks: list<string>, held_after_recovery: bool, next_run_at: string|null, presentation?: array<array-key, mixed>|null}
  * @phpstan-type SiteHistoryProjection array{site_id: int, uptime: float|null, response: array{start: string, step_seconds: int, values: list<int|null>, marks: list<array{slot: int, failure_count: int, error_count: int, warning_count: int, failure_status: value-of<BucketStatus>|null}>}}
@@ -119,7 +119,8 @@ final readonly class SitesReader
             throw new \LogicException('Site projection must contain its name and state.');
         }
 
-        return new SiteIdentityData($site->id, $name, $site->url, $site->client_id, SiteStatus::from($state), $site->iconUrl(), $site->icon_backing);
+        return new SiteIdentityData($site->id, $name, $site->url, $site->client_id, SiteStatus::from($state), $site->iconUrl(), $site->icon_backing,
+            $site->marked_for_deletion_at !== null);
     }
 
     /** @param Builder<Site> $query */
@@ -578,7 +579,7 @@ final readonly class SitesReader
                 'uptime' => isset($uptimeIds[$site->id]) ? ($uptimePercentages[$uptimeIds[$site->id]] ?? null) : null,
                 'response' => $response, 'checks' => $strip, 'checked_at' => $this->timestamp($checkedAt),
                 'identity' => ['id' => $identity->id, 'name' => $identity->name, 'url' => $identity->url, 'client_id' => $identity->client_id,
-                    'state' => $identity->state->value, 'icon_url' => $identity->icon_url, 'icon_backing' => $identity->icon_backing->value],
+                    'state' => $identity->state->value, 'icon_url' => $identity->icon_url, 'icon_backing' => $identity->icon_backing->value, 'deleting' => $identity->deleting],
                 'list_scores' => $listScores,
             ];
         }

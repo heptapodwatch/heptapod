@@ -170,6 +170,7 @@ export const sites: SiteDto[] = names.map((name, index) => {
         identity: {
             icon_url: null,
             icon_backing: 'none',
+            deleting: false,
             id: index + 1,
             name: `${name}.example`,
             url: `https://${name}.example`,

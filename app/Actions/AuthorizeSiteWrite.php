@@ -51,24 +51,6 @@ final readonly class AuthorizeSiteWrite
     }
 
     /**
-     * As __invoke, with the access-structure lock exclusive: a site deletion is itself a structural change
-     * (DeleteSite), so the transaction takes the exclusive lock first and never upgrades a shared one.
-     *
-     * @template TReturn
-     *
-     * @param  \Closure(User): TReturn  $write
-     * @return TReturn
-     */
-    public function exclusively(User $actor, string $ability, \Closure $write, Site ...$subjects): mixed
-    {
-        return NotificationLocks::transaction(function () use ($actor, $ability, $write, $subjects): mixed {
-            NotificationLocks::accessExclusive();
-
-            return $write($this->authorize($actor, $ability, $subjects));
-        });
-    }
-
-    /**
      * A write on an incident the actor found in the incident lists ($visible, read before any lock): the incident's site
      * authorized ('view') as above, then the incident read again through the same visibility for $write.
      *

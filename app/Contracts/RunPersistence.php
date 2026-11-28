@@ -27,4 +27,12 @@ interface RunPersistence
 
     /** @return list<string> Tables whose rows prune() removes, including rows removed by foreign-key cascades; database growth projects them with the raw result retention. */
     public function prunedTables(): array;
+
+    /**
+     * Before a paused site is deleted, PurgeDeletedSite shrinks its history with this under the check's lock, one batch per
+     * transaction: delete at most $limit finished rows of the check's history from the prunedTables(), children before
+     * their parents, through an index on the check. Returns the rows deleted; 0 once none are left. A run still in flight
+     * and small per-check rows (baselines, identities) stay for DeleteSite's cascade.
+     */
+    public function purgeCheck(int $checkId, int $limit): int;
 }

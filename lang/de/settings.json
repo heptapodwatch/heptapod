@@ -232,6 +232,8 @@
     "Alerts have waited more than ten minutes to be sent. Check that the Horizon worker service is running and read its log for errors.": "Alarme warten seit mehr als zehn Minuten auf den Versand. Prüfen Sie, ob der Horizon-Dienst für Hintergrundprozesse läuft, und lesen Sie sein Protokoll auf Fehler.",
     "A notification channel has failed for 24 hours": "Ein Benachrichtigungskanal schlägt seit 24 Stunden fehl",
     "Every send to this channel has failed for a day. Check its settings and use Send test. Alerts that fail for 24 hours are given up.": "Jeder Versand an diesen Kanal schlägt seit einem Tag fehl. Prüfen Sie seine Einstellungen und nutzen Sie „Test senden“. Alarme, die 24 Stunden lang fehlschlagen, werden aufgegeben.",
+    "A site deletion is not finishing": "Das Löschen einer Website wird nicht abgeschlossen",
+    "A deleted site stays paused until its history is removed. Check that the Horizon worker service is running and read its log for PurgeDeletedSite.": "Eine gelöschte Website bleibt pausiert, bis ihr Verlauf entfernt ist. Prüfen Sie, ob der Horizon-Dienst für Hintergrundprozesse läuft, und lesen Sie sein Protokoll für PurgeDeletedSite.",
     "Disk space is low or cannot be measured": "Wenig Speicherplatz oder Messung nicht möglich",
     "Check the path and its free space. Warning below 20%; critical below 10%.": "Prüfen Sie den Pfad und den freien Speicherplatz. Warnung bei weniger als 20 %; kritisch bei weniger als 10 %.",
     "Critical": "Kritisch",

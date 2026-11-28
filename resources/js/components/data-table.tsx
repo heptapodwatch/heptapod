@@ -47,6 +47,7 @@ import {
     bySeverity,
     isAttentionState,
     isSnoozed,
+    siteStateLabel,
     statusLabels,
 } from '@/lib/status';
 import {
@@ -136,7 +137,10 @@ function SiteTableNameCell({
                 )}
             >
                 {full ? (
-                    <StatusBadge state={row.original.state} />
+                    <StatusBadge
+                        state={row.original.state}
+                        label={siteStateLabel(row.original)}
+                    />
                 ) : (
                     <StatusDot state={row.original.state} />
                 )}
@@ -291,7 +295,7 @@ function SiteTableCheckedAtCell({
                 content={format.exact(checkedAt)}
             >
                 <span className="font-mono text-xs whitespace-nowrap">
-                    {t(statusLabels[row.original.state])}
+                    {t(siteStateLabel(row.original))}
                 </span>
             </TooltipHint>
         );
@@ -412,7 +416,7 @@ export function DataTable({
     const why = (site: SiteDto): string | null => {
         if (site.state === 'ok' || site.state === 'pending') return null;
         if (['maintenance', 'paused', 'disabled'].includes(site.state))
-            return t(statusLabels[site.state]);
+            return t(siteStateLabel(site));
         const relevant = site.checks.filter(
             (check) =>
                 check.state === site.state ||
@@ -447,7 +451,12 @@ export function DataTable({
     };
     const statusColumn = columnHelper.accessor('state', {
         header: t('Status'),
-        cell: ({ row }) => <StatusBadge state={row.original.state} />,
+        cell: ({ row }) => (
+            <StatusBadge
+                state={row.original.state}
+                label={siteStateLabel(row.original)}
+            />
+        ),
     });
     const columns = columnHelper.columns([
         ...(full ? [statusColumn] : []),
@@ -637,7 +646,10 @@ export function DataTable({
                             />
                         }
                     />
-                    <StatusBadge state={site.state} />
+                    <StatusBadge
+                        state={site.state}
+                        label={siteStateLabel(site)}
+                    />
                 </div>
                 <TruncatedText label={t('URL')} content={site.url}>
                     <span className="w-full truncate font-mono text-xs text-muted-foreground">

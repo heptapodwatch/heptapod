@@ -285,6 +285,22 @@ final class DnsPersistence implements RunPersistence
         DB::table('dns_observations')->where('run_id', $runId)->where('claim_token', $claimToken)->whereNull('run_ended_at')->delete();
     }
 
+    public function purgeCheck(int $checkId, int $limit): int
+    {
+        $statements = [
+            'DELETE FROM dns_observations WHERE ctid = ANY(ARRAY(SELECT ctid FROM dns_observations WHERE check_id = ? AND run_ended_at IS NOT NULL LIMIT ?))',
+            'DELETE FROM dns_history_items WHERE ctid = ANY(ARRAY(SELECT ctid FROM dns_history_items WHERE check_id = ? AND run_ended_at IS NOT NULL ORDER BY run_id LIMIT ?))',
+        ];
+        foreach ($statements as $statement) {
+            $deleted = DB::delete($statement, [$checkId, $limit]);
+            if ($deleted > 0) {
+                return $deleted;
+            }
+        }
+
+        return 0;
+    }
+
     public function prunedTables(): array
     {
         return ['dns_observations', 'dns_history_items'];

@@ -382,6 +382,25 @@ final readonly class SitemapPersistence implements FindingsExportProvider, Findi
         return $diagnostics;
     }
 
+    public function purgeCheck(int $checkId, int $limit): int
+    {
+        // Findings before their snapshots, finished ones only.
+        $statements = [
+            'DELETE FROM sitemap_findings WHERE ctid = ANY(ARRAY(SELECT ctid FROM sitemap_findings
+                WHERE snapshot_id IN (SELECT id FROM sitemap_snapshots WHERE check_id = ? AND run_ended_at IS NOT NULL) LIMIT ?))',
+            'DELETE FROM sitemap_snapshots WHERE ctid = ANY(ARRAY(SELECT ctid FROM sitemap_snapshots
+                WHERE check_id = ? AND run_ended_at IS NOT NULL ORDER BY run_ended_at, run_id LIMIT ?))',
+        ];
+        foreach ($statements as $statement) {
+            $deleted = DB::delete($statement, [$checkId, $limit]);
+            if ($deleted > 0) {
+                return $deleted;
+            }
+        }
+
+        return 0;
+    }
+
     public function prunedTables(): array
     {
         return ['sitemap_snapshots', 'sitemap_findings'];

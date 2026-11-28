@@ -21,6 +21,11 @@ export const statusLabels: Record<SiteState, string> = {
     'check-error': 'Check error',
 };
 
+/** The label key of a site's state; a paused site whose deletion is pending shows Deleting…. */
+export function siteStateLabel(site: Heptapod.Data.Ui.SiteRowData): string {
+    return site.identity.deleting ? 'site.deleting' : statusLabels[site.state];
+}
+
 /** Mirrors SiteStatus::severity(); the generated type rejects any drift at compile time. */
 export const siteSeverity = {
     down: 0,
