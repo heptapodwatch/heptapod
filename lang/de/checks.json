@@ -205,7 +205,6 @@
     "runs.screen.allStates": "Alle Zustände",
     "Scheduled tasks are added through the API. Create a token in Settings → API tokens.": "Geplante Aufgaben werden über die API hinzugefügt. Erstellen Sie einen Token unter Einstellungen → API-Tokens.",
     "Scheduled tasks are added through the API. An Owner or Admin can add or change scheduled tasks.": "Geplante Aufgaben werden über die API hinzugefügt. Hinzufügen oder ändern kann sie, wer die Rolle Inhaber oder Admin hat.",
-    "Edit health check": "Anwendungszustand bearbeiten",
     "checks.strip.summary_one": "{{count}} Prüfung: {{states}}",
     "checks.strip.summary_other": "{{count}} Prüfungen: {{states}}",
     "Response time 24 h: no recorded values.": "Antwortzeit 24 h: keine Werte erfasst.",

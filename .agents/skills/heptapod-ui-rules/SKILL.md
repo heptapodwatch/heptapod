@@ -95,6 +95,7 @@ One summary: the state ring, the health headline and one meta line. While monito
 
 ## Forms
 
+- `SchemaFields` derives full-width lists and URLs, monospace URL entry, and syntax hints from field kinds and validation rules. Long check settings sheets declare groups in schema presentation and render them with `FormSection`.
 - One page, one form, one bar. Every inline field on a page is a draft of that page's one form, saved through `FormActions`. No per-section or per-card Save, no inline edit that applies at once, never a second bar (move the second form into a sheet). Read-only controls are not drafts: a preview picker (Who gets this) or a read-only step (Oh Dear import's Show plan) acts at once and saves nothing. A page that works only through sheets and dialogs has no bar.
 - Everything outside the form is a button that names its effect: "Change…" opens a SheetForm, delete opens a ConfirmDialog, one-shot actions act at once.
 - Choice controls, by case:

@@ -12,7 +12,7 @@ import {
     schemaFieldViews,
     addSiteFieldViews,
 } from '@/components/schema-fields';
-import { FormSecondaryAction } from '@/components/form-section';
+import { FormSecondaryAction, FormSection } from '@/components/form-section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
@@ -58,7 +58,7 @@ type SavedCheckSettingsProps = {
     /** Replaces the Configure button (the check header's More actions item). */
     trigger?: (open: () => void) => ReactNode;
     visibility?: { open: boolean; setOpen: (open: boolean) => void };
-    /** Read-only facts at the top of the sheet; without `can_update` the sheet shows only these. */
+    /** Content for members without `can_update`. */
     facts?: ReactNode;
 };
 
@@ -153,10 +153,7 @@ function DraftCheckSettingsSheet({
     );
 }
 
-/**
- * Opens a saved check's sheet at its top: the facts come first, and focusing the first field (or a fact's time tooltip)
- * would scroll past them on mobile.
- */
+/** Open at the top instead of scrolling to the first focusable control. */
 function focusSheetTitle(event: Event) {
     event.preventDefault();
     const title = (
@@ -211,7 +208,6 @@ function SavedCheckSettingsSheet({
     reloadOnly,
     triggerLabel,
     trigger,
-    facts,
     visibility,
 }: SavedCheckSettingsProps) {
     const { t } = useTranslation();
@@ -496,6 +492,56 @@ function SavedCheckSettingsSheet({
             setProbeMessage(null);
         }
     };
+    const schedule = (
+        <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+                <Label htmlFor="check-interval">{t('Check interval')}</Label>
+                <NumberField
+                    id="check-interval"
+                    min={1}
+                    max={60}
+                    required
+                    invalid={!!errors.frequency_value}
+                    describedBy="check-interval-error"
+                    value={scheduleValue === '' ? null : scheduleValue}
+                    onValueChange={(value) =>
+                        changeSchedule(value ?? '', scheduleUnit)
+                    }
+                />
+                <InputError
+                    id="check-interval-error"
+                    message={errors.frequency_value}
+                />
+            </div>
+            <div className="space-y-2">
+                <Label id="check-interval-unit-label">
+                    {t('Interval unit')}
+                </Label>
+                <RadioGroup
+                    id="check-interval-unit"
+                    aria-labelledby="check-interval-unit-label"
+                    {...fieldErrorProps(
+                        'check-interval-unit',
+                        errors.frequency_unit,
+                    )}
+                    value={scheduleUnit}
+                    onValueChange={(unit) =>
+                        changeSchedule(scheduleValue, unit)
+                    }
+                >
+                    <RadioGroupItem value="minute">
+                        {t('Minutes')}
+                    </RadioGroupItem>
+                    <RadioGroupItem value="hour">{t('Hours')}</RadioGroupItem>
+                    <RadioGroupItem value="day">{t('Days')}</RadioGroupItem>
+                </RadioGroup>
+                <InputError
+                    field="check-interval-unit"
+                    message={errors.frequency_unit}
+                />
+            </div>
+        </div>
+    );
     return (
         <>
             {trigger ? (
@@ -510,12 +556,10 @@ function SavedCheckSettingsSheet({
             )}
             <Sheet open={open} onOpenChange={changeOpen}>
                 <SheetForm
-                    title={t(isHealth ? 'Edit health check' : 'Check settings')}
+                    title={t('Check settings')}
                     description={t(check.label_key)}
                     onSubmit={submit}
-                    contentProps={
-                        facts ? { onOpenAutoFocus: focusSheetTitle } : undefined
-                    }
+                    contentProps={{ onOpenAutoFocus: focusSheetTitle }}
                     footer={
                         <>
                             <FormSecondaryAction
@@ -538,7 +582,6 @@ function SavedCheckSettingsSheet({
                         </>
                     }
                 >
-                    {facts}
                     {check.attention_reason && (
                         <Alert tone="warning">
                             <AlertTitle>{t('Needs attention')}</AlertTitle>
@@ -547,62 +590,13 @@ function SavedCheckSettingsSheet({
                             </AlertDescription>
                         </Alert>
                     )}
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                            <Label htmlFor="check-interval">
-                                {t('Check interval')}
-                            </Label>
-                            <NumberField
-                                id="check-interval"
-                                min={1}
-                                max={60}
-                                required
-                                invalid={!!errors.frequency_value}
-                                describedBy="check-interval-error"
-                                value={
-                                    scheduleValue === '' ? null : scheduleValue
-                                }
-                                onValueChange={(value) =>
-                                    changeSchedule(value ?? '', scheduleUnit)
-                                }
-                            />
-                            <InputError
-                                id="check-interval-error"
-                                message={errors.frequency_value}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label id="check-interval-unit-label">
-                                {t('Interval unit')}
-                            </Label>
-                            <RadioGroup
-                                id="check-interval-unit"
-                                aria-labelledby="check-interval-unit-label"
-                                {...fieldErrorProps(
-                                    'check-interval-unit',
-                                    errors.frequency_unit,
-                                )}
-                                value={scheduleUnit}
-                                onValueChange={(unit) =>
-                                    changeSchedule(scheduleValue, unit)
-                                }
-                            >
-                                <RadioGroupItem value="minute">
-                                    {t('Minutes')}
-                                </RadioGroupItem>
-                                <RadioGroupItem value="hour">
-                                    {t('Hours')}
-                                </RadioGroupItem>
-                                <RadioGroupItem value="day">
-                                    {t('Days')}
-                                </RadioGroupItem>
-                            </RadioGroup>
-                            <InputError
-                                field="check-interval-unit"
-                                message={errors.frequency_unit}
-                            />
-                        </div>
-                    </div>
+                    {fields.some((field) => field.group) ? (
+                        <FormSection title={t('Schedule')}>
+                            {schedule}
+                        </FormSection>
+                    ) : (
+                        schedule
+                    )}
                     <SchemaFields
                         schema={fields}
                         values={{ ...values, ...editedValues }}

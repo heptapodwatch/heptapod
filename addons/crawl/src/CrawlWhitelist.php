@@ -45,12 +45,12 @@ final class CrawlWhitelist
         return array_map(static fn (string $url): string => BrowserUrl::comparableRedacted(SecretRedactor::redact($url, $secrets, [$siteUrl])), $entries);
     }
 
-    public static function valid(mixed $entry): bool
+    public static function valid(mixed $entry, bool $allowLegacy = false): bool
     {
         if (! is_string($entry) || $entry === '' || $entry !== trim($entry) || strlen($entry) > 1024 || preg_match('/[\x00-\x1f\x7f]/', $entry) === 1) {
             return false;
         }
-        if (str_contains($entry, '*')) {
+        if ($allowLegacy || str_contains($entry, '*')) {
             return true;
         }
         try {

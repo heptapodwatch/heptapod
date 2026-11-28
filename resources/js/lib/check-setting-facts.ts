@@ -26,7 +26,12 @@ export function checkSettingFact(
     t: TFunction,
     format: Format,
 ): CheckSettingFact | null {
-    if (value === null || value === undefined || name === 'location')
+    if (
+        value === null ||
+        value === undefined ||
+        field.presentation?.hidden ||
+        name === 'location'
+    )
         return null;
     const display =
         field.type === 'secret'

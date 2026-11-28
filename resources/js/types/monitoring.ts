@@ -18,6 +18,8 @@ type FieldBase = {
     name: string;
     label: string;
     help?: string;
+    group?: string;
+    url?: boolean;
     required?: boolean;
     defaultValue?: number;
     disabled?: boolean;
@@ -26,7 +28,11 @@ type FieldBase = {
 export type FieldSchema = FieldBase &
     (
         | {
-              type: 'text' | 'secret' | 'cron' | 'toggle' | 'string-list';
+              type: 'text' | 'secret' | 'cron' | 'toggle';
+          }
+        | {
+              type: 'string-list';
+              urlPattern?: boolean;
           }
         | {
               type: 'object-list';

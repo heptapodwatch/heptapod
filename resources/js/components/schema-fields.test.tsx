@@ -35,6 +35,45 @@ test('add-site settings omit optional objects but reject required objects they c
     ).toThrow('Unsupported configuration field type object');
 });
 
+test('accepts typing another list entry without submitting blank lines', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+        <SchemaFields
+            schema={[{ name: 'urls', label: 'URLs', type: 'string-list' }]}
+            values={{ urls: ['https://example.com/one'] }}
+            onChange={onChange}
+        />,
+    );
+    const textbox = screen.getByRole('textbox', { name: 'URLs' });
+
+    fireEvent.change(textbox, {
+        target: { value: 'https://example.com/one\n' },
+    });
+    expect(textbox).toMatchObject({ value: 'https://example.com/one\n' });
+    expect(onChange).not.toHaveBeenCalled();
+
+    fireEvent.change(textbox, {
+        target: { value: 'https://example.com/one\n\nhttps://example.com/two' },
+    });
+    expect(onChange).toHaveBeenLastCalledWith('urls', [
+        'https://example.com/one',
+        'https://example.com/two',
+    ]);
+
+    rerender(
+        <SchemaFields
+            schema={[{ name: 'urls', label: 'URLs', type: 'string-list' }]}
+            values={{
+                urls: ['https://example.com/one', 'https://example.com/two'],
+            }}
+            onChange={onChange}
+        />,
+    );
+    expect(textbox).toMatchObject({
+        value: 'https://example.com/one\n\nhttps://example.com/two',
+    });
+});
+
 test('schema forms expose small enums as radios, preserve larger selects and submit the selected values', async () => {
     await i18n.changeLanguage('en');
     const onChange = vi.fn();

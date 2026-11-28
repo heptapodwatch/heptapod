@@ -41,8 +41,8 @@ use Uri\WhatWg\Url;
 final readonly class CrawlCollector
 {
     // Recollect cached crawls that lack observed-page coverage and declared discovery reasons.
-    // 12: retain oversized-start metadata even when no final URL is available.
-    private const int HTML_SCAN_VERSION = 12;
+    // 13: match normalized URL patterns using only * as a wildcard.
+    private const int HTML_SCAN_VERSION = 13;
 
     public function __construct(private OutboundHttp $http, private SiteCheckSettingsReader $settingsReader) {}
 
@@ -113,6 +113,7 @@ final readonly class CrawlCollector
                     return $next($message, $options);
                 }, 'crawl_start_redirect_policy');
                 $crawler = QueueCrawler::create($targetUrl, $clientConfig)
+                    ->scopePatterns([...$config['exclude_patterns'], ...$config['do_not_crawl_urls']], $config['force_crawl_urls'])
                     ->depth($config['max_depth'])->limit($config['max_pages'])
                     ->concurrency(Config::integer('heptapod.crawl.concurrency'))
                     ->timeLimit(max(1, (int) floor($context->deadline->getTimestampMs() / 1000 - microtime(true))))
@@ -122,8 +123,6 @@ final readonly class CrawlCollector
                         return CarbonImmutable::now()->greaterThanOrEqualTo($context->deadline);
                     })
                     ->maxResponseSizeInBytes(Config::integer('heptapod.crawl.max_response_bytes'))
-                    ->neverCrawl([...$config['exclude_patterns'], ...$config['do_not_crawl_urls']])
-                    ->alwaysCrawl($config['force_crawl_urls'])
                     ->shouldCrawl(static fn (string $url): bool => BrowserUrl::isSameSite($url, $targetUrl))
                     ->addObserver($observer)->fulfilledHandler(CrawlResponseHandler::class)->failedHandler(CrawlFailureHandler::class);
                 $parser = new CrawlUrlParser(Uri::new($targetUrl), new LinkUrlParser(resourceTypes: array_map(static fn (string $type): ResourceType => $type === 'og:image' ? ResourceType::OpenGraphImage : ResourceType::from($type), $config['types'])), $config['max_depth'], $config['check_include_external_links'] ? Config::integer('heptapod.crawl.max_status_urls') : 0, Config::integer('heptapod.crawl.max_status_urls'), $observer);

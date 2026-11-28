@@ -22,7 +22,7 @@ use Spatie\LaravelData\Optional;
 final readonly class FieldSchemas
 {
     /** Rules the server checks that JSON Schema cannot express; listed in `x-heptapod-server-rules`. */
-    private const array ServerOnlyRules = ['timezone', 'heptapod_cron_expression', 'crawl_whitelist_url'];
+    private const array ServerOnlyRules = ['timezone', 'heptapod_cron_expression', 'crawl_url_pattern'];
 
     public function __construct(private CheckRegistry $registry) {}
 

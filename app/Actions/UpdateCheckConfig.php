@@ -78,6 +78,9 @@ final readonly class UpdateCheckConfig
                 throw ValidationException::withMessages(['location' => __('api.unsupported_location')]);
             }
             $validated = $schema->validateConfig($config);
+            if ($brokenLinks instanceof BrokenLinkSettings) {
+                $validated = $brokenLinks->foldExcludedUrls($validated);
+            }
             $root = new Field(FieldType::Object, properties: $schema->fields);
             $previousTargets = $root->targetUrls($previous);
             foreach ($root->targetUrls($config) as $path => $url) {

@@ -10313,16 +10313,22 @@
                                                 "default": [],
                                                 "items": {
                                                     "maxLength": 1024,
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "x-heptapod-server-rules": [
+                                                        "crawl_url_pattern"
+                                                    ]
                                                 },
-                                                "maxItems": 1000,
+                                                "maxItems": 2000,
                                                 "type": "array"
                                             },
                                             "exclude_patterns": {
                                                 "default": [],
                                                 "items": {
                                                     "maxLength": 1024,
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "x-heptapod-server-rules": [
+                                                        "crawl_url_pattern"
+                                                    ]
                                                 },
                                                 "maxItems": 1000,
                                                 "type": "array"
@@ -10337,7 +10343,10 @@
                                                 "default": [],
                                                 "items": {
                                                     "maxLength": 1024,
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "x-heptapod-server-rules": [
+                                                        "crawl_url_pattern"
+                                                    ]
                                                 },
                                                 "maxItems": 1000,
                                                 "type": "array"
@@ -10403,7 +10412,7 @@
                                                     "maxLength": 1024,
                                                     "type": "string",
                                                     "x-heptapod-server-rules": [
-                                                        "crawl_whitelist_url"
+                                                        "crawl_url_pattern"
                                                     ]
                                                 },
                                                 "maxItems": 1000,
@@ -12317,16 +12326,22 @@
                                                 "default": [],
                                                 "items": {
                                                     "maxLength": 1024,
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "x-heptapod-server-rules": [
+                                                        "crawl_url_pattern"
+                                                    ]
                                                 },
-                                                "maxItems": 1000,
+                                                "maxItems": 2000,
                                                 "type": "array"
                                             },
                                             "exclude_patterns": {
                                                 "default": [],
                                                 "items": {
                                                     "maxLength": 1024,
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "x-heptapod-server-rules": [
+                                                        "crawl_url_pattern"
+                                                    ]
                                                 },
                                                 "maxItems": 1000,
                                                 "type": "array"
@@ -12341,7 +12356,10 @@
                                                 "default": [],
                                                 "items": {
                                                     "maxLength": 1024,
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "x-heptapod-server-rules": [
+                                                        "crawl_url_pattern"
+                                                    ]
                                                 },
                                                 "maxItems": 1000,
                                                 "type": "array"
@@ -12407,7 +12425,7 @@
                                                     "maxLength": 1024,
                                                     "type": "string",
                                                     "x-heptapod-server-rules": [
-                                                        "crawl_whitelist_url"
+                                                        "crawl_url_pattern"
                                                     ]
                                                 },
                                                 "maxItems": 1000,

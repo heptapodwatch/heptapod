@@ -205,7 +205,6 @@
     "runs.screen.allStates": "All states",
     "Scheduled tasks are added through the API. Create a token in Settings → API tokens.": "Scheduled tasks are added through the API. Create a token in Settings → API tokens.",
     "Scheduled tasks are added through the API. An Owner or Admin can add or change scheduled tasks.": "Scheduled tasks are added through the API. An Owner or Admin can add or change scheduled tasks.",
-    "Edit health check": "Edit health check",
     "checks.strip.summary_one": "{{count}} check: {{states}}",
     "checks.strip.summary_other": "{{count}} checks: {{states}}",
     "Response time 24 h: no recorded values.": "Response time 24 h: no recorded values.",

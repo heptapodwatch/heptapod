@@ -188,15 +188,23 @@ it('rejects malformed whitelist URLs and patterns at the API boundary', function
         ->assertUnprocessable()->assertJsonValidationErrors('values.whitelisted_urls.0');
 })->with(['relative without wildcard' => 'not-absolute', 'invalid port' => 'https://client-a.example:abc/x', 'space inside host' => 'https://client a.example/path', 'surrounding whitespace' => ' https://client-a.example/path ', 'control inside pattern' => "*/news/\nitem"]);
 
-it('trims opted-in string lists and stores no blank patterns through monitor updates', function (): void {
+it('folds the deprecated exclude patterns into the canonical URL list on monitor updates', function (): void {
     $check = Check::factory()->create(['type' => CheckKey::BrokenLinks]);
-    $this->putJson('/api/monitors/'.$check->site_id, ['broken_links_check_settings' => [
-        'do_not_crawl_urls' => [''], 'force_crawl_urls' => [' ', ' /forced/* '],
-        'exclude_patterns' => [' /excluded/* ', ''], 'whitelisted_urls' => ['https://allowed.example/path', '*/news/sample?edition=*'],
-    ]])->assertOk()->assertJsonPath('broken_links_check_settings.do_not_crawl_urls', [])
+    $settings = fn (array $fields): array => ['broken_links_check_settings' => $fields];
+    $url = '/api/monitors/'.$check->site_id;
+    $this->putJson($url, $settings([
+        'do_not_crawl_urls' => [' */skip/* ', ''], 'force_crawl_urls' => [' ', ' /forced/* '],
+        'exclude_patterns' => [' */legacy/* ', '', '*/skip/*'], 'whitelisted_urls' => ['https://allowed.example/path', '*/news/sample?edition=*'],
+    ]))->assertOk()->assertJsonPath('broken_links_check_settings.do_not_crawl_urls', ['*/skip/*', '*/legacy/*'])
         ->assertJsonPath('broken_links_check_settings.force_crawl_urls', ['/forced/*'])
-        ->assertJsonPath('broken_links_check_settings.exclude_patterns', ['/excluded/*'])
+        ->assertJsonMissingPath('broken_links_check_settings.exclude_patterns')
         ->assertJsonPath('broken_links_check_settings.whitelisted_urls', ['https://allowed.example/path', '*/news/sample?edition=*']);
+    expect($check->refresh()->executionConfig())->not->toHaveKey('exclude_patterns');
+
+    $this->putJson($url, $settings(['exclude_patterns' => ['*/another/*']]))->assertOk()
+        ->assertJsonPath('broken_links_check_settings.do_not_crawl_urls', ['*/skip/*', '*/legacy/*', '*/another/*']);
+    $this->putJson($url, $settings(['do_not_crawl_urls' => []]))->assertOk()
+        ->assertJsonPath('broken_links_check_settings.do_not_crawl_urls', []);
     expect($check->refresh()->executionConfig()['do_not_crawl_urls'])->toBe([]);
 });
 

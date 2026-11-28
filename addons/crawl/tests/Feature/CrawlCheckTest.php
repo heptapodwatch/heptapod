@@ -250,6 +250,43 @@ it('completes a reachable small site despite broken links and resolves recovered
         ->and(DB::table('incidents')->where('check_id', $check->id)->whereNotNull('resolved_at')->count())->toBe(1);
 });
 
+it('treats query delimiters literally and keeps forced matches ahead of exclusions', function (): void {
+    $root = 'https://fixtures.test/pattern-scope';
+    $excluded = $root.'/archive/2026/11/item?edition=1';
+    $similar = $root.'/archive/2026/11/itemXedition=1';
+    $forcedImage = $root.'/archive/2026/11/image.png?edition=1';
+    $check = crawlCheck(url: $root, config: [
+        'respect_robots' => false,
+        'types' => ['link', 'image'],
+        'do_not_crawl_urls' => ['https://fixtures.test/pattern-scope/archive/*item?edition=1', $forcedImage],
+        'force_crawl_urls' => ['*/archive/*/image.png?edition=1'],
+    ]);
+    $fake = (new FakeOutboundHttp)
+        ->respondWith(crawlHttpRequest($root), new FetchResult(200, '<a href="'.$excluded.'">Excluded</a><a href="'.$similar.'">Similar</a><img src="'.$forcedImage.'">', ['Content-Type' => ['text/html']]))
+        ->respondWith(crawlHttpRequest($excluded), new FetchResult(200, 'Excluded'))
+        ->respondWith(crawlHttpRequest($similar), new FetchResult(200, 'Similar'))
+        ->respondWith(crawlHttpRequest($forcedImage), new FetchResult(200, 'Image'));
+    app()->instance(OutboundHttp::class, $fake);
+
+    recordCrawl(crawlContext($check));
+
+    $requested = array_map(static fn (array $call): string => $call['request']->url, $fake->requests);
+    expect($requested)->toContain($root, $similar, $forcedImage)->not->toContain($excluded);
+    expect($check->refresh()->latest_run_result)->toBe(CheckResult::Succeeded);
+});
+
+it('moves existing exclusions into crawl scope without losing patterns or other settings', function (): void {
+    $check = crawlCheck(config: ['do_not_crawl_urls' => ['*/first/*', '*/shared/*'], 'exclude_patterns' => ['*/shared/*', '*/legacy/*'], 'max_depth' => 1]);
+    $migration = require __DIR__.'/../../database/migrations/2026_11_28_081656_fold_exclude_patterns_into_crawl_scope.php';
+
+    $migration->up();
+
+    expect($check->refresh()->executionConfig())->toEqual([
+        'do_not_crawl_urls' => ['*/first/*', '*/shared/*', '*/legacy/*'],
+        'max_depth' => 1,
+    ]);
+});
+
 it('counts HTML link targets as pages and checks assets within a separate status budget', function (): void {
     $root = 'https://fixtures.test/page-budget';
     $child = 'https://fixtures.test/page-budget/child';
@@ -2317,7 +2354,7 @@ it('routes final staging payload byte overflow through the same typed storage-li
     $config = BrokenLinksCheck::configSchema()->defaults();
     $crawlSettings = array_diff_key($config, array_flip(['whitelisted_urls', 'new_links_only']));
     $runtimeSettings = array_diff_key(config('heptapod.crawl'), array_flip(['defaults', 'interval_seconds', 'lock_wait_seconds']));
-    $fingerprint = hash_hmac('sha256', json_encode([12, $crawlSettings, [], $runtimeSettings], JSON_THROW_ON_ERROR), Crypt::getKey());
+    $fingerprint = hash_hmac('sha256', json_encode([13, $crawlSettings, [], $runtimeSettings], JSON_THROW_ON_ERROR), Crypt::getKey());
     $targetFingerprint = hash_hmac('sha256', new Url($site->url)->toAsciiString(), Crypt::getKey());
     $artifact = new CrawlArtifact(
         $site->url, now()->toIso8601String(), $config, $urls, [], $targetFingerprint,
