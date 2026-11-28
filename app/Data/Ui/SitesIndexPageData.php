@@ -28,7 +28,7 @@ final class SitesIndexPageData extends Data
     public function __construct(
         public readonly InertiaDeferred|array $sites,
         public readonly InertiaDeferred|array $sites_history,
-        public readonly ClosureLazy|PaginationData $pagination,
+        public readonly ClosureLazy|PaginationData $sites_pagination,
         public readonly ClosureLazy|array $filters,
         public readonly string $sort,
         public readonly ClosureLazy|array $clients,

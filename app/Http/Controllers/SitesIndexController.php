@@ -88,8 +88,8 @@ final class SitesIndexController extends Controller
             return $index ??= $reader->index($user, $filters, $perPage);
         };
         $page = null;
-        $read = static function () use ($reader, $user, $filters, $perPage, $partial, $readIndex, &$page): LengthAwarePaginator {
-            return $page ??= $partial ? $reader->page($user, $filters, $perPage) : $readIndex()['page'];
+        $read = static function () use ($reader, $user, $filters, $partial, $readIndex, &$page): LengthAwarePaginator {
+            return $page ??= $partial ? $reader->page($user, $filters) : $readIndex()['page'];
         };
         $attention = null;
         $readAttention = static function () use ($reader, $user, $partial, $readIndex, &$attention): array {
@@ -107,7 +107,7 @@ final class SitesIndexController extends Controller
             sites: Lazy::inertiaDeferred(static fn (): array => $reader->rowPayloads($read()->getCollection(), includeHistory: false), 'list'),
             // A second group so the rows render before the uptime and sparkline history arrives.
             sites_history: Lazy::inertiaDeferred(static fn (): array => $reader->history($read()->getCollection()), 'history'),
-            pagination: Lazy::closure(static function () use ($read): PaginationData {
+            sites_pagination: Lazy::closure(static function () use ($read): PaginationData {
                 $page = $read();
 
                 return PaginationData::fromPaginator($page);

@@ -36,7 +36,7 @@ import {
 
 export default function ClientsIndex({
     clients,
-    pagination,
+    clients_pagination,
     filters,
     can_manage,
 }: Heptapod.Data.Ui.ClientsIndexPageData) {
@@ -68,13 +68,13 @@ export default function ClientsIndex({
             },
             {
                 ...searchOptions,
-                only: ['clients', 'pagination', 'filters'],
+                only: ['clients', 'clients_pagination', 'filters'],
                 preserveState: true,
                 preserveScroll: true,
             },
         );
     };
-    useLiveReload(['state.changed'], ['clients', 'pagination']);
+    useLiveReload(['state.changed'], ['clients', 'clients_pagination']);
     const buffered = useBufferedChanges(clients, (row) => row.client.id);
     const uptime = (summary: Heptapod.Data.Ui.DashboardTilesData) =>
         summary.uptime === null ? '—' : format.uptimePercentage(summary.uptime);
@@ -129,7 +129,7 @@ export default function ClientsIndex({
                 <PageHeader
                     title={t('Clients')}
                     description={t('pages.clients.description')}
-                    count={format.number(pagination.total)}
+                    count={format.number(clients_pagination.total)}
                     actions={
                         <>
                             {can_manage && (
@@ -280,13 +280,11 @@ export default function ClientsIndex({
                             }}
                         />
                     }
-                    footer={{
-                        count: t('{{count}} clients', {
-                            count: pagination.total,
-                            formattedCount: format.number(pagination.total),
-                        }),
-                        pagination,
-                    }}
+                    count={t('{{count}} clients', {
+                        count: clients_pagination.total,
+                        formattedCount: format.number(clients_pagination.total),
+                    })}
+                    pagination={clients_pagination}
                 />
             </PageContainer>
         </>

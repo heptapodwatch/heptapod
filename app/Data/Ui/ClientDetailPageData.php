@@ -21,7 +21,7 @@ final class ClientDetailPageData extends Data
         public readonly ClosureLazy|ClientData $client,
         public readonly ClosureLazy|DashboardTilesData $summary,
         public readonly ClosureLazy|array $sites,
-        public readonly ClosureLazy|PaginationData $pagination,
+        public readonly ClosureLazy|PaginationData $sites_pagination,
         public readonly ClosureLazy|array $incidents,
         public readonly ClosureLazy|bool $can_manage,
     ) {}

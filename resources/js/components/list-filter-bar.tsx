@@ -317,13 +317,14 @@ export function ListFilterBar({
     disabledReason,
     onClearFilters,
     status,
+    sort,
     onSubmit,
     count,
     optionNotices,
 }: Controls &
     Pick<
         ComponentProps<typeof FilterBar>,
-        'onClearFilters' | 'status' | 'onSubmit'
+        'onClearFilters' | 'status' | 'sort' | 'onSubmit'
     >) {
     const props = {
         filters,
@@ -352,6 +353,7 @@ export function ListFilterBar({
             filtersActive={filtersActive(filters)}
             onClearFilters={onClearFilters}
             status={status}
+            sort={sort}
             onSubmit={onSubmit}
             search={
                 kinds.some(({ kind }) => kind === 'search') && (

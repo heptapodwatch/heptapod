@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Queries;
 
 use Heptapod\Contracts\ListFilters;
+use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\ClientRowData;
@@ -13,17 +14,19 @@ use Heptapod\Data\Ui\IncidentData;
 use Heptapod\Data\Ui\SiteRowData;
 use Heptapod\Enums\SiteStatus;
 use Heptapod\Models\Client;
+use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 final readonly class ClientsReader
 {
-    public function __construct(private SitesReader $sites, private DashboardSummaryReader $summaries, private IncidentsReader $incidents, private SitePolicy $policy) {}
+    public function __construct(private SitesReader $sites, private DashboardSummaryReader $summaries, private IncidentsReader $incidents, private SitePolicy $policy, private ListPaging $paging) {}
 
     /** @return array{list<ClientRowData>, PaginationData} */
-    public function index(User $user, ListFilters $filters, int $perPage): array
+    public function index(User $user, ListFilters $filters): array
     {
         $archived = $filters->value('state') === 'archived';
         $clients = Client::forBrowsing($this->policy->visibleClients($user, $archived));
@@ -40,11 +43,12 @@ final readonly class ClientsReader
             $query->getEloquentBuilder()->getQuery()->orderByRaw('coalesce(attention.attention_rank, '.SiteStatus::quietRankLiteral().')');
         }
         $query->getEloquentBuilder()->getQuery()->orderBy(SitesReader::collated('clients.name'))->orderBy('clients.id');
-        $page = $query->paginate($perPage)->withQueryString();
+        $page = $this->paging->paginate($query->getEloquentBuilder(), 'clients', 'page');
         /** @var list<int> $ids */
         $ids = $page->getCollection()->pluck('id')->all();
         $summaries = $this->summaries->read($user, $ids, includeArchived: $archived, uptimeDays: 30);
         $rows = [];
+        /** @var Client $client */
         foreach ($page as $client) {
             $rows[] = new ClientRowData(ClientData::fromClient($client), $summaries[$client->id]);
         }
@@ -67,15 +71,17 @@ final readonly class ClientsReader
     }
 
     /** @return array{sites: list<SiteRowData>, pagination: PaginationData} */
-    public function sitePage(User $user, int $id, int $perPage): array
+    public function sitePage(User $user, int $id): array
     {
         $sites = $this->sites->projected($user, includeArchived: true);
         $sites->getQuery()->where('client_id', $id);
         $this->sites->orderByStatus($sites);
         $sites->getQuery()->orderBy('sites.id');
-        $page = $sites->paginate($perPage)->withQueryString();
+        $page = $this->paging->paginate($sites, 'client_sites', 'page');
+        /** @var Collection<int, Site> $rows */
+        $rows = $page->getCollection();
 
-        return ['sites' => $this->sites->rows($page->getCollection()),
+        return ['sites' => $this->sites->rows($rows),
             'pagination' => PaginationData::fromPaginator($page)];
     }
 

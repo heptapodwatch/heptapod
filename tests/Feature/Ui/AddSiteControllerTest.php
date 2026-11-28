@@ -92,7 +92,7 @@ it('ignores stale presentation selection for creation lists and authorized deep 
     $this->post('/sites', ['client_id' => $other->id, 'url' => 'https://second.fixtures.test'])->assertRedirect();
     $this->assertDatabaseHas('sites', ['client_id' => $other->id, 'url' => 'https://second.fixtures.test']);
     $response->assertSessionMissing('selected_client_id');
-    $this->get('/sites')->assertInertia(fn (Assert $page): Assert => $page->where('pagination.total', 2)->missing('sites'));
+    $this->get('/sites')->assertInertia(fn (Assert $page): Assert => $page->where('sites_pagination.total', 2)->missing('sites'));
     $this->get('/sites', ['X-Inertia-Partial-Component' => 'sites/index', 'X-Inertia-Partial-Data' => 'sites'])->assertInertia(fn (Assert $page): Assert => $page->has('sites', 2));
     $this->get('/sites/'.$check->site_id)->assertOk()->assertInertia(fn (Assert $page): Assert => $page->missing('outside_scope')->missing('scope_name')->where('site.id', $check->site_id));
     $this->get('/sites/'.$check->site_id.'/checks/'.$check->id)->assertOk()->assertInertia(fn (Assert $page): Assert => $page->missing('outside_scope')->where('check.id', $check->id));

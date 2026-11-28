@@ -20,7 +20,7 @@ final class IncidentsIndexPageData extends Data
      */
     public function __construct(
         public readonly ClosureLazy|array $incidents,
-        public readonly ClosureLazy|PaginationData $pagination,
+        public readonly ClosureLazy|PaginationData $incidents_pagination,
         public readonly ClosureLazy|array $filters,
         public readonly ClosureLazy|array $clients,
         public readonly ClosureLazy|IncidentSummaryData $summary,

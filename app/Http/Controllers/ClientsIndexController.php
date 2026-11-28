@@ -9,7 +9,6 @@ use Heptapod\Contracts\ListFilters;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\ClientsIndexPageData;
 use Heptapod\Enums\SiteStatus;
-use Heptapod\Http\ListPageSize;
 use Heptapod\Models\Client;
 use Heptapod\Models\User;
 use Heptapod\Queries\ClientsReader;
@@ -55,15 +54,14 @@ final class ClientsIndexController extends Controller
                 })],
         ], ['page' => ['sometimes', 'integer', 'min:1']], nested: 'filter');
 
-        $perPage = ListPageSize::resolve($request, 'clients');
         $page = null;
-        $read = static function () use ($reader, $user, $filters, $perPage, &$page): array {
-            return $page ??= $reader->index($user, $filters, $perPage);
+        $read = static function () use ($reader, $user, $filters, &$page): array {
+            return $page ??= $reader->index($user, $filters);
         };
 
         return Inertia::render('clients/index', new ClientsIndexPageData(
             clients: Lazy::closure(static fn (): array => $read()[0]),
-            pagination: Lazy::closure(static fn (): PaginationData => $read()[1]),
+            clients_pagination: Lazy::closure(static fn (): PaginationData => $read()[1]),
             filters: $filters->data(),
             can_manage: $user->hasAnyRole(['Owner', 'Admin']),
         ));

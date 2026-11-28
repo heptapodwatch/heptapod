@@ -14,7 +14,9 @@ import { cn } from '@/lib/utils';
 
 /**
  * The list toolbar. It owns the screen's one Clear filters, shown while any filter (search included) differs from its
- * default; `activeCount` counts only the active controls hidden in the mobile collapse.
+ * default; `activeCount` counts only the active controls hidden in the mobile collapse. `sort` is the list's Sort
+ * (ListSortSelect), beside the Filters button; it shows only while the list is cards, so the bar is a `list` container
+ * of the list's width.
  */
 export function FilterBar({
     search,
@@ -22,6 +24,7 @@ export function FilterBar({
     segmented,
     actions,
     status,
+    sort,
     onSubmit,
     activeCount,
     filtersActive,
@@ -32,6 +35,7 @@ export function FilterBar({
     segmented?: ReactNode;
     actions?: ReactNode;
     status?: ReactNode;
+    sort?: ReactNode;
     onSubmit?: ComponentProps<'form'>['onSubmit'];
     activeCount: number;
     filtersActive: boolean;
@@ -39,7 +43,7 @@ export function FilterBar({
 }) {
     const { t } = useTranslation();
     // Clear filters and the pending-changes prompt stay outside the mobile collapse, beside the Filters button.
-    const outside = filtersActive || Boolean(status);
+    const outside = filtersActive || Boolean(status) || Boolean(sort);
     const layout =
         'flex min-w-0 flex-col flex-wrap gap-2 md:flex-row md:items-center';
     const controls = (
@@ -95,6 +99,7 @@ export function FilterBar({
                         </div>
                     </CollapsiblePrimitive.Content>
                 </CollapsiblePrimitive.Root>
+                {sort}
                 {filtersActive && (
                     <Button
                         type="button"
@@ -114,11 +119,15 @@ export function FilterBar({
         </>
     );
     return onSubmit ? (
-        <form noValidate onSubmit={onSubmit} className={layout}>
+        <form
+            noValidate
+            onSubmit={onSubmit}
+            className={cn(layout, '@container/list')}
+        >
             {controls}
         </form>
     ) : (
-        <div className={layout}>{controls}</div>
+        <div className={cn(layout, '@container/list')}>{controls}</div>
     );
 }
 

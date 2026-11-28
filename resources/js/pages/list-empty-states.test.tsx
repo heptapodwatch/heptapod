@@ -1,3 +1,4 @@
+import { clientPagination } from '@/components/list-footer';
 import { listFilter } from '@/fixtures/list-filter';
 import {
     cleanup,
@@ -164,7 +165,7 @@ function incidents(values: {
             incidents={[]}
             clients={[]}
             filters={filters}
-            pagination={pagination}
+            incidents_pagination={pagination}
             summary={{
                 count: 0,
                 total_duration_seconds: 0,
@@ -220,7 +221,7 @@ function sites(
                     value: filters.attention ? '1' : null,
                 }),
             }}
-            pagination={pagination}
+            sites_pagination={pagination}
             tiles={tiles}
             needs_attention={[]}
             needs_attention_total={0}
@@ -372,7 +373,7 @@ function activity(values: { q?: string; check?: string; period?: string }) {
             }}
             expanded_id={null}
             expanded_events={[]}
-            expanded_pagination={null}
+            expanded_events_pagination={null}
         />,
     );
 }
@@ -462,10 +463,7 @@ function maintenance(changes: {
     render(
         <MaintenanceIndex
             windows={[]}
-            next_page={null}
-            previous_page={null}
-            total={0}
-            per_page={50}
+            windows_pagination={clientPagination(1, 50, 0)}
             filters={{
                 state: listFilter('segmented', 'Window state', {
                     default: 'all',

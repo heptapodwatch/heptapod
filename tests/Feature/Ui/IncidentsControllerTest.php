@@ -58,7 +58,7 @@ it('scopes incident list filters and detail timelines without exposing stored se
     $this->actingAs($user);
 
     $list = $this->get('/incidents?filter[status]=open&filter[cause]=errored&filter[check]=dns&filter[client_id]='.$client->id.'&filter[started_after]='.now()->subHour()->toDateString())->assertInertia(fn (Assert $page): Assert => $page
-        ->component('incidents/index')->has('incidents', 1)->where('incidents.0.id', $incident->id)->where('incidents.0.cause', 'errored')->where('pagination.total', 1)->has('clients', 1));
+        ->component('incidents/index')->has('incidents', 1)->where('incidents.0.id', $incident->id)->where('incidents.0.cause', 'errored')->where('incidents_pagination.total', 1)->has('clients', 1));
     $detail = $this->get('/incidents/'.$incident->id)->assertInertia(fn (Assert $page): Assert => $page
         ->component('incidents/show')->where('incident.id', $incident->id)->where('site.checks.0.open_incident_id', $incident->id)
         ->where('evidence.facts.error', '[redacted]')->where('alert_preview_available', false)
@@ -206,7 +206,7 @@ it('paginates incidents within a fixed query budget', function (int $count): voi
     $this->actingAs($user);
     DB::enableQueryLog();
     DB::flushQueryLog();
-    $this->get('/incidents?filter[status]=all')->assertInertia(fn (Assert $page): Assert => $page->has('incidents', 2)->where('pagination.total', 2));
+    $this->get('/incidents?filter[status]=all')->assertInertia(fn (Assert $page): Assert => $page->has('incidents', 2)->where('incidents_pagination.total', 2));
     $fewQueries = count(DB::getQueryLog());
     DB::disableQueryLog();
     Incident::factory()->count($count - 2)->for($check)->create(['resolved_at' => now()]);
@@ -216,7 +216,7 @@ it('paginates incidents within a fixed query budget', function (int $count): voi
     $response = $this->get('/incidents?filter[status]=all');
     $queries = DB::getQueryLog();
     DB::disableQueryLog();
-    $response->assertInertia(fn (Assert $page): Assert => $page->has('incidents', 50)->where('pagination.total', $count));
+    $response->assertInertia(fn (Assert $page): Assert => $page->has('incidents', 50)->where('incidents_pagination.total', $count));
     expect(count($queries))->toBeLessThanOrEqual($fewQueries, 'the incident list grew from '.$fewQueries.' to '.count($queries).' queries as incidents grew from 2 to '.$count)
         ->and(count(array_filter($queries, static fn (array $query): bool => str_contains($query['query'], 'percentile_cont(0.5)'))))->toBe(1);
     // Upper budget: page shell and shell health (25458fc44/0a385128), one incident page with batched
@@ -575,8 +575,11 @@ it('links each fixed incident filter to a URL that removes only that filter', fu
     $user = User::factory()->owner()->create(['timezone' => 'Europe/Berlin']);
     $filters = ['status' => 'all', 'cause' => 'errored', 'check' => 'dns',
         'started_after' => '2026-10-25', 'started_before' => '2026-10-26T04:15'];
+    // Two pages of matching incidents: a clear URL leaves the second page as well.
+    Incident::factory()->count(11)->for(Check::factory()->create(['type' => CheckKey::Dns]))
+        ->create(['cause' => IncidentCause::Errored, 'first_failure_at' => '2026-10-25T10:00:00Z', 'opened_at' => '2026-10-25T10:00:00Z', 'resolved_at' => '2026-10-25T10:05:00Z']);
 
-    $response = $this->actingAs($user)->get('/incidents?'.http_build_query(['filter' => $filters, 'page' => 2]))->assertOk();
+    $response = $this->actingAs($user)->get('/incidents?'.http_build_query(['filter' => $filters, 'page' => 2, 'per_page' => 10]))->assertOk();
     $response->assertInertia(fn (Assert $page): Assert => $page
         ->where('filters.started_after.display', '2026-10-25T00:00:00+02:00')
         ->where('filters.started_before.display', '2026-10-26T04:15:00+01:00'));

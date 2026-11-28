@@ -224,3 +224,4 @@ Admin-curated configuration lists (members, tokens, channels) show in full. Neve
 - Filters apply live (no submit button), push to browser history and survive Back.
 - An active select or combobox filter shows that it is active and has its own clear button; a search or segmented control shows its value.
 - Use `FilterChip` for an active filter that can be cleared but is not changed from the bar.
+- A sortable list sorts by its table headers; below the table breakpoint, where the cards have no headers, the FilterBar's `ListSortSelect` offers the same sorts and their reverse.

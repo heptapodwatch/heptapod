@@ -1,8 +1,8 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import {
     ServerFacts,
-    ServerGaugeCells,
+    ServerLoadValue,
     ServerStateBadge,
 } from '@/components/server-values';
 
@@ -63,20 +63,12 @@ function values(load5: number): Heptapod.Addons.Servers.Data.ServerValuesData {
 }
 
 function loadCell(load5: number) {
-    render(
-        <table>
-            <tbody>
-                <tr>
-                    <ServerGaugeCells server={server(load5)} />
-                </tr>
-            </tbody>
-        </table>,
-    );
-    const cell = screen.getAllByRole('cell')[2]!;
+    const { container } = render(<ServerLoadValue server={server(load5)} />);
     return {
-        text: cell.textContent,
-        coloured: cell.querySelector('.text-status-warn, .text-status-down')
-            ?.className,
+        text: container.textContent,
+        coloured: container.querySelector(
+            '.text-status-warn, .text-status-down',
+        )?.className,
     };
 }
 

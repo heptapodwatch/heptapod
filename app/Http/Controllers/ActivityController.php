@@ -81,7 +81,7 @@ final class ActivityController extends Controller
             filters: $filters->data(),
             expanded_id: $groupId,
             expanded_events: $expanded['events'] ?? [],
-            expanded_pagination: $expanded['pagination'] ?? null,
+            expanded_events_pagination: $expanded['pagination'] ?? null,
         ));
     }
 }

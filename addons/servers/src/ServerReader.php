@@ -60,10 +60,6 @@ final readonly class ServerReader
         // A leading minus on a numeric expression puts the highest first in the ascending order.
         $query->orderByRaw(self::SortKeys[ltrim($sort, '-')].($descending ? ' DESC' : ' ASC').' NULLS LAST')->orderByRaw('lower(name)')->orderBy('id');
         $page = $this->paging->paginate($query, 'servers');
-        // A page beyond the end (a server removed meanwhile, an old link) shows the last page.
-        if ($page->currentPage() > $page->lastPage()) {
-            $page = $this->paging->paginate($query, 'servers', $page->lastPage());
-        }
 
         return ['servers' => $this->rows($page->items()), 'pagination' => PaginationData::fromPaginator($page)];
     }

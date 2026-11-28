@@ -5,7 +5,6 @@ import {
     ListFilterBar,
     withFilterValues,
 } from '@/components/list-filter-bar';
-import { ListFooter } from '@/components/list-footer';
 import {
     useLiveSearch,
     type LiveSearchVisitOptions,
@@ -21,7 +20,8 @@ import { PendingChanges } from '@/components/pending-changes';
 import { Globe, Plus } from 'lucide-react';
 import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DataTable } from '@/components/data-table';
+import { ListSortSelect } from '@/components/list-table';
+import { SitesTable, useSiteSortColumns } from '@/components/sites-table';
 import { listResponsePoints } from '@/components/monitoring';
 import { EmptyState } from '@/components/empty-state';
 import { SitesAttentionBand } from '@/components/sites-attention-band';
@@ -29,11 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormat } from '@/hooks/use-format';
 import { SeverityBadge } from '@/components/security-advisory-list';
-import {
-    show as siteShow,
-    index as sitesIndex,
-    create as sitesCreate,
-} from '@/routes/sites';
+import { index as sitesIndex, create as sitesCreate } from '@/routes/sites';
 
 export default function SitesIndex({
     sites,
@@ -44,7 +40,7 @@ export default function SitesIndex({
     can_create,
     filters,
     sort: currentSort,
-    pagination,
+    sites_pagination,
     tiles,
     needs_attention,
     needs_attention_total,
@@ -56,7 +52,7 @@ export default function SitesIndex({
         [
             'sites',
             'sites_history',
-            'pagination',
+            'sites_pagination',
             'summary',
             'clients',
             'tags',
@@ -72,6 +68,7 @@ export default function SitesIndex({
     const listRef = useRef<HTMLDivElement>(null);
     const { t } = useTranslation();
     const format = useFormat();
+    const sortColumns = useSiteSortColumns();
     const { search, changeSearch, cancelPendingSearch } = useLiveSearch(
         filters.search?.value ?? '',
         (search, options) => visit({ search }, currentSort, options),
@@ -128,7 +125,7 @@ export default function SitesIndex({
                     ...new Set([
                         'sites',
                         'sites_history',
-                        'pagination',
+                        'sites_pagination',
                         'filters',
                         'sort',
                         ...pendingDeferred,
@@ -202,6 +199,13 @@ export default function SitesIndex({
                                 : visit(changes)
                         }
                         onClearFilters={() => visit(filterDefaults(filters))}
+                        sort={
+                            <ListSortSelect
+                                columns={Object.values(sortColumns)}
+                                sort={currentSort}
+                                onSort={(sort) => visit({}, sort)}
+                            />
+                        }
                     />
                 </div>
                 <Deferred
@@ -219,7 +223,7 @@ export default function SitesIndex({
                             sites={sites}
                             history={sites_history}
                             clients={clients}
-                            pagination={pagination}
+                            pagination={sites_pagination}
                             hasFilters={hasFilters}
                             canCreate={can_create}
                             sort={currentSort}
@@ -283,52 +287,41 @@ function SitesList({
                 count={buffered.pendingCount}
                 apply={() => flip(buffered.apply)}
             />
-            {buffered.rows.length ? (
-                <div ref={rowsRef} className="relative">
-                    <DataTable
-                        data={buffered.rows}
-                        clients={clients}
-                        full
-                        serverMode
-                        historyLoading={history === undefined}
-                        pageSize={pagination.per_page}
-                        sort={sort}
-                        onSort={(sort) => onSort(sort)}
-                        onSelect={(site) => router.visit(siteShow.url(site.id))}
-                        siteHref={(site) => siteShow.url(site.id)}
+            <SitesTable
+                ref={rowsRef}
+                sites={buffered.rows}
+                clients={clients}
+                historyLoading={history === undefined}
+                sort={sort}
+                onSort={onSort}
+                empty={
+                    <EmptyState
+                        icon={Globe}
+                        title={t('No sites monitored yet')}
+                        description={t('Add a site to start monitoring.')}
+                        action={
+                            canCreate && (
+                                <Button asChild>
+                                    <Link href={sitesCreate.url()}>
+                                        <Plus className="size-4" />
+                                        {t('Add site')}
+                                    </Link>
+                                </Button>
+                            )
+                        }
+                        filtered={{
+                            active: hasFilters,
+                            title: t('No matching sites'),
+                            description: t('Clear filters to see all sites.'),
+                        }}
                     />
-                </div>
-            ) : (
-                <EmptyState
-                    icon={Globe}
-                    title={t('No sites monitored yet')}
-                    description={t('Add a site to start monitoring.')}
-                    action={
-                        canCreate && (
-                            <Button asChild>
-                                <Link href={sitesCreate.url()}>
-                                    <Plus className="size-4" />
-                                    {t('Add site')}
-                                </Link>
-                            </Button>
-                        )
-                    }
-                    filtered={{
-                        active: hasFilters,
-                        title: t('No matching sites'),
-                        description: t('Clear filters to see all sites.'),
-                    }}
-                />
-            )}
-            {sites.length > 0 && (
-                <ListFooter
-                    count={t('{{count}} sites', {
-                        count: pagination.total,
-                        formattedCount: format.number(pagination.total),
-                    })}
-                    pagination={pagination}
-                />
-            )}
+                }
+                count={t('{{count}} sites', {
+                    count: pagination.total,
+                    formattedCount: format.number(pagination.total),
+                })}
+                pagination={pagination}
+            />
         </>
     );
 }

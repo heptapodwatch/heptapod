@@ -835,6 +835,6 @@
     "maintenance.timezone_hint.client": "Aus der Kunden-Zeitzone. Wählen Sie zum Überschreiben eine andere Zeitzone.",
     "maintenance.timezone_hint.viewer": "Ihre Zeitzone. Wählen Sie zum Überschreiben eine andere Zeitzone.",
     "list.sort.label": "Sortieren",
-    "list.sort.ascending": "{{column}}, aufsteigend",
-    "list.sort.descending": "{{column}}, absteigend"
+    "list.sort.ascending": "{{column}} (aufsteigend)",
+    "list.sort.descending": "{{column}} (absteigend)"
 }

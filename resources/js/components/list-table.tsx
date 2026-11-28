@@ -2,12 +2,12 @@ import { Link } from '@inertiajs/react';
 import type { KeyboardEventHandler, ReactNode, Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { openRowTarget, rowTargetClass } from '@/components/entity-link';
+import { FilterSelectTrigger } from '@/components/filter-bar';
 import { ListFooter } from '@/components/list-footer';
 import {
     Select,
     SelectContent,
     SelectItem,
-    SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
 import {
@@ -68,7 +68,7 @@ const alignClass = {
 
 /**
  * The one data table of a page list: a header per column (sortable ones through SortableTableHead), one row target per
- * row, cards below the breakpoint, the EmptyState when there are no rows and the shared ListFooter while the list has any.
+ * row, cards below the breakpoint, the page's empty state when there are no rows and the shared ListFooter while there are.
  */
 export function ListTable<Row>({
     rows,
@@ -84,7 +84,9 @@ export function ListTable<Row>({
     onSort,
     columnsMenu,
     empty,
-    footer,
+    count,
+    pagination,
+    footerExtra,
     ref,
     onKeyDown,
 }: {
@@ -107,8 +109,10 @@ export function ListTable<Row>({
     /** A column choice: its own trailing header cell, and above the cards. */
     columnsMenu?: ReactNode;
     empty: ReactNode;
-    /** The ListFooter's count; shown while the list has rows. */
-    footer: { count: ReactNode; pagination: Heptapod.Contracts.PaginationData };
+    /** The ListFooter's count, page and list action below the rows; an empty list shows only `empty`. */
+    count: ReactNode;
+    pagination?: Heptapod.Contracts.PaginationData;
+    footerExtra?: ReactNode;
     ref?: Ref<HTMLDivElement>;
     onKeyDown?: KeyboardEventHandler<HTMLDivElement>;
 }) {
@@ -251,10 +255,11 @@ export function ListTable<Row>({
                     </ul>
                 </div>
             )}
-            {footer.pagination.total > 0 && (
+            {rows.length > 0 && (
                 <ListFooter
-                    count={footer.count}
-                    pagination={footer.pagination}
+                    count={count}
+                    pagination={pagination}
+                    extra={footerExtra}
                 />
             )}
         </>
@@ -292,36 +297,38 @@ export function ListSortSelect({
     breakpoint?: ListBreakpoint;
 }) {
     const { t } = useTranslation();
-    const options = columns.flatMap(({ header, title, sort: columnSort }) => {
-        if (!columnSort) return [];
-        const first = columnSort.firstDirection ?? 'ascending';
-        const reversed = first === 'ascending' ? 'descending' : 'ascending';
-        const column = title ?? header;
-        const label = (direction: 'ascending' | 'descending') =>
-            direction === 'ascending'
-                ? t('list.sort.ascending', { column })
-                : t('list.sort.descending', { column });
-        return [
-            { value: columnSort.key, label: label(first) },
-            { value: `-${columnSort.key}`, label: label(reversed) },
-        ];
-    });
+    const sortOptions = columns.flatMap(
+        ({ header, title, sort: columnSort }) => {
+            if (!columnSort) return [];
+            const first = columnSort.firstDirection ?? 'ascending';
+            const reversed = first === 'ascending' ? 'descending' : 'ascending';
+            const column = title ?? header;
+            const label = (direction: 'ascending' | 'descending') =>
+                direction === 'ascending'
+                    ? t('list.sort.ascending', { column })
+                    : t('list.sort.descending', { column });
+            return [
+                { value: columnSort.key, label: label(first) },
+                { value: `-${columnSort.key}`, label: label(reversed) },
+            ];
+        },
+    );
     return (
         <div
             className={cn(
-                'w-full md:w-auto md:shrink-0',
+                'order-1 flex min-w-0 flex-1 md:order-none md:flex-none',
                 listBreakpoints[breakpoint].cards,
             )}
         >
             <Select value={sort} onValueChange={onSort}>
-                <SelectTrigger
+                <FilterSelectTrigger
                     aria-label={t('list.sort.label')}
-                    className="w-full md:w-48"
+                    onClear={null}
                 >
                     <SelectValue />
-                </SelectTrigger>
+                </FilterSelectTrigger>
                 <SelectContent>
-                    {options.map((option) => (
+                    {sortOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                             {option.label}
                         </SelectItem>

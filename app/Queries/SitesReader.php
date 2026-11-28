@@ -20,6 +20,7 @@ use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\CheckRunPresentationData;
 use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\ListFilters;
+use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\ListScore;
 use Heptapod\Contracts\ListScoresProvider;
 use Heptapod\Contracts\RunPhase;
@@ -71,7 +72,7 @@ final readonly class SitesReader
 {
     private const int AdvisoryPackageLimit = 100;
 
-    public function __construct(private SitePolicy $policy, private SiteState $states, private ListResponseReader $history, private UptimeReader $uptime, private CauseSummary $summaries, private CheckRegistry $registry, private CheckRunsReader $checkRuns, private CheckRunPresentations $presentations, private CheckFreshness $freshness, private NoResultFreshness $noResultFreshness) {}
+    public function __construct(private SitePolicy $policy, private SiteState $states, private ListResponseReader $history, private UptimeReader $uptime, private CauseSummary $summaries, private CheckRegistry $registry, private CheckRunsReader $checkRuns, private CheckRunPresentations $presentations, private CheckFreshness $freshness, private NoResultFreshness $noResultFreshness, private ListPaging $paging) {}
 
     /** @return Builder<Site> */
     public function projected(User $user, bool $includeArchived = false): Builder
@@ -205,9 +206,10 @@ final readonly class SitesReader
     }
 
     /** @return LengthAwarePaginator<int, Site> */
-    public function page(User $user, ListFilters $filters, int $perPage): LengthAwarePaginator
+    public function page(User $user, ListFilters $filters): LengthAwarePaginator
     {
-        return $this->pageQuery($this->projected($user), $filters)->paginate($perPage)->withQueryString();
+        /** @var LengthAwarePaginator<int, Site> */
+        return $this->paging->paginate($this->pageQuery($this->projected($user), $filters)->getEloquentBuilder(), 'sites', 'page');
     }
 
     /** @param Builder<Site> $query
@@ -304,7 +306,7 @@ final readonly class SitesReader
             'path' => LengthAwarePaginator::resolveCurrentPath(),
         ]);
 
-        return ['page' => $paginator->withQueryString(), 'attention' => $attentionSites,
+        return ['page' => $this->paging->withinRange($paginator->withQueryString()), 'attention' => $attentionSites,
             'summary' => new SiteListSummaryData($row->total, $attentionTotal, $counts['paused'], $row->clients), 'states' => $counts];
     }
 

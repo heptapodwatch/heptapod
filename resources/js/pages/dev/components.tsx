@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { ActionNoteSlot } from '@/components/action-note-slot';
 import { CardToolbarActions } from '@/components/card-toolbar-actions';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { DataTable } from '@/components/data-table';
+import { SitesTable } from '@/components/sites-table';
 import { EmptyState as SharedEmptyState } from '@/components/empty-state';
 import { EntityLink, rowTargetClass } from '@/components/entity-link';
 import { EvidenceBlock } from '@/components/evidence-block';
@@ -3216,12 +3216,18 @@ function LayoutPatternsSection() {
                 </div>
             </Spec>
 
-            <Spec label="DataTable (full={true})">
-                <DataTable
-                    data={gallerySites.slice(0, 4)}
+            <Spec label="SitesTable (on ListTable)">
+                <SitesTable
+                    sites={gallerySites.slice(0, 4)}
                     clients={clients}
-                    full
-                    onSelect={(site) => toast(site.name)}
+                    sort="status"
+                    onSort={(sort) => toast(sort)}
+                    empty={null}
+                    count={t('{{count}} sites', {
+                        count: 4,
+                        formattedCount: '4',
+                    })}
+                    pagination={clientPagination(1, 50, 4)}
                 />
             </Spec>
 

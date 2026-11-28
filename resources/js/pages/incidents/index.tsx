@@ -3,32 +3,18 @@ import {
     filtersActive,
     ListFilterBar,
 } from '@/components/list-filter-bar';
-import { ListFooter } from '@/components/list-footer';
+import { ListTable, type ListColumn } from '@/components/list-table';
 import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import { AbsoluteTime } from '@/components/absolute-time';
-import {
-    EntityLink,
-    openRowTarget,
-    rowTargetClass,
-} from '@/components/entity-link';
-import { cn } from '@/lib/utils';
+import { EntityLink } from '@/components/entity-link';
 import { SiteAvatar } from '@/components/site-avatar';
 import { CircleAlert } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
-import {
-    listCardPadding,
-    rowEmphasisClass,
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { rowEmphasisClass } from '@/components/ui/table';
 import { PageHeader } from '@/components/page-header';
 import { PageContainer } from '@/components/page-container';
 import { ExportButton, type ExportScope } from '@/components/export-sheet';
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import { StatusBadge } from '@/components/monitoring';
 import { PendingChanges } from '@/components/pending-changes';
@@ -52,13 +38,16 @@ export default function IncidentsIndex({
     incidents,
     clients,
     filters,
-    pagination,
+    incidents_pagination,
     summary,
 }: Heptapod.Data.Ui.IncidentsIndexPageData) {
     const { t } = useTranslation();
     const format = useFormat();
     const openCount = usePage().props.overallHealth?.open_incident_count;
-    useLiveReload(['state.changed'], ['incidents', 'pagination', 'summary']);
+    useLiveReload(
+        ['state.changed'],
+        ['incidents', 'incidents_pagination', 'summary'],
+    );
     const buffered = useBufferedChanges(incidents, (incident) => incident.id);
     const values = filterValues(filters);
     const apply = (changes: Record<string, string | null>) =>
@@ -83,7 +72,7 @@ export default function IncidentsIndex({
     );
     const unfiltered = { status: 'all', period: 'all' };
     const exportScopes: ExportScope[] = [
-        ...(pagination.last_page > 1
+        ...(incidents_pagination.last_page > 1
             ? [
                   {
                       key: 'page',
@@ -95,8 +84,8 @@ export default function IncidentsIndex({
                           exportIncidents.url(format, {
                               query: {
                                   filter: activeFilter,
-                                  page: pagination.current_page,
-                                  per_page: pagination.per_page,
+                                  page: incidents_pagination.current_page,
+                                  per_page: incidents_pagination.per_page,
                               },
                           }),
                   },
@@ -105,9 +94,9 @@ export default function IncidentsIndex({
         {
             key: 'matching',
             label: t('export.scope.matching_incidents', {
-                count: pagination.total,
+                count: incidents_pagination.total,
             }),
-            count: pagination.total,
+            count: incidents_pagination.total,
             csvLimited: true,
             url: (format) =>
                 exportIncidents.url(format, {
@@ -252,109 +241,69 @@ export default function IncidentsIndex({
                 count={buffered.pendingCount}
                 apply={buffered.apply}
             />
-            {buffered.rows.length === 0 ? (
-                <EmptyState
-                    icon={CircleAlert}
-                    title={t('No open incidents')}
-                    description={t(
-                        'An incident opens here when a site is down or a check fails.',
-                    )}
-                    filtered={{
-                        active: filtersActive(filters),
-                        title: t('No matching incidents'),
-                        description: t('Clear filters to see open incidents.'),
-                    }}
-                />
-            ) : (
-                <>
-                    <div className="hidden overflow-hidden rounded-lg border xl:block">
-                        <Table className="table-fixed">
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-24">
-                                        {t('State')}
-                                    </TableHead>
-                                    <TableHead className="w-[26%]">
-                                        {t('Site')}
-                                    </TableHead>
-                                    <TableHead className="w-28">
-                                        {t('Check')}
-                                    </TableHead>
-                                    <TableHead>{t('Cause')}</TableHead>
-                                    <TableHead className="w-40">
-                                        {t('Started')}
-                                    </TableHead>
-                                    <TableHead className="w-20 text-right">
-                                        {t('Duration')}
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {buffered.rows.map((incident) => (
-                                    <TableRow
-                                        key={incident.id}
-                                        className={cn(
-                                            rowTargetClass,
-                                            rowEmphasisClass(
-                                                incidentState(incident),
-                                            ),
-                                        )}
-                                        onClick={openRowTarget(
-                                            incidentShow.url(incident.id),
-                                        )}
-                                    >
-                                        {cells(incident, true).map(
-                                            (cell, index) => (
-                                                <TableCell
-                                                    key={index}
-                                                    className={
-                                                        index === 5
-                                                            ? 'text-right'
-                                                            : 'overflow-hidden'
-                                                    }
-                                                >
-                                                    {cell}
-                                                </TableCell>
-                                            ),
-                                        )}
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                    <div className="divide-y overflow-hidden rounded-lg border xl:hidden">
-                        {buffered.rows.map((incident) => (
-                            <Link
-                                key={incident.id}
-                                href={incidentShow.url(incident.id)}
-                                prefetch
-                                aria-label={incidentLabel(incident)}
-                                className={cn(
-                                    'grid min-w-0 gap-2',
-                                    listCardPadding,
-                                    rowTargetClass,
-                                    rowEmphasisClass(incidentState(incident)),
-                                )}
-                            >
-                                {cells(incident).map((cell, index) => (
-                                    <span key={index} className="min-w-0">
-                                        {cell}
-                                    </span>
-                                ))}
-                            </Link>
-                        ))}
-                    </div>
-                </>
-            )}
-            {pagination.total > 0 && (
-                <ListFooter
-                    count={t('{{count}} incidents', {
-                        count: pagination.total,
-                        formattedCount: format.number(pagination.total),
-                    })}
-                    pagination={pagination}
-                />
-            )}
+            <ListTable
+                rows={buffered.rows}
+                rowKey={(incident) => incident.id}
+                rowHref={(incident) => incidentShow.url(incident.id)}
+                rowClassName={(incident) =>
+                    rowEmphasisClass(incidentState(incident))
+                }
+                rowProps={(incident) => ({
+                    'aria-label': incidentLabel(incident),
+                })}
+                breakpoint="xl"
+                tableClassName="table-fixed"
+                columns={(
+                    [
+                        { id: 'state', header: t('State'), className: 'w-24' },
+                        { id: 'site', header: t('Site'), className: 'w-[26%]' },
+                        { id: 'check', header: t('Check'), className: 'w-28' },
+                        { id: 'cause', header: t('Cause') },
+                        {
+                            id: 'started',
+                            header: t('Started'),
+                            className: 'w-40',
+                        },
+                        {
+                            id: 'duration',
+                            header: t('Duration'),
+                            align: 'end',
+                            className: 'w-20',
+                        },
+                    ] satisfies Omit<ListColumn<Incident>, 'cell'>[]
+                ).map((column, index) => ({
+                    ...column,
+                    cell: (incident: Incident) => cells(incident, true)[index],
+                }))}
+                card={(incident) =>
+                    cells(incident).map((cell, index) => (
+                        <span key={index} className="min-w-0">
+                            {cell}
+                        </span>
+                    ))
+                }
+                empty={
+                    <EmptyState
+                        icon={CircleAlert}
+                        title={t('No open incidents')}
+                        description={t(
+                            'An incident opens here when a site is down or a check fails.',
+                        )}
+                        filtered={{
+                            active: filtersActive(filters),
+                            title: t('No matching incidents'),
+                            description: t(
+                                'Clear filters to see open incidents.',
+                            ),
+                        }}
+                    />
+                }
+                count={t('{{count}} incidents', {
+                    count: incidents_pagination.total,
+                    formattedCount: format.number(incidents_pagination.total),
+                })}
+                pagination={incidents_pagination}
+            />
         </PageContainer>
     );
 }

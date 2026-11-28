@@ -23,7 +23,7 @@ it('serves real monitoring DTOs without a deployment flag', function (): void {
 
     $this->actingAs($user)->get('/dashboard')->assertMovedPermanently()->assertRedirect('/sites');
     $this->get('/')->assertMovedPermanently()->assertRedirect('/sites');
-    $this->get('/sites')->assertInertia(fn (Assert $page): Assert => $page->component('sites/index')->where('tiles.sites', 74)->where('pagination.total', 74));
+    $this->get('/sites')->assertInertia(fn (Assert $page): Assert => $page->component('sites/index')->where('tiles.sites', 74)->where('sites_pagination.total', 74));
     $this->get('/sites/'.$site->id)->assertInertia(fn (Assert $page): Assert => $page->component('sites/show')->where('site.name', 'Backup'));
     $this->get('/sites/'.$site->id.'/checks/'.$check->id)->assertInertia(fn (Assert $page): Assert => $page->component('sites/show')->where('check.id', $check->id));
     $this->get('/sites/create')->assertInertia(fn (Assert $page): Assert => $page->component('sites/create')->has('checks'));

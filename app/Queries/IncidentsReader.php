@@ -145,9 +145,9 @@ final readonly class IncidentsReader
     }
 
     /** @return array{list<IncidentData>, PaginationData} */
-    public function index(User $user, ListFilters $filters, int $perPage): array
+    public function index(User $user, ListFilters $filters): array
     {
-        $page = $this->filtered($user, $filters)->paginate($perPage)->withQueryString();
+        $page = $this->paging->paginate($this->filtered($user, $filters)->getEloquentBuilder(), 'incidents', 'page');
         /** @var \Illuminate\Database\Eloquent\Collection<int, Incident> $incidents */
         $incidents = $page->getCollection();
 

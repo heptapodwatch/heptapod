@@ -541,8 +541,8 @@ it('sorts, filters and counts a site as pending while its accepted DNS recheck w
         ->where('tiles.pending', 1)->where('tiles.failed', 1)->where('tiles.ok', 1)
         ->where('summary.attention', 1)->where('needs_attention_total', 1)
         ->where('needs_attention.0.name', 'Bravo failed')->has('needs_attention', 1));
-    $this->get('/sites?filter[state]=pending')->assertInertia(fn (Assert $page): Assert => $page->where('pagination.total', 1));
-    $this->get('/sites?filter[attention]=1')->assertInertia(fn (Assert $page): Assert => $page->where('pagination.total', 1));
+    $this->get('/sites?filter[state]=pending')->assertInertia(fn (Assert $page): Assert => $page->where('sites_pagination.total', 1));
+    $this->get('/sites?filter[attention]=1')->assertInertia(fn (Assert $page): Assert => $page->where('sites_pagination.total', 1));
 
     // Partial reload: summary(), page(), attention() and the dashboard tiles each read the projection on their own.
     $partial = fn (string $query): array => $this->get('/sites'.$query, ['X-Inertia' => 'true', 'X-Inertia-Version' => $initial->inertiaPage()['version'],

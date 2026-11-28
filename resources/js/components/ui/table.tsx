@@ -163,17 +163,16 @@ function SortableTableHead({ sortKey, sort, onSort, firstDirection = "ascending"
 const sortIcons = { none: ArrowUpDown, ascending: ArrowUp, descending: ArrowDown } as const
 
 /**
- * The one control of every sortable table header (SortableTableHead, DataTable): quiet at rest, the label and icon turn
- * to the foreground colour on hover, the shared focus ring, the 32 px hit area. The icon names the column's sort: up or
- * down while sorted, the two-way arrow while not; `direction` null is a column that cannot sort (no icon). The caller's
- * className holds its alignment offsets.
+ * The control of SortableTableHead: quiet at rest, the label and icon turn to the foreground colour on hover, the shared
+ * focus ring, the 32 px hit area. The icon names the column's sort: up or down while sorted, the two-way arrow while not.
+ * The caller's className holds its alignment offsets.
  */
-function SortHeaderButton({ direction, className, children, ...props }: React.ComponentProps<typeof Button> & { direction: keyof typeof sortIcons | null }) {
-  const Icon = direction === null ? null : sortIcons[direction]
+function SortHeaderButton({ direction, className, children, ...props }: React.ComponentProps<typeof Button> & { direction: keyof typeof sortIcons }) {
+  const Icon = sortIcons[direction]
   return (
     <Button variant="header" className={cn("max-w-full gap-1 px-1 text-xs has-[>svg]:px-1", className)} {...props}>
       <span className="whitespace-nowrap">{children}</span>
-      {Icon && <Icon className="size-3" />}
+      <Icon className="size-3" />
     </Button>
   )
 }
@@ -236,7 +235,6 @@ export {
   TableFooter,
   TableHead,
   SortableTableHead,
-  SortHeaderButton,
   TableRow,
   TableCell,
   TableCaption,

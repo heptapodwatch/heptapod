@@ -835,6 +835,6 @@
     "maintenance.timezone_hint.client": "From the client zone. Pick another zone to override.",
     "maintenance.timezone_hint.viewer": "Your zone. Pick another zone to override.",
     "list.sort.label": "Sort",
-    "list.sort.ascending": "{{column}}, ascending",
-    "list.sort.descending": "{{column}}, descending"
+    "list.sort.ascending": "{{column}} (ascending)",
+    "list.sort.descending": "{{column}} (descending)"
 }

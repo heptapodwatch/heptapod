@@ -20,8 +20,10 @@ function listPageSize(TestResponse $response, string $list): int
     $props = $response->inertiaProps();
 
     return match ($list) {
-        'runs', 'maintenance' => $props['per_page'],
-        default => $props['pagination']['per_page'],
+        'runs' => $props['per_page'],
+        'maintenance' => $props['windows_pagination']['per_page'],
+        'client_sites' => $props['sites_pagination']['per_page'],
+        default => $props[$list.'_pagination']['per_page'],
     };
 }
 
@@ -64,8 +66,22 @@ it('limits each page to the chosen size and pages through the rest', function ()
     Site::factory()->count(12)->for($client)->create();
 
     $this->actingAs($owner)->get('/sites?per_page=10')->assertOk()
-        ->assertInertia(fn ($page) => $page->where('pagination.per_page', 10)->where('pagination.last_page', 2)
+        ->assertInertia(fn ($page) => $page->where('sites_pagination.per_page', 10)->where('sites_pagination.last_page', 2)
             ->loadDeferredProps(['list'], fn ($list) => $list->has('sites', 10)));
     $this->get('/sites?per_page=10&page=2')->assertInertia(fn ($page) => $page
         ->loadDeferredProps(['list'], fn ($list) => $list->has('sites', 2)));
+});
+
+it('redirects a page beyond the end to the last page, so the address names the page shown', function (): void {
+    $owner = User::factory()->owner()->create();
+    $client = Client::factory()->create();
+    Site::factory()->count(12)->for($client)->create();
+    $this->actingAs($owner);
+
+    // Sites counts its total in the first render; a client's sites and the incidents page through their query.
+    $this->get('/sites?per_page=10&page=5')->assertRedirect('/sites?per_page=10&page=2');
+    $this->get('/clients/'.$client->id.'?per_page=10&page=3')->assertRedirect('/clients/'.$client->id.'?per_page=10&page=2');
+    // An empty list has only its first page.
+    $this->get('/incidents?page=3')->assertRedirect('/incidents');
+    $this->get('/sites?per_page=10&page=2')->assertOk();
 });
