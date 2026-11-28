@@ -139,21 +139,16 @@ final readonly class SitesReader
     public static function collation(): string
     {
         $locale = app()->getLocale();
-        if (preg_match('/^[a-z]{2}(-[A-Z]{2})?$/D', $locale) !== 1) {
+        if (! in_array($locale, config()->array('app.supported_locales'), true)) {
             return 'en-x-icu';
         }
 
-        // Postgres may not have the exact region; try the language before the default collation.
-        return once(static function () use ($locale): string {
-            foreach (array_unique([$locale, substr($locale, 0, 2)]) as $tag) {
-                $name = $tag.'-x-icu';
-                if (DB::scalar('SELECT to_regcollation(?) IS NOT NULL', ['pg_catalog."'.$name.'"']) === true) {
-                    return $name;
-                }
-            }
+        $tag = config()->array('app.locale_collation_tags')[$locale] ?? $locale;
+        if (! is_string($tag) || preg_match('/^[a-z]{2}(-[A-Z]{2})?$/D', $tag) !== 1) {
+            throw new \LogicException('Invalid ICU collation tag for locale '.$locale.'.');
+        }
 
-            return 'en-x-icu';
-        });
+        return $tag.'-x-icu';
     }
 
     /**

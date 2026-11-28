@@ -86,6 +86,9 @@ return [
 
     'supported_locales' => ['en', 'de'],
 
+    // Override only if PostgreSQL lacks the locale's ICU collation; use the tag without the -x-icu suffix.
+    'locale_collation_tags' => [],
+
     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
 
     /*
